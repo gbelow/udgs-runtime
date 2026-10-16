@@ -1,4 +1,4 @@
-import { realDice } from "../components/utils";
+import { useThrower } from "./useDieCalls";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import {
   acceptAnswered,
@@ -51,6 +51,7 @@ export function useCombatActions() {
   const newId = () => crypto.randomUUID();
   const as = (press: PanelPress) => (command: Updater) => { if (gate(getPanelActor(useCombatStore.getState(), press))) updateState(command); };
   const update = as("open");
+  const thrower = useThrower();
   const asReactor = (reactorId: string, command: Updater) => { if (gate(reactorId)) updateState(command); };
 
   const declare = (draft: ActionDraft) => {
@@ -63,16 +64,16 @@ export function useCombatActions() {
   const amendReacted = (reactorId: string, fields: Partial<ActionDraft>) => asReactor(reactorId, amendReaction(reactorId, fields));
   const pass = (reactorId: string) => asReactor(reactorId, passReaction(reactorId));
   const cancel = () => update(cancelAction());
-  const roll = () => update(rollAnswered(realDice, newId));
-  const commit = () => update(commitAction(realDice, newId));
+  const roll = () => update(rollAnswered(thrower, newId));
+  const commit = () => update(commitAction(thrower, newId));
   const back = () => as("back")(withdrawLastReaction());
-  const skip = () => update(withdrawSpawnedAction(newId));
-  const pay = () => update(payAnswered(newId, realDice));
-  const accept = () => as("accept")(acceptAnswered(newId));
+  const skip = () => update(withdrawSpawnedAction(thrower, newId));
+  const pay = () => update(payAnswered(newId, thrower));
+  const accept = () => as("accept")(acceptAnswered(newId, thrower));
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
   const grapple = (on: boolean) => update(chooseGrapple(on));
-  const resolve = () => update(resolveAction(newId));
+  const resolve = () => update(resolveAction(newId, thrower));
   const improve = (name: SpellModification) => update(improveSpell(name));
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
   const grazeSave = () => update(saveGraze());

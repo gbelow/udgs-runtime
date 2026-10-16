@@ -5,23 +5,22 @@ import { getTestRollTerms } from '../../character/rules/spirit'
 import { sumTerms } from '../../character/rules/terms'
 import { getSituationalAfflictions } from './situational'
 import { resisted } from './test'
-import { isTestingStrike } from './strikeDeclaration'
-import { getCounterStrike } from './counter'
-
-// The ones an action may deliver a test to, who throw their die with the
-// action's own: a cast's or a held spell's target, and the target of a strike
-// declared with something that leaves one (rules/strikeDeclaration.ts) — a
-// counterattack's strike is rolled with the counterattack.
-export function getTestedIds(root: Action): string[] {
-  const strike = root.kind === 'strike' ? root : root.kind === 'counterattack' ? getCounterStrike(root, '') : null
-  const testing = root.kind === 'cast' || root.kind === 'fireAgain' || (strike !== null && isTestingStrike(strike))
-  return testing && root.targetId ? [root.targetId] : []
-}
 
 type TestedRow = Action['tested'][number]
 
+// Whether the delivery leaves `id` a test of their own, made as it lands: an
+// instant one with a test, not settled already, on someone in the fight.
+function leavesTest(state: SceneState, id: string, delivery: Delivery): boolean {
+  return delivery.degree === null && delivery.test !== null && delivery.effect.trigger === 'instant' && id in state.characters
+}
+
+// Whether the delivery, or anything that follows it, leaves `id` a test.
+export function owesTest(state: SceneState, id: string, delivery: Delivery): boolean {
+  return leavesTest(state, id, delivery) || delivery.then.some((next) => owesTest(state, id, next))
+}
+
 // play.tex "How skills work": an instant delivery that leaves its target a
-// test is tested as its action lands, with the die they threw with it, so
+// test is tested as its action lands, with the die they throw for it then, so
 // what it lands — an interruption above all — is known before anything the
 // action opens is offered. Their degree is turned against it (combat.tex
 // "Evasion"), and one they beat lands nothing. What follows a delivery is
@@ -29,7 +28,7 @@ type TestedRow = Action['tested'][number]
 function test(state: SceneState, id: string, delivery: Delivery, die: number | undefined, tested: TestedRow[]): Delivery | null {
   const then = delivery.then.flatMap((next) => test(state, id, next, die, tested) ?? [])
   const target = state.characters[id]
-  if (delivery.degree !== null || !delivery.test || delivery.effect.trigger !== 'instant' || die === undefined || !target) return { ...delivery, then }
+  if (!leavesTest(state, id, delivery) || !delivery.test || die === undefined || !target) return { ...delivery, then }
   const skillTerms = getTestRollTerms(target, delivery.test.roll, getSituationalAfflictions(state, id))
   const DLTerms = [{ label: delivery.effect.name, value: delivery.test.DL }]
   const result = resolveTest({ skill: sumTerms(skillTerms), DL: delivery.test.DL, explodes: false, scale: 'degrees', terms: { skill: skillTerms, DL: DLTerms } }, () => die)

@@ -33,7 +33,7 @@ describe('the preview', () => {
     const preview = getActionPanel(s).outcomes[0].outcome
     expect(preview.tier).not.toBeNull()
 
-    const after = resolveAction(newId)(s)
+    const after = resolveAction(newId, () => 5)(s)
     expect(after.characters.def.injuries.injuryLevel - s.characters.def.injuries.injuryLevel).toBe(preview.IL)
     expect(after.characters.def.injuries.bleed - s.characters.def.injuries.bleed).toBe(preview.bleed)
     expect(s.characters.def.resources.AP - after.characters.def.resources.AP).toBe(preview.apLoss)

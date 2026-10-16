@@ -3,10 +3,13 @@ import { without } from './utils'
 import type { Collection } from './campaign/types'
 
 // Who is at the screen. Picked from a list with no sign-in for now, so a
-// profile is who someone says they are.
+// profile is who someone says they are. `manualDice` is someone who rolls
+// their own dice at the table and types in what they show, where the screen
+// would otherwise roll for them.
 export const ProfileSchema = z.object({
   id: z.string(),
   name: z.string().default(''),
+  manualDice: z.boolean().default(false),
 })
 export type Profile = z.infer<typeof ProfileSchema>
 

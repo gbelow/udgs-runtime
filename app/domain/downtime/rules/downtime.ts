@@ -6,6 +6,7 @@ import type { Activity, Block, Downtime, Plan, SkillRef, TrainingTarget } from '
 import { PlanSchema, isTableTerm } from '../types'
 import type { Actor } from '../../profiles'
 import type { Test } from '../../play/test'
+import { getOpenCalls } from '../../play/calls'
 import { ABILITIES, ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, isFamilyKey } from '../../abilities'
 import { COST_OF_LIVING, DAYS_PER_XP, SELF_TRAINING_YIELD, TRAINER_RATES } from '../../tables'
 import { PROFICIENCY_TALENTS, SKILL_TALENTS, getTrainableRaisePrice, isSkillKey, type LearningPrice } from '../../character/rules/learning'
@@ -281,6 +282,8 @@ export function getDowntimeBar(t: Downtime, days: number): string | null {
   if (days < 1) return 'choose how many days'
   const bar = getTimeBar(state, 'downtime')
   if (bar) return bar
+  const open = getOpenCalls(t.downtime.calls).length
+  if (open > 0) return `waiting on ${open} ${open === 1 ? 'die' : 'dice'}`
   for (const party of getPlayingParties(state, 'downtime').map((pid) => state.parties[pid])) {
     if (isOutsideSettlement(state, party)) return `${party.name} is not in a settlement`
   }

@@ -13,8 +13,8 @@ import { findParty, type Party } from './party'
 
 // What a bot finds still declared and not committed that it will not take:
 // a follow-up an action opened for it is passed up, anything else abandoned.
-export function passUp(state: SceneState, open: RootAction, newId: () => string): SceneState {
-  return open.spawnedBy ? withdrawSpawnedAction(newId)(state) : cancelAction()(state)
+export function passUp(state: SceneState, open: RootAction, dice: Dice, newId: () => string): SceneState {
+  return open.spawnedBy ? withdrawSpawnedAction(dice, newId)(state) : cancelAction()(state)
 }
 
 // What the table does when no bot has a move, for the characters no bot
@@ -66,8 +66,8 @@ export function passRound(dice: Dice): (state: SceneState) => SceneState {
 
 function moveOpen(state: SceneState, open: RootAction, dice: Dice, newId: () => string): SceneState {
   if (open.step === 'react') return rollOrPay(dice, newId)(state)
-  if (open.step === 'post') return resolveAction(newId)(state)
-  return open.step === 'define' ? passUp(state, open, newId) : state
+  if (open.step === 'post') return resolveAction(newId, dice)(state)
+  return open.step === 'define' ? passUp(state, open, dice, newId) : state
 }
 
 function agree(state: SceneState, parties: readonly Party[]): SceneState {

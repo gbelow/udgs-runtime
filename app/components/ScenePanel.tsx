@@ -5,7 +5,7 @@ import { BoardPanel } from './BoardPanel';
 import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
 import { Button, SectionLabel, Tooltip } from './ui';
-import { ControlLocked } from './Locks';
+import { ControlLocked, Locked } from './Locks';
 import { useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useInjuryLens } from '../hooks/useinjuryLens';
@@ -13,6 +13,8 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useSustainedPanel } from '../hooks/useSustainedPanel';
 import { useBindingSurge } from '../hooks/useCharacterData';
+import { useSceneAnswer, useSceneCalls, useSceneCancel, useSceneDiceBar } from '../hooks/useSceneDice';
+import { DieCalls, RollButtons } from './DieCalls';
 
 // The scene's pieces of the run screen.
 
@@ -22,7 +24,9 @@ export function SceneStrip(){
   return(
     <div className='flex flex-col'>
       <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center px-2 py-1.5'>
-        <FightControls settings={settings} toggleSettings={() => setSettings(!settings)} />
+        <Locked bar={useSceneDiceBar()} className='contents'>
+          <FightControls settings={settings} toggleSettings={() => setSettings(!settings)} />
+        </Locked>
         <CharacterList />
       </div>
       {settings ? <FightSettings /> : null}
@@ -92,9 +96,12 @@ export function SceneActions(){
   const [heldOpen, setHeldOpen] = useState(false)
   const held = useHeldTests()
   const due = held.some((r) => !r.result)
+  const diceBar = useSceneDiceBar()
 
   return(
     <>
+      <SceneCalls />
+      <Locked bar={diceBar}>
       <ControlLocked>
         <TurnControl />
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -111,8 +118,17 @@ export function SceneActions(){
       ) : null}
       {heldOpen ? <HeldTestsPanel /> : null}
       <ActionPanel />
+      </Locked>
     </>
   )
+}
+
+// The dice the scene has called for, waiting on the table.
+function SceneCalls(){
+  const rows = useSceneCalls()
+  const answer = useSceneAnswer()
+  const cancel = useSceneCancel()
+  return <DieCalls rows={rows} answer={answer} cancel={cancel} />
 }
 
 // What the GM does to the scene that no character does, each starting a
@@ -229,9 +245,7 @@ function HeldTestsPanel(){
           <span className='text-muted'>{r.kind}{r.DL !== null && <> DL <span className='font-mono text-fg'>{r.DL}</span></>}</span>
           {
             !r.result ?
-            r.modes.map((mode) => (
-              <Button key={mode} size='xs' aria-label={`${r.kind} ${mode} ${r.name}`} onClick={() => rollHeld(r.id, r.kind, mode)}>{mode}</Button>
-            )) :
+            <RollButtons name={r.name} options={r.modes.map((mode) => ({ key: mode, label: `${r.kind} ${mode}` }))} onRoll={(mode, die) => rollHeld(r.id, r.kind, mode, die)} /> :
             <span className='text-xs text-muted'>{r.result}</span>
           }
         </div>

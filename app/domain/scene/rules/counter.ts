@@ -15,7 +15,7 @@ import { pickAim, pickStrikeDeclaration } from './declaration'
 // at the attacker it answers: rolled with that attack, paid for by the
 // reaction, and made under the reaction's recipe (rules/recipes.ts).
 export function getCounterStrike(reaction: ActionOf<'counterattack'>, id: string): StrikeAction {
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickStrikeDeclaration(reaction), ...pickAim(reaction), spawnedBy: reaction.id, recipe: reaction.recipe, step: 'post', roll: reaction.roll, targetDice: reaction.targetDice })
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickStrikeDeclaration(reaction), ...pickAim(reaction), spawnedBy: reaction.id, recipe: reaction.recipe, step: 'post', roll: reaction.roll })
 }
 
 // Where the counterattack's strike lands against the attack: ahead of it on

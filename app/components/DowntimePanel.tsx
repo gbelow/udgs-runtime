@@ -2,12 +2,13 @@
 import { useState } from 'react'
 import { Button, CollectionSelect, NumberInput, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
-import { useDowntime, useDowntimeCommands, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
+import { useDowntime, useDowntimeAnswer, useDowntimeCalls, useDowntimeCancel, useDowntimeCommands, useDowntimeDiceBar, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
 import { ACTIVITIES, isTableTerm, type Activity } from '../domain/downtime/types';
 import { useGmBar } from '../hooks/useControl';
 import { useCollectionFilter } from '../hooks/useCollections';
-import { LockedFor } from './Locks';
+import { Locked, LockedFor } from './Locks';
+import { DieCalls } from './DieCalls';
 import type { BlockView, DowntimeCharacterView, DowntimeTest } from '../domain/downtime/projections/downtime';
 
 const num = (value: string) => parseInt(value) || 0
@@ -52,13 +53,19 @@ export function DowntimeStrip(){
 export function DowntimeRoster(){
 
   const { days, characters } = useDowntime()
+  const calls = useDowntimeCalls()
+  const answer = useDowntimeAnswer()
+  const cancel = useDowntimeCancel()
 
   return(
     <RosterCatalog>
+      <DieCalls rows={calls} answer={answer} cancel={cancel} />
       {characters.length === 0 ? <span className='text-xs text-muted'>nobody on the roster: add characters</span> : null}
-      <div className='flex flex-col'>
-        {characters.map((c) => <RosterRow key={c.id} character={c} days={days} />)}
-      </div>
+      <Locked bar={useDowntimeDiceBar()}>
+        <div className='flex flex-col'>
+          {characters.map((c) => <RosterRow key={c.id} character={c} days={days} />)}
+        </div>
+      </Locked>
     </RosterCatalog>
   )
 }

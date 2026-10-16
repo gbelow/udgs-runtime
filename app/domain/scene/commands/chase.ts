@@ -1,9 +1,11 @@
 import type { CampaignCharacter } from '../../types'
-import type { Chase, ChaseDeclaration, ChaseLink, ChaseRoll, ChaseRun, SceneState, Updater } from '../types'
+import type { Chase, ChaseDeclaration, ChaseLink, ChaseRoll, ChaseRun, SceneResume, SceneState, Updater } from '../types'
 import type { ChaseCover, ChaseRole, ChaseTier, ChaseWay, CrossingSkill } from '../../lists'
 import { SKIRMISH_APPROACH_AP, SKIRMISH_SHOOT_AP, SURGES } from '../../tables'
-import { rollPercent, type Dice } from '../../play/dice'
-import { resolveTest, toRoll } from '../../play/test'
+import { rollPercent } from '../../play/dice'
+import { toRoll, type Test } from '../../play/test'
+import type { Caller, Throw } from '../../play/calls'
+import { calling } from './calling'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
 import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
@@ -67,7 +69,12 @@ function forEachMember(state: SceneState, partyId: string, update: (c: CampaignC
 // the rest of the group stay chased and decide again next round (the table's
 // rulings); "On a hit or crit, the pursuers follow some wrong track or give
 // up".
-function hide(state: SceneState, dice: Dice): SceneState {
+// The test a party makes in the chase, thrown by one of its members.
+function partyTest(caller: Caller, state: SceneState, id: string, partyId: string, label: string, test: Test) {
+  return caller.test({ id, roller: getMembers(state, partyId)[0]?.id ?? partyId, label, test })
+}
+
+function hide(state: SceneState, caller: Caller): SceneState {
   const chase = state.chase!
   const hiders = getChaseParties(state).filter((p) => chase.declarations[p]?.move === 'hide' && getEnemyChasers(state, p).length > 0)
   const close = (p: string) => getEnemyChasers(state, p).some((c) => getLink(state, c)!.tier === 'shooting')
@@ -81,7 +88,8 @@ function hide(state: SceneState, dice: Dice): SceneState {
     const modifier = Math.min(...group.map((p) => chase.declarations[p].hideModifier))
     const test = getHidingTest(s, group, modifier)
     if (!test) return s
-    const result = resolveTest({ skill: test.skill, DL: test.DL, explodes: false, scale: 'degrees' }, dice)
+    const result = partyTest(caller, s, `hide:${group.join(',')}`, group[0], 'hiding', { skill: test.skill, DL: test.DL, explodes: false, scale: 'degrees' })
+    if (!result) return s
     const hidden = result.degree === 'hit' || result.degree === 'critical'
     const roll: ChaseRoll = { kind: 'hide', parties: group, found: hidden ? null : test.worst, roll: toRoll(result) }
     const logged = withChase(s, { rolls: [...s.chase!.rolls, roll] })
@@ -103,7 +111,7 @@ function catchParty(state: SceneState, partyId: string): SceneState {
 // same way it goes that way, where one stands it goes the mover's way, and
 // where they pull opposite ways the faster decides, a draw by a coin at every
 // range (the table's ruling, over "A draw does not change distance tier").
-function runLink(state: SceneState, from: string, dice: Dice): ChaseRun {
+function runLink(state: SceneState, from: string, caller: Caller): ChaseRun {
   const chase = state.chase!
   const link = getLink(state, from)!
   const { tier } = link
@@ -115,7 +123,7 @@ function runLink(state: SceneState, from: string, dice: Dice): ChaseRun {
   const speeds = Object.fromEntries([...chasers, ...chased].map((c) => [c.id, getRunSpeed(c, tier)]))
   const base = { tier, speeds, chaser: getSideSpeed(chasers, tier), chased: getSideSpeed(chased, tier), skirmish: isSkirmishLink(state, from), contest: false, winner: null, coin: null }
   if (!chaserWay || !chasedWay || chaserWay === chasedWay) return { ...base, way: chaserWay ?? chasedWay }
-  const coin = base.chaser === base.chased ? rollPercent(dice) : null
+  const coin = base.chaser === base.chased ? rollPercent(caller.dice) : null
   const winner: ChaseRole = base.chaser > base.chased ? 'chaser' : base.chased > base.chaser ? 'chased' : coin! < 50 ? 'chaser' : 'chased'
   return { ...base, contest: true, winner, coin, way: winner === 'chaser' ? chaserWay : chasedWay }
 }
@@ -172,13 +180,14 @@ function payRound(state: SceneState, runs: [string, ChaseRun][]): SceneState {
 // combat.tex "Scouting": a party that scouted while running finds the place
 // it looked for — "A crit arrives at the place in the following round, a hit
 // puts it in shooting distance, and a graze or miss fails".
-function scout(state: SceneState, dice: Dice): SceneState {
+function scout(state: SceneState, caller: Caller): SceneState {
   const chase = state.chase!
   return getChaseParties(state).reduce((s: SceneState, p) => {
     const looking = chase.declarations[p]?.scout
     const skill = getScoutSkill(s, p)
     if (!looking || skill === null || s.chase!.fighting.includes(p)) return s
-    const result = resolveTest({ skill, DL: looking.DL, explodes: false, scale: 'degrees' }, dice)
+    const result = partyTest(caller, s, `scout:${p}`, p, 'scouting', { skill, DL: looking.DL, explodes: false, scale: 'degrees' })
+    if (!result) return s
     const tier = getFoundTier(result.degree)
     const rolls = [...s.chase!.rolls, { kind: 'scout' as const, parties: [p], found: null, roll: toRoll(result) }]
     const features = tier ? { ...s.chase!.features, [p]: { what: looking.what, tier, obstacle: looking.obstacle, reached: false } } : s.chase!.features
@@ -190,13 +199,14 @@ function scout(state: SceneState, dice: Dice): SceneState {
 // that runs is run — a skirmish's way waits for the round's end — whoever
 // ran pays for it, enemies running at each other at combat range meet in a
 // fight, and whoever scouted looks.
-export function resolveChase(dice: Dice): Updater {
-  return (state) => {
+export function resolveChase(thrown: Throw): Updater {
+  return calling({ kind: 'resolveChase' }, thrown, (caller) => (state) => {
     if (getResolveBar(state)) return state
     const active = getActiveLinks(state)
-    const hidden = hide(state, dice)
+    const hidden = hide(state, caller)
+    if (caller.waiting()) return state
     const live = active.filter((p) => !isHidingLink(state, p) && getActiveLinks(hidden).includes(p))
-    const runs: [string, ChaseRun][] = live.map((p) => [p, runLink(hidden, p, dice)])
+    const runs: [string, ChaseRun][] = live.map((p) => [p, runLink(hidden, p, caller)])
     const recorded = runs.reduce((links, [p, run]) => ({ ...links, [p]: { ...links[p], run } }), hidden.chase!.links)
     const moved = runs.reduce((links, [p, run]) => run.skirmish ? links : invert(state, applyWay(links, p, run.way), p), recorded)
     const paid = payRound(withChase(hidden, { links: recorded }), runs)
@@ -204,8 +214,17 @@ export function resolveChase(dice: Dice): Updater {
     const seconds = getRunSeconds(runs.filter(([p]) => pacing.includes(p)).map(([, r]) => r))
     const met = runs.filter(([p]) => isMeeting(hidden, p)).map(([p]) => hidden.chase!.links[p].chases)
     const caught = met.reduce(catchParty, withChase(paid, { links: moved, resolved: true, seconds }))
-    return scout(caught, dice)
-  }
+    return scout(caught, caller)
+  })
+}
+
+// The chase's command the scene's dice were called for by, carried on once
+// they are in; null for any other, so that a scene with no chase is not
+// reached.
+export function resumeChase(resume: SceneResume, thrown: Throw): Updater | null {
+  if (resume.kind === 'resolveChase') return resolveChase(thrown)
+  if (resume.kind === 'cross') return crossObstacle(resume.partyId, resume.skill, resume.DL, thrown)
+  return null
 }
 
 // The pursuing party goes after another party, at the tier the chain puts
@@ -296,17 +315,18 @@ export function mergeBack(partyId: string): Updater {
 
 // combat.tex "Obstacle": the party tries to cross the obstacle in front of
 // it, at the DL the table sets, on its lowest member's skill.
-export function crossObstacle(partyId: string, skill: CrossingSkill, DL: number, dice: Dice): Updater {
-  return (state) => {
+export function crossObstacle(partyId: string, skill: CrossingSkill, DL: number, thrown: Throw): Updater {
+  return calling({ kind: 'cross', partyId, skill, DL }, thrown, (caller) => (state) => {
     const value = getCrossingSkill(state, partyId, skill)
     if (getCrossBar(state, partyId) || value === null) return state
-    const result = resolveTest({ skill: value, DL, explodes: false, scale: 'degrees' }, dice)
+    const result = partyTest(caller, state, `cross:${partyId}`, partyId, `crossing (${skill})`, { skill: value, DL, explodes: false, scale: 'degrees' })
+    if (!result) return state
     const crossed = result.degree === 'hit' || result.degree === 'critical'
     const owner = getObstacleOwner(state, partyId)!
     const rolls = [...state.chase!.rolls, { kind: 'cross' as const, parties: [partyId], found: null, roll: toRoll(result) }]
     const features = crossed && owner === partyId ? dropKey(state.chase!.features, partyId) : state.chase!.features
     return withChase(state, { rolls, features })
-  }
+  })
 }
 
 // combat.tex "Scouting": a place the party ran towards this round is a tier

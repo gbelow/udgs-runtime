@@ -412,6 +412,21 @@ export async function renameProfile(id: string, name: string): Promise<ActionRes
   }
 }
 
+// Whether the profile at the screen rolls its own dice at the table.
+export async function setManualDice(manualDice: boolean): Promise<ActionResult<Profile>> {
+  try {
+    const id = await getProfileId();
+    const before = id ? await readProfile(id) : null;
+    if (!id || !before) return { ok: false, error: 'Pick a profile first.' };
+    const profile = { ...before, manualDice };
+    await redis.set(profileKey(id), profile);
+    return { ok: true, data: profile };
+  } catch (err) {
+    console.error('Error setting manual dice:', err);
+    return { ok: false, error: 'Failed to set manual dice.' };
+  }
+}
+
 
 // ── campaigns ───────────────────────────────────────────────────────────
 // A campaign is one Redis document naming its characters by id, indexed in a

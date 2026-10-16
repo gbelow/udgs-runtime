@@ -15,6 +15,7 @@ import * as charactersModule from './scene/commands/characters'
 import * as fightPartiesModule from './scene/commands/parties'
 import * as moraleModule from './scene/commands/morale'
 import * as socialModule from './scene/commands/social'
+import * as answerModule from './scene/commands/answer'
 import * as rosterModule from './campaign/commands/roster'
 import * as fightModule from './scene/commands/fight'
 import * as clockModule from './campaign/commands/clock'
@@ -45,7 +46,7 @@ import armorsCatalog from '../assets/armors.json'
 // A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule, ...answerModule }
 const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...journalModule, ...namesModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
@@ -241,6 +242,8 @@ const newId = () => 'issued'
 // fight in another phase are run on a frozen state one command along.
 const combatCases: Record<string, (s: SceneState) => unknown> = {
   nextRound: combatCommands.nextRound(() => 0),
+  answerScene: (s) => combatCommands.answerScene('contest:a', 4, true, () => 0, newId)({ ...s, resume: { kind: 'contest' }, calls: { 'contest:a': { id: 'contest:a', roller: 'a', label: 'cunning, for the turn', explodes: false, mode: 'normal', test: null, die: null, entered: false } } }),
+  cancelCall: (s) => combatCommands.cancelCall('contest:a', () => 0, newId)({ ...s, resume: { kind: 'contest' }, calls: { 'contest:a': { id: 'contest:a', roller: 'a', label: 'cunning, for the turn', explodes: false, mode: 'normal', test: null, die: null, entered: false } } }),
   continueRound: (s) => combatCommands.continueRound(() => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'rest' })),
   holdOn: (s) => combatCommands.holdOn('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
   letGo: (s) => combatCommands.letGo('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
@@ -262,7 +265,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   aimAtCell: (s) => combatCommands.aimAtCell({ q: 1, r: 0 })(deepFreeze(declaredStrike(s))),
   commitAction: (s) => combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declaredStrike(s)))),
   amendReaction: combatCommands.amendReaction('b', { location: 'head' }),
-  withdrawSpawnedAction: (s) => combatCommands.withdrawSpawnedAction(newId)(deepFreeze(spawnedFollow(s))),
+  withdrawSpawnedAction: (s) => combatCommands.withdrawSpawnedAction(() => 5, newId)(deepFreeze(spawnedFollow(s))),
   declareReaction: combatCommands.declareReaction('b', { kind: 'evasiveJump' }, newId),
   withdrawReaction: combatCommands.withdrawReaction('b'),
   withdrawLastReaction: combatCommands.withdrawLastReaction(),
@@ -273,12 +276,12 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
   chooseGrapple: (s) => combatCommands.chooseGrapple(true)(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
-  resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
+  resolveAction: (s) => combatCommands.resolveAction(newId, () => 5)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
   payAction: (s) => combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   payAnswered: (s) => combatCommands.payAnswered(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
-  acceptAnswered: (s) => combatCommands.acceptAnswered(newId)(deepFreeze(openSpellTest(s))),
+  acceptAnswered: (s) => combatCommands.acceptAnswered(newId, () => 5)(deepFreeze(openSpellTest(s))),
   rollOrPay: (s) => combatCommands.rollOrPay(() => 5, newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
-  acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId)(deepFreeze(openSpellTest(s))),
+  acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId, () => 5)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   improveSpell: (s) => combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))),
   refundImprovement: (s) => combatCommands.refundImprovement('enhance')(deepFreeze(combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))))),
@@ -390,6 +393,8 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   drink: ({ campaign }) => explorationCommands.drink('a')(campaign),
   takeItem: ({ campaign }) => explorationCommands.takeItem('a', 'vial')({ ...campaign, characters: { ...campaign.characters, a: { ...campaign.characters.a, held: [...campaign.characters.a.held, ItemSchema.parse({ id: 'vial', name: 'Simple Healing', type: 'medicine', amount: 2 })] } } }),
   passET: (t) => explorationCommands.passET(() => 0, () => 'q')({ ...t, exploration: { ...t.exploration, resting: ['a'] } }),
+  answerET: (t) => explorationCommands.answerET('group:p:g', 4, true, () => 0, () => 'q')({ ...t, exploration: { ...t.exploration, calls: { 'group:p:g': { id: 'group:p:g', roller: 'b', label: 'travel', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
+  cancelETCall: (t) => explorationCommands.cancelETCall('group:p:g', () => 0, () => 'q')({ ...t, exploration: { ...t.exploration, calls: { 'group:p:g': { id: 'group:p:g', roller: 'b', label: 'travel', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
   toDowntime: (t) => explorationCommands.toDowntime('p')(t),
 }
 
@@ -442,7 +447,7 @@ function openSpellTest(s: SceneState): SceneState {
   const learned = { ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, spells: { ...s.characters.a.spells, 'telepathic-link': { method: 'intuitive' as const, practice: 0 } } } } }
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'telepathic-link' }, newId)(deepFreeze(learned)))
   const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declared))))
-  return combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 30, newId)(committed)))
+  return combatCommands.resolveAction(newId, () => 5)(deepFreeze(combatCommands.rollAction(() => 30, newId)(committed)))
 }
 
 // A's rest paid for, waiting to land, on a frozen state each step along.
@@ -616,7 +621,9 @@ const downtimeCases: Record<string, (t: Downtime) => unknown> = {
   setLearningGain: (t) => downtimeCommands.setLearningGain('a', 1, 2)(t),
   decideTraining: (t) => downtimeCommands.decideTraining('a', 'accepted')(t),
   dropBlock: (t) => downtimeCommands.dropBlock('a')(t),
-  passDays: (t) => downtimeCommands.passDays(2, () => 5)(t),
+  passDays: (t) => downtimeCommands.passDays(2)(t),
+  answerDowntime: (t) => downtimeCommands.answerDowntime('self:a', 4, true)({ ...t, downtime: { ...t.downtime, passing: 2, calls: { 'self:a': { id: 'self:a', roller: 'a', label: 'training alone', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
+  cancelDowntimeCall: (t) => downtimeCommands.cancelDowntimeCall('self:a')({ ...t, downtime: { ...t.downtime, passing: 2, calls: { 'self:a': { id: 'self:a', roller: 'a', label: 'training alone', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
   toExploration: (t) => downtimeCommands.toExploration('p')(t),
 }
 

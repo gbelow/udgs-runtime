@@ -24,7 +24,7 @@ import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
 import { getInterruptionOf } from './interruption'
 import { isKnockedDownByHook } from './grapple'
-import { findOpenRoot, getDrawnOpportunityAttacks, getReactionsTo } from './log'
+import { findOpenRoot, getAction, getAncestry, getDrawnOpportunityAttacks, getReactionsTo } from './log'
 import { getFleeStep } from './flee'
 
 // How a character crosses the board: what each kind of movement costs it,
@@ -378,12 +378,24 @@ export function getMoveOverride(state: SceneState, action: MoveAction): { step: 
 // combat.tex "Climbing": "An attack that interrupts the climber will require
 // them to make a climbing test with a -3 penalty to avoid falling on a miss"
 // instead of cancelling the climb — a fresh test for each attack, thrown with
-// the climb (`redos`) — the path step the first of them failed at, or null.
+// the climb (`redos`, thrown as each attack lands) — the path step the first
+// of them failed at, or null.
 function getClimbFailedAt(state: SceneState, action: MoveAction): number | null {
   if (action.movement !== 'climb' || isTrivialClimb(state, action)) return null
-  const failed = getDrawnOpportunityAttacks(state, action).find(({ spawned }, i) =>
-    spawned?.kind === 'strike' && spawned.step === 'done' && getInterruptionOf(spawned, action.actorId) !== 'none' && action.redos[i]?.degree === 'miss')
+  const failed = getDrawnOpportunityAttacks(state, action).find(({ reaction, spawned }) =>
+    spawned?.kind === 'strike' && spawned.step === 'done' && getInterruptionOf(spawned, action.actorId) !== 'none' && action.redos[reaction.id]?.degree === 'miss')
   return failed ? failed.reaction.at! - 1 : null
+}
+
+// combat.tex "Climbing": the climb a landing strike interrupts, which has its
+// climber test again, and the opportunity attack or preparation the strike was
+// opened by; null for any other landing.
+export function getInterruptedClimb(state: SceneState, landed: Action): { move: MoveAction; reactionId: string } | null {
+  if (landed.kind !== 'strike' || !landed.targetId || getInterruptionOf(landed, landed.targetId) === 'none') return null
+  const found = getAncestry(state, landed).find((a) => a.kind === 'opportunityAttack' || a.kind === 'prepared')
+  const move = found?.reactionTo ? getAction(state, found.reactionTo) : null
+  if (!found || move?.kind !== 'move' || move.movement !== 'climb' || move.actorId !== landed.targetId || isTrivialClimb(state, move)) return null
+  return { move, reactionId: found.id }
 }
 
 // The path as it will be walked and why it ends where it does: someone

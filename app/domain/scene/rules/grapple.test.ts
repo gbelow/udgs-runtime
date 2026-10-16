@@ -33,7 +33,7 @@ function grappling(): SceneState {
   }
   s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
   s = commitAction(() => 5, newId)(setTarget('b')(s))
-  return resolveAction(newId)(chooseGrapple(true)(rollAction(() => 50, newId)(s)))
+  return resolveAction(newId, () => 5)(chooseGrapple(true)(rollAction(() => 50, newId)(s)))
 }
 
 // The open action's test thrown to come out over its DL by exactly `over`.
@@ -72,7 +72,7 @@ describe('grapple', () => {
     s = declareAction('a', { kind: 'grapple', maneuver }, newId)(s)
     s = rollOver(commitAction(() => 5, newId)(setTarget('b')(s)), OVER[degree])
     s = chooseManeuver({ along: true, item: s.characters.b.held[0]?.id ?? '' })(s)
-    const after = resolveAction(newId)(s)
+    const after = resolveAction(newId, () => 5)(s)
     expect(after.binds).toEqual(s.binds)
     expect(after.floor).toEqual(s.floor)
     for (const id of ['a', 'b']) expect(after.characters[id].afflictions).toEqual(s.characters[id].afflictions)
@@ -83,7 +83,7 @@ describe('grapple', () => {
   it('leaves an immobile character nothing to declare but an escape', () => {
     let s = grappling()
     s = declareAction('a', { kind: 'grapple', maneuver: 'immobilize' }, newId)(s)
-    s = resolveAction(newId)(rollOver(commitAction(() => 5, newId)(setTarget('b')(s)), OVER.critical))
+    s = resolveAction(newId, () => 5)(rollOver(commitAction(() => 5, newId)(setTarget('b')(s)), OVER.critical))
     const open = getAvailableActions({ ...s, inTurnCharacter: 'b' }, 'b').filter((o) => o.available)
     expect(open.map((o) => o.draft)).toEqual([{ kind: 'grapple', maneuver: 'escape' }])
   })
@@ -92,7 +92,7 @@ describe('grapple', () => {
   it.each(DEGREES)('an escape at %s ends the grapple only on a critical or a hit', (degree) => {
     let s = grappling()
     s = declareAction('b', { kind: 'grapple', maneuver: 'escape' }, newId)(s)
-    s = resolveAction(newId)(rollOver(commitAction(() => 5, newId)(setTarget('a')(s)), OVER[degree]))
+    s = resolveAction(newId, () => 5)(rollOver(commitAction(() => 5, newId)(setTarget('a')(s)), OVER[degree]))
     expect(s.binds.length === 0).toBe(degree === 'critical' || degree === 'hit')
   })
 })

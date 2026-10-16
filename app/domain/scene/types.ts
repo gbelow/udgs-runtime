@@ -1,10 +1,11 @@
 import { z } from 'zod'
 import { AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from '../play/dice'
 import { TestRollSchema } from '../play/test'
+import { CallsSchema } from '../play/calls'
 import type { CampaignState } from '../campaign/types'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, InterruptionSchema } from '../types'
@@ -17,9 +18,11 @@ const str = z.string()
 export const TermSchema = z.object({ label: str, value: num }).strip()
 
 // What the die came to and what it meant, with the terms the skill and the DL
-// were added up from, written as it was thrown.
+// were added up from, written as it was thrown; `entered`, a die the player
+// typed in from the table.
 export const ActionRollSchema = z.object({
   die: num.default(0),
+  entered: z.boolean().optional(),
   DL: num.default(0),
   score: num.default(0), // die + skill + modifiers
   degree: DegreeSchema.default('miss'),
@@ -793,11 +796,10 @@ export const MoveActionSchema = z.object({
   // the held tests its mover had made in the round when it was committed, by
   // kind; null while it is still being declared, when the round's are read
   held: z.partialRecord(z.enum(HELD_TESTS), HeldRollSchema).nullable().default(null),
-  // combat.tex "Climbing": the test each opportunity attack drawn against
-  // the climb would have the climber make if it interrupted them, at a
-  // penalty, in the order the attacks are fought and thrown with the climb's
-  // own die
-  redos: z.array(ActionRollSchema).default([]),
+  // combat.tex "Climbing": the test an opportunity attack that interrupted
+  // the climb had the climber make, at a penalty, by the attack's reaction,
+  // thrown as the attack landed
+  redos: z.record(str, ActionRollSchema).default({}).catch({}),
   // combat.tex "Climbing": a graze the climber could not pay the doubled
   // price of gives up the climb, and falls
   gaveUp: z.boolean().default(false),
@@ -1381,7 +1383,7 @@ export type Contest = z.infer<typeof ContestSchema>
 // or forgone for another the same actor took; an answer the action it was made
 // to no longer triggered; a held action given up for a defense, broken by an
 // interruption, or failed for want of what it needs when it came to finish.
-export const WithdrawalReasonSchema = z.enum(['tookBack', 'replaced', 'passedUp', 'forgone', 'noLongerTriggered', 'givenUp', 'interrupted', 'failed'])
+export const WithdrawalReasonSchema = z.enum(['tookBack', 'replaced', 'passedUp', 'forgone', 'noLongerTriggered', 'givenUp', 'interrupted', 'failed', 'cancelledByGM'])
 export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>
 
 // What was withdrawn, as it stood, and when.
@@ -1496,7 +1498,32 @@ export const ChaseSchema = z.object({
 }).strip()
 export type Chase = z.infer<typeof ChaseSchema>
 
+// The command a scene's dice were called for by, carried on once the last of
+// them is in: the exchange's roll or payment, the turn contest, the round
+// change and its steps, a concentrating character's choice, the combat's end,
+// the chase's round.
+export const SceneResumeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('roll') }),
+  z.object({ kind: z.literal('pay') }),
+  z.object({ kind: z.literal('resolve') }),
+  z.object({ kind: z.literal('accept') }),
+  z.object({ kind: z.literal('withdrawSpawned') }),
+  z.object({ kind: z.literal('contest') }),
+  z.object({ kind: z.literal('nextRound') }),
+  z.object({ kind: z.literal('continueRound') }),
+  z.object({ kind: z.literal('holdOn'), id: str }),
+  z.object({ kind: z.literal('letGo'), id: str }),
+  z.object({ kind: z.literal('endCombat') }),
+  z.object({ kind: z.literal('resolveChase') }),
+  z.object({ kind: z.literal('cross'), partyId: str, skill: z.enum(CROSSING_SKILLS), DL: num }),
+])
+export type SceneResume = z.infer<typeof SceneResumeSchema>
+
 export const SceneStateSchema = z.object({
+  // the dice the scene has called for, waiting on the table, and the command
+  // that called them
+  calls: CallsSchema.default({}),
+  resume: SceneResumeSchema.nullable().default(null),
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
   activeCharacterId: z.string().nullable().default(null),
   // the parties the fight's characters are in, by id, in the order they

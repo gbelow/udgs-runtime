@@ -12,6 +12,7 @@ import { useCombatStore } from './useCombatStore'
 import { resetCombat } from '../domain/scene/commands/resetCombat'
 import type { CampaignInPlay } from '../domain/saves'
 import type { CampaignMembers, CharacterOwners } from '../domain/profiles'
+import { holdForDice } from '../domain/play/calls'
 
 // The data half is the domain's CampaignState, as with the combat store: the
 // roster out of any fight and the clock; beside it, what exploration and
@@ -45,6 +46,10 @@ type CampaignActions = {
 // onto those records, never into the campaign.
 export type CampaignStore = CampaignState & { exploration: ExplorationState; downtime: DowntimeState; file: CampaignFile; owners: CharacterOwners } & CampaignActions
 
+// What exploration and downtime called dice for waits on them (`holdForDice`),
+// and so does the scene, for whatever crosses into it.
+const called = (s: { exploration: ExplorationState; downtime: DowntimeState }) => [s.exploration.calls, s.downtime.calls]
+
 export const useCampaignStore = create<CampaignStore>((set, get) => ({
   ...CampaignStateSchema.parse({}),
   exploration: ExplorationStateSchema.parse({}),
@@ -61,10 +66,13 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
     useCombatStore.setState(resetCombat(useCombatStore.getState()))
   },
 
-  updateCampaignState: (updater) => set(updater),
+  updateCampaignState: (updater) => set((s) => holdForDice(called, s, { ...s, ...updater(s) })),
 
   updateTable: (updater) => {
-    const { campaign, fight } = updater({ campaign: get(), fight: useCombatStore.getState() })
+    const s = get()
+    const before = useCombatStore.getState()
+    const { campaign, fight } = updater({ campaign: s, fight: before })
+    if (holdForDice(called, s, { ...s, ...campaign }) === s || holdForDice((f) => [f.calls], before, fight) === before) return
     set(campaign)
     useCombatStore.setState(fight)
   },
@@ -72,13 +80,13 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
   updateExploration: (updater) => {
     const s = get()
     const { campaign, exploration } = updater({ campaign: s, exploration: s.exploration })
-    set({ ...campaign, exploration })
+    set(holdForDice(called, s, { ...s, ...campaign, exploration }))
   },
 
   updateDowntime: (updater) => {
     const s = get()
     const { campaign, downtime } = updater({ campaign: s, downtime: s.downtime })
-    set({ ...campaign, downtime })
+    set(holdForDice(called, s, { ...s, ...campaign, downtime }))
   },
 
   loadCharacter: (rawCharacter, into) =>
@@ -92,7 +100,7 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
   updateActiveCharacter: (updater) => {
     const id = get().activeCharacterId
     if (!id) return undefined
-    set(updateRosterCharacter(id, updater))
+    set((s) => holdForDice(called, s, { ...s, ...updateRosterCharacter(id, updater)(s) }))
     return get().characters[id]
   },
 }))

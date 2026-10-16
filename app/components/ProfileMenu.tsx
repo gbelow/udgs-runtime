@@ -24,7 +24,7 @@ export function ProfileLanding(){
 // The header's switch: the profile picked, renamed in place, and the others
 // to switch to.
 export function ProfileMenu(){
-  const { profile, profiles, pick, create, rename, nameBar, dev } = useProfile()
+  const { profile, profiles, pick, create, rename, setDice, nameBar, dev } = useProfile()
   const [open, setOpen] = useState(false)
 
   return (
@@ -39,6 +39,11 @@ export function ProfileMenu(){
             <div className='flex flex-col gap-1'>
               <SectionLabel>your name</SectionLabel>
               <TextInput key={profile.id} aria-label='profile name' defaultValue={profile.name} onBlur={(e) => rename(e.target.value)} />
+              <SectionLabel>dice</SectionLabel>
+              <div className='flex flex-row gap-1'>
+                <Button size='xs' selected={!profile.manualDice} onClick={() => setDice(false)}>rolled on screen</Button>
+                <Button size='xs' selected={profile.manualDice} onClick={() => setDice(true)}>my own dice</Button>
+              </div>
             </div>
           ) : null}
           <ProfileList profiles={profiles} current={profile?.id ?? null} pick={(id) => { pick(id); setOpen(false) }} />

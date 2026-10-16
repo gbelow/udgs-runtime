@@ -101,10 +101,8 @@ type StrikeModifier = {
   // what it does to the price: puts its own in place of the variation's, or
   // adds to it
   price: (ctx: StrikeContext) => { set: ActionCost } | { add: ActionCost }
-  // what it delivers along with the blow, once the die is known, and whether
-  // that leaves the target a test, whose die is thrown with the strike's
+  // what it delivers along with the blow, once the die is known
   riders: (ctx: StrikeContext) => Delivery[]
-  tested: boolean
 }
 
 const MARTIAL_SPIRIT = 'martial-spirit'
@@ -121,7 +119,6 @@ export const STRIKE_MODIFIERS: Record<StrikeModifierKey, StrikeModifier> = {
     },
     price: ({ attacker }) => ({ set: getActionCost(attacker, 'catch') }),
     riders: () => [],
-    tested: false,
   },
   // abilities.tex "Martial Spirit": spiritual strike along with a melee
   // attack, its price added to the attack's (the table's ruling: the
@@ -136,7 +133,6 @@ export const STRIKE_MODIFIERS: Record<StrikeModifierKey, StrikeModifier> = {
       return { add: { AP, STA } }
     },
     riders: ({ attacker, strike }) => (strike.targetId && strike.roll?.degree === 'hit' ? [produceSpiritAttack(attacker)] : []),
-    tested: true,
   },
 }
 
@@ -163,12 +159,6 @@ export function getStrikePrice(ctx: StrikeContext): { declared: ActionCost; labe
     const label = STRIKE_MODIFIERS[k].label
     return 'set' in change ? { ...price, declared: change.set, label } : { ...price, added: [...price.added, { label, ...change.add }] }
   }, { declared: { AP: variant.AP, STA: variant.STA }, label: null, added: [] })
-}
-
-// Whether the strike is declared with something that leaves its target a
-// test (rules/tested.ts).
-export function isTestingStrike(strike: StrikeAction): boolean {
-  return getDeclaredModifiers(strike).some((k) => STRIKE_MODIFIERS[k].tested)
 }
 
 // What the strike's modifiers deliver along with its blow.

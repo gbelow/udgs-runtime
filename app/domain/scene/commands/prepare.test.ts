@@ -141,7 +141,7 @@ function playOut(start: SceneState, face: number, until: (s: SceneState) => bool
   for (let i = 0; i < 40; i++) {
     const open = getOpenAction(s)
     if (!open || until(s)) return s
-    const next = [rollAction(() => face, newId), payAction(newId, () => face), resolveAction(newId), withdrawSpawnedAction(newId)].map((step) => step(s)).find((t) => t !== s)
+    const next = [rollAction(() => face, newId), payAction(newId, () => face), resolveAction(newId, () => 5), withdrawSpawnedAction(() => 5, newId)].map((step) => step(s)).find((t) => t !== s)
     if (!next) return s
     s = next
   }
@@ -203,7 +203,7 @@ describe('what must be performed', () => {
   // which here only the movement can bring.
   it('does not let the movement be skipped when the action would then have nobody in reach', () => {
     const s = atMovement(walkIntoIt(-3))
-    expect(withdrawSpawnedAction(newId)(s)).toBe(s)
+    expect(withdrawSpawnedAction(() => 5, newId)(s)).toBe(s)
   })
 
   // A mover who comes into sight already within reach needs no movement of the
@@ -220,7 +220,7 @@ describe('what must be performed', () => {
     const s = { ...cover, characters: { p: spearman('p'), m: fighter('m') }, board: { ...cover.board!, placements: { ...cover.board!.placements, m: { ...cover.board!.placements.p, cell: from } } } }
     const committed = commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [to] })(declareAction('m', { kind: 'move' }, newId)(prepareStrike(s, 'p', { event: 'sighted' }))))
     const opened = atMovement(committed)
-    const skipped = withdrawSpawnedAction(newId)(opened)
+    const skipped = withdrawSpawnedAction(() => 5, newId)(opened)
     expect(skipped).not.toBe(opened)
     expect(isPreparersMain(skipped)).toBe(true)
   })
@@ -229,7 +229,7 @@ describe('what must be performed', () => {
     let s = atMovement(walkIntoIt(-3))
     s = playOut(commitAction(() => MISS, newId)(stepsToward(-2)(s)), MISS, isPreparersMain)
     expect(isPreparersMain(s)).toBe(true)
-    expect(withdrawSpawnedAction(newId)(s)).toBe(s)
+    expect(withdrawSpawnedAction(() => 5, newId)(s)).toBe(s)
   })
 
   // An action nobody is in reach of cannot be performed, so it is passed up
@@ -238,7 +238,7 @@ describe('what must be performed', () => {
     let s = atMovement(walkIntoIt(-3))
     s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }] })(s)), MISS, isPreparersMain)
     expect(isPreparersMain(s)).toBe(true)
-    const passed = withdrawSpawnedAction(newId)(s)
+    const passed = withdrawSpawnedAction(() => 5, newId)(s)
     expect(passed).not.toBe(s)
     expect(getOpenAction(playOut(passed, MISS))).toBeNull()
   })
@@ -371,10 +371,10 @@ describe('preparing a defense for an ally', () => {
   it('lets one already on the line pass the movement up, and not one off it', () => {
     const reposition = (from: [number, number]) => { const start = thrust(from); return rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)) }
     const off = reposition([1, -3])
-    expect(withdrawSpawnedAction(newId)(off)).toBe(off)
+    expect(withdrawSpawnedAction(() => 5, newId)(off)).toBe(off)
     const on = reposition([1, -1])
     expect(isRepositioning(on)).toBe(true)
-    const passed = withdrawSpawnedAction(newId)(on)
+    const passed = withdrawSpawnedAction(() => 5, newId)(on)
     expect(backAtTheAttack(passed)).toBe(true)
     expect(getDLTerms(passed, getOpenAction(passed)!).map((t) => t.label)).toContain('cover')
   })

@@ -1,7 +1,7 @@
 import { SPELLS, isSpellKey } from '../../spells'
 import type { Action, AttackAction, CastAction, SceneState, ExplosionAction, FeintAction, FireAgainAction, QueuedTurn, RootAction, ThrowAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
-import { getSettled } from '../rules/settle'
+import { getOwedDice, getSettled } from '../rules/settle'
 import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
 import { getDefaultAim, isStoppedByGuard } from '../rules/attack'
 import { canPayOpened, getTargetIds, hasPostChoice } from '../rules/action'
@@ -30,6 +30,9 @@ import { landSocial } from './social'
 import { getHiddenFrom } from '../rules/stealth'
 import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
+import { getInterruptedClimb } from '../rules/move'
+import { getClimbRedoTest } from '../rules/attack'
+import type { Caller } from '../../play/calls'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -44,33 +47,61 @@ import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 // waiting on a declaration, an answer or a choice is left to it; one with
 // nothing left to choose lands once its attacks are fought. A follow-up
 // forgone for another its actor took is passed up. Once nothing is left on
-// it, the turn goes to whoever is due to flee.
-export function advance(state: SceneState, newId: () => string): SceneState {
+// it, the turn goes to whoever is due to flee. Nothing is carried on while a
+// die the command called for waits on the table.
+export function advance(state: SceneState, newId: () => string, caller: Caller): SceneState {
+  if (caller.waiting()) return state
   const top = getOpenAction(state)
   if (!top) {
     const finishing = releaseNextHeld(state)
     return finishing !== state ? finishing : handOverToFleers(handOverToCompelled(state))
   }
-  if (isForgone(state, top)) return advance(withdrawActions(state, [top.id], 'forgone'), newId)
+  if (isForgone(state, top)) return advance(withdrawActions(state, [top.id], 'forgone'), newId, caller)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
   if (opened !== state || hasPostChoice(state, top)) return opened
   // combat.tex "Concentration": the attacks an action held over drew are
   // fought; unless they came to nothing of it, it waits for the round to change
-  return top.holding && !isVoided(state, top) ? advance(parkHeld(state, top), newId) : land(state, top, newId)
+  return top.holding && !isVoided(state, top) ? advance(parkHeld(state, top), newId, caller) : land(state, top, newId, caller)
 }
 
 // The action's effect: settled as it stands, landed on everyone it
 // concerns, and closed, with the follow-ups it generates pushed over the
 // action beneath, and the fight carried on from there. Whoever it sends
-// fleeing flees once everything on the stack has been played out.
-export function land(state: SceneState, open: RootAction, newId: () => string): SceneState {
-  const settled = getSettled(state, open)
+// fleeing flees once everything on the stack has been played out. Whoever it
+// leaves a test throws its die now, and a climber it interrupts tests again;
+// it lands once those dice are in.
+export function land(state: SceneState, open: RootAction, newId: () => string, caller: Caller): SceneState {
+  const thrown = throwTargetDice(state, open, caller)
+  if (caller.waiting()) return state
+  const settled = getSettled(state, thrown)
   const resolved = { ...settled, results: getResults(state, settled) }
-  const landed = breakHeld(applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve'), resolved)
+  const redone = redoClimb(replaceActions(state, [resolved]), resolved, caller)
+  if (caller.waiting()) return state
+  const landed = breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved)
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
-  return advance(appendActions(landOnTable(fled, resolved), followUps), newId)
+  return advance(appendActions(landOnTable(fled, resolved), followUps), newId, caller)
+}
+
+// The die each one the action leaves a test throws for it, as it lands
+// (rules/tested.ts), and nobody else's.
+function throwTargetDice(state: SceneState, open: RootAction, caller: Caller): RootAction {
+  const owed = getOwedDice(state, open)
+  if (owed.length === 0) return open
+  const dice = owed.map((id) => [id, caller.die({ id: `target:${open.id}:${id}`, roller: id, label: `a test against the ${open.kind}` })] as const)
+  return { ...open, targetDice: { ...open.targetDice, ...Object.fromEntries(dice.flatMap(([id, die]) => (die === null ? [] : [[id, die]]))) } }
+}
+
+// combat.tex "Climbing": "An attack that interrupts the climber will require
+// them to make a climbing test with a -3 penalty to avoid falling on a miss" —
+// made as the attack lands, and written on the climb for its landing to read.
+function redoClimb(state: SceneState, landed: RootAction, caller: Caller): SceneState {
+  const climb = getInterruptedClimb(state, landed)
+  const test = climb && getClimbRedoTest(state, climb.move)
+  if (!climb || !test) return state
+  const roll = caller.test({ id: `redo:${climb.move.id}:${climb.reactionId}`, roller: climb.move.actorId, label: 'climb again: an attack interrupted the climb', test, mode: climb.move.mode })
+  return roll ? replaceActions(state, [{ ...climb.move, redos: { ...climb.move.redos, [climb.reactionId]: roll } }]) : state
 }
 
 // What a landed action leaves on the fight beyond its characters, board,

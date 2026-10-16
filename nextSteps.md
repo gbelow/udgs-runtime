@@ -9,8 +9,8 @@ Adding all game modes:
 
 # TO DO Priority
 
-- Current focus:
-Next Priority: general UI/ what are the screens
+Improve Chase UI/ playability
+Multiplayer
 
 
 # TO DO
@@ -137,19 +137,15 @@ poison
 - character ownership split
 - assets ownership
 - sync gameplay
+- make a player facing screen for them to choose to join a campaign
 
 
 ## issues
 - spell learning formula potentially wrong
 - cauterization burning damage using attack.ts
-- infection DL is in the survival chapter. it s based on current IL level and the  place s infection exposure.
 
 
 abilities that teach other abilities - magic theory, ferocity lv 4, 
-
-breakage is a game option, must be in a game options place
-party control is bad
-reduce deflection of lighter armors
 
 HOP calculation - lower deflections or make it based off of attack score, not score minus defense.
 
@@ -160,4 +156,3 @@ After that, in my recommended order:
 2. Campaign export and import as JSON. It's cheap, because the save format is already validated and copes with old or partial saves. It gives you a backup before campaigns get valuable.
 3. Homebrew entries. Your own catalog entries, stored in Redis and merged with the built-in ones whenever a catalog is read. This is the biggest of the four, because every catalog read has to merge both sources.
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
-

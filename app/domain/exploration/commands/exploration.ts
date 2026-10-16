@@ -3,13 +3,14 @@ import type { CampaignCharacter, Degree } from '../../types'
 import type { At, CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
 import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, StayResult, TestRoll } from '../types'
 import { CampSchema } from '../types'
-import { moded, rollPercent, type Dice } from '../../play/dice'
-import { getDegree, resolveTest, toRoll } from '../../play/test'
+import { rollPercent, type Dice } from '../../play/dice'
+import { getDegree } from '../../play/test'
+import { answerCall, getOpenCalls, makeCaller, toCallRoll, type CallResult, type CallSpec, type Throw } from '../../play/calls'
 import { getETResultLines } from '../projections/exploration'
 import { addExhaustion, addIL, gainHunger, gainThirst, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getPassBar, getRestExposure, getRestsToday, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest,
+  getPassBar, getRestExposure, isCancellableET, getRestsToday, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
@@ -30,6 +31,10 @@ import { BONE_SETTING_PER_DAY, getETTreatBar, getETTreatPlanBar, getETTreatTest,
 import { setWound } from '../../character/commands/wounds'
 import { ABILITIES } from '../../abilities'
 import { buyETImprovements, hasPlannedLimb, needsLimb, getETCastBar, getETCastExhaustion, getETCastTargets, getETCastTest, getETRestBonus, getETTargetTest, produceETCast } from '../rules/casting'
+
+// A test the ET makes: what its die came to, or null while the table has yet
+// to roll it.
+type Tester = (spec: CallSpec) => CallResult | null
 
 const onCharacter = (id: string, update: (c: CampaignCharacter) => CampaignCharacter): CampaignUpdater =>
   (state) => (getExplorationBar(state, id) ? state : updateRosterCharacter(id, update)(state))
@@ -100,15 +105,16 @@ export function toDowntime(partyId: string): ExplorationUpdater {
   }
 }
 
-// survival.tex "Exhaustion": the Will tests the coming ET opens with, rolled
-// once for everyone who plays it.
-function openET(t: Exploring, dice: Dice): Exploring {
+// survival.tex "Exhaustion": the Will tests the coming ET opens with, made
+// once by everyone who plays it.
+function openET(t: Exploring, test: Tester): Exploring {
   const state = t.campaign
   const rolls: Record<string, TestRoll> = {}
   for (const partyId of getPlayingParties(state, 'exploration')) {
     for (const id of getPartyPlayers(state, partyId)) {
-      const test = getExhaustionTest(state.characters[id])
-      if (test) rolls[id] = toRoll(resolveTest(test, dice))
+      const will = getExhaustionTest(state.characters[id])
+      const result = will ? test({ id: `will:${id}`, roller: id, label: 'Will against exhaustion', test: will }) : null
+      if (result) rolls[id] = toCallRoll(result)
     }
   }
   return { ...t, exploration: { ...t.exploration, opening: { rolls, decisions: {} } } }
@@ -195,7 +201,7 @@ function search(place: Place, group: Group, roll: TestRoll, meet: (e: CrawlEvent
 
 // One group's test, made by its roller, and what it leaves the camp and
 // where it takes the group. `start` is the camp as the ET found it.
-function goOn(state: CampaignState, partyId: string, start: Camp, camp: Camp, group: Group, going: string[], dice: Dice): Outcome {
+function goOn(state: CampaignState, partyId: string, groupId: string, start: Camp, camp: Camp, group: Group, going: string[], test: Tester, dice: Dice): Outcome {
   const party = state.parties[partyId]
   const place = getPlace(state, party)
   const stays = { camp, moves: null, events: [] }
@@ -207,9 +213,11 @@ function goOn(state: CampaignState, partyId: string, start: Camp, camp: Camp, gr
   // survival.tex "Lighting the fire": "done without a test if some items or
   // spells are present".
   if (group.kind === 'fire' && group.tool) return { ...stays, roll: null, note: 'lit with a tool', camp: landTask(group, 'hit', camp) }
-  const test = getGroupTest(state, partyId, group)
-  if (!test) return { ...stays, roll: null, note: 'nobody to roll' }
-  const roll = toRoll(resolveTest(test, moded(group.mode, dice)))
+  const groupTest = getGroupTest(state, partyId, group)
+  if (!groupTest || !group.roller) return { ...stays, roll: null, note: 'nobody to roll' }
+  const result = test({ id: `group:${partyId}:${groupId}`, roller: group.roller, label: group.kind, test: groupTest, mode: group.mode })
+  if (!result) return { ...stays, roll: null, note: '' }
+  const roll = toCallRoll(result)
   const meet = meeting(state, going, roll.score, getNightDL(state, party))
   if (group.kind === 'travel') return { camp, ...(place && party.at ? travel(party.at, place, group, roll, meet, dice) : { roll, note: '', moves: { at: null }, events: [] }) }
   if (group.kind === 'search' && place) return { camp, ...search(place, group, roll, meet, dice) }
@@ -237,14 +245,16 @@ const land = (out: CastET, id: string, step: (c: CampaignCharacter) => CampaignC
 // abilities.tex "Bone Setting": the medic's test, made once for the wound's
 // bearer, who rests the ET. A set wound heals by the degree's rate every day
 // from then on. "A crit does not spend the ET": the medic rests too.
-function treatOver(out: CastET, state: CampaignState, id: string, key: ETMedicineKey, plan: CastPlan, targets: string[], base: Omit<CastResult, 'roll' | 'note' | 'tests'>, dice: Dice) {
+function treatOver(out: CastET, state: CampaignState, id: string, key: ETMedicineKey, plan: CastPlan, targets: string[], base: Omit<CastResult, 'roll' | 'note' | 'tests'>, test: Tester) {
   const medic = state.characters[id]
   const bar = getETTreatBar(medic, key) ?? getETTreatPlanBar(targets.map((target) => state.characters[target]), plan)
   if (bar) {
     out.results.push({ ...base, roll: null, note: bar, tests: [] })
     return
   }
-  const roll = toRoll(resolveTest(getETTreatTest(medic, key), dice))
+  const result = test({ id: `treat:${id}`, roller: id, label: base.spell, test: getETTreatTest(medic, key) })
+  if (!result) return
+  const roll = toCallRoll(result)
   out.patients.push(...targets)
   if (isETSpared(key, roll.degree)) out.patients.push(id)
   else out.exhaustion[id] = 0
@@ -256,7 +266,7 @@ function treatOver(out: CastET, state: CampaignState, id: string, key: ETMedicin
 // that hits buys what was planned with its overflow and lands on whoever it
 // was aimed at, who make the test it leaves them. A caster forced to rest
 // rests instead, and one who cannot cast it is idle.
-function castOver(t: Exploring, partyId: string, players: string[], forced: (id: string) => boolean, dice: Dice): CastET {
+function castOver(t: Exploring, partyId: string, players: string[], forced: (id: string) => boolean, test: Tester): CastET {
   const state = t.campaign
   const name = (id: string) => getRosterName(state, id)
   const out: CastET = { exhaustion: {}, bonus: {}, landing: {}, patients: [], results: [] }
@@ -273,12 +283,12 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
       continue
     }
     if (isETMedicine(key)) {
-      treatOver(out, state, id, key, plan, targets, base, dice)
+      treatOver(out, state, id, key, plan, targets, base, test)
       continue
     }
     const bar = getETCastBar(caster, key)
-    const test = !bar && isSpellKey(key) ? getETCastTest(caster, key) : null
-    if (!test || !isSpellKey(key)) {
+    const castTest = !bar && isSpellKey(key) ? getETCastTest(caster, key) : null
+    if (!castTest || !isSpellKey(key)) {
       out.results.push({ ...base, roll: null, note: bar ?? 'no casting DL', tests: [] })
       continue
     }
@@ -286,16 +296,17 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
       out.results.push({ ...base, roll: null, note: 'none of their lost limbs at hand', tests: [] })
       continue
     }
-    const result = resolveTest(test, dice)
+    const result = test({ id: `cast:${id}`, roller: id, label: `cast ${base.spell}`, test: castTest })
+    if (!result) continue
     const bought = result.degree === 'hit' ? buyETImprovements(plan, result.HOP) : { effortless: false, enhance: 0 }
     out.exhaustion[id] = getETCastExhaustion(key, bought.effortless)
     if (result.degree !== 'hit') {
-      out.results.push({ ...base, roll: toRoll(result), note: 'no effect', tests: [] })
+      out.results.push({ ...base, roll: toCallRoll(result), note: 'no effect', tests: [] })
       continue
     }
     if (SPELLS[key].type === 'charged') {
       out.landing[id] = [...(out.landing[id] ?? []), chargeItem(key, {}, '', plan.item)]
-      out.results.push({ ...base, roll: toRoll(result), note: findCarriedItem(caster, plan.item)?.item.name ?? '', tests: [] })
+      out.results.push({ ...base, roll: toCallRoll(result), note: findCarriedItem(caster, plan.item)?.item.name ?? '', tests: [] })
       continue
     }
     // the limb put back is gone from the caster's hand
@@ -305,12 +316,13 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
     const tests: CastResult['tests'] = []
     for (const target of targets) {
       const theirs = getETTargetTest(caster, state.characters[target], key, plan.DL)
-      if (theirs) tests.push({ name: name(target), roll: toRoll(resolveTest(theirs, dice)) })
+      const resisted = theirs ? test({ id: `target:${id}:${target}`, roller: target, label: `against ${base.spell}`, test: theirs }) : null
+      if (resisted) tests.push({ name: name(target), roll: toCallRoll(resisted) })
       out.landing[target] = [...(out.landing[target] ?? []), deliverAll(deliveries)]
       out.bonus[target] = (out.bonus[target] ?? 0) + bonus
     }
     const improved = [bought.effortless ? 'effortless' : '', bought.enhance > 0 ? `enhanced x${bought.enhance}` : ''].filter(Boolean).join(', ')
-    out.results.push({ ...base, roll: toRoll(result), note: targets.length === 0 ? 'aimed at nobody' : improved, tests })
+    out.results.push({ ...base, roll: toCallRoll(result), note: targets.length === 0 ? 'aimed at nobody' : improved, tests })
   }
   return out
 }
@@ -320,7 +332,7 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
 // "Exhaustion": every ET but a rest adds +1 exhaustion. Every group that
 // travelled somewhere leaves as a party of its own, unless it was the whole
 // party, which leaves its camp behind instead.
-function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, newId: () => string): PartyET {
+function passParty(t: Exploring, partyId: string, opening: Opening, test: Tester, dice: Dice, newId: () => string): PartyET {
   const state = t.campaign
   const party = state.parties[partyId]
   const players = getPartyPlayers(state, partyId)
@@ -333,7 +345,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   const moves: { at: At | null; ids: string[] }[] = []
   const results: GroupResult[] = []
 
-  for (const group of Object.values(getGroups(t, partyId))) {
+  for (const [groupId, group] of Object.entries(getGroups(t, partyId))) {
     const members = group.members.filter((id) => players.includes(id))
     const forcedIn = members.filter(forced)
     const stayedFor = isAway(group.kind) ? forcedIn.filter((id) => opening.decisions[id] === 'stay') : []
@@ -344,7 +356,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
     const going = members.filter((id) => !forced(id))
     if (going.length === 0) continue
     for (const id of going) working[id] = group
-    const outcome = goOn(state, partyId, start, camp, group, going, dice)
+    const outcome = goOn(state, partyId, groupId, start, camp, group, going, test, dice)
     camp = outcome.camp
     if (outcome.moves) moves.push({ at: outcome.moves.at, ids: [...going, ...forcedIn.filter((id) => opening.decisions[id] === 'carry')] })
     results.push({ party: party.name, kind: group.kind, members: going.map(name), roll: outcome.roll, note: outcome.note, events: outcome.events })
@@ -353,7 +365,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   // survival.tex "Campfire": a fire burns its firewood, 1 ET of it per ET.
   if (start.fire) camp = { ...camp, firewood: Math.max(0, camp.firewood - 1), fire: camp.firewood > 1 }
 
-  const cast = castOver(t, partyId, players, forced, dice)
+  const cast = castOver(t, partyId, players, forced, test)
   const exposure = getRestExposure(t, partyId)
   const day = getDay(party.clock as number)
   let count: Record<string, number> = {}
@@ -416,23 +428,30 @@ function closeET(t: Exploring, opening: Opening, played: Omit<PartyET, 't'>): Ex
   const camps = Object.fromEntries(Object.entries(t.exploration.camps).filter(([pid]) => here(pid)))
   return {
     campaign: { ...t.campaign, out: [] },
-    exploration: { ...t.exploration, groups, camps, resting: [], casts: {}, opening: null, exhaustionRolls: opening.rolls, ...played },
+    exploration: { ...t.exploration, groups, camps, resting: [], casts: {}, opening: null, calls: {}, exhaustionRolls: opening.rolls, ...played },
   }
 }
 
 // survival.tex "Exploration Turn (ET)": the ET passes at once for every
-// party in play on a timeline, each on its own. The first press rolls the Will tests it opens with; if one
-// forces a rest on someone whose group goes away, the pass waits for the
-// table to decide what happens to them, and the next press plays it out.
-export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
+// party in play on a timeline, each on its own. It calls first for the Will
+// tests it opens with; if one forces a rest on someone whose group goes away,
+// the pass waits for the table to decide what happens to them, and the next
+// press goes on. Then it calls for the tests of its groups and casts, and for
+// those a cast that landed leaves its targets, and plays the ET out once every
+// die is in.
+export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
   return (t) => {
     if (getPassBar(t)) return t
-    const opened = t.exploration.opening ? t : openET(t, dice)
-    if (getPassBar(opened)) return opened
+    const caller = makeCaller(t.exploration.calls, thrown)
+    const dice = caller.dice
+    const waiting = (s: Exploring): Exploring => ({ ...s, exploration: { ...s.exploration, calls: caller.calls } })
+    const opened = t.exploration.opening ? t : openET(t, caller.test)
+    if (getOpenCalls(caller.calls).length > 0) return waiting(t)
+    if (getPassBar(opened)) return waiting(opened)
     const opening = opened.exploration.opening ?? { rolls: {}, decisions: {} }
     const played = getPlayingParties(opened.campaign, 'exploration').reduce<PartyET>((acc, partyId) => {
       const clock = acc.t.campaign.parties[partyId]?.clock ?? null
-      const next = passParty(acc.t, partyId, opening, dice, newId)
+      const next = passParty(acc.t, partyId, opening, caller.test, dice, newId)
       const lines = getETResultLines(next.results, next.castResults, next.stayResults)
       const t = lines.length === 0 ? next.t : { ...next.t, campaign: record({ kind: 'et', party: partyId, title: 'an ET', lines, clock })(next.t.campaign) }
       return {
@@ -442,7 +461,34 @@ export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
         stayResults: [...acc.stayResults, ...next.stayResults],
       }
     }, { t: opened, results: [], castResults: [], stayResults: [] })
+    if (getOpenCalls(caller.calls).length > 0) return waiting(opened)
     const { t: closing, ...results } = played
     return closeET(closing, opening, results)
+  }
+}
+
+// The GM's way out of a die nobody throws (the table's ruling): the group's
+// action or the cast it was called for is taken back — the group goes nowhere,
+// the caster casts nothing — and the ET goes on with the rest. Refused for a
+// die that answers nothing anyone planned, a Will test or a target's.
+export function cancelETCall(callId: string, thrown: Throw, newId: () => string): ExplorationUpdater {
+  return (t) => {
+    const [kind, ...rest] = callId.split(':')
+    if (!(callId in t.exploration.calls) || !isCancellableET(callId)) return t
+    const exploration = kind === 'group'
+      ? { ...t.exploration, groups: { ...t.exploration.groups, [rest[0]]: without(t.exploration.groups[rest[0]] ?? {}, rest[1]) } }
+      : { ...t.exploration, casts: without(t.exploration.casts, rest[0]) }
+    return passET(thrown, newId)({ ...t, exploration: { ...exploration, calls: without(exploration.calls, callId) } })
+  }
+}
+
+// A die for a test the ET called for, typed in from the table or rolled on
+// the screen; the last die called for plays the ET on.
+export function answerET(callId: string, die: number, entered: boolean, thrown: Throw, newId: () => string): ExplorationUpdater {
+  return (t) => {
+    const calls = answerCall(t.exploration.calls, callId, die, entered)
+    if (calls === t.exploration.calls) return t
+    const answered = { ...t, exploration: { ...t.exploration, calls } }
+    return getOpenCalls(calls).length > 0 ? answered : passET(thrown, newId)(answered)
   }
 }

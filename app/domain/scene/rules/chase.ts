@@ -1,3 +1,4 @@
+import { getDiceBar } from '../../play/calls'
 import type { CampaignCharacter } from '../../types'
 import type { Chase, ChaseDeclaration, ChaseLink, SceneState } from '../types'
 import type { Term } from '../../character/rules/terms'
@@ -266,6 +267,8 @@ function isSkirmishTier(tier: ChaseTier): boolean {
 export function getDeclareBar(state: SceneState, partyId: string, declaration: ChaseDeclaration): string | null {
   const chase = state.chase
   if (!chase) return 'there is no chase'
+  const dice = getDiceBar(state.calls)
+  if (dice) return dice
   if (state.round === 0) return 'press start combat to begin the first round'
   if (chase.resolved) return 'the round has been resolved'
   const first = getFightFirst(state)

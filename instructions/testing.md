@@ -150,6 +150,11 @@ click to what stands afterwards. It is admitted, under these terms.
   A chase is played with no board: three running from three, every button of the chase panel
   pressed in any order between exchanges (each closed one must be refused with the state left
   as it was), targets picked from the action panel's list since there are no tokens to click.
+  The same sessions are played once more at a table that rolls its own dice: every die a
+  command calls for waits, and is thrown, typed in or taken back by the GM as a press of
+  its own, in any order with everything else; the offers and the board must show closed
+  while a die waits, and every die called for a target's or a climber's test must be one
+  the landing reads.
   `FUZZ_SEEDS=n` runs n seeds of every session instead of the few that keep the suite quick.
   `FUZZ_REPORT=1` writes `reports/fuzz-coverage.md`, a table of every action in the catalogue and
   how far the sessions took it, as an artifact to read, never asserted on.

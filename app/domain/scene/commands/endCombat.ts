@@ -1,5 +1,6 @@
 import type { Updater } from '../types'
-import type { Dice } from '../../play/dice'
+import type { Throw } from '../../play/calls'
+import { calling } from './calling'
 import { leaveFight } from '../../character/commands/leaveFight'
 import { expireUsedAbilities } from '../../character/commands/abilities'
 import { getHeldActions } from '../rules/hold'
@@ -10,8 +11,8 @@ import { finishHeld } from './hold'
 // fight does to each (`leaveFight`), and the scene goes back to before its
 // first round with nothing the rounds held. What was held over finishes, in
 // the order of the cunning tests, for nothing. The log stays.
-export function endCombat(dice: Dice): Updater {
-  return (state) => {
+export function endCombat(thrown: Throw): Updater {
+  return calling({ kind: 'endCombat' }, thrown, (caller) => (state) => {
     if (getEndCombatBar(state)) return state
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, leaveFight(expireUsedAbilities(c))]))
     const ended = {
@@ -37,6 +38,6 @@ export function endCombat(dice: Dice): Updater {
       stealthTurns: [],
       pressure: [],
     }
-    return finishHeld(ended, getHeldActions(ended).map((h) => h.id), dice)
-  }
+    return finishHeld(ended, getHeldActions(ended).map((h) => h.id), caller)
+  })
 }

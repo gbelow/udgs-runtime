@@ -1,4 +1,5 @@
 import type { Dice } from '../domain/play/dice'
+import { toTable, type Throw } from '../domain/play/calls'
 import type { TerrainBrush } from '../domain/types'
 import { SceneStateSchema, type ActionDraft, type SceneState, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
@@ -13,7 +14,10 @@ import { useCampaignStore } from './useCampaignStore'
 
 // The board as a player works it, over the real combat store: a click goes
 // through `resolveClick`, the same reading of it the hook dispatches, and a button press is the
-// command its hook dispatches. Entropy is the one thing handed in.
+// command its hook dispatches. Entropy is the one thing handed in: `roll` is
+// the die, and `dice` whoever throws what a command calls for — the screen at
+// once, or, at a table that rolls its own (`table`), nobody until a die is
+// answered.
 
 const ids = () => {
   let n = 0
@@ -22,8 +26,9 @@ const ids = () => {
 
 export type Harness = ReturnType<typeof openHarness>
 
-export function openHarness(dice: Dice = () => 5) {
+export function openHarness(roll: Dice = () => 5, { table = false }: { table?: boolean } = {}) {
   const newId = ids()
+  const dice: Throw = table ? toTable(roll) : roll
   useCombatStore.setState(SceneStateSchema.parse({}))
   let brush: TerrainBrush | null = null
   let reposition = false
@@ -45,6 +50,8 @@ export function openHarness(dice: Dice = () => 5) {
     click,
     newId,
     dice,
+    roll,
+    table,
     view: (): BoardView => getBoardView(state()),
     idOf,
     active,

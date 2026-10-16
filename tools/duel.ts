@@ -315,7 +315,7 @@ function turnChoices(state: SceneState, id: string, env: Env): Choice[] {
 function followUpChoices(state: SceneState, id: string, open: RootAction): Choice[] {
   const base: Base = { state, open, own: false }
   const foes = getLiveFoes(state, partyOf(id))
-  const decline: Choice = { label: 'DECLINE: let the follow-up go', apply: (e) => passUp(state, open, e.newId) }
+  const decline: Choice = { label: 'DECLINE: let the follow-up go', apply: (e) => passUp(state, open, e.dice, e.newId) }
   const taken = ((): Choice[] => {
     switch (open.kind) {
       case 'fleeFollowUp': return [{ label: 'FLEE: activate the movement surge and take a turn limited to movement', apply: (e) => { const c = commitAction(e.dice, e.newId)(amendAction({ flee: true })(state)); return c === state ? null : c } }]
@@ -406,7 +406,7 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
           const who = open.actorId
           return { state, next: { kind: 'prompt', side: sideOf(who), title: `${getFightName(state, who)} may follow up: ${getActionPanel(state).open?.label ?? open.kind}.`, choices: followUpChoices(state, who, open) } }
         }
-        const settled = open.spawnedBy ? passUp(state, open, env.newId) : null
+        const settled = open.spawnedBy ? passUp(state, open, env.dice, env.newId) : null
         if (!settled || settled === state) return { state, next: { kind: 'end', text: 'Stuck: an action was left half-declared.' } }
         state = settled
         continue
@@ -424,7 +424,7 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
       if (open.step === 'post') {
         const buying = hopPrompt(state, open)
         if (buying) return { state, next: buying }
-        const landed = resolveAction(env.newId)(state)
+        const landed = resolveAction(env.newId, env.dice)(state)
         if (landed === state) return { state, next: { kind: 'end', text: 'Stuck: the open action cannot land.' } }
         state = landed
         continue
@@ -491,7 +491,7 @@ function hopPrompt(state: SceneState, open: RootAction): Prompt | null {
     kind: 'prompt',
     side: sideOf(open.actorId),
     title: `${getFightName(state, open.actorId)} hit, with ${remaining} HOP left to spend (hit overflow). As it stands the blow does: ${previewOf(state)}.`,
-    choices: [{ label: 'LAND THE BLOW as it stands', apply: (e) => { const landed = resolveAction(e.newId)(state); return landed === state ? null : landed } }, ...spend, ...back,
+    choices: [{ label: 'LAND THE BLOW as it stands', apply: (e) => { const landed = resolveAction(e.newId, e.dice)(state); return landed === state ? null : landed } }, ...spend, ...back,
       ...(grapple ? [{ label: grapple.grapples ? 'DO NOT GRAPPLE the target' : 'GRAPPLE the target (free)', apply: () => chooseGrapple(!grapple.grapples)(state) } satisfies Choice] : [])],
   }
 }

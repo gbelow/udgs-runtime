@@ -28,6 +28,9 @@ import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MAN
 import { SurgeKindSchema, type Character } from '../domain/types'
 import { archer, bomber, crossbowman, brawler, mage, medic, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
+import { getOpenCalls, toThrower } from '../domain/play/calls'
+import { answerScene, cancelCall } from '../domain/scene/commands/answer'
+import { getCancelling } from '../domain/scene/rules/calls'
 import { useCombatStore } from './useCombatStore'
 
 // A player who presses whatever there is to press, in no order: every click
@@ -45,6 +48,7 @@ const SEEDS = seeds(16)
 const DUEL_SEEDS = seeds(3)
 const CROWD_SEEDS = seeds(4)
 const CHASE_SEEDS = seeds(6)
+const TABLE_SEEDS = seeds(1)
 const STEPS = 200
 const STORAGE_EVERY = 8
 
@@ -66,7 +70,36 @@ const aimable = (h: Harness, open: { kind: string }) => h.view().cells.filter((c
 // Everyone the committed action still waits on answers with nothing.
 const passAwaited: Updater = (s) => getAwaited(s).reduce((state, id) => passReaction(id)(state), s)
 
-const carryOn = (h: Harness) => [passAwaited, rollAnswered(h.dice, h.newId), payAnswered(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]
+// The table throws a die the scene called for — typed in or rolled, or, now
+// and then, the GM takes back what it was called for — and a die called for
+// a target's test or a climb's is one the landing then reads (the table's
+// ruling: nobody is asked for a die that will not be used).
+function throwCalled(h: Harness, pick: Picker) {
+  const open = getOpenCalls(h.state().calls)
+  if (!open.length) return
+  const call = pick(open)
+  if (getCancelling(h.state(), call.id) && pick([true, false, false, false, false, false])) {
+    h.press(cancelCall(call.id, h.dice, h.newId))
+    return
+  }
+  const read = Object.values(h.state().calls).filter((c) => c.id.startsWith('target:') || c.id.startsWith('redo:'))
+  h.press(answerScene(call.id, toThrower(h.roll).answer(call)!, pick([true, false]), h.dice, h.newId))
+  const s = h.state()
+  if (Object.keys(s.calls).length > 0) return
+  for (const c of read) {
+    const [kind, actionId, of] = c.id.split(':')
+    const action = s.actions[actionId]
+    if (kind === 'target' && action?.step === 'done') expect(action.tested.map((t) => t.targetId), `${c.roller} threw a die for the ${action.kind} that was never read`).toContain(of)
+    if (kind === 'redo' && action?.kind === 'move' && action.step === 'done') expect(action.redos[of], `${c.roller} threw a climb die that was never read`).toBeDefined()
+  }
+}
+
+// Every die still called for, thrown.
+function throwAllCalled(h: Harness, pick: Picker) {
+  for (let i = 0; i < 40 && getOpenCalls(h.state().calls).length; i++) throwCalled(h, pick)
+}
+
+const carryOn = (h: Harness) => [passAwaited, rollAnswered(h.dice, h.newId), payAnswered(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]
 
 // Fills in whatever the open declaration is still asked for from the panel's
 // own offers, aims it by clicking, and locks it.
@@ -231,7 +264,7 @@ function plays(): Play[] {
     { name: 'suggest a limit stress action', run: (h, pick) => { const options = getActionPanel(h.state()).open?.suggestion?.options ?? []; if (options.length) h.press(amendAction({ suggested: pick(options) })) } },
     { name: 'pick the gear to cast with', run: (h, pick) => { const gear = getActionPanel(h.state()).gear; if (gear.length) h.press(amendAction({ itemId: pick(gear).itemId })) } },
     { name: 'extend a spell', run: (h, pick) => h.press(stepExtend(pick([1, -1] as const))) },
-    { name: 'accept a spell test', run: (h) => h.press(acceptAnswered(h.newId)) },
+    { name: 'accept a spell test', run: (h) => h.press(acceptAnswered(h.newId, h.dice)) },
     { name: 'answer with nothing', weight: 2, run: (h, pick) => { const reactors = getActionPanel(h.state()).reactors; if (reactors.length) h.press(passReaction(pick(reactors).id)) } },
     { name: 'buy with the overflow', weight: 2, run: (h, pick) => { const options = getActionPanel(h.state()).hop.options.filter((o) => o.available); if (options.length) h.press(spendHOP(pick(options).purchase)) } },
     { name: 'take back an overflow purchase', run: (h, pick) => { const options = getActionPanel(h.state()).hop.options; if (options.length) h.press(refundHOP(pick(options).purchase)) } },
@@ -244,11 +277,11 @@ function plays(): Play[] {
     { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.press(chooseManeuver(open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) })) } },
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.press(withdrawLastReaction()) },
-    { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.press(rollHeld(r.id, r.kind, pick([...r.modes]), h.dice)) } } },
+    { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.press(rollHeld(r.id, r.kind, pick([...r.modes]), h.roll)) } } },
     progress('roll', (h) => rollAnswered(h.dice, h.newId)),
     progress('pay', (h) => payAnswered(h.newId, h.dice)),
-    { ...progress('resolve', (h) => resolveAction(h.newId)), weight: 2 },
-    progress('skip', (h) => withdrawSpawnedAction(h.newId)),
+    { ...progress('resolve', (h) => resolveAction(h.newId, h.dice)), weight: 2 },
+    progress('skip', (h) => withdrawSpawnedAction(h.dice, h.newId)),
     progress('cancel', () => cancelAction()),
     progress('end turn', () => endTurn),
     progress('next round', (h) => nextRound(h.dice)),
@@ -377,7 +410,8 @@ afterAll(() => {
 })
 
 function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Picker) {
-  const bag = menu.flatMap((p) => Array<Play>(p.weight ?? 1).fill(p))
+  const dice: Play[] = h.table ? [{ name: 'throw a die called for', weight: 12, run: throwCalled }] : []
+  const bag = [...menu, ...dice].flatMap((p) => Array<Play>(p.weight ?? 1).fill(p))
   const trail: string[] = []
   const stop = record(String(++sessions))
   for (let step = 0; step < steps; step++) {
@@ -443,7 +477,7 @@ function playOut(h: Harness, pick: Picker) {
       const aimed = aimable(h, open)
       if (aimed.length) h.click({ on: 'cell', cell: pick(aimed).cell })
     }
-    for (const step of [passAwaited, rollAnswered(h.dice, h.newId), acceptAnswered(h.newId), payAnswered(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    for (const step of [passAwaited, rollAnswered(h.dice, h.newId), acceptAnswered(h.newId, h.dice), payAnswered(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) h.press(step)
     const panel = getActionPanel(h.state()).open
     if (panel && pick([true, false, false])) h.press(chooseManeuver(panel.disarm.length ? { item: pick(panel.disarm).itemId } : { along: pick([true, false]) }))
     if (pick([true, false, false, false])) h.press(boostPush(pick([true, false])))
@@ -454,8 +488,9 @@ function playOut(h: Harness, pick: Picker) {
 // been pressed for as long as they do anything, no action is left committed
 // and waiting. An answer still being declared holds the action back, and
 // taking it back always frees it.
-function assertSettled(h: Harness) {
+function assertSettled(h: Harness, pick: Picker) {
   const stuck = () => { const open = getOpenAction(h.state()); return open && open.step !== 'define' ? open : null }
+  throwAllCalled(h, pick)
   if (stuck()) {
     for (let i = 0; i < 8; i++) h.press(withdrawLastReaction())
     for (let i = 0; i < 10; i++) {
@@ -467,6 +502,7 @@ function assertSettled(h: Harness) {
           if (now && 'center' in now && now.center !== null) break
         }
       }
+      throwAllCalled(h, pick)
       for (const step of carryOn(h)) h.press(step)
     }
   }
@@ -497,7 +533,7 @@ function roundChangePlays(): Play[] {
       name: 'test morale',
       run: (h, pick) => {
         const owed = h.state().morale.filter((m) => m.roll === null && h.state().characters[m.id])
-        if (owed.length) h.press(rollMorale(pick(owed).id, pick(ROLL_MODES), pick([true, false]), h.dice))
+        if (owed.length) h.press(rollMorale(pick(owed).id, pick(ROLL_MODES), pick([true, false]), h.roll))
       },
     },
   ]
@@ -515,7 +551,7 @@ function passRoundChange(h: Harness, pick: Picker) {
     if (owed.length) {
       const id = pick(owed)
       h.press(getHoldOnBar(s, id) || pick([true, false]) ? letGo(id, h.dice) : holdOn(id, h.dice))
-    } else if (untested) h.press(rollMorale(untested.id, pick(ROLL_MODES), pick([true, false]), h.dice))
+    } else if (untested) h.press(rollMorale(untested.id, pick(ROLL_MODES), pick([true, false]), h.roll))
     else if (!getContinueBar(s)) h.press(continueRound(h.dice))
     else return
   }
@@ -524,7 +560,12 @@ function passRoundChange(h: Harness, pick: Picker) {
 function startTurnOf(h: Harness, pick: Picker, only: readonly string[] | null = null) {
   if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
   playOut(h, pick)
-  assertSettled(h)
+  // at a table rolling its own, the play goes on between the dice it waits on
+  for (let i = 0; h.table && i < 4; i++) {
+    throwAllCalled(h, pick)
+    playOut(h, pick)
+  }
+  assertSettled(h, pick)
   if (pick([true, false])) passRoundChange(h, pick)
   const { characters, binds } = h.state()
   const bound = binds.flatMap((b) => b.members).filter((id) => characters[id])
@@ -675,10 +716,10 @@ const DUELS = [
 
 const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'drop a held item', 'take a whole action'].includes(p.name))
 
-function playDuel(duel: (typeof DUELS)[number], seed: number) {
+function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
-  const h = openHarness((explodes) => rollD10(explodes, rng))
+  const h = openHarness((explodes) => rollD10(explodes, rng), { table })
   h.bring(duel.a('Ann'), duel.b('Bob'))
   h.createBoard(4)
   if (duel.pane) {
@@ -710,10 +751,10 @@ describe('two characters grappling, pushing, shooting and defending', () => {
 // them and a torch in one hand, so that some begin out of the others' sight
 // and stealth has someone to hide; with panes of glass, and the warden's
 // shield a body shield to take cover behind.
-function playCrowd(seed: number, walls: [number, number][] = []) {
+function playCrowd(seed: number, walls: [number, number][] = [], table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
-  const h = openHarness((explodes) => rollD10(explodes, rng))
+  const h = openHarness((explodes) => rollD10(explodes, rng), { table })
   h.bring(walls.length ? towerWarden('Ann') : warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), walls.length ? torchbearer('Gus') : brawler('Gus'))
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
@@ -860,15 +901,15 @@ function chasePlays(): Play[] {
 // pressed in any order between exchanges — a shot, a strike, a spell — played
 // out by the same reactions as on the board, with nothing to read distance,
 // reach or cover from but the chase.
-function playChase(seed: number) {
-  const { h, pick } = openChase(seed)
+function playChase(seed: number, table = false) {
+  const { h, pick } = openChase(seed, undefined, table)
   session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h)], pick)
 }
 
-function openChase(seed: number, tier?: ChaseTier) {
+function openChase(seed: number, tier?: ChaseTier, table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
-  const h = openHarness((explodes) => rollD10(explodes, rng))
+  const h = openHarness((explodes) => rollD10(explodes, rng), { table })
   h.bring(warden('Ann'), trained(archer('Bob')), brawler('Cy'), towerWarden('Dee'), crossbowman('Eve'), mage('Fay'))
   h.press(splitOff(h.idOf('Dee'), h.newId))
   const theirs = h.state().partyOf[h.idOf('Dee')]
@@ -878,6 +919,19 @@ function openChase(seed: number, tier?: ChaseTier) {
   h.select('Ann')
   return { h, pick }
 }
+
+// The same sessions at a table that rolls its own dice: every die a command
+// calls for waits, and is thrown, typed in or taken back by the GM as a press
+// of its own, in any order with everything else — which, while a die waits,
+// the offers and the board must show closed.
+describe('with the dice left to the table', () => {
+  for (const duel of DUELS) {
+    it.each(TABLE_SEEDS)(`keeps ${duel.name} sound (seed %i)`, (seed) => playDuel(duel, seed, true))
+  }
+  it.each(TABLE_SEEDS)('keeps the crowd sound (seed %i)', (seed) => playCrowd(seed, [], true))
+  it.each(TABLE_SEEDS)('keeps the crowd behind cover sound (seed %i)', (seed) => playCrowd(seed, COVER, true))
+  it.each(TABLE_SEEDS)('keeps the chase sound (seed %i)', (seed) => playChase(seed, true))
+})
 
 describe('a chase with no board', () => {
   it.each(CHASE_SEEDS)('keeps the chase sound (seed %i)', (seed) => playChase(seed))

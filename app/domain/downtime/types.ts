@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { KnowledgesSchema, ProficienciesSchema, SkillsSchema, type Knowledges, type Proficiencies, type Skills } from '../types'
 import { TestRollSchema } from '../play/test'
+import { CallsSchema } from '../play/calls'
 import { LIVING_LEVELS } from '../lists'
 import type { CampaignState } from '../campaign/types'
 
@@ -90,6 +91,10 @@ export type DowntimeResult = z.infer<typeof DowntimeResultSchema>
 export const DowntimeStateSchema = z.object({
   plans: z.record(z.string(), PlanSchema).default({}),
   results: z.array(DowntimeResultSchema).default([]),
+  // the tests the passing days have called for, waiting on their dice, and
+  // how many days they are
+  calls: CallsSchema.default({}),
+  passing: z.number().nullable().default(null),
 })
 export type DowntimeState = z.infer<typeof DowntimeStateSchema>
 

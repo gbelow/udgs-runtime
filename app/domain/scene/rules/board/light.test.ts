@@ -31,7 +31,7 @@ describe('Revealing Light', () => {
     const before = night()
     expect(getCellLight(before, { q: 8, r: 0 })).toBe('dark')
     let s = commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'revealing-light' }, newId)(before))
-    for (let i = 0; i < 10 && getOpenAction(s); i++) s = resolveAction(newId)(s)
+    for (let i = 0; i < 10 && getOpenAction(s); i++) s = resolveAction(newId, () => 5)(s)
     expect(getOpenAction(s)).toBeNull()
     expect(getCellLight(s, { q: 8, r: 0 })).toBe('bright')
     expect(getCellLight(s, { q: 11, r: 0 })).toBe('dark')
@@ -56,7 +56,7 @@ describe('a Darkseeing potion', () => {
     expect(visionOf(before)).toBe('partial')
     const potion = before.characters.d.held.find((i) => i.name === 'Darkseeing')!
     let s = commitAction(() => 9, newId)(amendAction({ itemId: potion.id })(declareAction('d', { kind: 'drink' }, newId)(before)))
-    for (let i = 0; i < 10 && getOpenAction(s); i++) s = resolveAction(newId)(s)
+    for (let i = 0; i < 10 && getOpenAction(s); i++) s = resolveAction(newId, () => 5)(s)
     expect(getOpenAction(s)).toBeNull()
     expect(s.characters.d.held.some((i) => i.id === potion.id)).toBe(false)
     expect(visionOf(s)).toBe('none')

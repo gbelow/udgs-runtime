@@ -2,9 +2,10 @@ import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Character } from '../../types'
 import type { CampaignState } from '../../campaign/types'
 import type { Block, Downtime, DowntimeResult, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
-import type { Dice } from '../../play/dice'
-import { resolveTest, toRoll, type TestRoll } from '../../play/test'
+import type { Test } from '../../play/test'
+import { answerCall, getOpenCalls, makeCaller, toCallRoll, toTable, type CallResult, type CallSpec, type Throw } from '../../play/calls'
 import { getDowntimeResultLines } from '../projections/downtime'
+import { without } from '../../utils'
 import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
@@ -57,12 +58,20 @@ function doctor(c: CampaignCharacter, amount: number): CampaignCharacter {
   return { ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel - ordinary, wounds } }
 }
 
-const rollSkill = (c: Character, test: SkillRef, DL: number, dice: Dice): TestRoll => toRoll(resolveTest(getSkillTest(test, DL)(c), dice))
+// A test downtime makes: what its die came to, or null while the table has
+// yet to roll it.
+type Tester = (spec: CallSpec) => CallResult | null
 
 type Resolved = { c: CampaignCharacter; result: Omit<DowntimeResult, 'name'> }
 
 // story.tex "Downtime": what an activity comes to once its days are over.
-function resolveBlock(c: CampaignCharacter, block: Block, dice: Dice): Resolved {
+function resolveBlock(id: string, c: CampaignCharacter, block: Block, test: Tester): Resolved {
+  const roll = (what: string, made: Test) => {
+    const result = test({ id: `${block.kind}:${id}`, roller: id, label: what, test: made })
+    return result ? toCallRoll(result) : null
+  }
+  const rollSkill = (what: string, ref: SkillRef, DL: number) => roll(what, getSkillTest(ref, DL)(c))
+  const waiting = (what: string): Resolved => ({ c, result: { what, roll: null, note: '' } })
   switch (block.kind) {
     case 'training':
       return { c: addXP(block.target, block.XP)(c), result: { what: `training ${getTargetName(block.target)}`, roll: null, note: `+${block.XP} XP` } }
@@ -70,28 +79,33 @@ function resolveBlock(c: CampaignCharacter, block: Block, dice: Dice): Resolved 
       const what = `training ${getTargetName(block.target)} alone`
       const test = getSelfTrainingTest(block.target)(c)
       if (!test) return { c, result: { what, roll: null, note: 'no talent to train it' } }
-      const roll = toRoll(resolveTest(test, dice))
-      const XP = getSelfTrainingXP(block.XP, roll.degree)
-      return { c: addXP(block.target, XP)(c), result: { what, roll, note: `+${XP} XP` } }
+      const rolled = roll(what, test)
+      if (!rolled) return waiting(what)
+      const XP = getSelfTrainingXP(block.XP, rolled.degree)
+      return { c: addXP(block.target, XP)(c), result: { what, roll: rolled, note: `+${XP} XP` } }
     }
     case 'job': {
-      const roll = rollSkill(c, block.test, block.DL, dice)
+      const what = `job (${getSkillName(block.test)})`
+      const rolled = rollSkill(what, block.test, block.DL)
+      if (!rolled) return waiting(what)
       const training = getJobTraining(block)(c)
-      const XP = training ? getSelfTrainingXP(training.XP, roll.degree) : 0
+      const XP = training ? getSelfTrainingXP(training.XP, rolled.degree) : 0
       const note = `earned ${getBlockSettlement(block, c)} CP${training ? `, +${XP} XP ${getTargetName(training.target)} as training alone` : ''}`
-      return { c: training ? addXP(training.target, XP)(c) : c, result: { what: `job (${getSkillName(block.test)})`, roll, note } }
+      return { c: training ? addXP(training.target, XP)(c) : c, result: { what, roll: rolled, note } }
     }
     case 'doctor': {
       const healed = getDoctorHealing(block, c)
       return { c: doctor(c, healed), result: { what: 'doctor', roll: null, note: `healed ${healed} IL for ${healed * block.price} CP` } }
     }
     case 'learning': {
-      const roll = rollSkill(c, block.test, block.DL, dice)
       const name = knowledgeName(block.knowledge)
+      const what = `learning ${name} (${getSkillName(block.test)})`
+      const rolled = rollSkill(what, block.test, block.DL)
+      if (!rolled) return waiting(what)
       const held = c.specificKnowledges[name] ?? 0
-      const level = Math.min(block.max, held + getLearningGain(block, roll.degree))
+      const level = Math.min(block.max, held + getLearningGain(block, rolled.degree))
       const note = level > held ? `${name} ${held} → ${level}` : 'nothing learned'
-      return { c: raiseSpecificKnowledge(name, level)(c), result: { what: `learning ${name} (${getSkillName(block.test)})`, roll, note } }
+      return { c: raiseSpecificKnowledge(name, level)(c), result: { what, roll: rolled, note } }
     }
   }
 }
@@ -101,7 +115,7 @@ type Lived = { c: CampaignCharacter; plan: Plan; results: DowntimeResult[] }
 // One character's days: each lived, the activity resolved on its last day,
 // and everything spent and earned settled out of the purse at the end. An
 // activity that time spent elsewhere broke into is lost.
-function liveDays(t: Downtime, id: string, days: number, dice: Dice): Lived {
+function liveDays(t: Downtime, id: string, days: number, test: Tester): Lived {
   const name = getRosterName(t.campaign, id)
   let c = t.campaign.characters[id]
   const start = getPlan(t, id)
@@ -122,7 +136,7 @@ function liveDays(t: Downtime, id: string, days: number, dice: Dice): Lived {
       continue
     }
     spent -= getBlockSettlement(block, c)
-    const resolved = resolveBlock(c, block, dice)
+    const resolved = resolveBlock(id, c, block, test)
     c = resolved.c
     results.push({ name, ...resolved.result })
     plan = { ...plan, block: null, elapsed: 0 }
@@ -133,12 +147,15 @@ function liveDays(t: Downtime, id: string, days: number, dice: Dice): Lived {
 
 // story.tex "Downtime": the days pass at once for every party in play on a
 // timeline, each member living and doing what they planned, and each party's
-// clock moves on by them.
-export function passDays(days: number, dice: Dice): DowntimeUpdater {
+// clock moves on by them. An activity ending in a test calls for its die, and
+// the days wait on every die called for, keeping how many they are.
+export function passDays(days: number, thrown: Throw = toTable(() => 0)): DowntimeUpdater {
   return (t) => {
     if (getDowntimeBar(t, days)) return t
     const ids = getDowntimeCharacters(t.campaign)
-    const lived = ids.map((id) => ({ id, ...liveDays(t, id, days, dice) }))
+    const caller = makeCaller(t.downtime.calls, thrown)
+    const lived = ids.map((id) => ({ id, ...liveDays(t, id, days, caller.test) }))
+    if (getOpenCalls(caller.calls).length > 0) return { ...t, downtime: { ...t.downtime, calls: caller.calls, passing: days } }
     const characters = { ...t.campaign.characters, ...Object.fromEntries(lived.map(({ id, c }) => [id, c])) }
     const playing = getPlayingParties(t.campaign, 'downtime')
     const byParty = Map.groupBy(lived, ({ id }) => t.campaign.partyOf[id])
@@ -149,7 +166,31 @@ export function passDays(days: number, dice: Dice): DowntimeUpdater {
     const moved = passETs(days * ETS_PER_DAY, playing)(recorded)
     const fedAll = { ...moved, characters: { ...moved.characters, ...Object.fromEntries(ids.map((id) => [id, fed(moved.characters[id])])) } }
     const plans = Object.fromEntries(lived.map(({ id, plan }) => [id, { ...plan, at: getClockOf(fedAll, id) ?? 0 }]))
-    return { campaign: fedAll, downtime: { ...t.downtime, plans, results: lived.flatMap((l) => l.results) } }
+    return { campaign: fedAll, downtime: { ...t.downtime, plans, calls: {}, passing: null, results: lived.flatMap((l) => l.results) } }
+  }
+}
+
+// The GM's way out of a die nobody throws (the table's ruling): the activity
+// it was called for is given up, and the days go on with the rest.
+export function cancelDowntimeCall(callId: string, thrown: Throw = toTable(() => 0)): DowntimeUpdater {
+  return (t) => {
+    const call = t.downtime.calls[callId]
+    const days = t.downtime.passing
+    if (!call || days === null) return t
+    const plans = { ...t.downtime.plans, [call.roller]: { ...getPlan(t, call.roller), block: null, elapsed: 0 } }
+    return passDays(days, thrown)({ ...t, downtime: { ...t.downtime, plans, calls: without(t.downtime.calls, callId) } })
+  }
+}
+
+// A die for a test the days called for, typed in from the table or rolled on
+// the screen; the last die called for lets the days pass.
+export function answerDowntime(callId: string, die: number, entered: boolean, thrown: Throw = toTable(() => 0)): DowntimeUpdater {
+  return (t) => {
+    const calls = answerCall(t.downtime.calls, callId, die, entered)
+    if (calls === t.downtime.calls) return t
+    const answered = { ...t, downtime: { ...t.downtime, calls } }
+    const days = t.downtime.passing
+    return getOpenCalls(calls).length > 0 || days === null ? answered : passDays(days, thrown)(answered)
   }
 }
 

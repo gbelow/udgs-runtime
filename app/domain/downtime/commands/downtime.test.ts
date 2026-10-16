@@ -6,7 +6,7 @@ import { CampaignStateSchema } from '../../campaign/types'
 import { passETs } from '../../campaign/commands/clock'
 import { DowntimeStateSchema, type Downtime, type TrainingTarget } from '../types'
 import { chooseTraining, decideTraining } from './plans'
-import { passDays } from './downtime'
+import { answerDowntime, passDays } from './downtime'
 import { getAffordableDays, getDowntimeBar } from '../rules/downtime'
 
 const strike: TrainingTarget = { kind: 'trainable', key: 'strike' }
@@ -19,7 +19,6 @@ function withPurse(coppers: number): Downtime {
 }
 
 const trained = (t: Downtime) => t.campaign.characters.a.trainables.strike
-const dice = () => 5
 
 // A training with a trainer the table has accepted, of one XP (10 days).
 const training = (t: Downtime): Downtime => decideTraining('a', 'accepted')(chooseTraining('a', strike, true)(t))
@@ -29,17 +28,17 @@ const training = (t: Downtime): Downtime => decideTraining('a', 'accepted')(choo
 describe('downtime blocks', () => {
   it('gives nothing until its last day, and resolves on it', () => {
     const start = training(withPurse(10000))
-    const partway = passDays(9, dice)(start)
+    const partway = passDays(9)(start)
     expect(trained(partway)).toEqual(trained(start))
-    const done = passDays(1, dice)(partway)
+    const done = passDays(1)(partway)
     expect(trained(done)).not.toEqual(trained(start))
   })
 
   it('is lost when time passes elsewhere while it is under way', () => {
     const start = training(withPurse(10000))
-    const partway = passDays(5, dice)(start)
+    const partway = passDays(5)(start)
     const elsewhere = { ...partway, campaign: passETs(1, ['p'])(partway.campaign) }
-    const after = passDays(5, dice)(elsewhere)
+    const after = passDays(5)(elsewhere)
     expect(trained(after)).toEqual(trained(start))
     expect(after.downtime.plans.a.block).toBeNull()
   })
@@ -53,7 +52,21 @@ describe('affordability', () => {
     for (let span = 1; span <= 30; span++) {
       const affordable = getAffordableDays(t, 'a', span) >= span
       expect(getDowntimeBar(t, span) === null, `span ${span}`).toBe(affordable)
-      expect(passDays(span, dice)(t) !== t, `span ${span}`).toBe(affordable)
+      expect(passDays(span)(t) !== t, `span ${span}`).toBe(affordable)
     }
+  })
+})
+
+// A die is rolled when the test calls for it: the days wait on it, and what was
+// typed in is what the test was made with.
+describe('days that call for a die', () => {
+  it('pass only once the die is entered, with that die', () => {
+    const start = chooseTraining('a', strike, false)(withPurse(10000))
+    const called = passDays(10)(start)
+    expect(called.campaign.parties.p.clock).toBe(0)
+    const [call] = Object.values(called.downtime.calls)
+    const passed = answerDowntime(call.id, 7, true)(called)
+    expect(passed.campaign.parties.p.clock).toBeGreaterThan(0)
+    expect(passed.downtime.results.find((r) => r.roll)?.roll).toMatchObject({ die: 7, entered: true })
   })
 })

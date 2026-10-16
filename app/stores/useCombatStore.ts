@@ -4,6 +4,7 @@ import { CampaignCharacter } from '../domain/types'
 import { SceneState, SceneStateSchema } from '../domain/scene/types'
 import { getActiveCharacter } from '../domain/scene/rules/fighters'
 import { updateCharacter } from '../domain/scene/commands/characters'
+import { holdForDice } from '../domain/play/calls'
 
 // The data half of the store is the domain's SceneState — the store adds only
 // the actions that mutate it. Keeping the two halves separate is what lets the
@@ -22,11 +23,14 @@ type CombatActions = {
 
 export type CombatStore = SceneState & CombatActions
 
+const called = (s: SceneState) => [s.calls]
+
 export const useCombatStore = create<CombatStore>((set, get) => ({
   ...SceneStateSchema.parse({}),
 
+  // whatever the scene called dice for waits on them (`holdForDice`)
   updateCombatState: (updater) => {
-    set( updater)
+    set((s) => holdForDice(called, s, updater(s)))
   },
 
   setActiveCharacter: (id) => {
@@ -38,7 +42,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   updateActiveCharacter: (updater, cause) => {
     const current = get().getActiveCharacter();
     if (!current) return undefined;
-    set(updateCharacter(current.id, updater, cause));
+    set((s) => holdForDice(called, s, updateCharacter(current.id, updater, cause)(s)));
     return get().characters[current.id];
   },
 

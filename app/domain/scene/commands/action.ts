@@ -3,19 +3,21 @@ import { ActionSchema, type Action, type Coord, type ActionDraft, type CastActio
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { detect, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
 import { findOption, getAwaited, hasOpenAnswer } from '../rules/options'
-import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
+import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { needsBreakRolls } from '../rules/breakage'
-import { resolveTest } from '../../play/test'
+import { resolveTest, type Test } from '../../play/test'
 import { findTrigger } from '../rules/reactions'
 import { getMoveTest } from '../rules/move'
 import { getClimbDegree } from '../rules/board/cliff'
 import { canAfford } from '../../character/rules/cost'
-import { moded, rollPercent, type Dice } from '../../play/dice'
+import { rollPercent, type Dice, type RollMode } from '../../play/dice'
+import { toThrower, type Caller, type Throw } from '../../play/calls'
+import { calling, WAITING } from './calling'
 import { getDragComparison } from '../rules/drag'
 import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
@@ -25,7 +27,6 @@ import { advance, land, repositionDefenders } from './sequence'
 import { giveUpHeld } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
-import { getTestedIds } from '../rules/tested'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -93,11 +94,11 @@ export function aimAtCell(cell: Coord): Updater {
 // as they stand when it is swung. When nobody has an answer open to it, nothing
 // waits between the commit and the die, so it is rolled or paid at once. A
 // flee committed as passed up is withdrawn.
-export function commitAction(dice: Dice, newId: () => string): Updater {
+export function commitAction(thrown: Throw, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open) return state
-    if (open.kind === 'fleeFollowUp' && !open.flee) return withdrawSpawnedAction(newId)(state)
+    if (open.kind === 'fleeFollowUp' && !open.flee) return withdrawSpawnedAction(thrown, newId)(state)
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(open) && !isTargetAimed(state, open)) return state
@@ -105,9 +106,9 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     const hold = cost ? null : getHoldCost(state, open)
     if (!cost && !hold) return state
     // combat.tex "Concentration": what it cannot be paid for, it is held over
-    const committed: RootAction = { ...withCommitFacts(state, actor, open, dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, step: 'react' }
+    const committed: RootAction = { ...withCommitFacts(state, actor, open, toThrower(thrown).dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, step: 'react' }
     const locked = replaceActions(state, [withStealthFacts(state, committed)])
-    return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
+    return hasOpenAnswer(locked) ? locked : rollOrPay(thrown, newId)(locked)
   }
 }
 
@@ -165,10 +166,10 @@ function withCommitFacts(state: SceneState, actor: CampaignCharacter, open: Root
 
 // What the table does once nobody owes the committed action an answer: throws
 // its die, or pays it where it has none.
-export function rollOrPay(dice: Dice, newId: () => string): Updater {
+export function rollOrPay(thrown: Throw, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'react')
-    return open && needsDie(state, open) ? rollAction(dice, newId)(state) : payAction(newId, dice)(state)
+    return open && needsDie(state, open) ? rollAction(thrown, newId)(state) : payAction(newId, thrown)(state)
   }
 }
 
@@ -207,13 +208,13 @@ function withHold(state: SceneState, actor: CampaignCharacter, open: FireAgainAc
 // record.
 // What a prepared reaction opened is passed up only as the book allows
 // (`isPreparedRequired`).
-export function withdrawSpawnedAction(newId: () => string): Updater {
-  return (state) => {
+export function withdrawSpawnedAction(thrown: Throw, newId: () => string): Updater {
+  return calling({ kind: 'withdrawSpawned' }, thrown, (caller) => (state) => {
     const open = getOpenAt(state, 'define')
     if (!open || !open.spawnedBy || isPreparedRequired(state, open)) return state
     const reaction = getOpeningReaction(state, open)
-    return advance(withdrawActions(state, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), newId)
-  }
+    return advance(withdrawActions(state, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), newId, caller)
+  })
 }
 
 // A reaction to the committed action (combat.tex "Reactions"), declared
@@ -290,16 +291,16 @@ export function passReaction(actorId: string): Updater {
 // The die, the payment and a willing target's acceptance as the table
 // presses them: refused while the committed action still waits on anyone
 // (`getAwaited`) but the one accepting.
-export function rollAnswered(dice: Dice, newId: () => string): Updater {
-  return (state) => (getAwaited(state).length ? state : rollAction(dice, newId)(state))
+export function rollAnswered(thrown: Throw, newId: () => string): Updater {
+  return (state) => (getAwaited(state).length ? state : rollAction(thrown, newId)(state))
 }
 
-export function payAnswered(newId: () => string, dice: Dice): Updater {
-  return (state) => (getAwaited(state).length ? state : payAction(newId, dice)(state))
+export function payAnswered(newId: () => string, thrown: Throw): Updater {
+  return (state) => (getAwaited(state).length ? state : payAction(newId, thrown)(state))
 }
 
-export function acceptAnswered(newId: () => string): Updater {
-  return (state) => (getAwaited(state).some((id) => id !== getOpenAction(state)?.targetId) ? state : acceptSpellTest(newId)(state))
+export function acceptAnswered(newId: () => string, thrown: Throw): Updater {
+  return (state) => (getAwaited(state).some((id) => id !== getOpenAction(state)?.targetId) ? state : acceptSpellTest(newId, thrown)(state))
 }
 
 // combat.tex "Push and drag": the pusher's "spend 2 AP to gain 5 force",
@@ -347,8 +348,20 @@ export function cancelAction(): Updater {
 // difficult terrain is a Balance test against the ground (combat.tex
 // "Balance"), and pays for the path as the test leaves it; an explosion has
 // no test of its own, and each reflex made against it is scored against its
-// DL (combat.tex "Avoiding an Explosion").
-export function rollAction(dice: Dice, newId: () => string): Updater {
+// DL (combat.tex "Avoiding an Explosion"). Each die is called for from
+// whoever throws it, and the dice of the targets with them.
+export function rollAction(thrown: Throw, newId: () => string): Updater {
+  return calling({ kind: 'roll' }, thrown, (caller) => rollWith(caller, newId))
+}
+
+// A test called for in the exchange, or, while its die waits, what it would
+// come to on nothing.
+function testFor(caller: Caller, action: Action, test: Test, label: string, mode: RollMode = 'normal', id = `roll:${action.id}`) {
+  return caller.test({ id, roller: action.actorId, label, test, mode }) ?? { ...resolveTest(test, () => WAITING), entered: false }
+}
+
+function rollWith(caller: Caller, newId: () => string): Updater {
+  const dice = caller.dice
   return (given) => {
     const attacked = getOpenAt(given, 'react')
     const placed = attacked?.kind === 'strike' || attacked?.kind === 'shoot' ? repositionDefenders(given, attacked, newId) : { state: given, waiting: false }
@@ -360,22 +373,14 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     if (!actor || !areReactionsComplete(state, open)) return state
 
     const rootTest = getRootTest(state, open)
-    const rootDice = open.kind === 'move' ? moded(open.mode, dice) : dice
+    const mode = open.kind === 'move' ? open.mode : 'normal'
     const own = open.kind !== 'move' || needsOwnDie(state, open)
-    const test = rootTest && own ? resolveTest(rootTest, rootDice) : null
+    const test = rootTest && own ? testFor(caller, open, rootTest, open.kind, mode) : null
     if (!test && own && ACTIONS[open.kind].die) return state
-    const thrown = withTargetDice(withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice), dice)
-    const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, withClimbRolls(state, { ...thrown, test: test ? getMoveTest(state, open) : null }, rootDice)) : thrown
-    return payAll(state, rolled, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? withTargetDice({ ...a, roll: resolveTest(getReactionTest(state, open, a), dice) }, dice) : a))
+    const thrown = withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice)
+    const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, { ...thrown, test: test ? getMoveTest(state, open) : null }) : thrown
+    return payAll(state, rolled, newId, caller, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? { ...a, roll: testFor(caller, a, getReactionTest(state, open, a), a.kind) } : a))
   }
-}
-
-// combat.tex "Climbing": the test each attack drawn against the climb would
-// have the climber make if it interrupted them, a fresh one for each, thrown
-// with the climb's own and used only if the attack comes.
-function withClimbRolls(state: SceneState, move: MoveAction, dice: Dice): MoveAction {
-  const test = getClimbRedoTest(state, move)
-  return test ? { ...move, redos: Array.from({ length: getClimbRedoCount(state, move) }, () => resolveTest(test, dice)) } : move
 }
 
 // combat.tex "Climbing": "On a graze, decide to go at 2AP+1STA or give up and
@@ -384,13 +389,6 @@ function withClimbGiveUp(state: SceneState, move: MoveAction): MoveAction {
   const actor = state.characters[move.actorId]
   const cost = move.movement === 'climb' && getClimbDegree(state, move) === 'graze' ? getOwnCost(state, move) : null
   return actor && cost && !canAfford(actor, cost, isCombatStarted(state)) ? { ...move, gaveUp: true } : move
-}
-
-// The die each one the action may deliver a test to throws with it, right
-// after its own, read when it lands (rules/tested.ts).
-function withTargetDice<A extends Action>(root: A, dice: Dice): A {
-  const ids = getTestedIds(root)
-  return ids.length > 0 ? { ...root, targetDice: Object.fromEntries(ids.map((id) => [id, dice(false)])) } : root
 }
 
 // The percentile dice thrown with the root's test, after it and before any
@@ -439,50 +437,55 @@ function withPercentileRolls(state: SceneState, root: RootAction, dice: Dice): R
 // "Movement": a move is bought, not rolled). Prices it and its reactions off
 // their actors as they stand and takes every price, in one update; refused
 // when a reaction has not said all it must or someone cannot pay.
-export function payAction(newId: () => string, dice: Dice): Updater {
+export function payAction(newId: () => string, thrown: Throw): Updater {
+  return calling({ kind: 'pay' }, thrown, (caller) => payWith(caller, newId))
+}
+
+function payWith(caller: Caller, newId: () => string): Updater {
+  const dice = caller.dice
   return (state) => {
     const open = getOpenAt(state, 'react')
     if (!open || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
-    if (open.holding) return payAll(state, open, newId)
-    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : withTargetDice(withArmorRolls(state, open, dice), dice), newId)
+    if (open.holding) return payAll(state, open, newId, caller)
+    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : withArmorRolls(state, open, dice), newId, caller)
   }
 }
 
 // spells.tex "Telepathic Link": a willing target takes the spell's test
 // without a die, as if they had missed it, and it lands.
-export function acceptSpellTest(newId: () => string): Updater {
-  return (state) => {
+export function acceptSpellTest(newId: () => string, thrown: Throw): Updater {
+  return calling({ kind: 'accept' }, thrown, (caller) => (state) => {
     const open = getOpenAt(state, 'react')
     if (!open || open.kind !== 'spellTest' || !canAcceptSpellTest(open)) return state
-    return payAll(state, { ...open, accepted: true }, newId)
-  }
+    return payAll(state, { ...open, accepted: true }, newId, caller)
+  })
 }
 
 // Prices the root and every reaction to it off their actors as they stand
 // and takes every price in one update: the root is rolled, its reactions
 // done. Nothing happens if anyone cannot pay. `rollOf` throws the die of a
 // reaction that is a test of its own, in the order they were declared.
-function payAll(state: SceneState, root: Action, newId: () => string, thrown: (a: Action) => Action = (a) => a): SceneState {
+function payAll(state: SceneState, root: Action, newId: () => string, caller: Caller, thrown: (a: Action) => Action = (a) => a): SceneState {
   const paid: Action[] = []
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
     paid.push({ ...thrown(a), cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo) : 0, step: a.id === root.id ? 'post' : 'done' })
   }
-  return advance(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), newId)
+  return advance(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), newId, caller)
 }
 
 // Lands the rolled action on everyone it concerns and closes it, once
 // nothing is left to aim, choose or answer.
-export function resolveAction(newId: () => string): Updater {
-  return (state) => {
+export function resolveAction(newId: () => string, thrown: Throw): Updater {
+  return calling({ kind: 'resolve' }, thrown, (caller) => (state) => {
     const open = getOpenAt(state, 'post')
     const step = getNextStep(state)
     if (!open || (step !== 'confirm' && step !== 'spend')) return state
-    return land(state, open, newId)
-  }
+    return land(state, open, newId, caller)
+  })
 }
 
 // The spell the cast being declared is of, on the focus surge or quickened

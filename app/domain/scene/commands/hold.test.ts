@@ -9,6 +9,7 @@ import { getFreeAttackOptions } from '../rules/attack'
 import { commitAction, declareAction, declareReaction, rollAction, setTarget } from './action'
 import { passRound } from '../../bot/table'
 import { breakHeld, finishHeld } from './hold'
+import { makeCaller } from '../../play/calls'
 import { ROUND_AP } from '../../tables'
 
 let n = 0
@@ -144,7 +145,7 @@ describe('several actions finishing in the same round', () => {
     const held = twoMedics()
     let thrown = 0
     const dice = () => faces[thrown++ % faces.length]
-    const finishing = finishHeld(fresh(held), getHeldActions(held).map((h) => h.id), dice)
+    const finishing = finishHeld(fresh(held), getHeldActions(held).map((h) => h.id), makeCaller({}, dice))
     expect(getOpenAction(finishing)?.actorId).toBe(first)
   })
 })

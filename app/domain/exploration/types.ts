@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { DegreeSchema } from '../types'
 import { ROLL_MODES } from '../play/dice'
 import { TestRollSchema, type TestRoll } from '../play/test'
+import { CallsSchema } from '../play/calls'
 import { AtSchema, EventTypeSchema, type CampaignState } from '../campaign/types'
 
 // survival.tex "Exploration Action (EA)", "Making camp": what a group of a
@@ -126,6 +127,8 @@ export const ExplorationStateSchema = z.object({
   // timeline; another day has none
   rests: z.record(z.string(), z.object({ day: z.number(), count: z.number() })).default({}),
   opening: OpeningSchema.nullable().default(null),
+  // the tests the passing ET has called for, waiting on their dice
+  calls: CallsSchema.default({}),
   // what the last ET opened with and what its groups came to
   exhaustionRolls: z.record(z.string(), TestRollSchema).default({}),
   results: z.array(GroupResultSchema).default([]),

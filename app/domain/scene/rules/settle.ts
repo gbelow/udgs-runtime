@@ -16,12 +16,31 @@ import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
 import { getAreaBreaks, getAttackBreaks } from './breakage'
 import { isObjectAttack } from './equipment'
-import { testStrikeBlow, withDeliveredTests } from './tested'
+import { owesTest, testStrikeBlow, withDeliveredTests } from './tested'
+import type { Delivery } from '../../types'
 
 // The armor each character wears is put at risk by what the action's effects
 // did to them (gear.tex "Equipment Breakage").
 function withBreaks<A extends Extract<RootAction, { kind: 'blast' | 'cast' | 'fireAgain' }>>(state: SceneState, settled: A): A {
   return { ...settled, breaks: getAreaBreaks(state, settled.facts ?? {}, settled.armorRolls) }
+}
+
+// Who the action, as it lands, leaves a test of their own (play.tex "How
+// skills work") and has no die for yet: read off what it delivers before any
+// test is made, so that nobody is called to throw a die for a test that will
+// not come — a miss, a blow evaded, a cast that failed.
+export function getOwedDice(state: SceneState, open: RootAction): string[] {
+  if (isVoided(state, open)) return []
+  const owing = (byId: Record<string, Delivery[]>) => Object.entries(byId).filter(([id, ds]) => !(id in open.targetDice) && ds.some((d) => owesTest(state, id, d))).map(([id]) => id)
+  switch (open.kind) {
+    case 'strike': {
+      const blow = getAttackFacts(state, open)
+      return blow && open.targetId ? owing({ [open.targetId]: [blow] }) : []
+    }
+    case 'cast': return isFailedCast(state, open) ? [] : owing(getCastFacts(state, open) ?? {})
+    case 'fireAgain': return owing(getFireAgainFacts(state, open) ?? {})
+    default: return []
+  }
 }
 
 // The action as it lands: closed, with what it came to written down per

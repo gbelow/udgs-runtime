@@ -141,6 +141,7 @@ function describeWithdrawal(state: SceneState, { action, reason }: JournalEntry)
     case 'givenUp': return `${actor} gave up ${what}, held over from the round before, to defend`
     case 'interrupted': return `${actor}'s ${what}, held over, was interrupted: what was spent on it is lost`
     case 'failed': return `${actor}'s ${what}, held over, failed for want of what it needed when it came to finish`
+    case 'cancelledByGM': return `the GM cancelled ${actor}'s ${what} while it waited on their die`
   }
 }
 

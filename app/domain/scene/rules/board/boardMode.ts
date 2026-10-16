@@ -1,3 +1,4 @@
+import { getDiceBar } from '../../../play/calls'
 import type { SceneState } from '../../types'
 import { getOpenAction, findOpenRoot } from '../log'
 import { findOption } from '../options'
@@ -19,6 +20,7 @@ export function getEvasiveJumper(state: SceneState): string | null {
 }
 
 export function getBoardMode(state: SceneState): BoardMode {
+  if (getDiceBar(state.calls)) return 'locked'
   const open = getOpenAction(state)
   if ((open?.kind === 'move' || open?.kind === 'drag') && open.step === 'define') return 'path'
   const jumper = getEvasiveJumper(state)
@@ -32,6 +34,7 @@ export function getBoardMode(state: SceneState): BoardMode {
 // could take: the one whose pick up is being declared, else the active
 // character if they may pick up at all. Null when nothing is within reach.
 export function getFloorPicker(state: SceneState): { picker: string, itemIds: string[] } | null {
+  if (getDiceBar(state.calls)) return null
   const open = getOpenAction(state)
   const picker = open?.kind === 'pickUp' && open.step === 'define' ? open.actorId
     : !open && state.activeCharacterId && findOption(state, state.activeCharacterId, { kind: 'pickUp' })?.available ? state.activeCharacterId

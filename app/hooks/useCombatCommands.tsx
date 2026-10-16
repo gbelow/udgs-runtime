@@ -17,6 +17,7 @@ import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
 import { readActiveCharacter } from "./useActiveCharacterSelector"
 import { realDice } from "../components/utils"
+import { useThrower } from "./useDieCalls"
 import { useActForGate } from "./useControl"
 
 export function useCombatCommands() {
@@ -27,6 +28,9 @@ export function useCombatCommands() {
   const updateCombatState = useCombatStore((s) => s.updateCombatState)
   const updateTable = useCampaignStore((s) => s.updateTable)
   const newId = () => crypto.randomUUID()
+  const thrower = useThrower()
+  // a die typed in from the table for a test the press makes, or the screen's
+  const typed = (die?: number) => (die === undefined ? realDice : () => die)
   // what a character does for themselves is pressed only by whoever plays
   // them, or the GM
   const gate = useActForGate()
@@ -60,7 +64,7 @@ export function useCombatCommands() {
   }
 
   const rollContest = () => {
-    updateCombatState(rollTurnContest(realDice))
+    updateCombatState(rollTurnContest(thrower))
   }
 
   const actionSurge = (kind: SurgeKind) => {
@@ -74,28 +78,28 @@ export function useCombatCommands() {
   }
 
   const nextRound = () => {
-    updateCombatState(passRound(realDice))
+    updateCombatState(passRound(thrower))
   }
 
   const endCombat = () => {
-    updateCombatState(finishCombat(realDice))
+    updateCombatState(finishCombat(thrower))
   }
 
   const continueRound = () => {
-    updateCombatState(moveRoundOn(realDice))
+    updateCombatState(moveRoundOn(thrower))
   }
 
-  const holdOn = (id: string) => forCharacter(id, holdOnTo(id, realDice))
+  const holdOn = (id: string) => forCharacter(id, holdOnTo(id, thrower))
 
-  const letGo = (id: string) => forCharacter(id, letGoOf(id, realDice))
+  const letGo = (id: string) => forCharacter(id, letGoOf(id, thrower))
 
-  const rollMorale = (id: string, mode: RollMode, enemyNear: boolean) => forCharacter(id, testMorale(id, mode, enemyNear, realDice))
+  const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => forCharacter(id, testMorale(id, mode, enemyNear, typed(die)))
 
   const setTablePressure = (id: string, value: number) => {
     updateCombatState(setTablePressureOf(id, value))
   }
 
-  const rollHeld = (id: string, kind: CalledKind, mode: RollMode) => forCharacter(id, testHeld(id, kind, mode, realDice))
+  const rollHeld = (id: string, kind: CalledKind, mode: RollMode, die?: number) => forCharacter(id, testHeld(id, kind, mode, typed(die)))
 
   const asActive = (command: (id: string) => Updater) => () => {
     const id = useCombatStore.getState().activeCharacterId

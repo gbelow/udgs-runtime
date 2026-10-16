@@ -18,6 +18,8 @@ import { getBlastOf, getTerrainPaint } from '../rules/explosion'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 import { crossbowman } from '../../bot/fixtures'
+import { toTable } from '../../play/calls'
+import { answerScene } from './answer'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
 const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: SceneState) =>
@@ -103,12 +105,29 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
     }
   })
 
+  // A die is rolled when the test calls for it: the exchange waits on the
+  // table with nothing paid, and each test is made with the die entered for it.
+  it('waits on the dice left to the table, and is rolled with the dice entered', () => {
+    const before = declared(attack)
+    const rootId = getOpenAction(before)!.id
+    const waiting = rollAction(toTable(() => 5), newId)(before)
+    expect(waiting.characters).toEqual(before.characters)
+    expect(waiting.actions[rootId].roll).toBeNull()
+    const calls = Object.values(waiting.calls)
+    expect(calls.length).toBeGreaterThan(0)
+    const done = calls.reduce((s, c, i) => answerScene(c.id, i + 1, true, toTable(() => 5), newId)(s), waiting)
+    expect(done.calls).toEqual({})
+    calls.forEach((c, i) => {
+      if (c.id.startsWith('roll:')) expect(done.actions[c.id.slice('roll:'.length)].roll).toMatchObject({ die: i + 1, entered: true })
+    })
+  })
+
   // Once the die is thrown there is no way back: the action can only be
   // played out, and nothing is refunded by trying.
   it('a rolled action cannot be cancelled', () => {
     const rolled = rollAction(() => 5, newId)(declared(attack))
     expect(cancelAction()(rolled)).toEqual(rolled)
-    expect(getOpenAction(resolveAction(newId)(rolled))?.kind).not.toBe('strike')
+    expect(getOpenAction(resolveAction(newId, () => 5)(rolled))?.kind).not.toBe('strike')
   })
 
   // A price that cannot be paid stops the die: the state is left exactly as
@@ -199,7 +218,7 @@ describe('a charge set off', () => {
     const open = getOpenAction(s)
     const painted = open?.kind === 'explosion' ? getTerrainPaint(s, getBlastOf(s, open)).length : 0
     expect(painted).toBeGreaterThan(0)
-    const after = resolveAction(newId)(payAction(newId, () => 5)(s))
+    const after = resolveAction(newId, () => 5)(payAction(newId, () => 5)(s))
     expect(Object.keys(after.board?.terrain ?? {})).toHaveLength(painted)
   })
 })
@@ -268,7 +287,7 @@ describe('a weapon that must be reloaded', () => {
     expect(canShoot(s)).toBe(true)
     s = commitAction(() => 5, newId)(setTarget('def')(declareAction('atk', { kind: 'shoot', weaponKey, attack: 'shoot', variant: 'basic' }, newId)(s)))
     s = rollAction(() => 5, newId)(s)
-    if (getOpenAction(s)) s = resolveAction(newId)(s)
+    if (getOpenAction(s)) s = resolveAction(newId, () => 5)(s)
     expect(getOpenAction(s)).toBeNull()
     expect(canShoot(s)).toBe(false)
   })

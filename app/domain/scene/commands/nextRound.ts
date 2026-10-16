@@ -6,7 +6,10 @@ import { applyTrigger } from '../../character/commands/effects'
 import { suffocate, bleed } from '../../character/commands/bleed'
 import { burnAtRoundStart, burnScorch } from '../../character/commands/deliver'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { rollPercent, type Dice } from '../../play/dice'
+import { rollPercent } from '../../play/dice'
+import type { Caller, Throw } from '../../play/calls'
+import { calling } from './calling'
+import { getHeldTest } from '../rules/heldTest'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { letGoOfSustained, payHeldSources } from '../../character/commands/spells'
 import { cure } from '../../character/commands/addAffliction'
@@ -58,15 +61,15 @@ function startAP(c: CampaignCharacter): CampaignCharacter {
 // lose or join: its AP start at the round's, and its change opens at the
 // morale tests. Refused while any action is still being played out, so that
 // whatever it committed to is paid in the round it was committed in.
-export function nextRound(dice: Dice): Updater {
-  return (state) => {
+export function nextRound(thrown: Throw): Updater {
+  return calling({ kind: 'nextRound' }, thrown, (caller) => (state) => {
     if (state.roundStep !== null || getPlayingOutBar(state)) return state
     const receive = state.round === 0 ? startAP : receiveAP
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) ? c : receive(wake(state, c))]))
     const begun: SceneState = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], compulsions: [], concentration: [], roundStep: 'rest' }
-    const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, dice)
-    return state.round === 0 ? continueRound(dice)(continueRound(dice)(called)) : called
-  }
+    const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
+    return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : called
+  })
 }
 
 function wake(state: SceneState, c: CampaignCharacter): CampaignCharacter {
@@ -74,17 +77,25 @@ function wake(state: SceneState, c: CampaignCharacter): CampaignCharacter {
 }
 
 // The stealth tests the round calls, rolled as it begins (the table's ruling).
-function rollStealth(state: SceneState, dice: Dice): SceneState {
-  return state.heldTests.filter((t) => t.kind === 'stealth').reduce((s, t) => rollHeld(t.id, 'stealth', 'normal', dice)(s), state)
+function rollStealth(state: SceneState, caller: Caller): SceneState {
+  return state.heldTests.filter((t) => t.kind === 'stealth').reduce((s, t) => {
+    const test = getHeldTest(s, t.id, 'stealth')
+    const result = test && caller.test({ id: `stealth:${t.id}`, roller: t.id, label: 'stealth', test })
+    return result ? rollHeld(t.id, 'stealth', 'normal', () => result.die)(s) : s
+  }, state)
 }
 
 // The round change moves on to its next step, once the one it is at has
 // nothing owed.
-export function continueRound(dice: Dice): Updater {
+export function continueRound(thrown: Throw): Updater {
+  return calling({ kind: 'continueRound' }, thrown, continueWith)
+}
+
+function continueWith(caller: Caller): Updater {
   return (state) => {
     if (getContinueBar(state)) return state
     switch (state.roundStep) {
-      case 'rest': return openConcentration(passEnvironment(state), dice)
+      case 'rest': return openConcentration(passEnvironment(state), caller)
       case 'concentration': return { ...state, roundStep: 'join' }
       case 'join': return { ...state, roundStep: 'morale', morale: getMoraleCalled(state).map((id) => ({ id, roll: null })) }
       case 'morale': return { ...state, roundStep: null }
@@ -119,11 +130,11 @@ function passEnvironment(state: SceneState): SceneState {
 // the round change pays what falls due on it, a fired ability spent with it.
 // Whoever can no longer act lets go of what they held. With nobody left to
 // choose, the change moves on to who joins.
-function openConcentration(state: SceneState, dice: Dice): SceneState {
+function openConcentration(state: SceneState, caller: Caller): SceneState {
   const settled = Object.values(state.characters).filter((c) => !isDead(c)).reduce<SceneState>((s, c) => {
     const capped = updateCharacter(c.id, capAP, 'unspent AP lost')(s)
     if (!holdsThroughRound(capped, c.id)) return updateCharacter(c.id, payRoundEnd, 'round end')(capped)
-    return hasAffliction(c, 'unconscious') ? letGoOf(capped, c.id, dice) : capped
+    return hasAffliction(c, 'unconscious') ? letGoOf(capped, c.id, caller) : capped
   }, { ...state, roundStep: 'concentration' })
   return getConcentrationOwed(settled).length === 0 && getFinishing(settled).length === 0 ? { ...settled, roundStep: 'join' } : settled
 }
@@ -138,38 +149,38 @@ function payRoundEnd(c: CampaignCharacter): CampaignCharacter {
 // upkeep of everything kept going; a held spell or a held action takes the
 // focus surge holding it does (the table's ruling), and a held action keeps
 // every AP left for itself (combat.tex "Concentration").
-export function holdOn(id: string, dice: Dice): Updater {
-  return (state) => {
+export function holdOn(id: string, thrown: Throw): Updater {
+  return calling({ kind: 'holdOn', id }, thrown, (caller) => (state) => {
     if (getHoldOnBar(state, id)) return state
     const focus = needsFocusToHold(state, id)
     const paid = updateCharacter(id, (c) => {
-      const kept = payRoundEnd(payHeldSources(() => rollPercent(dice))(c))
+      const kept = payRoundEnd(payHeldSources(() => rollPercent(caller.dice))(c))
       return focus ? actionSurge('focus')(kept) : kept
     }, 'holds on')(state)
     const held = getHeldActions(paid).find((h) => h.actorId === id)
     const pool = Math.max(0, paid.characters[id].resources.AP)
     const carried = held ? carryOver(updateCharacter(id, payCost({ AP: pool, STA: 0 }, true), 'holds on')(paid), held, pool) : paid
-    return settleChoices({ ...carried, concentration: [...carried.concentration, { id, hold: true }] }, dice)
-  }
+    return settleChoices({ ...carried, concentration: [...carried.concentration, { id, hold: true }] }, caller)
+  })
 }
 
 // spells.tex "Sustained Spells": a held spell is let go of at will; so is an
 // ability kept switched on. What falls due on the round change is paid all
 // the same, and an action held over is finished, if its AP are there for it.
-export function letGo(id: string, dice: Dice): Updater {
-  return (state) => (getLetGoBar(state, id) ? state : letGoOf(state, id, dice))
+export function letGo(id: string, thrown: Throw): Updater {
+  return calling({ kind: 'letGo', id }, thrown, (caller) => (state) => (getLetGoBar(state, id) ? state : letGoOf(state, id, caller)))
 }
 
-function letGoOf(state: SceneState, id: string, dice: Dice): SceneState {
+function letGoOf(state: SceneState, id: string, caller: Caller): SceneState {
   const released = updateCharacter(id, (c) => payRoundEnd(letGoOfSustained(c)), 'lets go')(state)
-  return settleChoices({ ...released, concentration: [...released.concentration, { id, hold: false }] }, dice)
+  return settleChoices({ ...released, concentration: [...released.concentration, { id, hold: false }] }, caller)
 }
 
 // Once nobody owes a choice, the held actions let go of are finished, in
 // their order.
-function settleChoices(state: SceneState, dice: Dice): SceneState {
+function settleChoices(state: SceneState, caller: Caller): SceneState {
   if (getConcentrationOwed(state).length > 0) return state
   const letGoBy = state.concentration.filter((x) => !x.hold).map((x) => x.id)
   const finishing = getHeldActions(state).filter((h) => letGoBy.includes(h.actorId) && h.finishing === null).map((h) => h.id)
-  return finishing.length === 0 ? state : finishHeld(state, finishing, dice)
+  return finishing.length === 0 ? state : finishHeld(state, finishing, caller)
 }

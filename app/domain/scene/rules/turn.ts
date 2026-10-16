@@ -1,3 +1,4 @@
+import { getDiceBar } from '../../play/calls'
 import { isCombatStarted } from './started'
 import type { SurgeKind } from '../../types'
 import type { SceneState, ContestRoll } from '../types'
@@ -58,9 +59,11 @@ export function getStartTurnBar(state: SceneState, id: string): string | null {
   return getFightBusy(state) ?? getRoundChangeBar(state) ?? getTurnlessReason(state, id) ?? getChaseTurnBar(state, id) ?? getMoraleTurnBar(state) ?? getHeldTurnBar(state) ?? getStressStartBar(state, id)
 }
 
-// What the fight is busy with, if anything: someone's turn, or an action
-// being played out.
+// What the fight is busy with, if anything: a die it waits on, someone's
+// turn, or an action being played out.
 export function getFightBusy(state: SceneState): string | null {
+  const dice = getDiceBar(state.calls)
+  if (dice) return dice
   const holder = getTurnHolder(state)
   if (holder) return `${getFightName(state, holder)}'s turn`
   return getPlayingOutBar(state)

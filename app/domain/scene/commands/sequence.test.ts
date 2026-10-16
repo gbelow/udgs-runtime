@@ -81,7 +81,7 @@ function playOut(start: SceneState, face: number): { state: SceneState; landed: 
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
     const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'move' && open.spawnedBy !== null) || (open.kind === 'grapple' && (open.maneuver === 'escape' || open.recipe === 'interceptDisarm')))
-    const steps = passedUp ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId, () => 5), resolveAction(newId)]
+    const steps = passedUp ? [withdrawSpawnedAction(() => 5, newId)] : [rollAction(() => face, newId), payAction(newId, () => 5), resolveAction(newId, () => 5)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
     for (const id of getHistory(next).slice(getHistory(s).length)) landed.push(getLog(next).find((a) => a.id === id)!)
@@ -140,7 +140,7 @@ function pushTowardsSpearman(): SceneState {
 function moveGrabbedGroup(placements: Record<string, [number, number]>, third: CampaignCharacter, path: Coord[]): SceneState {
   let s = onBoard(placements, fighter('a'), fighter('b'), third)
   s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
-  s = resolveAction(newId)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
+  s = resolveAction(newId, () => 5)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
   s = declareAction('a', { kind: 'drag', movement: 'careful', boost: true }, newId)(s)
   s = commitAction(() => 5, newId)(amendAction({ path })(setTarget('b')(s)))
   expect(getOpenAction(s)?.kind).toBe('drag')
@@ -270,7 +270,7 @@ describe('giving up the action an opportunity attack answers', () => {
     const shot = getLog(s).find((a) => a.kind === 'shoot')!
     const first = getOpenAction(s)!
     const before = s.characters.atk.resources.AP + shot.cost!.AP
-    s = resolveAction(newId)(rollAction(() => MISS, newId)(s))
+    s = resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(s))
     const second = getOpenAction(s)!
     expect(s.characters.atk.resources.AP).toBe(before - 1 - evadeOf(s, first.id)!.cost!.AP)
     s = rollAction(() => MISS, newId)(evade(s))
@@ -310,7 +310,7 @@ describe('an explosion', () => {
     for (let i = 0; i < 5 && getOpenAction(s)?.kind === 'move'; i++) {
       s = escaping() === 'x'
         ? commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 0, r: -2 }, { q: 0, r: -3 }, { q: 0, r: -4 }] })(s))
-        : withdrawSpawnedAction(newId)(s)
+        : withdrawSpawnedAction(() => 5, newId)(s)
     }
     const blast = getLog(s).find((a) => a.kind === 'blast')
     const facts = blast?.kind === 'blast' ? blast.facts ?? {} : {}
@@ -334,7 +334,7 @@ describe('an explosion on armor', () => {
     let s = { ...onBoard({ t: [-5, 0], x: [1, 0] }, thrower, { ...fighter('x'), worn: gambeson }), breakage }
     s = commitAction(() => digit, newId)(declareAction('t', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 0 } }, newId)(s))
     for (let i = 0; i < 20 && getOpenAction(s); i++) {
-      const next = [rollAction(() => digit, newId), payAction(newId, () => digit), resolveAction(newId), aimExplosion(0), commitAction(() => digit, newId)].map((step) => step(s)).find((t) => t !== s)
+      const next = [rollAction(() => digit, newId), payAction(newId, () => digit), resolveAction(newId, () => 5), aimExplosion(0), commitAction(() => digit, newId)].map((step) => step(s)).find((t) => t !== s)
       if (!next) break
       s = next
     }
@@ -371,7 +371,7 @@ describe('an explosion met with a shield', () => {
         s = declareReaction('x', option.draft, newId)(s)
         continue
       }
-      const next = [rollAction(() => 9, newId), payAction(newId, () => 9), resolveAction(newId), aimExplosion(0), commitAction(() => 9, newId)].map((step) => step(s)).find((t) => t !== s)
+      const next = [rollAction(() => 9, newId), payAction(newId, () => 9), resolveAction(newId, () => 5), aimExplosion(0), commitAction(() => 9, newId)].map((step) => step(s)).find((t) => t !== s)
       if (!next) break
       s = next
     }
@@ -413,7 +413,7 @@ describe('a counterattack', () => {
     s = amendReaction('def', { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(s)
     const dice = [...faces]
     s = rollAction(() => dice.shift()!, newId)(s)
-    for (let i = 0; i < 5 && getOpenAction(s); i++) s = resolveAction(newId)(s)
+    for (let i = 0; i < 5 && getOpenAction(s); i++) s = resolveAction(newId, () => 5)(s)
     return getHistory(s).map((id) => getLog(s).find((a) => a.id === id)!)
   }
 
@@ -453,17 +453,17 @@ describe('a riposte', () => {
     if (option) s = declareReaction('def', option.draft, newId)(s)
     // the thrust misses, and the percentiles that follow break nothing
     let thrown = 0
-    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? MISS : 5), newId)(s))
+    return resolveAction(newId, () => 5)(rollAction(() => (thrown++ === 0 ? MISS : 5), newId)(s))
   }
 
   // The table's rulings: follow-ups are a choice, one per character, and a
   // melee attack leaves its target a flee (combat.tex "Flee").
   it('is one choice with the flee: taken, no flee follows; passed up, the flee is offered', () => {
     const offered = missedShieldBearer('evade')
-    expect(getOpenAction(withdrawSpawnedAction(newId)(offered))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
+    expect(getOpenAction(withdrawSpawnedAction(() => 5, newId)(offered))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
     const [row] = getAttackOptions(offered.characters.def, 'strike', true)
     const declared = commitAction(() => 5, newId)(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(offered))
-    expect(getOpenAction(resolveAction(newId)(rollAction(() => MISS, newId)(declared)))).toBeNull()
+    expect(getOpenAction(resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(declared)))).toBeNull()
   })
 
   // What each basic attack the riposter holds is cheaper by, split by
@@ -509,7 +509,7 @@ describe('a riposte', () => {
     const [row] = getAttackOptions(start.characters.atk, 'strike', true)
     let s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(start)
     s = declareReaction('def', { kind: 'evade' }, newId)(commitAction(() => 5, newId)(setTarget('def')(s)))
-    s = commitAction(() => 5, newId)(amendAction(punch)(resolveAction(newId)(rollAction(() => MISS, newId)(s))))
+    s = commitAction(() => 5, newId)(amendAction(punch)(resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(s))))
     const own = commitAction(() => 5, newId)(setTarget('atk')(declareAction('def', { kind: 'strike', ...punch }, newId)(start)))
     const kinds = (state: SceneState) => getTriggers(state, getOpenAction(state)!).map((t) => t.kind)
     expect(kinds(own)).toContain('opportunityAttack')
@@ -559,7 +559,7 @@ describe('a hook attack', () => {
     s = amendReaction('h', { weaponKey: s.characters.h.held[0].id, attack: 'hook', variant: 'hook', location })(s)
     s = rollAction(() => 9, newId)(payAction(newId, () => 5)(s))
     expect(getOpenAction(s)?.roll?.degree).toBe('hit')
-    return resolveAction(newId)(buy ? spendHOP('hook')(s) : s)
+    return resolveAction(newId, () => 5)(buy ? spendHOP('hook')(s) : s)
   }
 
   it('knocks a runner hooked at the legs down, unresisted, and the run stops there', () => {
@@ -672,7 +672,7 @@ describe('a disarm an intercept opens', () => {
     const start = facingOff()
     const intercept = getAvailableActions(start, 'def').find((o) => o.draft.kind === 'intercept')!
     const declared = declareReaction('def', intercept.draft, newId)(start)
-    const s = resolveAction(newId)(rollAction(() => MISS, newId)(declared))
+    const s = resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(declared))
     const opened = getOpenAction(s)
     expect(opened).toMatchObject({ kind: 'grapple', maneuver: 'disarm', actorId: 'def', targetId: 'atk' })
     expect(getOwnCost(s, opened!)).toEqual({ AP: 1, STA: 1 })
@@ -685,7 +685,7 @@ describe('a disarm an intercept opens', () => {
     const broke = { ...start, characters: { ...start.characters, def: { ...start.characters.def, resources: { ...start.characters.def.resources, STA: 0 } } } }
     const intercept = getAvailableActions(broke, 'def').find((o) => o.draft.kind === 'intercept')!
     const declared = declareReaction('def', intercept.draft, newId)(broke)
-    const s = resolveAction(newId)(rollAction(() => MISS, newId)(declared))
+    const s = resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(declared))
     expect(getOpenAction(s)).not.toMatchObject({ kind: 'grapple', maneuver: 'disarm' })
   })
 
@@ -696,7 +696,7 @@ describe('a disarm an intercept opens', () => {
     const spent = { ...start, characters: { ...start.characters, def: { ...start.characters.def, resources: { ...start.characters.def.resources, AP: 3 } } } }
     const intercept = getAvailableActions(spent, 'def').find((o) => o.draft.kind === 'intercept')!
     const declared = declareReaction('def', intercept.draft, newId)(spent)
-    const s = resolveAction(newId)(rollAction(() => MISS, newId)(declared))
+    const s = resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(declared))
     expect(s.characters.def.resources.AP).toBe(0)
     expect(getOpenAction(s)).toMatchObject({ kind: 'grapple', maneuver: 'disarm' })
   })
@@ -781,7 +781,7 @@ describe('a spray', () => {
     const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
     const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
     const s = onBoard({ c: [0, 0], x: [2, 0], y: [-2, 0], z: [6, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
-    return resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
+    return resolveAction(newId, () => 5)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
   }
 
   it('asks everyone in its range for their reflexes, with nothing to aim first', () => {
@@ -792,7 +792,7 @@ describe('a spray', () => {
   })
 
   it('reaches only the cone it is pointed in once the reflexes are done', () => {
-    const s = resolveAction(newId)(aimExplosion(0)(payAction(newId, () => 5)(flamesCast())))
+    const s = resolveAction(newId, () => 5)(aimExplosion(0)(payAction(newId, () => 5)(flamesCast())))
     const blast = getLog(s).find((a) => a.kind === 'blast')
     expect(Object.keys(blast?.kind === 'blast' ? blast.facts ?? {} : {})).toEqual(['x'])
   })
@@ -806,8 +806,8 @@ describe('a held spray retargeted as a reaction', () => {
     const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
     const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
     let s = onBoard({ c: [0, 0], z: [6, 0] }, caster, fighter('z'))
-    s = resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
-    s = resolveAction(newId)(aimExplosion(0)(payAction(newId, () => 5)(s)))
+    s = resolveAction(newId, () => 5)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
+    s = resolveAction(newId, () => 5)(aimExplosion(0)(payAction(newId, () => 5)(s)))
     s = declareAction('z', { kind: 'move' }, newId)(s)
     return commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [5, 4, 3].map((q) => ({ q, r: 0 })) })(s))
   }
@@ -824,7 +824,7 @@ describe('a held spray retargeted as a reaction', () => {
     s = declareReaction('c', option.draft, newId)(s)
     const landed: Action[] = []
     for (let i = 0; i < 50 && getOpenAction(s); i++) {
-      const next = [rollAction(() => MISS, newId), payAction(newId, () => 5), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
+      const next = [rollAction(() => MISS, newId), payAction(newId, () => 5), resolveAction(newId, () => 5), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
       if (!next) throw new Error('stuck')
       for (const id of getHistory(next).slice(getHistory(s).length)) landed.push(getLog(next).find((a) => a.id === id)!)
       s = next
@@ -870,7 +870,7 @@ describe('flee', () => {
       s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
       return commitAction(() => 5, newId)(setTarget('def')(s))
     }
-    const land = (s: SceneState) => resolveAction(newId)(rollAction(() => MISS, newId)(s))
+    const land = (s: SceneState) => resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(s))
     expect(getAvailableActions(struck(6), 'def').some((o) => o.draft.kind === 'flee')).toBe(false)
     expect(getOpenAction(land(struck(6)))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
     expect(getOpenAction(land(struck(2)))).toBeNull()
@@ -924,8 +924,8 @@ describe('coordinated shots', () => {
   // ruling: the lead shot's result is the one that counts.
   const playedJoined = (leadFace: number, joinedFace: number) => {
     let s = rollAction(() => leadFace, newId)(joined())
-    s = resolveAction(newId)(rollAction(() => joinedFace, newId)(s))
-    return resolveAction(newId)(s)
+    s = resolveAction(newId, () => 5)(rollAction(() => joinedFace, newId)(s))
+    return resolveAction(newId, () => 5)(s)
   }
   const escapes = (s: SceneState) => getLog(s).filter((a) => a.kind === 'fleeFollowUp')
 
@@ -999,7 +999,7 @@ describe('a net', () => {
     s = commitAction(() => 5, netId)(s)
     for (const id of ['x', 'y', 'z']) s = declareReaction(id, { kind: 'avoidExplosion' }, netId)(s)
     s = rollAction(() => 50, netId)(s)
-    for (let i = 0; i < 8 && getOpenAction(s)?.kind === 'move'; i++) s = withdrawSpawnedAction(netId)(s)
+    for (let i = 0; i < 8 && getOpenAction(s)?.kind === 'move'; i++) s = withdrawSpawnedAction(() => 5, netId)(s)
     return playOut(s, 5).state
   }
 
@@ -1120,7 +1120,7 @@ describe('a blow a block met', () => {
     const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === defense && (o.draft.kind !== 'block' || o.draft.weaponKey === shield.id))
     s = declareReaction('def', option!.draft, newId)(s)
     let thrown = 0
-    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(s))
+    return resolveAction(newId, () => 5)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(s))
   }
 
   it('breaks the shield it struck on a low percentile, and not on a high one', () => {
@@ -1167,7 +1167,7 @@ describe('a blow that lands on armor', () => {
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     s = commitAction(() => 5, newId)(setTarget('def')(s))
     let thrown = 0
-    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(s))
+    return resolveAction(newId, () => 5)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(s))
   }
   const pitted = (s: SceneState) => s.characters.def.worn?.broken
 
@@ -1208,7 +1208,7 @@ describe('a strike aimed at equipment', () => {
   }
   function struck(die: number, digit: number, breakage = true): SceneState {
     let thrown = 0
-    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(declared(shield.id, breakage)))
+    return resolveAction(newId, () => 5)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(declared(shield.id, breakage)))
   }
   const shieldOf = (s: SceneState) => s.characters.def.held[0]
 

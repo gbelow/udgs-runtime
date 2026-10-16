@@ -7,6 +7,7 @@ import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../
 import { GmLocked } from './Locks'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { ROLL_MODES } from '../domain/play/dice'
+import { RollButtons } from './DieCalls'
 import type { RoundCard, RoundChangeView } from '../domain/scene/projections/roundChange'
 
 const HINTS: Partial<Record<RoundChangeView['phase'], string>> = {
@@ -125,9 +126,7 @@ function MoralePanel(){
           <span className='text-muted'>DL <span className='font-mono text-fg'>{r.DL}</span>{r.aggravators ? ` (${r.aggravators})` : ''}</span>
           {
             !r.result ?
-            ROLL_MODES.map((mode) => (
-              <Button key={mode} size='xs' aria-label={`morale ${mode} ${r.name}`} onClick={() => rollMorale(r.id, mode, enemyNear)}>{mode}</Button>
-            )) :
+            <RollButtons name={r.name} options={ROLL_MODES.map((mode) => ({ key: mode, label: `morale ${mode}` }))} onRoll={(mode, die) => rollMorale(r.id, mode, enemyNear, die)} /> :
             <span className='text-xs text-muted'>{r.result}</span>
           }
           {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}

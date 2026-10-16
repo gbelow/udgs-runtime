@@ -67,8 +67,22 @@ own.
    positional gate passes; board rules answer null or "passes" when the board or the
    placement is missing.
 
-10. **The domain holds no entropy.** Dice come in as a `Dice` function
-    (`components/utils.tsx` `realDice` is the one `Math.random` seam) and ids as a
+10. **The domain holds no entropy.** Dice come in from whoever throws them (`Throw`,
+    `play/calls.ts`): a plain `Dice` function answers every die at once (bots, tests, the
+    fuzzer), and a `Thrower` may leave a die to the table. A command that throws test dice
+    runs through `calling` (`commands/calling.ts`): each die is a call, and while any waits,
+    the command keeps nothing but `state.calls` and what to carry on with (`state.resume`);
+    `answerScene` (`commands/answer.ts`) puts a die in and, with the last, runs that
+    command again over the calls. A die is called for only where a rule reads it: a
+    target's die for what an action delivers when it lands (`getOwedDice`,
+    `rules/settle.ts`), a climber's redo when an attack interrupting the climb lands
+    (`getInterruptedClimb`), so `advance` and `land` take the caller and stop while a die
+    waits. While the scene waits, nothing else moves: the options and the board show
+    closed (`getDiceBar`), the busy bars say so, another calling command is refused, and
+    the store keeps any change that leaves the calls as they were from landing
+    (`holdForDice`, `play/calls.ts`). The GM may take back only what a die was called for
+    (`cancelCall`, `rules/calls.ts` `getCancelling`). Percentiles (breakage, charges, the
+    chase's coin) are never called for. `components/utils.tsx` is the one `Math.random` seam; ids come as a
     `newId: () => string` (hooks pass `crypto.randomUUID`).
 
 11. **An action waits only where someone owes a decision.** The step changes only at a
@@ -285,6 +299,8 @@ app/domain/scene/
 │   ├── results.ts      getResults: what a landing action's damage comes to on each target, with the steps, written onto it by `land`
 │   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
 │   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
+│   ├── calling.ts      calling: a command's test dice as calls kept on the scene while any waits on the table
+│   ├── answer.ts       answerScene: a die put into a call, and with the last, the command that called carried on; cancelCall: the GM takes back the action or reaction a die was called for
 │   ├── log.ts          setActions (only writer of actions/live/stack/landed), withdrawActions (the only way out of play but a draft, writes the journal), discardDraft, applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── bind.ts         settleBinds

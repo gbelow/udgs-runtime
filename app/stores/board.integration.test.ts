@@ -146,7 +146,7 @@ describe('a move blocked after passing someone who evaded', () => {
     h.commit()
     const evade = getAvailableActions(h.state(), h.idOf('Bob')).find((o) => o.draft.kind === 'evade' && o.available)!
     h.press(declareReaction(h.idOf('Bob'), evade.draft, h.newId))
-    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) h.press(step)
     const stands = Object.entries(h.state().board!.placements).map(([id, p]) => `${p.cell.q},${p.cell.r}:${id}`)
     const cells = stands.map((s) => s.split(':')[0])
     expect(new Set(cells).size).toBe(cells.length)

@@ -1,6 +1,7 @@
 import type { SurgeKind } from '../../types'
 import type { SceneState, Updater } from '../types'
-import type { Dice } from '../../play/dice'
+import type { Throw } from '../../play/calls'
+import { calling, WAITING } from './calling'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { getContestBar, getContenders, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, rollCunning } from '../rules/turn'
 import { updateCharacter } from './characters'
@@ -39,14 +40,15 @@ export function toggleAgreeToEnd(id: string): Updater {
 // The contest is rolled: the holder and everyone who asked roll cunning
 // (the die does not explode: play.tex "Exploding die" — only where it says),
 // and the winner takes the turn.
-export function rollContest(dice: Dice): Updater {
-  return (state) => {
+export function rollContest(thrown: Throw): Updater {
+  return calling({ kind: 'contest' }, thrown, (caller) => (state) => {
     const holder = getTurnHolder(state)
     if (getRollContestBar(state) || !holder) return state
-    const rolls = [holder, ...getContenders(state)].map((id) => rollCunning(state, id, dice))
+    const die = (id: string) => () => caller.die({ id: `contest:${id}`, roller: id, label: 'cunning, for the turn' }) ?? WAITING
+    const rolls = [holder, ...getContenders(state)].map((id) => rollCunning(state, id, die(id)))
     const winner = getContestWinner(rolls) ?? holder
     return { ...state, inTurnCharacter: winner, contenders: [], lastContest: { rolls, winner } }
-  }
+  })
 }
 
 // The turn ends (`closeTurn`). The next turn waiting in the queue is then

@@ -1,3 +1,4 @@
+import { getDiceBar } from '../../play/calls'
 import { isCombatStarted } from './started'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { getMedicineBar, getMedicineCost } from './medicine'
@@ -138,6 +139,10 @@ export function getAvailableActions(state: SceneState, characterId: string): Act
 const listed = new WeakMap<SceneState, Map<string, ActionOption[]>>()
 
 function computeAvailableActions(state: SceneState, characterId: string): ActionOption[] {
+  return closeWhileDiceWait(state, listAvailableActions(state, characterId))
+}
+
+function listAvailableActions(state: SceneState, characterId: string): ActionOption[] {
   const c = state.characters[characterId]
   if (!c) return []
   const open = getOpenAction(state)
@@ -155,7 +160,14 @@ function listOwn(state: SceneState, c: CampaignCharacter): ActionOption[] {
 // What stands closed among the character's own actions: who they are, what they
 // are doing, what surge is in hand, whose turn it is.
 function closeOwn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeByRoundChange(state, closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileForced(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options)))))))))
+  return closeWhileDiceWait(state, closeByRoundChange(state, closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileForced(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options))))))))))
+}
+
+// The table's ruling: while the scene waits on a die it called for, nothing
+// else is declared.
+function closeWhileDiceWait(state: SceneState, options: ActionOption[]): ActionOption[] {
+  const bar = getDiceBar(state.calls)
+  return bar ? closeWith(options, () => bar) : options
 }
 
 // combat.tex "Feint": the one a feint forced to take their turn chooses

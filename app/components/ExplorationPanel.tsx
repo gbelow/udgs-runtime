@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { Button, NumberInput, SectionLabel, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog } from './RunParts';
-import { useExploration, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
+import { useETAnswer, useETCalls, useETCancel, useETDiceBar, useExploration, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
+import { DieCalls } from './DieCalls';
 import { useActorBar, useGmBar } from '../hooks/useControl';
 import { Locked, LockedFor } from './Locks';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
@@ -46,9 +47,14 @@ export function PartyCards(){
 
   const { parties, decisions } = useParties()
   const maps = useNodeOptions()
+  const calls = useETCalls()
+  const answer = useETAnswer()
+  const cancel = useETCancel()
 
   return(
     <RosterCatalog>
+      <DieCalls rows={calls} answer={answer} cancel={cancel} />
+      <Locked bar={useETDiceBar()}>
       {decisions.length > 0 ?
         <div className='flex flex-col gap-1 pb-2 border-b border-line'>
           <SectionLabel>Forced to rest</SectionLabel>
@@ -59,6 +65,7 @@ export function PartyCards(){
         {parties.length === 0 ? <span className='text-xs text-muted'>nobody on the roster: add characters</span> : null}
         {parties.map((party) => <PartyCard key={party.id} party={party} maps={maps} />)}
       </div>
+      </Locked>
     </RosterCatalog>
   )
 }

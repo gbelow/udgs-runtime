@@ -32,7 +32,7 @@ export function stepOpen(state: SceneState, parties: readonly Party[], open: Roo
     case 'react':
       return answer(state, parties, open, newId) ?? (owner && !isAnswerOwed(state, parties) ? rollOrPay(dice, newId)(state) : null)
     case 'post':
-      return owner ? resolveAction(newId)(state) : null
+      return owner ? resolveAction(newId, dice)(state) : null
     case 'done':
     case 'held':
       return null
@@ -42,9 +42,9 @@ export function stepOpen(state: SceneState, parties: readonly Party[], open: Roo
 // What a bot finds still declared and not committed: taken to its commit, or
 // passed up.
 function settleDeclared(state: SceneState, open: RootAction, dice: Dice, newId: () => string): SceneState {
-  if (open.spawnedBy) return passUp(state, open, newId)
+  if (open.spawnedBy) return passUp(state, open, dice, newId)
   const committed = commitAction(dice, newId)(state)
-  return committed !== state ? committed : passUp(state, open, newId)
+  return committed !== state ? committed : passUp(state, open, dice, newId)
 }
 
 // Whether the committed action still waits on anyone no bot controls

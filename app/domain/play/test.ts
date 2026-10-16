@@ -44,24 +44,27 @@ export function resolveTest(test: Test, dice: Dice): TestResult {
 }
 
 // A test as it is kept to be read afterwards: the die, the score it came to,
-// the DL and the degree.
+// the DL and the degree, and whether the die was entered from the table.
 export const TestRollSchema = z.object({
   die: z.number(),
   score: z.number(),
   DL: z.number(),
   degree: DegreeSchema,
+  entered: z.boolean().optional(),
 })
 export type TestRoll = z.infer<typeof TestRollSchema>
 
-export const toRoll = ({ die, score, DL, degree }: TestRoll): TestRoll => ({ die, score, DL, degree })
+export const toRoll = ({ die, score, DL, degree, entered }: TestRoll): TestRoll => ({ die, score, DL, degree, ...(entered ? { entered } : {}) })
+
+type ReadRoll = { score: number; DL: number; degree: string; entered?: boolean }
 
 // A roll as a line of text: the score against the DL, and the degree.
-export function describeRoll({ score, DL, degree }: { score: number; DL: number; degree: string }): string {
-  return `${score} vs DL ${DL}, ${degree}`
+export function describeRoll({ score, DL, degree, entered }: ReadRoll): string {
+  return `${score} vs DL ${DL}, ${degree}${entered ? ' (die entered)' : ''}`
 }
 
 // What a test came to, to follow a line: the roll, if one was made, and a
 // note on it, if any.
-export function describeOutcome(roll: { score: number; DL: number; degree: string } | null, note = ''): string {
+export function describeOutcome(roll: ReadRoll | null, note = ''): string {
   return `${roll ? `: ${describeRoll(roll)}` : ''}${note ? ` — ${note}` : ''}`
 }

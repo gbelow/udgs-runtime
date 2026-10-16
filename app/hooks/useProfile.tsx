@@ -1,11 +1,16 @@
 import { toast } from "sonner";
-import { createProfile, pickProfile, renameProfile, type ActionResult } from "../actions";
+import { createProfile, pickProfile, renameProfile, setManualDice, type ActionResult } from "../actions";
 import { getProfileNameBar, type Profile } from "../domain/profiles";
 import { useAppStore } from "../stores/useAppStore";
 
 // The id of the profile picked at this screen, or null before one is.
 export function useProfileId(): string | null {
   return useAppStore((s) => s.profile?.id ?? null);
+}
+
+// Whether whoever is at this screen rolls their own dice at the table.
+export function useManualDice(): boolean {
+  return useAppStore((s) => s.profile?.manualDice ?? false);
 }
 
 // The profile picked at this screen, the others there are, and picking,
@@ -39,8 +44,14 @@ export function useProfile() {
     refresh();
   };
 
+  const setDice = async (manual: boolean) => {
+    const res = await setManualDice(manual);
+    if (!res.ok) { toast.error(res.error); return; }
+    setProfile(res.data);
+  };
+
   return {
-    profile, profiles, rename, nameBar: getProfileNameBar, dev,
+    profile, profiles, rename, setDice, nameBar: getProfileNameBar, dev,
     pick: (id: string) => switchTo(pickProfile(id)),
     create: (name: string) => switchTo(createProfile(name)),
   } as const;

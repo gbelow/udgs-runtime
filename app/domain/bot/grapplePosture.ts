@@ -69,7 +69,7 @@ function playedHit(strikeState: SceneState, grab: boolean, newId: () => string):
   if (!open || open.kind !== 'strike' || open.step !== 'post') return null
   const chosen = chooseGrapple(grab)(rolled)
   if (grab && !(getOpenAction(chosen) as typeof open).grapples) return null
-  return resolveAction(newId)(chosen)
+  return resolveAction(newId, hitDice())(chosen)
 }
 
 export function readGrabs(store: Evaluations, state: SceneState, attackerId: string, foeId: string): GrabReading[] {

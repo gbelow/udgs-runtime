@@ -15,6 +15,7 @@ import { useResourceLens } from '../hooks/useResourceLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
+import { RollButtons } from './DieCalls';
 import { useWoundLens } from '../hooks/useWoundLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
@@ -314,7 +315,7 @@ export function PendingPanel(){
           <SkillTooltip terms={r.terms} total={r.total}>
             <span className='text-muted'>{r.roll} <span className='font-mono text-fg'>{r.total}</span> vs DL <span className='font-mono text-fg'>{r.DL}</span></span>
           </SkillTooltip>
-          <Button size='xs' variant='primary' aria-label={`roll ${r.name || r.kind}`} onClick={() => roll(r.index)}>roll</Button>
+          <RollButtons name={r.name || r.kind} options={[{ key: 'roll', label: 'roll' }]} onRoll={(_, die) => roll(r.index, die)} />
         </div>
       ))}
     </div>
@@ -359,7 +360,7 @@ export function CursePanel(){
               <SkillTooltip terms={r.terms} total={r.total}>
                 <span className='text-muted'>{r.roll} <span className='font-mono text-fg'>{r.total}</span> vs DL <span className='font-mono text-fg'>{r.DL}</span></span>
               </SkillTooltip>
-              <Button size='xs' variant='primary' aria-label={`resist ${r.name}`} onClick={() => resist(r.key)}>resist</Button>
+              <RollButtons name={r.name} options={[{ key: 'resist', label: 'resist' }]} onRoll={(_, die) => resist(r.key, die)} />
             </>
           ) : <span className='text-muted'>no test beats it</span>}
         </div>

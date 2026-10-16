@@ -5,21 +5,23 @@ import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/
 import type { At } from "../domain/campaign/types";
 import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
-import { drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor, toDowntime } from "../domain/exploration/commands/exploration";
+import { answerET, cancelETCall, drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor, toDowntime } from "../domain/exploration/commands/exploration";
 import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
 import { mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyPlace } from "../domain/campaign/commands/parties";
 import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from "../domain/campaign/commands/clock";
 import { returnFromFight, returnPartyFromFight, saveFightLog, sendPartyToFight, sendToFight } from "../domain/scene/commands/fight";
 import { getSaveLogBar } from "../domain/scene/rules/fight";
 import type { TableUpdater } from "../domain/scene/types";
-import { getGroupActor, getPassBar, getToDowntimeBar } from "../domain/exploration/rules/exploration";
+import { getGroupActor, getPassBar, getToDowntimeBar, isCancellableET } from "../domain/exploration/rules/exploration";
 import type { Actor } from "../domain/profiles";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
-import { realDice } from "../components/utils";
 import { useActGate } from "./useControl";
+import { useDieAnswer, useDieCancel, useThrower } from "./useDieCalls";
+import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
+import { getRosterName } from "../domain/campaign/rules/roster";
 
 const exploring = (s: CampaignStore): Exploring => ({ campaign: s, exploration: s.exploration });
 
@@ -77,6 +79,35 @@ export function useExploration(): ExplorationPanel {
   return getExplorationPanel(exploring(useCampaignStore.getState()), c?.id ?? null);
 }
 
+// Why no plan may change: the passing ET waits on dice.
+export function useETDiceBar(): string | null {
+  return useCampaignStore((s) => getDiceBar(s.exploration.calls));
+}
+
+// The tests the passing ET has called for, gated on the calls themselves.
+export function useETCalls(): CallRow[] {
+  useCampaignStore((s) => s.exploration.calls);
+  const s = useCampaignStore.getState();
+  return getCallRows(s.exploration.calls, (id) => getRosterName(s, id), (c) => isCancellableET(c.id));
+}
+
+// The GM's taking back of the plan a die the ET called for answers.
+export function useETCancel() {
+  const updateExploration = useCampaignStore((s) => s.updateExploration);
+  return useDieCancel((callId, thrower) => updateExploration(cancelETCall(callId, thrower, newId)));
+}
+
+const newId = () => crypto.randomUUID();
+
+// The answer to a test the ET calls for.
+export function useETAnswer() {
+  const updateExploration = useCampaignStore((s) => s.updateExploration);
+  return useDieAnswer(
+    () => useCampaignStore.getState().exploration.calls,
+    (callId, die, entered, thrower) => updateExploration(answerET(callId, die, entered, thrower, newId)),
+  );
+}
+
 export function usePartyCommands() {
   const updateCampaignState = useCampaignStore((s) => s.updateCampaignState);
   const updateTable = useCampaignStore((s) => s.updateTable);
@@ -84,6 +115,7 @@ export function usePartyCommands() {
   const pick = useCampaignStore((s) => s.setActiveCharacter);
   const setTab = useAppStore((s) => s.setSelectedGameTab);
   const gate = useActGate();
+  const thrower = useThrower();
 
   const as = (actor: Actor, run: () => void) => { if (gate(actor)) run(); };
   const asGm = (run: () => void) => as("gm", run);
@@ -95,7 +127,6 @@ export function usePartyCommands() {
   const asActive = (command: (id: string) => CampaignUpdater) => withActive((id) => updateCampaignState(command(id)));
   const planActive = (command: (id: string) => ExplorationUpdater) => withActive((id) => updateExploration(command(id)));
 
-  const newId = () => crypto.randomUUID();
   const comeBack = (updater: TableUpdater) => {
     updateTable(updater);
     if (Object.keys(useCombatStore.getState().characters).length === 0) setTab('exploration');
@@ -123,7 +154,7 @@ export function usePartyCommands() {
     setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => asGroup(partyId, () => updateExploration(setGroupOf(partyId, groupId, settings)), settings),
     setRoller: (partyId: string, groupId: string, roller: string) => asGroup(partyId, () => updateExploration(setRollerOf(partyId, groupId, roller))),
     decide: (id: string, decision: Decision) => as({ id }, () => updateExploration(decideFor(id, decision))),
-    passET: () => asGm(() => updateExploration(passClock(realDice, newId))),
+    passET: () => asGm(() => updateExploration(passClock(thrower, newId))),
     toDowntime: (partyId: string) => asGm(() => updateExploration(toDowntime(partyId))),
     // Whoever is sent to a scene is followed into it, and the last to come
     // back from it is followed back to exploring.

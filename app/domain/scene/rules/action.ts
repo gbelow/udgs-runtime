@@ -16,7 +16,7 @@ import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board/board'
 import { isSheltered } from './chase'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
-import { isTrivialClimb, needsClimbTest } from './board/cliff'
+import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
 import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
@@ -48,7 +48,7 @@ import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
 import { allowsAlong, getRecipeCost } from './recipes'
-import { getAction, getDrawnOpportunityAttacks, getLiveActions, getOpenAction, getOpenedBy, getReactionsTo, getRootOf } from './log'
+import { getAction, getLiveActions, getOpenAction, getOpenedBy, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
 import { canBeSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
@@ -582,19 +582,12 @@ export function needsOwnDie(state: SceneState, action: MoveAction): boolean {
   return action.movement === 'climb' ? needsClimbTest(state, action) : needsBalanceTest(state, action)
 }
 
-// How many tests an interrupting attack could have the climber make: one for
-// each opportunity attack drawn against the climb (combat.tex "Climbing").
-export function getClimbRedoCount(state: SceneState, action: MoveAction): number {
-  return action.movement === 'climb' && !isTrivialClimb(state, action) ? getDrawnOpportunityAttacks(state, action).length : 0
-}
-
 // Whether the action is closed by a die: a strike always, a move with a test
-// of its own, or a climb with attacks drawn against it, an explosion when a
-// reaction declared against it is a test of its own (combat.tex "Avoiding
-// an Explosion").
+// of its own, an explosion when a reaction declared against it is a test of
+// its own (combat.tex "Avoiding an Explosion").
 export function needsDie(state: SceneState, action: Action): boolean {
   if (action.holding) return false
-  if (action.kind === 'move') return needsOwnDie(state, action) || getClimbRedoCount(state, action) > 0
+  if (action.kind === 'move') return needsOwnDie(state, action)
   if (action.kind === 'spellTest' && action.accepted) return false
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
 }

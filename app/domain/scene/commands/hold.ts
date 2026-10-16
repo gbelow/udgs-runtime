@@ -1,5 +1,6 @@
 import type { Action, RootAction, SceneState } from '../types'
-import type { Dice } from '../../play/dice'
+import type { Caller } from '../../play/calls'
+import { WAITING } from './calling'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getFinishBar, getOwnCost } from '../rules/action'
 import { getHeldActions, getHeldOf } from '../rules/hold'
@@ -42,7 +43,7 @@ export function breakHeld(state: SceneState, landed: Action): SceneState {
 // tests for all contenders and apply effects from highest to lowest"; alone,
 // none is thrown); the others, and whoever can no longer act, come to
 // nothing.
-export function finishHeld(state: SceneState, ids: string[], dice: Dice): SceneState {
+export function finishHeld(state: SceneState, ids: string[], caller: Caller): SceneState {
   const finishing: string[] = []
   let s = state
   for (const held of getHeldActions(state).filter((h) => ids.includes(h.id))) {
@@ -51,7 +52,7 @@ export function finishHeld(state: SceneState, ids: string[], dice: Dice): SceneS
     if (!c || !price || isDead(c) || hasAffliction(c, 'unconscious') || !canAfford(c, { AP: price.AP, STA: 0 }, isCombatStarted(s))) s = withdrawActions(s, [held.id], 'failed')
     else finishing.push(held.id)
   }
-  return releaseNextHeld(finishing.length === 0 ? s : replaceActions(s, rank(s, finishing, dice)))
+  return releaseNextHeld(finishing.length === 0 ? s : replaceActions(s, rank(s, finishing, caller)))
 }
 
 // combat.tex "Concentration": the actor holds on to the action for another
@@ -62,10 +63,11 @@ export function carryOver(state: SceneState, held: RootAction, AP: number): Scen
 
 // Those finishing, highest cunning roll first and the one who held first
 // before an equal one.
-function rank(state: SceneState, ids: string[], dice: Dice): Action[] {
+function rank(state: SceneState, ids: string[], caller: Caller): Action[] {
   const held = ids.flatMap((id) => getAction(state, id) ?? [])
+  const die = (a: Action) => () => caller.die({ id: `finish:${a.id}`, roller: a.actorId, label: 'cunning, to finish a held action first' }) ?? WAITING
   return held
-    .map((a) => ({ a, score: held.length > 1 ? rollCunning(state, a.actorId, dice).score : 0 }))
+    .map((a) => ({ a, score: held.length > 1 ? rollCunning(state, a.actorId, die(a)).score : 0 }))
     .sort((x, y) => y.score - x.score)
     .map(({ a }, place) => ({ ...a, finishing: place }))
 }

@@ -5,6 +5,7 @@ import type { CampaignState, Party } from '../../campaign/types'
 import type { Camp, Exploring, Group, GroupKind } from '../types'
 import { CampSchema } from '../types'
 import type { Test } from '../../play/test'
+import { getOpenCalls } from '../../play/calls'
 import { getAwareness, getSTA } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
@@ -199,9 +200,17 @@ export function getGroupActor(t: Exploring, partyId: string, settings: Partial<G
 // Why the ET cannot pass now: time must be able to pass (`getTimeBar`), every
 // group needs its roller, and every forced rest whose group goes away needs a
 // decision.
+// Whether a die the ET called for answers a plan someone made, which the GM
+// may take back: a group's action, a cast or a treatment.
+export function isCancellableET(callId: string): boolean {
+  return ['group', 'cast', 'treat'].includes(callId.split(':')[0])
+}
+
 export function getPassBar(t: Exploring): string | null {
   const bar = getTimeBar(t.campaign, 'exploration')
   if (bar) return bar
+  const open = getOpenCalls(t.exploration.calls).length
+  if (open > 0) return `waiting on ${open} ${open === 1 ? 'die' : 'dice'}`
   for (const partyId of getPlayingParties(t.campaign, 'exploration')) {
     for (const group of Object.values(getGroups(t, partyId))) {
       const bar = getGroupBar(t, partyId, group)
