@@ -748,8 +748,9 @@ export const BlockExplosionActionSchema = z.object({ ...ActionBase, kind: z.lite
 // Where a move actually ended and why: the path as walked, cut short by a
 // reaction that interrupted it, by the mover's own jump
 // away from one (a movement of its own, which takes over), by a fall on
-// difficult terrain, or by someone fleeing it.
-export const MoveStopSchema = z.enum(['end', 'reaction', 'jump', 'fall', 'trample', 'flee'])
+// difficult terrain, by someone fleeing it, or by someone who came to stand on
+// its end while it was under way.
+export const MoveStopSchema = z.enum(['end', 'reaction', 'jump', 'fall', 'trample', 'flee', 'occupied'])
 export type MoveStop = z.infer<typeof MoveStopSchema>
 
 // The fall a move ends in: how far the mover drops, and the cell they land on

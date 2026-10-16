@@ -119,11 +119,10 @@ describe('answering a committed strike', () => {
 })
 
 // The fuzzer found two answers to one strike landing on the same space: the
-// evader's jump and the guard's step are each offered the space the other has
-// taken, and both end on it. Known violation of the one-character-per-space
-// invariant; this passes once the second is refused or offered another.
+// evader's jump and the guard's step were each offered the space the other had
+// taken, and both ended on it.
 describe('two answers that move', () => {
-  it.fails('do not both come to rest on the same space', () => {
+  it('do not both come to rest on the same space', () => {
     const h = openHarness()
     h.bring(fighter('Gus'), fighter('Dee'), warden('Ann'))
     h.createBoard(5)

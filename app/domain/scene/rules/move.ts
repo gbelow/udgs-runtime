@@ -425,7 +425,9 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
     path = path.slice(0, tramples.stop)
     stop = 'trample'
   }
-  if (stop !== 'end') path = withoutOccupiedEnd(state, action, path)
+  const free = withoutOccupiedEnd(state, action, path)
+  if (stop === 'end' && free.length < path.length) stop = 'occupied'
+  path = free
   const fallAt = getFallStep(state, action)
   const fell = fallAt !== null && fallAt <= path.length
   if (fell) {
@@ -437,8 +439,9 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
 }
 
 // A mover stopped partway may have been let through someone (an evaded crash,
-// a prone body) whose space they now stand in: no two characters share a space,
-// so they are left on the last space before it.
+// a prone body) whose space they now stand in, and one who walked the whole way
+// may find their end taken by someone a reaction moved there: no two characters
+// share a space, so they are left on the last space before it.
 function withoutOccupiedEnd(state: SceneState, action: MoveAction, path: Coord[]): Coord[] {
   const mover = state.characters[action.actorId]
   const from = state.board?.placements[action.actorId]
@@ -510,7 +513,8 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
   const defender = state.characters[defenderId]
   const from = state.board?.placements[defenderId]
   const attacker = getPlacedFootprint(state, attackerId)
-  const ground = readGround(state, defenderId)
+  const strike = findOpenRoot(state, 'strike', (s) => s.actorId === attackerId && s.targetId === defenderId)
+  const ground = readGround(state, defenderId, strike ? getStrikeLandings(state, strike.id, defenderId) : {})
   if (!defender || !from || !attacker || !ground || isMidJump(state, defenderId)) return []
   const underway = getMoveUnderway(state, defenderId)
   const heading = underway ? getRunHeading(state, underway, getStepsWalked(state, underway)) : null
@@ -529,6 +533,15 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
     }
   }
   return placements
+}
+
+// Where everyone but `except` answering the strike comes to rest when it
+// lands: a Defender's or a Defensive Advance's step, an evasive jump's
+// landing. They land together, so a step or a jump picked for the same
+// strike may not be put down on any of them.
+export function getStrikeLandings(state: SceneState, strikeId: string, except: string): Record<string, Placement> {
+  return Object.fromEntries(getReactionsTo(state, strikeId).flatMap((r) =>
+    (r.kind === 'block' || r.kind === 'intercept' || r.kind === 'evasiveJump') && r.to && r.actorId !== except ? [[r.actorId, r.to]] : []))
 }
 
 export function hasJumpSpace(state: SceneState, defenderId: string, attackerId: string): boolean {

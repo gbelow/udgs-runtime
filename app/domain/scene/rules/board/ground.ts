@@ -17,15 +17,18 @@ export type Ground = {
   sharedBy: (cell: Coord) => string[]
 }
 
-export function readGround(state: SceneState, mover: string): Ground | null {
+// `landing` holds where others are bound to come to rest as well as where they
+// stand now (`getStrikeLandings`).
+export function readGround(state: SceneState, mover: string, landing: Record<string, Placement> = {}): Ground | null {
   const board = state.board
   if (!board) return null
   const occupancy = getOccupancy(board, state.characters)
+  const bound = getOccupancy({ ...board, placements: landing }, state.characters)
   return {
     blocked: (cell) => !!board.terrain[coordKey(cell)]?.blocking,
     liquid: (cell) => !!board.terrain[coordKey(cell)]?.liquid,
     elevation: (cell) => board.terrain[coordKey(cell)]?.elevation ?? 0,
-    sharedBy: (cell) => (occupancy[coordKey(cell)] ?? []).filter((id) => id !== mover),
+    sharedBy: (cell) => [...new Set([...(occupancy[coordKey(cell)] ?? []), ...(bound[coordKey(cell)] ?? [])])].filter((id) => id !== mover),
   }
 }
 
@@ -57,9 +60,9 @@ export function canRest(state: SceneState, c: Character, footprint: Coord[], gro
 // Whether a footprint may be put down here outside of any move: off
 // blocking cells and free of everyone within a size. What a placement by
 // hand has to respect.
-export function canStandAt(state: SceneState, id: string, placement: Placement): boolean {
+export function canStandAt(state: SceneState, id: string, placement: Placement, landing: Record<string, Placement> = {}): boolean {
   const c = state.characters[id]
-  const ground = readGround(state, id)
+  const ground = readGround(state, id, landing)
   if (!c || !ground) return false
   const footprint = getFootprint(c, placement)
   return !footprint.some(ground.blocked) && canRest(state, c, footprint, ground)

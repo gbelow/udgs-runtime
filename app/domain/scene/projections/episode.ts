@@ -9,6 +9,8 @@ import { getAction, getHistory, getLanded, getOrigin, getReactionsTo } from '../
 import { getGivenUpFor, isInterruptible, isVoided } from '../rules/opportunity'
 import { getInterruptions } from '../rules/interruption'
 import { getMoveOverride } from '../rules/move'
+import { getPlacedFootprint } from '../rules/board/board'
+import { sameCell } from '../rules/board/geometry'
 import { describeOutcome } from '../../play/test'
 
 // What the table reads once an action has played out, whole: the action that
@@ -196,6 +198,7 @@ const STOP_REASON: Record<MoveStop, (by: string | null) => string | null> = {
   fall: () => 'fell on difficult ground',
   trample: (by) => (by ? `blocked by ${by}` : 'blocked'),
   flee: () => 'someone fled it',
+  occupied: (by) => (by ? `${by} stood where it ended` : 'its end was taken'),
 }
 
 function getMoveFate(state: SceneState, move: MoveAction): string | null {
@@ -204,11 +207,15 @@ function getMoveFate(state: SceneState, move: MoveAction): string | null {
   return reason ? `walked ${move.facts.path.length} of ${move.path.length} steps: ${reason}` : null
 }
 
-// Who or what stopped the move: the character whose passage was blocked, or
-// the action of an opportunity attack that cut it short.
+// Who or what stopped the move: the character whose passage was blocked or
+// who stands on the first space it did not reach, or the action of an
+// opportunity attack that cut it short.
 function getStopCause(state: SceneState, move: MoveAction, facts: MoveFacts): string | null {
   const blocked = facts.stop === 'trample' ? facts.trampled.find((t) => t.result === 'blocked') : undefined
   if (blocked) return getFightName(state, blocked.id)
+  const next = facts.stop === 'occupied' ? move.path[facts.path.length] : undefined
+  const standing = next && Object.keys(state.characters).find((id) => id !== move.actorId && getPlacedFootprint(state, id)?.some((c) => sameCell(c, next)))
+  if (standing) return getFightName(state, standing)
   const by = getMoveOverride(state, move)?.by
   return by ? describe(state, by) : null
 }

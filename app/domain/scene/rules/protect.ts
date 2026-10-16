@@ -1,7 +1,7 @@
 import type { ActionOf, SceneState, Placement, StrikeAction } from '../types'
 import { disk, line, ring, sameCell, setDistance } from './board/geometry'
 import { getFootprint, getPlacedFootprint, getReach } from './board/board'
-import { getMoveBlockCells } from './move'
+import { getMoveBlockCells, getStrikeLandings } from './move'
 import { canStandAt } from './board/ground'
 import { findWeaponRow } from './weaponRow'
 import { getReactionsTo } from './log'
@@ -53,7 +53,7 @@ export function getDefenderSteps(state: SceneState, root: StrikeAction, id: stri
   return disk(from.cell, reach)
     .filter((cell) => !sameCell(cell, from.cell))
     .map((cell) => ({ ...from, cell }))
-    .filter((p) => canStandAt(state, id, p) && isOnProtectLine(state, root, id, p))
+    .filter((p) => canStandAt(state, id, p, getStrikeLandings(state, root.id, id)) && isOnProtectLine(state, root, id, p))
 }
 
 // combat.tex "Intercept": "It requires the defender to be in short range" —
@@ -78,7 +78,7 @@ export function getAdvanceSteps(state: SceneState, root: StrikeAction, id: strin
   const before = setDistance(getFootprint(c, from), attacker)
   return ring(from.cell, 1)
     .map((cell) => ({ ...from, cell }))
-    .filter((p) => canStandAt(state, id, p) && setDistance(getFootprint(c, p), attacker) < before)
+    .filter((p) => canStandAt(state, id, p, getStrikeLandings(state, root.id, id)) && setDistance(getFootprint(c, p), attacker) < before)
     .filter((p) => isInInterceptRange(state, root, id, p, weaponKey, attack))
     .filter((p) => id === root.targetId || isOnProtectLine(state, root, id, p))
 }

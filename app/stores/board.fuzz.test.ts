@@ -742,6 +742,10 @@ describe('two characters grappling, pushing, shooting and defending', () => {
   // A brawler was offered an opportunity attack as a maneuver it had not the
   // stamina to pay for, and the root waited on it for good.
   it('never opens an opportunity attack its attacker cannot pay for (two brawlers, seed 10)', () => playDuel(DUELS[0], 10))
+
+  // A prepared run stepped onto the last space of the move it answered, and the
+  // mover, let through by the crash, walked on and ended on it too.
+  it('never ends a move on a space a reaction took during it (a tower warden and a trained archer, seed 29)', () => playDuel(DUELS[7], 29))
 })
 
 // Seven of them crowded onto ground with a pond and a cliff painted on it,
