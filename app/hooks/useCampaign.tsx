@@ -87,8 +87,8 @@ export function useCampaignFiles() {
   const open = async (id: string) => {
     const res = await loadCampaign(id);
     if (!res.ok) { toast.error(res.error); return; }
-    const { save, characters } = res.data;
-    openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), { id: save.id, name: save.name, members: save.members });
+    const { save, characters, owners } = res.data;
+    openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), { id: save.id, name: save.name, members: save.members }, owners);
     toast.success(`Campaign ${save.name} opened.`);
   };
 

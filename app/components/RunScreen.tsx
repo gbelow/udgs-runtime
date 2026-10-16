@@ -19,7 +19,7 @@ import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './E
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { makeDieRoll } from './utils';
 import { Button, SectionLabel } from './ui';
-import { GearLocked, GmLocked } from './Locks';
+import { ControlLocked, GearLocked, GmLocked } from './Locks';
 import { useGameTab } from '../hooks/useGameTab';
 import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
@@ -169,20 +169,22 @@ function SheetTabs(){
         {SHEET_TABS.map((t) =>
           <Button key={t} size='xs' aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Button>)}
       </div>
-      {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
-      {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
-      {tab === 'inventory' ? <GearLocked><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></GearLocked> : null}
-      {tab === 'gear' ? <GearLocked><WeaponPanel /><ArmorPanel /></GearLocked> : null}
-      {tab === 'abilities' ? <AbilityPanel /> : null}
-      {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
-      {tab === 'body' ? <GmLocked><WoundPanel /><CursePanel /></GmLocked> : null}
+      <ControlLocked>
+        {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
+        {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
+        {tab === 'inventory' ? <GearLocked><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></GearLocked> : null}
+        {tab === 'gear' ? <GearLocked><WeaponPanel /><ArmorPanel /></GearLocked> : null}
+        {tab === 'abilities' ? <AbilityPanel /> : null}
+        {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
+        {tab === 'body' ? <GmLocked><WoundPanel /><CursePanel /></GmLocked> : null}
+      </ControlLocked>
     </div>
   )
 }
 
 // What the active character has to spend and what weighs on them; the
 // resources, the injuries and the afflictions are the GM's to edit, and the
-// pending tests the character's to roll.
+// pending tests the character's to roll, by whoever plays them.
 function Status({ resource, injuryAction }: { resource?: ReactNode, injuryAction?: ReactNode }){
   return(
     <>
@@ -191,14 +193,14 @@ function Status({ resource, injuryAction }: { resource?: ReactNode, injuryAction
         <InjuryDials action={injuryAction} />
         <AfflictionsPannel />
       </GmLocked>
-      <PendingPanel />
+      <ControlLocked><PendingPanel /></ControlLocked>
     </>
   )
 }
 
-// Who acts from the bar: the active character, or — for the GM and the
-// developer — the GM, who opens the catalogs and does to the mode what no
-// character does.
+// Who acts from the bar: the active character, by whoever plays them, or —
+// for the GM and the developer — the GM, who opens the catalogs and does to
+// the mode what no character does.
 function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => void, gmTools: ReactNode, children: ReactNode }){
   const { gmTools: hasGmTools, gm, setGmMode } = useRole()
 
@@ -222,7 +224,7 @@ function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => v
           </div>
           {gmTools}
         </div>
-      ) : children}
+      ) : <ControlLocked>{children}</ControlLocked>}
     </>
   )
 }

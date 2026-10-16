@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react'
 import { useRole } from '../hooks/useRole'
 import { useGearBar } from '../hooks/useCombatState'
+import { useActiveControlBar } from '../hooks/useControl'
 
 // Controls shown closed, with why, while `bar` says they cannot be used.
 export function Locked({ bar, children }: { bar: string | null, children: ReactNode }){
@@ -24,4 +25,10 @@ export function GmLocked({ children }: { children: ReactNode }){
 // The active character's gear: closed outside their own turn.
 export function GearLocked({ children }: { children: ReactNode }){
   return <Locked bar={useGearBar()}>{children}</Locked>
+}
+
+// What the active character does and has: closed to whoever does not play
+// them, who may still look.
+export function ControlLocked({ children }: { children: ReactNode }){
+  return <Locked bar={useActiveControlBar()}>{children}</Locked>
 }

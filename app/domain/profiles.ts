@@ -86,6 +86,30 @@ export function getOwnersSeenBy(profile: string, campaigns: readonly CampaignMem
   return new Set([profile, ...campaigns.filter((m) => m[profile] === 'gm').flatMap((m) => Object.keys(m))])
 }
 
+// The profile each player character in play belongs to, by character id.
+// A character missing from it is the GM's.
+export type CharacterOwners = Record<string, string>
+
+// Whose character `id` is: as the campaign was opened, or, for a player
+// character brought in since, as the player characters listed say.
+export function getOwner(id: string, owners: CharacterOwners, listed: readonly { id: string; owner: string }[]): string | undefined {
+  return owners[id] ?? listed.find((c) => c.id === id)?.owner
+}
+
+// Whether `profile`, as `role` in the campaign, plays a character `owner`
+// owns: a player plays only their own, and a GM plays everyone.
+export function canControl(owner: string | undefined, profile: string | null, role: Role): boolean {
+  return hasGmTools(role) || (profile !== null && owner === profile)
+}
+
+// Why `profile`, as `role`, cannot play a character `owner` owns: someone
+// else plays them, named from `profiles`, or the GM does.
+export function getControlBar(owner: string | undefined, profile: string | null, role: Role, profiles: readonly ProfileListing[]): string | null {
+  if (canControl(owner, profile, role)) return null
+  const name = owner ? profiles.find((p) => p.id === owner)?.name : undefined
+  return owner ? `played by ${name || 'another player'}` : 'played by the GM'
+}
+
 // A campaign's members as its members list shows them: each named, the one
 // at the screen marked, with why they cannot be taken out or made a player.
 export type MemberRow = ProfileListing & { role: MemberRole; me: boolean; removeBar: string | null; playerBar: string | null }

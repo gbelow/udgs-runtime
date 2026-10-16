@@ -85,7 +85,7 @@ export interface AppState {
   setDowntimeSpan: (downtimeSpan: number | null) => void
   baseCharacterList: JsonObject
   updateBaseCharacterList: () => void
-  playerCharacterList: {id: string, name: string}[]
+  playerCharacterList: {id: string, name: string, owner: string}[]
   updatePlayerCharacterList: () => void
   raceList: JsonObject
   updateRaceList: () => void

@@ -28,7 +28,8 @@ export default async function Home() {
 
   const characterListSchema = z.object({
     id: z.string(),
-    name: z.string()
+    name: z.string(),
+    owner: z.string(),
   }).strip().array();
 
   const characterList = characterListSchema.safeParse(playerCharacterList);

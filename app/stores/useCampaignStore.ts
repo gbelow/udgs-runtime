@@ -11,7 +11,7 @@ import { loadIntoFight, loadOntoRoster } from '../domain/scene/commands/fight'
 import { useCombatStore } from './useCombatStore'
 import { resetCombat } from '../domain/scene/commands/resetCombat'
 import type { CampaignInPlay } from '../domain/saves'
-import type { CampaignMembers } from '../domain/profiles'
+import type { CampaignMembers, CharacterOwners } from '../domain/profiles'
 
 // The data half is the domain's CampaignState, as with the combat store: the
 // roster out of any fight and the clock; beside it, what exploration and
@@ -28,7 +28,7 @@ type CampaignActions = {
   setFileName: (name: string) => void
   setMembers: (members: CampaignMembers) => void
   // replaces the campaign in play, and throws away any fight
-  openCampaign: (t: CampaignInPlay, file: CampaignFile) => void
+  openCampaign: (t: CampaignInPlay, file: CampaignFile, owners?: CharacterOwners) => void
   loadCharacter: (rawCharacter: unknown, into?: string) => void
   loadFighter: (rawCharacter: unknown) => void
   setActiveCharacter: (id: string) => void
@@ -39,19 +39,22 @@ type CampaignActions = {
   updateDowntime: (updater: DowntimeUpdater) => void
 }
 
-export type CampaignStore = CampaignState & { exploration: ExplorationState; downtime: DowntimeState; file: CampaignFile } & CampaignActions
+// `owners` is whose each player character was when the campaign was opened,
+// read from their records and never saved with the campaign.
+export type CampaignStore = CampaignState & { exploration: ExplorationState; downtime: DowntimeState; file: CampaignFile; owners: CharacterOwners } & CampaignActions
 
 export const useCampaignStore = create<CampaignStore>((set, get) => ({
   ...CampaignStateSchema.parse({}),
   exploration: ExplorationStateSchema.parse({}),
   downtime: DowntimeStateSchema.parse({}),
   file: { id: crypto.randomUUID(), name: '', members: {} },
+  owners: {},
 
   setFileName: (name) => set((s) => ({ file: { ...s.file, name } })),
   setMembers: (members) => set((s) => ({ file: { ...s.file, members } })),
 
-  openCampaign: (t, file) => {
-    set({ ...t.campaign, exploration: t.exploration, downtime: t.downtime, file })
+  openCampaign: (t, file, owners = {}) => {
+    set({ ...t.campaign, exploration: t.exploration, downtime: t.downtime, file, owners })
     useCombatStore.setState(resetCombat(useCombatStore.getState()))
   },
 

@@ -11,6 +11,8 @@ import { getCreatedCharacter } from "../domain/character/rules/creation";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { updateInventory } from "../domain/scene/commands/characters";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
+import { toast } from "sonner";
+import { useControlCheck } from "./useControl";
 
 type CharacterUpdater = (c: Character) => Character;
 
@@ -84,6 +86,7 @@ export function readActiveCharacter(tab: GameTabs): Character | null {
 // Write side: the unified updater, without subscribing to the whole character.
 // Selecting just the stable action refs (and the tab) avoids re-introducing the
 // whole-character subscription that useActiveCharacter carries on its read path.
+// A character in play is changed only by whoever plays them (`canControl`).
 export function useActiveCharacterUpdate() {
   const updateCombatActive = useCombatStore((s) => s.updateActiveCharacter);
   const gm = useActingAsGm();
@@ -109,6 +112,7 @@ function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCh
   const updateRace = useRaceStore((s) => s.updateRace);
   const updateDraft = useCreationStore((s) => s.updateDraft);
   const updatePartyActive = useCampaignStore((s) => s.updateActiveCharacter);
+  const controls = useControlCheck();
 
   function update(updater: CharacterUpdater): Character | undefined;
   function update(updater: CampaignUpdater): CampaignCharacter | undefined;
@@ -117,6 +121,8 @@ function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCh
     if (owner === "character") return updateCharacter(updater as CharacterUpdater);
     if (owner === "creation") return createdOf(updateDraft(updateCreationCharacter(updater as CharacterUpdater)));
     if (owner === "race") return updateRace(updater as CharacterUpdater);
+    const id = owner === "campaign" ? useCampaignStore.getState().activeCharacterId : useCombatStore.getState().activeCharacterId;
+    if (id && !controls(id)) { toast.error("Only whoever plays this character changes them."); return undefined; }
     if (owner === "campaign") return updatePartyActive(updater as CampaignUpdater);
     return updateCombatActive(updater as CampaignUpdater);
   }

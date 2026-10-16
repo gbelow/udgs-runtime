@@ -4,7 +4,7 @@ import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
 import { CampaignSaveSchema, type CampaignSave } from './domain/saves';
-import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getCampaignRole, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type CampaignMembers, type CharacterListing, type Profile, type ProfileListing } from './domain/profiles';
+import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getCampaignRole, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import type { ZodType } from 'zod';
@@ -300,12 +300,12 @@ export async function getCharacter(id: string): Promise<ActionResult<Character |
 
 // The player characters the profile picked at the screen sees: their own,
 // and those of everyone in a campaign they are the GM of.
-export async function getCharacterList(): Promise<ActionResult<{id: string, name: string}[]>> {
+export async function getCharacterList(): Promise<ActionResult<{id: string, name: string, owner: string}[]>> {
   try {
     const profile = await getProfileId();
     if (!profile) return { ok: true, data: [] };
     const [index, seen] = await Promise.all([readCharIndex(), getSeenOwners(profile)]);
-    return { ok: true, data: Object.entries(index).filter(([, row]) => row.owner !== null && seen.has(row.owner)).map(([id, row]) => ({ id, name: row.name })) };
+    return { ok: true, data: Object.entries(index).flatMap(([id, row]) => row.owner !== null && seen.has(row.owner) ? [{ id, name: row.name, owner: row.owner }] : []) };
   } catch (err) {
     console.error('Error getting character list from Redis:', err);
     return { ok: false, error: 'Failed to load character list.' };
@@ -476,14 +476,20 @@ export async function saveCampaign(raw: CampaignSave, characters: CampaignCharac
   }
 }
 
-export async function loadCampaign(id: string): Promise<ActionResult<{ save: CampaignSave, characters: unknown[] }>> {
+// The campaign with its characters, and the profile each of its player
+// characters belongs to.
+export async function loadCampaign(id: string): Promise<ActionResult<{ save: CampaignSave, characters: unknown[], owners: CharacterOwners }>> {
   try {
     const [save, pcs, { profile, dev }] = await Promise.all([readCampaign(id), readCharIndex(), getViewer()]);
     if (!save) return { ok: false, error: 'Campaign not found.' };
     if (!dev && !(profile && profile in save.members)) return { ok: false, error: 'Only its members open a campaign.' };
     const keys = save.characterIds.map((cid) => characterKey(id, cid, pcs));
     const characters = keys.length ? (await redis.mget<unknown[]>(...keys)).filter((c) => c !== null) : [];
-    return { ok: true, data: { save, characters } };
+    const owners: CharacterOwners = Object.fromEntries(save.characterIds.flatMap((cid) => {
+      const owner = pcs[cid]?.owner;
+      return owner ? [[cid, owner]] : [];
+    }));
+    return { ok: true, data: { save, characters, owners } };
   } catch (err) {
     console.error('Error loading campaign:', err);
     return { ok: false, error: 'Failed to load campaign.' };
