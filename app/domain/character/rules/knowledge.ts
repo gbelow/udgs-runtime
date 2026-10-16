@@ -1,4 +1,3 @@
-import knowledgeCatalog from '../../../assets/knowledges.json'
 import { Character, Knowledges, KnowledgesSchema } from '../../types'
 import { getMentalAfflictionPenalty } from './afflictions'
 import { Term, sumTerms } from './terms'
@@ -57,10 +56,4 @@ export function getSpecificKnowledgeValues(c: Character): Record<string, number>
   return Object.fromEntries(
     Object.keys(c.specificKnowledges).map((name) => [name, getKnowledge(name)(c)]),
   )
-}
-
-// The specific knowledges a learning test can name: the ones held, then the
-// catalog's others, each by the name a character holds it under.
-export function getLearnableKnowledges(c: Character): string[] {
-  return [...new Set([...Object.keys(c.specificKnowledges), ...Object.keys(knowledgeCatalog)])]
 }

@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, TextInput, Tooltip, barred, selectClass } from './ui';
+import { Button, CollectionSelect, NumberInput, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
 import { useDowntime, useDowntimeCommands, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
 import { ACTIVITIES, isTableTerm, type Activity } from '../domain/downtime/types';
 import { useGmBar } from '../hooks/useControl';
+import { useCollectionFilter } from '../hooks/useCollections';
 import { LockedFor } from './Locks';
 import type { BlockView, DowntimeCharacterView, DowntimeTest } from '../domain/downtime/projections/downtime';
 
@@ -144,7 +145,7 @@ function ActivityPicker({ character: c, commands }: { character: DowntimeCharact
         {c.activity && c.block && c.block.elapsed > 0 && selected !== c.activity ? <span className='text-xs text-bad'>choosing another drops {c.block.elapsed} days spent</span> : null}
       </div>
       {selected === 'training' ? <TrainingChooser character={c} commands={commands} onChosen={() => setPicked(null)} /> : null}
-      {c.block && selected === c.activity ? <ActivityRow id={c.id} view={c.block} specific={c.specific} commands={commands} /> : null}
+      {c.block && selected === c.activity ? <ActivityRow id={c.id} view={c.block} commands={commands} /> : null}
     </div>
   )
 }
@@ -164,7 +165,8 @@ function TestPicker({ id, value, onPick }: { id: string, value: string, onPick: 
 
 // The activity under way: what it is, its days, cost, test and yield, the
 // table's settings for it, and why it cannot be spent yet.
-function ActivityRow({ id, view: v, specific, commands }: { id: string, view: BlockView, specific: string[], commands: Commands }){
+function ActivityRow({ id, view: v, commands }: { id: string, view: BlockView, commands: Commands }){
+  const knowledges = useCollectionFilter('knowledges')
 
   const { setBlock, setLearningGain, decide, drop } = commands
   const gmBar = useGmBar()
@@ -190,8 +192,12 @@ function ActivityRow({ id, view: v, specific, commands }: { id: string, view: Bl
         {b.kind === 'doctor' ? <>{field('IL/day', 'capacity', b.capacity)}{field('CP/IL', 'price', b.price)}</> : null}
         {b.kind === 'learning' ?
           <>
-            <TextInput className='w-28' list={`specific-${id}`} aria-label='knowledge' placeholder='specific knowledge' value={b.knowledge} onChange={(e) => set({ knowledge: e.target.value })} />
-            <datalist id={`specific-${id}`}>{specific.map((k) => <option key={k} value={k} />)}</datalist>
+            <select aria-label='knowledge' className={selectClass} value={b.knowledge} onChange={(e) => set({ knowledge: e.target.value })}>
+              <option value=''>specific knowledge…</option>
+              {b.knowledge && !knowledges.has(b.knowledge) ? <option value={b.knowledge}>{b.knowledge} (not in the collection)</option> : null}
+              {knowledges.keys.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <CollectionSelect label='knowledge collection' filter={knowledges} />
             {testPicker}{field('DL', 'DL', b.DL)}{field('max', 'max', b.max)}
             <span className='text-xs text-muted'>gains</span>
             {b.gains.map((g, i) => <NumberInput key={i} className='w-8' aria-label={`gain ${i}`} {...barred(gmBar)} value={g} onChange={(e) => setLearningGain(id, i, num(e.target.value))} />)}
