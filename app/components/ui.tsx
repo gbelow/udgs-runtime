@@ -1,5 +1,6 @@
 'use client'
-import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode, RefObject, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { CollectionFilter } from '../hooks/useCollections'
 
 // The shared visual vocabulary. Colour is by meaning (see globals.css): accent
@@ -81,22 +82,23 @@ export function Combobox({ value, options, onChange, className = '', ...rest }:
 ){
   const [open, setOpen] = useState(false)
   const [typed, setTyped] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
   const query = value.toLowerCase()
   const shown = typed ? options.filter((o) => o.toLowerCase().includes(query)) : options
   return (
-    <div className='relative inline-block'>
+    <div ref={box} className='relative inline-block'>
       <input type='text' className={`${inputClass} text-sm py-0.5 ${className}`} {...rest} value={value}
         onFocus={() => { setOpen(true); setTyped(false) }}
         onBlur={() => setOpen(false)}
         onChange={(e) => { setTyped(true); onChange(e.target.value) }} />
       {open && shown.length > 0 ?
-      <ul role='listbox' className='absolute z-50 left-0 top-full mt-px max-h-60 min-w-full w-max overflow-y-auto rounded border border-line bg-raised py-0.5 shadow-lg shadow-black/40 text-xs'>
+      <Floating anchor={box} gap={1} matchWidth role='listbox' className='max-h-60 rounded border border-line bg-raised py-0.5 shadow-lg shadow-black/40 text-xs'>
         {shown.map((o) => (
-          <li key={o} role='option' aria-selected={o === value}
+          <div key={o} role='option' aria-selected={o === value}
             className={`cursor-pointer px-2 py-0.5 hover:bg-accent/15 ${o === value ? 'text-accent' : 'text-fg'}`}
-            onMouseDown={(e) => { e.preventDefault(); onChange(o); setOpen(false) }}>{o}</li>
+            onMouseDown={(e) => { e.preventDefault(); onChange(o); setOpen(false) }}>{o}</div>
         ))}
-      </ul>
+      </Floating>
       : null}
     </div>
   )
@@ -258,33 +260,75 @@ function TickButton({ label, onClick, children }: { label: string, onClick: () =
   return <button type='button' aria-label={label} className='shrink-0 w-3.5 rounded text-xs leading-none text-muted hover:bg-raised hover:text-fg cursor-pointer' onClick={onClick}>{children}</button>
 }
 
-const POPOVER_EDGE = 8
+const FLOAT_EDGE = 8
 
-// A hover popover anchored to its child: opens centred above, slides sideways
-// just enough to stay inside the viewport, drops below when there is no room
-// above. SkillTooltip and Tooltip both render through it.
+type Placed = { left: number, top: number, maxHeight: number, minWidth?: number }
+
+// A panel that floats beside an anchor, outside every container: it is drawn
+// on the page itself, so no clipping or scrolling ancestor can cut it. It opens
+// on `side` of the anchor, flips to the other when that has more room, slides
+// sideways to stay inside the viewport, and scrolls within the room it has.
+// Popover, Menu, Combobox and ProfileMenu all render through it.
+export function Floating({ anchor, side = 'below', align = 'start', gap = 4, matchWidth = false, panelRef, className = '', style, children, ...rest }: {
+  anchor: RefObject<HTMLElement | null>, side?: 'above' | 'below', align?: 'start' | 'center' | 'end', gap?: number, matchWidth?: boolean,
+  panelRef?: RefObject<HTMLDivElement | null>,
+} & HTMLAttributes<HTMLDivElement>){
+  const own = useRef<HTMLDivElement>(null)
+  const [placed, setPlaced] = useState<Placed | null>(null)
+
+  const place = () => {
+    const a = anchor.current, el = own.current
+    if (!a || !el) return
+    const r = a.getBoundingClientRect()
+    const w = el.offsetWidth
+    const h = el.scrollHeight + el.offsetHeight - el.clientHeight
+    const room = { above: r.top - FLOAT_EDGE - gap, below: window.innerHeight - r.bottom - FLOAT_EDGE - gap }
+    const other = side === 'below' ? 'above' : 'below'
+    const at = h <= room[side] || room[side] >= room[other] ? side : other
+    const maxHeight = Math.max(room[at], 0)
+    const left0 = align === 'start' ? r.left : align === 'end' ? r.right - w : r.left + r.width / 2 - w / 2
+    const next: Placed = {
+      left: Math.min(Math.max(left0, FLOAT_EDGE), Math.max(FLOAT_EDGE, window.innerWidth - FLOAT_EDGE - w)),
+      top: at === 'below' ? r.bottom + gap : r.top - gap - Math.min(h, maxHeight),
+      maxHeight,
+      minWidth: matchWidth ? r.width : undefined,
+    }
+    setPlaced((p) => p && p.left === next.left && p.top === next.top && p.maxHeight === next.maxHeight && p.minWidth === next.minWidth ? p : next)
+  }
+
+  useLayoutEffect(place)
+  useEffect(() => {
+    const watch = own.current ? new ResizeObserver(place) : null
+    if (own.current) watch?.observe(own.current)
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => { watch?.disconnect(); window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+  })
+
+  return createPortal(
+    <div ref={(el) => { own.current = el; if (panelRef) panelRef.current = el }} {...rest}
+      style={{ ...style, position: 'fixed', left: placed?.left ?? 0, top: placed?.top ?? 0, maxHeight: placed?.maxHeight, minWidth: placed?.minWidth,
+        maxWidth: `calc(100vw - ${2 * FLOAT_EDGE}px)`, visibility: placed ? 'visible' : 'hidden' }}
+      className={`z-50 w-max overflow-y-auto ${className}`}>
+      {children}
+    </div>,
+    document.body,
+  )
+}
+
+// A hover popover anchored to its child: opens centred above and drops below
+// when there is no room above. SkillTooltip and Tooltip both render through it.
 export function Popover({ content, children, className = '' }: { content: ReactNode, children: ReactNode, className?: string }){
   const [open, setOpen] = useState(false)
-  const [shift, setShift] = useState({ x: 0, below: false })
-  const tip = useRef<HTMLDivElement>(null)
-
-  useLayoutEffect(() => {
-    if (!open || !tip.current) return
-    const r = tip.current.getBoundingClientRect()
-    const x = r.left < POPOVER_EDGE ? POPOVER_EDGE - r.left : r.right > window.innerWidth - POPOVER_EDGE ? window.innerWidth - POPOVER_EDGE - r.right : 0
-    setShift({ x, below: r.top < POPOVER_EDGE })
-  }, [open])
-
+  const anchor = useRef<HTMLDivElement>(null)
   return (
-    <div className={`relative ${className}`} onMouseEnter={() => setOpen(true)} onMouseLeave={() => { setOpen(false); setShift({ x: 0, below: false }) }}>
+    <div ref={anchor} className={`relative ${className}`} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       {children}
       {open ?
-      <div ref={tip} role='tooltip'
-        style={{ transform: `translateX(calc(-50% + ${shift.x}px))` }}
-        className={`absolute z-50 left-1/2 w-max ${shift.below ? 'top-full mt-1' : 'bottom-full mb-1'}
-                    bg-raised border border-line rounded p-2 text-xs shadow-lg shadow-black/40 text-left font-normal text-fg`}>
+      <Floating anchor={anchor} side='above' align='center' role='tooltip'
+        className='bg-raised border border-line rounded p-2 text-xs shadow-lg shadow-black/40 text-left font-normal text-fg'>
         {content}
-      </div>
+      </Floating>
       : null}
     </div>
   )
@@ -333,10 +377,14 @@ const MenuClose = createContext<() => void>(() => {})
 export function Menu({ label, children }: { label: string, children: ReactNode }){
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
-    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const away = (e: MouseEvent) => {
+      const at = e.target as Node
+      if (box.current && !box.current.contains(at) && !panel.current?.contains(at)) setOpen(false)
+    }
     const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', away)
     document.addEventListener('keydown', escape)
@@ -347,9 +395,9 @@ export function Menu({ label, children }: { label: string, children: ReactNode }
     <div ref={box} className='relative inline-flex' onClick={(e) => e.stopPropagation()}>
       <Button size='xs' variant='ghost' aria-label={label} aria-expanded={open} active={open} onClick={() => setOpen((o) => !o)}>⋯</Button>
       {open ?
-        <div role='menu' className='absolute left-0 top-full mt-1 z-50 min-w-48 max-w-72 flex flex-col gap-0.5 bg-raised border border-line rounded p-1 shadow-lg shadow-black/40 text-xs text-left'>
+        <Floating anchor={box} panelRef={panel} role='menu' className='min-w-48 max-w-72 flex flex-col gap-0.5 bg-raised border border-line rounded p-1 shadow-lg shadow-black/40 text-xs text-left'>
           <MenuClose.Provider value={() => setOpen(false)}>{children}</MenuClose.Provider>
-        </div>
+        </Floating>
         : null}
     </div>
   )

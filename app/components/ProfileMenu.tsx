@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useProfile } from '../hooks/useProfile'
-import { Button, ListButton, SectionLabel, TextInput } from './ui'
+import { Button, Floating, ListButton, SectionLabel, TextInput } from './ui'
 
 // The first screen while none is picked: who is at it, picked from the
 // profiles there are or made anew.
@@ -26,15 +26,29 @@ export function ProfileLanding(){
 export function ProfileMenu(){
   const { profile, profiles, pick, create, rename, setDice, nameBar, dev } = useProfile()
   const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => {
+      const at = e.target as Node
+      if (box.current && !box.current.contains(at) && !panel.current?.contains(at)) setOpen(false)
+    }
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', escape) }
+  }, [open])
 
   return (
-    <div className='relative ml-auto self-center flex flex-row items-center gap-2'>
+    <div ref={box} className='relative ml-auto self-center flex flex-row items-center gap-2'>
       {dev ? <span className='text-[10px] text-muted'>dev server</span> : null}
       <Button size='xs' active={open} aria-label='profile' onClick={() => setOpen((o) => !o)}>
         {profile ? `playing as ${profile.name}` : 'pick a profile'}
       </Button>
       {open ? (
-        <div className='absolute right-0 top-full mt-1 z-50 w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
+        <Floating anchor={box} panelRef={panel} align='end' className='!w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
           {profile ? (
             <div className='flex flex-col gap-1'>
               <SectionLabel>your name</SectionLabel>
@@ -49,7 +63,7 @@ export function ProfileMenu(){
           ) : null}
           <ProfileList profiles={profiles} current={profile?.id ?? null} pick={(id) => { pick(id); setOpen(false) }} />
           <NewProfile create={(name) => { create(name); setOpen(false) }} nameBar={nameBar} />
-        </div>
+        </Floating>
       ) : null}
     </div>
   )
