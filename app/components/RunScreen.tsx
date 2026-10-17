@@ -12,7 +12,7 @@ import { TradePanel } from './TradePanel';
 import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
-import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
+import { ActiveAfflictions, AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { PartiesView } from './PartiesView';
 import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
@@ -40,6 +40,8 @@ type Mode = {
   // what the active character spends beside the tiles every mode has, and
   // the button beside their injuries
   resource?: ReactNode
+  // whether exhaustion, hunger and thirst show among the tiles
+  needs: boolean
   injuryAction?: ReactNode
   actions: ReactNode
   // what the GM does to the mode that no character does
@@ -52,6 +54,7 @@ const MODES: Record<RunTab, Mode> = {
     strip: <SceneStrip />,
     views: [{ key: 'parties', node: <PartiesView /> }, { key: 'scene', node: <SceneSpace /> }],
     resource: <SimpleResource rssName={'AP'} />,
+    needs: false,
     injuryAction: <KillButton />,
     actions: <SceneActions />,
     gmTools: <GmSceneTools />,
@@ -60,12 +63,14 @@ const MODES: Record<RunTab, Mode> = {
   exploration: {
     strip: <ExplorationStrip />,
     views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'plans', node: <PartyCards /> }],
+    needs: true,
     actions: <ControlLocked><ExplorationSection /></ControlLocked>,
     log: { label: 'Last ET', node: <div className='flex flex-col gap-2'><LastEtLog /><RecentJournal /></div> },
   },
   downtime: {
     strip: <DowntimeStrip />,
     views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'roster', node: <DowntimeRoster /> }],
+    needs: true,
     actions: <ControlLocked><DowntimeActions /></ControlLocked>,
     log: { label: 'Last days', node: <div className='flex flex-col gap-2'><LastDaysLog /><RecentJournal /></div> },
   },
@@ -94,7 +99,7 @@ const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
 // mode's.
 export function RunScreen(){
   const { tab } = useGameTab()
-  const { strip, views, resource, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
+  const { strip, views, resource, needs, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const hasActiveCharacter = useHasActiveCharacter()
   const throwing = useTray().request !== null
   const [opened, setOpened] = useState<CatalogView[]>([])
@@ -131,7 +136,7 @@ export function RunScreen(){
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {hasActiveCharacter ? <Status resource={resource} injuryAction={injuryAction} /> : PICK}
+          {hasActiveCharacter ? <Status resource={resource} needs={needs} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           <ActionColumn open={open} gmTools={gmTools}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
@@ -197,7 +202,7 @@ function SheetTabs(){
         {tab === 'gear' ? <GearLocked><WeaponPanel /><ArmorPanel /></GearLocked> : null}
         {tab === 'abilities' ? <AbilityPanel /> : null}
         {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
-        {tab === 'body' ? <GmLocked><WoundPanel /><CursePanel /></GmLocked> : null}
+        {tab === 'body' ? <GmLocked><AfflictionsPannel /><WoundPanel /><CursePanel /></GmLocked> : null}
       </ControlLocked>
     </div>
   )
@@ -206,14 +211,14 @@ function SheetTabs(){
 // What the active character has to spend and what weighs on them; the
 // resources, the injuries and the afflictions are the GM's to edit, and the
 // pending tests the character's to roll, by whoever plays them.
-function Status({ resource, injuryAction }: { resource?: ReactNode, injuryAction?: ReactNode }){
+function Status({ resource, needs, injuryAction }: { resource?: ReactNode, needs: boolean, injuryAction?: ReactNode }){
   return(
     <>
       <GmLocked>
-        <ResourceTiles>{resource}</ResourceTiles>
+        <ResourceTiles needs={needs}>{resource}</ResourceTiles>
         <InjuryDials action={injuryAction} />
-        <AfflictionsPannel />
       </GmLocked>
+      <ActiveAfflictions />
       <ControlLocked><PendingPanel /></ControlLocked>
     </>
   )

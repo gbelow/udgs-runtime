@@ -26,6 +26,15 @@ export function useAfflictionRows(): { rows: AfflictionRow[]; setAffliction: (a:
 // Sections are fixed by the table, so only which rung each entry shows,
 // whether it is lit and whether it can be clicked need to reach the digest —
 // a one-rung ladder keeps the same label on and off.
+// The labels of the afflictions the character is under, in board order.
+export function useActiveAfflictions(): string[] {
+  return useActiveCharacterDerived(
+    (c, fight) => getAfflictionBoard(c, getSituationalAfflictions(fight, c.id))
+      .flatMap((s) => s.entries.filter((e) => e.active).map((e) => e.label)),
+    (labels) => labels.join(','),
+  ) ?? [];
+}
+
 export function useAfflictionBoard(): { sections: AfflictionSection[]; setAffliction: (a: AfflictionKey) => void } {
   const update = useActiveCharacterUpdate();
 

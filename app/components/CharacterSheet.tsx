@@ -13,7 +13,7 @@ import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useResourceLens } from '../hooks/useResourceLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
-import { useAfflictionBoard } from '../hooks/useAfflictionLens';
+import { useActiveAfflictions, useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
 import { RollButtons } from './DieCalls';
 import { useWoundLens } from '../hooks/useWoundLens';
@@ -72,16 +72,19 @@ export function CharacterSheet({ header, resources, injuryAction, injuryPanels, 
   )
 }
 
-export function ResourceTiles({ children }: { children?: ReactNode }){
+export function ResourceTiles({ children, needs = true }: { children?: ReactNode, needs?: boolean }){
+  const { tableName, name } = useActiveCharacterData()
   return(
-    <div className='flex flex-col gap-1'>
-      <SectionLabel>Resources</SectionLabel>
+    <div className='flex flex-col gap-1 min-w-0 overflow-hidden'>
+      <SectionLabel className='block max-w-full truncate !text-xs'>{tableName || name}</SectionLabel>
       <div className='flex flex-row flex-wrap gap-1.5'>
         {children}
         <SimpleResource rssName={'STA'} />
-        <SimpleResource rssName={'exhaustion'} />
-        <SimpleResource rssName={'hunger'} />
-        <SimpleResource rssName={'thirst'} />
+        {needs ? <>
+          <SimpleResource rssName={'exhaustion'} />
+          <SimpleResource rssName={'hunger'} />
+          <SimpleResource rssName={'thirst'} />
+        </> : null}
       </div>
     </div>
   )
@@ -365,6 +368,16 @@ export function CursePanel(){
           ) : <span className='text-muted'>no test beats it</span>}
         </div>
       ))}
+    </div>
+  )
+}
+
+export function ActiveAfflictions(){
+  const labels = useActiveAfflictions()
+
+  return(
+    <div className='flex flex-row flex-wrap gap-1 text-xs min-w-0'>
+      {labels.map((label) => <span key={label} className='px-1.5 py-0.5 rounded bg-bad/15 text-bad'>{label}</span>)}
     </div>
   )
 }
