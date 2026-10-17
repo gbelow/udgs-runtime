@@ -1,4 +1,4 @@
-import type { CampaignCharacter, Item } from '../../types'
+import type { CampaignCharacter, Item, Selected } from '../../types'
 import type { SceneState } from '../types'
 import { findReadyItem } from '../../item/rules/containers'
 import { getCarriedItems } from '../../item/rules/items'
@@ -7,10 +7,9 @@ import { findFloorItem } from './floor'
 // Who in the fight is who: the active character, the name each goes by,
 // who holds an item.
 
-// Read-side: which character is active is a pure function of the state that
-// holds it, a fight or the party. The domain owns this so commands never need
-// to import a store.
-export function getActiveCharacter(state: Pick<SceneState, 'characters' | 'activeCharacterId'>): CampaignCharacter | null {
+// The character a screen has picked, in the fight or on the roster: none
+// when they are no longer there.
+export function getActiveCharacter(state: Pick<SceneState, 'characters'> & Selected): CampaignCharacter | null {
   if (!state.activeCharacterId) return null
   return state.characters[state.activeCharacterId] ?? null
 }

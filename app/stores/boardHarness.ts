@@ -1,9 +1,9 @@
 import type { Dice } from '../domain/play/dice'
 import { toTable, type Throw } from '../domain/play/calls'
 import type { TerrainBrush } from '../domain/types'
-import { SceneStateSchema, type ActionDraft, type SceneState, type LightLevel, type Updater } from '../domain/scene/types'
+import { SceneStateSchema, type ActionDraft, type SeenScene, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
-import { resolveClick, type Click } from '../domain/scene/commands/click'
+import { readClick, type Click } from '../domain/scene/commands/click'
 import { createBoard, removeBoard, setLight } from '../domain/scene/commands/board'
 import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
 import type { Viewer } from '../domain/profiles'
@@ -14,7 +14,7 @@ import { useCombatStore } from './useCombatStore'
 import { useCampaignStore } from './useCampaignStore'
 
 // The board as a player works it, over the real combat store: a click goes
-// through `resolveClick`, the same reading of it the hook dispatches, and a button press is the
+// through `readClick`, the same reading of it the hook dispatches, and a button press is the
 // command its hook dispatches. Entropy is the one thing handed in: `roll` is
 // the die, and `dice` whoever throws what a command calls for — the screen at
 // once, or, at a table that rolls its own (`table`), nobody until a die is
@@ -33,15 +33,19 @@ export type Harness = ReturnType<typeof openHarness>
 export function openHarness(roll: Dice = () => 5, { table = false }: { table?: boolean } = {}) {
   const newId = ids()
   const dice: Throw = table ? toTable(roll) : roll
-  useCombatStore.setState(SceneStateSchema.parse({}))
+  useCombatStore.setState({ ...SceneStateSchema.parse({}), activeCharacterId: null })
   let brush: TerrainBrush | null = null
   let reposition = false
 
-  const state = (): SceneState => useCombatStore.getState()
+  const state = (): SeenScene => useCombatStore.getState()
   const press = (command: Updater) => useCombatStore.getState().updateCombatState(command)
   const send = (command: SceneCommand, viewer: Viewer = GM) =>
     press((s) => applySceneCommand(s, command, viewer, { thrower: dice, newId }))
-  const click = (c: Click) => press(resolveClick(c, { brush, reposition, newId }))
+  const click = (c: Click) => {
+    const read = readClick(state(), c, { brush, reposition, selected: state().activeCharacterId, newId })
+    if ('select' in read) useCombatStore.getState().setActiveCharacter(read.select)
+    else press(read.apply)
+  }
 
   const idOf = (name: string): string => {
     const found = Object.values(state().characters).find((c) => c.name === name)

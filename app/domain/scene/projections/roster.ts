@@ -1,5 +1,5 @@
 import type { SurgeKind } from '../../types'
-import type { Action, SceneState } from '../types'
+import type { Action, SceneState, SeenScene } from '../types'
 import { getDeclaredTargets } from '../rules/action'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getAffected, getBlastOf } from '../rules/explosion'
@@ -45,7 +45,7 @@ function holdingOf(state: SceneState, id: string): CombatRosterEntry['holding'] 
 // The fight's roster as the UI reads it: who is in it, who is selected, who has
 // already spent their surge this round and which one (combat.tex "Action
 // surge": one per round, cleared by nextRound).
-function buildCombatRoster(state: SceneState): CombatRosterEntry[] {
+function buildCombatRoster(state: SeenScene): CombatRosterEntry[] {
   const open = getOpenAction(state)
   const targets = new Set(getDeclaredTargets(state, open))
   return Object.entries(state.characters).map(([id, c]) => ({
@@ -67,7 +67,7 @@ export type RosterParty = { id: string; name: string; entries: CombatRosterEntry
 
 // The roster split by party, in the order the parties joined the fight;
 // anyone in none comes last, in a party with no name.
-function buildRosterParties(state: SceneState): RosterParty[] {
+function buildRosterParties(state: SeenScene): RosterParty[] {
   const roster = getCombatRoster(state)
   const parties = Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name, entries: roster.filter((e) => state.partyOf[e.id] === id) }))
   const loose = roster.filter((e) => !state.parties[state.partyOf[e.id]])
@@ -95,4 +95,4 @@ export const getPartiesPanelDigest = perState((state) => JSON.stringify(getParti
 // allocated on every call, so it cannot gate its own re-render by identity;
 // gating on this instead means any change the UI can see schedules the render
 // that recomputes it. Same reasoning as the term breakdowns.
-export const getCombatRosterDigest = perState((state) => JSON.stringify(getRosterParties(state)))
+export const getCombatRosterDigest = perState((state: SeenScene) => JSON.stringify(getRosterParties(state)))

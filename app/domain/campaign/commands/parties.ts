@@ -73,13 +73,11 @@ export function leaveParty(id: string): CampaignUpdater {
 }
 
 // Puts the character in the party: the one they were in if it is still
-// there, otherwise the party of whoever is selected, the first party, or a
-// new one, and is named by it (`nameByParty`).
+// there, otherwise the first party, or a new one, and is named by it (`nameByParty`).
 export function joinParty(id: string, newPartyId: () => string): CampaignUpdater {
   return (state) => {
     if (state.parties[state.partyOf[id]]) return nameByParty([id])(state)
-    const active = state.activeCharacterId ? state.partyOf[state.activeCharacterId] : undefined
-    const existing = (active && state.parties[active] ? active : undefined) ?? Object.keys(state.parties)[0]
+    const existing = Object.keys(state.parties)[0]
     const partyId = existing ?? newPartyId()
     const opened = existing ? state : addParty(partyId)(state)
     return nameByParty([id])({ ...opened, partyOf: { ...opened.partyOf, [id]: partyId } })

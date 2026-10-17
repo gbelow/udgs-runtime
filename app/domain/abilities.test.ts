@@ -186,7 +186,7 @@ describe('used abilities', () => {
     expect(used.resources.AP).toBe(learned.resources.AP - cost.AP - drain.AP)
     expect(used.resources.exhaustion).toBe(learned.resources.exhaustion + cost.exhaustion + drain.exhaustion)
 
-    const round = (c: CampaignCharacter) => passRound(() => 0)(SceneStateSchema.parse({ round: 1, characters: { c }, activeCharacterId: 'c' })).characters.c
+    const round = (c: CampaignCharacter) => passRound(() => 0)(SceneStateSchema.parse({ round: 1, characters: { c } })).characters.c
     const after = round(used)
     expect(after.resources.STA).toBe(used.resources.STA - upkeep.STA)
     expect(after.resources.exhaustion).toBe(used.resources.exhaustion + upkeep.exhaustion)

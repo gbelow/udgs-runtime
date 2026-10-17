@@ -1,4 +1,4 @@
-import type { Bind, SceneState, Coord, Degree, LightLevel, Placement } from '../types'
+import type { Bind, SeenScene, Coord, Degree, LightLevel, Placement } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -167,7 +167,7 @@ export type BoardView = {
 
 const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
-function buildBoardView(state: SceneState): BoardView {
+function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
   if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }
 
@@ -293,7 +293,7 @@ function buildBoardView(state: SceneState): BoardView {
     }]
   })
 
-  const floorPicker = getFloorPicker(state)
+  const floorPicker = getFloorPicker(state, state.activeCharacterId)
   const pickable = new Set(floorPicker?.itemIds ?? [])
   const struck = new Set(getDeclaredFloorTargets(state, open).map((f) => f.item.id))
   const stacks = new Map<string, number>()
@@ -364,4 +364,4 @@ function elevationLabel(elevation: number): string {
   return elevation > 0 ? `+${elevation}` : elevation < 0 ? `${elevation}` : ''
 }
 
-export const getBoardViewDigest = perState((state) => JSON.stringify(getBoardView(state)))
+export const getBoardViewDigest = perState((state: SeenScene) => JSON.stringify(getBoardView(state)))

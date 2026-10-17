@@ -6,7 +6,6 @@ export function resetCombat(state: SceneState): SceneState {
   return {
     ...state,
     characters: {},
-    activeCharacterId: null,
     parties: {},
     partyOf: {},
     inTurnCharacter: '',

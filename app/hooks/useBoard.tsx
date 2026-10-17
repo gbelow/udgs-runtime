@@ -21,8 +21,10 @@ export function useBoard() {
   const create = (radius: number) => asGm(() => update(createBoard(radius)));
   const remove = () => asGm(() => update(removeBoard));
   const click = (c: Click, brush: TerrainBrush | null = null, reposition = false) => {
-    const read = readClick(useCombatStore.getState(), c, { brush, reposition, newId: () => crypto.randomUUID() });
-    if (gate(read.actor)) update(read.apply);
+    const state = useCombatStore.getState();
+    const read = readClick(state, c, { brush, reposition, selected: state.activeCharacterId, newId: () => crypto.randomUUID() });
+    if ('select' in read) setActiveCharacter(read.select);
+    else if (gate(read.actor)) update(read.apply);
   };
 
   const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean) => click({ on: 'cell', cell }, brush, reposition);

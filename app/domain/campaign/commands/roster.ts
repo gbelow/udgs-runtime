@@ -50,7 +50,6 @@ export function removeFromRoster(id: string): CampaignUpdater {
       partyOf: without(state.partyOf, id),
       names: without(state.names, id),
       out: state.out.filter((o) => o !== id),
-      activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId,
     })
   }
 }
@@ -66,7 +65,6 @@ export function checkOut(id: string): CampaignUpdater {
       ...state,
       characters,
       out: state.out.includes(id) ? state.out : [...state.out, id],
-      activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId,
     }
   }
 }
@@ -76,8 +74,4 @@ export function updateRosterCharacter(id: string, updater: (c: CampaignCharacter
     const c = state.characters[id]
     return c ? { ...state, characters: { ...state.characters, [id]: updater(c) } } : state
   }
-}
-
-export function setRosterActive(id: string): CampaignUpdater {
-  return (state) => (state.characters[id] ? { ...state, activeCharacterId: id } : state)
 }

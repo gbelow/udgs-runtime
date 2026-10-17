@@ -1533,3 +1533,7 @@ export interface Lens<T, V> {
   get: (subject: T) => V;
   set: (subject: T, value: V) => T;
 }
+
+// Whom a screen has picked to look at and act as: each screen's own, kept
+// beside the state the table shares and never in it.
+export type Selected = { activeCharacterId: string | null }

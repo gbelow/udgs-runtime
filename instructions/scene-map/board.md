@@ -85,9 +85,10 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
 - Board edits outside any action (`createBoard`, `importBoard`, `placeCharacter`,
   `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
   action is open. `makeBoard` (`factories.ts`) ingests a VTT snapshot best-effort.
-- What a click on the board means is `resolveClick` (`commands/click.ts`), read off the state
-  at the click through `getBoardMode` and `getFloorPicker` (`rules/board/boardMode.ts`); the hook
-  only dispatches it.
+- What a click on the board means is `readClick` (`commands/click.ts`), read off the state
+  at the click and whom the screen has picked through `getBoardMode` and `getFloorPicker`
+  (`rules/board/boardMode.ts`): a change to the fight and whom it acts for, or a character picked
+  on that screen alone. The hook only dispatches it.
 
 ## Reading for the UI: projections
 

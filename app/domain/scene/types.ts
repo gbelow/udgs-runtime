@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -1526,7 +1526,6 @@ export const SceneStateSchema = z.object({
   calls: CallsSchema.default({}),
   resume: SceneResumeSchema.nullable().default(null),
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
-  activeCharacterId: z.string().nullable().default(null),
   // the parties the fight's characters are in, by id, in the order they
   // joined the fight, and the party each character is in; who is in which is
   // the table's to change until the fight gives them back to the campaign
@@ -1644,6 +1643,9 @@ export const SceneStateSchema = z.object({
 }).strip()
 
 export type SceneState = z.infer<typeof SceneStateSchema>
+
+// The fight as one screen sees it, with whom it has picked.
+export type SeenScene = SceneState & Selected
 
 // What every combat command is: a pure update of the fight.
 export type Updater = (state: SceneState) => SceneState

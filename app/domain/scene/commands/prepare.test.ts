@@ -436,7 +436,7 @@ describe('preparing a defense for an ally', () => {
       const start = shot([-4, 3])
       let s = rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start))
       expect(isRepositioning(s)).toBe(true)
-      const offered = getBoardView(s).cells.filter((c) => c.reachable !== null)
+      const offered = getBoardView({ ...s, activeCharacterId: null }).cells.filter((c) => c.reachable !== null)
       expect(offered.length).toBeGreaterThan(0)
       expect(offered.every(({ cell }) => Math.abs(cell.r) <= 1)).toBe(true)
       s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [{ q: -4, r: 2 }, { q: -4, r: 1 }] })(s)), MISS, backAtTheAttack)

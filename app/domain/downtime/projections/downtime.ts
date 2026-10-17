@@ -2,7 +2,7 @@ import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Character, Knowledges, Proficiencies, Skills } from '../../types'
 import { ProficienciesSchema, SkillsSchema } from '../../types'
 import { LIVING_LEVELS, knowledges_list, type LivingLevel } from '../../lists'
-import type { CampaignState } from '../../campaign/types'
+import type { SeenCampaign } from '../../campaign/types'
 import type { Activity, Block, Downtime, DowntimeResult, DowntimeState, SkillRef, TrainingTarget } from '../types'
 import { ABILITY_FAMILIES, type FamilyKey } from '../../abilities'
 import { perPair, perState } from '../../perState'
@@ -112,14 +112,14 @@ function blockView(c: CampaignCharacter, block: Block, elapsed: number): BlockVi
   }
 }
 
-function characterView(t: Downtime, id: string, days: number): DowntimeCharacterView {
+function characterView(t: Downtime, id: string, days: number, active: string | null): DowntimeCharacterView {
   const c = t.campaign.characters[id]
   const plan = getPlan(t, id)
   const affordable = getAffordableDays(t, id, days)
   return {
     id,
     name: getRosterName(t.campaign, id),
-    isActive: t.campaign.activeCharacterId === id,
+    isActive: active === id,
     living: plan.living,
     housed: plan.housed,
     livingOptions: LIVING_LEVELS.map((level) => ({ level, cost: formatMoney(getLivingCost(t.campaign, id, level)), exposure: getLivingExposure(level) })),
@@ -137,7 +137,7 @@ function characterView(t: Downtime, id: string, days: number): DowntimeCharacter
 
 // One panel per state and span: the campaign and what downtime keeps are
 // replaced on every write, so a pair already seen has its views known.
-const panels = perPair(({ a: campaign, b: downtime }: { a: CampaignState; b: DowntimeState }) => {
+const panels = perPair(({ a: campaign, b: downtime }: { a: SeenCampaign; b: DowntimeState }) => {
   const t: Downtime = { campaign, downtime }
   const views = new Map<number | null, DowntimePanel>()
   return (span: number | null): DowntimePanel => {
@@ -152,7 +152,7 @@ const panels = perPair(({ a: campaign, b: downtime }: { a: CampaignState; b: Dow
       defaultSpan,
       settled: settlement ? (settlement.living === 1 ? 'average cost of living' : `cost of living ×${settlement.living}`) : null,
       bar: getDowntimeBar(t, days),
-      characters: getDowntimeCharacters(campaign).map((id) => characterView(t, id, days)),
+      characters: getDowntimeCharacters(campaign).map((id) => characterView(t, id, days, active)),
       results: downtime.results,
     }
     views.set(span, view)
@@ -163,7 +163,7 @@ const panels = perPair(({ a: campaign, b: downtime }: { a: CampaignState; b: Dow
 // story.tex "Downtime" — everyone's plan for the coming days, what each
 // activity costs, tests and yields, how long each can pay for it, and what
 // the last days came to.
-export function getDowntimePanel(t: Downtime, span: number | null): DowntimePanel {
+export function getDowntimePanel(t: Downtime & { campaign: SeenCampaign }, span: number | null): DowntimePanel {
   return panels(t.campaign, t.downtime)(span)
 }
 

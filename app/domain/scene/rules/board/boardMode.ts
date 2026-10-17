@@ -31,13 +31,13 @@ export function getBoardMode(state: SceneState): BoardMode {
 }
 
 // Who would pick an item up off the floor by a click, and which items they
-// could take: the one whose pick up is being declared, else the active
-// character if they may pick up at all. Null when nothing is within reach.
-export function getFloorPicker(state: SceneState): { picker: string, itemIds: string[] } | null {
+// could take: the one whose pick up is being declared, else the character
+// `selected` if they may pick up at all. Null when nothing is within reach.
+export function getFloorPicker(state: SceneState, selected: string | null): { picker: string, itemIds: string[] } | null {
   if (getDiceBar(state.calls)) return null
   const open = getOpenAction(state)
   const picker = open?.kind === 'pickUp' && open.step === 'define' ? open.actorId
-    : !open && state.activeCharacterId && findOption(state, state.activeCharacterId, { kind: 'pickUp' })?.available ? state.activeCharacterId
+    : !open && selected && findOption(state, selected, { kind: 'pickUp' })?.available ? selected
     : null
   const character = picker ? state.characters[picker] : undefined
   if (!picker || !character) return null

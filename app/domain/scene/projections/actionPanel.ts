@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import type { Action, ActionRoll, SceneState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
+import type { Action, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
@@ -371,7 +371,7 @@ const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
 // two never need the roster switched between them.
-function buildActionPanel(state: SceneState): ActionPanelView {
+function buildActionPanel(state: SeenScene): ActionPanelView {
   const step = getNextStep(state)
   const open = getOpenAction(state)
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
@@ -561,7 +561,7 @@ function breakdown(terms: Term[]): { terms: Term[]; total: number } {
   return { terms, total: sumTerms(terms) }
 }
 
-export const getActionPanelDigest = perState((state) => JSON.stringify(getActionPanel(state)))
+export const getActionPanelDigest = perState((state: SeenScene) => JSON.stringify(getActionPanel(state)))
 
 function getPushView(state: SceneState, drag: DragAction): PushView {
   const sides = getDragSides(state, drag)

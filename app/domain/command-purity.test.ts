@@ -334,7 +334,6 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued', [])(campaign),
   removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
   updateRosterCharacter: ({ campaign }) => campaignCommands.updateRosterCharacter('a', (c) => ({ ...c, held: [] }))(campaign),
-  setRosterActive: ({ campaign }) => campaignCommands.setRosterActive('b')(campaign),
   checkOut: ({ campaign }) => campaignCommands.checkOut('a')(campaign),
   addParty: ({ campaign }) => campaignCommands.addParty('q')(campaign),
   dropEmptyParties: ({ campaign }) => campaignCommands.dropEmptyParties({ ...campaign, partyOf: {} }),
@@ -538,7 +537,6 @@ function combatSubject(): SceneState {
       board: { placements: { a: { cell: { q: 0, r: 0 } }, b: { cell: { q: 0, r: 1 } } }, terrain: { '2,0': { blocking: true } } },
     }),
     characters: { a, b },
-    activeCharacterId: 'a',
     inTurnCharacter: 'a',
     round: 3,
   }
@@ -547,7 +545,7 @@ function combatSubject(): SceneState {
 function campaignSubject(fight: SceneState): CampaignState {
   const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
   return CampaignStateSchema.parse({
-    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, maps: { m: mapSubject() }, journal: [{ id: '1', party: 'p', clock: 100, lines: ['x'] }],
+    characters: tired, partyOf: { a: 'p', b: 'p' }, maps: { m: mapSubject() }, journal: [{ id: '1', party: 'p', clock: 100, lines: ['x'] }],
     parties: { p: { name: 'Party 1', at: { map: 'm', node: 'n1' }, clock: 100, active: true } },
   })
 }

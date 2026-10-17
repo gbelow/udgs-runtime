@@ -1,6 +1,6 @@
 import { CampaignCharacter, Character, CreationDraft } from "../domain/types";
 import { useActingAsGm } from "./useRole";
-import type { SceneState } from "../domain/scene/types";
+import type { SceneState, SeenScene } from "../domain/scene/types";
 import { GameTabs, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -47,7 +47,7 @@ type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
 // store ever drives it. `sel` is handed the fight the character is in too —
 // null on the edit, race and party tabs, where there is none.
 export function useActiveCharacterSelector<T>(
-  sel: (c: Character, fight: SceneState | null) => T,
+  sel: (c: Character, fight: SeenScene | null) => T,
 ): T | null {
   const owner = TAB_OWNER[useAppStore((s) => s.selectedGameTab)];
   const vals = {

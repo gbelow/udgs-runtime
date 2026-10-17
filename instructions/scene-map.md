@@ -154,7 +154,7 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 
 | Step (`step`) | UI sub-step (`getNextStep`) | Commands (`commands/action.ts` unless noted) |
 |---|---|---|
-| `define` | `declare`, `target`, `aim`, `commit` | `declareAction`, `amendAction`, `setTarget`, `commitAction`, `cancelAction`, `withdrawSpawnedAction`; board clicks through `resolveClick` (`commands/click.ts`), which picks `pickCell` / `turnMove` and the rest |
+| `define` | `declare`, `target`, `aim`, `commit` | `declareAction`, `amendAction`, `setTarget`, `commitAction`, `cancelAction`, `withdrawSpawnedAction`; board clicks through `readClick` (`commands/click.ts`), which picks `pickCell` / `turnMove` and the rest |
 | `react` | `react` | `declareReaction`, `amendReaction`, `withdrawReaction`, `withdrawLastReaction`, `boostPush` (the pusher's +5, also at `define`); then `rollAction(dice, newId)` or, for an action with no die, `payAction(newId)` |
 | `post` | `spend`, `aim`, `choose`, `confirm` | `commands/choices.ts`: `spendHOP` / `refundHOP`, `chooseGrapple` (a hit with a grapple row grapples, free, only when the attacker says so), `improveSpell` / `refundImprovement`, `saveGraze`, `aimExplosion`, `chooseManeuver`; then `resolveAction(newId)` |
 | `done` | — | — |
@@ -305,7 +305,8 @@ app/domain/scene/
 │   ├── bind.ts         settleBinds
 │   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
-│   ├── click.ts        resolveClick: what a click on a cell, token, floor item or the turn button does
+│   ├── click.ts        readClick: what a click on a cell, token, floor item or the turn button does
+│   ├── registry.ts     sceneCommands: each panel press as data (kind and plain args), the command it runs and whom it acts for; applySceneCommand refuses what the sender may not do
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── parties.ts      joinFight, addToFight, moveToParty, splitOff, renameParty: the scene's parties, inherited from the campaign and changed by the table

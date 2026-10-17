@@ -1,4 +1,4 @@
-import type { SceneState } from '../types'
+import type { SceneState, SeenScene } from '../types'
 import { perState } from '../../perState'
 import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getSustainedAbilities } from '../../character/rules/concentration'
@@ -83,7 +83,7 @@ function getConcentration(state: SceneState, id: string): RoundConcentration | n
 // The round change as the middle of the run screen shows it: its steps, where
 // it stands, and each character, by party, with what it has done to them and
 // what they still have to choose in it.
-function buildRoundChange(state: SceneState): RoundChangeView | null {
+function buildRoundChange(state: SeenScene): RoundChangeView | null {
   const phase = getRoundPhase(state)
   if (!phase) return null
   const at = ROUND_PHASES.indexOf(phase)
@@ -108,4 +108,4 @@ function buildRoundChange(state: SceneState): RoundChangeView | null {
 
 export const getRoundChange = perState(buildRoundChange)
 
-export const getRoundChangeDigest = perState((state) => JSON.stringify(getRoundChange(state)))
+export const getRoundChangeDigest = perState((state: SeenScene) => JSON.stringify(getRoundChange(state)))

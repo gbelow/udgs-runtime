@@ -1,4 +1,4 @@
-import type { SceneState } from '../types'
+import type { SeenScene } from '../types'
 import type { AfflictionKey } from '../../types'
 import { perState } from '../../perState'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
@@ -21,7 +21,7 @@ export type SceneCard = CombatRosterEntry & {
 
 export type SceneCardParty = { id: string; name: string; cards: SceneCard[] }
 
-function buildSceneCards(state: SceneState): SceneCardParty[] {
+function buildSceneCards(state: SeenScene): SceneCardParty[] {
   return getRosterParties(state).map((party) => ({
     id: party.id,
     name: party.name,
@@ -46,4 +46,4 @@ export const getSceneCards = perState(buildSceneCards)
 
 // Everything the cards display, as one string, to gate their re-render; a
 // card is freshly allocated on every call.
-export const getSceneCardsDigest = perState((state) => JSON.stringify(getSceneCards(state)))
+export const getSceneCardsDigest = perState((state: SeenScene) => JSON.stringify(getSceneCards(state)))

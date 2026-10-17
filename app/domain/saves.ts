@@ -46,7 +46,7 @@ export function fromCampaignSave(save: CampaignSave, characters: readonly Campai
   const partyOf = Object.fromEntries(Object.entries(save.campaign.partyOf).filter(([id]) => id in found))
   const names = Object.fromEntries(Object.entries(save.campaign.names).filter(([id]) => id in found))
   return {
-    campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, activeCharacterId: null, partyOf, names, out: [] }),
+    campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, partyOf, names, out: [] }),
     exploration: save.exploration,
     downtime: save.downtime,
   }

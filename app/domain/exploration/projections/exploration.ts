@@ -1,4 +1,4 @@
-import type { CampaignState, EventType, TerrainTag } from '../../campaign/types'
+import type { EventType, SeenCampaign, TerrainTag } from '../../campaign/types'
 import { TREAT_COUNT, getETMedicine, getETTreatBar, getETTreatTest, getUnsetWounds, isETMedicine, type ETMedicineKey } from '../rules/medicine'
 import { ABILITIES } from '../../abilities'
 import { getConsume, getDosesLeft } from '../../item/rules/consumables'
@@ -85,7 +85,7 @@ function planOf(t: Exploring, partyId: string, id: string): string {
 // where it is, who is in it and what they plan, its groups and the tests
 // they will make, and its camp; the decisions the coming ET waits on and
 // what the last ET's groups came to.
-const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b: ExplorationState }): PartiesView => {
+const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b: ExplorationState }): PartiesView => {
   const t: Exploring = { campaign: state, exploration }
   return {
   dayETs: state.dayETs,
@@ -123,12 +123,12 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
   }
 })
 
-export const getPartiesView = (t: Exploring): PartiesView => partiesView(t.campaign, t.exploration)
+export const getPartiesView = (t: Exploring & { campaign: SeenCampaign }): PartiesView => partiesView(t.campaign, t.exploration)
 
-const partiesDigest = perPair(({ a, b }: { a: CampaignState; b: ExplorationState }) => JSON.stringify(partiesView(a, b)))
+const partiesDigest = perPair(({ a, b }: { a: SeenCampaign; b: ExplorationState }) => JSON.stringify(partiesView(a, b)))
 
 // Everything the parties display, as one string to gate their render on.
-export const getPartiesDigest = (t: Exploring): string => partiesDigest(t.campaign, t.exploration)
+export const getPartiesDigest = (t: Exploring & { campaign: SeenCampaign }): string => partiesDigest(t.campaign, t.exploration)
 
 // What a plan would do to the character over the ET, as changes to IL and
 // exhaustion; `idle` is set on a rest that has no healing left today.

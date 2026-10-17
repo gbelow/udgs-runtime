@@ -23,7 +23,7 @@ import { useAutoThrow, useDieAnswer, useThrower } from "./useDieCalls";
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
 import { getRosterName } from "../domain/campaign/rules/roster";
 
-const exploring = (s: CampaignStore): Exploring => ({ campaign: s, exploration: s.exploration });
+const exploring = (s: CampaignStore): Exploring & { campaign: CampaignStore } => ({ campaign: s, exploration: s.exploration });
 
 // The parties, gated on a digest since the view is freshly allocated.
 export function useParties(): PartiesView {

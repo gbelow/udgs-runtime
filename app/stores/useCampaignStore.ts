@@ -1,12 +1,12 @@
 // stores/useCampaignStore.ts
 import { create } from 'zustand'
-import { CampaignCharacter } from '../domain/types'
+import { CampaignCharacter, Selected } from '../domain/types'
 import { CampaignState, CampaignStateSchema, CampaignUpdater } from '../domain/campaign/types'
 import type { TableUpdater } from '../domain/scene/types'
 import { ExplorationState, ExplorationStateSchema, ExplorationUpdater } from '../domain/exploration/types'
 import { DowntimeState, DowntimeStateSchema, DowntimeUpdater } from '../domain/downtime/types'
 import { makeCampaignCharacter } from '../domain/factories'
-import { updateRosterCharacter, setRosterActive } from '../domain/campaign/commands/roster'
+import { updateRosterCharacter } from '../domain/campaign/commands/roster'
 import { loadIntoFight, loadOntoRoster } from '../domain/scene/commands/fight'
 import { useCombatStore } from './useCombatStore'
 import { resetCombat } from '../domain/scene/commands/resetCombat'
@@ -44,7 +44,7 @@ type CampaignActions = {
 // `owners` is whose each player character was when the campaign was opened,
 // read from their records, and whom the GM has given them to since; saved
 // onto those records, never into the campaign.
-export type CampaignStore = CampaignState & { exploration: ExplorationState; downtime: DowntimeState; file: CampaignFile; owners: CharacterOwners } & CampaignActions
+export type CampaignStore = CampaignState & Selected & { exploration: ExplorationState; downtime: DowntimeState; file: CampaignFile; owners: CharacterOwners } & CampaignActions
 
 // What exploration and downtime called dice for waits on them (`holdForDice`),
 // and so does the scene, for whatever crosses into it.
@@ -52,6 +52,7 @@ const called = (s: { exploration: ExplorationState; downtime: DowntimeState }) =
 
 export const useCampaignStore = create<CampaignStore>((set, get) => ({
   ...CampaignStateSchema.parse({}),
+  activeCharacterId: null,
   exploration: ExplorationStateSchema.parse({}),
   downtime: DowntimeStateSchema.parse({}),
   file: { id: crypto.randomUUID(), name: '', members: {} },
@@ -62,7 +63,7 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
   setOwner: (id, owner) => set((s) => ({ owners: { ...s.owners, [id]: owner } })),
 
   openCampaign: (t, file, owners = {}) => {
-    set({ ...t.campaign, exploration: t.exploration, downtime: t.downtime, file, owners })
+    set({ ...t.campaign, activeCharacterId: null, exploration: t.exploration, downtime: t.downtime, file, owners })
     useCombatStore.setState(resetCombat(useCombatStore.getState()))
   },
 
@@ -89,13 +90,16 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
     set(holdForDice(called, s, { ...s, ...campaign, downtime }))
   },
 
-  loadCharacter: (rawCharacter, into) =>
-    get().updateTable(loadOntoRoster(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID(), into)),
+  // into the party named, else the one of whoever this screen has picked
+  loadCharacter: (rawCharacter, into) => {
+    const { activeCharacterId: picked, partyOf } = get()
+    get().updateTable(loadOntoRoster(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID(), into ?? (picked ? partyOf[picked] : undefined)))
+  },
 
   loadFighter: (rawCharacter) =>
     get().updateTable(loadIntoFight(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID())),
 
-  setActiveCharacter: (id) => set(setRosterActive(id)),
+  setActiveCharacter: (id) => set((s) => (s.characters[id] ? { activeCharacterId: id } : {})),
 
   updateActiveCharacter: (updater) => {
     const id = get().activeCharacterId
@@ -104,3 +108,8 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
     return get().characters[id]
   },
 }))
+
+// Whoever leaves the roster is no longer picked.
+useCampaignStore.subscribe((s) => {
+  if (s.activeCharacterId && !s.characters[s.activeCharacterId]) useCampaignStore.setState({ activeCharacterId: null })
+})

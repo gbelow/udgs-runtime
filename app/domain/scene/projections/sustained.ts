@@ -1,4 +1,4 @@
-import type { SceneState } from '../types'
+import type { SeenScene } from '../types'
 import { SPELLS, getSpellUpkeep, type SpellKey } from '../../spells'
 import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getLinkDLOf, getLinkedTargets } from '../rules/link'
@@ -24,7 +24,7 @@ export type SustainedRow = {
   linkDL: number
 }
 
-function buildSustainedRows(state: SceneState): SustainedRow[] {
+function buildSustainedRows(state: SeenScene): SustainedRow[] {
   const c = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
   if (!c) return []
   return getActiveSpellKeys(c).map((key) => {
@@ -51,4 +51,4 @@ function upkeepLabel({ AP, STA }: { AP: number; STA: number }, charges: number):
 
 export const getSustainedRows = perState(buildSustainedRows)
 
-export const getSustainedDigest = perState((state) => JSON.stringify(getSustainedRows(state)))
+export const getSustainedDigest = perState((state: SeenScene) => JSON.stringify(getSustainedRows(state)))

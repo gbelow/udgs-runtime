@@ -107,8 +107,8 @@ broke, not with what it checks, and keep it even when it looks redundant.
 One seam has so far demanded an integration test: what a player does on the board, from the
 click to what stands afterwards. It is admitted, under these terms.
 
-- **What runs.** The real combat store, with the click resolved by the domain's own
-  `resolveClick` and every panel button dispatched as the command its hook dispatches. Nothing
+- **What runs.** The real combat store, with the click read by the domain's own
+  `readClick` and every panel button dispatched as the command its hook dispatches. Nothing
   is mocked, and no DOM is rendered: `onClick={...}` is the one line left unexercised, and it
   holds no decision. The harness lives in `app/stores/`, beside the store it drives, because
   the domain may not import stores.

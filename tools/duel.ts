@@ -193,7 +193,7 @@ function strikeChoices(base: Base, id: string, foes: string[], state: SceneState
 // Where a blow can be aimed on the target of the declared strike, with what each
 // costs to hit.
 function places(state: SceneState): { location: HitLocation; part: string | null; name: string; penalty: number }[] {
-  return getActionPanel(state).locations
+  return getActionPanel({ ...state, activeCharacterId: null }).locations
 }
 
 function placeOf(state: SceneState, name: string): { location: HitLocation; part: string | null } {
@@ -321,7 +321,7 @@ function followUpChoices(state: SceneState, id: string, open: RootAction): Choic
       case 'fleeFollowUp': return [{ label: 'FLEE: activate the movement surge and take a turn limited to movement', apply: (e) => { const c = commitAction(e.dice, e.newId)(amendAction({ flee: true })(state)); return c === state ? null : c } }]
       case 'strike': return strikeChoices(base, id, foes, state, null)
       case 'move': return moveChoices(base, id, state)
-      default: return plainChoices(base, getActionPanel(state).open?.label ?? open.kind, foes, state)
+      default: return plainChoices(base, getActionPanel({ ...state, activeCharacterId: null }).open?.label ?? open.kind, foes, state)
     }
   })()
   const env = { counters: () => ({ draws: 0, ids: 0 }) } as Env
@@ -378,7 +378,7 @@ function terms(list: readonly { label: string; value: number }[]): string {
 }
 
 function threat(state: SceneState): string {
-  const o = getActionPanel(state).open
+  const o = getActionPanel({ ...state, activeCharacterId: null }).open
   if (!o) return ''
   if (o.weapon === '') return `${o.actor}: ${o.label}.`
   const place = o.location === 'chest' ? '' : `, aimed at the ${o.location}`
@@ -404,7 +404,7 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
       if (open.step === 'define') {
         if (open.spawnedBy && state.characters[open.actorId] && FOLLOW_UPS.includes(open.kind)) {
           const who = open.actorId
-          return { state, next: { kind: 'prompt', side: sideOf(who), title: `${getFightName(state, who)} may follow up: ${getActionPanel(state).open?.label ?? open.kind}.`, choices: followUpChoices(state, who, open) } }
+          return { state, next: { kind: 'prompt', side: sideOf(who), title: `${getFightName(state, who)} may follow up: ${getActionPanel({ ...state, activeCharacterId: null }).open?.label ?? open.kind}.`, choices: followUpChoices(state, who, open) } }
         }
         const settled = open.spawnedBy ? passUp(state, open, env.dice, env.newId) : null
         if (!settled || settled === state) return { state, next: { kind: 'end', text: 'Stuck: an action was left half-declared.' } }
@@ -458,7 +458,7 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
 }
 
 function previewOf(state: SceneState): string {
-  const lines = getActionPanel(state).outcomes.map(({ target, outcome }) => {
+  const lines = getActionPanel({ ...state, activeCharacterId: null }).outcomes.map(({ target, outcome }) => {
     if (outcome.stopped) return `${target}: intercepted`
     const wound = outcome.wound ? `, WOUND ${outcome.wound.name}` : ''
     const result = outcome.tier === null ? 'no injury' : `tier ${outcome.tier}, IL +${outcome.IL}${outcome.bleed ? `, bleed +${outcome.bleed}` : ''}${wound}${outcome.interruption !== 'none' ? `, ${outcome.interruption}` : ''}${outcome.dead ? ', DEAD' : ''}`

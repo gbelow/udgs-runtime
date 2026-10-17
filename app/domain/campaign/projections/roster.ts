@@ -1,4 +1,4 @@
-import type { CampaignState, Sequence } from '../types'
+import type { CampaignState, SeenCampaign, Sequence } from '../types'
 import { getPartyMembers } from '../rules/place'
 import { getPartyMoveBar } from '../rules/parties'
 import { getRosterName } from '../rules/roster'
@@ -13,11 +13,11 @@ export type RosterView = {
   unplaced: RosterMember[]
 }
 
-const member = (state: CampaignState, id: string): RosterMember => ({ id, name: getRosterName(state, id), isActive: id === state.activeCharacterId })
+const member = (state: SeenCampaign, id: string): RosterMember => ({ id, name: getRosterName(state, id), isActive: id === state.activeCharacterId })
 
 // The campaign's parties out of a fight, in play first, each with when it is
 // and who is in it and the sequence it is in, and whoever is in no party.
-export const getRosterView = perState((state: CampaignState): RosterView => {
+export const getRosterView = perState((state: SeenCampaign): RosterView => {
   const parties = Object.entries(state.parties).map(([id, party]) => ({
     id, name: party.name, sequence: party.sequence, timeline: getTimelineView(state, id, party),
     members: getPartyMembers(state, id).filter((m) => state.characters[m]).map((m) => member(state, m)),
@@ -28,7 +28,7 @@ export const getRosterView = perState((state: CampaignState): RosterView => {
   }
 })
 
-export const getRosterViewDigest = perState((state: CampaignState) => JSON.stringify(getRosterView(state)))
+export const getRosterViewDigest = perState((state: SeenCampaign) => JSON.stringify(getRosterView(state)))
 
 // Why the character cannot join each other party, by party; null where they
 // can.

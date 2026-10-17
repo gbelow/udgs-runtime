@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema } from '../types'
+import { CampaignCharacterSchema, type Selected } from '../types'
 
 // survival.tex "Events": the 8 types of events.
 export const EVENT_TYPES = ['place', 'encounter', 'obstacle', 'treasure', 'wear', 'food', 'shelter', 'water'] as const
@@ -194,7 +194,6 @@ export type CampaignEntry = z.infer<typeof CampaignEntrySchema>
 // camps, the fight's log) is not here.
 export const CampaignStateSchema = z.object({
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
-  activeCharacterId: z.string().nullable().default(null),
   // survival.tex "Night and Darkness": "The standard is 4 periods of day and
   // 2 of night"; the ETs of a day that are daylight, night being the rest
   dayETs: z.number().default(4),
@@ -215,6 +214,9 @@ export const CampaignStateSchema = z.object({
 
 export type CampaignState = z.infer<typeof CampaignStateSchema>
 
+// The campaign as one screen sees it, with whom it has picked.
+export type SeenCampaign = CampaignState & Selected
+
 export type CampaignUpdater = (state: CampaignState) => CampaignState
 
 // Where a character comes back to from a fight: a party of the campaign's, or
@@ -223,6 +225,6 @@ export type CampaignUpdater = (state: CampaignState) => CampaignState
 export type Homecoming = { partyId: string; name: string; from?: Party }
 
 // What a campaign keeps of itself when it is saved: everything but its
-// characters, which are saved apart and named by id, and who is picked.
-export const CampaignRecordSchema = CampaignStateSchema.omit({ characters: true, activeCharacterId: true })
+// characters, which are saved apart and named by id.
+export const CampaignRecordSchema = CampaignStateSchema.omit({ characters: true })
 export type CampaignRecord = z.infer<typeof CampaignRecordSchema>

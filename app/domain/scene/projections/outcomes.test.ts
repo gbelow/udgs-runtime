@@ -30,7 +30,7 @@ describe('the preview', () => {
     s = setTarget('def')(s)
     s = commitAction(() => 5, newId)(s)
     s = rollAction(() => 30, newId)(s)
-    const preview = getActionPanel(s).outcomes[0].outcome
+    const preview = getActionPanel({ ...s, activeCharacterId: null }).outcomes[0].outcome
     expect(preview.tier).not.toBeNull()
 
     const after = resolveAction(newId, () => 5)(s)

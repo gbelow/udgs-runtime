@@ -15,7 +15,7 @@ describe('a throw being declared', () => {
     const thrower: CampaignCharacter = holdItem(stone)({ ...base, id: 't', resources: { ...base.resources, AP: 8 } })
     let s: SceneState = { ...SceneStateSchema.parse({ board: { placements: { t: { cell: { q: 0, r: 0 } } } } }), characters: { t: thrower }, inTurnCharacter: 't' }
     s = pickThrowItem('t', 'stone', () => 'throw')(s)
-    const view = getBoardView(s)
+    const view = getBoardView({ ...s, activeCharacterId: null })
     expect(view.mode).toBe('aim')
     expect(view.cells.some((c) => c.center)).toBe(true)
   })
