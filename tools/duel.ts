@@ -304,7 +304,7 @@ function turnChoices(state: SceneState, id: string, env: Env): Choice[] {
   })
   return [
     { label: 'END TURN (the other side may act. If it has nothing left to do you are asked to start another turn; PASS is what stops you acting for the round)', apply: () => { const ended = endTurn(state); return ended === state ? null : ended } },
-    { label: 'PASS for the rest of the round, keeping the AP you have left to defend with', apply: () => hold(state, id) },
+    { label: 'PASS for the rest of the round, keeping the AP you have left to defend with', apply: () => hold(state, id)?.state ?? null },
     ...surges,
     ...choices.map((c): Choice => (c.unavailable || c.apply(probe) !== null ? c : { ...c, unavailable: c.label.startsWith('attack') ? 'cannot be done now' : UNSUPPORTED })),
   ]
@@ -315,7 +315,7 @@ function turnChoices(state: SceneState, id: string, env: Env): Choice[] {
 function followUpChoices(state: SceneState, id: string, open: RootAction): Choice[] {
   const base: Base = { state, open, own: false }
   const foes = getLiveFoes(state, partyOf(id))
-  const decline: Choice = { label: 'DECLINE: let the follow-up go', apply: (e) => passUp(state, open, e.dice, e.newId) }
+  const decline: Choice = { label: 'DECLINE: let the follow-up go', apply: (e) => passUp(state, open, e.dice, e.newId).state }
   const taken = ((): Choice[] => {
     switch (open.kind) {
       case 'fleeFollowUp': return [{ label: 'FLEE: activate the movement surge and take a turn limited to movement', apply: (e) => { const c = commitAction(e.dice, e.newId)(amendAction({ flee: true })(state)); return c === state ? null : c } }]
@@ -406,7 +406,7 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
           const who = open.actorId
           return { state, next: { kind: 'prompt', side: sideOf(who), title: `${getFightName(state, who)} may follow up: ${getActionPanel({ ...state, activeCharacterId: null }).open?.label ?? open.kind}.`, choices: followUpChoices(state, who, open) } }
         }
-        const settled = open.spawnedBy ? passUp(state, open, env.dice, env.newId) : null
+        const settled = open.spawnedBy ? passUp(state, open, env.dice, env.newId).state : null
         if (!settled || settled === state) return { state, next: { kind: 'end', text: 'Stuck: an action was left half-declared.' } }
         state = settled
         continue
@@ -441,7 +441,7 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
     if (called) return { state, next: { kind: 'prompt', side: sideOf(called.id), title: moraleTitle(state, called.id), choices: moraleChoices(state, called.id) } }
 
     const changed = stepRoundChange(state, env.dice, () => true, false)
-    if (changed) { state = changed; continue }
+    if (changed) { state = changed.state; continue }
 
     const started = startNextTurn(state, env)
     if (started) { state = started; continue }

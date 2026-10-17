@@ -13,6 +13,7 @@ import { toggleBreakage } from './breakage'
 import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
+import { dropToFloor, throwOffShieldToFloor } from './floor'
 import { rollHeld } from './heldTest'
 import { rollMorale, setTablePressure } from './morale'
 import { continueRound, holdOn, letGo, nextRound } from './nextRound'
@@ -21,7 +22,7 @@ import { defaultToCoward } from './social'
 import { endTurn, rollContest, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
 import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
-  passReaction, payAnswered, resolveAction, rollAnswered, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
+  passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
 } from './action'
 import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from './choices'
 
@@ -48,7 +49,8 @@ const own = (_: SceneState, id: string): Actor => ({ id })
 const anyone = (): Actor => null
 const gmTool = (): Actor => 'gmTool'
 // a die typed in from the table for a test the press makes, or the table's
-const typed = (ctx: CommandContext, die?: number) => (die === undefined ? toThrower(ctx.thrower).dice : () => die)
+// (a die left out comes back null once it has been sent as JSON)
+const typed = (ctx: CommandContext, die?: number) => (die === undefined || die === null ? toThrower(ctx.thrower).dice : () => die)
 // what the board makes of a click, as the screen that made it saw the board;
 // a click that only picks a character there does nothing to the fight
 const readOn = (newId: () => string, state: SceneState, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null) => {
@@ -65,6 +67,9 @@ export const sceneCommands = {
   pass: command((_, reactorId: string) => passReaction(reactorId)).by(reactor),
   cancel: command(() => cancelAction()).by(panel('open')),
   roll: command((ctx) => rollAnswered(ctx.thrower, ctx.newId)).by(panel('open')),
+  // the die thrown, or the price paid, whoever could still answer: the
+  // table's press for the bots it plays, never the panel's
+  rollOrPay: command((ctx) => rollOrPay(ctx.thrower, ctx.newId)).by(() => 'gm'),
   commit: command((ctx) => commitAction(ctx.thrower, ctx.newId)).by(panel('open')),
   back: command(() => withdrawLastReaction()).by(panel('back')),
   skip: command((ctx) => withdrawSpawnedAction(ctx.thrower, ctx.newId)).by(panel('open')),
@@ -92,6 +97,11 @@ export const sceneCommands = {
   light: command((_, level: LightLevel) => setLight(level)).by(gmTool),
   // a board from a VTT, read best-effort
   importBoard: command((_, raw: unknown) => importBoard(raw)).by(anyone),
+
+  // what a character lets go of, onto the floor: outside their own turn only
+  // the GM lets go for them
+  dropToFloor: command((_, id: string, itemId: string, gm: boolean) => dropToFloor(id, itemId, gm)).by((_, id, _item, gm) => (gm ? 'gm' : { id })),
+  throwOffShield: command((_, id: string, gm: boolean) => throwOffShieldToFloor(id, gm)).by((_, id, gm) => (gm ? 'gm' : { id })),
 
   // a die the scene called for, answered by whoever throws it
   answer: command((ctx, callId: string, die: number, source: DieSource) => answerScene(callId, die, source, ctx.thrower, ctx.newId))

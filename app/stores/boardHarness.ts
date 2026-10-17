@@ -1,7 +1,7 @@
 import type { Dice } from '../domain/play/dice'
 import { toTable, type Throw } from '../domain/play/calls'
 import type { TerrainBrush } from '../domain/types'
-import { SceneStateSchema, type ActionDraft, type SeenScene, type LightLevel, type Updater } from '../domain/scene/types'
+import { SceneStateSchema, type ActionDraft, type SceneState, type SeenScene, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { readClick, type Click } from '../domain/scene/commands/click'
 import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
@@ -18,6 +18,11 @@ import { useCampaignStore } from './useCampaignStore'
 // once, or, at a table that rolls its own (`table`), nobody until a die is
 // answered. A panel press is sent as the scene command its hook sends, by
 // the GM unless another viewer is named.
+//
+// What the GM sends is written down as it is sent: the fight as it stood once
+// the last character was brought in, then each command with the dice it drew,
+// so a session can be played again from the record alone (`replay`).
+export type SessionRecord = { table: boolean; start: SceneState; sent: { command: SceneCommand; dice: number[] }[] }
 
 const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
 
@@ -30,15 +35,25 @@ export type Harness = ReturnType<typeof openHarness>
 
 export function openHarness(roll: Dice = () => 5, { table = false }: { table?: boolean } = {}) {
   const newId = ids()
-  const dice: Throw = table ? toTable(roll) : roll
+  let drawn: number[] = []
+  const draw: Dice = (explodes) => {
+    const die = roll(explodes)
+    drawn.push(die)
+    return die
+  }
+  const dice: Throw = table ? toTable(draw) : draw
   useCombatStore.setState({ ...SceneStateSchema.parse({}), activeCharacterId: null })
+  const record: SessionRecord = { table, start: SceneStateSchema.parse({}), sent: [] }
   let brush: TerrainBrush | null = null
   let reposition = false
 
   const state = (): SeenScene => useCombatStore.getState()
   const press = (command: Updater) => useCombatStore.getState().updateCombatState(command)
-  const send = (command: SceneCommand, viewer: Viewer = GM) =>
+  const send = (command: SceneCommand, viewer: Viewer = GM) => {
+    drawn = []
     press((s) => applySceneCommand(s, command, viewer, { thrower: dice, newId }))
+    if (viewer === GM) record.sent.push({ command, dice: drawn })
+  }
   const click = (c: Click) => {
     const selected = state().activeCharacterId
     const read = readClick(state(), c, { brush, reposition, selected, newId: () => '' })
@@ -57,6 +72,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     state,
     press,
     send,
+    record: (): SessionRecord => record,
     click,
     newId,
     dice,
@@ -67,7 +83,11 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     active,
 
     // the sidebar: bring a character into the fight, and the board into being
-    bring: (...who: (string | CampaignCharacter)[]) => who.forEach((w) => useCampaignStore.getState().loadFighter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w)),
+    bring: (...who: (string | CampaignCharacter)[]) => {
+      who.forEach((w) => useCampaignStore.getState().loadFighter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w))
+      record.start = SceneStateSchema.parse(state())
+      record.sent = []
+    },
     createBoard: (radius: number) => send({ kind: 'createBoard', args: [radius] }),
     removeBoard: () => send({ kind: 'removeBoard', args: [] }),
     light: (level: LightLevel) => send({ kind: 'light', args: [level] }),
@@ -94,4 +114,18 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     amend: (fields: Partial<ActionDraft>) => send({ kind: 'amend', args: [fields] }),
     commit: () => send({ kind: 'commit', args: [] }),
   } as const
+}
+
+// A recorded session played again: the fight it started from, and each
+// command sent with the dice it drew then. The ids are issued afresh, in the
+// same order. The harness is left where the session ended.
+export function replay(record: SessionRecord): Harness {
+  let queue: number[] = []
+  const h = openHarness(() => queue.shift() ?? 0, { table: record.table })
+  useCombatStore.setState({ ...record.start, activeCharacterId: null })
+  for (const { command, dice } of record.sent) {
+    queue = [...dice]
+    h.send(command)
+  }
+  return h
 }

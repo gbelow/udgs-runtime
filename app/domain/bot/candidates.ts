@@ -1,14 +1,15 @@
 import type { SceneState, Coord } from '../scene/types'
 import type { Dice } from '../play/dice'
 import { setDistance } from '../scene/rules/board/geometry'
-import { getAction, getOpenAction } from '../scene/rules/log'
+import { getOpenAction } from '../scene/rules/log'
 import type { ReachableCell } from '../scene/rules/move'
 import { getReachableCells } from '../scene/rules/board/reach'
-import { amendAction, commitAction, declareAction, setTarget } from '../scene/commands/action'
+import { amendAction, declareAction } from '../scene/commands/action'
 import { getInjuryPenalty } from '../character/rules/afflictions'
 import { getLiveFoes, type Party } from './party'
 import { getArmedAttacks } from './weapons'
 import { getFightName } from '../scene/rules/fighters'
+import { play, type Move, type Played } from './move'
 
 // What a bot may do with its turn, each as a way to play it with a die:
 // strike or shoot a foe within reach with a row and variation, or walk
@@ -16,14 +17,17 @@ import { getFightName } from '../scene/rules/fighters'
 
 export type Candidate = {
   label: string
-  play: (dice: Dice) => SceneState | null
+  play: (dice: Dice) => Played | null
 }
 
-// Whether the declared action got past its commit: one refused stays at
-// `define`.
-function isCommitted(state: SceneState, id: string): boolean {
-  const action = getAction(state, id)
-  return action !== null && action.step !== 'define'
+// The move pressed from the turn as it stood, if the action it declares got
+// past its commit: one refused stays open at `define`.
+function committing(state: SceneState, id: string, move: Move, newId: () => string): (dice: Dice) => Played | null {
+  return (dice) => {
+    const played = play(state, move, dice, newId)
+    const open = getOpenAction(played.state)
+    return open?.actorId === id && open.step === 'define' ? null : played
+  }
 }
 
 // The most wounded first.
@@ -46,10 +50,7 @@ export function getAttackCandidates(state: SceneState, party: Party, id: string,
       tried.set(key, count + 1)
       return count >= VARIANTS_TRIED ? [] : [{
         label: `${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
-        play: (dice) => {
-          const committed = commitAction(dice, newId)(setTarget(target)(armed.state))
-          return isCommitted(committed, armed.openId) ? committed : null
-        },
+        play: committing(state, id, [...armed.move, { kind: 'target', args: [target] }, { kind: 'commit', args: [] }], newId),
       }]
     })))
 }
@@ -76,10 +77,7 @@ export function getApproachCandidates(state: SceneState, party: Party, id: strin
     if (!best) return []
     return [{
       label: `move (${movement}) ${best.to.steps} cells, ${best.gap} from the nearest foe`,
-      play: (dice) => {
-        const committed = commitAction(dice, newId)(amendAction({ movement, path: best.to.path })(declared))
-        return isCommitted(committed, open.id) ? committed : null
-      },
+      play: committing(state, id, [{ kind: 'declare', args: [id, { kind: 'move' }] }, { kind: 'amend', args: [{ movement, path: best.to.path }] }, { kind: 'commit', args: [] }], newId),
     }]
   })
 }

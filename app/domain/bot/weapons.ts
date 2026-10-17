@@ -11,6 +11,7 @@ import { appendActions } from '../scene/commands/log'
 import { amendAction, declareAction } from '../scene/commands/action'
 import { surge } from '../scene/commands/turn'
 import { canAfford } from '../character/rules/cost'
+import type { Move } from './move'
 
 // The attacks a character could make from where it stands: a strike or a shot
 // declared with each row and variation it can pay for, not yet aimed. Used for
@@ -18,8 +19,10 @@ import { canAfford } from '../character/rules/cost'
 
 export type Armed = {
   kind: 'strike' | 'shoot'
-  // the attack declared and open, `option` filled in
+  // the attack declared and open, `option` filled in, and the move that
+  // declares it from where the turn stood
   state: SceneState
+  move: Move
   openId: string
   option: AttackOption
   // everyone it could be aimed at from here
@@ -32,10 +35,13 @@ function byOffense(a: AttackOption, b: AttackOption): number {
 }
 
 // combat.tex "Focus surge": "required to use ranged attacks".
-function withFocus(kind: 'strike' | 'shoot', state: SceneState, id: string): SceneState {
+function needsFocus(kind: 'strike' | 'shoot', state: SceneState, id: string): boolean {
   const c = state.characters[id]
-  const closed = kind === 'shoot' && getFreeAttackOptions(state, c, kind).length === 0 && hasUnfocusedRow(c, kind, isCombatStarted(state))
-  return closed ? surge(id, 'focus')(state) : state
+  return kind === 'shoot' && getFreeAttackOptions(state, c, kind).length === 0 && hasUnfocusedRow(c, kind, isCombatStarted(state))
+}
+
+function withFocus(kind: 'strike' | 'shoot', state: SceneState, id: string): SceneState {
+  return needsFocus(kind, state, id) ? surge(id, 'focus')(state) : state
 }
 
 // A thrown weapon leaves the hand (combat.tex "Throw"); a bot keeps its own.
@@ -44,10 +50,10 @@ function isThrownRow(c: CampaignCharacter, o: AttackOption): boolean {
   return row !== null && getAttackKind(row.atk.range) === 'throw'
 }
 
-function withAmmo(state: SceneState, id: string): SceneState {
+function withAmmo(state: SceneState, id: string): { state: SceneState; move: Move } {
   const open = getOpenAction(state)
   const ammo = open?.kind === 'shoot' ? getAmmoOptions(state.characters[id], open)[0] : undefined
-  return ammo ? amendAction({ ammoId: ammo.itemId })(state) : state
+  return ammo ? { state: amendAction({ ammoId: ammo.itemId })(state), move: [{ kind: 'amend', args: [{ ammoId: ammo.itemId }] }] } : { state, move: [] }
 }
 
 // The character's attacks of the kind that it could make: after the focus
@@ -72,10 +78,14 @@ export function getArmedAttacks(state: SceneState, id: string, kind: 'strike' | 
   const declared = declareAction(id, { kind }, newId)(ready)
   const open = getOpenAction(declared)
   if (open?.kind !== kind) return []
+  const focus: Move = needsFocus(kind, state, id) ? [{ kind: 'surge', args: [id, 'focus'] }] : []
+  const readied: Move = [...focus, { kind: 'declare', args: [id, { kind }] }]
   return options.flatMap((option) => {
-    const armed = withAmmo(amendAction({ weaponKey: option.weaponKey, attack: option.attack, variant: option.variant })(declared), id)
-    const aimable = getOpenAction(armed)
-    return aimable ? [{ kind, state: armed, openId: open.id, option, targets: getTargetIds(armed, aimable) }] : []
+    const row = { weaponKey: option.weaponKey, attack: option.attack, variant: option.variant }
+    const armed = withAmmo(amendAction(row)(declared), id)
+    const aimable = getOpenAction(armed.state)
+    const move: Move = [...readied, { kind: 'amend', args: [row] }, ...armed.move]
+    return aimable ? [{ kind, state: armed.state, move, openId: open.id, option, targets: getTargetIds(armed.state, aimable) }] : []
   })
 }
 

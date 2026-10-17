@@ -62,7 +62,7 @@ function strongestStrike(state: SceneState, party: Party, foeId: string, newId: 
       }
     }
   }
-  const answered = [...hardest.values()].map(({ locked, target }) => expectedLoss(answerOpen(locked, party, getOpenAction(locked)!, newId) ?? locked, target))
+  const answered = [...hardest.values()].map(({ locked, target }) => expectedLoss(answerOpen(locked, party, getOpenAction(locked)!, newId)?.state ?? locked, target))
   return Math.max(0, ...answered)
 }
 

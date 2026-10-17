@@ -5,6 +5,7 @@ import { sumTerms } from '../character/rules/terms'
 import { board, spearman } from '../bot/fixtures'
 import { stepBot } from '../bot/step'
 import { tableMove } from '../bot/table'
+import { applyMove } from '../bot/move'
 import { getLanded } from './rules/log'
 
 // Every action of a fight played out by two bots, checked as it lands.
@@ -21,8 +22,9 @@ describe.skip('what a played-out fight records', () => {
     let injuries = 0
     for (let round = 0; round < 2; round++) {
       for (let i = 0; i < 200; i++) {
-        const next = stepBot(state, parties, dice, newId) ?? tableMove(state, parties, dice, newId)
-        if (!next) break
+        const move = stepBot(state, parties, dice, newId) ?? tableMove(state, parties, dice, newId)?.move
+        if (!move) break
+        const next = applyMove(state, move, dice, newId)
         const landed = getLanded(next).slice(state.landed.length)
 
         // character/rules/terms.ts: "the displayed value and the per-term

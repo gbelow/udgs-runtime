@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterAll, describe, expect, it } from 'vitest'
 import { rollD10, seededRng } from '../domain/play/dice'
-import { SceneStateSchema, type ActionDraft, type SceneState, type Updater } from '../domain/scene/types'
+import { SceneStateSchema, type ActionDraft, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { getFootprint } from '../domain/scene/rules/board/board'
 import { defRows } from '../domain/scene/rules/attack'
@@ -9,8 +9,7 @@ import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
-import { acceptAnswered, declareAction, declareReaction, passReaction, payAnswered, resolveAction, rollAnswered, withdrawSpawnedAction } from '../domain/scene/commands/action'
-import { dropToFloor } from '../domain/scene/commands/floor'
+import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
 import { getChasePanel } from '../domain/scene/projections/chase'
@@ -57,10 +56,6 @@ const answersOffered = (h: Harness) => Object.keys(h.state().characters).flatMap
 // The cells a blast or an explosion may be aimed at.
 const aimable = (h: Harness, open: { kind: string }) => h.view().cells.filter((c) => open.kind === 'blast' || c.center)
 
-// The presses that carry a committed action to its end.
-// Everyone the committed action still waits on answers with nothing.
-const passAwaited: Updater = (s) => getAwaited(s).reduce((state, id) => passReaction(id)(state), s)
-
 // The table throws a die the scene called for — typed in or rolled — and a die called for
 // a target's test or a climb's is one the landing then reads (the table's
 // ruling: nobody is asked for a die that will not be used).
@@ -85,7 +80,16 @@ function throwAllCalled(h: Harness, pick: Picker) {
   for (let i = 0; i < 40 && getOpenCalls(h.state().calls).length; i++) throwCalled(h, pick)
 }
 
-const carryOn = (h: Harness) => [passAwaited, rollAnswered(h.dice, h.newId), payAnswered(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]
+// The presses that carry a committed action to its end: everyone it still
+// waits on answers with nothing, and the die, the price and the landing follow.
+function carryOn(h: Harness, accept = false) {
+  for (const id of getAwaited(h.state())) h.send({ kind: 'pass', args: [id] })
+  h.send({ kind: 'roll', args: [] })
+  if (accept) h.send({ kind: 'accept', args: [] })
+  h.send({ kind: 'pay', args: [] })
+  h.send({ kind: 'resolve', args: [] })
+  h.send({ kind: 'skip', args: [] })
+}
 
 // Fills in whatever the open declaration is still asked for from the panel's
 // own offers, aims it by clicking, and locks it.
@@ -222,7 +226,7 @@ function plays(): Play[] {
         if (options.length) { const o = pick(options); h.send({ kind: 'react', args: [o.id, o.draft] }) }
       },
     },
-    { name: 'drop a held item', run: (h, pick) => { const c = h.active() ? h.state().characters[h.active()!] : undefined; if (c?.held.length) h.press(dropToFloor(c.id, pick(c.held).id)) } },
+    { name: 'drop a held item', run: (h, pick) => { const c = h.active() ? h.state().characters[h.active()!] : undefined; if (c?.held.length) h.send({ kind: 'dropToFloor', args: [c.id, pick(c.held).id, false] }) } },
     { name: 'finish the declaration', weight: 4, run: (h, pick) => finishDeclaration(h, pick) },
     {
       name: 'take a whole action',
@@ -234,7 +238,7 @@ function plays(): Play[] {
         if (!open.length) return
         h.declare(pick(open).draft as ActionDraft)
         finishDeclaration(h, pick)
-        for (let i = 0; i < 6; i++) for (const step of carryOn(h)) h.press(step)
+        for (let i = 0; i < 6; i++) carryOn(h)
       },
     },
     { name: 'commit', weight: 3, run: (h) => h.commit() },
@@ -394,6 +398,15 @@ afterAll(() => {
   writeFileSync('reports/fuzz-coverage.md', body)
 })
 
+// What a failing session sent, written to reports/ for `replay` to play
+// again from the record alone.
+function writeReplay(h: Harness, seed: number): string {
+  const file = `reports/fuzz-replay-${sessions}-seed-${seed}.json`
+  mkdirSync('reports', { recursive: true })
+  writeFileSync(file, JSON.stringify(h.record()))
+  return file
+}
+
 function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Picker) {
   const dice: Play[] = h.table ? [{ name: 'throw a die called for', weight: 12, run: throwCalled }] : []
   const bag = [...menu, ...dice].flatMap((p) => Array<Play>(p.weight ?? 1).fill(p))
@@ -408,7 +421,8 @@ function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Pi
       assertOffersHold(h)
     } catch (e) {
       stop()
-      throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}`, { cause: e })
+      const file = writeReplay(h, seed)
+      throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}\ncommands sent: ${file}`, { cause: e })
     }
   }
   stop()
@@ -462,7 +476,7 @@ function playOut(h: Harness, pick: Picker) {
       const aimed = aimable(h, open)
       if (aimed.length) h.click({ on: 'cell', cell: pick(aimed).cell })
     }
-    for (const step of [passAwaited, rollAnswered(h.dice, h.newId), acceptAnswered(h.newId, h.dice), payAnswered(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) h.press(step)
+    carryOn(h, true)
     const panel = getActionPanel(h.state()).open
     if (panel && pick([true, false, false])) h.send({ kind: 'choose', args: [panel.disarm.length ? { item: pick(panel.disarm).itemId } : { along: pick([true, false]) }] })
     if (pick([true, false, false, false])) h.send({ kind: 'boostPush', args: [pick([true, false])] })
@@ -488,7 +502,7 @@ function assertSettled(h: Harness, pick: Picker) {
         }
       }
       throwAllCalled(h, pick)
-      for (const step of carryOn(h)) h.press(step)
+      carryOn(h)
     }
   }
   const open = stuck()

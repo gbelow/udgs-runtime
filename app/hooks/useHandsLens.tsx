@@ -6,10 +6,10 @@ import { getCatalogItem } from "../domain/item/rules/items";
 import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
 import type { Character, CharacterUpdater } from "../domain/types";
-import type { Updater } from "../domain/scene/types";
+import type { SceneCommand } from "../domain/scene/commands/registry";
 import { isFightTab, useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
-import { dropToFloor, throwOffShieldToFloor } from "../domain/scene/commands/floor";
+import { useSceneDispatch } from "./useSceneDispatch";
 import { useActiveCharacterDerived, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
@@ -23,6 +23,7 @@ export function useHandsLens() {
   const pending = useAppStore((s) => s.pendingItem);
   const tab = useAppStore((s) => s.selectedGameTab);
   const gm = useActingAsGm();
+  const dispatch = useSceneDispatch();
   const setPending = useAppStore((s) => s.setPendingItem);
   const pendingItem = usePendingItem();
   const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;
@@ -43,14 +44,14 @@ export function useHandsLens() {
   };
 
   // in a fight what is let go of lands on the floor; on the sheet it is gone
-  const letGo = (toFloor: (characterId: string) => Updater, gone: CharacterUpdater) => {
+  const letGo = (toFloor: (characterId: string) => SceneCommand, gone: CharacterUpdater) => {
     const combat = useCombatStore.getState();
-    if (isFightTab(tab) && combat.activeCharacterId) combat.updateCombatState(toFloor(combat.activeCharacterId));
+    if (isFightTab(tab) && combat.activeCharacterId) dispatch(toFloor(combat.activeCharacterId));
     else update(gone);
   };
 
   const drop = (itemId: string) => {
-    letGo((id) => dropToFloor(id, itemId, gm), dropItem(itemId));
+    letGo((id) => ({ kind: 'dropToFloor', args: [id, itemId, gm] }), dropItem(itemId));
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
@@ -74,7 +75,7 @@ export function useHandsLens() {
   };
 
   const throwOff = () => {
-    letGo((id) => throwOffShieldToFloor(id, gm), throwOffShield());
+    letGo((id) => ({ kind: 'throwOffShield', args: [id, gm] }), throwOffShield());
   };
 
   return { panel, hold, regrip, drop, wear, putOn, sling, unsling, throwOff } as const;

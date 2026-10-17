@@ -19,7 +19,7 @@ export function rollout(state: SceneState, parties: readonly Party[], dice: Dice
   for (let i = 0; i < STEPS; i++) {
     const next = stepWith(GREEDY, current, parties, dice, newId) ?? tableMove(current, parties, dice, newId)
     if (next) {
-      current = next
+      current = next.state
       continue
     }
     if (parties.some((p) => getLiveFoes(current, p).length === 0) || getNextRoundBar(current) !== null || current.round + 1 >= until) return current

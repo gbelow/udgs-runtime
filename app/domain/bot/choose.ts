@@ -2,7 +2,7 @@ import type { SceneState, RootAction } from '../scene/types'
 import { rollD10, seededRng, type Dice } from '../play/dice'
 import { getFightName } from '../scene/rules/fighters'
 import { getHistory, getLog } from '../scene/rules/log'
-import { declareDefense, getDefenseOptions } from './answer'
+import { defend, getDefenseOptions } from './answer'
 import { getCandidates } from './candidates'
 import { hold } from './engine'
 import { getExchange, isAnswerable } from './exchange'
@@ -11,6 +11,7 @@ import { getTuning, isMember, type Party } from './party'
 import { rollout } from './rollout'
 import type { Trace } from './trace'
 import { evaluate, type Value } from './value'
+import type { Played } from './move'
 
 // Where a bot weighs its options: each is played out on a copy of the state
 // with the same few dice and the fight played on from there (rollout.ts), the
@@ -70,28 +71,31 @@ function pick(state: SceneState, parties: readonly Party[], party: Party, actorI
   return best.index
 }
 
-// What the character does with its turn: the state after the option it
-// weighs best, or null to do nothing and keep what AP it has.
-export function chooseTurnAction(state: SceneState, parties: readonly Party[], party: Party, id: string, dice: Dice, newId: () => string, trace?: Trace): SceneState | null {
+// What the character does with its turn: the option it weighs best, or null
+// to do nothing and keep what AP it has.
+export function chooseTurnAction(state: SceneState, parties: readonly Party[], party: Party, id: string, dice: Dice, newId: () => string, trace?: Trace): Played | null {
   const candidates = getCandidates(state, party, id, newId)
   if (candidates.length === 0) return null
-  const options: Option[] = [{ label: 'hold', play: () => hold(state, id), waiting: getTuning(party).patience * (state.round - 1) }, ...candidates]
+  const options: Option[] = [
+    { label: 'hold', play: () => hold(state, id)?.state ?? null, waiting: getTuning(party).patience * (state.round - 1) },
+    ...candidates.map((c) => ({ label: c.label, play: (d: Dice) => c.play(d)?.state ?? null })),
+  ]
   return candidates[pick(state, parties, party, id, 'turn', options, [], newId, trace) - 1]?.play(dice) ?? null
 }
 
 // How a member of the party who may defend against the committed action
 // answers it, or null when none does.
-export function chooseAnswer(state: SceneState, parties: readonly Party[], party: Party, open: RootAction, newId: () => string, trace?: Trace): SceneState | null {
+export function chooseAnswer(state: SceneState, parties: readonly Party[], party: Party, open: RootAction, newId: () => string, trace?: Trace): Played | null {
   if (isMember(party, open.actorId)) return null
   for (const id of party.members) {
     const declared = getDefenseOptions(state, id, open).flatMap((o) => {
-      const next = declareDefense(state, id, open, o, newId)
-      return next ? [{ label: `${o.draft.kind}${o.surge ? ' (surge)' : ''}`, state: next }] : []
+      const next = defend(state, id, open, o, newId)
+      return next ? [{ label: `${o.draft.kind}${o.surge ? ' (surge)' : ''}`, played: next }] : []
     })
     if (declared.length === 0) continue
-    const options: Option[] = [{ label: 'no defense', play: () => state }, ...declared.map((d) => ({ label: d.label, play: () => d.state }))]
+    const options: Option[] = [{ label: 'no defense', play: () => state }, ...declared.map((d) => ({ label: d.label, play: () => d.played.state }))]
     const chosen = pick(state, parties, party, id, 'answer', options, [id], newId, trace)
-    if (chosen > 0) return declared[chosen - 1].state
+    if (chosen > 0) return declared[chosen - 1].played
   }
   return null
 }

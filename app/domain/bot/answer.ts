@@ -4,6 +4,7 @@ import { canAnswer, getLiveReactionsTo } from '../scene/rules/log'
 import { getAvailableActions, type ActionOption } from '../scene/rules/options'
 import { declareReaction } from '../scene/commands/action'
 import { isMember, type Party } from './party'
+import type { Played } from './move'
 
 // The reactions a bot makes: plain defenses, whose declaration is nothing but
 // the kind and the row it is made with. Reactions that open an action of
@@ -28,20 +29,25 @@ export function getDefenseOptions(state: SceneState, id: string, open: RootActio
 
 // The state with the defense declared, if it says all it must.
 export function declareDefense(state: SceneState, id: string, open: RootAction, option: ActionOption, newId: () => string): SceneState | null {
+  return defend(state, id, open, option, newId)?.state ?? null
+}
+
+// The same, as the move that declares it.
+export function defend(state: SceneState, id: string, open: RootAction, option: ActionOption, newId: () => string): Played | null {
   const declared = declareReaction(id, option.draft, newId)(state)
   const reaction = getLiveReactionsTo(declared, open.id).find((r) => r.actorId === id)
-  return reaction && isDeclarationComplete(declared, declared.characters[id], reaction) ? declared : null
+  return reaction && isDeclarationComplete(declared, declared.characters[id], reaction) ? { move: [{ kind: 'react', args: [id, option.draft] }], state: declared } : null
 }
 
 // The answer a bot gives without weighing it: the first member of the party,
 // bar those named, who has a defense to make declares the cheapest. Null when
 // nobody has one. It stands in for the others' answers when an option is
 // played out.
-export function answerOpen(state: SceneState, party: Party, open: RootAction, newId: () => string, skip: readonly string[] = []): SceneState | null {
+export function answerOpen(state: SceneState, party: Party, open: RootAction, newId: () => string, skip: readonly string[] = []): Played | null {
   if (isMember(party, open.actorId)) return null
   for (const id of party.members.filter((m) => !skip.includes(m))) {
     for (const option of getDefenseOptions(state, id, open)) {
-      const declared = declareDefense(state, id, open, option, newId)
+      const declared = defend(state, id, open, option, newId)
       if (declared) return declared
     }
   }

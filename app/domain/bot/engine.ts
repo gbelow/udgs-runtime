@@ -2,35 +2,34 @@ import type { SceneState } from '../scene/types'
 import type { Dice } from '../play/dice'
 import { getAction, getHistory, getOpenAction } from '../scene/rules/log'
 import { getTurnHolder, hasAgreedToEnd } from '../scene/rules/turn'
-import { endTurn, startTurn, toggleAgreeToEnd } from '../scene/commands/turn'
 import { stepOpen, type Answerer } from './open'
 import { findParty, getLiveFoes, isMember, type Party } from './party'
 import { stepRoundChange } from './table'
+import { andThen, ifChanged, play, type Played } from './move'
 
 // What a bot does with the table, whatever its way of choosing: take the
 // next step of whoever owes one. How it chooses is a policy — what the
 // character does with its turn, and how it answers.
 
-// The state after the character's turn action, or null to do nothing and
-// hold.
-export type TurnChooser = (state: SceneState, parties: readonly Party[], party: Party, id: string, dice: Dice, newId: () => string) => SceneState | null
+// The character's turn action, or null to do nothing and hold.
+export type TurnChooser = (state: SceneState, parties: readonly Party[], party: Party, id: string, dice: Dice, newId: () => string) => Played | null
 
 export type Policy = { turn: TurnChooser; answer: Answerer }
 
 // Holding is passing for the rest of the round with what AP is left, kept to
 // defend with.
-export function hold(state: SceneState, id: string): SceneState | null {
-  const ended = endTurn(state)
-  return ended === state ? null : toggleAgreeToEnd(id)(ended)
+export function hold(state: SceneState, id: string): Played | null {
+  const ended = play(state, [{ kind: 'endTurn', args: [] }], () => 0, () => '')
+  return ended.state === state ? null : andThen(ended, play(ended.state, [{ kind: 'toggleAgreeToEnd', args: [id] }], () => 0, () => ''))
 }
 
 // One step of the parties under the policy: what the character holding the
 // turn does, or the open action's next step, or the next turn taken. Null when
 // nothing is owed by a bot.
-export function stepWith(policy: Policy, state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string): SceneState | null {
+export function stepWith(policy: Policy, state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string): Played | null {
   const open = getOpenAction(state)
   const next = open ? stepOpen(state, parties, open, dice, newId, policy.answer) : stepIdle(policy, state, parties, dice, newId)
-  return next !== null && next !== state ? next : null
+  return next ? ifChanged(state, next) : null
 }
 
 // Who is asked first to take a turn: the party after the one whose action
@@ -46,7 +45,7 @@ function startOrder(state: SceneState, parties: readonly Party[], dice: Dice): r
   return [...parties.slice(first % parties.length), ...parties.slice(0, first % parties.length)]
 }
 
-function stepIdle(policy: Policy, state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string): SceneState | null {
+function stepIdle(policy: Policy, state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string): Played | null {
   const changed = stepRoundChange(state, dice, (id) => findParty(parties, id) !== undefined)
   if (changed) return changed
   const holder = getTurnHolder(state)
@@ -59,12 +58,12 @@ function stepIdle(policy: Policy, state: SceneState, parties: readonly Party[], 
     if (getLiveFoes(state, party).length === 0) continue
     for (const id of party.members) {
       if (!state.characters[id] || hasAgreedToEnd(state, id)) continue
-      const turn = startTurn(id)(state)
-      const acted = turn !== state ? policy.turn(turn, parties, party, id, dice, newId) : null
-      if (acted) return acted
+      const turn = play(state, [{ kind: 'startTurn', args: [id] }], dice, newId)
+      const acted = turn.state !== state ? policy.turn(turn.state, parties, party, id, dice, newId) : null
+      if (acted) return andThen(turn, acted)
     }
   }
 
   const waiting = parties.flatMap((p) => p.members).find((id) => state.characters[id] && !hasAgreedToEnd(state, id))
-  return waiting ? toggleAgreeToEnd(waiting)(state) : null
+  return waiting ? play(state, [{ kind: 'toggleAgreeToEnd', args: [waiting] }], dice, newId) : null
 }

@@ -2,16 +2,16 @@ import type { SceneState, RootAction } from '../scene/types'
 import type { Dice } from '../play/dice'
 import { getOpenAction } from '../scene/rules/log'
 import { getAwaited } from '../scene/rules/options'
-import { commitAction, resolveAction, rollOrPay } from '../scene/commands/action'
 import { answerOpen } from './answer'
 import { findParty, type Party } from './party'
 import { passUp, tableMove } from './table'
+import { play, type Played } from './move'
 
 // What a bot owes the action being played out, and the playing out of one.
 
-// How the parties answer the committed action: the new state with one
-// declared, or null.
-export type Answerer = (state: SceneState, parties: readonly Party[], open: RootAction, newId: () => string) => SceneState | null
+// How the parties answer the committed action: the move that declares one,
+// or null.
+export type Answerer = (state: SceneState, parties: readonly Party[], open: RootAction, newId: () => string) => Played | null
 
 // The cheapest defense, unweighed, from everyone but those named.
 export function reflexAnswer(skip: readonly string[] = []): Answerer {
@@ -24,15 +24,15 @@ export function reflexAnswer(skip: readonly string[] = []): Answerer {
   }
 }
 
-export function stepOpen(state: SceneState, parties: readonly Party[], open: RootAction, dice: Dice, newId: () => string, answer: Answerer): SceneState | null {
+export function stepOpen(state: SceneState, parties: readonly Party[], open: RootAction, dice: Dice, newId: () => string, answer: Answerer): Played | null {
   const owner = findParty(parties, open.actorId)
   switch (open.step) {
     case 'define':
       return owner ? settleDeclared(state, open, dice, newId) : null
     case 'react':
-      return answer(state, parties, open, newId) ?? (owner && !isAnswerOwed(state, parties) ? rollOrPay(dice, newId)(state) : null)
+      return answer(state, parties, open, newId) ?? (owner && !isAnswerOwed(state, parties) ? play(state, [{ kind: 'rollOrPay', args: [] }], dice, newId) : null)
     case 'post':
-      return owner ? resolveAction(newId, dice)(state) : null
+      return owner ? play(state, [{ kind: 'resolve', args: [] }], dice, newId) : null
     case 'done':
     case 'held':
       return null
@@ -41,10 +41,10 @@ export function stepOpen(state: SceneState, parties: readonly Party[], open: Roo
 
 // What a bot finds still declared and not committed: taken to its commit, or
 // passed up.
-function settleDeclared(state: SceneState, open: RootAction, dice: Dice, newId: () => string): SceneState {
+function settleDeclared(state: SceneState, open: RootAction, dice: Dice, newId: () => string): Played {
   if (open.spawnedBy) return passUp(state, open, dice, newId)
-  const committed = commitAction(dice, newId)(state)
-  return committed !== state ? committed : passUp(state, open, dice, newId)
+  const committed = play(state, [{ kind: 'commit', args: [] }], dice, newId)
+  return committed.state !== state ? committed : passUp(state, open, dice, newId)
 }
 
 // Whether the committed action still waits on anyone no bot controls
@@ -61,8 +61,8 @@ export function playOut(state: SceneState, parties: readonly Party[], dice: Dice
     const open = getOpenAction(current)
     if (!open) return current
     const next = stepOpen(current, parties, open, dice, newId, reflexAnswer(skip)) ?? tableMove(current, parties, dice, newId)
-    if (!next || next === current) return current
-    current = next
+    if (!next || next.state === current) return current
+    current = next.state
   }
   return current
 }
