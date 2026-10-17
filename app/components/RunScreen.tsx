@@ -27,6 +27,9 @@ import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
 import { useRole } from '../hooks/useRole';
 import { useTray } from '../hooks/useTray';
+import { useSceneAutoThrow } from '../hooks/useSceneDice';
+import { useETAutoThrow } from '../hooks/useParty';
+import { useDowntimeAutoThrow } from '../hooks/useDowntime';
 import type { RunTab } from '../stores/useAppStore';
 
 type Mode = {
@@ -103,6 +106,7 @@ export function RunScreen(){
 
   return(
     <div className='flex flex-col md:h-[calc(100vh-3rem)] text-left text-sm'>
+      <AutoThrow />
       <div className='flex flex-row gap-3 items-start px-2 py-1.5 border-b border-line shrink-0'>
         <ModeSwitch />
         <div className='flex-1 min-w-0'>{strip}</div>
@@ -141,6 +145,15 @@ export function RunScreen(){
       </div>
     </div>
   )
+}
+
+// The dice tray opened by itself for every die called for from someone the
+// screen plays, whichever sequence calls for it.
+function AutoThrow(){
+  useSceneAutoThrow()
+  useETAutoThrow()
+  useDowntimeAutoThrow()
+  return null
 }
 
 // Which sequence the table is playing; the scene shows how many are in a

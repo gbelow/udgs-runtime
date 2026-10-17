@@ -19,7 +19,7 @@ import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useActGate } from "./useControl";
-import { useDieAnswer, useThrower } from "./useDieCalls";
+import { useAutoThrow, useDieAnswer, useThrower } from "./useDieCalls";
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
 import { getRosterName } from "../domain/campaign/rules/roster";
 
@@ -100,6 +100,11 @@ export function useETAnswer() {
     () => useCampaignStore.getState().exploration.calls,
     (callId, die, source, thrower) => updateExploration(answerET(callId, die, source, thrower, newId)),
   );
+}
+
+// The dice tray opened by itself for the dice the ET calls for.
+export function useETAutoThrow() {
+  useAutoThrow(useCampaignStore((s) => s.exploration.calls), useETAnswer());
 }
 
 export function usePartyCommands() {

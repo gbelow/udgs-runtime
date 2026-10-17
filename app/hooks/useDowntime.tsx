@@ -9,7 +9,7 @@ import { useCampaignStore } from "../stores/useCampaignStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
 import { getRosterName } from "../domain/campaign/rules/roster";
-import { useDieAnswer, useThrower } from "./useDieCalls";
+import { useAutoThrow, useDieAnswer, useThrower } from "./useDieCalls";
 import { getBlockActor, getToExplorationBar } from "../domain/downtime/rules/downtime";
 import type { Actor } from "../domain/profiles";
 import { useActGate } from "./useControl";
@@ -72,6 +72,11 @@ export function useDowntimeAnswer() {
     () => useCampaignStore.getState().downtime.calls,
     (callId, die, source, thrower) => updateDowntime(answerDowntime(callId, die, source, thrower)),
   );
+}
+
+// The dice tray opened by itself for the dice the days call for.
+export function useDowntimeAutoThrow() {
+  useAutoThrow(useCampaignStore((s) => s.downtime.calls), useDowntimeAnswer());
 }
 
 export function useDowntimeCommands() {

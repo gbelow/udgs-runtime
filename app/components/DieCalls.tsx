@@ -9,7 +9,8 @@ import { useDieBar } from '../hooks/useDieCalls'
 type Answer = (id: string, die: number | null) => void
 
 // The tests a sequence has called for: each waiting on the die of whoever
-// makes it, typed in from the table or rolled here, and those answered
+// makes it, typed in from the table by whoever rolls their own, or rolled
+// here, and those answered
 // already, until the step that called them goes on. The GM may roll any of
 // them.
 export function DieCalls({ rows, answer }: { rows: CallRow[], answer: Answer }){
@@ -37,8 +38,10 @@ function DieCallRow({ row, answer }: { row: CallRow, answer: Answer }){
       {row.result ? <span className='font-mono text-fg'>{row.result}</span> :
         <LockedFor id={row.roller} className='contents'>
           <form className='flex flex-row gap-1 items-center' onSubmit={(e) => { e.preventDefault(); if (typed !== null && !bar) answer(row.id, typed) }}>
-            <NumberInput className='w-12' aria-label='die rolled' placeholder='die' value={die} onChange={(e) => setDie(e.target.value)} />
-            <Button type='submit' size='xs' variant='primary' disabled={bar !== null} title={bar ?? undefined}>enter</Button>
+            {place === 'table' ? <>
+              <NumberInput className='w-12' aria-label='die rolled' placeholder='die' value={die} onChange={(e) => setDie(e.target.value)} />
+              <Button type='submit' size='xs' variant='primary' disabled={bar !== null} title={bar ?? undefined}>enter</Button>
+            </> : null}
             <Button size='xs' onClick={() => answer(row.id, null)}>{place === 'tray' ? 'throw' : 'roll here'}</Button>
           </form>
         </LockedFor>}

@@ -1,4 +1,5 @@
-import { getDieBar, type Calls, type Thrower } from "../domain/play/calls";
+import { useEffect, useRef } from "react";
+import { getDieBar, getOpenCalls, type Calls, type Thrower } from "../domain/play/calls";
 import { realDice, throwOnScreen } from "../components/utils";
 import type { DieSource } from "../domain/play/dice";
 import { useTrayStore } from "../stores/useTrayStore";
@@ -36,4 +37,19 @@ export function useDieAnswer(read: () => Calls, dispatch: (callId: string, die: 
     if (place !== 'tray') return dispatch(callId, thrown.die, 'screen', thrower);
     ask({ id: callId, label: call.label, thrown, land: () => dispatch(callId, thrown.die, 'thrown', thrower) });
   };
+}
+
+// For whoever throws in the dice tray, the tray opens by itself for every die
+// a sequence calls for from someone they play, as the screen would roll it
+// for them at once.
+export function useAutoThrow(calls: Calls, answer: (callId: string, die: null) => void) {
+  const place = useDicePlace();
+  const controls = useControlCheck();
+  const due = place === "tray" ? getOpenCalls(calls).filter((c) => controls(c.roller)).map((c) => c.id) : [];
+  const throwFor = useRef(answer);
+  throwFor.current = answer;
+  const key = due.join(",");
+  useEffect(() => {
+    if (key) key.split(",").forEach((id) => throwFor.current(id, null));
+  }, [key]);
 }
