@@ -1,5 +1,5 @@
 import { Character } from "../domain/types";
-import { makeCampaignCharacter } from "../domain/factories";
+import { copyIntoPlay } from "../domain/factories";
 import { isRunTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -15,6 +15,8 @@ export function useCharacterLibrary() {
 
   return { baseCharacterList, playerCharacterList, refreshBaseList, refreshPlayerList } as const;
 }
+
+const intoPlay = (character: Character) => copyIntoPlay(character, crypto.randomUUID());
 
 // Loading a character means different things per tab — the editor replaces the
 // one being edited, the party gains a member, a fight gains another combatant
@@ -32,9 +34,9 @@ export function useLoadCharacter() {
     if (owner === "character") loadForEdit(character);
     else if (isRunTab(tab) && owner === "campaign") {
       const { activeCharacterId: picked, partyOf } = useCampaignStore.getState();
-      sendCampaign({ kind: "addToRoster", args: [makeCampaignCharacter(character), picked ? partyOf[picked] : undefined] });
+      sendCampaign({ kind: "addToRoster", args: [intoPlay(character), picked ? partyOf[picked] : undefined] });
     }
-    else if (isRunTab(tab) && owner === "combat") send({ kind: "loadIntoFight", args: [makeCampaignCharacter(character)] });
+    else if (isRunTab(tab) && owner === "combat") send({ kind: "loadIntoFight", args: [intoPlay(character)] });
   };
 }
 
@@ -43,5 +45,5 @@ export function useLoadCharacter() {
 export function useBringIntoParty() {
   const send = useTableDispatch();
   return (character: Character, partyId: string) =>
-    send({ kind: "loadIntoFight", args: [makeCampaignCharacter(character), partyId] });
+    send({ kind: "loadIntoFight", args: [intoPlay(character), partyId] });
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeCharacter, makeCampaignCharacter, makeRace } from './factories'
+import { copyAsBase, copyIntoPlay, makeCharacter, makeCampaignCharacter, makeRace } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
 import { getSTA } from './character/rules/characteristics'
 import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema, RaceSchema } from './types'
@@ -205,5 +205,19 @@ describe('a race survives its storage format', () => {
   it('round-trips a populated race through JSON', () => {
     const race = makeRace({ name: 'Surbit', playable: true, size: 2, bonuses: { STR: 1, AGI: 2 }, abilities: ['fur', 'claws'], body: [{ id: 'tail', name: 'tail', location: 'other', aimPenalty: 5 }] })
     expect(makeRace(JSON.parse(JSON.stringify(race)))).toEqual(race)
+  })
+})
+
+// A player character joined to two campaigns was one Redis record, so each
+// campaign saved over the other's version of it.
+describe('copies of a character kept apart', () => {
+  it('a library character brought into two campaigns is two characters, and what play wrote on one stays on it', () => {
+    const library = copyAsBase(makeCampaignCharacter({ name: 'Ada', resources: { STA: 1 } }), 'library')
+    const first = copyIntoPlay(library, 'first')
+    const second = copyIntoPlay(library, 'second')
+    expect([library.id, first.id, second.id]).toEqual(['library', 'first', 'second'])
+    expect(isBaseCharacter(library)).toBe(true)
+    expect(isCampaignCharacter(first)).toBe(true)
+    expect(first.resources.STA).not.toBe(1)
   })
 })

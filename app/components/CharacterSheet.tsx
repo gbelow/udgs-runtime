@@ -157,12 +157,12 @@ export function SkillTiles(){
 }
 
 export function NotesAndSave(){
-  const { savePlayerCharacter } = useGameCommands()
+  const { copyToMyCharacters } = useGameCommands()
   const { notes } = useActiveCharacterData()
   return(
     <>
       <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
-      <div><Button variant='primary' onClick={savePlayerCharacter}>save</Button></div>
+      <div><Button variant='primary' onClick={copyToMyCharacters}>copy to my characters</Button></div>
     </>
   )
 }

@@ -38,9 +38,9 @@ const COMBAT: (keyof Skills)[] = ['strike', 'accuracy', 'defend', 'reflex', 'gra
 const PHYSICAL: (keyof Skills)[] = ['balance', 'climb', 'swim', 'detection', 'stealth', 'prestidigitation', 'health']
 const MIND: (keyof Skills)[] = ['cunning', 'explore', 'will', 'persuasion', 'deception', 'insight']
 
-function SaveBaseCharacterButton(){
-  const { saveBaseCharacter } = useGameCommands()
-  return <Button onClick={() => saveBaseCharacter()}>save base</Button>
+function SaveCatalogCharacterButton(){
+  const { saveCatalogCharacter, devServer } = useGameCommands()
+  return devServer ? <Button onClick={() => saveCatalogCharacter()}>save to catalog</Button> : null
 }
 
 function SavePlayerCharacterButton(){
@@ -134,7 +134,7 @@ function EditorHeader(){
         <Experience />
         <div className='ml-auto flex flex-row items-center gap-2'>
           <Button variant='ghost' selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
-          <SaveBaseCharacterButton />
+          <SaveCatalogCharacterButton />
           <SavePlayerCharacterButton />
           <DeleteCharacterButton />
         </div>

@@ -4,14 +4,14 @@ import { TAB_OWNER, useAppStore, useAppStoreApi, type AppState } from "../stores
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 
-type ViewerFields = Pick<AppState, "profile" | "devServer" | "gmMode" | "profileList" | "playerCharacterList">;
+type ViewerFields = Pick<AppState, "profile" | "devServer" | "gmMode" | "profileList">;
 
 // Who is at the screen, read off the app store and the campaign in play.
 const viewerOf = (app: ViewerFields, campaign: CampaignStore): Viewer => {
   const profile = app.profile?.id ?? null;
   return {
     profile, role: getCampaignRole(campaign.file.members, profile, app.devServer), gmMode: app.gmMode, profiles: app.profileList,
-    ownerOf: (id) => getOwner(id, campaign.owners, app.playerCharacterList),
+    ownerOf: (id) => getOwner(id, campaign.owners),
   };
 };
 
@@ -59,8 +59,7 @@ export function useActorBar(actor: Actor): string | null {
   const devServer = useAppStore((s) => s.devServer);
   const gmMode = useAppStore((s) => s.gmMode);
   const profileList = useAppStore((s) => s.profileList);
-  const playerCharacterList = useAppStore((s) => s.playerCharacterList);
-  const app = { profile, devServer, gmMode, profileList, playerCharacterList };
+  const app = { profile, devServer, gmMode, profileList };
   return useCampaignStore((s) => getActorBar(actor, viewerOf(app, s)));
 }
 

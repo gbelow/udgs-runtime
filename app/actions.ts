@@ -4,7 +4,7 @@ import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
 import { CampaignSaveSchema, type CampaignSave } from './domain/saves';
-import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, CharacterOwnersSchema, getAssignBar, getCampaignRole, getCampaignRow, getJoinBar, type CampaignRow, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
+import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getAssignBar, getCampaignRole, getCampaignRow, getJoinBar, type CampaignRow, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import type { ZodType } from 'zod';
@@ -430,19 +430,12 @@ export async function setDicePlace(dice: DicePlace): Promise<ActionResult<Profil
 
 // ── campaigns ───────────────────────────────────────────────────────────
 // A campaign is one Redis document naming its characters by id, indexed in a
-// hash of id -> its name and who plays it, like the player characters. A player character keeps
-// its own record, so the campaign saves it there; every other character is
-// the campaign's alone and is kept under a key of the campaign's, since the
-// same catalog sheet brings the same id into every campaign it joins.
+// hash of id -> its name and who plays it, like the player characters. Every
+// character in a campaign is the campaign's alone, a copy kept under a key of
+// the campaign's, so the same character played in two campaigns is two records.
 const CAMPAIGN_INDEX_KEY = 'campaignIndex';
 const campaignKey = (id: string) => `campaign:${id}`;
 const campaignCharacterKey = (id: string, characterId: string) => `campaign:${id}:char:${characterId}`;
-
-// Where each of the campaign's characters is kept: a player character in its
-// own record, any other under the campaign's key.
-function characterKey(id: string, characterId: string, pcs: Record<string, CharacterListing>): string {
-  return characterId in pcs ? characterId : campaignCharacterKey(id, characterId);
-}
 
 // Read once per request: the page's lists all need it.
 const readCampaignIndex = cache((): Promise<Record<string, CampaignListing>> => readIndex(CAMPAIGN_INDEX_KEY, CampaignListingSchema));
@@ -526,30 +519,24 @@ export async function answerRequest(campaign: string, character: string, accept:
 
 // Only a GM saves a campaign. One nobody has joined yet is saved as the GM's
 // of whoever saves it; the members it was saved with come back.
-// A character the GM gave a player becomes a player character, kept in a
-// record of its own from then on; one taken back keeps that record, owned by
-// nobody.
-export async function saveCampaign(raw: CampaignSave, characters: CampaignCharacter[], rawOwners: CharacterOwners = {}): Promise<ActionResult<CampaignMembers>> {
+// A character the GM gave a player is played by them from then on, as the
+// save records; one taken back is played by nobody.
+export async function saveCampaign(raw: CampaignSave, characters: CampaignCharacter[]): Promise<ActionResult<CampaignMembers>> {
   const parsed = CampaignSaveSchema.safeParse(raw);
-  const owners = CharacterOwnersSchema.safeParse(rawOwners);
-  if (!parsed.success || !owners.success) return { ok: false, error: 'Not a campaign.' };
+  if (!parsed.success) return { ok: false, error: 'Not a campaign.' };
   if (!parsed.data.name.trim()) return { ok: false, error: 'Campaigns need a name.' };
   try {
     const { profile, dev } = await getViewer();
     if (!profile) return { ok: false, error: 'Pick a profile first.' };
     const save = Object.keys(parsed.data.members).length ? parsed.data : { ...parsed.data, members: { [profile]: 'gm' as const } };
-    const [before, pcs, row] = await Promise.all([readCampaign(save.id), readCharIndex(), readCampaignRow(save.id)]);
+    const [before, row] = await Promise.all([readCampaign(save.id), readCampaignRow(save.id)]);
     if (before && !hasGmTools(getCampaignRole(before.members, profile, dev))) return { ok: false, error: 'Only a GM saves the campaign.' };
-    const assigned = Object.entries(owners.data).filter(([cid, owner]) => save.characterIds.includes(cid) && owner !== (pcs[cid]?.owner ?? null));
+    const assigned = Object.entries(save.owners).filter(([cid, owner]) => owner !== (before?.owners[cid] ?? null));
     const assignBar = assigned.map(([, owner]) => getAssignBar(save.members, owner)).find((bar) => bar !== null);
     if (assignBar) return { ok: false, error: `Not saved: ${assignBar}.` };
-    const made = assigned.filter(([cid, owner]) => owner !== null && !(cid in pcs)).map(([cid]) => cid);
-    const rows: Record<string, CharacterListing> = { ...pcs, ...Object.fromEntries(assigned.filter(([cid, owner]) => cid in pcs || owner !== null).map(([cid, owner]) => [cid, { name: pcs[cid]?.name ?? '', owner }])) };
-    const stale = [...(before?.characterIds ?? []).filter((cid) => !save.characterIds.includes(cid) && !(cid in pcs)), ...made].map((cid) => campaignCharacterKey(save.id, cid));
+    const stale = (before?.characterIds ?? []).filter((cid) => !save.characterIds.includes(cid)).map((cid) => campaignCharacterKey(save.id, cid));
     const writes = redis.pipeline();
-    if (characters.length) writes.mset(Object.fromEntries(characters.map((c) => [characterKey(save.id, c.id, rows), c])));
-    const pcRows = Object.fromEntries(characters.filter((c) => c.id in rows).map((c) => [c.id, { ...rows[c.id], name: c.name }]));
-    if (Object.keys(pcRows).length) writes.hset(CHAR_INDEX_KEY, pcRows);
+    if (characters.length) writes.mset(Object.fromEntries(characters.map((c) => [campaignCharacterKey(save.id, c.id), c])));
     if (stale.length) writes.del(...stale);
     writes.set(campaignKey(save.id), save);
     writes.hset(CAMPAIGN_INDEX_KEY, { [save.id]: { name: save.name, members: save.members, requests: row?.requests ?? {} } });
@@ -561,33 +548,28 @@ export async function saveCampaign(raw: CampaignSave, characters: CampaignCharac
   }
 }
 
-// The campaign with its characters, and the profile each of its player
-// characters belongs to.
-export async function loadCampaign(id: string): Promise<ActionResult<{ save: CampaignSave, characters: unknown[], owners: CharacterOwners }>> {
+// The campaign with its characters.
+export async function loadCampaign(id: string): Promise<ActionResult<{ save: CampaignSave, characters: unknown[] }>> {
   try {
-    const [save, pcs, { profile, dev }] = await Promise.all([readCampaign(id), readCharIndex(), getViewer()]);
+    const [save, { profile, dev }] = await Promise.all([readCampaign(id), getViewer()]);
     if (!save) return { ok: false, error: 'Campaign not found.' };
     if (!dev && !(profile && profile in save.members)) return { ok: false, error: 'Only its members open a campaign.' };
-    const keys = save.characterIds.map((cid) => characterKey(id, cid, pcs));
+    const keys = save.characterIds.map((cid) => campaignCharacterKey(id, cid));
     const characters = keys.length ? (await redis.mget<unknown[]>(...keys)).filter((c) => c !== null) : [];
-    const owners: CharacterOwners = Object.fromEntries(save.characterIds.flatMap((cid) => {
-      const owner = pcs[cid]?.owner;
-      return owner ? [[cid, owner]] : [];
-    }));
-    return { ok: true, data: { save, characters, owners } };
+    return { ok: true, data: { save, characters } };
   } catch (err) {
     console.error('Error loading campaign:', err);
     return { ok: false, error: 'Failed to load campaign.' };
   }
 }
 
-// The campaign and the characters that were its alone go; player characters
-// keep their own records.
+// The campaign goes with its characters; the library characters they were
+// copied from keep their own records.
 export async function deleteCampaign(id: string): Promise<ActionResult> {
   try {
-    const [save, pcs, { profile, dev }] = await Promise.all([readCampaign(id), readCharIndex(), getViewer()]);
+    const [save, { profile, dev }] = await Promise.all([readCampaign(id), getViewer()]);
     if (save && !hasGmTools(getCampaignRole(save.members, profile, dev))) return { ok: false, error: 'Only a GM deletes the campaign.' };
-    const own = (save?.characterIds ?? []).filter((cid) => !(cid in pcs)).map((cid) => campaignCharacterKey(id, cid));
+    const own = (save?.characterIds ?? []).map((cid) => campaignCharacterKey(id, cid));
     const writes = redis.pipeline();
     writes.del(...own, campaignKey(id));
     writes.hdel(CAMPAIGN_INDEX_KEY, id);

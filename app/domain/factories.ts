@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type Character, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { getPresetFootprint, isSoundFootprint, settleParts } from './character/rules/footprint'
@@ -191,6 +191,18 @@ export function makeCharacter(raw: unknown, tags?: string[]): BaseCharacter {
   if(isBaseCharacter(merged)) return merged
 
   return emptyCharacter
+}
+
+// A character taken out of play to be kept and used again: a blueprint under
+// an id of its own, without what play wrote on it.
+export function copyAsBase(character: Character, id: string): BaseCharacter {
+  return makeCharacter({ ...character, id })
+}
+
+// A character brought into a campaign or a fight: a copy under an id of its
+// own, so no two campaigns ever share a record.
+export function copyIntoPlay(character: Character, id: string): CampaignCharacter {
+  return makeCampaignCharacter({ ...character, id })
 }
 
 // creating.tex "Character Creation", Step 4: a character being made starts

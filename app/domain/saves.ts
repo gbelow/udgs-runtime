@@ -4,16 +4,18 @@ import { CampaignRecordSchema, CampaignStateSchema, type CampaignState } from '.
 import { ExplorationStateSchema, type ExplorationState } from './exploration/types'
 import { DowntimeStateSchema, type DowntimeState } from './downtime/types'
 import { nameByParty } from './campaign/commands/names'
-import { CampaignMembersSchema, type CampaignMembers } from './profiles'
+import { CampaignMembersSchema, CharacterOwnersSchema, type CampaignMembers, type CharacterOwners } from './profiles'
 
 // A campaign as it is saved: who plays it, its own record, what exploration
-// and downtime keep beside it, and the ids of its characters, saved apart.
-// Read back best effort: a part that no longer parses comes back empty.
+// and downtime keep beside it, the ids of its characters, saved apart, and the
+// profile that plays each. Read back best effort: a part that no longer parses
+// comes back empty.
 export const CampaignSaveSchema = z.object({
   id: z.string(),
   name: z.string().default(''),
   members: CampaignMembersSchema.catch({}),
   characterIds: z.array(z.string()).default([]),
+  owners: CharacterOwnersSchema.catch({}),
   campaign: CampaignRecordSchema.catch(() => CampaignRecordSchema.parse({})),
   exploration: ExplorationStateSchema.catch(() => ExplorationStateSchema.parse({})),
   downtime: DowntimeStateSchema.catch(() => DowntimeStateSchema.parse({})),
@@ -34,8 +36,9 @@ export function getCampaignSaveBar(name: string, fighting: boolean): string | nu
   return fighting ? 'end the fight first: a fight is not saved' : null
 }
 
-export function toCampaignSave(id: string, name: string, members: CampaignMembers, t: CampaignInPlay): CampaignSave {
-  return { id, name, members, characterIds: Object.keys(t.campaign.characters), campaign: CampaignRecordSchema.parse(t.campaign), exploration: t.exploration, downtime: t.downtime }
+export function toCampaignSave(id: string, name: string, members: CampaignMembers, t: CampaignInPlay, owners: CharacterOwners = {}): CampaignSave {
+  const characterIds = Object.keys(t.campaign.characters)
+  return { id, name, members, characterIds, owners: Object.fromEntries(Object.entries(owners).filter(([cid]) => characterIds.includes(cid))), campaign: CampaignRecordSchema.parse(t.campaign), exploration: t.exploration, downtime: t.downtime }
 }
 
 // The campaign back in play with the characters found for it; one that was

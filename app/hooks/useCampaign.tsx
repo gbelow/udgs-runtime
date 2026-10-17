@@ -7,7 +7,7 @@ import type { Sequence } from "../domain/campaign/types";
 import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
 import { useMapNames } from "./useMap";
 import type { Character } from "../domain/types";
-import { makeCampaignCharacter } from "../domain/factories";
+import { copyIntoPlay, makeCampaignCharacter } from "../domain/factories";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCampaignRole } from "./useRole";
 import { getJournalView } from "../domain/campaign/projections/journal";
@@ -118,8 +118,9 @@ export function useCampaignRequests() {
     if (res.data) {
       setMembers(res.data.members);
       if (res.data.character) {
-        setOwner(character, res.data.owner);
-        send({ kind: "addToRoster", args: [makeCampaignCharacter(res.data.character), null] });
+        const copy = copyIntoPlay(res.data.character, crypto.randomUUID());
+        setOwner(copy.id, res.data.owner);
+        send({ kind: "addToRoster", args: [copy, null] });
       }
       toast.success('Request accepted: save the campaign to keep the character on its roster.');
     } else toast.success('Request declined.');
@@ -148,14 +149,14 @@ export function useCampaignFiles() {
   const open = async (id: string) => {
     const res = await loadCampaign(id);
     if (!res.ok) { toast.error(res.error); return; }
-    const { save, characters, owners } = res.data;
-    openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), { id: save.id, name: save.name, members: save.members }, owners);
+    const { save, characters } = res.data;
+    openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), { id: save.id, name: save.name, members: save.members }, save.owners);
     toast.success(`Campaign ${save.name} opened.`);
   };
 
   const save = async () => {
     const s = useCampaignStore.getState();
-    const res = await saveCampaign(toCampaignSave(s.file.id, s.file.name, s.file.members, { campaign: s, exploration: s.exploration, downtime: s.downtime }), Object.values(s.characters), s.owners);
+    const res = await saveCampaign(toCampaignSave(s.file.id, s.file.name, s.file.members, { campaign: s, exploration: s.exploration, downtime: s.downtime }, s.owners), Object.values(s.characters));
     if (!res.ok) { toast.error(res.error); return; }
     setMembers(res.data);
     toast.success(`Campaign ${s.file.name} saved.`);
@@ -176,11 +177,10 @@ export function useCampaignFiles() {
 
 // Who plays character `id` in play, the members the GM may give them to, and
 // giving them, or taking them back with null; the GM's alone. Kept onto the
-// character's record when the campaign is saved.
+// campaign's save when it is saved.
 export function usePlayedBy(id: string) {
-  const listed = useAppStore((s) => s.playerCharacterList);
   const profiles = useAppStore((s) => s.profileList);
-  const owner = useCampaignStore((s) => getOwner(id, s.owners, listed)) ?? null;
+  const owner = useCampaignStore((s) => getOwner(id, s.owners)) ?? null;
   const members = useCampaignStore((s) => s.file.members);
   const options = useMemo(() => getOwnerOptions(members, profiles, owner), [members, profiles, owner]);
   const setOwner = useCampaignStore((s) => s.setOwner);

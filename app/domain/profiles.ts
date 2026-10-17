@@ -151,17 +151,15 @@ export function getOwnersSeenBy(profile: string, campaigns: readonly CampaignMem
   return new Set([profile, ...campaigns.filter((m) => m[profile] === 'gm').flatMap((m) => Object.keys(m))])
 }
 
-// The profile each player character in play belongs to, by character id, as
-// the campaign was opened or as the GM has assigned them since; null for one
-// the GM took back. A character missing from it is the GM's.
+// The profile each character in a campaign is played by, by character id,
+// kept with the campaign; null for one the GM took back. A character missing
+// from it is the GM's.
 export const CharacterOwnersSchema = z.record(z.string(), z.string().nullable())
 export type CharacterOwners = z.infer<typeof CharacterOwnersSchema>
 
-// Whose character `id` is: as the campaign was opened or assigned since, or,
-// for a player character brought in since, as the player characters listed
-// say.
-export function getOwner(id: string, owners: CharacterOwners, listed: readonly { id: string; owner: string }[]): string | undefined {
-  return id in owners ? owners[id] ?? undefined : listed.find((c) => c.id === id)?.owner
+// Whose character `id` is, if a player's.
+export function getOwner(id: string, owners: CharacterOwners): string | undefined {
+  return owners[id] ?? undefined
 }
 
 // Whom the GM may give a character in play to: the campaign's members, and
