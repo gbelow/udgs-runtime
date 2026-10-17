@@ -6,11 +6,11 @@ import { useActiveControlBar, useControlBar } from '../hooks/useControl'
 
 // Controls shown closed, with why, while `bar` says they cannot be used,
 // laid out as `className` says (a column by default).
-export function Locked({ bar, className = 'min-w-0 flex flex-col gap-2', children }: { bar: string | null, className?: string, children: ReactNode }){
+export function Locked({ bar, className = 'min-w-0 flex flex-col gap-2', quiet = false, children }: { bar: string | null, className?: string, quiet?: boolean, children: ReactNode }){
   return(
     <>
-      {bar ? <span className='text-xs text-muted'>{bar}</span> : null}
-      <fieldset disabled={bar !== null} className={className}>{children}</fieldset>
+      {bar && !quiet ? <span className='text-xs text-muted'>{bar}</span> : null}
+      <fieldset disabled={bar !== null} title={bar && quiet ? bar : undefined} className={className}>{children}</fieldset>
     </>
   )
 }
@@ -20,7 +20,7 @@ export function Locked({ bar, className = 'min-w-0 flex flex-col gap-2', childre
 // when it opens or closes.
 export function GmLocked({ children }: { children: ReactNode }){
   const { gm } = useRole()
-  return <Locked bar={gm ? null : 'edited by the GM: switch the action bar to GM'}>{children}</Locked>
+  return <Locked quiet bar={gm ? null : 'edited by the GM: switch the action bar to GM'}>{children}</Locked>
 }
 
 // The active character's gear: closed outside their own turn.
