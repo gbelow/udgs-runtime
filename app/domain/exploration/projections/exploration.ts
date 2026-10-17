@@ -9,6 +9,7 @@ import { describeOutcome, describeRoll } from '../../play/test'
 import { perPair } from '../../perState'
 import { getRosterName } from '../../campaign/rules/roster'
 import { getPlaceKey } from '../../campaign/projections/maps'
+import { isPlaying } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups,
@@ -89,7 +90,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
   const t: Exploring = { campaign: state, exploration }
   return {
   dayETs: state.dayETs,
-  parties: Object.entries(state.parties).filter(([, party]) => party.sequence === 'exploration').map(([partyId, party]) => {
+  parties: Object.entries(state.parties).filter(([, party]) => isPlaying(party) && party.sequence === 'exploration').map(([partyId, party]) => {
     const place = getPlace(state, party)
     return {
       id: partyId,

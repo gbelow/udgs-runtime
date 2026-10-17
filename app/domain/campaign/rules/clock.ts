@@ -1,4 +1,4 @@
-import type { CampaignState, Sequence } from '../types'
+import type { CampaignState, Party, Sequence } from '../types'
 import { isPartyAway } from './place'
 
 // The campaign clock counts whole ETs. survival.tex "Exploration Turn (ET)":
@@ -26,12 +26,33 @@ export function getDay(clock: number): number {
   return Math.floor(clock / ETS_PER_DAY)
 }
 
-// The parties that feel time pass: in play, and on a timeline; those of one
+// The party is running on a timeline, and so in its sequence; frozen or
+// outside time it is in none.
+export function isPlaying(party: Party): boolean {
+  return party.active && party.clock !== null
+}
+
+// The campaign has started once a party is on a timeline; before that there
+// is no time to spend, and only the scene is open.
+export function isCampaignStarted(state: CampaignState): boolean {
+  return Object.values(state.parties).some((p) => p.clock !== null)
+}
+
+// Why the party is in no sequence yet, so that only the scene is open to it:
+// it is not in the timeline, or frozen on it.
+export function getPlayBar(state: CampaignState, partyId: string): string | null {
+  const party = state.parties[partyId]
+  if (!party) return 'no such party'
+  if (party.clock === null) return 'not in the timeline: place it on the timeline and set it running first'
+  return party.active ? null : 'frozen: set it running on its timeline first'
+}
+
+// The parties that feel time pass: running, and on a timeline; those of one
 // `sequence` when it is named.
 export function getPlayingParties(state: CampaignState, sequence?: Sequence): string[] {
   return Object.keys(state.parties).filter((pid) => {
     const party = state.parties[pid]
-    return party.active && party.clock !== null && (sequence === undefined || party.sequence === sequence)
+    return isPlaying(party) && (sequence === undefined || party.sequence === sequence)
   })
 }
 
@@ -52,7 +73,7 @@ export function getClockOf(state: CampaignState, id: string): number | null {
 // it is over.
 export function getTimeBar(state: CampaignState, sequence: Sequence): string | null {
   const playing = getPlayingParties(state, sequence)
-  if (playing.length === 0) return `no party in play on a timeline is in ${sequence}`
+  if (playing.length === 0) return `no party running on a timeline is in ${sequence}`
   return playing.some((pid) => isPartyAway(state, pid)) ? 'someone is in a fight' : null
 }
 

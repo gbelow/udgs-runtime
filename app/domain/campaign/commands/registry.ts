@@ -4,7 +4,7 @@ import type { Dice } from '../../play/dice'
 import type { CampaignCharacter } from '../../types'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import type { At, CampaignState } from '../types'
-import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from './clock'
+import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive, startTimeline } from './clock'
 import { editNote, removeEntry, writeNote } from './journal'
 import { toMapUpdater, type MapCommand } from './mapRegistry'
 import { addMap, createParty, leaveParty, mergeParties, moveToParty, removeMap, renameParty, setPartyExposure, setPartyLit, setPartyPlace, splitOff, updateCampaignMap } from './parties'
@@ -36,6 +36,7 @@ export const campaignCommands = {
   // the clocks
   setDayETs: command((_, dayETs: number) => setDayETs(dayETs)).by(gm),
   setPartyActive: command((_, partyId: string, active: boolean) => setPartyActive(partyId, active)).by(gm),
+  startTimeline: command((_, partyId: string) => startTimeline(partyId)).by(gm),
   placeOnTimeline: command((_, partyId: string, clock: number) => placeOnTimeline(partyId, clock)).by(gm),
   passTimeTo: command((_, partyId: string, clock: number) => passTimeTo(partyId, clock)).by(gm),
 

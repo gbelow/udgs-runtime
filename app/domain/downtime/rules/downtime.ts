@@ -17,7 +17,7 @@ import { getKnowledgeTestTerms, isFormalKnowledge, knowledgeName } from '../../c
 import { sumTerms } from '../../character/rules/terms'
 import { isDead } from '../../character/rules/afflictions'
 import { getPartyMembers, getPlace, isOutsideSettlement, isPartyAway } from '../../campaign/rules/place'
-import { getClockOf, getPlayingParties, getSequenceBar, getTimeBar } from '../../campaign/rules/clock'
+import { getClockOf, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar } from '../../campaign/rules/clock'
 import { getPayable } from '../../item/rules/money'
 import { getRosterName } from '../../campaign/rules/roster'
 
@@ -305,7 +305,7 @@ export function getDowntimeBar(t: Downtime, days: number): string | null {
 export function getToExplorationBar(t: Downtime, partyId: string): string | null {
   const state = t.campaign
   if (!state.parties[partyId]) return 'no such party'
-  const bar = getSequenceBar(state, partyId, 'downtime')
+  const bar = getPlayBar(state, partyId) ?? getSequenceBar(state, partyId, 'downtime')
   if (bar) return bar
   if (isPartyAway(state, partyId)) return 'someone is in a fight'
   const busy = getPartyMembers(state, partyId).find((id) => getPlan(t, id).block)

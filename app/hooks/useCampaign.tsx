@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { answerRequest, deleteCampaign, loadCampaign, requestToJoin, saveCampaign, withdrawRequest } from "../actions";
 import { fromCampaignSave, getCampaignSaveBar, newCampaign, toCampaignSave } from "../domain/saves";
-import { getMoveBars, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
+import { getMoveBars, getRosterIn, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
+import type { Sequence } from "../domain/campaign/types";
 import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
 import { useMapNames } from "./useMap";
 import type { Character } from "../domain/types";
@@ -22,9 +23,10 @@ import { useCampaignDispatch } from "./useSceneDispatch";
 
 // The campaign in play's parties and who is in them, gated on a digest since
 // the view is freshly allocated.
-export function useCampaignRoster(): RosterView {
+export function useCampaignRoster(sequence?: Sequence): RosterView {
   useCampaignStore(getRosterViewDigest);
-  return getRosterView(useCampaignStore.getState());
+  const view = getRosterView(useCampaignStore.getState());
+  return sequence ? getRosterIn(view, sequence) : view;
 }
 
 // Why the character being switched cannot join each party, by party.
@@ -42,6 +44,7 @@ export function useCampaignPartyCommands() {
   return {
     pick,
     createParty: (name: string) => send({ kind: "createParty", args: [name] }),
+    startTimeline: (partyId: string) => send({ kind: "startTimeline", args: [partyId] }),
     renameParty: (partyId: string, name: string) => send({ kind: "renameParty", args: [partyId, name] }),
     moveToParty: (id: string, partyId: string) => send({ kind: "moveToParty", args: [id, partyId] }),
     splitOff: (id: string) => send({ kind: "splitOff", args: [id] }),

@@ -354,6 +354,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   removeEntry: ({ campaign }) => campaignCommands.removeEntry('1')(campaign),
   setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
   passETs: ({ campaign }) => campaignCommands.passETs(12, ['p'])(campaign),
+  startTimeline: ({ campaign }) => campaignCommands.startTimeline('p')(campaign),
   placeOnTimeline: ({ campaign }) => campaignCommands.placeOnTimeline('p', 130)(campaign),
   passTimeTo: ({ campaign }) => campaignCommands.passTimeTo('p', 130)(campaign),
   setPartyActive: ({ campaign }) => campaignCommands.setPartyActive('p', false)(campaign),

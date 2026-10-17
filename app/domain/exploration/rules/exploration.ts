@@ -10,7 +10,7 @@ import { getAwareness, getSTA } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { getClockOf, getDay, getPlayingParties, getSequenceBar, getTimeBar, isNight } from '../../campaign/rules/clock'
+import { getClockOf, getDay, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar, isNight } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, isOutsideSettlement, isPartyAway, isSamePlace } from '../../campaign/rules/place'
 import type { Actor } from '../../profiles'
 
@@ -168,7 +168,7 @@ export function getExplorationBar(state: CampaignState, id: string): string | nu
 export function getToDowntimeBar(t: Exploring, partyId: string): string | null {
   const party = t.campaign.parties[partyId]
   if (!party) return 'no such party'
-  const bar = getSequenceBar(t.campaign, partyId, 'exploration')
+  const bar = getPlayBar(t.campaign, partyId) ?? getSequenceBar(t.campaign, partyId, 'exploration')
   if (bar) return bar
   if (t.exploration.opening) return 'the ET under way must pass first'
   if (isPartyAway(t.campaign, partyId)) return 'someone is in a fight'

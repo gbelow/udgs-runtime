@@ -9,18 +9,19 @@ import { useDowntimeCommands, useToExplorationBar } from '../hooks/useDowntime'
 import { usePartiesPanel } from '../hooks/useCombatState'
 import { useControlBar, useGmBar } from '../hooks/useControl'
 import type { RosterMember, RosterPartyView } from '../domain/campaign/projections/roster'
+import type { Sequence } from '../domain/campaign/types'
 
 type Switching = { id: string; name: string; from: string | null }
 
 // The campaign's parties out of a fight, arranged the way the fight's are: a
 // party is made empty and named, filled from the catalog opened beside it,
-// put on a timeline and in play; a member is switched by picking them and
+// put on a timeline and running; a member is switched by picking them and
 // then the party to put them in, or a new one, or taken out of every party,
 // where they are outside time. A party earlier on its timeline than the one
 // being left is closed, since time only goes forward.
-export function CampaignParties(){
-  const { parties, unplaced } = useCampaignRoster()
-  const { moveToParty, splitOff, bring, createParty, renameParty } = useCampaignPartyCommands()
+export function CampaignParties({ sequence }: { sequence?: Sequence }){
+  const { parties, unplaced, started, first } = useCampaignRoster(sequence)
+  const { moveToParty, splitOff, bring, createParty, renameParty, startTimeline } = useCampaignPartyCommands()
   const { partyToScene } = usePartyCommands()
   const gmBar = useGmBar()
   const joinBar = usePartiesPanel().joinBar ?? gmBar
@@ -38,14 +39,20 @@ export function CampaignParties(){
 
   return(
     <div className='flex flex-col gap-2'>
+      {started ? null : (
+        <div className='flex flex-row flex-wrap gap-2 items-center'>
+          <span className='text-xs text-bad'>The campaign has not started: no party is in the timeline.</span>
+          {first ? <Button size='xs' aria-label={`start the timeline with ${first.name}`} disabled={gmBar !== null} title={gmBar ?? `${first.name} joins the timeline at its first ET and is running`} onClick={() => startTimeline(first.id)}>start with {first.name}</Button> : <span className='text-xs text-muted'>create a party to start it with</span>}
+        </div>
+      )}
       <div className='flex flex-row flex-wrap gap-2 items-center'>
-        <CreateParty create={createParty} hint='a new party with nobody in it yet, outside time' />
+        {sequence ? null : <CreateParty create={createParty} hint='a new party with nobody in it yet, outside time' />}
         {switching ? <SwitchBanner name={switching.name} cancel={() => setSwitching(null)} /> : null}
       </div>
       <div className='flex flex-row gap-3 items-start'>
         {adding ? <CatalogDrawer label={`adding to ${adding.name}`} close={() => setAddingTo(null)} onSelect={(c) => bring(c, adding.id)} /> : null}
         <div className='flex flex-row flex-wrap gap-3 items-start flex-1 min-w-0'>
-          {parties.length === 0 ? <span className='text-xs text-muted'>no parties yet: create one, then add characters to it</span> : null}
+          {parties.length === 0 ? <span className='text-xs text-muted'>{sequence ? `no party running on a timeline is in ${sequence}: the campaign tab puts one there` : 'no parties yet: create one, then add characters to it'}</span> : null}
           {parties.map((party) => {
             const away = switching !== null && party.id !== switching.from
             const bar = away ? bars[party.id] ?? null : null
@@ -59,19 +66,19 @@ export function CampaignParties(){
                     <TimelineControl timeline={party.timeline} />
                   </PartyHeader>
                   <TimelineSummary timeline={party.timeline} />
-                  {party.sequence === 'downtime' ? <span className='text-xs text-muted'>in downtime</span> : null}
+                  {sequence || !party.playing ? null : <span className='text-xs text-muted'>in {party.playing}</span>}
                 </div>
                 {party.members.map((m) => <Member key={m.id} member={m} inParty switching={switching?.id === m.id} toggle={() => toggle(m, party.id)} />)}
               </PartyFrame>
             )
           })}
-          {unplaced.length > 0 ? (
+          {unplaced.length > 0 && !sequence ? (
             <PartyFrame>
               <span className='text-xs text-muted'>in no party: outside time</span>
               {unplaced.map((m) => <Member key={m.id} member={m} inParty={false} switching={switching?.id === m.id} toggle={() => toggle(m, null)} />)}
             </PartyFrame>
           ) : null}
-          {switching ? <NewPartySlot name={switching.name} onClick={() => placeInto(null)} /> : null}
+          {switching && !sequence ? <NewPartySlot name={switching.name} onClick={() => placeInto(null)} /> : null}
         </div>
       </div>
     </div>
@@ -93,7 +100,7 @@ function ToExploration({ party }: { party: RosterPartyView }){
   const { toExploration } = useDowntimeCommands()
   const gmBar = useGmBar()
   const bar = useToExplorationBar(party.id) ?? gmBar
-  return <MenuItem bar={bar} hint='the whole party leaves downtime to explore again' onClick={() => toExploration(party.id)}>back to exploring</MenuItem>
+  return <MenuItem bar={bar} hint='the whole party leaves downtime to explore' onClick={() => toExploration(party.id)}>to exploration</MenuItem>
 }
 
 // A member: their name, a click on which picks them, and their menu, where

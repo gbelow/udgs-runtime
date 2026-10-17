@@ -84,7 +84,7 @@ function Moment({ clock, night }: { clock: ClockView, night: boolean }){
 // The moments the parties in play are living, each on its own timeline.
 export function ClockLabel(){
   const moments = useMoments()
-  if (moments.length === 0) return <span className='text-xs text-muted whitespace-nowrap'>no party in play is on a timeline</span>
+  if (moments.length === 0) return <span className='text-xs text-muted whitespace-nowrap'>no party is running on a timeline</span>
   return(
     <span className='flex flex-row flex-wrap gap-x-3 text-xs text-muted'>
       {moments.map((m) => (
@@ -97,18 +97,18 @@ export function ClockLabel(){
 }
 
 // When a party is, in one line under its name: its moment or outside time,
-// and whether it is in play.
+// and whether it is running or frozen.
 export function TimelineSummary({ timeline }: { timeline: TimelineView }){
   const { clock, night, active } = timeline
   return(
     <span className='flex flex-row flex-wrap gap-x-1.5 text-xs text-muted'>
       {clock ? <Moment clock={clock} night={night} /> : <span className='text-fg'>outside time</span>}
-      <span>· {active ? 'in play' : 'not in play'}</span>
+      <span>· {active ? 'running' : 'frozen'}</span>
     </span>
   )
 }
 
-// Whether a party is in play, the GM's, in the party's menu; where it stands
+// Whether a party is running or frozen, the GM's, in the party's menu; where it stands
 // on the timeline is moved from the Campaign tab's timeline.
 export function TimelineControl({ timeline }: { timeline: TimelineView }){
   const { setActive } = usePartyCommands()
@@ -118,10 +118,10 @@ export function TimelineControl({ timeline }: { timeline: TimelineView }){
   return(
     <MenuSection label='timeline'>
       <label className='flex items-center gap-1 text-xs'>
-        <input type='checkbox' aria-label={`${name} in play`} {...barred(bar)} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />in play
+        <input type='checkbox' aria-label={`${name} running`} {...barred(bar)} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />running
       </label>
       {bar ? <span className='text-[10px] text-muted'>{bar}</span> : null}
-      {active && !clock ? <span className='text-[10px] text-muted'>outside time, {name} feels no time pass until it is placed on a timeline</span> : null}
+      {clock ? null : <span className='text-[10px] text-muted'>not in the timeline: only the scene is open until it is placed and running</span>}
     </MenuSection>
   )
 }

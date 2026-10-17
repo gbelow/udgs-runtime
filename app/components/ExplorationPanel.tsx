@@ -31,7 +31,7 @@ export function ExplorationStrip(){
         <ClockLabel />
         <span className='text-xs text-muted whitespace-nowrap'>day ETs</span>
         <NumberInput className='w-10' aria-label='day ETs' {...barred(gmBar)} value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
-        <Tooltip text={bar ?? 'every party in play spends the ET on its plan'}>
+        <Tooltip text={bar ?? 'every running party spends the ET on its plan'}>
           <Button aria-label='passET' disabled={bar !== null} onClick={passET}>next ET</Button>
         </Tooltip>
       </div>

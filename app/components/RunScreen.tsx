@@ -62,14 +62,14 @@ const MODES: Record<RunTab, Mode> = {
   },
   exploration: {
     strip: <ExplorationStrip />,
-    views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'plans', node: <PartyCards /> }],
+    views: [{ key: 'parties', node: <CampaignParties sequence='exploration' /> }, { key: 'plans', node: <PartyCards /> }],
     needs: true,
     actions: <ControlLocked><ExplorationSection /></ControlLocked>,
     log: { label: 'Last ET', node: <div className='flex flex-col gap-2'><LastEtLog /><RecentJournal /></div> },
   },
   downtime: {
     strip: <DowntimeStrip />,
-    views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'roster', node: <DowntimeRoster /> }],
+    views: [{ key: 'parties', node: <CampaignParties sequence='downtime' /> }, { key: 'roster', node: <DowntimeRoster /> }],
     needs: true,
     actions: <ControlLocked><DowntimeActions /></ControlLocked>,
     log: { label: 'Last days', node: <div className='flex flex-col gap-2'><LastDaysLog /><RecentJournal /></div> },

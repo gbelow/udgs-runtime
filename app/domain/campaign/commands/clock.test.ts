@@ -15,9 +15,9 @@ function campaign(): CampaignState {
     characters: { a: c('A'), b: c('B'), e: c('E'), s: c('S'), l: c('L') },
     partyOf: { a: 'ahead', b: 'behind', e: 'encounter', s: 'shelved', l: 'level' },
     parties: {
-      ahead: { name: 'Ahead', clock: 40, active: true },
-      behind: { name: 'Behind', clock: 7, active: true },
-      level: { name: 'Level', clock: 40, active: true },
+      ahead: { name: 'Ahead', clock: 40, active: true, sequence: 'exploration' },
+      behind: { name: 'Behind', clock: 7, active: true, sequence: 'exploration' },
+      level: { name: 'Level', clock: 40, active: true, sequence: 'exploration' },
       encounter: { name: 'Encounter', clock: null, active: true },
       shelved: { name: 'Shelved', clock: 3, active: false },
     },

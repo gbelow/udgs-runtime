@@ -12,7 +12,7 @@ describe('an ET spent in camp', () => {
     const campaign = CampaignStateSchema.parse({
       characters: { r: makeCampaignCharacter({ name: 'R' }), i: makeCampaignCharacter({ name: 'I' }) },
       partyOf: { r: 'p', i: 'p' },
-      parties: { p: { name: 'P', clock: 0, active: true } },
+      parties: { p: { name: 'P', clock: 0, active: true, sequence: 'exploration' } },
     })
     const passed = passET(() => 5, () => 'new')({ campaign, exploration: ExplorationStateSchema.parse({ resting: ['r'] }) })
     expect(passed.campaign.journal.filter((e) => e.kind === 'et' && e.party === 'p')).toHaveLength(1)
@@ -26,7 +26,7 @@ describe('an ET that calls for a die', () => {
     const campaign = CampaignStateSchema.parse({
       characters: { w: makeCampaignCharacter({ name: 'W', resources: { exhaustion: 12 } }) },
       partyOf: { w: 'p' },
-      parties: { p: { name: 'P', clock: 0, active: true } },
+      parties: { p: { name: 'P', clock: 0, active: true, sequence: 'exploration' } },
     })
     const called = passET(toTable(() => 5), () => 'new')({ campaign, exploration: ExplorationStateSchema.parse({ resting: ['w'] }) })
     expect(called.campaign.parties.p.clock).toBe(0)

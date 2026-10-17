@@ -75,9 +75,18 @@ export function passTimeTo(partyId: string, clock: number): CampaignUpdater {
   }
 }
 
-// Puts the party in play, where time passes for it, or out of it.
+// Sets the party running, where time passes for it, or frozen.
 export function setPartyActive(partyId: string, active: boolean): CampaignUpdater {
   return withParty(partyId, (p) => ({ ...p, active }))
+}
+
+// Starts the campaign's timeline with this party: it joins the timeline at
+// its first ET and is running there.
+export function startTimeline(partyId: string): CampaignUpdater {
+  return (state) => {
+    if (!state.parties[partyId] || state.parties[partyId].clock !== null) return state
+    return setPartyActive(partyId, true)(placeOnTimeline(partyId, 0)(state))
+  }
 }
 
 // survival.tex "Night and Darkness": "The day can have any number of periods

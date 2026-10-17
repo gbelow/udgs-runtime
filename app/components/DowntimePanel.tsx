@@ -17,7 +17,7 @@ type Commands = ReturnType<typeof useDowntimeCommands>
 
 // Downtime's pieces of the run screen.
 
-// story.tex "Downtime": the days every party in play spends at once — the
+// story.tex "Downtime": the days every running party spends at once — the
 // moments they are living, how many days, the button that passes them, and
 // who spends them with the activity they are on.
 export function DowntimeStrip(){
@@ -35,7 +35,7 @@ export function DowntimeStrip(){
         {settled ? <span className='text-xs text-muted'>{settled}</span> : null}
         <span className='text-xs text-muted'>days</span>
         <NumberInput className='w-12' aria-label='days' placeholder={`${defaultSpan}`} value={span ?? ''} onChange={(e) => setSpan(e.target.value === '' ? null : num(e.target.value))} />
-        <Tooltip text={bar ?? 'every party in play spends the days on its activities'}>
+        <Tooltip text={bar ?? 'every running party spends the days on its activities'}>
           <Button aria-label='passDays' variant='primary' disabled={bar !== null} onClick={() => { passDays(days); setSpan(null) }}>pass {days} days</Button>
         </Tooltip>
       </div>

@@ -136,9 +136,11 @@ export const PartySchema = z.object({
   // the ETs since the campaign began on this party's own timeline; none for
   // a party outside time, such as an encounter, until it is placed on one
   clock: z.number().nullable().default(null),
-  // in play: only an active party on a timeline feels time pass
+  // running: only an active party on a timeline feels time pass; frozen otherwise
   active: z.boolean().default(false),
-  sequence: z.enum(SEQUENCES).default('exploration'),
+  // the sequence it is in while running on a timeline; kept while it is
+  // frozen or outside time, when it is in none
+  sequence: z.enum(SEQUENCES).default('downtime'),
 })
 export type Party = z.infer<typeof PartySchema>
 
