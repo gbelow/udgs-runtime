@@ -10,7 +10,6 @@ import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { createBoard, importBoard, removeBoard, setLight } from './board'
-import { toggleBreakage } from './breakage'
 import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
@@ -131,7 +130,6 @@ export const sceneCommands = {
   rollHeld: command((ctx, id: string, kind: CalledKind, mode: RollMode, die?: number) => rollHeld(id, kind, mode, typed(ctx, die))).by(own),
   setTablePressure: command((_, partyId: string, value: number) => setTablePressure(partyId, value)).by(gm),
   defaultToCoward: command((_, id: string) => defaultToCoward(id)).by(own),
-  toggleBreakage: command(() => toggleBreakage).by(gm),
 
   // the fight's parties: a player moves only their own character
   moveToParty: command((_, id: string, partyId: string) => moveToParty(id, partyId)).by(own),

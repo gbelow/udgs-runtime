@@ -202,6 +202,10 @@ export const CampaignStateSchema = z.object({
   // survival.tex "Night and Darkness": "The standard is 4 periods of day and
   // 2 of night"; the ETs of a day that are daylight, night being the rest
   dayETs: z.number().default(4),
+  // gear.tex "Equipment Breakage": "The equipment breakage function is
+  // optional" — whether blows put the objects they meet at risk; a fight
+  // takes it from here as its characters join
+  breakage: z.boolean().default(true),
   // the point crawls the parties play on, by id: the campaign's own copies
   // of maps from the catalog, so what play changes on one stays here
   maps: z.record(z.string(), CrawlMapSchema).default({}),

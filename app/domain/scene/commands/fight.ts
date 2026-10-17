@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import type { Table, TableUpdater } from '../types'
+import type { SceneState, Table, TableUpdater } from '../types'
 import type { CampaignState } from '../../campaign/types'
 import { leaveFight } from '../../character/commands/leaveFight'
 import { resetCombat } from './resetCombat'
@@ -26,8 +26,19 @@ export function sendToFight(ids: string[]): TableUpdater {
     const c = campaign.characters[id]
     if (!c) return { campaign, fight }
     const partyId = campaign.partyOf[id] ?? id
-    return { campaign: checkOut(id)(campaign), fight: joinFight(c, partyId, campaign.parties[partyId]?.name ?? '', getTableNames(campaign, id), campaign.names[id])(fight) }
+    return { campaign: checkOut(id)(campaign), fight: inherit(campaign)(joinFight(c, partyId, campaign.parties[partyId]?.name ?? '', getTableNames(campaign, id), campaign.names[id])(fight)) }
   }, table)
+}
+
+// The fight keeps a flag of its own for what the campaign sets; it takes the
+// campaign's as its characters join.
+const inherit = (campaign: CampaignState) => (fight: SceneState): SceneState => ({ ...fight, breakage: campaign.breakage })
+
+// gear.tex "Equipment Breakage": switched on or off for the campaign and the
+// fight at once.
+export const toggleBreakage: TableUpdater = (table) => {
+  const breakage = !table.fight.breakage
+  return { campaign: { ...table.campaign, breakage }, fight: { ...table.fight, breakage } }
 }
 
 // A character brought straight into the fight, under an id the campaign gives
@@ -39,7 +50,7 @@ export function loadIntoFight(char: CampaignCharacter, newId: () => string, into
     const added = withFreeId(table.campaign, char, newId)
     return {
       campaign: lend(added.id)(table.campaign),
-      fight: addToFight(added, newId, Object.keys(table.campaign.parties), getTableNames(table.campaign), into)(table.fight),
+      fight: inherit(table.campaign)(addToFight(added, newId, Object.keys(table.campaign.parties), getTableNames(table.campaign), into)(table.fight)),
     }
   }
 }

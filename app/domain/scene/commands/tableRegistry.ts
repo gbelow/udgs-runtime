@@ -2,7 +2,7 @@ import type { Actor } from '../../profiles'
 import { commandsOver, playedBy, type CommandOf } from '../../registry'
 import type { CampaignCharacter } from '../../types'
 import type { Table } from '../types'
-import { loadIntoFight, removeFromFight, resetFight, returnFromFight, returnPartyFromFight, saveFightLog, sendPartyToFight, sendToFight } from './fight'
+import { loadIntoFight, removeFromFight, resetFight, returnFromFight, returnPartyFromFight, saveFightLog, sendPartyToFight, sendToFight, toggleBreakage } from './fight'
 
 // What crosses between the campaign and the fight, as data (cf. the scene's
 // own registry): characters sent in and brought back, brought straight in
@@ -23,6 +23,7 @@ export const tableCommands = {
   loadIntoFight: command((ctx, character: CampaignCharacter, into?: string) => loadIntoFight(character, ctx.newId, into)).by(gm),
   removeFromFight: command((_, id: string) => removeFromFight(id)).by(gm),
   resetFight: command(() => resetFight).by(gm),
+  toggleBreakage: command(() => toggleBreakage).by(gm),
 }
 
 export type TableCommand = CommandOf<typeof tableCommands>

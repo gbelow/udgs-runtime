@@ -5,7 +5,6 @@ import * as creationCommands from './character/commands/creation'
 import * as nextRoundModule from './scene/commands/nextRound'
 import * as resetCombatModule from './scene/commands/resetCombat'
 import * as turnModule from './scene/commands/turn'
-import * as breakageModule from './scene/commands/breakage'
 import * as actionsModule from './scene/commands/action'
 import * as choicesModule from './scene/commands/choices'
 import * as boardModule from './scene/commands/board'
@@ -46,7 +45,7 @@ import armorsCatalog from '../assets/armors.json'
 // A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule, ...answerModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule, ...answerModule }
 const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...journalModule, ...namesModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
@@ -252,7 +251,6 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   defaultToCoward: (s) => combatCommands.defaultToCoward('a')(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', compulsions: [{ id: 'a', action: 'abusive', acted: false, taken: false, by: '', constraint: null }] })),
   resetCombat: combatCommands.resetCombat,
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
-  toggleBreakage: (s) => combatCommands.toggleBreakage(deepFreeze(cleared(s))),
   endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),
   toggleContest: (s) => combatCommands.toggleContest('b')(deepFreeze(cleared(s))),
   toggleAgreeToEnd: (s) => combatCommands.toggleAgreeToEnd('b')(deepFreeze(cleared(s))),
@@ -374,6 +372,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   loadIntoFight: (t) => campaignCommands.loadIntoFight(characterSubject(), () => 'issued')(t),
   removeFromFight: (t) => campaignCommands.removeFromFight('a')(deepFreeze(away(t))),
   resetFight: (t) => campaignCommands.resetFight(deepFreeze(away(t))),
+  toggleBreakage: (t) => campaignCommands.toggleBreakage(deepFreeze(away(t))),
 }
 
 // Exploration's subject is the campaign's beside what exploration keeps:

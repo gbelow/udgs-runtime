@@ -6,7 +6,6 @@ import { perState } from '../../perState'
 import { getAwaited } from '../rules/options'
 import { getActionNoun } from './labels'
 import { getFightName } from '../rules/fighters'
-import { getBreakageBar } from '../rules/breakage'
 import { getCompelledSurge } from '../rules/stress'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 import { getStealthScore, getStealthTurn } from '../rules/stealth'
@@ -26,10 +25,6 @@ export type TurnControls = {
   end: string | null
   result: string
   agreed: boolean
-  // gear.tex "Equipment Breakage": the optional rule on or off, and why it
-  // cannot be switched now
-  breakage: boolean
-  breakageBar: string | null
   // combat.tex "Actions in stealth": whom the holder began the turn hidden
   // from, and their stealth as the turn has left it; '' when hidden from nobody
   stealth: string
@@ -48,8 +43,6 @@ export function getTurnControls(state: SceneState, id: string): TurnControls {
     end: getEndTurnBar(state),
     result: getContestResult(state),
     agreed: hasAgreedToEnd(state, id),
-    breakage: state.breakage,
-    breakageBar: getBreakageBar(state),
     stealth: getStealthLine(state),
   }
 }

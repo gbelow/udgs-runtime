@@ -8,7 +8,6 @@ import { outcomeOf } from './damage'
 import { getHeldItem } from '../../item/rules/hands'
 import { getObjectPart, isObjectAttack } from './equipment'
 import { getFloorObject } from './floorAttack'
-import { getOpenAction } from './log'
 import { getItemName } from './fighters'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 
@@ -17,12 +16,6 @@ import { findWeaponRow, type WeaponRow } from './weaponRow'
 // the attacking object to its target, while impact is dealt to both." A blow
 // that a block or a guard met on a graze or a miss struck the object in the
 // way (combat.tex "Defend", "Guard"); on a hit or a critical it went past it.
-
-// Why the fight's breakage setting cannot be changed: not while an action is
-// open, whose dice were thrown for the setting as it stood.
-export function getBreakageBar(state: SceneState): string | null {
-  return getOpenAction(state) ? 'an action is open' : null
-}
 
 // The block or guard the attack was met with, while it stood in the blow's way.
 export function getBreakingDefense(state: SceneState, root: AttackAction): ActionOf<'block' | 'guard'> | null {

@@ -1597,7 +1597,8 @@ export const SceneStateSchema = z.object({
   // action surge, '' for nobody; owed until that surge is used
   forcedSurge: z.string().default(''),
   // gear.tex "Equipment Breakage": "The equipment breakage function is
-  // optional" — whether blows put the objects they meet at risk
+  // optional" — whether blows put the objects they meet at risk; the
+  // campaign's setting as the fight last took it
   breakage: z.boolean().default(true),
   turnQueue: z.array(QueuedTurnSchema).default([]),
   // the characters whose flee is due once what is being played out is

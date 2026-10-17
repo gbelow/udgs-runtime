@@ -19,7 +19,6 @@ import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, Sustain
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { RecentJournal } from './Journal';
-import { makeDieRoll } from './utils';
 import { Button, SectionLabel } from './ui';
 import { ControlLocked, GearLocked, GmLocked } from './Locks';
 import { useGameTab } from '../hooks/useGameTab';
@@ -237,10 +236,6 @@ function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => v
           <Button size='xs' aria-label='act as character' aria-pressed={!gm} selected={!gm} onClick={() => setGmMode(false)}>character</Button>
           <Button size='xs' aria-label='act as GM' aria-pressed={gm} selected={gm} onClick={() => setGmMode(true)}>GM</Button>
         </> : null}
-        <span className='ml-auto flex flex-row gap-1'>
-          <DieButton sides={10} />
-          <DieButton sides={6} />
-        </span>
       </div>
       {gm ? (
         <div className='flex flex-col gap-1'>
@@ -253,9 +248,4 @@ function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => v
       ) : children}
     </>
   )
-}
-
-function DieButton({ sides }: { sides: number }){
-  const [roll, setRoll] = useState(1)
-  return <Button size='xs' aria-label='roll' onClick={() => setRoll(makeDieRoll(sides))}>d{sides} <span className='font-mono text-fg'>{roll}</span></Button>
 }

@@ -328,6 +328,37 @@ export function Floating({ anchor, side = 'below', align = 'start', gap = 4, mat
   )
 }
 
+// A button that opens a panel of its own beneath it, closed by a click
+// outside, by Escape, or by what the panel hands to `close`.
+export function Dropdown({ label, text, variant = 'default', title, children }: { label: string, text: ReactNode, variant?: 'default' | 'ghost', title?: string, children: (close: () => void) => ReactNode }){
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => {
+      const at = e.target as Node
+      if (box.current && !box.current.contains(at) && !panel.current?.contains(at)) setOpen(false)
+    }
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', escape) }
+  }, [open])
+
+  return (
+    <div ref={box} className='relative'>
+      <Button size='xs' variant={variant} active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>
+      {open ? (
+        <Floating anchor={box} panelRef={panel} align='end' className='!w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
+          {children(() => setOpen(false))}
+        </Floating>
+      ) : null}
+    </div>
+  )
+}
+
 // A hover popover anchored to its child: opens centred above and drops below
 // when there is no room above. SkillTooltip and Tooltip both render through it.
 export function Popover({ content, children, className = '' }: { content: ReactNode, children: ReactNode, className?: string }){

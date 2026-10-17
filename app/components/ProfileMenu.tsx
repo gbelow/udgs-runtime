@@ -1,7 +1,7 @@
 'use client'
-import { ReactNode, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useProfile } from '../hooks/useProfile'
-import { Button, Floating, ListButton, SectionLabel, TextInput } from './ui'
+import { Button, Dropdown, ListButton, SectionLabel, TextInput } from './ui'
 
 // The first screen while none is picked: who is at it, picked from the
 // profiles there are or made anew.
@@ -18,37 +18,6 @@ export function ProfileLanding(){
         <NewProfile create={create} nameBar={nameBar} />
       </div>
     </main>
-  )
-}
-
-// A button that opens a panel of its own beneath it, closed by a click
-// outside, by Escape, or by what the panel hands to `close`.
-function Dropdown({ label, text, children }: { label: string, text: ReactNode, children: (close: () => void) => ReactNode }){
-  const [open, setOpen] = useState(false)
-  const box = useRef<HTMLDivElement>(null)
-  const panel = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const away = (e: MouseEvent) => {
-      const at = e.target as Node
-      if (box.current && !box.current.contains(at) && !panel.current?.contains(at)) setOpen(false)
-    }
-    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', away)
-    document.addEventListener('keydown', escape)
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', escape) }
-  }, [open])
-
-  return (
-    <div ref={box} className='relative'>
-      <Button size='xs' active={open} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>
-      {open ? (
-        <Floating anchor={box} panelRef={panel} align='end' className='!w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
-          {children(() => setOpen(false))}
-        </Floating>
-      ) : null}
-    </div>
   )
 }
 

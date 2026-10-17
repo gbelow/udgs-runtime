@@ -43,7 +43,7 @@ export function useCombatCommands() {
   const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => dispatch({ kind: "rollMorale", args: [id, mode, enemyNear, die] })
   const rollHeld = (id: string, kind: CalledKind, mode: RollMode, die?: number) => dispatch({ kind: "rollHeld", args: [id, kind, mode, die] })
   const setTablePressure = (id: string, value: number) => dispatch({ kind: "setTablePressure", args: [id, value] })
-  const toggleBreakage = () => dispatch({ kind: "toggleBreakage", args: [] })
+  const toggleBreakage = () => sendTable({ kind: "toggleBreakage", args: [] })
 
   const moveToParty = (id: string, partyId: string) => dispatch({ kind: "moveToParty", args: [id, partyId] })
   const createParty = (name: string) => dispatch({ kind: "createParty", args: [name] })

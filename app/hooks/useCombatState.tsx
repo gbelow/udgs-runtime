@@ -89,8 +89,13 @@ export function useGearBar(): string | null {
   return useActiveCharacterSelector((c, fight) => (fight ? getGearBar(fight, c.id, gm) : null)) ?? null;
 }
 
+// gear.tex "Equipment Breakage": whether the fight plays with it.
+export function useBreakage(): boolean {
+  return useCombatStore((s) => s.breakage);
+}
+
 const NO_ONE = 'no active character'
-const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', roll: NO_ONE, end: NO_ONE, result: '', agreed: false, breakage: true, breakageBar: NO_ONE, stealth: '' }
+const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', roll: NO_ONE, end: NO_ONE, result: '', agreed: false, stealth: '' }
 
 // play.tex "Combat" — the turn buttons for the active character, flat
 // primitives gated shallowly.

@@ -4,9 +4,9 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
-import { Button, SectionLabel, Tooltip } from './ui';
+import { Button, Dropdown, SectionLabel, Tooltip } from './ui';
 import { ControlLocked, Locked } from './Locks';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
+import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
@@ -20,21 +20,19 @@ import { DieCalls, RollButtons } from './DieCalls';
 
 // The round and who is in it, kept to a strip so the middle has the height.
 export function SceneStrip(){
-  const [settings, setSettings] = useState(false)
   return(
     <div className='flex flex-col'>
       <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center px-2 py-1.5'>
         <Locked bar={useSceneDiceBar()} className='contents'>
-          <FightControls settings={settings} toggleSettings={() => setSettings(!settings)} />
+          <FightControls />
         </Locked>
         <CharacterList />
       </div>
-      {settings ? <FightSettings /> : null}
     </div>
   )
 }
 
-function FightControls({ settings, toggleSettings }: { settings: boolean, toggleSettings: () => void }){
+function FightControls(){
   const { nextRound, endCombat, resetCombat } = useCombatCommands()
   const { round, nextRoundBar, endCombatBar } = useCombatState()
 
@@ -49,7 +47,9 @@ function FightControls({ settings, toggleSettings }: { settings: boolean, toggle
         ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? 'the rounds end; everyone stays'} onClick={endCombat}>end combat</Button>
         : null}
       <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
-      <Button aria-label='fight settings' aria-pressed={settings} variant='ghost' selected={settings} title='how the table plays this fight' onClick={toggleSettings}>⚙</Button>
+      <Dropdown label='fight settings' variant='ghost' title='how the table plays this fight' text='⚙'>
+        {() => <FightSettings />}
+      </Dropdown>
     </div>
   )
 }
@@ -57,13 +57,13 @@ function FightControls({ settings, toggleSettings }: { settings: boolean, toggle
 // How the table plays this fight, apart from anything a character does.
 function FightSettings(){
   const { toggleBreakage } = useCombatCommands()
-  const { breakage, breakageBar } = useTurnControls()
+  const breakage = useBreakage()
 
   return(
-    <div className='flex flex-row flex-wrap gap-2 items-center px-2 py-1.5 border-t border-line'>
+    <div className='flex flex-col gap-1'>
       <SectionLabel>Settings</SectionLabel>
-      <Tooltip text={breakageBar ?? (breakage ? 'gear can break: turn it off' : 'gear never breaks: turn it on')}>
-        <Button size='xs' aria-label='breakage' aria-pressed={breakage} active={breakage} disabled={breakageBar !== null} onClick={toggleBreakage}>
+      <Tooltip text={breakage ? 'gear can break: turn it off' : 'gear never breaks: turn it on'}>
+        <Button size='xs' aria-label='breakage' aria-pressed={breakage} active={breakage} onClick={toggleBreakage}>
           equipment breakage: {breakage ? 'on' : 'off'}
         </Button>
       </Tooltip>
