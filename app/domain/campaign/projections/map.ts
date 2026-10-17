@@ -1,6 +1,7 @@
 import type { CampaignState, CrawlEvent, CrawlMap, Party, PathEvent, Settlement, Terrain, TerrainValues } from '../types'
 import { getNodeTerrain, getTerrainPresets } from '../rules/terrain'
 import { getPartiesOn } from '../rules/place'
+import { MAP_HEIGHT, MAP_WIDTH, getNodePositions } from '../rules/layout'
 
 export type EventView = CrawlEvent & { id: string }
 export type PathEventView = PathEvent & { id: string }
@@ -16,8 +17,17 @@ export type NodeEditorView = {
   // why the node cannot be taken off the map, if it cannot
   removeBar: string | null
 }
+// The map as it is drawn: each node where it sits, each path between the
+// places of its two nodes with the middle to write on, what each holds counted.
+export type MapGraphView = {
+  width: number
+  height: number
+  nodes: { id: string; name: string; x: number; y: number; terrain: string | null; settlement: boolean; events: number; parties: string[] }[]
+  edges: { id: string; a: string; b: string; ax: number; ay: number; bx: number; by: number; mx: number; my: number; DL: number; backDL: number; events: number }[]
+}
 export type MapEditorView = {
   name: string
+  graph: MapGraphView
   presets: string[]
   nodes: NodeEditorView[]
   connections: { id: string; a: string; b: string; aName: string; bName: string; DL: number; backDL: number; events: PathEventView[] }[]
@@ -30,9 +40,21 @@ const withIds = <E,>(events: Record<string, E>): (E & { id: string })[] => Objec
 // A node the parties in `on` stand on stays while they are there.
 export function getMapEditorView(map: CrawlMap, on: Record<string, Party[]> = {}): MapEditorView {
   const nodeName = (id: string) => map.nodes[id]?.name ?? id
+  const at = getNodePositions(map)
   const removeBar = (id: string) => (on[id]?.length ? `${on[id].map((p) => p.name).join(', ')} ${on[id].length === 1 ? 'is' : 'are'} on it` : null)
   return {
     name: map.name,
+    graph: {
+      width: MAP_WIDTH,
+      height: MAP_HEIGHT,
+      nodes: Object.entries(map.nodes).map(([id, n]) => ({
+        id, name: n.name, ...at[id], terrain: n.terrain, settlement: n.settlement !== null, events: Object.keys(n.events).length, parties: (on[id] ?? []).map((p) => p.name),
+      })),
+      edges: Object.entries(map.connections).flatMap(([id, c]) => {
+        const a = at[c.a], b = at[c.b]
+        return a && b ? [{ id, a: c.a, b: c.b, ax: a.x, ay: a.y, bx: b.x, by: b.y, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, DL: c.DL, backDL: c.backDL, events: Object.keys(c.events).length }] : []
+      }),
+    },
     presets: getTerrainPresets(),
     nodes: Object.entries(map.nodes).map(([id, n]) => ({
       id, name: n.name, terrain: n.terrain, settlement: n.settlement, values: getNodeTerrain(n), custom: Object.keys(n.custom) as (keyof TerrainValues)[], events: withIds(n.events),

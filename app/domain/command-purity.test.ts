@@ -507,6 +507,7 @@ const collectionCases: Record<string, (c: Collection) => unknown> = {
 const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setMapName: (m) => mapModule.setMapName('n')(m),
   addNode: (m) => mapModule.addNode(() => 'n3')(m),
+  moveNode: (m) => mapModule.moveNode('n1', { x: 300, y: 200 })(m),
   setNode: (m) => mapModule.setNode('n1', { name: 'C' })(m),
   toggleSettlement: (m) => mapModule.toggleSettlement('n1')(m),
   setSettlementLiving: (m) => mapModule.setSettlementLiving('n1', 2)(m),

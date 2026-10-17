@@ -77,6 +77,9 @@ export const CrawlNodeSchema = z.object({
   name: z.string().default(''),
   terrain: z.string().nullable().default(null),
   settlement: SettlementSchema.nullable().default(null),
+  // where the node is drawn; none until it is put somewhere
+  x: z.number().nullable().default(null),
+  y: z.number().nullable().default(null),
   custom: TerrainValuesSchema.partial().default({}),
   events: z.record(z.string(), CrawlEventSchema).default({}),
 })

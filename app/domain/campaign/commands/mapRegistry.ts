@@ -1,7 +1,8 @@
 import { editsOver, toEdit, type EditOf } from '../../registry'
+import type { Point } from '../rules/layout'
 import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, TerrainTag, TerrainValues, TerrainWear, Way } from '../types'
 import {
-  addConnection, addEvent, addNode, customizeNode, customizeNodeWear, removeConnection, removeEvent, removeNode, resetNodeValue, setConnection, setEnabler,
+  addConnection, addEvent, addNode, moveNode, customizeNode, customizeNodeWear, removeConnection, removeEvent, removeNode, resetNodeValue, setConnection, setEnabler,
   setEvent, setEventWay, setMapName, setNode, setSettlementLiving, toggleEventType, toggleSettlement, toggleNodeTag,
 } from './map'
 
@@ -14,7 +15,8 @@ const edit = editsOver<MapContext, MapUpdater>()
 
 export const mapCommands = {
   setMapName: edit((_, name: string) => setMapName(name)),
-  addNode: edit((ctx) => addNode(ctx.newId)),
+  addNode: edit((ctx, at?: Point) => addNode(ctx.newId, at)),
+  moveNode: edit((_, id: string, to: Point) => moveNode(id, to)),
   setNode: edit((_, id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => setNode(id, patch)),
   toggleSettlement: edit((_, id: string) => toggleSettlement(id)),
   setSettlementLiving: edit((_, id: string, living: number) => setSettlementLiving(id, living)),

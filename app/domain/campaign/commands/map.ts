@@ -1,6 +1,7 @@
 import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, PathEvent, TerrainTag, TerrainValues, TerrainWear, Way } from '../types'
 import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, PathEventSchema, SettlementSchema, TerrainWearSchema } from '../types'
 import { getNodeTerrain } from '../rules/terrain'
+import { clampToMap, getFreeSpot, getPlacedMap, type Point } from '../rules/layout'
 import { without } from '../../utils'
 
 // survival.tex "Creating the point crawl": the map is made by hand, nodes
@@ -20,15 +21,24 @@ export function setMapName(name: string): MapUpdater {
   return (map) => ({ ...map, name })
 }
 
-export function addNode(newId: () => string): MapUpdater {
-  return (map) => ({
-    ...map,
-    nodes: { ...map.nodes, [newId()]: CrawlNodeSchema.parse({ name: nextName('Node', Object.values(map.nodes).map((n) => n.name)) }) },
-  })
+// The node goes where it is put, or to the first free spot.
+export function addNode(newId: () => string, at?: Point): MapUpdater {
+  return (drawn) => {
+    const map = getPlacedMap(drawn)
+    const { x, y } = clampToMap(at ?? getFreeSpot(map))
+    return {
+      ...map,
+      nodes: { ...map.nodes, [newId()]: CrawlNodeSchema.parse({ name: nextName('Node', Object.values(map.nodes).map((n) => n.name)), x, y }) },
+    }
+  }
 }
 
 const withNode = (id: string, update: (n: CrawlNode) => CrawlNode): MapUpdater =>
   (map) => (map.nodes[id] ? { ...map, nodes: { ...map.nodes, [id]: update(map.nodes[id]) } } : map)
+
+export function moveNode(id: string, to: Point): MapUpdater {
+  return (map) => withNode(id, (n) => ({ ...n, ...clampToMap(to) }))(getPlacedMap(map))
+}
 
 // The node's name, or the terrain preset it is made of; what it changed of
 // its terrain stays changed.

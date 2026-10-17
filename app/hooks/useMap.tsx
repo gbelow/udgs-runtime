@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo } from "react";
 import { toast } from "sonner";
 import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, TerrainTag, TerrainValues, TerrainWear, Way } from "../domain/campaign/types";
 import { getCampaignMapEditorView, getMapEditorView, type MapEditorView } from "../domain/campaign/projections/map";
+import type { Point } from "../domain/campaign/rules/layout";
 import { toMapUpdater, type MapCommand } from "../domain/campaign/commands/mapRegistry";
 import { useCampaignDispatch } from "./useSceneDispatch";
 import { deleteMap, upsertMap } from "../actions";
@@ -73,7 +74,8 @@ export function useMapEditing(): MapEditing {
 function mapEditing(update: (edit: MapCommand) => void) {
   return {
     setName: (name: string) => update({ kind: 'setMapName', args: [name] }),
-    addNode: () => update({ kind: 'addNode', args: [] }),
+    addNode: (at?: Point) => update({ kind: 'addNode', args: at ? [at] : [] }),
+    moveNode: (id: string, to: Point) => update({ kind: 'moveNode', args: [id, to] }),
     setNode: (id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => update({ kind: 'setNode', args: [id, patch] }),
     toggleSettlement: (id: string) => update({ kind: 'toggleSettlement', args: [id] }),
     setSettlementLiving: (id: string, living: number) => update({ kind: 'setSettlementLiving', args: [id, living] }),
