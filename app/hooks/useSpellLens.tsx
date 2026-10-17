@@ -1,4 +1,3 @@
-import { forgetSpell, learnSpell, practiceSpell, releaseSpell } from "../domain/character/commands";
 import { getSpellCatalogRows, getSpellSheetRows, SpellCatalogRow, SpellSheetRow } from "../domain/character/lenses/spells";
 import type { SpellKey } from "../domain/spells";
 import { Character, SpellMethod } from "../domain/types";
@@ -16,19 +15,19 @@ export function useSpellLens() {
     useActiveCharacterDerived((c: Character) => getSpellSheetRows(c), JSON.stringify) ?? [];
 
   const learn = (key: SpellKey, method: SpellMethod) => {
-    update(learnSpell(key, method));
+    update({ kind: 'learnSpell', args: [key, method] });
   };
 
   const forget = (key: SpellKey) => {
-    update(forgetSpell(key));
+    update({ kind: 'forgetSpell', args: [key] });
   };
 
   const practice = (key: SpellKey, delta: number) => {
-    update(practiceSpell(key, delta));
+    update({ kind: 'practiceSpell', args: [key, delta] });
   };
 
   const release = (key: SpellKey) => {
-    update(releaseSpell(key));
+    update({ kind: 'releaseSpell', args: [key] });
   };
 
   return { catalog, learned, learn, forget, practice, release } as const;

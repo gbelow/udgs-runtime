@@ -1,5 +1,5 @@
 import { getInjuryStage, isDead } from "../domain/character/rules/afflictions";
-import { composeLens, makePropLens } from "../domain/character/lenses/factories";
+import { makePropLens } from "../domain/character/lenses/factories";
 import { CampaignCharacter, CampaignValuesSchema, Character, Injuries } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
@@ -18,8 +18,7 @@ export function useInjuryLens() {
     useActiveCharacterSelector((c: Character) => (isCampaignCharacter(c) ? injuryLens.get(c) : null)) ?? DEFAULT_INJURIES;
 
   const setInjury = (keyName: keyof Injuries, newValue: number) => {
-    const injuryValueLens = composeLens(injuryLens, makePropLens<Injuries, keyof Injuries>(keyName));
-    update((c) => (isCampaignCharacter(c) ? injuryValueLens.set(c, newValue) : c));
+    update({ kind: 'setInjury', args: [keyName, newValue] });
   };
 
   // A primitive selected inside the store selector, so the render it schedules

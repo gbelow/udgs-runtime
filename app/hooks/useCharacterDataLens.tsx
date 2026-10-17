@@ -11,7 +11,7 @@ export function useActiveCharacterDataLens(prop: keyof typeof miscLenses) {
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? 0;
 
   const setValue = (newValue: number) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setMisc', args: [prop, newValue] });
   };
 
   return [value, setValue] as const;

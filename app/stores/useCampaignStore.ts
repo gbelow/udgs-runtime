@@ -1,13 +1,12 @@
 // stores/useCampaignStore.ts
 import { create } from 'zustand'
-import { CampaignCharacter, Selected } from '../domain/types'
+import type { Selected } from '../domain/types'
 import { CampaignState, CampaignStateSchema, CampaignUpdater } from '../domain/campaign/types'
 import type { TableUpdater } from '../domain/scene/types'
 import { ExplorationState, ExplorationStateSchema, ExplorationUpdater } from '../domain/exploration/types'
 import { DowntimeState, DowntimeStateSchema, DowntimeUpdater } from '../domain/downtime/types'
 import { makeCampaignCharacter } from '../domain/factories'
-import { updateRosterCharacter } from '../domain/campaign/commands/roster'
-import { loadIntoFight, loadOntoRoster } from '../domain/scene/commands/fight'
+import { loadIntoFight } from '../domain/scene/commands/fight'
 import { useCombatStore } from './useCombatStore'
 import { resetCombat } from '../domain/scene/commands/resetCombat'
 import type { CampaignInPlay } from '../domain/saves'
@@ -31,10 +30,8 @@ type CampaignActions = {
   setOwner: (id: string, owner: string | null) => void
   // replaces the campaign in play, and throws away any fight
   openCampaign: (t: CampaignInPlay, file: CampaignFile, owners?: CharacterOwners) => void
-  loadCharacter: (rawCharacter: unknown, into?: string) => void
   loadFighter: (rawCharacter: unknown) => void
   setActiveCharacter: (id: string) => void
-  updateActiveCharacter: (updater: (c: CampaignCharacter) => CampaignCharacter) => CampaignCharacter | undefined
   updateCampaignState: (updater: CampaignUpdater) => void
   updateTable: (updater: TableUpdater) => void
   updateExploration: (updater: ExplorationUpdater) => void
@@ -90,23 +87,10 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
     set(holdForDice(called, s, { ...s, ...campaign, downtime }))
   },
 
-  // into the party named, else the one of whoever this screen has picked
-  loadCharacter: (rawCharacter, into) => {
-    const { activeCharacterId: picked, partyOf } = get()
-    get().updateTable(loadOntoRoster(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID(), into ?? (picked ? partyOf[picked] : undefined)))
-  },
-
   loadFighter: (rawCharacter) =>
     get().updateTable(loadIntoFight(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID())),
 
   setActiveCharacter: (id) => set((s) => (s.characters[id] ? { activeCharacterId: id } : {})),
-
-  updateActiveCharacter: (updater) => {
-    const id = get().activeCharacterId
-    if (!id) return undefined
-    set((s) => holdForDice(called, s, { ...s, ...updateRosterCharacter(id, updater)(s) }))
-    return get().characters[id]
-  },
 }))
 
 // Whoever leaves the roster is no longer picked.

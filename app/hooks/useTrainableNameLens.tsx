@@ -11,7 +11,7 @@ export function useTrainableNameLens(trainableName: keyof Trainables) {
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? '';
 
   const setValue = (newValue: string) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setTrainableName', args: [trainableName, newValue] });
   };
 
   return [value, setValue] as const;

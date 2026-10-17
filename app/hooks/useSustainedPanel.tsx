@@ -1,4 +1,3 @@
-import { releaseSpell } from "../domain/character/commands";
 import { SustainedRow, getSustainedDigest, getSustainedRows } from "../domain/scene/projections/sustained";
 import type { SpellKey } from "../domain/spells";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -10,6 +9,6 @@ export function useSustainedPanel() {
   const digest = useActiveCharacterSelector((_c, fight) => (fight ? getSustainedDigest(fight) : null));
   const rows: SustainedRow[] = digest === null ? [] : getSustainedRows(useCombatStore.getState());
   const update = useActiveCharacterUpdate();
-  const release = (key: SpellKey) => update(releaseSpell(key));
+  const release = (key: SpellKey) => update({ kind: 'releaseSpell', args: [key] });
   return { rows, release } as const;
 }

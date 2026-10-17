@@ -4,5 +4,5 @@ import { useLens } from "./useLens";
 
 export function useTextLens(keyName: 'name' | 'notes') {
   const lens: Lens<Character, string> = makePropLens(keyName);
-  return useLens(lens, '');
+  return useLens(lens, '', (text) => ({ kind: 'setText', args: [keyName, text] }));
 }

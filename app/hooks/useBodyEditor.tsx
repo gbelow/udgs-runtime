@@ -1,4 +1,4 @@
-import { addBodyPart, addPartWound, editBodyPart, editNaturalArmor, editPartWound, editStance, removeBodyPart, removePartWound, setFootprintPreset, toggleFootprintCell, type BodyPartEdit } from "../domain/character/commands";
+import type { BodyPartEdit } from "../domain/character/commands";
 import { getFootprintEditor } from "../domain/character/lenses/footprint";
 import type { FootprintPreset } from "../domain/lists";
 import type { Armor, BodyPart, Character, Coord, HitLocation, PartWound, Stance } from "../domain/types";
@@ -25,16 +25,16 @@ export function useBodyEditor() {
   const update = useActiveCharacterUpdate();
 
   return {
-    addPart: (location: HitLocation) => update(addBodyPart(location)),
-    removePart: (id: string) => update(removeBodyPart(id)),
-    editPart: (id: string, edit: BodyPartEdit) => update(editBodyPart(id, edit)),
-    addWound: (id: string) => update(addPartWound(id)),
-    editWound: (id: string, index: number, edit: Partial<PartWound>) => update(editPartWound(id, index, edit)),
-    removeWound: (id: string, index: number) => update(removePartWound(id, index)),
-    editStance: (edit: Partial<Stance>) => update(editStance(edit)),
-    editArmor: (edit: Partial<Armor>) => update(editNaturalArmor(edit)),
-    toggleCell: (cell: Coord) => update(toggleFootprintCell(cell)),
-    setPreset: (preset: FootprintPreset) => update(setFootprintPreset(preset)),
-    placePart: (id: string, cell: Coord | null) => update(editBodyPart(id, { cell })),
+    addPart: (location: HitLocation) => update({ kind: 'addBodyPart', args: [location] }),
+    removePart: (id: string) => update({ kind: 'removeBodyPart', args: [id] }),
+    editPart: (id: string, edit: BodyPartEdit) => update({ kind: 'editBodyPart', args: [id, edit] }),
+    addWound: (id: string) => update({ kind: 'addPartWound', args: [id] }),
+    editWound: (id: string, index: number, edit: Partial<PartWound>) => update({ kind: 'editPartWound', args: [id, index, edit] }),
+    removeWound: (id: string, index: number) => update({ kind: 'removePartWound', args: [id, index] }),
+    editStance: (edit: Partial<Stance>) => update({ kind: 'editStance', args: [edit] }),
+    editArmor: (edit: Partial<Armor>) => update({ kind: 'editNaturalArmor', args: [edit] }),
+    toggleCell: (cell: Coord) => update({ kind: 'toggleFootprintCell', args: [cell] }),
+    setPreset: (preset: FootprintPreset) => update({ kind: 'setFootprintPreset', args: [preset] }),
+    placePart: (id: string, cell: Coord | null) => update({ kind: 'editBodyPart', args: [id, { cell }] }),
   } as const;
 }

@@ -71,10 +71,14 @@ A test that every command survives JSON is admitted only once a transport exists
 
 The editor (building a character) keeps its local closures.
 
+Done: `character/commands/registry.ts` holds the sheet's edits (one set command per lens registry, typed per family, rather than one `setLens`) and the gear moves apart. A fight carries them as the scene's `edit` and `editGear`, the roster as the campaign's `edit`; the editor's tabs apply the same commands locally.
+
 ### 9. Table commands, then the other parts
 
 - `updateTable` (scene and campaign together: `removeFromFight`, `resetFight`) gets its own registry.
 - Then campaign, exploration and downtime, one registry each, on the same pattern (`updateCampaign*`: 21 sites).
+
+Done: `domain/registry.ts` is the pattern every registry is built with (the scene's included), and `useSceneDispatch.tsx` holds one dispatch hook per part. The map editor's changes are data too (`campaign/commands/mapRegistry.ts`), carried into a campaign's map by the campaign's `editMap`. A note in the journal acts for its writer (a new `{ author }` actor), as the journal view already ruled. Ruled 2026-10-17: the round flow (contest, next round, continue, end), table pressure, breakage, taking a character out of a fight, resetting it, loading one from a catalog, and a campaign's maps are the GM's; in a party, in a fight or out of one, a player moves only their own character (making, renaming and merging parties is the GM's). Left outside play: who plays which character (`setOwner`) and the campaign's members, which belong to the saved file rather than the state.
 
 ## Order
 
@@ -83,6 +87,7 @@ Steps 1–3 and 6 for the action panel first: the most-pressed path, and the har
 ## Open
 
 - Hidden information in exploration and downtime: more rules apply there; decided when those parts get their registries.
+- Ids an item command makes for itself (`duplicateItem` splitting a stack) are random rather than the table's, so a replayed session can differ there.
 
 ## Hidden information in the scene
 

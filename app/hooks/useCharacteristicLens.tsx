@@ -17,7 +17,7 @@ export function useCharacteristicLens(characteristicName: keyof Characteristics)
     useActiveCharacterDerived((c: Character) => characteristicTermGetters[characteristicName]?.(c) ?? [], termsDigest) ?? [];
 
   const setValue = (newValue: number) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setCharacteristic', args: [characteristicName, newValue] });
   };
 
   return [value, setValue, terms, termsView(terms)] as const;

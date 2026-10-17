@@ -1,4 +1,3 @@
-import { trade as tradeCommand } from "../domain/item/commands";
 import { getTradeView, TradeView } from "../domain/item/projections/trade";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
@@ -31,7 +30,7 @@ export function useTradeLens() {
 
   const confirm = () => {
     if (!trade || !view?.able) return;
-    update(tradeCommand(trade));
+    update({ kind: 'trade', args: [trade] });
     setTrade(null);
   };
 

@@ -1,11 +1,10 @@
 import { isChargedIn } from "../domain/scene/rules/started";
 import { useActingAsGm } from "./useRole";
-import { holdItem, regripItem, dropItem, putOnFromHands, slingShield, unslingShield, throwOffShield } from "../domain/item/commands";
-import { wearFromHands } from "../domain/character/commands";
 import { getCatalogItem } from "../domain/item/rules/items";
 import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
-import type { Character, CharacterUpdater } from "../domain/types";
+import type { Character } from "../domain/types";
+import type { GearCommand } from "../domain/character/commands/registry";
 import type { SceneCommand } from "../domain/scene/commands/registry";
 import { isFightTab, useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -36,46 +35,46 @@ export function useHandsLens() {
     if (pending?.source !== 'catalog') return;
     const item = getCatalogItem(pending.key, pending.amount, pending.scale);
     if (!item) return;
-    update(holdItem(item, grip));
+    update({ kind: 'holdItem', args: [item, grip] });
   };
 
   const regrip = (itemId: string, grip: Grip) => {
-    update(regripItem(itemId, grip));
+    update({ kind: 'regripItem', args: [itemId, grip] });
   };
 
   // in a fight what is let go of lands on the floor; on the sheet it is gone
-  const letGo = (toFloor: (characterId: string) => SceneCommand, gone: CharacterUpdater) => {
+  const letGo = (toFloor: (characterId: string) => SceneCommand, gone: GearCommand) => {
     const combat = useCombatStore.getState();
     if (isFightTab(tab) && combat.activeCharacterId) dispatch(toFloor(combat.activeCharacterId));
     else update(gone);
   };
 
   const drop = (itemId: string) => {
-    letGo((id) => ({ kind: 'dropToFloor', args: [id, itemId, gm] }), dropItem(itemId));
+    letGo((id) => ({ kind: 'dropToFloor', args: [id, itemId, gm] }), { kind: 'dropItem', args: [itemId] });
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
   const wear = (itemId: string) => {
-    update(wearFromHands(itemId));
+    update({ kind: 'wearFromHands', args: [itemId] });
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
   const putOn = (itemId: string) => {
-    update(putOnFromHands(itemId));
+    update({ kind: 'putOnFromHands', args: [itemId] });
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
   const sling = (itemId: string) => {
-    update(slingShield(itemId));
+    update({ kind: 'slingShield', args: [itemId] });
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
   const unsling = () => {
-    update(unslingShield());
+    update({ kind: 'unslingShield', args: [] });
   };
 
   const throwOff = () => {
-    letGo((id) => ({ kind: 'throwOffShield', args: [id, gm] }), throwOffShield());
+    letGo((id) => ({ kind: 'throwOffShield', args: [id, gm] }), { kind: 'throwOffShield', args: [] });
   };
 
   return { panel, hold, regrip, drop, wear, putOn, sling, unsling, throwOff } as const;

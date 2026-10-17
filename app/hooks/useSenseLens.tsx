@@ -7,7 +7,7 @@ export function useSenseNumber(senseName: keyof Senses, field: 'bonus' | 'penalt
   const update = useActiveCharacterUpdate();
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? 0;
   const setValue = (newValue: number) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setSenseNumber', args: [senseName, field, newValue] });
   };
   return [value, setValue] as const;
 }
@@ -17,7 +17,7 @@ export function useSenseRange(senseName: keyof Senses) {
   const update = useActiveCharacterUpdate();
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? null;
   const setValue = (newValue: number | null) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setSenseRange', args: [senseName, newValue] });
   };
   return [value, setValue] as const;
 }
@@ -27,7 +27,7 @@ export function useSenseFlag(senseName: keyof Senses, field: 'hasSense' | 'activ
   const update = useActiveCharacterUpdate();
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? false;
   const setValue = (newValue: boolean) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setSenseFlag', args: [senseName, field, newValue] });
   };
   return [value, setValue] as const;
 }

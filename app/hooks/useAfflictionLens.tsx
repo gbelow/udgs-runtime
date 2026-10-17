@@ -1,4 +1,3 @@
-import { addAffliction } from "../domain/character/commands";
 import { AfflictionRow, AfflictionSection, getAfflictionBoard, getAfflictionRows } from "../domain/character/lenses/afflictions";
 import { AfflictionKey } from "../domain/types";
 import { getSituationalAfflictions } from "../domain/scene/rules/situational";
@@ -16,7 +15,7 @@ export function useAfflictionRows(): { rows: AfflictionRow[]; setAffliction: (a:
     ) ?? [];
 
   const setAffliction = (affliction: AfflictionKey) => {
-    update(addAffliction(affliction));
+    update({ kind: 'addAffliction', args: [affliction] });
   };
 
   return { rows, setAffliction };
@@ -45,7 +44,7 @@ export function useAfflictionBoard(): { sections: AfflictionSection[]; setAfflic
     ) ?? [];
 
   const setAffliction = (affliction: AfflictionKey) => {
-    update(addAffliction(affliction));
+    update({ kind: 'addAffliction', args: [affliction] });
   };
 
   return { sections, setAffliction };

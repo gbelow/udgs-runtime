@@ -307,6 +307,7 @@ app/domain/scene/
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── click.ts        readClick: what a click on a cell, token, floor item or the turn button does
 │   ├── registry.ts     sceneCommands: every scene press and board click as data (kind and plain args), the command it runs and whom it acts for; applySceneCommand refuses what the sender may not do. Lists the chase's commands without being a crossing point (eslint rule 6)
+│   ├── tableRegistry.ts tableCommands: what crosses between the campaign and the fight (sent, brought back, loaded, taken out, reset), as data on the same pattern (domain/registry.ts)
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── parties.ts      joinFight, addToFight, moveToParty, splitOff, renameParty: the scene's parties, inherited from the campaign and changed by the table

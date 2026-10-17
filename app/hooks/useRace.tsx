@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { addRaceAbility, applyRace, editRace, removeRaceAbility } from "../domain/character/commands";
+import { addRaceAbility, editRace, removeRaceAbility } from "../domain/character/commands";
 import { getNaturalWeaponOptions, getRaceAbilityOptions, getRacePanel, raceBonusLenses, type RaceAbilityRow, type RacePanelView } from "../domain/character/lenses/race";
 import { getRaceOf } from "../domain/character/rules/race";
 import { makeRace } from "../domain/factories";
@@ -72,7 +72,7 @@ export function useRaceBaseline() {
   const race = useAppStore((s) => (id ? s.raceBaselines[id] ?? '' : ''));
   const setRaceBaseline = useAppStore((s) => s.setRaceBaseline);
   const choose = (name: string) => { if (id) setRaceBaseline(id, name || null); };
-  const apply = () => { if (race in raceList) update(applyRace(makeRace(raceList[race]))); };
+  const apply = () => { if (race in raceList) update({ kind: 'applyRace', args: [makeRace(raceList[race])] }); };
   return { races, race, choose, apply } as const;
 }
 

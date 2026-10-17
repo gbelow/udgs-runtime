@@ -13,7 +13,7 @@ export function useResourceLens(keyName: keyof Resources) {
     useActiveCharacterSelector((c: Character) => (isCampaignCharacter(c) ? lens.get(c) : 0)) ?? 0;
 
   const setValue = (newValue: number) => {
-    update((c) => (isCampaignCharacter(c) ? lens.set(c, newValue) : c));
+    update({ kind: 'setResource', args: [keyName, newValue] });
   };
 
   return [value, setValue] as const;

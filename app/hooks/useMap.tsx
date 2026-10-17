@@ -1,12 +1,9 @@
 import { createContext, useContext, useMemo } from "react";
 import { toast } from "sonner";
-import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, TerrainTag, TerrainValues, TerrainWear, Way } from "../domain/campaign/types";
+import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, TerrainTag, TerrainValues, TerrainWear, Way } from "../domain/campaign/types";
 import { getCampaignMapEditorView, getMapEditorView, type MapEditorView } from "../domain/campaign/projections/map";
-import { updateCampaignMap } from "../domain/campaign/commands/parties";
-import {
-  addConnection, addEvent, addNode, customizeNode, customizeNodeWear, removeConnection, removeEvent, removeNode, resetNodeValue, setConnection, setEnabler,
-  setEvent, setEventWay, setMapName, setNode, setSettlementLiving, toggleEventType, toggleSettlement, toggleNodeTag,
-} from "../domain/campaign/commands/map";
+import { toMapUpdater, type MapCommand } from "../domain/campaign/commands/mapRegistry";
+import { useCampaignDispatch } from "./useSceneDispatch";
 import { deleteMap, upsertMap } from "../actions";
 import { useAppStore } from "../stores/useAppStore";
 import { useMapStore } from "../stores/useMapStore";
@@ -49,7 +46,7 @@ export function useMapEditor() {
     newMap();
   };
 
-  return { view, maps, open, create: newMap, save, remove, ...mapEditing(update) } as const;
+  return { view, maps, open, create: newMap, save, remove, ...mapEditing((edit) => update(toMapUpdater(edit, { newId: () => crypto.randomUUID() }))) } as const;
 }
 
 // One of the campaign's own maps, changed with the same editor; a change
@@ -57,10 +54,10 @@ export function useMapEditor() {
 export function useCampaignMapEditor(mapId: string): MapEditing | null {
   const map = useCampaignStore((s) => s.maps[mapId]);
   const parties = useCampaignStore((s) => s.parties);
-  const updateCampaign = useCampaignStore((s) => s.updateCampaignState);
+  const send = useCampaignDispatch();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the view is read off the store whenever the map or the parties on it change
   const view = useMemo(() => getCampaignMapEditorView(useCampaignStore.getState(), mapId), [map, parties, mapId]);
-  return view ? { view, ...mapEditing((change) => updateCampaign(updateCampaignMap(mapId, change))) } : null;
+  return view ? { view, ...mapEditing((edit) => send({ kind: "editMap", args: [mapId, edit] })) } : null;
 }
 
 // The map the editor's parts work on, and what they do to it, wherever it is kept.
@@ -73,27 +70,26 @@ export function useMapEditing(): MapEditing {
   return editing;
 }
 
-function mapEditing(update: (change: MapUpdater) => void) {
-  const newId = () => crypto.randomUUID();
+function mapEditing(update: (edit: MapCommand) => void) {
   return {
-    setName: (name: string) => update(setMapName(name)),
-    addNode: () => update(addNode(newId)),
-    setNode: (id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => update(setNode(id, patch)),
-    toggleSettlement: (id: string) => update(toggleSettlement(id)),
-    setSettlementLiving: (id: string, living: number) => update(setSettlementLiving(id, living)),
-    customizeNode: (id: string, patch: Partial<TerrainValues>) => update(customizeNode(id, patch)),
-    customizeWear: (id: string, patch: Partial<TerrainWear>) => update(customizeNodeWear(id, patch)),
-    toggleTag: (id: string, tag: TerrainTag) => update(toggleNodeTag(id, tag)),
-    resetValue: (id: string, key: keyof TerrainValues) => update(resetNodeValue(id, key)),
-    removeNode: (id: string) => update(removeNode(id)),
-    addConnection: (a: string, b: string, DL: number, backDL: number) => update(addConnection(a, b, DL, backDL, newId)),
-    setConnection: (id: string, patch: Partial<Pick<Connection, 'DL' | 'backDL'>>) => update(setConnection(id, patch)),
-    setWay: (connectionId: string, eventId: string, way: Way) => update(setEventWay(connectionId, eventId, way)),
-    removeConnection: (id: string) => update(removeConnection(id)),
-    addEvent: (owner: EventOwner) => update(addEvent(owner, newId)),
-    setEvent: (owner: EventOwner, eventId: string, patch: Partial<CrawlEvent>) => update(setEvent(owner, eventId, patch)),
-    toggleType: (owner: EventOwner, eventId: string, type: EventType) => update(toggleEventType(owner, eventId, type)),
-    setEnabler: (owner: EventOwner, eventId: string, knowledge: string, level: number) => update(setEnabler(owner, eventId, knowledge, level)),
-    removeEvent: (owner: EventOwner, eventId: string) => update(removeEvent(owner, eventId)),
+    setName: (name: string) => update({ kind: 'setMapName', args: [name] }),
+    addNode: () => update({ kind: 'addNode', args: [] }),
+    setNode: (id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => update({ kind: 'setNode', args: [id, patch] }),
+    toggleSettlement: (id: string) => update({ kind: 'toggleSettlement', args: [id] }),
+    setSettlementLiving: (id: string, living: number) => update({ kind: 'setSettlementLiving', args: [id, living] }),
+    customizeNode: (id: string, patch: Partial<TerrainValues>) => update({ kind: 'customizeNode', args: [id, patch] }),
+    customizeWear: (id: string, patch: Partial<TerrainWear>) => update({ kind: 'customizeNodeWear', args: [id, patch] }),
+    toggleTag: (id: string, tag: TerrainTag) => update({ kind: 'toggleNodeTag', args: [id, tag] }),
+    resetValue: (id: string, key: keyof TerrainValues) => update({ kind: 'resetNodeValue', args: [id, key] }),
+    removeNode: (id: string) => update({ kind: 'removeNode', args: [id] }),
+    addConnection: (a: string, b: string, DL: number, backDL: number) => update({ kind: 'addConnection', args: [a, b, DL, backDL] }),
+    setConnection: (id: string, patch: Partial<Pick<Connection, 'DL' | 'backDL'>>) => update({ kind: 'setConnection', args: [id, patch] }),
+    setWay: (connectionId: string, eventId: string, way: Way) => update({ kind: 'setEventWay', args: [connectionId, eventId, way] }),
+    removeConnection: (id: string) => update({ kind: 'removeConnection', args: [id] }),
+    addEvent: (owner: EventOwner) => update({ kind: 'addEvent', args: [owner] }),
+    setEvent: (owner: EventOwner, eventId: string, patch: Partial<CrawlEvent>) => update({ kind: 'setEvent', args: [owner, eventId, patch] }),
+    toggleType: (owner: EventOwner, eventId: string, type: EventType) => update({ kind: 'toggleEventType', args: [owner, eventId, type] }),
+    setEnabler: (owner: EventOwner, eventId: string, knowledge: string, level: number) => update({ kind: 'setEnabler', args: [owner, eventId, knowledge, level] }),
+    removeEvent: (owner: EventOwner, eventId: string) => update({ kind: 'removeEvent', args: [owner, eventId] }),
   } as const;
 }

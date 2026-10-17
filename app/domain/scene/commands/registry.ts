@@ -1,9 +1,10 @@
 import { toThrower, type Throw } from '../../play/calls'
 import type { DieSource, RollMode } from '../../play/dice'
-import { getActorBar, type Actor, type Viewer } from '../../profiles'
+import type { Actor } from '../../profiles'
+import { commandsOver, playedBy, rollerOf, type CommandOf } from '../../registry'
 import type { SpellModification } from '../../tables'
 import type { ChaseCover, ChaseTier, CrossingSkill } from '../../lists'
-import type { SurgeKind, TerrainBrush } from '../../types'
+import type { CampaignCharacter, SurgeKind, TerrainBrush } from '../../types'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
@@ -14,6 +15,8 @@ import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, 
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
 import { dropToFloor, throwOffShieldToFloor } from './floor'
+import { updateCharacter, updateInventory } from './characters'
+import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
 import { rollMorale, setTablePressure } from './morale'
 import { continueRound, holdOn, letGo, nextRound } from './nextRound'
@@ -33,20 +36,14 @@ import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHO
 
 export type CommandContext = { thrower: Throw; newId: () => string }
 
-type Entry<A extends unknown[]> = {
-  run: (ctx: CommandContext, ...args: A) => Updater
-  actor: (state: SceneState, ...args: A) => Actor
-}
-
-const command = <A extends unknown[]>(run: Entry<A>['run']) => ({
-  by: (actor: Entry<A>['actor']): Entry<A> => ({ run, actor }),
-})
+const command = commandsOver<SceneState, CommandContext>()
 
 const character = (id: string | null): Actor => (id === null ? null : { id })
 const panel = (press: PanelPress) => (state: SceneState): Actor => character(getPanelActor(state, press))
 const reactor = (_: SceneState, reactorId: string): Actor => ({ id: reactorId })
 const own = (_: SceneState, id: string): Actor => ({ id })
 const anyone = (): Actor => null
+const gm = (): Actor => 'gm'
 const gmTool = (): Actor => 'gmTool'
 // a die typed in from the table for a test the press makes, or the table's
 // (a die left out comes back null once it has been sent as JSON)
@@ -57,6 +54,10 @@ const readOn = (newId: () => string, state: SceneState, click: Click, brush: Ter
   const read = readClick(state, click, { brush, reposition, selected, newId })
   return 'select' in read ? null : read
 }
+
+// a sheet's edit played on a character in the fight, its dice the table's
+const sheet = (ctx: CommandContext, edit: CharacterCommand | GearCommand) =>
+  toCharacterUpdater(edit, { dice: toThrower(ctx.thrower).dice }) as (c: CampaignCharacter, charged: boolean) => CampaignCharacter
 
 export const sceneCommands = {
   declare: command((ctx, actorId: string, draft: ActionDraft) => declareAction(actorId, draft, ctx.newId)).by((_, actorId) => ({ id: actorId })),
@@ -69,7 +70,7 @@ export const sceneCommands = {
   roll: command((ctx) => rollAnswered(ctx.thrower, ctx.newId)).by(panel('open')),
   // the die thrown, or the price paid, whoever could still answer: the
   // table's press for the bots it plays, never the panel's
-  rollOrPay: command((ctx) => rollOrPay(ctx.thrower, ctx.newId)).by(() => 'gm'),
+  rollOrPay: command((ctx) => rollOrPay(ctx.thrower, ctx.newId)).by(gm),
   commit: command((ctx) => commitAction(ctx.thrower, ctx.newId)).by(panel('open')),
   back: command(() => withdrawLastReaction()).by(panel('back')),
   skip: command((ctx) => withdrawSpawnedAction(ctx.thrower, ctx.newId)).by(panel('open')),
@@ -103,9 +104,16 @@ export const sceneCommands = {
   dropToFloor: command((_, id: string, itemId: string, gm: boolean) => dropToFloor(id, itemId, gm)).by((_, id, _item, gm) => (gm ? 'gm' : { id })),
   throwOffShield: command((_, id: string, gm: boolean) => throwOffShieldToFloor(id, gm)).by((_, id, gm) => (gm ? 'gm' : { id })),
 
+  // an edit to a character's sheet, and a move with their gear, which the
+  // fight refuses outside their own turn unless the GM makes it
+  edit: command((ctx, id: string, edit: CharacterCommand, gm: boolean) =>
+    updateCharacter(id, sheet(ctx, edit), gm ? 'GM edit' : undefined)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
+  editGear: command((ctx, id: string, edit: GearCommand, gm: boolean) =>
+    updateInventory(id, sheet(ctx, edit), gm)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
+
   // a die the scene called for, answered by whoever throws it
   answer: command((ctx, callId: string, die: number, source: DieSource) => answerScene(callId, die, source, ctx.thrower, ctx.newId))
-    .by((state, callId) => character(state.calls[callId]?.roller ?? null)),
+    .by((state, callId) => rollerOf(state.calls, callId)),
 
   // the turn and the round
   startTurn: command((_, id: string) => startTurn(id)).by(own),
@@ -113,23 +121,23 @@ export const sceneCommands = {
   toggleAgreeToEnd: command((_, id: string) => toggleAgreeToEnd(id)).by(own),
   surge: command((_, id: string, kind: SurgeKind) => surge(id, kind)).by(own),
   endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),
-  rollContest: command((ctx) => rollContest(ctx.thrower)).by(anyone),
-  nextRound: command((ctx) => nextRound(ctx.thrower)).by(anyone),
-  continueRound: command((ctx) => continueRound(ctx.thrower)).by(anyone),
-  endCombat: command((ctx) => endCombat(ctx.thrower)).by(anyone),
+  rollContest: command((ctx) => rollContest(ctx.thrower)).by(gm),
+  nextRound: command((ctx) => nextRound(ctx.thrower)).by(gm),
+  continueRound: command((ctx) => continueRound(ctx.thrower)).by(gm),
+  endCombat: command((ctx) => endCombat(ctx.thrower)).by(gm),
   holdOn: command((ctx, id: string) => holdOn(id, ctx.thrower)).by(own),
   letGo: command((ctx, id: string) => letGo(id, ctx.thrower)).by(own),
   rollMorale: command((ctx, id: string, mode: RollMode, enemyNear: boolean, die?: number) => rollMorale(id, mode, enemyNear, typed(ctx, die))).by(own),
   rollHeld: command((ctx, id: string, kind: CalledKind, mode: RollMode, die?: number) => rollHeld(id, kind, mode, typed(ctx, die))).by(own),
-  setTablePressure: command((_, partyId: string, value: number) => setTablePressure(partyId, value)).by(anyone),
+  setTablePressure: command((_, partyId: string, value: number) => setTablePressure(partyId, value)).by(gm),
   defaultToCoward: command((_, id: string) => defaultToCoward(id)).by(own),
-  toggleBreakage: command(() => toggleBreakage).by(anyone),
+  toggleBreakage: command(() => toggleBreakage).by(gm),
 
-  // the fight's parties
-  moveToParty: command((_, id: string, partyId: string) => moveToParty(id, partyId)).by(anyone),
-  createParty: command((ctx, name: string) => createParty(ctx.newId(), name)).by(anyone),
-  splitOff: command((ctx, id: string) => splitOff(id, ctx.newId)).by(anyone),
-  renameParty: command((_, partyId: string, name: string) => renameParty(partyId, name)).by(anyone),
+  // the fight's parties: a player moves only their own character
+  moveToParty: command((_, id: string, partyId: string) => moveToParty(id, partyId)).by(own),
+  createParty: command((ctx, name: string) => createParty(ctx.newId(), name)).by(gm),
+  splitOff: command((ctx, id: string) => splitOff(id, ctx.newId)).by(own),
+  renameParty: command((_, partyId: string, name: string) => renameParty(partyId, name)).by(gm),
 
   // combat.tex "Chases"
   startChase: command((_, quarry: string[], tier: ChaseTier) => startChase(quarry, tier)).by(anyone),
@@ -147,28 +155,12 @@ export const sceneCommands = {
   setChaseCover: command((_, id: string, cover: ChaseCover | null) => setChaseCover(id, cover)).by(anyone),
 }
 
-type Registry = typeof sceneCommands
-export type SceneCommandKind = keyof Registry
-export type SceneCommand = { [K in SceneCommandKind]: { kind: K; args: Registry[K] extends Entry<infer A> ? A : never } }[SceneCommandKind]
+export type SceneCommand = CommandOf<typeof sceneCommands>
+export type SceneCommandKind = SceneCommand['kind']
 
-const entryOf = (command: SceneCommand): Entry<unknown[]> => sceneCommands[command.kind] as Entry<unknown[]>
-
-// Whom the command acts for, as of `state`.
-export function getCommandActor(state: SceneState, command: SceneCommand): Actor {
-  return entryOf(command).actor(state, ...command.args)
-}
-
-// Why `viewer` may not send the command, or null when they may.
-export function getCommandBar(state: SceneState, command: SceneCommand, viewer: Viewer): string | null {
-  return getActorBar(getCommandActor(state, command), viewer)
-}
-
-// The command as the updater it runs, with the table's dice and ids.
-export function toUpdater(command: SceneCommand, ctx: CommandContext): Updater {
-  return entryOf(command).run(ctx, ...command.args)
-}
-
-// The command played as sent by `viewer`: refused, the state stays as it was.
-export function applySceneCommand(state: SceneState, command: SceneCommand, viewer: Viewer, ctx: CommandContext): SceneState {
-  return getCommandBar(state, command, viewer) === null ? toUpdater(command, ctx)(state) : state
-}
+// Whom a command acts for as of a state (`getCommandActor`), why a viewer may
+// not send it (`getCommandBar`), the updater it runs with the table's dice and
+// ids (`toUpdater`), and the command played as sent by a viewer, the state
+// left as it was when refused (`applySceneCommand`).
+export const { actorOf: getCommandActor, barOf: getCommandBar, toUpdater, apply: applySceneCommand } =
+  playedBy<SceneState, CommandContext, typeof sceneCommands>(sceneCommands)

@@ -1,18 +1,15 @@
 import { useMemo } from "react";
 import type { LivingLevel } from "../domain/lists";
-import type { Activity, DowntimeUpdater, TrainingTarget } from "../domain/downtime/types";
+import type { Activity, TrainingTarget } from "../domain/downtime/types";
 import { DECISIONS } from "../domain/downtime/types";
 import { getDowntimeResultLines, getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePanel, type SkillOption, type TrainingOption } from "../domain/downtime/projections/downtime";
-import { chooseActivity, chooseTraining, decideTraining, dropBlock, setBlock, setHoused, setLearningGain, setLiving } from "../domain/downtime/commands/plans";
-import { answerDowntime, passDays, toExploration } from "../domain/downtime/commands/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
 import { getRosterName } from "../domain/campaign/rules/roster";
-import { useAutoThrow, useDieAnswer, useThrower } from "./useDieCalls";
-import { getBlockActor, getToExplorationBar } from "../domain/downtime/rules/downtime";
-import type { Actor } from "../domain/profiles";
-import { useActGate } from "./useControl";
+import { useAutoThrow, useDieAnswer } from "./useDieCalls";
+import { useDowntimeDispatch } from "./useSceneDispatch";
+import { getToExplorationBar } from "../domain/downtime/rules/downtime";
 
 // story.tex "Downtime" — everyone's plans for the days typed (null: as long
 // as the longest plan), gated on a digest so that a change to the campaign
@@ -67,10 +64,10 @@ export function useDowntimeCalls(): CallRow[] {
 
 // The answer to a test the days call for.
 export function useDowntimeAnswer() {
-  const updateDowntime = useCampaignStore((s) => s.updateDowntime);
+  const send = useDowntimeDispatch();
   return useDieAnswer(
     () => useCampaignStore.getState().downtime.calls,
-    (callId, die, source, thrower) => updateDowntime(answerDowntime(callId, die, source, thrower)),
+    (callId, die, source) => send({ kind: "answer", args: [callId, die, source] }),
   );
 }
 
@@ -80,22 +77,19 @@ export function useDowntimeAutoThrow() {
 }
 
 export function useDowntimeCommands() {
-  const updateDowntime = useCampaignStore((s) => s.updateDowntime);
+  const send = useDowntimeDispatch();
   const pick = useCampaignStore((s) => s.setActiveCharacter);
-  const gate = useActGate();
-  const thrower = useThrower();
-  const run = (actor: Actor, updater: DowntimeUpdater) => { if (gate(actor)) updateDowntime(updater); };
   return {
     pick,
-    setLiving: (id: string, living: LivingLevel) => run({ id }, setLiving(id, living)),
-    setHoused: (id: string, housed: boolean) => run({ id }, setHoused(id, housed)),
-    chooseTraining: (id: string, target: TrainingTarget, withTrainer: boolean) => run({ id }, chooseTraining(id, target, withTrainer)),
-    chooseActivity: (id: string, activity: Exclude<Activity, 'training'>) => run({ id }, chooseActivity(id, activity)),
-    setBlock: (id: string, patch: Record<string, unknown>) => run(getBlockActor(id, patch), setBlock(id, patch)),
-    setLearningGain: (id: string, degree: number, gain: number) => run(getBlockActor(id, { gains: gain }), setLearningGain(id, degree, gain)),
-    decide: (id: string, decision: (typeof DECISIONS)[number]) => run(getBlockActor(id, { decision }), decideTraining(id, decision)),
-    drop: (id: string) => run({ id }, dropBlock(id)),
-    passDays: (days: number) => run("gm", passDays(days, thrower)),
-    toExploration: (partyId: string) => run("gm", toExploration(partyId)),
+    setLiving: (id: string, living: LivingLevel) => send({ kind: "setLiving", args: [id, living] }),
+    setHoused: (id: string, housed: boolean) => send({ kind: "setHoused", args: [id, housed] }),
+    chooseTraining: (id: string, target: TrainingTarget, withTrainer: boolean) => send({ kind: "chooseTraining", args: [id, target, withTrainer] }),
+    chooseActivity: (id: string, activity: Exclude<Activity, 'training'>) => send({ kind: "chooseActivity", args: [id, activity] }),
+    setBlock: (id: string, patch: Record<string, unknown>) => send({ kind: "setBlock", args: [id, patch] }),
+    setLearningGain: (id: string, degree: number, gain: number) => send({ kind: "setLearningGain", args: [id, degree, gain] }),
+    decide: (id: string, decision: (typeof DECISIONS)[number]) => send({ kind: "decide", args: [id, decision] }),
+    drop: (id: string) => send({ kind: "drop", args: [id] }),
+    passDays: (days: number) => send({ kind: "passDays", args: [days] }),
+    toExploration: (partyId: string) => send({ kind: "toExploration", args: [partyId] }),
   };
 }

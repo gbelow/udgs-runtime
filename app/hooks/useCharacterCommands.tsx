@@ -1,13 +1,4 @@
 import { useActiveCharacterUpdate } from "./useActiveCharacterSelector"
-import {
-  endSurge as doEndSurge,
-  addAffliction,
-  resetAllSkills as doResetAllSkills,
-  resetSkill as doResetSkill,
-  updateIL as doUpdateIL,
-  updateSTA as doUpdateSTA,
-  setLimitStress,
-} from "../domain/character/commands"
 import { AfflictionKey, Skills } from "../domain/types"
 import type { LimitStressAction } from "../domain/lists"
 
@@ -17,31 +8,31 @@ export function useCharacterCommands() {
   const update = useActiveCharacterUpdate()
 
   const chooseLimitStress = (action: LimitStressAction | null) => {
-    update(setLimitStress(action))
+    update({ kind: 'setLimitStress', args: [action] })
   }
 
   const endSurge = () => {
-    update(doEndSurge)
+    update({ kind: 'endSurge', args: [] })
   }
 
   const putAffliction = (affliction: AfflictionKey) => {
-    update(addAffliction(affliction))
+    update({ kind: 'addAffliction', args: [affliction] })
   }
 
   const updateIL = (newIL: number) => {
-    update(doUpdateIL(newIL))
+    update({ kind: 'updateIL', args: [newIL] })
   }
 
   const updateSTA = (newSTA: number) => {
-    update(doUpdateSTA(newSTA))
+    update({ kind: 'updateSTA', args: [newSTA] })
   }
 
   const resetSkill = (skillName: keyof Skills) => {
-    update(doResetSkill(skillName))
+    update({ kind: 'resetSkill', args: [skillName] })
   }
 
   const resetAllSkills = () => {
-    update(doResetAllSkills())
+    update({ kind: 'resetAllSkills', args: [] })
   }
 
   return {

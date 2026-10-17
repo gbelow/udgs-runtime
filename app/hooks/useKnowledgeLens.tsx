@@ -1,8 +1,6 @@
-import { addSpecificKnowledge, removeSpecificKnowledge } from "../domain/character/commands";
 import { getMentalAfflictionPenalty } from "../domain/character/rules/afflictions";
-import { makeSpecificKnowledgeLens } from "../domain/character/lenses/knowledge";
 import { getKnowledgeTerms, getSpecificKnowledgeValues } from "../domain/character/rules/knowledge";
-import { knowledgeLenses, sumTerms, Term, termsDigest, termsView } from "../domain/character/lenses";
+import { sumTerms, Term, termsDigest, termsView } from "../domain/character/lenses";
 import { Character, Knowledges } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
@@ -15,7 +13,7 @@ export function useFormalKnowledgeLens(key: keyof Knowledges) {
   const update = useActiveCharacterUpdate();
   const [terms, view] = useKnowledgeTerms(key);
   const setValue = (value: number) => {
-    update((c) => knowledgeLenses[key].set(c, value));
+    update({ kind: 'setKnowledge', args: [key, value] });
   };
   return [sumTerms(terms), setValue, terms, view] as const;
 }
@@ -33,15 +31,15 @@ export function useSpecificKnowledges() {
   const getValue = (name: string) => values[name] ?? untrained;
 
   const setValue = (name: string, value: number) => {
-    update((c) => makeSpecificKnowledgeLens(name).set(c, value));
+    update({ kind: 'setSpecificKnowledge', args: [name, value] });
   };
 
   const add = (name: string) => {
-    update(addSpecificKnowledge(name));
+    update({ kind: 'addSpecificKnowledge', args: [name] });
   };
 
   const remove = (name: string) => {
-    update(removeSpecificKnowledge(name));
+    update({ kind: 'removeSpecificKnowledge', args: [name] });
   };
 
   return { names: Object.keys(values), getValue, setValue, add, remove } as const;

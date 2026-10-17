@@ -1,6 +1,4 @@
 import { useMemo } from "react";
-import { addItemToContainer, removeItemFromContainer, drawItem, storeItem, putOnFromContainer } from "../domain/item/commands";
-import { doffArmor, wearFromContainer } from "../domain/character/commands";
 import { GEAR_SIZE, getCatalogItem } from "../domain/item/rules/items";
 import { getHeldItem } from "../domain/item/rules/hands";
 import { getItemCatalogRows, ItemCatalogRow } from "../domain/item/projections/items";
@@ -88,12 +86,12 @@ export function useItemLens() {
   const place = (containerKey: string, slot: SlotKind) => {
     if (!pending) return;
     if (pending.source === 'hand') {
-      update(storeItem(pending.itemId, containerKey, slot));
+      update({ kind: 'storeItem', args: [pending.itemId, containerKey, slot] });
       clear();
       return;
     }
     if (pending.source === 'worn') {
-      update(doffArmor({ containerKey, slot }));
+      update({ kind: 'doffArmor', args: [{ containerKey, slot }] });
       clear();
       return;
     }
@@ -105,23 +103,23 @@ export function useItemLens() {
     }
     const item = getCatalogItem(pending.key, pending.amount, pending.scale);
     if (!item) return;
-    update(addItemToContainer(containerKey, slot, item));
+    update({ kind: 'addItemToContainer', args: [containerKey, slot, item] });
   };
 
   const remove = (containerKey: string, itemId: string, amount?: number) => {
-    update(removeItemFromContainer(containerKey, itemId, amount));
+    update({ kind: 'removeItemFromContainer', args: [containerKey, itemId, amount] });
   };
 
   const draw = (containerKey: string, itemId: string) => {
-    update(drawItem(containerKey, itemId));
+    update({ kind: 'drawItem', args: [containerKey, itemId] });
   };
 
   const wear = (containerKey: string, itemId: string) => {
-    update(wearFromContainer(containerKey, itemId));
+    update({ kind: 'wearFromContainer', args: [containerKey, itemId] });
   };
 
   const putOn = (containerKey: string, itemId: string) => {
-    update(putOnFromContainer(containerKey, itemId));
+    update({ kind: 'putOnFromContainer', args: [containerKey, itemId] });
   };
 
   return { catalog, pending, pendingItem, trading: trading !== null, amount, scale, select, setAmount, setScale, selectHeld, selectWorn, clear, place, remove, draw, wear, putOn } as const;

@@ -1,10 +1,9 @@
-import { skillLenses, skillTermGetters, sumTerms, Term, termsDigest, termsView } from "../domain/character/lenses";
+import { skillTermGetters, sumTerms, Term, termsDigest, termsView } from "../domain/character/lenses";
 import { getSituationalAfflictions } from "../domain/scene/rules/situational";
 import { Character, Skills } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
 export function useSkillLens(skillName: keyof Skills) {
-  const lens = skillLenses[skillName];
   const update = useActiveCharacterUpdate();
 
   // Per-term breakdown, feeding the value, the tooltip and the affliction
@@ -20,7 +19,7 @@ export function useSkillLens(skillName: keyof Skills) {
     ) ?? [];
 
   const setValue = (newValue: number) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setSkill', args: [skillName, newValue] });
   };
 
   return [sumTerms(terms), setValue, terms, termsView(terms)] as const;

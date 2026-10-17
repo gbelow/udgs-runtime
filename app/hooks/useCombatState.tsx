@@ -1,6 +1,5 @@
 import { getRosterParties, getCombatRosterDigest, getPartiesPanel, getPartiesPanelDigest, type CombatRosterEntry, type PartiesPanel, type RosterParty } from "../domain/scene/projections/roster";
 import { useActingAsGm } from "./useRole";
-import { setTarget } from "../domain/scene/commands/action";
 import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
 import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../domain/scene/projections/roundChange";
 import { getOpenAction } from "../domain/scene/rules/log";
@@ -13,6 +12,7 @@ import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
+import { useSceneDispatch } from "./useSceneDispatch";
 
 // Fight-level primitives. Both go through the store selector, so a change to a
 // combatant's sheet does not re-render the round counter.
@@ -42,12 +42,12 @@ export function useCombatRoster(): {
   useCombatStore(getCombatRosterDigest);
   const parties = getRosterParties(useCombatStore.getState());
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
-  const update = useCombatStore((s) => s.updateCombatState);
+  const dispatch = useSceneDispatch();
 
   // A click on the roster aims the open action while it is waiting for a
   // target, and switches the active character otherwise.
   const pick = (entry: CombatRosterEntry) => {
-    if (entry.targetable) update(setTarget(entry.id));
+    if (entry.targetable) dispatch({ kind: "target", args: [entry.id] });
     else setActiveCharacter(entry.id);
   };
 

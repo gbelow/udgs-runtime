@@ -1,13 +1,11 @@
 import type { SurgeKind } from "../domain/types"
-import { removeFromFight, resetFight } from "../domain/scene/commands/fight"
 import type { CalledKind } from "../domain/scene/rules/heldTest"
 import type { RollMode } from "../domain/play/dice"
 import { useCombatStore } from "../stores/useCombatStore"
-import { useCampaignStore } from "../stores/useCampaignStore"
 import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
 import { readActiveCharacter } from "./useActiveCharacterSelector"
-import { useSceneDispatch } from "./useSceneDispatch"
+import { useSceneDispatch, useTableDispatch } from "./useSceneDispatch"
 
 // The turn, the round and the fight's parties, each press sent as a scene
 // command; whom it acts for is the registry's to say. Taking a character out
@@ -16,7 +14,7 @@ import { useSceneDispatch } from "./useSceneDispatch"
 export function useCombatCommands() {
 
   const tab = useAppStore((s) => s.selectedGameTab)
-  const updateTable = useCampaignStore((s) => s.updateTable)
+  const sendTable = useTableDispatch()
   const dispatch = useSceneDispatch()
 
   // the turn buttons act for the character this screen has picked
@@ -27,7 +25,7 @@ export function useCombatCommands() {
 
   const killCharacter = () => {
     const c = readActiveCharacter(tab)
-    if (c && isCampaignCharacter(c)) updateTable(removeFromFight(c.id))
+    if (c && isCampaignCharacter(c)) sendTable({ kind: "removeFromFight", args: [c.id] })
   }
 
   const startTurn = asPicked((id) => dispatch({ kind: "startTurn", args: [id] }))
@@ -51,8 +49,8 @@ export function useCombatCommands() {
   const createParty = (name: string) => dispatch({ kind: "createParty", args: [name] })
   const splitOff = (id: string) => dispatch({ kind: "splitOff", args: [id] })
   const renameParty = (partyId: string, name: string) => dispatch({ kind: "renameParty", args: [partyId, name] })
-  const removeCharacter = (id: string) => updateTable(removeFromFight(id))
-  const resetCombat = () => updateTable(resetFight)
+  const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
+  const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
   return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
 }

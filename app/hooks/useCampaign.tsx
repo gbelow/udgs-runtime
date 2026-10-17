@@ -3,21 +3,19 @@ import { toast } from "sonner";
 import { deleteCampaign, loadCampaign, saveCampaign } from "../actions";
 import { fromCampaignSave, getCampaignSaveBar, newCampaign, toCampaignSave } from "../domain/saves";
 import { getMoveBars, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
-import { addMap, createParty, leaveParty, moveToParty, removeMap, renameParty, splitOff } from "../domain/campaign/commands/parties";
 import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
 import { useMapNames } from "./useMap";
 import type { Character } from "../domain/types";
-import type { CampaignUpdater } from "../domain/campaign/types";
 import { makeCampaignCharacter } from "../domain/factories";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCampaignRole } from "./useRole";
 import { getJournalView } from "../domain/campaign/projections/journal";
-import { editNote, removeEntry, writeNote } from "../domain/campaign/commands/journal";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getMemberRows, getOwner, getOwnerOptions, setMember, type MemberRole } from "../domain/profiles";
 import { useProfileId } from "./useProfile";
 import { useActGate, useGmBar } from "./useControl";
+import { useCampaignDispatch, useTableDispatch } from "./useSceneDispatch";
 
 // The campaign in play's parties and who is in them, gated on a digest since
 // the view is freshly allocated.
@@ -36,20 +34,17 @@ export function useMoveBars(id: string | null): Record<string, string | null> {
 // them, fills them from the catalog, and moves people between them or out of
 // every party.
 export function useCampaignPartyCommands() {
-  const update = useCampaignStore((s) => s.updateCampaignState);
-  const load = useCampaignStore((s) => s.loadCharacter);
+  const send = useCampaignDispatch();
+  const sendTable = useTableDispatch();
   const pick = useCampaignStore((s) => s.setActiveCharacter);
-  const newId = () => crypto.randomUUID();
-  const gate = useActGate();
-  const asGm = (updater: CampaignUpdater) => { if (gate("gm")) update(updater); };
   return {
     pick,
-    createParty: (name: string) => asGm(createParty(newId(), name)),
-    renameParty: (partyId: string, name: string) => asGm(renameParty(partyId, name)),
-    moveToParty: (id: string, partyId: string) => asGm(moveToParty(id, partyId)),
-    splitOff: (id: string) => asGm(splitOff(id, newId)),
-    leaveParty: (id: string) => asGm(leaveParty(id)),
-    bring: (character: Character, partyId: string) => load(character, partyId),
+    createParty: (name: string) => send({ kind: "createParty", args: [name] }),
+    renameParty: (partyId: string, name: string) => send({ kind: "renameParty", args: [partyId, name] }),
+    moveToParty: (id: string, partyId: string) => send({ kind: "moveToParty", args: [id, partyId] }),
+    splitOff: (id: string) => send({ kind: "splitOff", args: [id] }),
+    leaveParty: (id: string) => send({ kind: "leaveParty", args: [id] }),
+    bring: (character: Character, partyId: string) => sendTable({ kind: "loadOntoRoster", args: [makeCampaignCharacter(character), partyId] }),
   } as const;
 }
 
@@ -57,13 +52,13 @@ export function useCampaignPartyCommands() {
 // taken away.
 export function useCampaignMaps(): { maps: CampaignMapView[]; templates: string[]; add: (name: string) => void; remove: (mapId: string) => void } {
   useCampaignStore(getCampaignMapsDigest);
-  const update = useCampaignStore((s) => s.updateCampaignState);
+  const send = useCampaignDispatch();
   const { mapList, maps: templates } = useMapNames();
   return {
     maps: getCampaignMaps(useCampaignStore.getState()),
     templates,
-    add: (name) => update(addMap(crypto.randomUUID(), mapList[name])),
-    remove: (mapId) => update(removeMap(mapId)),
+    add: (name) => send({ kind: "addMap", args: [mapList[name]] }),
+    remove: (mapId) => send({ kind: "removeMap", args: [mapId] }),
   };
 }
 
@@ -141,7 +136,7 @@ export function usePlayedBy(id: string) {
 export function useJournal(filter: string | null | 'all', limit?: number) {
   const journal = useCampaignStore((s) => s.journal);
   const names = useCampaignStore((s) => JSON.stringify(Object.entries(s.parties).map(([id, p]) => ({ id, name: p.name }))));
-  const update = useCampaignStore((s) => s.updateCampaignState);
+  const send = useCampaignDispatch();
   const role = useCampaignRole();
   const profile = useProfileId();
   const options: { id: string, name: string }[] = useMemo(() => JSON.parse(names), [names]);
@@ -149,9 +144,9 @@ export function useJournal(filter: string | null | 'all', limit?: number) {
   return {
     view,
     parties: options,
-    write: (party: string | null, text: string, gmOnly: boolean) => update(writeNote(party, text, gmOnly, profile)),
-    edit: (id: string, text: string, gmOnly: boolean) => update(editNote(id, text, gmOnly)),
-    remove: (id: string) => update(removeEntry(id)),
+    write: (party: string | null, text: string, gmOnly: boolean) => send({ kind: "writeNote", args: [party, text, gmOnly, profile] }),
+    edit: (id: string, text: string, gmOnly: boolean) => send({ kind: "editNote", args: [id, text, gmOnly] }),
+    remove: (id: string) => send({ kind: "removeEntry", args: [id] }),
   } as const;
 }
 

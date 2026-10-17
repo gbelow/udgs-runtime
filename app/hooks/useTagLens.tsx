@@ -2,5 +2,5 @@ import { tagLenses, type TagLevel } from "../domain/character/lenses/tags";
 import { useLens } from "./useLens";
 
 export function useTagLens(level: TagLevel) {
-  return useLens(tagLenses[level], '');
+  return useLens(tagLenses[level], '', (tag) => ({ kind: 'setTag', args: [level, tag] }));
 }

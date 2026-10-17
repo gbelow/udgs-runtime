@@ -11,7 +11,7 @@ export function useMovementLens(movementName: keyof Movement, field: 'distance' 
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? 0;
 
   const setValue = (newValue: number) => {
-    update((c) => lens.set(c, newValue));
+    update({ kind: 'setMovement', args: [movementName, field, newValue] });
   };
 
   return [value, setValue] as const;

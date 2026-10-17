@@ -1,6 +1,5 @@
 import { isChargedIn } from "../domain/scene/rules/started";
 import { useShallow } from "zustand/shallow";
-import { putOnFromCatalog, takeOffContainer } from "../domain/item/commands";
 import { getPutOnView } from "../domain/item/rules/costs";
 import type { MoveView } from "../domain/item/rules/costs";
 import {
@@ -57,11 +56,11 @@ export function useContainerLens() {
   // Puts the catalog pick on. The pick stays pending, as it does when placed
   // in a slot, so the same container can go on the next character too.
   const putOn = () => {
-    if (fromCatalog) update(putOnFromCatalog(fromCatalog));
+    if (fromCatalog) update({ kind: 'putOnFromCatalog', args: [fromCatalog] });
   };
 
   const takeOff = (key: string) => {
-    update(takeOffContainer(key));
+    update({ kind: 'takeOffContainer', args: [key] });
   };
 
   return { panels, burden, purse, startingWealth, putOnView, putOn, takeOff } as const;

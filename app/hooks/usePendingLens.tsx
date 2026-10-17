@@ -1,5 +1,3 @@
-import { realDice } from "../components/utils";
-import { resistCurse, resolvePending } from "../domain/character/commands";
 import { PendingRow, getPendingDigest, getPendingRows } from "../domain/character/lenses/pending";
 import { CurseRow, getCurseDigest, getCurseRows } from "../domain/character/lenses/curses";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
@@ -9,7 +7,7 @@ import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActive
 export function usePendingLens() {
   const update = useActiveCharacterUpdate();
   const rows: PendingRow[] = useActiveCharacterDerived(getPendingRows, getPendingDigest) ?? [];
-  const roll = (index: number, die?: number) => update(resolvePending(index, die === undefined ? realDice : () => die));
+  const roll = (index: number, die?: number) => update({ kind: 'resolvePending', args: [index, die] });
   return { rows, roll } as const;
 }
 
@@ -17,6 +15,6 @@ export function usePendingLens() {
 export function useCurseLens() {
   const update = useActiveCharacterUpdate();
   const rows: CurseRow[] = useActiveCharacterDerived(getCurseRows, getCurseDigest) ?? [];
-  const resist = (key: string, die?: number) => update(resistCurse(key, die === undefined ? realDice : () => die));
+  const resist = (key: string, die?: number) => update({ kind: 'resistCurse', args: [key, die] });
   return { rows, resist } as const;
 }

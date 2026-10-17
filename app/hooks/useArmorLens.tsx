@@ -1,6 +1,5 @@
 import { isChargedIn } from "../domain/scene/rules/started";
 import { useShallow } from "zustand/shallow";
-import { doffArmor, equipArmor, putGauntlets, putHelm, toggleVisor } from "../domain/character/commands";
 import { ArmorPanelView, ArmorPiecesView, getArmorPanel, getArmorPiecesView } from "../domain/character/lenses/armor";
 import { getEquipView, WearView } from "../domain/character/rules/donning";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
@@ -34,14 +33,14 @@ export function useArmorLens() {
     useActiveCharacterSelector(useShallow((c: Character) => (fromCatalog ? getEquipView(c, fromCatalog, charged) : null))) ?? null;
 
   const drop = () => {
-    update(doffArmor(null));
+    update({ kind: 'doffArmor', args: [null] });
     if (pending?.source === 'worn') setPending(null);
   };
 
   // Puts the catalog pick on. The pick stays pending, as it does when placed
   // in a slot, so the same armor can dress the next character too.
   const equip = () => {
-    if (fromCatalog) update(equipArmor(fromCatalog));
+    if (fromCatalog) update({ kind: 'equipArmor', args: [fromCatalog] });
   };
 
   return { panel, equipView, equip, drop } as const;
@@ -60,8 +59,8 @@ export function useDamageTiers(): DamageTierRow[] {
 export function useArmorPieces() {
   const update = useActiveInventoryUpdate();
   const pieces: ArmorPiecesView | null = useActiveCharacterDerived((c, fight) => getArmorPiecesView(c, isChargedIn(fight)), JSON.stringify) ?? null;
-  const gauntlets = () => update(putGauntlets);
-  const helm = () => update(putHelm);
-  const visor = () => update(toggleVisor);
+  const gauntlets = () => update({ kind: 'putGauntlets', args: [] });
+  const helm = () => update({ kind: 'putHelm', args: [] });
+  const visor = () => update({ kind: 'toggleVisor', args: [] });
   return { pieces, gauntlets, helm, visor } as const;
 }

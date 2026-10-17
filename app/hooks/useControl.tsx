@@ -41,13 +41,6 @@ function useActorBarCheck(): (actor: Actor) => string | null {
   return (actor) => getActorBar(actor, viewer());
 }
 
-// Whether whoever is at the screen plays a character in play, asked as
-// `useActorBarCheck` is.
-export function useControlCheck(): (id: string) => boolean {
-  const bar = useActorBarCheck();
-  return (id) => bar({ id }) === null;
-}
-
 // Whether a press or a click acting for `actor` may be made from the screen
 // (see `getActorBar`). Refused, why is said.
 export function useActGate(): (actor: Actor) => boolean {
@@ -57,12 +50,6 @@ export function useActGate(): (actor: Actor) => boolean {
     if (why) toast.error(`Not yours to do: ${why}.`);
     return why === null;
   };
-}
-
-// The same for a press acting for the character `id`, or for nobody.
-export function useActForGate(): (id: string | null) => boolean {
-  const gate = useActGate();
-  return (id) => gate(id === null ? null : { id });
 }
 
 // Why whoever is at the screen cannot act for `actor`, or null when they

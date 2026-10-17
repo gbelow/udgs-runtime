@@ -1,5 +1,4 @@
 import { isChargedIn } from "../domain/scene/rules/started";
-import { forgetAbility, learnAbility, toggleAbility, useAbility } from "../domain/character/commands";
 import { AbilityFamilyView, getAbilityCatalogRows, getLearnedAbilityRows } from "../domain/character/lenses/abilities";
 import type { AbilityKey } from "../domain/abilities";
 import { Character } from "../domain/types";
@@ -19,19 +18,19 @@ export function useAbilityLens() {
     useActiveCharacterDerived((c: Character, fight) => getLearnedAbilityRows(c, isChargedIn(fight)), JSON.stringify) ?? [];
 
   const learn = (key: AbilityKey) => {
-    update(learnAbility(key));
+    update({ kind: 'learnAbility', args: [key] });
   };
 
   const forget = (key: AbilityKey) => {
-    update(forgetAbility(key));
+    update({ kind: 'forgetAbility', args: [key] });
   };
 
   const toggle = (key: AbilityKey) => {
-    update(toggleAbility(key));
+    update({ kind: 'toggleAbility', args: [key] });
   };
 
   const use = (key: AbilityKey) => {
-    update(useAbility(key));
+    update({ kind: 'useAbility', args: [key] });
   };
 
   return { catalog, learned, learn, forget, toggle, use } as const;

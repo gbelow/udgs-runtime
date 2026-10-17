@@ -1,4 +1,4 @@
-import { CampaignCharacter, Character, CreationDraft } from "../domain/types";
+import { Character, CreationDraft } from "../domain/types";
 import { useActingAsGm } from "./useRole";
 import type { SceneState, SeenScene } from "../domain/scene/types";
 import { GameTabs, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
@@ -9,12 +9,10 @@ import { useCreationStore } from "../stores/useCreationStore";
 import { updateCreationCharacter } from "../domain/character/commands/creation";
 import { getCreatedCharacter } from "../domain/character/rules/creation";
 import { useCampaignStore } from "../stores/useCampaignStore";
-import { updateInventory } from "../domain/scene/commands/characters";
+import { isGearCommand, toCharacterUpdater, type CharacterCommand, type GearCommand } from "../domain/character/commands/registry";
+import { realDice } from "../components/utils";
+import { useCampaignDispatch, useSceneDispatch } from "./useSceneDispatch";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
-import { toast } from "sonner";
-import { useControlCheck } from "./useControl";
-
-type CharacterUpdater = (c: Character) => Character;
 
 // Every gear panel on the creation tab reads the character the draft makes, so
 // it is built once per draft rather than once per subscriber.
@@ -27,8 +25,6 @@ function createdOf(draft: CreationDraft): Character {
   }
   return c;
 }
-type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
-
 // Read side: select a derived value off the active character *inside* the
 // Zustand selector, so the store gates re-renders on the computed output
 // (Object.is by default) rather than on the whole-character reference. This is
@@ -83,50 +79,49 @@ export function readActiveCharacter(tab: GameTabs): Character | null {
   return null;
 }
 
-// Write side: the unified updater, without subscribing to the whole character.
+// Write side: the unified edit, without subscribing to the whole character.
 // Selecting just the stable action refs (and the tab) avoids re-introducing the
 // whole-character subscription that useActiveCharacter carries on its read path.
-// A character in play is changed only by whoever plays them (`canControl`).
-export function useActiveCharacterUpdate() {
-  const updateCombatActive = useCombatStore((s) => s.updateActiveCharacter);
-  const gm = useActingAsGm();
-  return useUpdater((updater) => updateCombatActive(updater, gm ? 'GM edit' : undefined));
+// An edit is a command: in a fight it is sent as the scene's `edit`, played by
+// the table for whoever plays the character (or the GM), and on the roster as
+// the campaign's; on the editor's tabs it is applied here.
+export function useActiveCharacterUpdate(): (command: CharacterCommand) => void {
+  return useEdit();
 }
 
-// The same, for a move with the character's gear: in a fight the combat
-// domain refuses it outside their own turn, unless the GM makes it.
-export function useActiveInventoryUpdate() {
-  const updateCombatState = useCombatStore((s) => s.updateCombatState);
-  const gm = useActingAsGm();
-  return useUpdater((updater) => {
-    const id = useCombatStore.getState().activeCharacterId;
-    if (!id) return undefined;
-    updateCombatState(updateInventory(id, updater, gm));
-    return useCombatStore.getState().characters[id];
-  });
+// The same, for a move with the character's gear: in a fight the scene
+// refuses it outside their own turn, unless the GM makes it.
+export function useActiveInventoryUpdate(): (command: GearCommand) => void {
+  return useEdit();
 }
 
-function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCharacter | undefined) {
+function useEdit() {
   const tab = useAppStore((s) => s.selectedGameTab);
   const updateCharacter = useCharacterStore((s) => s.updateCharacter);
   const updateRace = useRaceStore((s) => s.updateRace);
   const updateDraft = useCreationStore((s) => s.updateDraft);
-  const updatePartyActive = useCampaignStore((s) => s.updateActiveCharacter);
-  const controls = useControlCheck();
+  const gm = useActingAsGm();
+  const dispatch = useSceneDispatch();
+  const sendCampaign = useCampaignDispatch();
 
-  function update(updater: CharacterUpdater): Character | undefined;
-  function update(updater: CampaignUpdater): CampaignCharacter | undefined;
-  function update(updater: CharacterUpdater | CampaignUpdater) {
+  return (command: CharacterCommand | GearCommand) => {
     const owner = TAB_OWNER[tab];
-    if (owner === "character") return updateCharacter(updater as CharacterUpdater);
-    if (owner === "creation") return createdOf(updateDraft(updateCreationCharacter(updater as CharacterUpdater)));
-    if (owner === "race") return updateRace(updater as CharacterUpdater);
-    const id = owner === "campaign" ? useCampaignStore.getState().activeCharacterId : useCombatStore.getState().activeCharacterId;
-    if (id && !controls(id)) { toast.error("Only whoever plays this character changes them."); return undefined; }
-    if (owner === "campaign") return updatePartyActive(updater as CampaignUpdater);
-    return updateCombatActive(updater as CampaignUpdater);
-  }
-  return update;
+    if (owner === "combat") {
+      const id = useCombatStore.getState().activeCharacterId;
+      if (!id) return;
+      dispatch(isGearCommand(command) ? { kind: "editGear", args: [id, command, gm] } : { kind: "edit", args: [id, command, gm] });
+      return;
+    }
+    if (owner === "campaign") {
+      const id = useCampaignStore.getState().activeCharacterId;
+      if (id) sendCampaign({ kind: "edit", args: [id, command] });
+      return;
+    }
+    const updater = toCharacterUpdater(command, { dice: realDice });
+    if (owner === "character") updateCharacter(updater);
+    else if (owner === "creation") updateDraft(updateCreationCharacter(updater));
+    else if (owner === "race") updateRace(updater);
+  };
 }
 
 // A derived shape that is freshly allocated on every call — a term breakdown, a
