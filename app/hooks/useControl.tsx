@@ -6,20 +6,25 @@ import { useCombatStore } from "../stores/useCombatStore";
 
 type ViewerFields = Pick<AppState, "profile" | "devServer" | "gmMode" | "profileList">;
 
-// Who is at the screen, read off the app store and the campaign in play.
-const viewerOf = (app: ViewerFields, campaign: CampaignStore): Viewer => {
-  const profile = app.profile?.id ?? null;
-  return {
-    profile, role: getCampaignRole(campaign.file.members, profile, app.devServer), gmMode: app.gmMode, profiles: app.profileList,
-    ownerOf: (id) => getOwner(id, campaign.owners),
-  };
-};
+// Profile `profile` at a screen with GM mode `gmMode`, in the campaign in
+// play.
+const viewerOf = (app: ViewerFields, campaign: CampaignStore, profile: string | null, gmMode: boolean): Viewer => ({
+  profile, role: getCampaignRole(campaign.file.members, profile, app.devServer), gmMode, profiles: app.profileList,
+  ownerOf: (id) => getOwner(id, campaign.owners),
+});
 
 // Who is at the screen, asked when it is asked: in a handler, as of the
 // click, so that holding the check costs no subscription.
 export function useViewerCheck(): () => Viewer {
   const app = useAppStoreApi();
-  return () => viewerOf(app.getState(), useCampaignStore.getState());
+  return () => { const a = app.getState(); return viewerOf(a, useCampaignStore.getState(), a.profile?.id ?? null, a.gmMode); };
+}
+
+// Who is at another screen of the table, by the profile it joined as, asked
+// as `useViewerCheck` is.
+export function useGuestViewerCheck(): (profile: string, gmMode: boolean) => Viewer {
+  const app = useAppStoreApi();
+  return (profile, gmMode) => viewerOf(app.getState(), useCampaignStore.getState(), profile, gmMode);
 }
 
 // Whether the dice of character `id` are the screen's own to throw
@@ -60,7 +65,7 @@ export function useActorBar(actor: Actor): string | null {
   const gmMode = useAppStore((s) => s.gmMode);
   const profileList = useAppStore((s) => s.profileList);
   const app = { profile, devServer, gmMode, profileList };
-  return useCampaignStore((s) => getActorBar(actor, viewerOf(app, s)));
+  return useCampaignStore((s) => getActorBar(actor, viewerOf(app, s, profile?.id ?? null, gmMode)));
 }
 
 // Why only the GM may use the GM's own controls, or null for the GM.

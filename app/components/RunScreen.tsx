@@ -14,6 +14,7 @@ import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { PartiesView } from './PartiesView';
+import { TableLink } from './RunParts';
 import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
@@ -114,6 +115,7 @@ export function RunScreen(){
       <div className='flex flex-row gap-3 items-start px-2 py-1.5 border-b border-line shrink-0'>
         <ModeSwitch />
         <div className='flex-1 min-w-0'>{strip}</div>
+        <TableLink />
       </div>
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
         <section className='flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>

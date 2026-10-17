@@ -10,6 +10,7 @@ import { CampaignEditor } from './CampaignEditor';
 import { CharacterCreation } from './CharacterCreation';
 import { ProfileLanding, ProfileMenu } from './ProfileMenu';
 import { useProfileId } from '../hooks/useProfile';
+import { useTableSession } from '../hooks/useTable';
 
 const TABS = [
   { tab: 'create', label: 'Create', mobile: true },
@@ -25,6 +26,8 @@ export function App(){
   const { tab: selectedGameTab, runTab, inRun, inCatalog, setTab: setSelectedGameTab } = useGameTab()
 
   const [open, setOpen] = useState(false)
+
+  useTableSession()
 
   if (!useProfileId()) return <ProfileLanding />
 

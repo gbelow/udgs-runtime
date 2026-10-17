@@ -1,68 +1,37 @@
 import { toast } from "sonner";
-import { realDice } from "../components/utils";
-import type { Viewer } from "../domain/profiles";
-import { getCommandBar, toUpdater, type SceneCommand } from "../domain/scene/commands/registry";
-import { getTableCommandBar, toTableUpdater, type TableCommand } from "../domain/scene/commands/tableRegistry";
-import { getCampaignCommandBar, toCampaignUpdater, type CampaignCommand } from "../domain/campaign/commands/registry";
-import { getExplorationCommandBar, toExplorationUpdater, type ExplorationCommand } from "../domain/exploration/commands/registry";
-import { getDowntimeCommandBar, toDowntimeUpdater, type DowntimeCommand } from "../domain/downtime/commands/registry";
-import { useCombatStore } from "../stores/useCombatStore";
-import { useCampaignStore } from "../stores/useCampaignStore";
+import { barOf, playOf, type Commands, type PartName } from "../net/parts";
+import { sendToHost } from "../net/session";
+import type { CommandMessage } from "../net/protocol";
+import { useTableStore } from "../stores/useTableStore";
 import { useViewerCheck } from "./useControl";
 import { useThrower } from "./useDieCalls";
 
-const newId = () => crypto.randomUUID();
-
-// A press sent as data from this screen: refused, why is said, and otherwise
-// played into the store that keeps its part, with this screen's dice and ids.
-// Whether it was sent.
-function useDispatchOf<S, C>(read: () => S, bar: (state: S, command: C, viewer: Viewer) => string | null, play: (command: C) => void): (command: C) => boolean {
+// A press sent as data from this screen: refused, why is said; otherwise
+// played into the store that keeps its part, with this screen's dice and ids,
+// or, on a screen that joined a table, sent to its host to play. Whether it
+// was sent.
+function useDispatchOf<P extends PartName>(part: P): (command: Commands[P]) => boolean {
   const viewer = useViewerCheck();
+  const thrower = useThrower();
   return (command) => {
-    const why = bar(read(), command, viewer());
-    if (why) toast.error(`Not yours to do: ${why}.`);
-    else play(command);
-    return why === null;
+    const v = viewer();
+    const why = barOf(part, command, v);
+    if (why) { toast.error(`Not yours to do: ${why}.`); return false; }
+    const table = useTableStore.getState();
+    if (table.mode !== 'guest') { playOf(part, command, thrower); return true; }
+    if (!table.socket || table.status !== 'open') { toast.error('Not at the table: the link to its host is down.'); return false; }
+    sendToHost(table.socket, { kind: 'command', part, command, gmMode: v.gmMode } as CommandMessage);
+    return true;
   };
 }
 
-export function useSceneDispatch(): (command: SceneCommand) => boolean {
-  const thrower = useThrower();
-  const updateState = useCombatStore((s) => s.updateCombatState);
-  return useDispatchOf(useCombatStore.getState, getCommandBar, (command) => updateState(toUpdater(command, { thrower, newId })));
-}
+export const useSceneDispatch = () => useDispatchOf('scene');
 
 // What crosses between the campaign and the fight.
-export function useTableDispatch(): (command: TableCommand) => boolean {
-  const updateTable = useCampaignStore((s) => s.updateTable);
-  return useDispatchOf(
-    () => ({ campaign: useCampaignStore.getState(), fight: useCombatStore.getState() }),
-    getTableCommandBar,
-    (command) => updateTable(toTableUpdater(command, { newId })),
-  );
-}
+export const useTableDispatch = () => useDispatchOf('table');
 
-export function useCampaignDispatch(): (command: CampaignCommand) => boolean {
-  const update = useCampaignStore((s) => s.updateCampaignState);
-  return useDispatchOf(useCampaignStore.getState, getCampaignCommandBar, (command) => update(toCampaignUpdater(command, { newId, dice: realDice })));
-}
+export const useCampaignDispatch = () => useDispatchOf('campaign');
 
-export function useExplorationDispatch(): (command: ExplorationCommand) => boolean {
-  const thrower = useThrower();
-  const update = useCampaignStore((s) => s.updateExploration);
-  return useDispatchOf(
-    () => { const s = useCampaignStore.getState(); return { campaign: s, exploration: s.exploration }; },
-    getExplorationCommandBar,
-    (command) => update(toExplorationUpdater(command, { thrower, newId })),
-  );
-}
+export const useExplorationDispatch = () => useDispatchOf('exploration');
 
-export function useDowntimeDispatch(): (command: DowntimeCommand) => boolean {
-  const thrower = useThrower();
-  const update = useCampaignStore((s) => s.updateDowntime);
-  return useDispatchOf(
-    () => { const s = useCampaignStore.getState(); return { campaign: s, downtime: s.downtime }; },
-    getDowntimeCommandBar,
-    (command) => update(toDowntimeUpdater(command, { thrower })),
-  );
-}
+export const useDowntimeDispatch = () => useDispatchOf('downtime');

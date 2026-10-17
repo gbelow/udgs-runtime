@@ -84,6 +84,10 @@ Done: `domain/registry.ts` is the pattern every registry is built with (the scen
 
 Steps 1–3 and 6 for the action panel first: the most-pressed path, and the harness already covers it. Step 5 next, before any second screen exists. Steps 4, 7, 8 and 9 follow.
 
+## The relay (phase 1)
+
+Built: `relay/` is our own `ws` server (`pnpm relay`, its own `package.json` to deploy alone), one room per campaign id, one host and any number of guests; it wraps a guest's message with who sent it and reads nothing. `app/net/` is the client: the host sends what changed since the last change sent, found by reference (`diff.ts`), and the whole state only to a guest who joins or missed a change; a guest's press goes to the host, which judges it as the guest's profile and plays it with its own dice and ids. Measured over the fuzzer's crowd sessions: a median change of about 2 KB against a fight of about 115 KB. Left for later: what each viewer may see, reconnecting by itself, loading a campaign's journal and maps in chunks on the server.
+
 ## Open
 
 - Hidden information in exploration and downtime: more rules apply there; decided when those parts get their registries.

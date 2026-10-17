@@ -22,6 +22,8 @@ import { archer, bomber, crossbowman, brawler, mage, medic, netter, serpent, spe
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
+import { apply, diff } from '../net/diff'
+import { sharedSceneOf } from '../net/protocol'
 
 // A player who presses whatever there is to press, in no order: every click
 // the board takes and every button the panels dispatch, thrown at a fight of
@@ -407,17 +409,36 @@ function writeReplay(h: Harness, seed: number): string {
   return file
 }
 
+// A table's guest holds what its host holds: what changed since the last
+// change sent, carried as JSON and applied to the guest's copy, leaves that
+// copy the host's state.
+const onWire = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
+function wireOf(h: Harness) {
+  let sent = sharedSceneOf(h.state())
+  let guest = onWire(sent) as Record<string, unknown>
+  return () => {
+    const now = sharedSceneOf(h.state())
+    const patch = diff(sent, now)
+    if (patch) guest = apply(guest, onWire(patch))
+    sent = now
+    expect(onWire(guest), "a guest's copy is the host's state").toEqual(onWire(now))
+  }
+}
+
 function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Picker) {
   const dice: Play[] = h.table ? [{ name: 'throw a die called for', weight: 12, run: throwCalled }] : []
   const bag = [...menu, ...dice].flatMap((p) => Array<Play>(p.weight ?? 1).fill(p))
   const trail: string[] = []
   const stop = record(String(++sessions))
+  const assertWire = wireOf(h)
   for (let step = 0; step < steps; step++) {
     const play = pick(bag)
     trail.push(play.name)
     try {
       play.run(h, pick)
-      assertSound(h, step % STORAGE_EVERY === 0 || step === steps - 1)
+      const storage = step % STORAGE_EVERY === 0 || step === steps - 1
+      assertSound(h, storage)
+      if (storage) assertWire()
       assertOffersHold(h)
     } catch (e) {
       stop()

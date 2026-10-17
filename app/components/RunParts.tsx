@@ -7,6 +7,7 @@ import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { usePlayedBy } from '../hooks/useCampaign'
+import { useTableLink } from '../hooks/useTable'
 import type { Character } from '../domain/types'
 import type { TimelineView } from '../domain/campaign/projections/timeline'
 import type { ClockView } from '../domain/campaign/projections/clock'
@@ -123,5 +124,28 @@ export function TimelineControl({ timeline }: { timeline: TimelineView }){
       {bar ? <span className='text-[10px] text-muted'>{bar}</span> : null}
       {clock ? null : <span className='text-[10px] text-muted'>not in the timeline: only the scene is open until it is placed and running</span>}
     </MenuSection>
+  )
+}
+
+const LINK_STATUS = { connecting: 'connecting…', open: 'at the table', noHost: 'waiting for the GM to host', closed: 'link closed' } as const
+
+// The screen's link to the table: the GM hosts the campaign open on their
+// screen, and a player joins it to play from their own.
+export function TableLink(){
+  const { mode, status, why, guests, offer, connect, leave } = useTableLink()
+
+  if (!mode) return (
+    <Button size='xs' aria-label={`${offer} table`} title={offer === 'host' ? 'let the players join this campaign from their screens' : "play this campaign from the GM's table"} onClick={connect}>
+      {offer === 'host' ? 'host table' : 'join table'}
+    </Button>
+  )
+  return (
+    <span className='inline-flex items-center gap-1.5 text-[10px] text-muted'>
+      <span title={mode === 'host' && guests.length > 0 ? guests.map((g) => g.name).join(', ') : undefined}>
+        {status === 'open' && mode === 'host' ? `hosting · ${guests.length} joined` : LINK_STATUS[status]}{status === 'closed' && why ? `: ${why}` : ''}
+      </span>
+      {status === 'closed' ? <Button size='xs' aria-label='reconnect table' onClick={connect}>reconnect</Button> : null}
+      <Button size='xs' variant='ghost' aria-label='leave table' onClick={leave}>leave</Button>
+    </span>
   )
 }

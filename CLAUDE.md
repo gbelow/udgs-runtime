@@ -16,6 +16,7 @@ pnpm lint     # eslint
 pnpm test     # vitest (watch)
 pnpm test:run # vitest single run (without the board fuzzer)
 pnpm test:fuzz # the board fuzzer (FUZZ_SEEDS=n for a wider sweep)
+pnpm relay    # the table relay for multiplayer (ws://localhost:8787, NEXT_PUBLIC_RELAY_URL)
 ```
 
 Package manager is **pnpm**, Node v20+. Redis persistence requires `.env` with `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` (see `.env.example`).

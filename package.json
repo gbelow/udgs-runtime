@@ -12,7 +12,8 @@
     "damage": "tsx tools/damage.ts",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:fuzz": "vitest run --config vitest.fuzz.config.ts"
+    "test:fuzz": "vitest run --config vitest.fuzz.config.ts",
+    "relay": "tsx relay/server.ts"
   },
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
@@ -35,11 +36,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "0.180.0",
+    "@types/ws": "^8.18.2",
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "ws": "^8.22.0"
   }
 }
