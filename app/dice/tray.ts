@@ -25,9 +25,10 @@ const HAND = 2.2
 const MIN_SPEED = 7
 const MAX_SPEED = 22
 const TWIRL = new THREE.Vector3(1, 1, 0).normalize()
+const SHINE_MS = 550
 
 type Pose = { position: THREE.Vector3; rotation: THREE.Quaternion }
-type Placed = Pose & { mesh: THREE.Mesh; kind: DieKind; tag: number }
+type Placed = Pose & { mesh: THREE.Mesh; kind: DieKind; tag: number; value: number }
 type Track = { frames: Float32Array; steps: number }
 
 let ready: Promise<void> | null = null
@@ -44,6 +45,19 @@ const clampToTray = (v: THREE.Vector3) => {
 // Where the i-th die of a handful sits beside the first.
 const spot = (i: number, into = new THREE.Vector3()) => into.set((i % 2) * 0.7 - 0.35, 0, Math.floor(i / 2) * 0.7)
 
+// A track cut a few steps after its die last moved, so the playback ends
+// when the die comes to rest rather than when the physics lets it sleep.
+const settled = (track: Track): Track => {
+  const f = track.frames
+  let last = 0
+  for (let s = 1; s < track.steps; s++) {
+    let moved = 0
+    for (let k = 0; k < 7; k++) moved = Math.max(moved, Math.abs(f[s * 7 + k] - f[(s - 1) * 7 + k]))
+    if (moved > 0.0015) last = s
+  }
+  return { frames: f, steps: Math.min(track.steps, last + 4) }
+}
+
 const restOf = ({ frames, steps }: Track): Pose => {
   const o = (steps - 1) * 7
   return { position: new THREE.Vector3(frames[o], frames[o + 1], frames[o + 2]), rotation: new THREE.Quaternion(frames[o + 3], frames[o + 4], frames[o + 5], frames[o + 6]) }
@@ -56,6 +70,7 @@ export class DiceTray {
   private fixtures: THREE.Mesh[] = []
   private placed: Placed[] = []
   private held: THREE.Mesh[] = []
+  private shining: { dice: Placed[]; start: number } | null = null
   private playing: { meshes: THREE.Mesh[]; tracks: Track[]; turns: THREE.Quaternion[]; start: number; done: () => void } | null = null
   private flinging: ((f: Fling | null) => void) | null = null
   private hand = new THREE.Vector3(-W + 1.8, HAND, 0)
@@ -68,8 +83,14 @@ export class DiceTray {
   private frame = 0
   private disposed = false
   private resizer: ResizeObserver
+  private canvas = document.createElement('canvas')
 
-  constructor(private canvas: HTMLCanvasElement) {
+  // The tray draws on a canvas of its own, put into `host` and taken out on
+  // dispose, so its context is never reused once lost.
+  constructor(host: HTMLElement) {
+    const canvas = this.canvas
+    canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none'
+    host.appendChild(canvas)
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.shadowMap.enabled = true
@@ -118,6 +139,7 @@ export class DiceTray {
     }
     this.renderer.dispose()
     this.renderer.forceContextLoss()
+    this.canvas.remove()
   }
 
   // Empties the tray.
@@ -135,6 +157,12 @@ export class DiceTray {
   keepOnly(keep: number) {
     for (const p of this.placed) if (p.tag !== keep) for (const mat of p.mesh.material as THREE.Material[]) Object.assign(mat, { transparent: true, opacity: 0.35 })
     this.dirty = true
+  }
+
+  // A quick glint over the faces read, of the dice tagged `keep`, or of every
+  // die at rest.
+  shine(keep: number | null) {
+    this.shining = { dice: this.placed.filter((p) => keep === null || p.tag === keep), start: performance.now() }
   }
 
   // The dice held over the tray until the hand flings them, or until
@@ -196,14 +224,15 @@ export class DiceTray {
       if (s > 30 && bodies.every((b) => b.isSleeping())) break
     }
     world.free()
-    const rests = tracks.map(restOf)
+    const played = tracks.map(settled)
+    const rests = played.map(restOf)
     const turns = dice.map((d, i) => turnOnto(SHAPES[d.kind], d.value, faceUp(SHAPES[d.kind], rests[i].rotation)))
     for (const m of this.held) this.scene.remove(m)
     const meshes = dice.map((d, i) => this.held[i] ?? makeMesh(SHAPES[d.kind], LOOKS[d.kind]))
     this.held = []
     meshes.forEach((m) => this.scene.add(m))
-    await new Promise<void>((done) => { this.playing = { meshes, tracks, turns, start: performance.now(), done } })
-    dice.forEach((d, i) => this.placed.push({ ...rests[i], mesh: meshes[i], kind: d.kind, tag: d.tag }))
+    await new Promise<void>((done) => { this.playing = { meshes, tracks: played, turns, start: performance.now(), done } })
+    dice.forEach((d, i) => this.placed.push({ ...rests[i], mesh: meshes[i], kind: d.kind, tag: d.tag, value: d.value }))
   }
 
   private resize() {
@@ -241,7 +270,18 @@ export class DiceTray {
       m.position.y += Math.sin(now / 300 + i) * 0.08
       m.rotateOnAxis(TWIRL, 0.03)
     })
-    if (p || this.held.length > 0 || this.dirty) {
+    const glint = this.shining
+    if (glint) {
+      const t = Math.min((now - glint.start) / SHINE_MS, 1)
+      const glow = t < 0.2 ? t / 0.2 : 1 - (t - 0.2) / 0.8
+      for (const d of glint.dice) {
+        const face = SHAPES[d.kind].faces.findIndex((f) => f.value === d.value)
+        ;(d.mesh.material as THREE.MeshStandardMaterial[])[face].emissive.setRGB(glow, glow * 0.9, glow * 0.6)
+        d.mesh.scale.setScalar(1 + glow * 0.12)
+      }
+      if (t === 1) this.shining = null
+    }
+    if (p || glint || this.held.length > 0 || this.dirty) {
       this.renderer.render(this.scene, this.camera)
       this.dirty = false
     }

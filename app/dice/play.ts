@@ -32,7 +32,9 @@ export async function playThrow(tray: DiceTray, thrown: TrayThrow, stage: (s: Tr
     }
   }
   if (stopped()) return false
-  if (thrown.rounds.at(-1)!.length > 1) tray.keepOnly(thrown.kept)
+  const pair = thrown.rounds.at(-1)!.length > 1
+  if (pair) tray.keepOnly(thrown.kept)
+  tray.shine(pair ? thrown.kept : null)
   stage('done')
   return true
 }

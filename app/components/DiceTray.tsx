@@ -16,13 +16,13 @@ const SAY: Record<Exclude<TrayStage, 'done'>, string> = {
 // flung by hand, and what they came to once they land.
 export default function DiceTray(){
   const { request, finish } = useTray()
-  const canvas = useRef<HTMLCanvasElement>(null)
+  const host = useRef<HTMLDivElement>(null)
   const tray = useRef<Tray | null>(null)
   const [stage, setStage] = useState<TrayStage>('fling')
 
   useEffect(() => {
-    if (!canvas.current) return
-    tray.current = new Tray(canvas.current)
+    if (!host.current) return
+    tray.current = new Tray(host.current)
     return () => { tray.current?.dispose(); tray.current = null }
   }, [])
 
@@ -31,7 +31,7 @@ export default function DiceTray(){
     let stopped = false
     let timer: ReturnType<typeof setTimeout> | undefined
     void playThrow(tray.current, request.thrown, setStage, () => stopped).then((landed) => {
-      if (landed) timer = setTimeout(() => finish(request.id), 2500)
+      if (landed) timer = setTimeout(() => finish(request.id), 1000)
     })
     return () => { stopped = true; clearTimeout(timer) }
   }, [request, finish])
@@ -47,7 +47,7 @@ export default function DiceTray(){
           {stage === 'done' ? <Button size='xs' onClick={() => finish(request.id)}>go on</Button> : null}
         </span>
       </div>
-      <canvas ref={canvas} className='flex-1 min-h-0 w-full touch-none cursor-grab rounded border border-line' />
+      <div ref={host} className='flex-1 min-h-0 w-full cursor-grab rounded border border-line overflow-hidden' />
     </div>
   )
 }
