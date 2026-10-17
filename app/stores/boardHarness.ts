@@ -5,7 +5,8 @@ import { SceneStateSchema, type ActionDraft, type SceneState, type LightLevel, t
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { resolveClick, type Click } from '../domain/scene/commands/click'
 import { createBoard, removeBoard, setLight } from '../domain/scene/commands/board'
-import { amendAction, commitAction, declareAction } from '../domain/scene/commands/action'
+import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
+import type { Viewer } from '../domain/profiles'
 import { startTurn } from '../domain/scene/commands/turn'
 import { makeCampaignCharacter } from '../domain/factories'
 import type { CampaignCharacter } from '../domain/types'
@@ -17,7 +18,10 @@ import { useCampaignStore } from './useCampaignStore'
 // command its hook dispatches. Entropy is the one thing handed in: `roll` is
 // the die, and `dice` whoever throws what a command calls for — the screen at
 // once, or, at a table that rolls its own (`table`), nobody until a die is
-// answered.
+// answered. A panel press is sent as the scene command its hook sends, by
+// the GM unless another viewer is named.
+
+const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
 
 const ids = () => {
   let n = 0
@@ -35,6 +39,8 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
 
   const state = (): SceneState => useCombatStore.getState()
   const press = (command: Updater) => useCombatStore.getState().updateCombatState(command)
+  const send = (command: SceneCommand, viewer: Viewer = GM) =>
+    press((s) => applySceneCommand(s, command, viewer, { thrower: dice, newId }))
   const click = (c: Click) => press(resolveClick(c, { brush, reposition, newId }))
 
   const idOf = (name: string): string => {
@@ -47,6 +53,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
   return {
     state,
     press,
+    send,
     click,
     newId,
     dice,
@@ -80,8 +87,8 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
 
     // the action panel and turn controls, which act for the active character
     startTurn: () => press(startTurn(active()!)),
-    declare: (draft: ActionDraft) => press(declareAction(active()!, draft, newId)),
-    amend: (fields: Partial<ActionDraft>) => press(amendAction(fields)),
-    commit: () => press(commitAction(dice, newId)),
+    declare: (draft: ActionDraft) => send({ kind: 'declare', args: [active()!, draft] }),
+    amend: (fields: Partial<ActionDraft>) => send({ kind: 'amend', args: [fields] }),
+    commit: () => send({ kind: 'commit', args: [] }),
   } as const
 }

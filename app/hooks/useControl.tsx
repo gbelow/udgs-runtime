@@ -15,12 +15,18 @@ const viewerOf = (app: ViewerFields, campaign: CampaignStore): Viewer => {
   };
 };
 
-// Why whoever is at the screen cannot act for `actor`, asked when it is
-// asked: in a handler, as of the click, so that holding the check costs no
-// subscription.
-function useActorBarCheck(): (actor: Actor) => string | null {
+// Who is at the screen, asked when it is asked: in a handler, as of the
+// click, so that holding the check costs no subscription.
+export function useViewerCheck(): () => Viewer {
   const app = useAppStoreApi();
-  return (actor) => getActorBar(actor, viewerOf(app.getState(), useCampaignStore.getState()));
+  return () => viewerOf(app.getState(), useCampaignStore.getState());
+}
+
+// Why whoever is at the screen cannot act for `actor`, asked as
+// `useViewerCheck` is.
+function useActorBarCheck(): (actor: Actor) => string | null {
+  const viewer = useViewerCheck();
+  return (actor) => getActorBar(actor, viewer());
 }
 
 // Whether whoever is at the screen plays a character in play, asked as

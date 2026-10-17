@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { fighter, spearman, warden } from '../domain/bot/fixtures'
-import { amendAction, cancelAction, declareReaction, payAction, resolveAction, rollAction, withdrawReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { payAction, resolveAction, rollAction, withdrawReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getAvailableActions } from '../domain/scene/rules/options'
@@ -27,7 +27,7 @@ function scene(): Harness {
   h.startTurn()
   h.declare({ kind: 'strike' })
   const row = getActionPanel(h.state()).attacks[0]
-  h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+  h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
   return h
 }
 
@@ -63,7 +63,7 @@ describe('declaring a strike', () => {
   it('takes the declaration back before it is committed', () => {
     const h = scene()
     h.token('Bob')
-    h.press(cancelAction())
+    h.send({ kind: 'cancel', args: [] })
     expect(open(h)).toBeNull()
     expect(h.active()).toBe(h.idOf('Ann'))
   })
@@ -104,7 +104,7 @@ describe('answering a committed strike', () => {
         const h = committed()
         const before = JSON.stringify(h.state().actions)
         const state = h.state()
-        h.press(declareReaction(id, option.draft, h.newId))
+        h.send({ kind: 'react', args: [id, option.draft] })
         if (option.available) {
           expect(answers(h).map((a) => [a.actorId, a.kind]), `${name} ${option.draft.kind}`).toContainEqual([id, option.draft.kind])
           h.press(withdrawReaction(id))
@@ -134,13 +134,13 @@ describe('two answers that move', () => {
     h.startTurn()
     h.declare({ kind: 'strike' })
     const row = getActionPanel(h.state()).attacks[0]
-    h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+    h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
     h.token('Dee')
     h.commit()
     const jump = getAvailableActions(h.state(), h.idOf('Dee')).find((o) => o.draft.kind === 'evasiveJump' && o.available)!
-    h.press(declareReaction(h.idOf('Dee'), jump.draft, h.newId))
+    h.send({ kind: 'react', args: [h.idOf('Dee'), jump.draft] })
     const block = getAvailableActions(h.state(), h.idOf('Ann')).find((o) => o.draft.kind === 'block' && o.available)!
-    h.press(declareReaction(h.idOf('Ann'), block.draft, h.newId))
+    h.send({ kind: 'react', args: [h.idOf('Ann'), block.draft] })
     h.cell(-1, 2)
     h.cell(-1, 2)
     for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) h.press(step)

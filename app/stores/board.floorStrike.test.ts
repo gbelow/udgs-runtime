@@ -5,7 +5,6 @@ import { produceEffects } from '../domain/character/rules/production'
 import { SPELLS } from '../domain/spells'
 import { holdItem } from '../domain/item/commands/hands'
 import { ItemSchema } from '../domain/types'
-import { amendAction } from '../domain/scene/commands/action'
 import { dropToFloor } from '../domain/scene/commands/floor'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { getOpenAction } from '../domain/scene/rules/log'
@@ -31,7 +30,7 @@ function scene(): Harness {
   h.startTurn()
   h.declare({ kind: 'strike' })
   const row = getActionPanel(h.state()).attacks[0]
-  h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+  h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
   return h
 }
 
@@ -90,7 +89,7 @@ describe('a blow on a charge that goes off on impact', () => {
     h.startTurn()
     h.declare({ kind: 'strike' })
     const row = getActionPanel(h.state()).attacks[0]
-    h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+    h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
     h.floor(charged.id)
     h.commit()
     expect(open(h)).toMatchObject({ kind: 'explosion', source: 'thrown', itemId: charged.id, center: { q: 1, r: 0 } })

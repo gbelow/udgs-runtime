@@ -9,8 +9,7 @@ import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
-import { acceptAnswered, amendAction, declareAction, setTarget, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, passReaction, payAnswered, resolveAction, rollAnswered, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
-import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/scene/commands/choices'
+import { acceptAnswered, declareAction, declareReaction, passReaction, payAnswered, resolveAction, rollAnswered, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { dropToFloor } from '../domain/scene/commands/floor'
 import { endTurn, surge } from '../domain/scene/commands/turn'
 import { continueRound, holdOn, letGo, nextRound } from '../domain/scene/commands/nextRound'
@@ -103,26 +102,26 @@ function finishDeclaration(h: Harness, pick: Picker) {
   if (getOpenAction(h.state())?.kind === 'prepare') fillPreparation(h, pick)
   const first = <T>(from: readonly T[]) => (from.length ? pick(from) : null)
   const row = first(panel().attacks)
-  if (row && !panel().open?.weapon) h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
-  for (const m of panel().open?.modifiers ?? []) if (pick([true, false])) h.press(amendAction(m.press))
+  if (row && !panel().open?.weapon) h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
+  for (const m of panel().open?.modifiers ?? []) if (pick([true, false])) h.send({ kind: 'amend', args: [m.press] })
   const ammo = first(panel().ammo)
-  if (ammo) h.press(amendAction({ ammoId: ammo.itemId }))
+  if (ammo) h.send({ kind: 'amend', args: [{ ammoId: ammo.itemId }] })
   const castable = panel().spells.filter((s) => s.castable)
   const favoured = castable.filter((s) => s.key === 'flamethrower' || s.key === 'telepathic-link')
   const spell = first(favoured.length && pick([true, true, false]) ? favoured : castable)
-  if (spell && !panel().open?.spell) h.press(chooseSpell(spell.key, false))
+  if (spell && !panel().open?.spell) h.send({ kind: 'cast', args: [spell.key, false] })
   const thrown = first(panel().open?.floor.filter((f) => f.available) ?? [])
-  if (thrown && getOpenAction(h.state())?.kind === 'throw' && !panel().open?.item) h.press(amendAction({ itemId: thrown.itemId }))
+  if (thrown && getOpenAction(h.state())?.kind === 'throw' && !panel().open?.item) h.send({ kind: 'amend', args: [{ itemId: thrown.itemId }] })
   const potion = first(panel().open?.potions ?? [])
-  if (potion && !panel().open?.item) h.press(amendAction({ itemId: potion.itemId }))
+  if (potion && !panel().open?.item) h.send({ kind: 'amend', args: [{ itemId: potion.itemId }] })
   const gear = first(panel().gear)
-  if (gear && getOpenAction(h.state())?.kind === 'cast') h.press(amendAction({ itemId: gear.itemId }))
+  if (gear && getOpenAction(h.state())?.kind === 'cast') h.send({ kind: 'amend', args: [{ itemId: gear.itemId }] })
   const target = first(h.view().tokens.filter((t) => t.targetable))
   if (target) h.click({ on: 'token', id: target.id })
   const named = h.state().board ? null : first(panel().targets)
-  if (named) h.press(setTarget(named.id))
+  if (named) h.send({ kind: 'target', args: [named.id] })
   const suggested = first(panel().open?.suggestion?.options ?? [])
-  if (suggested) h.press(amendAction({ suggested }))
+  if (suggested) h.send({ kind: 'amend', args: [{ suggested }] })
   const there = first(highlighted(h))
   if (there) h.click({ on: 'cell', cell: there.cell })
   h.commit()
@@ -134,19 +133,19 @@ function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only:
   const view = () => getActionPanel(h.state()).prepare
   const mains = view()?.mains.filter((m) => m.available && (only === null || only.includes(m.kind))) ?? []
   if (!mains.length) return
-  h.press(amendAction({ main: pick(mains).kind, weaponKey: '', attack: '', variant: '', ammoId: '', key: '', quicken: false, extend: 0, movement: 'basic' }))
+  h.send({ kind: 'amend', args: [{ main: pick(mains).kind, weaponKey: '', attack: '', variant: '', ammoId: '', key: '', quicken: false, extend: 0, movement: 'basic' }] })
   const made = view()!
-  if (made.attacks.length) { const { weaponKey, attack, variant } = pick(made.attacks); h.press(amendAction({ weaponKey, attack, variant })) }
-  for (const m of view()!.modifiers) if (pick([true, false])) h.press(amendAction(m.press))
-  if (made.defenses.length) { const { weaponKey, attack } = pick(made.defenses); h.press(amendAction({ weaponKey, attack })) }
-  if (made.ammo.length) h.press(amendAction({ ammoId: pick(made.ammo).itemId }))
+  if (made.attacks.length) { const { weaponKey, attack, variant } = pick(made.attacks); h.send({ kind: 'amend', args: [{ weaponKey, attack, variant }] }) }
+  for (const m of view()!.modifiers) if (pick([true, false])) h.send({ kind: 'amend', args: [m.press] })
+  if (made.defenses.length) { const { weaponKey, attack } = pick(made.defenses); h.send({ kind: 'amend', args: [{ weaponKey, attack }] }) }
+  if (made.ammo.length) h.send({ kind: 'amend', args: [{ ammoId: pick(made.ammo).itemId }] })
   const castable = made.spells.filter((s) => s.castable)
-  if (castable.length) h.press(chooseSpell(pick(castable).key, false))
+  if (castable.length) h.send({ kind: 'cast', args: [pick(castable).key, false] })
   const moves = made.movements.filter((m) => m.available)
-  if (moves.length) h.press(amendAction({ movement: pick(moves).kind }))
+  if (moves.length) h.send({ kind: 'amend', args: [{ movement: pick(moves).kind }] })
   const waits = view()!
   const event = anyoneEntering ? waits.events.find((e) => e.event !== 'sighted') ?? waits.events[0] : pick(waits.events)
-  h.press(amendAction({ trigger: { event: event.event, who: anyoneEntering ? null : pick(waits.who).id } }))
+  h.send({ kind: 'amend', args: [{ trigger: { event: event.event, who: anyoneEntering ? null : pick(waits.who).id } }] })
 }
 
 // What an answer that strikes for itself (a counterattack, an opportunity
@@ -154,11 +153,11 @@ function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only:
 function answerWithAStrike(h: Harness, id: string, pick: Picker) {
   const strike = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
   if (!strike) return
-  if (strike.options.length) { const { weaponKey, attack, variant } = pick(strike.options); h.press(amendReaction(id, { weaponKey, attack, variant })) }
+  if (strike.options.length) { const { weaponKey, attack, variant } = pick(strike.options); h.send({ kind: 'amendReaction', args: [id, { weaponKey, attack, variant }] }) }
   const refreshed = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
-  if (refreshed?.locations.length) { const { location, part } = pick(refreshed.locations); h.press(amendReaction(id, { location, part })) }
-  for (const m of refreshed?.modifiers ?? []) if (pick([true, false])) h.press(amendReaction(id, m.press))
-  if (refreshed?.maneuvers.length && pick([true, false])) h.press(amendReaction(id, { mode: 'grapple', maneuver: pick(refreshed.maneuvers) }))
+  if (refreshed?.locations.length) { const { location, part } = pick(refreshed.locations); h.send({ kind: 'amendReaction', args: [id, { location, part }] }) }
+  for (const m of refreshed?.modifiers ?? []) if (pick([true, false])) h.send({ kind: 'amendReaction', args: [id, m.press] })
+  if (refreshed?.maneuvers.length && pick([true, false])) h.send({ kind: 'amendReaction', args: [id, { mode: 'grapple', maneuver: pick(refreshed.maneuvers) }] })
 }
 
 function plays(): Play[] {
@@ -228,7 +227,7 @@ function plays(): Play[] {
       name: 'react',
       run: (h, pick) => {
         const options = answersOffered(h)
-        if (options.length) { const o = pick(options); h.press(declareReaction(o.id, o.draft, h.newId)) }
+        if (options.length) { const o = pick(options); h.send({ kind: 'react', args: [o.id, o.draft] }) }
       },
     },
     { name: 'drop a held item', run: (h, pick) => { const c = h.active() ? h.state().characters[h.active()!] : undefined; if (c?.held.length) h.press(dropToFloor(c.id, pick(c.held).id)) } },
@@ -248,35 +247,35 @@ function plays(): Play[] {
     },
     { name: 'commit', weight: 3, run: (h) => h.commit() },
     // what the open declaration is still asked for, answered from the panel's own offers
-    { name: 'pick an attack row', weight: 2, run: (h, pick) => { const rows = getActionPanel(h.state()).attacks; if (rows.length) { const { weaponKey, attack, variant } = pick(rows); h.press(amendAction({ weaponKey, attack, variant })) } } },
-    { name: 'load a shot', run: (h, pick) => { const ammo = getActionPanel(h.state()).ammo; if (ammo.length) h.press(amendAction({ ammoId: pick(ammo).itemId })) } },
-    { name: 'aim at a place', run: (h, pick) => { const places = getActionPanel(h.state()).locations; if (places.length) { const { location, part } = pick(places); h.press(amendAction({ location, part })) } } },
-    { name: 'pick a movement', run: (h, pick) => { const moves = getActionPanel(h.state()).moves.filter((m) => m.available); if (moves.length) h.press(amendAction({ movement: pick(moves).kind })) } },
-    { name: 'pick a maneuver', run: (h, pick) => h.press(amendAction({ maneuver: pick(GRAPPLE_MANEUVERS) })) },
-    { name: 'choose a spell', weight: 3, run: (h, pick) => { const spells = getActionPanel(h.state()).spells.filter((s) => s.castable || s.quickenable); if (spells.length) { const s = pick(spells); h.press(chooseSpell(s.key, !s.castable || (s.quickenable && pick([true, false])))) } } },
-    { name: 'pick a potion', run: (h, pick) => { const potions = getActionPanel(h.state()).open?.potions ?? []; if (potions.length) h.press(amendAction({ itemId: pick(potions).itemId })) } },
-    { name: 'suggest a limit stress action', run: (h, pick) => { const options = getActionPanel(h.state()).open?.suggestion?.options ?? []; if (options.length) h.press(amendAction({ suggested: pick(options) })) } },
-    { name: 'pick the gear to cast with', run: (h, pick) => { const gear = getActionPanel(h.state()).gear; if (gear.length) h.press(amendAction({ itemId: pick(gear).itemId })) } },
-    { name: 'extend a spell', run: (h, pick) => h.press(stepExtend(pick([1, -1] as const))) },
-    { name: 'accept a spell test', run: (h) => h.press(acceptAnswered(h.newId, h.dice)) },
-    { name: 'answer with nothing', weight: 2, run: (h, pick) => { const reactors = getActionPanel(h.state()).reactors; if (reactors.length) h.press(passReaction(pick(reactors).id)) } },
-    { name: 'buy with the overflow', weight: 2, run: (h, pick) => { const options = getActionPanel(h.state()).hop.options.filter((o) => o.available); if (options.length) h.press(spendHOP(pick(options).purchase)) } },
-    { name: 'take back an overflow purchase', run: (h, pick) => { const options = getActionPanel(h.state()).hop.options; if (options.length) h.press(refundHOP(pick(options).purchase)) } },
-    { name: 'grapple on the hit', weight: 2, run: (h, pick) => { if (getActionPanel(h.state()).open?.grapples != null) h.press(chooseGrapple(pick([true, false]))) } },
-    { name: 'improve a spell', run: (h, pick) => { const options = getActionPanel(h.state()).castHOP.options.filter((o) => o.available); if (options.length) h.press(improveSpell(pick(options).name)) } },
-    { name: 'take back an improvement', run: (h, pick) => { const options = getActionPanel(h.state()).castHOP.options; if (options.length) h.press(refundImprovement(pick(options).name)) } },
-    { name: 'save a graze', run: (h) => h.press(saveGraze()) },
-    { name: 'move while resting', run: (h) => h.press(moveWhileResting(h.newId)) },
-    { name: 'boost a push', run: (h, pick) => h.press(boostPush(pick([true, false]))) },
-    { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.press(chooseManeuver(open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) })) } },
+    { name: 'pick an attack row', weight: 2, run: (h, pick) => { const rows = getActionPanel(h.state()).attacks; if (rows.length) { const { weaponKey, attack, variant } = pick(rows); h.send({ kind: 'amend', args: [{ weaponKey, attack, variant }] }) } } },
+    { name: 'load a shot', run: (h, pick) => { const ammo = getActionPanel(h.state()).ammo; if (ammo.length) h.send({ kind: 'amend', args: [{ ammoId: pick(ammo).itemId }] }) } },
+    { name: 'aim at a place', run: (h, pick) => { const places = getActionPanel(h.state()).locations; if (places.length) { const { location, part } = pick(places); h.send({ kind: 'amend', args: [{ location, part }] }) } } },
+    { name: 'pick a movement', run: (h, pick) => { const moves = getActionPanel(h.state()).moves.filter((m) => m.available); if (moves.length) h.send({ kind: 'amend', args: [{ movement: pick(moves).kind }] }) } },
+    { name: 'pick a maneuver', run: (h, pick) => h.send({ kind: 'amend', args: [{ maneuver: pick(GRAPPLE_MANEUVERS) }] }) },
+    { name: 'choose a spell', weight: 3, run: (h, pick) => { const spells = getActionPanel(h.state()).spells.filter((s) => s.castable || s.quickenable); if (spells.length) { const s = pick(spells); h.send({ kind: 'cast', args: [s.key, !s.castable || (s.quickenable && pick([true, false]))] }) } } },
+    { name: 'pick a potion', run: (h, pick) => { const potions = getActionPanel(h.state()).open?.potions ?? []; if (potions.length) h.send({ kind: 'amend', args: [{ itemId: pick(potions).itemId }] }) } },
+    { name: 'suggest a limit stress action', run: (h, pick) => { const options = getActionPanel(h.state()).open?.suggestion?.options ?? []; if (options.length) h.send({ kind: 'amend', args: [{ suggested: pick(options) }] }) } },
+    { name: 'pick the gear to cast with', run: (h, pick) => { const gear = getActionPanel(h.state()).gear; if (gear.length) h.send({ kind: 'amend', args: [{ itemId: pick(gear).itemId }] }) } },
+    { name: 'extend a spell', run: (h, pick) => h.send({ kind: 'extend', args: [pick([1, -1] as const)] }) },
+    { name: 'accept a spell test', run: (h) => h.send({ kind: 'accept', args: [] }) },
+    { name: 'answer with nothing', weight: 2, run: (h, pick) => { const reactors = getActionPanel(h.state()).reactors; if (reactors.length) h.send({ kind: 'pass', args: [pick(reactors).id] }) } },
+    { name: 'buy with the overflow', weight: 2, run: (h, pick) => { const options = getActionPanel(h.state()).hop.options.filter((o) => o.available); if (options.length) h.send({ kind: 'spend', args: [pick(options).purchase] }) } },
+    { name: 'take back an overflow purchase', run: (h, pick) => { const options = getActionPanel(h.state()).hop.options; if (options.length) h.send({ kind: 'refund', args: [pick(options).purchase] }) } },
+    { name: 'grapple on the hit', weight: 2, run: (h, pick) => { if (getActionPanel(h.state()).open?.grapples != null) h.send({ kind: 'grapple', args: [pick([true, false])] }) } },
+    { name: 'improve a spell', run: (h, pick) => { const options = getActionPanel(h.state()).castHOP.options.filter((o) => o.available); if (options.length) h.send({ kind: 'improve', args: [pick(options).name] }) } },
+    { name: 'take back an improvement', run: (h, pick) => { const options = getActionPanel(h.state()).castHOP.options; if (options.length) h.send({ kind: 'unimprove', args: [pick(options).name] }) } },
+    { name: 'save a graze', run: (h) => h.send({ kind: 'grazeSave', args: [] }) },
+    { name: 'move while resting', run: (h) => h.send({ kind: 'restMove', args: [] }) },
+    { name: 'boost a push', run: (h, pick) => h.send({ kind: 'boostPush', args: [pick([true, false])] }) },
+    { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.send({ kind: 'choose', args: [open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) }] }) } },
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
-    { name: 'take back the last reaction', run: (h) => h.press(withdrawLastReaction()) },
+    { name: 'take back the last reaction', run: (h) => h.send({ kind: 'back', args: [] }) },
     { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.press(rollHeld(r.id, r.kind, pick([...r.modes]), h.roll)) } } },
-    progress('roll', (h) => rollAnswered(h.dice, h.newId)),
-    progress('pay', (h) => payAnswered(h.newId, h.dice)),
-    { ...progress('resolve', (h) => resolveAction(h.newId, h.dice)), weight: 2 },
-    progress('skip', (h) => withdrawSpawnedAction(h.dice, h.newId)),
-    progress('cancel', () => cancelAction()),
+    { name: 'roll', run: (h) => h.send({ kind: 'roll', args: [] }) },
+    { name: 'pay', run: (h) => h.send({ kind: 'pay', args: [] }) },
+    { name: 'resolve', weight: 2, run: (h) => h.send({ kind: 'resolve', args: [] }) },
+    { name: 'skip', run: (h) => h.send({ kind: 'skip', args: [] }) },
+    { name: 'cancel', run: (h) => h.send({ kind: 'cancel', args: [] }) },
     progress('end turn', () => endTurn),
     progress('next round', (h) => nextRound(h.dice)),
     ...roundChangePlays(),
@@ -453,7 +452,7 @@ function answerOpen(h: Harness, pick: Picker, tries: number) {
     const offered = answersOffered(h)
     const kind = pick([...new Set(offered.map((o) => o.draft.kind))])
     const answer = pick(offered.filter((o) => o.draft.kind === kind))
-    h.press(declareReaction(answer.id, answer.draft, h.newId))
+    h.send({ kind: 'react', args: [answer.id, answer.draft] })
     const there = highlighted(h)
     if (there.length && pick([true, false])) h.click({ on: 'cell', cell: pick(there).cell })
     answerWithAStrike(h, answer.id, pick)
@@ -473,8 +472,8 @@ function playOut(h: Harness, pick: Picker) {
     }
     for (const step of [passAwaited, rollAnswered(h.dice, h.newId), acceptAnswered(h.newId, h.dice), payAnswered(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) h.press(step)
     const panel = getActionPanel(h.state()).open
-    if (panel && pick([true, false, false])) h.press(chooseManeuver(panel.disarm.length ? { item: pick(panel.disarm).itemId } : { along: pick([true, false]) }))
-    if (pick([true, false, false, false])) h.press(boostPush(pick([true, false])))
+    if (panel && pick([true, false, false])) h.send({ kind: 'choose', args: [panel.disarm.length ? { item: pick(panel.disarm).itemId } : { along: pick([true, false]) }] })
+    if (pick([true, false, false, false])) h.send({ kind: 'boostPush', args: [pick([true, false])] })
   }
 }
 
@@ -486,7 +485,7 @@ function assertSettled(h: Harness, pick: Picker) {
   const stuck = () => { const open = getOpenAction(h.state()); return open && open.step !== 'define' ? open : null }
   throwAllCalled(h, pick)
   if (stuck()) {
-    for (let i = 0; i < 8; i++) h.press(withdrawLastReaction())
+    for (let i = 0; i < 8; i++) h.send({ kind: 'back', args: [] })
     for (let i = 0; i < 10; i++) {
       const aiming = getOpenAction(h.state())
       if (aiming?.kind === 'blast' || aiming?.kind === 'explosion') {
@@ -552,7 +551,7 @@ function passRoundChange(h: Harness, pick: Picker) {
 }
 
 function startTurnOf(h: Harness, pick: Picker, only: readonly string[] | null = null) {
-  if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
+  if (getOpenAction(h.state())?.step === 'define') h.send({ kind: 'cancel', args: [] })
   playOut(h, pick)
   // at a table rolling its own, the play goes on between the dice it waits on
   for (let i = 0; h.table && i < 4; i++) {
@@ -589,16 +588,16 @@ function travel(h: Harness, pick: Picker) {
   h.declare({ kind: 'move' })
   const moves = getActionPanel(h.state()).moves.filter((m) => m.available)
   const special = moves.filter((m) => ['swim', 'climb', 'jump', 'run', 'crawl'].includes(m.kind))
-  if (moves.length) h.press(amendAction({ movement: pick(special.length && pick([true, true, false]) ? special : moves).kind }))
+  if (moves.length) h.send({ kind: 'amend', args: [{ movement: pick(special.length && pick([true, true, false]) ? special : moves).kind }] })
   for (let i = pick([1, 2, 3, 4]); i > 0; i--) {
     const cells = h.view().cells.filter((c) => c.reachable !== null)
     if (cells.length) h.click({ on: 'cell', cell: pick(cells).cell })
   }
-  if (pick([true, false])) h.press(amendAction({ dive: pick([-1, 1, 2]) }))
+  if (pick([true, false])) h.send({ kind: 'amend', args: [{ dive: pick([-1, 1, 2]) }] })
   const climb = getActionPanel(h.state()).open?.climbSteps
-  if (climb && pick([true, false])) h.press(amendAction({ metres: 1 + Math.floor(pick([0, 1, 2]) % climb.metres) }))
+  if (climb && pick([true, false])) h.send({ kind: 'amend', args: [{ metres: 1 + Math.floor(pick([0, 1, 2]) % climb.metres) }] })
   const modes = getActionPanel(h.state()).open?.climbModes ?? []
-  if (modes.length) h.press(amendAction({ mode: pick(modes) }))
+  if (modes.length) h.send({ kind: 'amend', args: [{ mode: pick(modes) }] })
   h.commit()
   answerOpen(h, pick, pick([0, 1, 2]))
   playOut(h, pick)
@@ -614,7 +613,7 @@ function ambush(h: Harness, pick: Picker) {
   h.declare({ kind: 'prepare' })
   fillPreparation(h, pick, true)
   h.commit()
-  if (getOpenAction(h.state())?.step === 'define') { h.press(cancelAction()); return }
+  if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
   const at = h.state().board?.placements[preparer]?.cell
   const mover = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer))
   if (!at || !mover) return
@@ -628,7 +627,7 @@ function ambush(h: Harness, pick: Picker) {
   if (nearest) h.click({ on: 'cell', cell: nearest.cell })
   h.commit()
   const prepared = answersOffered(h).filter((o) => o.draft.kind === 'prepared')
-  if (prepared.length) { const o = pick(prepared); h.press(declareReaction(o.id, o.draft, h.newId)) }
+  if (prepared.length) { const o = pick(prepared); h.send({ kind: 'react', args: [o.id, o.draft] }) }
   playOut(h, pick)
 }
 
@@ -644,7 +643,7 @@ function rescue(h: Harness, pick: Picker) {
   h.declare({ kind: 'prepare' })
   fillPreparation(h, pick, true, ['block', 'intercept', 'guard'])
   h.commit()
-  if (getOpenAction(h.state())?.step === 'define') { h.press(cancelAction()); return }
+  if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
   h.press(endTurn)
   const attacker = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer))
   if (!attacker) return
@@ -655,7 +654,7 @@ function rescue(h: Harness, pick: Picker) {
   h.declare(pick(attacks).draft as ActionDraft)
   finishDeclaration(h, pick)
   const defenses = answersOffered(h).filter((o) => o.id === preparer && 'preparedId' in o.draft && o.draft.preparedId)
-  if (defenses.length) h.press(declareReaction(preparer, pick(defenses).draft, h.newId))
+  if (defenses.length) h.send({ kind: 'react', args: [preparer, pick(defenses).draft] })
   playOut(h, pick)
 }
 
@@ -672,15 +671,15 @@ function shelter(h: Harness, pick: Picker) {
   if (!ownOptions(h, h.active()!).some((o) => o.draft.kind === 'shoot')) return
   h.declare({ kind: 'shoot' })
   const panel = getActionPanel(h.state())
-  if (panel.attacks.length) { const row = pick(panel.attacks); h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })) }
+  if (panel.attacks.length) { const row = pick(panel.attacks); h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] }) }
   const ammo = getActionPanel(h.state()).ammo
-  if (ammo.length) h.press(amendAction({ ammoId: pick(ammo).itemId }))
+  if (ammo.length) h.send({ kind: 'amend', args: [{ ammoId: pick(ammo).itemId }] })
   const bearer = h.view().tokens.find((t) => t.targetable && bearers.includes(t.id))
   if (bearer) h.click({ on: 'token', id: bearer.id })
   h.commit()
-  if (getOpenAction(h.state())?.step === 'define') { h.press(cancelAction()); return }
+  if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
   const covers = answersOffered(h).filter((o) => o.draft.kind === 'guard' && o.draft.cover)
-  if (covers.length) { const o = pick(covers); h.press(declareReaction(o.id, o.draft, h.newId)) }
+  if (covers.length) { const o = pick(covers); h.send({ kind: 'react', args: [o.id, o.draft] }) }
   playOut(h, pick)
 }
 

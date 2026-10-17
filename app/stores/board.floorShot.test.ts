@@ -11,7 +11,7 @@ import { dropToFloor } from '../domain/scene/commands/floor'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getAvailableActions } from '../domain/scene/rules/options'
-import { declareReaction, rollAction } from '../domain/scene/commands/action'
+import { rollAction } from '../domain/scene/commands/action'
 
 // A shot at what lies on the floor, from the click to what stands after.
 // Expected values are what was clicked and what was laid on the ground: the
@@ -118,7 +118,7 @@ describe('a burning shot at a space', () => {
     h.commit()
     expect(open(h)).toMatchObject({ kind: 'shoot', step: 'react' })
     const guard = getAvailableActions(h.state(), h.idOf('Dee')).find((o) => o.draft.kind === 'guard' && o.available)!
-    h.press(declareReaction(h.idOf('Dee'), guard.draft, h.newId))
+    h.send({ kind: 'react', args: [h.idOf('Dee'), guard.draft] })
     h.press(rollAction(h.dice, h.newId))
     expect(lit(h)).toEqual([])
   })

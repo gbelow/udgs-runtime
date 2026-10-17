@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { fighter } from '../domain/bot/fixtures'
-import { declareReaction, payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getAvailableActions } from '../domain/scene/rules/options'
 import { continueRound, nextRound } from '../domain/scene/commands/nextRound'
 
@@ -145,7 +145,7 @@ describe('a move blocked after passing someone who evaded', () => {
     h.cell(2, -2)
     h.commit()
     const evade = getAvailableActions(h.state(), h.idOf('Bob')).find((o) => o.draft.kind === 'evade' && o.available)!
-    h.press(declareReaction(h.idOf('Bob'), evade.draft, h.newId))
+    h.send({ kind: 'react', args: [h.idOf('Bob'), evade.draft] })
     for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) h.press(step)
     const stands = Object.entries(h.state().board!.placements).map(([id, p]) => `${p.cell.q},${p.cell.r}:${id}`)
     const cells = stands.map((s) => s.split(':')[0])
