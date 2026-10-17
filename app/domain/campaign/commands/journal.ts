@@ -30,10 +30,11 @@ export function record({ kind, party, title, lines = [], gmOnly = false, author 
 
 // The GM's or a player's own note, to a party at its moment or to the
 // campaign as a whole, under the profile that wrote it; one kept from the
-// players is marked `gmOnly`.
-export function writeNote(party: string | null, text: string, gmOnly: boolean, author: string | null): CampaignUpdater {
+// players is marked `gmOnly`. Given a `clock`, it is attached to that moment
+// rather than the party's own.
+export function writeNote(party: string | null, text: string, gmOnly: boolean, author: string | null, clock?: number): CampaignUpdater {
   return (state) => (text.trim() === '' || (party !== null && !state.parties[party]) ? state
-    : record({ kind: 'note', party, title: '', lines: text.trim().split('\n'), gmOnly, author })(state))
+    : record({ kind: 'note', party, title: '', lines: text.trim().split('\n'), gmOnly, author, clock })(state))
 }
 
 // A note rewritten where it stands, kept from the players or not; what play

@@ -62,6 +62,11 @@ export function describeClock(clock: number): string {
   return `day ${getDay(clock) + 1}, ET ${(clock % ETS_PER_DAY) + 1}`
 }
 
+// The clock at the day and the ET of that day, both counted from 1.
+export function getClockAt(day: number, et: number): number {
+  return Math.max(0, Math.round(day) - 1) * ETS_PER_DAY + Math.min(ETS_PER_DAY, Math.max(1, Math.round(et))) - 1
+}
+
 // A stretch of time as days and ETs.
 export function describeSpan(ETs: number): string {
   const days = Math.floor(ETs / ETS_PER_DAY)

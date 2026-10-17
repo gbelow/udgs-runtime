@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeCampaignCharacter } from '../../factories'
 import { CampaignStateSchema, type CampaignState } from '../types'
-import { getTimelineView } from '../projections/timeline'
+import { getPlacement } from '../projections/timeline'
 import { passTimeTo, placeOnTimeline } from './clock'
 import { ExplorationStateSchema } from '../../exploration/types'
 import { passET } from '../../exploration/commands/exploration'
@@ -24,17 +24,21 @@ function campaign(): CampaignState {
   })
 }
 
-// The user's ruling: a sync brings a party forward to another timeline's
-// time, never back, and does what the option offered says.
-describe('syncing', () => {
-  it('lands every offered option where it says, and only forward', () => {
+// The user's ruling: a sync brings a party forward to a moment, never back,
+// and does what the option offered says.
+describe('placing on the timeline', () => {
+  it('lands every offered option where it says, and offers nothing back in time', () => {
     const state = campaign()
     for (const partyId of Object.keys(state.parties)) {
-      for (const option of getTimelineView(state, partyId, state.parties[partyId]).options) {
-        const synced = (option.how === 'place' ? placeOnTimeline : passTimeTo)(partyId, option.to)(state)
+      for (const to of [0, 7, 40, 41, 90]) {
+        const { options, bar } = getPlacement(state.parties, partyId, to)
         const before = state.parties[partyId].clock
-        expect(synced.parties[partyId].clock, `${partyId} ${option.label}`).toBe(option.to)
-        if (before !== null) expect(option.to).toBeGreaterThan(before)
+        for (const option of options) {
+          const synced = (option.how === 'place' ? placeOnTimeline : passTimeTo)(partyId, to)(state)
+          expect(synced.parties[partyId].clock, `${partyId} ${option.how} ${to}`).toBe(to)
+          if (before !== null) expect(to).toBeGreaterThan(before)
+        }
+        if (bar) expect(options).toEqual([])
       }
     }
   })

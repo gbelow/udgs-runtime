@@ -45,7 +45,7 @@ export const campaignCommands = {
   editMap: command((ctx, mapId: string, edit: MapCommand) => updateCampaignMap(mapId, toMapUpdater(edit, ctx))).by(gm),
 
   // the journal: a note is its writer's, or the GM's, to change
-  writeNote: command((_, party: string | null, text: string, gmOnly: boolean, author: string | null) => writeNote(party, text, gmOnly, author))
+  writeNote: command((_, party: string | null, text: string, gmOnly: boolean, author: string | null, clock?: number) => writeNote(party, text, gmOnly, author, clock))
     .by((_, _party, _text, _gmOnly, author) => ({ author })),
   editNote: command((_, id: string, text: string, gmOnly: boolean) => editNote(id, text, gmOnly)).by(authorOf),
   removeEntry: command((_, id: string) => removeEntry(id)).by(authorOf),

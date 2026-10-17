@@ -10,6 +10,9 @@ import { makeCampaignCharacter } from "../domain/factories";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCampaignRole } from "./useRole";
 import { getJournalView } from "../domain/campaign/projections/journal";
+import { getTimelineChart } from "../domain/campaign/projections/timelineChart";
+import { getPlacement } from "../domain/campaign/projections/timeline";
+import { getClockAt } from "../domain/campaign/rules/clock";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getJoinView, getMemberRows, getOwner, getOwnerOptions, getRequestRows, setMember, type MemberRole } from "../domain/profiles";
@@ -199,9 +202,31 @@ export function useJournal(filter: string | null | 'all', limit?: number) {
   return {
     view,
     parties: options,
-    write: (party: string | null, text: string, gmOnly: boolean) => send({ kind: "writeNote", args: [party, text, gmOnly, profile] }),
+    write: (party: string | null, text: string, gmOnly: boolean, clock?: number) => send({ kind: "writeNote", args: [party, text, gmOnly, profile, clock] }),
     edit: (id: string, text: string, gmOnly: boolean) => send({ kind: "editNote", args: [id, text, gmOnly] }),
     remove: (id: string) => send({ kind: "removeEntry", args: [id] }),
+  } as const;
+}
+
+// Every party's timeline on one axis with the journal laid along it, as the
+// viewer may read it.
+export function useTimelineChart() {
+  const journal = useCampaignStore((s) => s.journal);
+  const parties = useCampaignStore((s) => s.parties);
+  const role = useCampaignRole();
+  return useMemo(() => getTimelineChart({ journal, parties }, { role }), [journal, parties, role]);
+}
+
+// Bringing a party to the day and ET of the timeline: what that offers or why
+// it cannot be, and doing it, placed there or living the time between.
+export function usePlacement(partyId: string, day: number, et: number) {
+  const parties = useCampaignStore((s) => s.parties);
+  const send = useCampaignDispatch();
+  const to = getClockAt(day, et);
+  const placement = useMemo(() => getPlacement(parties, partyId, to), [parties, partyId, to]);
+  return {
+    placement,
+    place: (how: 'place' | 'pass') => send(how === 'place' ? { kind: "placeOnTimeline", args: [partyId, to] } : { kind: "passTimeTo", args: [partyId, to] }),
   } as const;
 }
 

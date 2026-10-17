@@ -2,11 +2,11 @@ import type { CampaignEntry, EntryKind } from '../types'
 import { describeClock } from '../rules/clock'
 import { canChangeEntry, hasGmTools, type Role } from '../../profiles'
 
-const KIND_LABELS: Record<EntryKind, string> = { note: 'note', et: 'ET', days: 'downtime', scene: 'scene', fight: 'fight log', sync: 'sync' }
+export const KIND_LABELS: Record<EntryKind, string> = { note: 'note', et: 'ET', days: 'downtime', scene: 'scene', fight: 'fight log', sync: 'sync' }
 
 // `editable`: a note the viewer may rewrite; `removable`: one they may
 // throw away.
-export type EntryView = { id: string; kind: string; note: boolean; when: string; title: string; lines: string[]; gmOnly: boolean; editable: boolean; removable: boolean }
+export type EntryView = { id: string; party: string | null; clock: number | null; kind: string; note: boolean; when: string; title: string; lines: string[]; gmOnly: boolean; editable: boolean; removable: boolean }
 
 // One party's part of the journal, newest first; `id` is null for what is
 // the campaign's as a whole.
@@ -30,7 +30,7 @@ export function getJournalView({ journal, parties }: { journal: CampaignEntry[],
     id,
     name: id ? parties[id]?.name ?? entries.at(-1)?.e.partyName ?? id : 'the campaign',
     entries: [...entries].sort(newestFirst).slice(0, limit).map(({ e }) => ({
-      id: e.id, kind: KIND_LABELS[e.kind], note: e.kind === 'note', when: e.clock === null ? (e.party ? 'outside time' : '') : describeClock(e.clock),
+      id: e.id, party: e.party, clock: e.clock, kind: KIND_LABELS[e.kind], note: e.kind === 'note', when: e.clock === null ? (e.party ? 'outside time' : '') : describeClock(e.clock),
       title: e.title, lines: e.lines, gmOnly: e.gmOnly,
       editable: e.kind === 'note' && canChangeEntry(e.author, profile, role),
       removable: canChangeEntry(e.author, profile, role),

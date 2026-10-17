@@ -136,7 +136,6 @@ export function usePartyCommands() {
     setDayETs: (dayETs: number) => send({ kind: "setDayETs", args: [dayETs] }),
     merge: (fromId: string, intoId: string) => send({ kind: "mergeParties", args: [fromId, intoId] }),
     setActive: (partyId: string, active: boolean) => send({ kind: "setPartyActive", args: [partyId, active] }),
-    sync: (partyId: string, how: 'place' | 'pass', to: number) => send(how === 'place' ? { kind: "placeOnTimeline", args: [partyId, to] } : { kind: "passTimeTo", args: [partyId, to] }),
     addGroup: (partyId: string, kind: GroupKind) => explore({ kind: "addGroup", args: [partyId, kind] }),
     removeGroup: (partyId: string, groupId: string) => explore({ kind: "removeGroup", args: [partyId, groupId] }),
     setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => explore({ kind: "setGroup", args: [partyId, groupId, settings] }),

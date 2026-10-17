@@ -100,7 +100,7 @@ type EntryProps = {
 
 // One entry: when, what kind, and what it says; a long one folds to its
 // first line. A note its viewer may change opens in place to be rewritten.
-function Entry({ entry, gmTools, edit, remove }: EntryProps) {
+export function Entry({ entry, gmTools, edit, remove }: EntryProps) {
   const [draft, setDraft] = useState<{ text: string, gmOnly: boolean } | null>(null)
   const long = entry.lines.length > 3
   const head = (

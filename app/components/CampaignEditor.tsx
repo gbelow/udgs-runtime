@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
+import { CampaignTimeline } from './Timeline'
 import { useCampaignFiles, useCampaignMaps, useCampaignMembers, useCampaignRequests, useJoinRequests } from '../hooks/useCampaign'
 import { useRole } from '../hooks/useRole'
 import { useCollectionFilter } from '../hooks/useCollections'
@@ -56,6 +57,8 @@ export function CampaignEditor() {
         <CampaignMaps />
         <SectionLabel>Parties</SectionLabel>
         <CampaignParties />
+        <SectionLabel>Timeline</SectionLabel>
+        <CampaignTimeline />
         <SectionLabel>Journal</SectionLabel>
         <CampaignJournal />
       </div>

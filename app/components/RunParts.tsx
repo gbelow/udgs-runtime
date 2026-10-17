@@ -8,7 +8,7 @@ import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { usePlayedBy } from '../hooks/useCampaign'
 import type { Character } from '../domain/types'
-import type { SyncOption, TimelineView } from '../domain/campaign/projections/timeline'
+import type { TimelineView } from '../domain/campaign/projections/timeline'
 import type { ClockView } from '../domain/campaign/projections/clock'
 
 // What the run screen's modes draw alike.
@@ -108,35 +108,20 @@ export function TimelineSummary({ timeline }: { timeline: TimelineView }){
   )
 }
 
-// Whether a party is in play, and bringing it to another timeline's time,
-// always forward, reading what that does to it first; the GM's, in the
-// party's menu.
+// Whether a party is in play, the GM's, in the party's menu; where it stands
+// on the timeline is moved from the Campaign tab's timeline.
 export function TimelineControl({ timeline }: { timeline: TimelineView }){
-  const { setActive, sync } = usePartyCommands()
+  const { setActive } = usePartyCommands()
   const bar = useGmBar()
-  const [chosen, setChosen] = useState<SyncOption | null>(null)
-  const { name, clock, active, options } = timeline
+  const { name, clock, active } = timeline
 
   return(
     <MenuSection label='timeline'>
       <label className='flex items-center gap-1 text-xs'>
         <input type='checkbox' aria-label={`${name} in play`} {...barred(bar)} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />in play
       </label>
-      {options.length > 0 ?
-        <select aria-label={`${name} sync`} className={selectClass} {...barred(bar)} value='' onChange={(e) => setChosen(options[parseInt(e.target.value)] ?? null)}>
-          <option value=''>sync…</option>
-          {options.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
-        </select>
-        : null}
       {bar ? <span className='text-[10px] text-muted'>{bar}</span> : null}
       {active && !clock ? <span className='text-[10px] text-muted'>outside time, {name} feels no time pass until it is placed on a timeline</span> : null}
-      {chosen ?
-        <div className='flex flex-row flex-wrap gap-1.5 items-center text-xs border border-accent rounded p-1'>
-          <span className='text-fg'>{chosen.warning}</span>
-          <Button size='xs' variant='primary' aria-label={`${name} confirm sync`} onClick={() => { sync(timeline.partyId, chosen.how, chosen.to); setChosen(null) }}>{chosen.how === 'pass' ? 'live it' : 'place'}</Button>
-          <Button size='xs' aria-label={`${name} cancel sync`} onClick={() => setChosen(null)}>cancel</Button>
-        </div>
-        : null}
     </MenuSection>
   )
 }
