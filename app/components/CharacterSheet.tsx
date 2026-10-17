@@ -372,11 +372,13 @@ export function CursePanel(){
   )
 }
 
-export function ActiveAfflictions(){
+export function ActiveConditions(){
   const labels = useActiveAfflictions()
+  const { rows } = useWoundLens()
 
   return(
     <div className='flex flex-row flex-wrap gap-1 text-xs min-w-0'>
+      {rows.map((r) => <span key={`wound-${r.index}`} className='px-1.5 py-0.5 rounded bg-bad/15 text-bad'>{r.name}</span>)}
       {labels.map((label) => <span key={label} className='px-1.5 py-0.5 rounded bg-bad/15 text-bad'>{label}</span>)}
     </div>
   )

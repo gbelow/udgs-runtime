@@ -12,7 +12,7 @@ import { TradePanel } from './TradePanel';
 import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
-import { ActiveAfflictions, AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
+import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { PartiesView } from './PartiesView';
 import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
@@ -218,7 +218,7 @@ function Status({ resource, needs, injuryAction }: { resource?: ReactNode, needs
         <ResourceTiles needs={needs}>{resource}</ResourceTiles>
         <InjuryDials action={injuryAction} />
       </GmLocked>
-      <ActiveAfflictions />
+      <ActiveConditions />
       <ControlLocked><PendingPanel /></ControlLocked>
     </>
   )
