@@ -19,6 +19,7 @@ export function CampaignEditor() {
   const { gmTools } = useRole()
   // the saved campaign about to replace the one in play, or '' for a new one
   const [replacing, setReplacing] = useState<string | null>(null)
+  const [starting, setStarting] = useState(false)
 
   return (
     <div className='grid grid-cols-12 gap-2 py-2 text-left'>
@@ -56,9 +57,9 @@ export function CampaignEditor() {
         <SectionLabel>Maps</SectionLabel>
         <CampaignMaps />
         <SectionLabel>Parties</SectionLabel>
-        <CampaignParties />
+        <CampaignParties starting={starting} started={() => setStarting(false)} />
         <SectionLabel>Timeline</SectionLabel>
-        <CampaignTimeline />
+        <CampaignTimeline starting={starting} setStarting={setStarting} />
         <SectionLabel>Journal</SectionLabel>
         <CampaignJournal />
       </div>

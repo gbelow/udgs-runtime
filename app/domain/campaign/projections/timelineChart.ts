@@ -30,6 +30,8 @@ export type TimelineChart = {
   lanes: TimelineLane[]
   // the days along the axis
   ticks: { at: number; label: string }[]
+  // whether any party is on a timeline; the campaign has not started before
+  started: boolean
   // the parties whose time is passing
   running: string[]
   // every party, and where it is, for placing it on the timeline
@@ -70,6 +72,7 @@ export function getTimelineChart({ journal, parties }: { journal: CampaignEntry[
   return {
     lanes: campaign.marks.length > 0 ? [campaign, ...lanes] : lanes,
     ticks: Array.from({ length: Math.ceil(days / step) }, (_, i) => i * step).map((d) => ({ at: along(d * ETS_PER_DAY), label: `d${d + 1}` })),
+    started: lanes.length > 0,
     running: lanes.filter((l) => l.status === 'running').map((l) => l.name),
     parties: Object.entries(parties).map(([id, p]) => ({ id, name: p.name, when: p.clock === null ? 'outside time' : describeClock(p.clock) })),
     etsPerDay: ETS_PER_DAY,

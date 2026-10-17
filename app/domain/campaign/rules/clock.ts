@@ -32,12 +32,6 @@ export function isPlaying(party: Party): boolean {
   return party.active && party.clock !== null
 }
 
-// The campaign has started once a party is on a timeline; before that there
-// is no time to spend, and only the scene is open.
-export function isCampaignStarted(state: CampaignState): boolean {
-  return Object.values(state.parties).some((p) => p.clock !== null)
-}
-
 // Why the party is in no sequence yet, so that only the scene is open to it:
 // it is not in the timeline, or frozen on it.
 export function getPlayBar(state: CampaignState, partyId: string): string | null {

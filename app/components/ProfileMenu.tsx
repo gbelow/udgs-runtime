@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { ReactNode, useEffect, useRef, useState } from 'react'
 import { useProfile } from '../hooks/useProfile'
 import { Button, Floating, ListButton, SectionLabel, TextInput } from './ui'
 
@@ -21,10 +21,9 @@ export function ProfileLanding(){
   )
 }
 
-// The header's switch: the profile picked, renamed in place, and the others
-// to switch to.
-export function ProfileMenu(){
-  const { profile, profiles, pick, create, rename, setDice, nameBar, dev } = useProfile()
+// A button that opens a panel of its own beneath it, closed by a click
+// outside, by Escape, or by what the panel hands to `close`.
+function Dropdown({ label, text, children }: { label: string, text: ReactNode, children: (close: () => void) => ReactNode }){
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -42,28 +41,49 @@ export function ProfileMenu(){
   }, [open])
 
   return (
-    <div ref={box} className='relative ml-auto self-center flex flex-row items-center gap-2'>
-      {dev ? <span className='text-[10px] text-muted'>dev server</span> : null}
-      <Button size='xs' active={open} aria-label='profile' onClick={() => setOpen((o) => !o)}>
-        {profile ? `playing as ${profile.name}` : 'pick a profile'}
-      </Button>
+    <div ref={box} className='relative'>
+      <Button size='xs' active={open} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>
       {open ? (
         <Floating anchor={box} panelRef={panel} align='end' className='!w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
-          {profile ? (
-            <div className='flex flex-col gap-1'>
-              <SectionLabel>your name</SectionLabel>
-              <TextInput key={profile.id} aria-label='profile name' defaultValue={profile.name} onBlur={(e) => rename(e.target.value)} />
-              <SectionLabel>dice</SectionLabel>
-              <div className='flex flex-row gap-1'>
-                <Button size='xs' selected={profile.dice === 'screen'} onClick={() => setDice('screen')}>rolled on screen</Button>
+          {children(() => setOpen(false))}
+        </Floating>
+      ) : null}
+    </div>
+  )
+}
+
+// The header's switch: the profile picked and the others to switch to, with
+// the picked one's settings in a panel beside it.
+export function ProfileMenu(){
+  const { profile, profiles, pick, create, rename, setDice, nameBar, dev } = useProfile()
+  return (
+    <div className='ml-auto self-center flex flex-row items-center gap-2'>
+      {dev ? <span className='text-[10px] text-muted'>dev server</span> : null}
+      <Dropdown label='profile' text={profile ? `playing as ${profile.name}` : 'pick a profile'}>
+        {(close) => (
+          <>
+            <ProfileList profiles={profiles} current={profile?.id ?? null} pick={(id) => { pick(id); close() }} />
+            <NewProfile create={(name) => { create(name); close() }} nameBar={nameBar} />
+          </>
+        )}
+      </Dropdown>
+      {profile ? (
+        <Dropdown label='profile settings' text='settings'>
+          {() => (
+            <>
+              <div className='flex flex-col gap-1'>
+                <SectionLabel>your name</SectionLabel>
+                <TextInput key={profile.id} aria-label='profile name' defaultValue={profile.name} onBlur={(e) => rename(e.target.value)} />
+              </div>
+              <div className='flex flex-col gap-1'>
+                <SectionLabel>dice</SectionLabel>
+                <Button size='xs' selected={profile.dice === 'screen'} onClick={() => setDice('screen')}>automatic roll</Button>
                 <Button size='xs' selected={profile.dice === 'tray'} onClick={() => setDice('tray')}>dice tray</Button>
                 <Button size='xs' selected={profile.dice === 'table'} onClick={() => setDice('table')}>my own dice</Button>
               </div>
-            </div>
-          ) : null}
-          <ProfileList profiles={profiles} current={profile?.id ?? null} pick={(id) => { pick(id); setOpen(false) }} />
-          <NewProfile create={(name) => { create(name); setOpen(false) }} nameBar={nameBar} />
-        </Floating>
+            </>
+          )}
+        </Dropdown>
       ) : null}
     </div>
   )

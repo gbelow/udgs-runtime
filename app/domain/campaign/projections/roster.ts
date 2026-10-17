@@ -1,6 +1,6 @@
 import type { CampaignState, SeenCampaign, Sequence } from '../types'
 import { getPartyMembers } from '../rules/place'
-import { isCampaignStarted, isPlaying } from '../rules/clock'
+import { isPlaying } from '../rules/clock'
 import { getPartyMoveBar } from '../rules/parties'
 import { getRosterName } from '../rules/roster'
 import { perState } from '../../perState'
@@ -11,10 +11,6 @@ export type RosterMember = { id: string; name: string; isActive: boolean }
 // outside time; `sequence` is the one it will be in when it plays.
 export type RosterPartyView = { id: string; name: string; sequence: Sequence; playing: Sequence | null; timeline: TimelineView; members: RosterMember[] }
 export type RosterView = {
-  // whether any party is on a timeline; if not, `first` is the party the
-  // timeline can be started with
-  started: boolean
-  first: { id: string; name: string } | null
   parties: RosterPartyView[]
   // on the roster in no party, and so outside time
   unplaced: RosterMember[]
@@ -29,11 +25,7 @@ export const getRosterView = perState((state: SeenCampaign): RosterView => {
     id, name: party.name, sequence: party.sequence, playing: isPlaying(party) ? party.sequence : null, timeline: getTimelineView(state, id, party),
     members: getPartyMembers(state, id).filter((m) => state.characters[m]).map((m) => member(state, m)),
   }))
-  const started = isCampaignStarted(state)
-  const first = parties.find((p) => p.members.length > 0) ?? parties[0]
   return {
-    started,
-    first: started || !first ? null : { id: first.id, name: first.name },
     parties: [...parties.filter((p) => p.timeline.active), ...parties.filter((p) => !p.timeline.active)],
     unplaced: Object.keys(state.characters).filter((id) => !state.parties[state.partyOf[id]]).map((id) => member(state, id)),
   }

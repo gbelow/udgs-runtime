@@ -19,8 +19,8 @@ type Switching = { id: string; name: string; from: string | null }
 // then the party to put them in, or a new one, or taken out of every party,
 // where they are outside time. A party earlier on its timeline than the one
 // being left is closed, since time only goes forward.
-export function CampaignParties({ sequence }: { sequence?: Sequence }){
-  const { parties, unplaced, started, first } = useCampaignRoster(sequence)
+export function CampaignParties({ sequence, starting = false, started = () => {} }: { sequence?: Sequence, starting?: boolean, started?: () => void }){
+  const { parties, unplaced } = useCampaignRoster(sequence)
   const { moveToParty, splitOff, bring, createParty, renameParty, startTimeline } = useCampaignPartyCommands()
   const { partyToScene } = usePartyCommands()
   const gmBar = useGmBar()
@@ -39,12 +39,6 @@ export function CampaignParties({ sequence }: { sequence?: Sequence }){
 
   return(
     <div className='flex flex-col gap-2'>
-      {started ? null : (
-        <div className='flex flex-row flex-wrap gap-2 items-center'>
-          <span className='text-xs text-bad'>The campaign has not started: no party is in the timeline.</span>
-          {first ? <Button size='xs' aria-label={`start the timeline with ${first.name}`} disabled={gmBar !== null} title={gmBar ?? `${first.name} joins the timeline at its first ET and is running`} onClick={() => startTimeline(first.id)}>start with {first.name}</Button> : <span className='text-xs text-muted'>create a party to start it with</span>}
-        </div>
-      )}
       <div className='flex flex-row flex-wrap gap-2 items-center'>
         {sequence ? null : <CreateParty create={createParty} hint='a new party with nobody in it yet, outside time' />}
         {switching ? <SwitchBanner name={switching.name} cancel={() => setSwitching(null)} /> : null}
@@ -57,7 +51,7 @@ export function CampaignParties({ sequence }: { sequence?: Sequence }){
             const away = switching !== null && party.id !== switching.from
             const bar = away ? bars[party.id] ?? null : null
             return (
-              <PartyFrame key={party.id} target={away && bar === null} adding={party.id === addingTo} closed={bar} place={() => placeInto(party.id)}>
+              <PartyFrame key={party.id} target={starting || (away && bar === null)} adding={party.id === addingTo} closed={bar} place={() => { if (starting) { startTimeline(party.id); started() } else placeInto(party.id) }}>
                 <div className='flex flex-col gap-0.5' onClick={(e) => e.stopPropagation()}>
                   <PartyHeader name={party.name} rename={(n) => renameParty(party.id, n)} adding={party.id === addingTo} locked={gmBar !== null}
                     toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)}>
