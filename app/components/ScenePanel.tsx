@@ -13,7 +13,7 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useSustainedPanel } from '../hooks/useSustainedPanel';
 import { useBindingSurge } from '../hooks/useCharacterData';
-import { useSceneAnswer, useSceneCalls, useSceneCancel, useSceneDiceBar } from '../hooks/useSceneDice';
+import { useSceneAnswer, useSceneCalls, useSceneDiceBar } from '../hooks/useSceneDice';
 import { DieCalls, RollButtons } from './DieCalls';
 
 // The scene's pieces of the run screen.
@@ -127,8 +127,7 @@ export function SceneActions(){
 function SceneCalls(){
   const rows = useSceneCalls()
   const answer = useSceneAnswer()
-  const cancel = useSceneCancel()
-  return <DieCalls rows={rows} answer={answer} cancel={cancel} />
+  return <DieCalls rows={rows} answer={answer} />
 }
 
 // What the GM does to the scene that no character does, each starting a

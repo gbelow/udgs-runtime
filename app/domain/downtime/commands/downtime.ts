@@ -4,8 +4,8 @@ import type { CampaignState } from '../../campaign/types'
 import type { Block, Downtime, DowntimeResult, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
 import type { Test } from '../../play/test'
 import { answerCall, getOpenCalls, makeCaller, toCallRoll, toTable, type CallResult, type CallSpec, type Throw } from '../../play/calls'
+import type { DieSource } from '../../play/dice'
 import { getDowntimeResultLines } from '../projections/downtime'
-import { without } from '../../utils'
 import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
@@ -170,23 +170,11 @@ export function passDays(days: number, thrown: Throw = toTable(() => 0)): Downti
   }
 }
 
-// The GM's way out of a die nobody throws (the table's ruling): the activity
-// it was called for is given up, and the days go on with the rest.
-export function cancelDowntimeCall(callId: string, thrown: Throw = toTable(() => 0)): DowntimeUpdater {
-  return (t) => {
-    const call = t.downtime.calls[callId]
-    const days = t.downtime.passing
-    if (!call || days === null) return t
-    const plans = { ...t.downtime.plans, [call.roller]: { ...getPlan(t, call.roller), block: null, elapsed: 0 } }
-    return passDays(days, thrown)({ ...t, downtime: { ...t.downtime, plans, calls: without(t.downtime.calls, callId) } })
-  }
-}
-
 // A die for a test the days called for, typed in from the table or rolled on
 // the screen; the last die called for lets the days pass.
-export function answerDowntime(callId: string, die: number, entered: boolean, thrown: Throw = toTable(() => 0)): DowntimeUpdater {
+export function answerDowntime(callId: string, die: number, source: DieSource, thrown: Throw = toTable(() => 0)): DowntimeUpdater {
   return (t) => {
-    const calls = answerCall(t.downtime.calls, callId, die, entered)
+    const calls = answerCall(t.downtime.calls, callId, die, source)
     if (calls === t.downtime.calls) return t
     const answered = { ...t, downtime: { ...t.downtime, calls } }
     const days = t.downtime.passing

@@ -4,7 +4,7 @@ import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
 import { CampaignSaveSchema, type CampaignSave } from './domain/saves';
-import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, CharacterOwnersSchema, getAssignBar, getCampaignRole, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
+import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, CharacterOwnersSchema, getAssignBar, getCampaignRole, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import type { ZodType } from 'zod';
@@ -412,18 +412,18 @@ export async function renameProfile(id: string, name: string): Promise<ActionRes
   }
 }
 
-// Whether the profile at the screen rolls its own dice at the table.
-export async function setManualDice(manualDice: boolean): Promise<ActionResult<Profile>> {
+// Where the profile at the screen rolls its dice.
+export async function setDicePlace(dice: DicePlace): Promise<ActionResult<Profile>> {
   try {
     const id = await getProfileId();
     const before = id ? await readProfile(id) : null;
     if (!id || !before) return { ok: false, error: 'Pick a profile first.' };
-    const profile = { ...before, manualDice };
+    const profile = { ...before, dice };
     await redis.set(profileKey(id), profile);
     return { ok: true, data: profile };
   } catch (err) {
-    console.error('Error setting manual dice:', err);
-    return { ok: false, error: 'Failed to set manual dice.' };
+    console.error('Error setting dice:', err);
+    return { ok: false, error: 'Failed to set where you roll.' };
   }
 }
 

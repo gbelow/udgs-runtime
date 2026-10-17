@@ -115,10 +115,10 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
     expect(waiting.actions[rootId].roll).toBeNull()
     const calls = Object.values(waiting.calls)
     expect(calls.length).toBeGreaterThan(0)
-    const done = calls.reduce((s, c, i) => answerScene(c.id, i + 1, true, toTable(() => 5), newId)(s), waiting)
+    const done = calls.reduce((s, c, i) => answerScene(c.id, i + 1, 'entered', toTable(() => 5), newId)(s), waiting)
     expect(done.calls).toEqual({})
     calls.forEach((c, i) => {
-      if (c.id.startsWith('roll:')) expect(done.actions[c.id.slice('roll:'.length)].roll).toMatchObject({ die: i + 1, entered: true })
+      if (c.id.startsWith('roll:')) expect(done.actions[c.id.slice('roll:'.length)].roll).toMatchObject({ die: i + 1, source: 'entered' })
     })
   })
 

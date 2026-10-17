@@ -80,8 +80,7 @@ own.
     waits. While the scene waits, nothing else moves: the options and the board show
     closed (`getDiceBar`), the busy bars say so, another calling command is refused, and
     the store keeps any change that leaves the calls as they were from landing
-    (`holdForDice`, `play/calls.ts`). The GM may take back only what a die was called for
-    (`cancelCall`, `rules/calls.ts` `getCancelling`). Percentiles (breakage, charges, the
+    (`holdForDice`, `play/calls.ts`). Percentiles (breakage, charges, the
     chase's coin) are never called for. `components/utils.tsx` is the one `Math.random` seam; ids come as a
     `newId: () => string` (hooks pass `crypto.randomUUID`).
 
@@ -300,7 +299,7 @@ app/domain/scene/
 │   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
 │   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
 │   ├── calling.ts      calling: a command's test dice as calls kept on the scene while any waits on the table
-│   ├── answer.ts       answerScene: a die put into a call, and with the last, the command that called carried on; cancelCall: the GM takes back the action or reaction a die was called for
+│   ├── answer.ts       answerScene: a die put into a call, and with the last, the command that called carried on
 │   ├── log.ts          setActions (only writer of actions/live/stack/landed), withdrawActions (the only way out of play but a draft, writes the journal), discardDraft, applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── bind.ts         settleBinds

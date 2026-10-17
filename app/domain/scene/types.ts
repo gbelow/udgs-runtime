@@ -3,7 +3,7 @@ import { AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, 
 import { CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
-import { ROLL_MODES } from '../play/dice'
+import { DIE_SOURCES, ROLL_MODES } from '../play/dice'
 import { TestRollSchema } from '../play/test'
 import { CallsSchema } from '../play/calls'
 import type { CampaignState } from '../campaign/types'
@@ -18,11 +18,11 @@ const str = z.string()
 export const TermSchema = z.object({ label: str, value: num }).strip()
 
 // What the die came to and what it meant, with the terms the skill and the DL
-// were added up from, written as it was thrown; `entered`, a die the player
-// typed in from the table.
+// were added up from, written as it was thrown; `source`, where the die came
+// from when the screen did not roll it.
 export const ActionRollSchema = z.object({
   die: num.default(0),
-  entered: z.boolean().optional(),
+  source: z.enum(DIE_SOURCES).optional(),
   DL: num.default(0),
   score: num.default(0), // die + skill + modifiers
   degree: DegreeSchema.default('miss'),

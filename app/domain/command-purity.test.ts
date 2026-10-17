@@ -242,8 +242,7 @@ const newId = () => 'issued'
 // fight in another phase are run on a frozen state one command along.
 const combatCases: Record<string, (s: SceneState) => unknown> = {
   nextRound: combatCommands.nextRound(() => 0),
-  answerScene: (s) => combatCommands.answerScene('contest:a', 4, true, () => 0, newId)({ ...s, resume: { kind: 'contest' }, calls: { 'contest:a': { id: 'contest:a', roller: 'a', label: 'cunning, for the turn', explodes: false, mode: 'normal', test: null, die: null, entered: false } } }),
-  cancelCall: (s) => combatCommands.cancelCall('contest:a', () => 0, newId)({ ...s, resume: { kind: 'contest' }, calls: { 'contest:a': { id: 'contest:a', roller: 'a', label: 'cunning, for the turn', explodes: false, mode: 'normal', test: null, die: null, entered: false } } }),
+  answerScene: (s) => combatCommands.answerScene('contest:a', 4, 'entered', () => 0, newId)({ ...s, resume: { kind: 'contest' }, calls: { 'contest:a': { id: 'contest:a', roller: 'a', label: 'cunning, for the turn', explodes: false, mode: 'normal', test: null, die: null, source: 'screen' } } }),
   continueRound: (s) => combatCommands.continueRound(() => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'rest' })),
   holdOn: (s) => combatCommands.holdOn('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
   letGo: (s) => combatCommands.letGo('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
@@ -393,8 +392,7 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   drink: ({ campaign }) => explorationCommands.drink('a')(campaign),
   takeItem: ({ campaign }) => explorationCommands.takeItem('a', 'vial')({ ...campaign, characters: { ...campaign.characters, a: { ...campaign.characters.a, held: [...campaign.characters.a.held, ItemSchema.parse({ id: 'vial', name: 'Simple Healing', type: 'medicine', amount: 2 })] } } }),
   passET: (t) => explorationCommands.passET(() => 0, () => 'q')({ ...t, exploration: { ...t.exploration, resting: ['a'] } }),
-  answerET: (t) => explorationCommands.answerET('group:p:g', 4, true, () => 0, () => 'q')({ ...t, exploration: { ...t.exploration, calls: { 'group:p:g': { id: 'group:p:g', roller: 'b', label: 'travel', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
-  cancelETCall: (t) => explorationCommands.cancelETCall('group:p:g', () => 0, () => 'q')({ ...t, exploration: { ...t.exploration, calls: { 'group:p:g': { id: 'group:p:g', roller: 'b', label: 'travel', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
+  answerET: (t) => explorationCommands.answerET('group:p:g', 4, 'entered', () => 0, () => 'q')({ ...t, exploration: { ...t.exploration, calls: { 'group:p:g': { id: 'group:p:g', roller: 'b', label: 'travel', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, source: 'screen' } } } }),
   toDowntime: (t) => explorationCommands.toDowntime('p')(t),
 }
 
@@ -622,8 +620,7 @@ const downtimeCases: Record<string, (t: Downtime) => unknown> = {
   decideTraining: (t) => downtimeCommands.decideTraining('a', 'accepted')(t),
   dropBlock: (t) => downtimeCommands.dropBlock('a')(t),
   passDays: (t) => downtimeCommands.passDays(2)(t),
-  answerDowntime: (t) => downtimeCommands.answerDowntime('self:a', 4, true)({ ...t, downtime: { ...t.downtime, passing: 2, calls: { 'self:a': { id: 'self:a', roller: 'a', label: 'training alone', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
-  cancelDowntimeCall: (t) => downtimeCommands.cancelDowntimeCall('self:a')({ ...t, downtime: { ...t.downtime, passing: 2, calls: { 'self:a': { id: 'self:a', roller: 'a', label: 'training alone', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, entered: false } } } }),
+  answerDowntime: (t) => downtimeCommands.answerDowntime('self:a', 4, 'entered')({ ...t, downtime: { ...t.downtime, passing: 2, calls: { 'self:a': { id: 'self:a', roller: 'a', label: 'training alone', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, source: 'screen' } } } }),
   toExploration: (t) => downtimeCommands.toExploration('p')(t),
 }
 

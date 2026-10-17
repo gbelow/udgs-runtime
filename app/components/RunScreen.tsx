@@ -1,5 +1,6 @@
 'use client'
 import { useState, type ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { WeaponPanel } from './WeaponPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
@@ -25,6 +26,7 @@ import { useGameTab } from '../hooks/useGameTab';
 import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
 import { useRole } from '../hooks/useRole';
+import { useTray } from '../hooks/useTray';
 import type { RunTab } from '../stores/useAppStore';
 
 type Mode = {
@@ -76,6 +78,8 @@ const CATALOG_VIEWS = Object.keys(CATALOGS) as CatalogView[]
 
 const PICK = <span className='text-xs text-muted'>pick a character</span>
 
+const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
+
 // The run screen, in one of its modes, one per sequence that moves time: the
 // scene, exploration and downtime. Each lays out the same way — what moves
 // time and who is in play along the top, the middle for the mode's own space
@@ -89,6 +93,7 @@ export function RunScreen(){
   const { tab } = useGameTab()
   const { strip, views, resource, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const hasActiveCharacter = useHasActiveCharacter()
+  const throwing = useTray().request !== null
   const [opened, setOpened] = useState<CatalogView[]>([])
   const [center, setCenter] = useState<string>(views[0].key)
   const middle = [...views.map((v) => ({ ...v, catalog: false })), ...opened.map((v) => ({ key: v, node: CATALOGS[v], catalog: true }))]
@@ -127,9 +132,11 @@ export function RunScreen(){
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           <ActionColumn open={open} gmTools={gmTools}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
         </div>
-        <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-0'>
-          <SectionLabel>{log.label}</SectionLabel>
-          <div className='flex-1 min-h-0 overflow-y-auto'>{log.node}</div>
+        <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
+          {throwing ? <DiceTray /> : <>
+            <SectionLabel>{log.label}</SectionLabel>
+            <div className='flex-1 min-h-0 overflow-y-auto'>{log.node}</div>
+          </>}
         </div>
       </div>
     </div>

@@ -5,21 +5,21 @@ import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/
 import type { At } from "../domain/campaign/types";
 import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
-import { answerET, cancelETCall, drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor, toDowntime } from "../domain/exploration/commands/exploration";
+import { answerET, drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor, toDowntime } from "../domain/exploration/commands/exploration";
 import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
 import { mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyPlace } from "../domain/campaign/commands/parties";
 import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from "../domain/campaign/commands/clock";
 import { returnFromFight, returnPartyFromFight, saveFightLog, sendPartyToFight, sendToFight } from "../domain/scene/commands/fight";
 import { getSaveLogBar } from "../domain/scene/rules/fight";
 import type { TableUpdater } from "../domain/scene/types";
-import { getGroupActor, getPassBar, getToDowntimeBar, isCancellableET } from "../domain/exploration/rules/exploration";
+import { getGroupActor, getPassBar, getToDowntimeBar } from "../domain/exploration/rules/exploration";
 import type { Actor } from "../domain/profiles";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useActGate } from "./useControl";
-import { useDieAnswer, useDieCancel, useThrower } from "./useDieCalls";
+import { useDieAnswer, useThrower } from "./useDieCalls";
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
 import { getRosterName } from "../domain/campaign/rules/roster";
 
@@ -88,13 +88,7 @@ export function useETDiceBar(): string | null {
 export function useETCalls(): CallRow[] {
   useCampaignStore((s) => s.exploration.calls);
   const s = useCampaignStore.getState();
-  return getCallRows(s.exploration.calls, (id) => getRosterName(s, id), (c) => isCancellableET(c.id));
-}
-
-// The GM's taking back of the plan a die the ET called for answers.
-export function useETCancel() {
-  const updateExploration = useCampaignStore((s) => s.updateExploration);
-  return useDieCancel((callId, thrower) => updateExploration(cancelETCall(callId, thrower, newId)));
+  return getCallRows(s.exploration.calls, (id) => getRosterName(s, id));
 }
 
 const newId = () => crypto.randomUUID();
@@ -104,7 +98,7 @@ export function useETAnswer() {
   const updateExploration = useCampaignStore((s) => s.updateExploration);
   return useDieAnswer(
     () => useCampaignStore.getState().exploration.calls,
-    (callId, die, entered, thrower) => updateExploration(answerET(callId, die, entered, thrower, newId)),
+    (callId, die, source, thrower) => updateExploration(answerET(callId, die, source, thrower, newId)),
   );
 }
 

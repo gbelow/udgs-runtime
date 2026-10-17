@@ -1,12 +1,12 @@
 import { z } from 'zod'
-import { ROLL_MODES, rollD10, rollModed, type Dice, type RollMode } from './dice'
-import { describeRoll, resolveTest, toRoll, type Test, type TestResult, type TestRoll } from './test'
+import { DIE_SOURCES, ROLL_MODES, readD10, recordDice, rollModed, type D10Throw, type Dice, type DieSource, type RollMode } from './dice'
+import { describeRoll, describeSource, resolveTest, toRoll, type Test, type TestResult, type TestRoll } from './test'
 
 // play.tex "How skills work": a die the table has called for, waiting on
 // whoever throws it. A call for a test keeps the test as it stood when it was
 // called, so the die answers that test; a bare die (a target's, thrown before
-// what it will be read against is known) keeps none. `entered` is a die the
-// player typed in from the table rather than one rolled on the screen. An
+// what it will be read against is known) keeps none. `source` is where the
+// die came from: the screen, the dice tray, or typed in from the table. An
 // answered call keeps its die only until the step that called it goes on.
 export const CalledTestSchema = z.object({
   skill: z.number(),
@@ -23,7 +23,7 @@ export const DieCallSchema = z.object({
   mode: z.enum(ROLL_MODES).default('normal'),
   test: CalledTestSchema.nullable().default(null),
   die: z.number().nullable().default(null),
-  entered: z.boolean().default(false),
+  source: z.enum(DIE_SOURCES).default('screen'),
 })
 export type DieCall = z.infer<typeof DieCallSchema>
 
@@ -48,7 +48,7 @@ export type DieSpec = { id: string; roller: string; label: string; explodes?: bo
 export type CallSpec = Omit<DieSpec, 'explodes'> & { test: Test }
 
 // What a test called for came to.
-export type CallResult = TestResult & { entered: boolean }
+export type CallResult = TestResult & { source: DieSource }
 
 const toCalled = (t: Test): NonNullable<DieCall['test']> =>
   ({ skill: t.skill, DL: t.DL, scale: t.scale, grazes: t.scale === 'overflow' ? t.grazes : false })
@@ -73,13 +73,13 @@ export function makeCaller(made: Calls, thrown: Throw) {
     return { ...fresh, die: answer(fresh) }
   }
   const die = (spec: DieSpec, test: Test | null = null): number | null => {
-    const kept = call({ id: spec.id, roller: spec.roller, label: spec.label, explodes: spec.explodes ?? false, mode: spec.mode ?? 'normal', test: test && toCalled(test), die: null, entered: false })
+    const kept = call({ id: spec.id, roller: spec.roller, label: spec.label, explodes: spec.explodes ?? false, mode: spec.mode ?? 'normal', test: test && toCalled(test), die: null, source: 'screen' })
     calls[spec.id] = kept
     return kept.die
   }
   const test = (spec: CallSpec): CallResult | null => {
     const thrownDie = die({ ...spec, explodes: spec.test.explodes }, spec.test)
-    return thrownDie === null ? null : { ...resolveTest(spec.test, () => thrownDie), entered: calls[spec.id].entered }
+    return thrownDie === null ? null : { ...resolveTest(spec.test, () => thrownDie), source: calls[spec.id].source }
   }
   const waiting = () => getOpenCalls(calls).length > 0
   return { die, test, dice, calls, waiting }
@@ -119,15 +119,15 @@ export function getDieBar(explodes: boolean, die: number): string | null {
 
 // The call answered with `die`. Refused for a call answered already, or a die
 // it cannot show.
-export function answerCall(calls: Calls, id: string, die: number, entered: boolean): Calls {
+export function answerCall(calls: Calls, id: string, die: number, source: DieSource): Calls {
   const call = calls[id]
   if (!call || call.die !== null || getDieBar(call.explodes, die)) return calls
-  return { ...calls, [id]: { ...call, die, entered } }
+  return { ...calls, [id]: { ...call, die, source } }
 }
 
 // A call as the table reads it: who rolls, for what, against what (nothing
 // yet, for a bare die), how the die is read, and what it came to once answered.
-export type CallRow = { id: string; roller: string; name: string; label: string; skill: number | null; DL: number | null; explodes: boolean; how: string[]; result: string | null; cancellable: boolean }
+export type CallRow = { id: string; roller: string; name: string; label: string; skill: number | null; DL: number | null; explodes: boolean; how: string[]; result: string | null }
 
 // play.tex "Safe and risky tests", "Exploding die"
 const HOW: Record<RollMode, string> = {
@@ -138,26 +138,32 @@ const HOW: Record<RollMode, string> = {
 
 const describeCall = (c: DieCall): string | null => {
   if (c.die === null) return null
-  if (!c.test) return `die ${c.die}${c.entered ? ' (entered)' : ''}`
+  if (!c.test) return `die ${c.die}${describeSource(c.source)}`
   const die = c.die
-  return describeRoll({ ...resolveTest(toTest(c.test, c.explodes), () => die), entered: c.entered })
+  return describeRoll({ ...resolveTest(toTest(c.test, c.explodes), () => die), source: c.source })
 }
 
-// `cancellable` says which calls answer something someone declared, for the GM
-// to take back.
-export function getCallRows(calls: Calls, nameOf: (id: string) => string, cancellable: (call: DieCall) => boolean = () => false): CallRow[] {
+export function getCallRows(calls: Calls, nameOf: (id: string) => string): CallRow[] {
   return Object.values(calls).map((c) => ({
     id: c.id, roller: c.roller, name: nameOf(c.roller), label: c.label, skill: c.test?.skill ?? null, DL: c.test?.DL ?? null, explodes: c.explodes,
     how: [HOW[c.mode], c.explodes ? 'explodes: on a 9 add a d6, on a 0 take one away, again while it shows 6' : ''].filter(Boolean),
     result: describeCall(c),
-    cancellable: c.die === null && cancellable(c),
   }))
 }
 
-// The die the screen rolls for a call: both dice of a safe or risky test,
-// the one kept, explosions included.
-export function rollCall(call: DieCall, rng: () => number): number {
-  return rollModed(call.mode, call.explodes, (explodes) => rollD10(explodes, rng))
+// The die the screen rolls for a call, explosions included, with the faces it
+// was thrown with as the tray throws them: a round for a plain test, or for
+// each pair of a safe or risky one, thrown again while the pair is a draw, so
+// the die is read off the last round's `kept` set.
+export type TrayThrow = { die: number; rounds: D10Throw[][]; kept: number }
+
+export function throwCall(call: DieCall, rng: () => number): TrayThrow {
+  const { dice, thrown } = recordDice(rng)
+  const die = rollModed(call.mode, call.explodes, dice)
+  const size = call.mode === 'normal' ? 1 : 2
+  const rounds: D10Throw[][] = []
+  for (let i = 0; i < thrown.length; i += size) rounds.push(thrown.slice(i, i + size))
+  return { die, rounds, kept: Math.max(0, rounds.at(-1)!.findIndex((t) => readD10(t) === die)) }
 }
 
 export const toCallRoll = (result: CallResult): TestRoll => toRoll(result)

@@ -16,7 +16,7 @@ import { endTurn, surge } from '../domain/scene/commands/turn'
 import { continueRound, holdOn, letGo, nextRound } from '../domain/scene/commands/nextRound'
 import { rollMorale } from '../domain/scene/commands/morale'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
-import { ROLL_MODES } from '../domain/play/dice'
+import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
 import { rollHeld } from '../domain/scene/commands/heldTest'
 import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from '../domain/scene/commands/chase'
 import { createParty, moveToParty, splitOff } from '../domain/scene/commands/parties'
@@ -29,8 +29,7 @@ import { SurgeKindSchema, type Character } from '../domain/types'
 import { archer, bomber, crossbowman, brawler, mage, medic, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
-import { answerScene, cancelCall } from '../domain/scene/commands/answer'
-import { getCancelling } from '../domain/scene/rules/calls'
+import { answerScene } from '../domain/scene/commands/answer'
 import { useCombatStore } from './useCombatStore'
 
 // A player who presses whatever there is to press, in no order: every click
@@ -70,20 +69,15 @@ const aimable = (h: Harness, open: { kind: string }) => h.view().cells.filter((c
 // Everyone the committed action still waits on answers with nothing.
 const passAwaited: Updater = (s) => getAwaited(s).reduce((state, id) => passReaction(id)(state), s)
 
-// The table throws a die the scene called for — typed in or rolled, or, now
-// and then, the GM takes back what it was called for — and a die called for
+// The table throws a die the scene called for — typed in or rolled — and a die called for
 // a target's test or a climb's is one the landing then reads (the table's
 // ruling: nobody is asked for a die that will not be used).
 function throwCalled(h: Harness, pick: Picker) {
   const open = getOpenCalls(h.state().calls)
   if (!open.length) return
   const call = pick(open)
-  if (getCancelling(h.state(), call.id) && pick([true, false, false, false, false, false])) {
-    h.press(cancelCall(call.id, h.dice, h.newId))
-    return
-  }
   const read = Object.values(h.state().calls).filter((c) => c.id.startsWith('target:') || c.id.startsWith('redo:'))
-  h.press(answerScene(call.id, toThrower(h.roll).answer(call)!, pick([true, false]), h.dice, h.newId))
+  h.press(answerScene(call.id, toThrower(h.roll).answer(call)!, pick(DIE_SOURCES), h.dice, h.newId))
   const s = h.state()
   if (Object.keys(s.calls).length > 0) return
   for (const c of read) {
@@ -925,8 +919,7 @@ function openChase(seed: number, tier?: ChaseTier, table = false) {
 }
 
 // The same sessions at a table that rolls its own dice: every die a command
-// calls for waits, and is thrown, typed in or taken back by the GM as a press
-// of its own, in any order with everything else — which, while a die waits,
+// calls for waits, and is thrown or typed in as a press of its own, in any order with everything else — which, while a die waits,
 // the offers and the board must show closed.
 describe('with the dice left to the table', () => {
   for (const duel of DUELS) {

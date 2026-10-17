@@ -3,14 +3,21 @@ import { without } from './utils'
 import type { Collection } from './campaign/types'
 
 // Who is at the screen. Picked from a list with no sign-in for now, so a
-// profile is who someone says they are. `manualDice` is someone who rolls
-// their own dice at the table and types in what they show, where the screen
-// would otherwise roll for them.
-export const ProfileSchema = z.object({
-  id: z.string(),
-  name: z.string().default(''),
-  manualDice: z.boolean().default(false),
-})
+// profile is who someone says they are. `dice` is where they roll: the screen
+// rolls for them at once, they throw in the dice tray, or they roll their own
+// dice at the table and type in what they show. A profile saved when the only
+// choice was their own dice or none keeps that choice.
+export const DICE_PLACES = ['screen', 'tray', 'table'] as const
+export type DicePlace = (typeof DICE_PLACES)[number]
+
+export const ProfileSchema = z.preprocess(
+  (raw) => (raw && typeof raw === 'object' && !('dice' in raw) && 'manualDice' in raw ? { ...raw, dice: raw.manualDice ? 'table' : 'screen' } : raw),
+  z.object({
+    id: z.string(),
+    name: z.string().default(''),
+    dice: z.enum(DICE_PLACES).catch('screen'),
+  }),
+)
 export type Profile = z.infer<typeof ProfileSchema>
 
 export type ProfileListing = { id: string; name: string }

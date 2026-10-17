@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { DegreeSchema, type Degree } from '../types'
-import type { Dice } from './dice'
+import { DIE_SOURCES, type Dice, type DieSource } from './dice'
 import type { Term } from '../character/rules/terms'
 
 // play.tex "How skills work": the test every part of play makes, in a fight, an
@@ -44,23 +44,29 @@ export function resolveTest(test: Test, dice: Dice): TestResult {
 }
 
 // A test as it is kept to be read afterwards: the die, the score it came to,
-// the DL and the degree, and whether the die was entered from the table.
+// the DL and the degree, and where the die came from when the screen did not
+// roll it.
 export const TestRollSchema = z.object({
   die: z.number(),
   score: z.number(),
   DL: z.number(),
   degree: DegreeSchema,
-  entered: z.boolean().optional(),
+  source: z.enum(DIE_SOURCES).optional(),
 })
 export type TestRoll = z.infer<typeof TestRollSchema>
 
-export const toRoll = ({ die, score, DL, degree, entered }: TestRoll): TestRoll => ({ die, score, DL, degree, ...(entered ? { entered } : {}) })
+export const toRoll = ({ die, score, DL, degree, source }: TestRoll): TestRoll => ({ die, score, DL, degree, ...(source && source !== 'screen' ? { source } : {}) })
 
-type ReadRoll = { score: number; DL: number; degree: string; entered?: boolean }
+type ReadRoll = { score: number; DL: number; degree: string; source?: DieSource }
+
+const SOURCE_MARK: Record<DieSource, string> = { screen: '', thrown: ' (die thrown)', entered: ' (die entered)' }
+
+// Where a die came from, to follow a line, when the screen did not roll it.
+export const describeSource = (source: DieSource): string => SOURCE_MARK[source]
 
 // A roll as a line of text: the score against the DL, and the degree.
-export function describeRoll({ score, DL, degree, entered }: ReadRoll): string {
-  return `${score} vs DL ${DL}, ${degree}${entered ? ' (die entered)' : ''}`
+export function describeRoll({ score, DL, degree, source = 'screen' }: ReadRoll): string {
+  return `${score} vs DL ${DL}, ${degree}${describeSource(source)}`
 }
 
 // What a test came to, to follow a line: the roll, if one was made, and a

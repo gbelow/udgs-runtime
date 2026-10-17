@@ -4,12 +4,12 @@ import type { Activity, DowntimeUpdater, TrainingTarget } from "../domain/downti
 import { DECISIONS } from "../domain/downtime/types";
 import { getDowntimeResultLines, getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePanel, type SkillOption, type TrainingOption } from "../domain/downtime/projections/downtime";
 import { chooseActivity, chooseTraining, decideTraining, dropBlock, setBlock, setHoused, setLearningGain, setLiving } from "../domain/downtime/commands/plans";
-import { answerDowntime, cancelDowntimeCall, passDays, toExploration } from "../domain/downtime/commands/downtime";
+import { answerDowntime, passDays, toExploration } from "../domain/downtime/commands/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
 import { getRosterName } from "../domain/campaign/rules/roster";
-import { useDieAnswer, useDieCancel, useThrower } from "./useDieCalls";
+import { useDieAnswer, useThrower } from "./useDieCalls";
 import { getBlockActor, getToExplorationBar } from "../domain/downtime/rules/downtime";
 import type { Actor } from "../domain/profiles";
 import { useActGate } from "./useControl";
@@ -62,13 +62,7 @@ export function useDowntimeDiceBar(): string | null {
 export function useDowntimeCalls(): CallRow[] {
   useCampaignStore((s) => s.downtime.calls);
   const s = useCampaignStore.getState();
-  return getCallRows(s.downtime.calls, (id) => getRosterName(s, id), () => true);
-}
-
-// The GM's taking back of the activity a die the days called for answers.
-export function useDowntimeCancel() {
-  const updateDowntime = useCampaignStore((s) => s.updateDowntime);
-  return useDieCancel((callId, thrower) => updateDowntime(cancelDowntimeCall(callId, thrower)));
+  return getCallRows(s.downtime.calls, (id) => getRosterName(s, id));
 }
 
 // The answer to a test the days call for.
@@ -76,7 +70,7 @@ export function useDowntimeAnswer() {
   const updateDowntime = useCampaignStore((s) => s.updateDowntime);
   return useDieAnswer(
     () => useCampaignStore.getState().downtime.calls,
-    (callId, die, entered, thrower) => updateDowntime(answerDowntime(callId, die, entered, thrower)),
+    (callId, die, source, thrower) => updateDowntime(answerDowntime(callId, die, source, thrower)),
   );
 }
 

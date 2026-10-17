@@ -200,12 +200,6 @@ export function getGroupActor(t: Exploring, partyId: string, settings: Partial<G
 // Why the ET cannot pass now: time must be able to pass (`getTimeBar`), every
 // group needs its roller, and every forced rest whose group goes away needs a
 // decision.
-// Whether a die the ET called for answers a plan someone made, which the GM
-// may take back: a group's action, a cast or a treatment.
-export function isCancellableET(callId: string): boolean {
-  return ['group', 'cast', 'treat'].includes(callId.split(':')[0])
-}
-
 export function getPassBar(t: Exploring): string | null {
   const bar = getTimeBar(t.campaign, 'exploration')
   if (bar) return bar

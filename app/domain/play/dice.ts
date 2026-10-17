@@ -14,20 +14,48 @@ export function rollPercent(dice: Dice): number {
   return dice(false) * 10 + dice(false)
 }
 
+// Where a die came from: rolled by the screen, thrown in the dice tray, or
+// entered from the table.
+export const DIE_SOURCES = ['screen', 'thrown', 'entered'] as const
+export type DieSource = (typeof DIE_SOURCES)[number]
+
+// The faces one d10 of a test shows: the d10, and the d6s it exploded into.
+export type D10Throw = { d10: number; d6s: number[] }
+
 // The d10 reads 0 to 9. play.tex "Exploding die", where a test explodes: a 9
 // adds a d6, and keeps adding while the d6 shows 6; a 0 subtracts them the
 // same way.
-export function rollD10(explodes: boolean, rng: () => number): number {
-  const face = rollDie(10, rng) - 1
-  if (!explodes || (face !== 9 && face !== 0)) return face
-  const sign = face === 9 ? 1 : -1
-  let total = face
+function throwD10(explodes: boolean, rng: () => number): D10Throw {
+  const d10 = rollDie(10, rng) - 1
+  const d6s: number[] = []
+  if (!explodes || (d10 !== 9 && d10 !== 0)) return { d10, d6s }
   let d6: number
   do {
     d6 = rollDie(6, rng)
-    total += sign * d6
+    d6s.push(d6)
   } while (d6 === 6)
-  return total
+  return { d10, d6s }
+}
+
+export function readD10({ d10, d6s }: D10Throw): number {
+  const sign = d10 === 9 ? 1 : -1
+  return d6s.reduce((total, d6) => total + sign * d6, d10)
+}
+
+export function rollD10(explodes: boolean, rng: () => number): number {
+  return readD10(throwD10(explodes, rng))
+}
+
+// Dice that keep the faces of every d10 they throw, in the order thrown, for
+// the tray to show.
+export function recordDice(rng: () => number): { dice: Dice; thrown: D10Throw[] } {
+  const thrown: D10Throw[] = []
+  const dice: Dice = (explodes) => {
+    const t = throwD10(explodes, rng)
+    thrown.push(t)
+    return readD10(t)
+  }
+  return { dice, thrown }
 }
 
 // play.tex "Safe and risky tests": both dice are thrown in full, explosions

@@ -41,8 +41,9 @@ export function ProfileMenu(){
               <TextInput key={profile.id} aria-label='profile name' defaultValue={profile.name} onBlur={(e) => rename(e.target.value)} />
               <SectionLabel>dice</SectionLabel>
               <div className='flex flex-row gap-1'>
-                <Button size='xs' selected={!profile.manualDice} onClick={() => setDice(false)}>rolled on screen</Button>
-                <Button size='xs' selected={profile.manualDice} onClick={() => setDice(true)}>my own dice</Button>
+                <Button size='xs' selected={profile.dice === 'screen'} onClick={() => setDice('screen')}>rolled on screen</Button>
+                <Button size='xs' selected={profile.dice === 'tray'} onClick={() => setDice('tray')}>dice tray</Button>
+                <Button size='xs' selected={profile.dice === 'table'} onClick={() => setDice('table')}>my own dice</Button>
               </div>
             </div>
           ) : null}

@@ -357,7 +357,7 @@ export function rollAction(thrown: Throw, newId: () => string): Updater {
 // A test called for in the exchange, or, while its die waits, what it would
 // come to on nothing.
 function testFor(caller: Caller, action: Action, test: Test, label: string, mode: RollMode = 'normal', id = `roll:${action.id}`) {
-  return caller.test({ id, roller: action.actorId, label, test, mode }) ?? { ...resolveTest(test, () => WAITING), entered: false }
+  return caller.test({ id, roller: action.actorId, label, test, mode }) ?? { ...resolveTest(test, () => WAITING), source: 'screen' as const }
 }
 
 function rollWith(caller: Caller, newId: () => string): Updater {

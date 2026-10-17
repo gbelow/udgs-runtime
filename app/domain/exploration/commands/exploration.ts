@@ -3,14 +3,14 @@ import type { CampaignCharacter, Degree } from '../../types'
 import type { At, CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
 import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, StayResult, TestRoll } from '../types'
 import { CampSchema } from '../types'
-import { rollPercent, type Dice } from '../../play/dice'
+import { rollPercent, type Dice, type DieSource } from '../../play/dice'
 import { getDegree } from '../../play/test'
 import { answerCall, getOpenCalls, makeCaller, toCallRoll, type CallResult, type CallSpec, type Throw } from '../../play/calls'
 import { getETResultLines } from '../projections/exploration'
 import { addExhaustion, addIL, gainHunger, gainThirst, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getPassBar, getRestExposure, isCancellableET, getRestsToday, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest,
+  getPassBar, getRestExposure, getRestsToday, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
@@ -467,26 +467,11 @@ export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
   }
 }
 
-// The GM's way out of a die nobody throws (the table's ruling): the group's
-// action or the cast it was called for is taken back — the group goes nowhere,
-// the caster casts nothing — and the ET goes on with the rest. Refused for a
-// die that answers nothing anyone planned, a Will test or a target's.
-export function cancelETCall(callId: string, thrown: Throw, newId: () => string): ExplorationUpdater {
-  return (t) => {
-    const [kind, ...rest] = callId.split(':')
-    if (!(callId in t.exploration.calls) || !isCancellableET(callId)) return t
-    const exploration = kind === 'group'
-      ? { ...t.exploration, groups: { ...t.exploration.groups, [rest[0]]: without(t.exploration.groups[rest[0]] ?? {}, rest[1]) } }
-      : { ...t.exploration, casts: without(t.exploration.casts, rest[0]) }
-    return passET(thrown, newId)({ ...t, exploration: { ...exploration, calls: without(exploration.calls, callId) } })
-  }
-}
-
 // A die for a test the ET called for, typed in from the table or rolled on
 // the screen; the last die called for plays the ET on.
-export function answerET(callId: string, die: number, entered: boolean, thrown: Throw, newId: () => string): ExplorationUpdater {
+export function answerET(callId: string, die: number, source: DieSource, thrown: Throw, newId: () => string): ExplorationUpdater {
   return (t) => {
-    const calls = answerCall(t.exploration.calls, callId, die, entered)
+    const calls = answerCall(t.exploration.calls, callId, die, source)
     if (calls === t.exploration.calls) return t
     const answered = { ...t, exploration: { ...t.exploration, calls } }
     return getOpenCalls(calls).length > 0 ? answered : passET(thrown, newId)(answered)
