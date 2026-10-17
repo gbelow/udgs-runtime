@@ -3,7 +3,6 @@ import { openHarness, type Harness } from './boardHarness'
 import { fighter } from '../domain/bot/fixtures'
 import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getAvailableActions } from '../domain/scene/rules/options'
-import { continueRound, nextRound } from '../domain/scene/commands/nextRound'
 
 // Click to effect, over the real combat store: what a player does on the
 // board and the panels, and what stands afterwards. Expected values are what
@@ -61,8 +60,8 @@ function scene(walls: [number, number][] = []): Harness {
   h.holdBrush('wall')
   walls.forEach(([q, r]) => h.cell(q, r))
   h.holdBrush(null)
-  h.press(nextRound(h.dice))
-  h.press(continueRound(h.dice))
+  h.send({ kind: 'nextRound', args: [] })
+  h.send({ kind: 'continueRound', args: [] })
   h.select('Ann')
   h.startTurn()
   h.declare({ kind: 'move' })

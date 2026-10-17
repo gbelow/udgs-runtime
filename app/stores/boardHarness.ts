@@ -4,10 +4,8 @@ import type { TerrainBrush } from '../domain/types'
 import { SceneStateSchema, type ActionDraft, type SeenScene, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { readClick, type Click } from '../domain/scene/commands/click'
-import { createBoard, removeBoard, setLight } from '../domain/scene/commands/board'
 import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
 import type { Viewer } from '../domain/profiles'
-import { startTurn } from '../domain/scene/commands/turn'
 import { makeCampaignCharacter } from '../domain/factories'
 import type { CampaignCharacter } from '../domain/types'
 import { useCombatStore } from './useCombatStore'
@@ -42,9 +40,10 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
   const send = (command: SceneCommand, viewer: Viewer = GM) =>
     press((s) => applySceneCommand(s, command, viewer, { thrower: dice, newId }))
   const click = (c: Click) => {
-    const read = readClick(state(), c, { brush, reposition, selected: state().activeCharacterId, newId })
+    const selected = state().activeCharacterId
+    const read = readClick(state(), c, { brush, reposition, selected, newId: () => '' })
     if ('select' in read) useCombatStore.getState().setActiveCharacter(read.select)
-    else press(read.apply)
+    else send({ kind: 'click', args: [c, brush, reposition, selected] })
   }
 
   const idOf = (name: string): string => {
@@ -69,9 +68,9 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
 
     // the sidebar: bring a character into the fight, and the board into being
     bring: (...who: (string | CampaignCharacter)[]) => who.forEach((w) => useCampaignStore.getState().loadFighter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w)),
-    createBoard: (radius: number) => press(createBoard(radius)),
-    removeBoard: () => press(removeBoard),
-    light: (level: LightLevel) => press(setLight(level)),
+    createBoard: (radius: number) => send({ kind: 'createBoard', args: [radius] }),
+    removeBoard: () => send({ kind: 'removeBoard', args: [] }),
+    light: (level: LightLevel) => send({ kind: 'light', args: [level] }),
 
     // the board
     cell: (q: number, r: number) => click({ on: 'cell', cell: { q, r } }),
@@ -90,7 +89,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     },
 
     // the action panel and turn controls, which act for the active character
-    startTurn: () => press(startTurn(active()!)),
+    startTurn: () => send({ kind: 'startTurn', args: [active()!] }),
     declare: (draft: ActionDraft) => send({ kind: 'declare', args: [active()!, draft] }),
     amend: (fields: Partial<ActionDraft>) => send({ kind: 'amend', args: [fields] }),
     commit: () => send({ kind: 'commit', args: [] }),

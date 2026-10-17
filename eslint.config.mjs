@@ -158,7 +158,9 @@ const eslintConfig = [
   //    so a fight on the board runs the code it ran before the chase existed.
   //    A new crossing point is a decision: add it here, and make it answer
   //    nothing with no chase. (Chosen over a full spatial adapter on
-  //    2026-10-11; see instructions/scene-map.md "Spaces".)
+  //    2026-10-11; see instructions/scene-map.md "Spaces".) The command
+  //    registry lists every command, the chase's among them, and runs none
+  //    of its own, so it is not a crossing point.
   {
     files: ["app/domain/scene/rules/**/*.ts"],
     ignores: ["**/*.test.ts", "app/domain/scene/rules/chase.ts"],
@@ -175,7 +177,7 @@ const eslintConfig = [
   },
   {
     files: ["app/domain/scene/commands/**/*.ts"],
-    ignores: ["**/*.test.ts", "app/domain/scene/commands/chase.ts"],
+    ignores: ["**/*.test.ts", "app/domain/scene/commands/chase.ts", "app/domain/scene/commands/registry.ts"],
     rules: {
       "@typescript-eslint/no-restricted-imports": ["error", {
         patterns: [

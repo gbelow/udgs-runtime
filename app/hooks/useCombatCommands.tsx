@@ -1,125 +1,58 @@
-import { continueRound as moveRoundOn, holdOn as holdOnTo, letGo as letGoOf, nextRound as passRound } from "../domain/scene/commands/nextRound"
-import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleAgreeToEnd as toggleAgreement, toggleContest as toggleTurnContest } from "../domain/scene/commands/turn"
 import type { SurgeKind } from "../domain/types"
 import { removeFromFight, resetFight } from "../domain/scene/commands/fight"
-import { endCombat as finishCombat } from "../domain/scene/commands/endCombat"
-import { createParty as makeParty, moveToParty as moveInto, renameParty as renameFightParty, splitOff as splitFrom } from "../domain/scene/commands/parties"
-import { toggleBreakage as switchBreakage } from "../domain/scene/commands/breakage"
-import { rollMorale as testMorale, setTablePressure as setTablePressureOf } from "../domain/scene/commands/morale"
-import { rollHeld as testHeld } from "../domain/scene/commands/heldTest"
 import type { CalledKind } from "../domain/scene/rules/heldTest"
-import { defaultToCoward as defaultToCowardSocial } from "../domain/scene/commands/social"
-import type { Updater } from "../domain/scene/types"
 import type { RollMode } from "../domain/play/dice"
 import { useCombatStore } from "../stores/useCombatStore"
 import { useCampaignStore } from "../stores/useCampaignStore"
 import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
 import { readActiveCharacter } from "./useActiveCharacterSelector"
-import { realDice } from "../components/utils"
-import { useThrower } from "./useDieCalls"
-import { useActForGate } from "./useControl"
+import { useSceneDispatch } from "./useSceneDispatch"
 
+// The turn, the round and the fight's parties, each press sent as a scene
+// command; whom it acts for is the registry's to say. Taking a character out
+// of the fight, or emptying it, crosses into the campaign and is landed on
+// both.
 export function useCombatCommands() {
 
   const tab = useAppStore((s) => s.selectedGameTab)
-  // Select just the stable action refs, not the whole combat store, to avoid
-  // subscribing to every combat change.
-  const updateCombatState = useCombatStore((s) => s.updateCombatState)
   const updateTable = useCampaignStore((s) => s.updateTable)
-  const newId = () => crypto.randomUUID()
-  const thrower = useThrower()
-  // a die typed in from the table for a test the press makes, or the screen's
-  const typed = (die?: number) => (die === undefined ? realDice : () => die)
-  // what a character does for themselves is pressed only by whoever plays
-  // them, or the GM
-  const gate = useActForGate()
-  const forCharacter = (id: string, command: Updater) => { if (gate(id)) updateCombatState(command) }
+  const dispatch = useSceneDispatch()
+
+  // the turn buttons act for the character this screen has picked
+  const asPicked = (send: (id: string) => void) => () => {
+    const id = useCombatStore.getState().activeCharacterId
+    if (id) send(id)
+  }
 
   const killCharacter = () => {
     const c = readActiveCharacter(tab)
     if (c && isCampaignCharacter(c)) updateTable(removeFromFight(c.id))
   }
 
-  const renameParty = (partyId: string, name: string) => {
-    updateCombatState(renameFightParty(partyId, name))
-  }
+  const startTurn = asPicked((id) => dispatch({ kind: "startTurn", args: [id] }))
+  const toggleContest = asPicked((id) => dispatch({ kind: "toggleContest", args: [id] }))
+  const toggleAgreeToEnd = asPicked((id) => dispatch({ kind: "toggleAgreeToEnd", args: [id] }))
+  const actionSurge = (kind: SurgeKind) => asPicked((id) => dispatch({ kind: "surge", args: [id, kind] }))()
+  const defaultToCoward = asPicked((id) => dispatch({ kind: "defaultToCoward", args: [id] }))
+  const endTurn = () => dispatch({ kind: "endTurn", args: [] })
+  const rollContest = () => dispatch({ kind: "rollContest", args: [] })
+  const nextRound = () => dispatch({ kind: "nextRound", args: [] })
+  const endCombat = () => dispatch({ kind: "endCombat", args: [] })
+  const continueRound = () => dispatch({ kind: "continueRound", args: [] })
+  const holdOn = (id: string) => dispatch({ kind: "holdOn", args: [id] })
+  const letGo = (id: string) => dispatch({ kind: "letGo", args: [id] })
+  const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => dispatch({ kind: "rollMorale", args: [id, mode, enemyNear, die] })
+  const rollHeld = (id: string, kind: CalledKind, mode: RollMode, die?: number) => dispatch({ kind: "rollHeld", args: [id, kind, mode, die] })
+  const setTablePressure = (id: string, value: number) => dispatch({ kind: "setTablePressure", args: [id, value] })
+  const toggleBreakage = () => dispatch({ kind: "toggleBreakage", args: [] })
 
-  // The turn buttons act for the active character, and ending the turn for
-  // whoever holds it; the commands refuse whatever the turn controls show as
-  // closed.
-  const startTurn = () => {
-    const id = useCombatStore.getState().activeCharacterId
-    if (id) forCharacter(id, beginTurn(id))
-  }
-
-  const toggleContest = () => {
-    const id = useCombatStore.getState().activeCharacterId
-    if (id) forCharacter(id, toggleTurnContest(id))
-  }
-
-  const toggleAgreeToEnd = () => {
-    const id = useCombatStore.getState().activeCharacterId
-    if (id) forCharacter(id, toggleAgreement(id))
-  }
-
-  const rollContest = () => {
-    updateCombatState(rollTurnContest(thrower))
-  }
-
-  const actionSurge = (kind: SurgeKind) => {
-    const id = useCombatStore.getState().activeCharacterId
-    if (id) forCharacter(id, surge(id, kind))
-  }
-
-  const endTurn = () => {
-    const id = useCombatStore.getState().inTurnCharacter
-    if (id) forCharacter(id, closeTurn)
-  }
-
-  const nextRound = () => {
-    updateCombatState(passRound(thrower))
-  }
-
-  const endCombat = () => {
-    updateCombatState(finishCombat(thrower))
-  }
-
-  const continueRound = () => {
-    updateCombatState(moveRoundOn(thrower))
-  }
-
-  const holdOn = (id: string) => forCharacter(id, holdOnTo(id, thrower))
-
-  const letGo = (id: string) => forCharacter(id, letGoOf(id, thrower))
-
-  const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => forCharacter(id, testMorale(id, mode, enemyNear, typed(die)))
-
-  const setTablePressure = (id: string, value: number) => {
-    updateCombatState(setTablePressureOf(id, value))
-  }
-
-  const rollHeld = (id: string, kind: CalledKind, mode: RollMode, die?: number) => forCharacter(id, testHeld(id, kind, mode, typed(die)))
-
-  const asActive = (command: (id: string) => Updater) => () => {
-    const id = useCombatStore.getState().activeCharacterId
-    if (id) forCharacter(id, command(id))
-  }
-
-  const moveToParty = (id: string, partyId: string) => updateCombatState(moveInto(id, partyId))
-  const createParty = (name: string) => updateCombatState(makeParty(newId(), name))
-  const splitOff = (id: string) => updateCombatState(splitFrom(id, newId))
+  const moveToParty = (id: string, partyId: string) => dispatch({ kind: "moveToParty", args: [id, partyId] })
+  const createParty = (name: string) => dispatch({ kind: "createParty", args: [name] })
+  const splitOff = (id: string) => dispatch({ kind: "splitOff", args: [id] })
+  const renameParty = (partyId: string, name: string) => dispatch({ kind: "renameParty", args: [partyId, name] })
   const removeCharacter = (id: string) => updateTable(removeFromFight(id))
-
-  const defaultToCoward = asActive(defaultToCowardSocial)
-
-  const resetCombat = () => {
-    updateTable(resetFight)
-  }
-
-  const toggleBreakage = () => {
-    updateCombatState(switchBreakage)
-  }
+  const resetCombat = () => updateTable(resetFight)
 
   return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
 }

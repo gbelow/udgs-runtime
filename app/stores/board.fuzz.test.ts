@@ -11,14 +11,8 @@ import { getOpenAction } from '../domain/scene/rules/log'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
 import { acceptAnswered, declareAction, declareReaction, passReaction, payAnswered, resolveAction, rollAnswered, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { dropToFloor } from '../domain/scene/commands/floor'
-import { endTurn, surge } from '../domain/scene/commands/turn'
-import { continueRound, holdOn, letGo, nextRound } from '../domain/scene/commands/nextRound'
-import { rollMorale } from '../domain/scene/commands/morale'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
-import { rollHeld } from '../domain/scene/commands/heldTest'
-import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from '../domain/scene/commands/chase'
-import { createParty, moveToParty, splitOff } from '../domain/scene/commands/parties'
 import { getChasePanel } from '../domain/scene/projections/chase'
 import { getChaseStartBar, getDeclareOrder } from '../domain/scene/rules/chase'
 import { getNextRoundBar } from '../domain/scene/rules/turn'
@@ -28,7 +22,6 @@ import { SurgeKindSchema, type Character } from '../domain/types'
 import { archer, bomber, crossbowman, brawler, mage, medic, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
-import { answerScene } from '../domain/scene/commands/answer'
 import { useCombatStore } from './useCombatStore'
 
 // A player who presses whatever there is to press, in no order: every click
@@ -76,7 +69,7 @@ function throwCalled(h: Harness, pick: Picker) {
   if (!open.length) return
   const call = pick(open)
   const read = Object.values(h.state().calls).filter((c) => c.id.startsWith('target:') || c.id.startsWith('redo:'))
-  h.press(answerScene(call.id, toThrower(h.roll).answer(call)!, pick(DIE_SOURCES), h.dice, h.newId))
+  h.send({ kind: 'answer', args: [call.id, toThrower(h.roll).answer(call)!, pick(DIE_SOURCES)] })
   const s = h.state()
   if (Object.keys(s.calls).length > 0) return
   for (const c of read) {
@@ -161,7 +154,6 @@ function answerWithAStrike(h: Harness, id: string, pick: Picker) {
 }
 
 function plays(): Play[] {
-  const progress = (name: string, command: (h: Harness) => Parameters<Harness['press']>[0]): Play => ({ name, run: (h) => h.press(command(h)) })
   const names = (h: Harness) => Object.values(h.state().characters).map((c) => c.name)
   return [
     {
@@ -209,7 +201,7 @@ function plays(): Play[] {
     { name: 'reposition as the GM', run: (h, pick) => { const cells = h.view().cells; if (cells.length) h.repositioning(() => h.click({ on: 'cell', cell: pick(cells).cell })) } },
     { name: 'turn as the GM', run: (h) => h.repositioning(() => h.turn()) },
     { name: 'select a character', weight: 2, run: (h, pick) => h.select(pick(names(h))) },
-    { name: 'surge', run: (h, pick) => h.press(surge(h.active()!, pick(SurgeKindSchema.options))) },
+    { name: 'surge', run: (h, pick) => h.send({ kind: 'surge', args: [h.active()!, pick(SurgeKindSchema.options)] }) },
     { name: 'start turn', weight: 2, run: (h) => h.startTurn() },
     {
       name: 'declare',
@@ -270,14 +262,14 @@ function plays(): Play[] {
     { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.send({ kind: 'choose', args: [open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) }] }) } },
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.send({ kind: 'back', args: [] }) },
-    { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.press(rollHeld(r.id, r.kind, pick([...r.modes]), h.roll)) } } },
+    { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.send({ kind: 'rollHeld', args: [r.id, r.kind, pick([...r.modes])] }) } } },
     { name: 'roll', run: (h) => h.send({ kind: 'roll', args: [] }) },
     { name: 'pay', run: (h) => h.send({ kind: 'pay', args: [] }) },
     { name: 'resolve', weight: 2, run: (h) => h.send({ kind: 'resolve', args: [] }) },
     { name: 'skip', run: (h) => h.send({ kind: 'skip', args: [] }) },
     { name: 'cancel', run: (h) => h.send({ kind: 'cancel', args: [] }) },
-    progress('end turn', () => endTurn),
-    progress('next round', (h) => nextRound(h.dice)),
+    { name: 'end turn', run: (h) => h.send({ kind: 'endTurn', args: [] }) },
+    { name: 'next round', run: (h) => h.send({ kind: 'nextRound', args: [] }) },
     ...roundChangePlays(),
   ]
 }
@@ -512,21 +504,21 @@ function roundChangePlays(): Play[] {
     if (bar !== null) expect(h.state(), `${label} is closed (${bar}) but was accepted`).toBe(before)
   }
   return [
-    { name: 'move the round change on', weight: 3, run: (h) => refused(h, getContinueBar(h.state()), () => h.press(continueRound(h.dice)), 'moving the round change on') },
+    { name: 'move the round change on', weight: 3, run: (h) => refused(h, getContinueBar(h.state()), () => h.send({ kind: 'continueRound', args: [] }), 'moving the round change on') },
     {
       name: 'hold on or let go',
       weight: 2,
       run: (h, pick) => {
         const id = pick(Object.keys(h.state().characters))
-        if (pick([true, false])) refused(h, getHoldOnBar(h.state(), id), () => h.press(holdOn(id, h.dice)), 'holding on')
-        else refused(h, getLetGoBar(h.state(), id), () => h.press(letGo(id, h.dice)), 'letting go')
+        if (pick([true, false])) refused(h, getHoldOnBar(h.state(), id), () => h.send({ kind: 'holdOn', args: [id] }), 'holding on')
+        else refused(h, getLetGoBar(h.state(), id), () => h.send({ kind: 'letGo', args: [id] }), 'letting go')
       },
     },
     {
       name: 'test morale',
       run: (h, pick) => {
         const owed = h.state().morale.filter((m) => m.roll === null && h.state().characters[m.id])
-        if (owed.length) h.press(rollMorale(pick(owed).id, pick(ROLL_MODES), pick([true, false]), h.roll))
+        if (owed.length) h.send({ kind: 'rollMorale', args: [pick(owed).id, pick(ROLL_MODES), pick([true, false])] })
       },
     },
   ]
@@ -536,16 +528,16 @@ function roundChangePlays(): Play[] {
 // someone's turn or an action under way: everyone holding something picks
 // whether to hold on, the morale tests are made, and the change moves on.
 function passRoundChange(h: Harness, pick: Picker) {
-  h.press(nextRound(h.dice))
+  h.send({ kind: 'nextRound', args: [] })
   for (let i = 0; i < 40 && getRoundPhase(h.state()); i++) {
     const s = h.state()
     const owed = getConcentrationOwed(s)
     const untested = s.morale.find((m) => m.roll === null && s.characters[m.id])
     if (owed.length) {
       const id = pick(owed)
-      h.press(getHoldOnBar(s, id) || pick([true, false]) ? letGo(id, h.dice) : holdOn(id, h.dice))
-    } else if (untested) h.press(rollMorale(untested.id, pick(ROLL_MODES), pick([true, false]), h.roll))
-    else if (!getContinueBar(s)) h.press(continueRound(h.dice))
+      h.send({ kind: getHoldOnBar(s, id) || pick([true, false]) ? 'letGo' : 'holdOn', args: [id] })
+    } else if (untested) h.send({ kind: 'rollMorale', args: [untested.id, pick(ROLL_MODES), pick([true, false])] })
+    else if (!getContinueBar(s)) h.send({ kind: 'continueRound', args: [] })
     else return
   }
 }
@@ -564,7 +556,7 @@ function startTurnOf(h: Harness, pick: Picker, only: readonly string[] | null = 
   const bound = binds.flatMap((b) => b.members).filter((id) => characters[id])
   h.select(characters[pick(only ?? (bound.length && pick([true, true, false]) ? bound : Object.keys(characters)))].name)
   h.startTurn()
-  if (pick([true, true, false])) h.press(surge(h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])))
+  if (pick([true, true, false])) h.send({ kind: 'surge', args: [h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])] })
 }
 
 function exchange(h: Harness, pick: Picker) {
@@ -577,7 +569,7 @@ function exchange(h: Harness, pick: Picker) {
   finishDeclaration(h, pick)
   answerOpen(h, pick, pick([0, 1, 2, 3, 4]))
   playOut(h, pick)
-  if (pick([true, false])) h.press(endTurn)
+  if (pick([true, false])) h.send({ kind: 'endTurn', args: [] })
 }
 
 // A walk, a swim, a climb, a jump or a run, as far as the board lets it go,
@@ -644,7 +636,7 @@ function rescue(h: Harness, pick: Picker) {
   fillPreparation(h, pick, true, ['block', 'intercept', 'guard'])
   h.commit()
   if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
-  h.press(endTurn)
+  h.send({ kind: 'endTurn', args: [] })
   const attacker = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer))
   if (!attacker) return
   h.select(attacker.name)
@@ -812,7 +804,7 @@ function chasePlays(): Play[] {
       run: (h, pick) => {
         const quarry = Object.keys(h.state().parties).filter(() => pick([true, false]))
         const tier = pick(CHASE_TIERS)
-        refused(h, getChaseStartBar(h.state(), quarry, tier), () => h.press(startChase(quarry, tier)), 'starting the chase')
+        refused(h, getChaseStartBar(h.state(), quarry, tier), () => h.send({ kind: 'startChase', args: [quarry, tier] }), 'starting the chase')
       },
     },
     {
@@ -824,26 +816,26 @@ function chasePlays(): Play[] {
         const row = pick(declaring)
         const { move, bar } = pick(row.moves)
         const scout = move === 'run' && bar === null && row.scoutBar === null && pick([true, false, false]) ? { what: 'a ditch', DL: pick([0, 3, 6]), obstacle: pick([true, false]) } : null
-        refused(h, bar, () => h.press(declareChase(row.id, { move, scout, hideModifier: pick([0, 2]) })), `${row.name}'s ${move}`)
+        refused(h, bar, () => h.send({ kind: 'declareChase', args: [row.id, { move, scout, hideModifier: pick([0, 2]) }] }), `${row.name}'s ${move}`)
         if (bar === null) expect(h.state().chase?.declarations[row.id]?.move, `${row.name}'s ${move} is open but was not declared`).toBe(move)
       },
     },
-    { name: 'resolve the chase round', weight: 5, run: (h) => refused(h, panel(h).resolveBar, () => h.press(resolveChase(h.dice)), 'resolving the round') },
-    { name: 'next round', weight: 3, run: (h) => h.press(nextRound(h.dice)) },
-    { name: 'split someone off', weight: 2, run: (h, pick) => h.press(splitOff(pick(Object.keys(h.state().characters)), h.newId)) },
-    { name: 'create a party', run: (h) => h.press(createParty(h.newId(), '')) },
-    { name: 'move someone to another party', run: (h, pick) => h.press(moveToParty(pick(Object.keys(h.state().characters)), pick(Object.keys(h.state().parties)))) },
+    { name: 'resolve the chase round', weight: 5, run: (h) => refused(h, panel(h).resolveBar, () => h.send({ kind: 'resolveChase', args: [] }), 'resolving the round') },
+    { name: 'next round', weight: 3, run: (h) => h.send({ kind: 'nextRound', args: [] }) },
+    { name: 'split someone off', weight: 2, run: (h, pick) => h.send({ kind: 'splitOff', args: [pick(Object.keys(h.state().characters))] }) },
+    { name: 'create a party', run: (h) => h.send({ kind: 'createParty', args: [''] }) },
+    { name: 'move someone to another party', run: (h, pick) => h.send({ kind: 'moveToParty', args: [pick(Object.keys(h.state().characters)), pick(Object.keys(h.state().parties))] }) },
     {
       name: 'chase another party',
-      run: (h, pick) => { const c = option(h, pick, (r) => r.followOptions); if (c) refused(h, c.o.bar, () => h.press(followParty(c.row.id, c.o.id)), `${c.row.name} chasing ${c.o.name}`) },
+      run: (h, pick) => { const c = option(h, pick, (r) => r.followOptions); if (c) refused(h, c.o.bar, () => h.send({ kind: 'followParty', args: [c.row.id, c.o.id] }), `${c.row.name} chasing ${c.o.name}`) },
     },
     {
       name: 'put a party back',
-      run: (h, pick) => { const c = option(h, pick, (r) => r.putBackOptions); if (c) refused(h, c.o.bar, () => h.press(putBack(c.row.id, c.o.id, pick(CHASE_TIERS))), `${c.row.name} put back after ${c.o.name}`) },
+      run: (h, pick) => { const c = option(h, pick, (r) => r.putBackOptions); if (c) refused(h, c.o.bar, () => h.send({ kind: 'putBack', args: [c.row.id, c.o.id, pick(CHASE_TIERS)] }), `${c.row.name} put back after ${c.o.name}`) },
     },
     {
       name: 'join a fight',
-      run: (h, pick) => { const c = option(h, pick, (r) => r.joinOptions); if (c) refused(h, c.o.bar, () => h.press(joinFight(c.row.id, c.o.id)), `${c.row.name} joining ${c.o.name}`) },
+      run: (h, pick) => { const c = option(h, pick, (r) => r.joinOptions); if (c) refused(h, c.o.bar, () => h.send({ kind: 'joinChaseFight', args: [c.row.id, c.o.id] }), `${c.row.name} joining ${c.o.name}`) },
     },
     {
       name: 'give up, merge back or fight',
@@ -851,24 +843,24 @@ function chasePlays(): Play[] {
         if (!rows(h).length) return
         const row = pick(rows(h))
         pick([
-          () => refused(h, row.giveUpBar, () => h.press(giveUp(row.id)), `${row.name} giving up`),
-          () => refused(h, row.mergeBar, () => h.press(mergeBack(row.id)), `${row.name} merging back`),
-          () => refused(h, row.fightBar, () => h.press(setPartyFighting(row.id, !row.fighting)), `${row.name} ${row.fighting ? 'running again' : 'fighting'}`),
+          () => refused(h, row.giveUpBar, () => h.send({ kind: 'giveUp', args: [row.id] }), `${row.name} giving up`),
+          () => refused(h, row.mergeBar, () => h.send({ kind: 'mergeBack', args: [row.id] }), `${row.name} merging back`),
+          () => refused(h, row.fightBar, () => h.send({ kind: 'setPartyFighting', args: [row.id, !row.fighting] }), `${row.name} ${row.fighting ? 'running again' : 'fighting'}`),
         ])()
       },
     },
-    { name: 'turn around', run: (h, pick) => { const members = rows(h).filter((r) => r.turnable).flatMap((r) => r.members); if (members.length) h.press(turnAround(pick(members).id)) } },
-    { name: 'take cover', run: (h, pick) => { const runners = panel(h).runners; if (runners.length) h.press(setChaseCover(pick(runners).id, pick([null, ...CHASE_COVERS]))) } },
+    { name: 'turn around', run: (h, pick) => { const members = rows(h).filter((r) => r.turnable).flatMap((r) => r.members); if (members.length) h.send({ kind: 'turnAround', args: [pick(members).id] }) } },
+    { name: 'take cover', run: (h, pick) => { const runners = panel(h).runners; if (runners.length) h.send({ kind: 'setChaseCover', args: [pick(runners).id, pick([null, ...CHASE_COVERS])] }) } },
     {
       name: 'cross an obstacle',
       run: (h, pick) => {
         const crossing = rows(h).filter((r) => r.feature?.obstacle)
         if (!crossing.length) return
         const row = pick(crossing)
-        refused(h, row.crossBar, () => h.press(crossObstacle(row.id, pick(CROSSING_SKILLS), pick([0, 3, 6]), h.dice)), `${row.name} crossing`)
+        refused(h, row.crossBar, () => h.send({ kind: 'crossObstacle', args: [row.id, pick(CROSSING_SKILLS), pick([0, 3, 6])] }), `${row.name} crossing`)
       },
     },
-    { name: 'end the chase', run: (h) => refused(h, panel(h).endBar, () => h.press(endChase), 'ending the chase') },
+    { name: 'end the chase', run: (h) => refused(h, panel(h).endBar, () => h.send({ kind: 'endChase', args: [] }), 'ending the chase') },
     {
       name: 'scout a hiding place, run to it and hide',
       weight: 2,
@@ -883,9 +875,9 @@ function chasePlays(): Play[] {
             const move = open.includes('hide') ? 'hide' : scouting ? 'run' : pick(open)
             const scout = scouting ? { what: 'a hollow', DL: -20, obstacle: false } : null
             hid ||= move === 'hide'
-            h.press(declareChase(p, { move, scout, hideModifier: 0 }))
+            h.send({ kind: 'declareChase', args: [p, { move, scout, hideModifier: 0 }] })
           }
-          refused(h, panel(h).resolveBar, () => h.press(resolveChase(h.dice)), 'resolving the round')
+          refused(h, panel(h).resolveBar, () => h.send({ kind: 'resolveChase', args: [] }), 'resolving the round')
           if (hid || getNextRoundBar(h.state())) return
           passRoundChange(h, pick)
         }
@@ -908,10 +900,10 @@ function openChase(seed: number, tier?: ChaseTier, table = false) {
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
   h.bring(warden('Ann'), trained(archer('Bob')), brawler('Cy'), towerWarden('Dee'), crossbowman('Eve'), mage('Fay'))
-  h.press(splitOff(h.idOf('Dee'), h.newId))
+  h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
   const theirs = h.state().partyOf[h.idOf('Dee')]
-  for (const name of ['Eve', 'Fay']) h.press(moveToParty(h.idOf(name), theirs))
-  h.press(startChase([h.state().partyOf[h.idOf('Ann')]], tier ?? pick(['combat', 'shooting', 'far'] as const)))
+  for (const name of ['Eve', 'Fay']) h.send({ kind: 'moveToParty', args: [h.idOf(name), theirs] })
+  h.send({ kind: 'startChase', args: [[h.state().partyOf[h.idOf('Ann')]], tier ?? pick(['combat', 'shooting', 'far'] as const)] })
   passRoundChange(h, pick)
   h.select('Ann')
   return { h, pick }
@@ -949,8 +941,8 @@ describe('a chase with no board', () => {
   // it, and let them start turns with nothing to do in them.
   it('ends a round of running without anyone agreeing, and starts no turn in it', () => {
     const { h } = openChase(1, 'shooting')
-    for (const p of getDeclareOrder(h.state())) h.press(declareChase(p, { move: 'run', scout: null, hideModifier: 0 }))
-    h.press(resolveChase(h.dice))
+    for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
+    h.send({ kind: 'resolveChase', args: [] })
     const before = h.state()
     h.startTurn()
     expect(h.state()).toEqual(before)

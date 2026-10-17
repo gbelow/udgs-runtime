@@ -1,8 +1,8 @@
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
 import { getFightName } from "../domain/scene/rules/fighters";
-import { answerScene } from "../domain/scene/commands/answer";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAutoThrow, useDieAnswer } from "./useDieCalls";
+import { useSceneDispatch } from "./useSceneDispatch";
 
 // Why nothing else may be done in the scene: it waits on dice.
 export function useSceneDiceBar(): string | null {
@@ -18,10 +18,10 @@ export function useSceneCalls(): CallRow[] {
 
 // The answer to a die the scene called for.
 export function useSceneAnswer() {
-  const updateCombatState = useCombatStore((s) => s.updateCombatState);
+  const dispatch = useSceneDispatch();
   return useDieAnswer(
     () => useCombatStore.getState().calls,
-    (callId, die, source, thrower) => updateCombatState(answerScene(callId, die, source, thrower, () => crypto.randomUUID())),
+    (callId, die, source) => dispatch({ kind: "answer", args: [callId, die, source] }),
   );
 }
 

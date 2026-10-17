@@ -1,16 +1,32 @@
-import type { Throw } from '../../play/calls'
+import { toThrower, type Throw } from '../../play/calls'
+import type { DieSource, RollMode } from '../../play/dice'
 import { getActorBar, type Actor, type Viewer } from '../../profiles'
 import type { SpellModification } from '../../tables'
+import type { ChaseCover, ChaseTier, CrossingSkill } from '../../lists'
+import type { SurgeKind, TerrainBrush } from '../../types'
 import { getPanelActor, type PanelPress } from '../rules/decider'
-import type { ActionDraft, HOPPurchase, SceneState, Updater } from '../types'
+import type { CalledKind } from '../rules/heldTest'
+import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
+import { answerScene } from './answer'
+import { createBoard, importBoard, removeBoard, setLight } from './board'
+import { toggleBreakage } from './breakage'
+import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
+import { readClick, type Click } from './click'
+import { endCombat } from './endCombat'
+import { rollHeld } from './heldTest'
+import { rollMorale, setTablePressure } from './morale'
+import { continueRound, holdOn, letGo, nextRound } from './nextRound'
+import { createParty, moveToParty, renameParty, splitOff } from './parties'
+import { defaultToCoward } from './social'
+import { endTurn, rollContest, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
 import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
   passReaction, payAnswered, resolveAction, rollAnswered, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
 } from './action'
 import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from './choices'
 
-// The scene's presses as data: each kind names the command it runs and whom
-// it acts for, and takes only plain data as its arguments, so that a press
+// The scene's presses and clicks as data: each kind names the command it
+// runs and whom it acts for, and takes only plain data as its arguments, so that a press
 // can be sent from one screen and played on another. What the table that
 // plays it supplies, the dice and the ids, comes in the context.
 
@@ -28,6 +44,17 @@ const command = <A extends unknown[]>(run: Entry<A>['run']) => ({
 const character = (id: string | null): Actor => (id === null ? null : { id })
 const panel = (press: PanelPress) => (state: SceneState): Actor => character(getPanelActor(state, press))
 const reactor = (_: SceneState, reactorId: string): Actor => ({ id: reactorId })
+const own = (_: SceneState, id: string): Actor => ({ id })
+const anyone = (): Actor => null
+const gmTool = (): Actor => 'gmTool'
+// a die typed in from the table for a test the press makes, or the table's
+const typed = (ctx: CommandContext, die?: number) => (die === undefined ? toThrower(ctx.thrower).dice : () => die)
+// what the board makes of a click, as the screen that made it saw the board;
+// a click that only picks a character there does nothing to the fight
+const readOn = (newId: () => string, state: SceneState, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null) => {
+  const read = readClick(state, click, { brush, reposition, selected, newId })
+  return 'select' in read ? null : read
+}
 
 export const sceneCommands = {
   declare: command((ctx, actorId: string, draft: ActionDraft) => declareAction(actorId, draft, ctx.newId)).by((_, actorId) => ({ id: actorId })),
@@ -55,6 +82,59 @@ export const sceneCommands = {
   cast: command((_, key: string, quicken: boolean) => chooseSpell(key, quicken)).by(panel('open')),
   choose: command((_, fields: { along?: boolean; item?: string }) => chooseManeuver(fields)).by(panel('open')),
   boostPush: command((_, boost: boolean) => boostPush(boost)).by(panel('open')),
+
+  // the board
+  click: command((ctx, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null): Updater =>
+    (state) => readOn(ctx.newId, state, click, brush, reposition, selected)?.apply(state) ?? state)
+    .by((state, click, brush, reposition, selected) => readOn(() => '', state, click, brush, reposition, selected)?.actor ?? null),
+  createBoard: command((_, radius: number) => createBoard(radius)).by(gmTool),
+  removeBoard: command(() => removeBoard).by(gmTool),
+  light: command((_, level: LightLevel) => setLight(level)).by(gmTool),
+  // a board from a VTT, read best-effort
+  importBoard: command((_, raw: unknown) => importBoard(raw)).by(anyone),
+
+  // a die the scene called for, answered by whoever throws it
+  answer: command((ctx, callId: string, die: number, source: DieSource) => answerScene(callId, die, source, ctx.thrower, ctx.newId))
+    .by((state, callId) => character(state.calls[callId]?.roller ?? null)),
+
+  // the turn and the round
+  startTurn: command((_, id: string) => startTurn(id)).by(own),
+  toggleContest: command((_, id: string) => toggleContest(id)).by(own),
+  toggleAgreeToEnd: command((_, id: string) => toggleAgreeToEnd(id)).by(own),
+  surge: command((_, id: string, kind: SurgeKind) => surge(id, kind)).by(own),
+  endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),
+  rollContest: command((ctx) => rollContest(ctx.thrower)).by(anyone),
+  nextRound: command((ctx) => nextRound(ctx.thrower)).by(anyone),
+  continueRound: command((ctx) => continueRound(ctx.thrower)).by(anyone),
+  endCombat: command((ctx) => endCombat(ctx.thrower)).by(anyone),
+  holdOn: command((ctx, id: string) => holdOn(id, ctx.thrower)).by(own),
+  letGo: command((ctx, id: string) => letGo(id, ctx.thrower)).by(own),
+  rollMorale: command((ctx, id: string, mode: RollMode, enemyNear: boolean, die?: number) => rollMorale(id, mode, enemyNear, typed(ctx, die))).by(own),
+  rollHeld: command((ctx, id: string, kind: CalledKind, mode: RollMode, die?: number) => rollHeld(id, kind, mode, typed(ctx, die))).by(own),
+  setTablePressure: command((_, partyId: string, value: number) => setTablePressure(partyId, value)).by(anyone),
+  defaultToCoward: command((_, id: string) => defaultToCoward(id)).by(own),
+  toggleBreakage: command(() => toggleBreakage).by(anyone),
+
+  // the fight's parties
+  moveToParty: command((_, id: string, partyId: string) => moveToParty(id, partyId)).by(anyone),
+  createParty: command((ctx, name: string) => createParty(ctx.newId(), name)).by(anyone),
+  splitOff: command((ctx, id: string) => splitOff(id, ctx.newId)).by(anyone),
+  renameParty: command((_, partyId: string, name: string) => renameParty(partyId, name)).by(anyone),
+
+  // combat.tex "Chases"
+  startChase: command((_, quarry: string[], tier: ChaseTier) => startChase(quarry, tier)).by(anyone),
+  declareChase: command((_, partyId: string, declaration: ChaseDeclaration) => declareChase(partyId, declaration)).by(anyone),
+  resolveChase: command((ctx) => resolveChase(ctx.thrower)).by(anyone),
+  followParty: command((_, partyId: string, target: string) => followParty(partyId, target)).by(anyone),
+  putBack: command((_, partyId: string, target: string, tier: ChaseTier) => putBack(partyId, target, tier)).by(anyone),
+  giveUp: command((_, partyId: string) => giveUp(partyId)).by(anyone),
+  mergeBack: command((_, partyId: string) => mergeBack(partyId)).by(anyone),
+  setPartyFighting: command((_, partyId: string, fighting: boolean) => setPartyFighting(partyId, fighting)).by(anyone),
+  joinChaseFight: command((_, partyId: string, to: string) => joinFight(partyId, to)).by(anyone),
+  crossObstacle: command((ctx, partyId: string, skill: CrossingSkill, DL: number) => crossObstacle(partyId, skill, DL, ctx.thrower)).by(anyone),
+  endChase: command(() => endChase).by(anyone),
+  turnAround: command((_, id: string) => turnAround(id)).by(anyone),
+  setChaseCover: command((_, id: string, cover: ChaseCover | null) => setChaseCover(id, cover)).by(anyone),
 }
 
 type Registry = typeof sceneCommands

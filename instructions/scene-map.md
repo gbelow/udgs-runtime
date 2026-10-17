@@ -306,7 +306,7 @@ app/domain/scene/
 │   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── click.ts        readClick: what a click on a cell, token, floor item or the turn button does
-│   ├── registry.ts     sceneCommands: each panel press as data (kind and plain args), the command it runs and whom it acts for; applySceneCommand refuses what the sender may not do
+│   ├── registry.ts     sceneCommands: every scene press and board click as data (kind and plain args), the command it runs and whom it acts for; applySceneCommand refuses what the sender may not do. Lists the chase's commands without being a crossing point (eslint rule 6)
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── parties.ts      joinFight, addToFight, moveToParty, splitOff, renameParty: the scene's parties, inherited from the campaign and changed by the table

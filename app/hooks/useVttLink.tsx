@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { fetchBoard, publishBoard } from "../actions";
-import { importBoard } from "../domain/scene/commands/board";
 import { getLiveBoard } from "../domain/scene/rules/board/hazard";
 import { isSnapshot, toSnapshot } from "../vtt/snapshot";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useSceneDispatch } from "./useSceneDispatch";
 
 // The board's link to a VTT through the mailbox, and the same board as text
 // for a clipboard. `push` publishes the fight's board; `pull` reads the
 // mailbox and imports what is there when it is news — a snapshot the app
 // itself wrote, or one already seen, is left alone. Auto-pull polls while
-// on. All of it is convenience around two server actions and one command.
+// on. All of it is convenience around two server actions and one scene
+// command.
 export function useVttLink() {
-  const update = useCombatStore((s) => s.updateCombatState);
+  const dispatch = useSceneDispatch();
   const [fight, setFight] = useState('');
   const [auto, setAuto] = useState(false);
   const seen = useRef<number>(0);
@@ -41,7 +42,7 @@ export function useVttLink() {
     const at = typeof raw.updatedAt === 'number' ? raw.updatedAt : 0;
     if (raw.source === 'app' || at <= seen.current) { if (!quiet) toast('Nothing new.'); return; }
     seen.current = at;
-    update(importBoard(raw.board));
+    dispatch({ kind: 'importBoard', args: [raw.board] });
     if (!quiet) toast.success('Board pulled.');
   };
 
@@ -62,7 +63,7 @@ export function useVttLink() {
   const paste = async () => {
     try {
       const raw: unknown = JSON.parse(await navigator.clipboard.readText());
-      update(importBoard(isSnapshot(raw) ? raw.board : raw));
+      dispatch({ kind: 'importBoard', args: [isSnapshot(raw) ? raw.board : raw] });
       toast.success('Board imported.');
     } catch {
       toast.error('Clipboard does not hold a board.');
