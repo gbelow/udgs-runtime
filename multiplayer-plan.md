@@ -34,17 +34,18 @@ This takes over the gates now scattered in the hooks (`forCharacter`, `asReactor
 
 `applySceneCommand(state, sender, command, ctx, owners) → state`. It refuses (returns the same state) when `canControl(sender, actsFor(…))` fails, and otherwise runs the registry entry and `holdForDice`. It is pure and uses no server or browser APIs, so it runs anywhere.
 
-### 4. The thrower is built from the sender, not the pressing screen
+### 4. Every die is answered on its roller's screen
 
-Today `useThrower` rolls a call at once when this screen plays its roller and throws on screen. On a host this becomes `throwerFor(sender, dicePlace)`:
-- a call whose roller the sender plays, from a sender who throws on screen, is rolled by the host;
-- every other call waits, and its roller's screen answers it with `answerScene`.
+Ruled 2026-10-17: every player's die is answered on that player's own screen, including dice someone else's command called for them (one player can make another roll). Only one action is active at a time, so the calls waiting are always that action's.
 
-Consequence: a player who throws on screen must auto-answer calls made by someone else's command, the way `useAutoThrow` already does for the tray.
+- The host rolls at once only for rollers no player plays: bots, and the characters the GM plays (the GM's screen is the host).
+- Every other call waits in state, and the roller's screen answers it with `answerScene`. Throwing on screen stops being an instant roll inside the command: the screen auto-answers the call when it arrives, the way `useAutoThrow` already does for the tray. The dice place only changes how a screen answers (tray, typed, at once), never who rolls.
+- Whoever may control the roller may answer, so the GM can take a character over and answer for its player (`canControl` already lets the GM).
+- `ctx.thrower` becomes `throwerFor(roller)`, built from the owners, not from the sender; `useThrower` goes away.
 
 ### 5. Separate what the viewer selects from what the table shares
 
-`activeCharacterId` sits in `SceneState` and the campaign state and is read in 17 domain files. In multiplayer every screen selects its own character.
+Ruled 2026-10-17: the selected character is private to each screen. `activeCharacterId` sits in `SceneState` and the campaign state and is read in 17 domain files.
 - Commands name their actor explicitly. Most already do (`declareAction(actorId…)`); the ones that read `activeCharacterId` inside a command (`click.ts`, `resetCombat.ts`) take it as an argument.
 - Projections take the viewer's selection as a parameter.
 - The selection moves to per-screen UI state.
@@ -81,5 +82,8 @@ Steps 1–3 and 6 for the action panel first: the most-pressed path, and the har
 
 ## Open
 
-- Should the host roll for players who throw on screen, or should every player's die always be answered from their own screen?
-- Hidden information: a per-viewer view projection is needed for both strategies, but can start as the whole state; when does it start filtering?
+- Hidden information in exploration and downtime: more rules apply there; decided when those parts get their registries.
+
+## Hidden information in the scene
+
+Ruled 2026-10-17: a viewer sees the state of only the characters they control. The grid is drawn from one of those characters' perspective, and the characters any of them can pick from are the ones that character detects. A per-viewer projection does this on the host; the GM sees everything.
