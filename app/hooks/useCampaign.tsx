@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { deleteCampaign, loadCampaign, saveCampaign } from "../actions";
+import { answerRequest, deleteCampaign, loadCampaign, requestToJoin, saveCampaign, withdrawRequest } from "../actions";
 import { fromCampaignSave, getCampaignSaveBar, newCampaign, toCampaignSave } from "../domain/saves";
 import { getMoveBars, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
 import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
@@ -12,10 +12,10 @@ import { useCampaignRole } from "./useRole";
 import { getJournalView } from "../domain/campaign/projections/journal";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
-import { getMemberRows, getOwner, getOwnerOptions, setMember, type MemberRole } from "../domain/profiles";
+import { getJoinView, getMemberRows, getOwner, getOwnerOptions, getRequestRows, setMember, type MemberRole } from "../domain/profiles";
 import { useProfileId } from "./useProfile";
 import { useActGate, useGmBar } from "./useControl";
-import { useCampaignDispatch, useTableDispatch } from "./useSceneDispatch";
+import { useCampaignDispatch } from "./useSceneDispatch";
 
 // The campaign in play's parties and who is in them, gated on a digest since
 // the view is freshly allocated.
@@ -35,7 +35,6 @@ export function useMoveBars(id: string | null): Record<string, string | null> {
 // every party.
 export function useCampaignPartyCommands() {
   const send = useCampaignDispatch();
-  const sendTable = useTableDispatch();
   const pick = useCampaignStore((s) => s.setActiveCharacter);
   return {
     pick,
@@ -44,7 +43,8 @@ export function useCampaignPartyCommands() {
     moveToParty: (id: string, partyId: string) => send({ kind: "moveToParty", args: [id, partyId] }),
     splitOff: (id: string) => send({ kind: "splitOff", args: [id] }),
     leaveParty: (id: string) => send({ kind: "leaveParty", args: [id] }),
-    bring: (character: Character, partyId: string) => sendTable({ kind: "loadOntoRoster", args: [makeCampaignCharacter(character), partyId] }),
+    removeFromCampaign: (id: string) => send({ kind: "removeFromRoster", args: [id] }),
+    bring: (character: Character, partyId: string) => send({ kind: "addToRoster", args: [makeCampaignCharacter(character), partyId] }),
   } as const;
 }
 
@@ -64,9 +64,63 @@ export function useCampaignMaps(): { maps: CampaignMapView[]; templates: string[
 
 // The saved campaigns the profile at the screen plays.
 export function useCampaignList() {
-  const campaigns = useAppStore((s) => s.campaignList);
+  const rows = useAppStore((s) => s.campaignList);
+  const campaigns = useMemo(() => rows.filter((r) => r.member !== null), [rows]);
   const refresh = useAppStore((s) => s.updateCampaignList);
   return { campaigns, refresh } as const;
+}
+
+// Asking to bring one of the profile's characters into a campaign, one
+// request per character, and taking a request back.
+export function useJoinRequests() {
+  const rows = useAppStore((s) => s.campaignList);
+  const characters = useAppStore((s) => s.playerCharacterList);
+  const refresh = useAppStore((s) => s.updateCampaignList);
+  const profile = useProfileId();
+  const view = useMemo(() => getJoinView(rows, characters, profile), [rows, characters, profile]);
+  const after = async (pending: ReturnType<typeof requestToJoin>, done: string) => {
+    const res = await pending;
+    if (!res.ok) { toast.error(res.error); return; }
+    toast.success(done);
+    refresh();
+  };
+  return {
+    ...view,
+    refresh,
+    request: (campaign: string, character: string) => after(requestToJoin(campaign, character), 'Asked to join.'),
+    withdraw: (campaign: string, character: string) => after(withdrawRequest(campaign, character), 'Request withdrawn.'),
+  } as const;
+}
+
+// The requests to join the campaign in play, as its GM answers them: one
+// accepted makes its profile a player and puts the character on the roster in
+// no party, theirs, to join one as any member switches party; kept when the
+// campaign is saved.
+export function useCampaignRequests() {
+  const rows = useAppStore((s) => s.campaignList);
+  const profiles = useAppStore((s) => s.profileList);
+  const refresh = useAppStore((s) => s.updateCampaignList);
+  const refreshCharacters = useAppStore((s) => s.updatePlayerCharacterList);
+  const id = useCampaignStore((s) => s.file.id);
+  const setMembers = useCampaignStore((s) => s.setMembers);
+  const setOwner = useCampaignStore((s) => s.setOwner);
+  const send = useCampaignDispatch();
+  const requests = useMemo(() => getRequestRows(rows, id, profiles), [rows, id, profiles]);
+  const answer = async (character: string, accept: boolean) => {
+    const res = await answerRequest(id, character, accept);
+    if (!res.ok) { toast.error(res.error); return; }
+    if (res.data) {
+      setMembers(res.data.members);
+      if (res.data.character) {
+        setOwner(character, res.data.owner);
+        send({ kind: "addToRoster", args: [makeCampaignCharacter(res.data.character), null] });
+      }
+      toast.success('Request accepted: save the campaign to keep the character on its roster.');
+    } else toast.success('Request declined.');
+    refresh();
+    refreshCharacters();
+  };
+  return { requests, refresh, accept: (character: string) => answer(character, true), decline: (character: string) => answer(character, false) } as const;
 }
 
 // The saved campaigns, and the one in play: begun anew, opened from the
@@ -80,6 +134,7 @@ export function useCampaignFiles() {
   const fighting = useCombatStore((s) => Object.keys(s.characters).length > 0);
   const saveBar = getCampaignSaveBar(file.name, fighting);
   const { campaigns, refresh } = useCampaignList();
+  const saved = useAppStore((s) => s.campaignList.some((c) => c.id === file.id));
   const refreshCharacters = useAppStore((s) => s.updatePlayerCharacterList);
 
   const create = () => openCampaign(newCampaign(), { id: crypto.randomUUID(), name: '', members: profile ? { [profile]: 'gm' } : {} });
@@ -110,7 +165,7 @@ export function useCampaignFiles() {
     refresh();
   };
 
-  return { file, campaigns, saveBar, setName, create, open, save, remove } as const;
+  return { file, campaigns, saved, saveBar, setName, create, open, save, remove } as const;
 }
 
 // Who plays character `id` in play, the members the GM may give them to, and

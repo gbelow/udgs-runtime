@@ -70,7 +70,7 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
     const s = get()
     const before = useCombatStore.getState()
     const { campaign, fight } = updater({ campaign: s, fight: before })
-    if (holdForDice(called, s, { ...s, ...campaign }) === s || holdForDice((f) => [f.calls], before, fight) === before) return
+    if (holdForDice(called, s, { ...s, ...campaign }) === s || (fight !== before && holdForDice((f) => [f.calls], before, fight) === before)) return
     set(campaign)
     useCombatStore.setState(fight)
   },

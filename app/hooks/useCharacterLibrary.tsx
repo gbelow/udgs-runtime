@@ -3,7 +3,7 @@ import { makeCampaignCharacter } from "../domain/factories";
 import { isRunTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
-import { useTableDispatch } from "./useSceneDispatch";
+import { useCampaignDispatch, useTableDispatch } from "./useSceneDispatch";
 
 // The saved-character lists and their refreshers. Each field is selected
 // separately so a list refresh does not re-render subscribers of the other.
@@ -24,6 +24,7 @@ export function useLoadCharacter() {
   const tab = useAppStore((s) => s.selectedGameTab);
   const loadForEdit = useCharacterStore((s) => s.loadCharacter);
   const send = useTableDispatch();
+  const sendCampaign = useCampaignDispatch();
 
   // onto the roster, into the party of whoever this screen has picked
   return (character: Character) => {
@@ -31,7 +32,7 @@ export function useLoadCharacter() {
     if (owner === "character") loadForEdit(character);
     else if (isRunTab(tab) && owner === "campaign") {
       const { activeCharacterId: picked, partyOf } = useCampaignStore.getState();
-      send({ kind: "loadOntoRoster", args: [makeCampaignCharacter(character), picked ? partyOf[picked] : undefined] });
+      sendCampaign({ kind: "addToRoster", args: [makeCampaignCharacter(character), picked ? partyOf[picked] : undefined] });
     }
     else if (isRunTab(tab) && owner === "combat") send({ kind: "loadIntoFight", args: [makeCampaignCharacter(character)] });
   };

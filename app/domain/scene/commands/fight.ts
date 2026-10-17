@@ -5,15 +5,15 @@ import { leaveFight } from '../../character/commands/leaveFight'
 import { resetCombat } from './resetCombat'
 import { removeFromCombat } from './characters'
 import { addToFight, joinFight } from './parties'
-import { getHomecoming, getJoinBar, getReturnBar, getSaveLogBar, getTableIds, isFromRoster } from '../rules/fight'
+import { getHomecoming, getJoinBar, getReturnBar, getSaveLogBar, isFromRoster } from '../rules/fight'
 import { getOpenAction } from '../rules/log'
-import { addToRoster, checkIn, checkOut } from '../../campaign/commands/roster'
+import { checkIn, checkOut, lend, release } from '../../campaign/commands/roster'
 import { passETs } from '../../campaign/commands/clock'
 import { describeSpan } from '../../campaign/rules/clock'
 import { record } from '../../campaign/commands/journal'
 import { getFightLogLines } from '../projections/episode'
 import { getPartyMembers } from '../../campaign/rules/place'
-import { getTableNames } from '../../campaign/rules/roster'
+import { getTableNames, withFreeId } from '../../campaign/rules/roster'
 import { getFightName } from '../rules/fighters'
 
 // Takes these characters off the roster and into the fight, under the ids
@@ -30,17 +30,18 @@ export function sendToFight(ids: string[]): TableUpdater {
   }, table)
 }
 
-// A character brought straight into the fight, in the party `into` names or
-// the newest party the fight made (see `addToFight`).
+// A character brought straight into the fight, under an id the campaign gives
+// and lends them (`withFreeId`), in the party `into` names or the newest
+// party the fight made (see `addToFight`).
 export function loadIntoFight(char: CampaignCharacter, newId: () => string, into?: string): TableUpdater {
-  return (table) => getJoinBar(table.fight) ? table : ({
-    campaign: table.campaign,
-    fight: addToFight(char, newId, getTableIds(table), Object.keys(table.campaign.parties), getTableNames(table.campaign), into)(table.fight),
-  })
-}
-
-export function loadOntoRoster(char: CampaignCharacter, newId: () => string, into?: string): TableUpdater {
-  return (table) => ({ campaign: addToRoster(char, newId, getTableIds(table), into)(table.campaign), fight: table.fight })
+  return (table) => {
+    if (getJoinBar(table.fight)) return table
+    const added = withFreeId(table.campaign, char, newId)
+    return {
+      campaign: lend(added.id)(table.campaign),
+      fight: addToFight(added, newId, Object.keys(table.campaign.parties), getTableNames(table.campaign), into)(table.fight),
+    }
+  }
 }
 
 // These characters go back to the roster as the fight left them, in the
@@ -50,13 +51,13 @@ function giveBack(table: Table, leaving: CampaignCharacter[]): CampaignState {
 }
 
 // Takes a character out of the fight. One sent from the roster goes back to
-// it rather than being lost; one brought straight into the fight is gone.
-// Refused while an action is open.
+// it rather than being lost; one brought straight into the fight is gone, and
+// their id goes back to the campaign. Refused while an action is open.
 export function removeFromFight(id: string): TableUpdater {
   return (table) => {
     const c = table.fight.characters[id]
     if (!c || getOpenAction(table.fight)) return table
-    const campaign = isFromRoster(table, id) ? giveBack(table, [c]) : table.campaign
+    const campaign = isFromRoster(table, id) ? giveBack(table, [c]) : release(id)(table.campaign)
     return { campaign, fight: removeFromCombat(id)(table.fight) }
   }
 }
@@ -112,8 +113,10 @@ export function sendPartyToFight(partyId: string): TableUpdater {
 
 // Throws the fight away, whatever is being played out in it: whoever was sent
 // from the roster goes back to it as the fight left them, and whoever was
-// brought straight into the fight is gone. No time passes.
+// brought straight into the fight is gone, their id back with the campaign.
+// No time passes.
 export const resetFight: TableUpdater = (table) => {
   const sent = Object.values(table.fight.characters).filter((c) => isFromRoster(table, c.id))
-  return { campaign: giveBack(table, sent), fight: resetCombat(table.fight) }
+  const brought = Object.keys(table.fight.characters).filter((id) => !isFromRoster(table, id))
+  return { campaign: brought.reduce((c, id) => release(id)(c), giveBack(table, sent)), fight: resetCombat(table.fight) }
 }

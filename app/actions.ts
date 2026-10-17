@@ -4,14 +4,14 @@ import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
 import { CampaignSaveSchema, type CampaignSave } from './domain/saves';
-import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, CharacterOwnersSchema, getAssignBar, getCampaignRole, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
+import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, CharacterOwnersSchema, getAssignBar, getCampaignRole, getCampaignRow, getJoinBar, type CampaignRow, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import type { ZodType } from 'zod';
 import { isDevServer } from './devServer';
 import type { CampaignCharacter } from './domain/types';
 import { CATALOGS, isCatalogName } from './forms/catalogs';
-import { isBaseCharacter } from './domain/utils';
+import { isBaseCharacter, without } from './domain/utils';
 import redis from './redis'
 import { readMailbox, writeMailbox } from './vtt/mailbox'
 import type { BoardSnapshot } from './vtt/snapshot'
@@ -452,14 +452,75 @@ async function readCampaign(id: string): Promise<CampaignSave | null> {
   return parsed.success ? parsed.data : null;
 }
 
-// The saved campaigns the profile picked at the screen plays.
-export async function getCampaignList(): Promise<ActionResult<{ id: string, name: string }[]>> {
+// Every saved campaign, as the profile picked at the screen sees it: what
+// they are in it, and the requests to join it they may see.
+export async function getCampaignList(): Promise<ActionResult<CampaignRow[]>> {
   try {
-    const [index, profile] = await Promise.all([readCampaignIndex(), getProfileId()]);
-    return { ok: true, data: Object.entries(index).filter(([, r]) => profile !== null && profile in r.members).map(([id, r]) => ({ id, name: r.name })).sort((a, b) => a.name.localeCompare(b.name)) };
+    const [index, pcs, profile] = await Promise.all([readCampaignIndex(), readCharIndex(), getProfileId()]);
+    const rows = Object.entries(index).map(([id, r]) => getCampaignRow(id, r, profile, (cid) => pcs[cid]?.name ?? ''));
+    return { ok: true, data: rows.sort((a, b) => a.name.localeCompare(b.name)) };
   } catch (err) {
     console.error('Error listing campaigns:', err);
     return { ok: false, error: 'Failed to list campaigns.' };
+  }
+}
+
+async function readCampaignRow(id: string): Promise<CampaignListing | null> {
+  const raw = await redis.hget(CAMPAIGN_INDEX_KEY, id);
+  return raw ? CampaignListingSchema.parse(raw) : null;
+}
+
+// A profile asks to bring one of their characters into a saved campaign.
+export async function requestToJoin(campaign: string, character: string): Promise<ActionResult> {
+  try {
+    const [row, { owner }, profile] = await Promise.all([readCampaignRow(campaign), readCharRow(character), getProfileId()]);
+    if (!row) return { ok: false, error: 'Campaign not found.' };
+    const bar = getJoinBar(row, character, owner, profile);
+    if (bar || !profile) return { ok: false, error: `Not asked: ${bar}.` };
+    await redis.hset(CAMPAIGN_INDEX_KEY, { [campaign]: { ...row, requests: { ...row.requests, [character]: profile } } });
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error asking to join a campaign:', err);
+    return { ok: false, error: 'Failed to ask to join.' };
+  }
+}
+
+// The profile that asked takes a request back.
+export async function withdrawRequest(campaign: string, character: string): Promise<ActionResult> {
+  try {
+    const [row, profile] = await Promise.all([readCampaignRow(campaign), getProfileId()]);
+    if (!row || row.requests[character] !== profile) return { ok: false, error: 'Not a request of yours.' };
+    await redis.hset(CAMPAIGN_INDEX_KEY, { [campaign]: { ...row, requests: without(row.requests, character) } });
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error withdrawing a request:', err);
+    return { ok: false, error: 'Failed to withdraw the request.' };
+  }
+}
+
+// The GM answers a request. Accepted, the profile asking plays the campaign
+// from then on, and the character comes back to be put on its roster, theirs.
+export async function answerRequest(campaign: string, character: string, accept: boolean): Promise<ActionResult<{ members: CampaignMembers, character: Character | null, owner: string } | null>> {
+  try {
+    const [row, save, { profile, dev }] = await Promise.all([readCampaignRow(campaign), readCampaign(campaign), getViewer()]);
+    if (!row || !save) return { ok: false, error: 'Campaign not found.' };
+    if (!hasGmTools(getCampaignRole(save.members, profile, dev))) return { ok: false, error: 'Only a GM answers a request.' };
+    const by = row.requests[character];
+    if (!by) return { ok: false, error: 'No such request.' };
+    const requests = without(row.requests, character);
+    if (!accept) {
+      await redis.hset(CAMPAIGN_INDEX_KEY, { [campaign]: { ...row, requests } });
+      return { ok: true, data: null };
+    }
+    const members: CampaignMembers = by in save.members ? save.members : { ...save.members, [by]: 'player' };
+    const writes = redis.pipeline();
+    writes.set(campaignKey(campaign), { ...save, members });
+    writes.hset(CAMPAIGN_INDEX_KEY, { [campaign]: { ...row, members, requests } });
+    await writes.exec();
+    return { ok: true, data: { members, character: await redis.get<Character>(character), owner: by } };
+  } catch (err) {
+    console.error('Error answering a request:', err);
+    return { ok: false, error: 'Failed to answer the request.' };
   }
 }
 
@@ -477,7 +538,7 @@ export async function saveCampaign(raw: CampaignSave, characters: CampaignCharac
     const { profile, dev } = await getViewer();
     if (!profile) return { ok: false, error: 'Pick a profile first.' };
     const save = Object.keys(parsed.data.members).length ? parsed.data : { ...parsed.data, members: { [profile]: 'gm' as const } };
-    const [before, pcs] = await Promise.all([readCampaign(save.id), readCharIndex()]);
+    const [before, pcs, row] = await Promise.all([readCampaign(save.id), readCharIndex(), readCampaignRow(save.id)]);
     if (before && !hasGmTools(getCampaignRole(before.members, profile, dev))) return { ok: false, error: 'Only a GM saves the campaign.' };
     const assigned = Object.entries(owners.data).filter(([cid, owner]) => save.characterIds.includes(cid) && owner !== (pcs[cid]?.owner ?? null));
     const assignBar = assigned.map(([, owner]) => getAssignBar(save.members, owner)).find((bar) => bar !== null);
@@ -491,7 +552,7 @@ export async function saveCampaign(raw: CampaignSave, characters: CampaignCharac
     if (Object.keys(pcRows).length) writes.hset(CHAR_INDEX_KEY, pcRows);
     if (stale.length) writes.del(...stale);
     writes.set(campaignKey(save.id), save);
-    writes.hset(CAMPAIGN_INDEX_KEY, { [save.id]: { name: save.name, members: save.members } });
+    writes.hset(CAMPAIGN_INDEX_KEY, { [save.id]: { name: save.name, members: save.members, requests: row?.requests ?? {} } });
     await writes.exec();
     return { ok: true, data: save.members };
   } catch (err) {

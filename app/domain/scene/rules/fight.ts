@@ -46,8 +46,3 @@ export function getHomecoming({ campaign, fight }: Table, id: string): Homecomin
   const sent = Object.keys(fight.parties).find((pid) => campaign.parties[pid])
   return { partyId, name: fight.parties[partyId]?.name ?? '', from: sent ? campaign.parties[sent] : undefined }
 }
-
-// Every id in use at the table: on the roster, away in a fight, or in it.
-export function getTableIds({ campaign, fight }: Table): string[] {
-  return [...Object.keys(campaign.characters), ...Object.keys(campaign.partyOf), ...Object.keys(fight.characters)]
-}

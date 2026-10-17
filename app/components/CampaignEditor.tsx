@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
-import { useCampaignFiles, useCampaignMaps, useCampaignMembers } from '../hooks/useCampaign'
+import { useCampaignFiles, useCampaignMaps, useCampaignMembers, useCampaignRequests, useJoinRequests } from '../hooks/useCampaign'
 import { useRole } from '../hooks/useRole'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { MapEditingContext, useCampaignMapEditor } from '../hooks/useMap'
@@ -14,11 +14,10 @@ import { MapBody } from './MapEditor'
 // when each is and whether it is in play. The table always plays some campaign; one never
 // saved is named here to be saved. Opening or beginning another replaces it.
 export function CampaignEditor() {
-  const { file, campaigns, saveBar, setName, create, open, save, remove } = useCampaignFiles()
+  const { file, campaigns, saved, saveBar, setName, create, open, save, remove } = useCampaignFiles()
   const { gmTools } = useRole()
   // the saved campaign about to replace the one in play, or '' for a new one
   const [replacing, setReplacing] = useState<string | null>(null)
-  const saved = campaigns.some((c) => c.id === file.id)
 
   return (
     <div className='grid grid-cols-12 gap-2 py-2 text-left'>
@@ -35,6 +34,8 @@ export function CampaignEditor() {
             </div>
           </div>
           : null}
+        <SectionLabel>Join a campaign</SectionLabel>
+        <JoinCampaign />
       </div>
       <div className='col-span-9 flex flex-col gap-3 max-h-[85vh] overflow-y-auto pr-2'>
         <div className='flex flex-row items-center gap-2'>
@@ -50,6 +51,7 @@ export function CampaignEditor() {
         {saveBar ? <span className='text-xs text-muted'>{saveBar}</span> : null}
         <SectionLabel>Members</SectionLabel>
         <CampaignMembers />
+        <CampaignRequests />
         <SectionLabel>Maps</SectionLabel>
         <CampaignMaps />
         <SectionLabel>Parties</SectionLabel>
@@ -90,6 +92,59 @@ function CampaignMembers() {
           {others.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       ) : null}
+    </div>
+  )
+}
+
+// Asking to bring one of your characters into a campaign, one character at a
+// time, and the requests still waiting on its GM.
+function JoinCampaign() {
+  const { campaigns, characters, pending, request, withdraw, refresh } = useJoinRequests()
+  const [campaign, setCampaign] = useState('')
+  const [character, setCharacter] = useState('')
+  return (
+    <div className='flex flex-col gap-1 text-xs'>
+      <select aria-label='campaign to join' className={selectClass} value={campaign} onChange={(e) => setCampaign(e.target.value)}>
+        <option value=''>campaign…</option>
+        {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name || '—'}</option>)}
+      </select>
+      <select aria-label='character to bring' className={selectClass} value={character} onChange={(e) => setCharacter(e.target.value)}>
+        <option value=''>{characters.length ? 'your character…' : 'save a character of yours first'}</option>
+        {characters.map((c) => <option key={c.id} value={c.id}>{c.name || '—'}</option>)}
+      </select>
+      <div className='flex flex-row gap-1'>
+        <Button size='xs' variant='primary' disabled={!campaign || !character} onClick={() => { request(campaign, character); setCharacter('') }}>ask to join</Button>
+        <Button size='xs' variant='ghost' title='look again for answers' onClick={refresh}>refresh</Button>
+      </div>
+      {pending.map((q) => (
+        <div key={`${q.campaign}:${q.character}`} className='flex flex-row gap-1 items-center'>
+          <span className='flex-1 truncate'>{q.name || '—'} → {q.campaignName || '—'}</span>
+          <Button size='xs' variant='ghost' aria-label={`withdraw ${q.name}`} onClick={() => withdraw(q.campaign, q.character)}>withdraw</Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// The requests to join the campaign in play, answered by its GM: one accepted
+// waits on the roster in no party until it switches into one.
+function CampaignRequests() {
+  const { requests, accept, decline, refresh } = useCampaignRequests()
+  const { gmTools } = useRole()
+  if (!gmTools) return null
+  return (
+    <div className='flex flex-col gap-1 text-xs'>
+      <div className='flex flex-row gap-1 items-center'>
+        <span className='text-muted'>{requests.length ? 'asking to join' : 'nobody asking to join'}</span>
+        <Button size='xs' variant='ghost' title='look again for requests' onClick={refresh}>refresh</Button>
+      </div>
+      {requests.map((q) => (
+        <div key={q.character} className='flex flex-row gap-1 items-center'>
+          <span className='w-40 truncate'>{q.name || '—'} <span className='text-muted'>by {q.profileName}</span></span>
+          <Button size='xs' variant='good' aria-label={`accept ${q.name}`} title='onto the roster, in no party' onClick={() => accept(q.character)}>accept</Button>
+          <Button size='xs' variant='ghost' aria-label={`decline ${q.name}`} onClick={() => decline(q.character)}>decline</Button>
+        </div>
+      ))}
     </div>
   )
 }

@@ -1,13 +1,13 @@
 'use client'
 import { useState } from 'react'
-import { Button } from './ui'
-import { CatalogDrawer, PlayedBy, TimelineControl } from './RunParts'
+import { Button, Menu, MenuConfirm, MenuItem } from './ui'
+import { CatalogDrawer, PlayedBy, TimelineControl, TimelineSummary } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { useCampaignPartyCommands, useCampaignRoster, useMoveBars } from '../hooks/useCampaign'
 import { usePartyCommands, useToDowntimeBar } from '../hooks/useParty'
 import { useDowntimeCommands, useToExplorationBar } from '../hooks/useDowntime'
 import { usePartiesPanel } from '../hooks/useCombatState'
-import { useGmBar } from '../hooks/useControl'
+import { useControlBar, useGmBar } from '../hooks/useControl'
 import type { RosterMember, RosterPartyView } from '../domain/campaign/projections/roster'
 
 type Switching = { id: string; name: string; from: string | null }
@@ -51,12 +51,15 @@ export function CampaignParties(){
             const bar = away ? bars[party.id] ?? null : null
             return (
               <PartyFrame key={party.id} target={away && bar === null} adding={party.id === addingTo} closed={bar} place={() => placeInto(party.id)}>
-                <div className='flex flex-col gap-1' onClick={(e) => e.stopPropagation()}>
+                <div className='flex flex-col gap-0.5' onClick={(e) => e.stopPropagation()}>
                   <PartyHeader name={party.name} rename={(n) => renameParty(party.id, n)} adding={party.id === addingTo} locked={gmBar !== null}
-                    toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)} />
-                  <TimelineControl timeline={party.timeline} />
-                  <Button size='xs' aria-label={`${party.name} to scene`} disabled={joinBar !== null || party.members.length === 0} title={joinBar ?? 'the whole party into the scene'} onClick={() => partyToScene(party.id)}>to scene</Button>
-                  {party.sequence === 'exploration' ? <ToDowntime party={party} /> : <ToExploration party={party} />}
+                    toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)}>
+                    <MenuItem bar={joinBar ?? (party.members.length === 0 ? 'nobody is in it' : null)} hint='the whole party into the scene' onClick={() => partyToScene(party.id)}>to scene</MenuItem>
+                    {party.sequence === 'exploration' ? <ToDowntime party={party} /> : <ToExploration party={party} />}
+                    <TimelineControl timeline={party.timeline} />
+                  </PartyHeader>
+                  <TimelineSummary timeline={party.timeline} />
+                  {party.sequence === 'downtime' ? <span className='text-xs text-muted'>in downtime</span> : null}
                 </div>
                 {party.members.map((m) => <Member key={m.id} member={m} inParty switching={switching?.id === m.id} toggle={() => toggle(m, party.id)} />)}
               </PartyFrame>
@@ -81,7 +84,7 @@ function ToDowntime({ party }: { party: RosterPartyView }){
   const { toDowntime } = usePartyCommands()
   const gmBar = useGmBar()
   const bar = useToDowntimeBar(party.id) ?? gmBar
-  return <Button size='xs' aria-label={`${party.name} to downtime`} disabled={bar !== null} title={bar ?? 'the whole party leaves exploration to spend days in downtime'} onClick={() => toDowntime(party.id)}>to downtime</Button>
+  return <MenuItem bar={bar} hint='the whole party leaves exploration to spend days in downtime' onClick={() => toDowntime(party.id)}>to downtime</MenuItem>
 }
 
 // The party leaves downtime to explore again, once nobody in it is on an
@@ -90,29 +93,29 @@ function ToExploration({ party }: { party: RosterPartyView }){
   const { toExploration } = useDowntimeCommands()
   const gmBar = useGmBar()
   const bar = useToExplorationBar(party.id) ?? gmBar
-  return(
-    <div className='flex flex-row flex-wrap gap-1 items-center'>
-      <span className='text-xs text-muted'>in downtime</span>
-      <Button size='xs' aria-label={`${party.name} to exploration`} disabled={bar !== null} title={bar ?? 'the whole party leaves downtime to explore again'} onClick={() => toExploration(party.id)}>back to exploring</Button>
-    </div>
-  )
+  return <MenuItem bar={bar} hint='the whole party leaves downtime to explore again' onClick={() => toExploration(party.id)}>back to exploring</MenuItem>
 }
 
-// A member: a click picks them; the GM switches them to another party or a
-// new one, or takes them out of every party.
+// A member: their name, a click on which picks them, and their menu, where
+// whoever plays them, or the GM, switches them to another party or a new one,
+// takes them out of every party, or out of the campaign once it is confirmed.
 function Member({ member, inParty, switching, toggle }: { member: RosterMember, inParty: boolean, switching: boolean, toggle: () => void }){
-  const { pick, leaveParty } = useCampaignPartyCommands()
+  const { pick, leaveParty, removeFromCampaign } = useCampaignPartyCommands()
   const { toScene } = usePartyCommands()
-  const bar = useGmBar()
-  const joinBar = usePartiesPanel().joinBar ?? bar
+  const gmBar = useGmBar()
+  const bar = useControlBar(member.id)
+  const joinBar = usePartiesPanel().joinBar ?? gmBar
 
   return(
-    <div className='flex flex-row flex-wrap gap-1 items-center' onClick={(e) => e.stopPropagation()}>
-      <Button size='xs' aria-label={member.name} selected={member.isActive} onClick={() => pick(member.id)}>{member.name}</Button>
-      <Button size='xs' aria-label={`${member.name} to scene`} disabled={joinBar !== null} title={joinBar ?? 'into the scene'} onClick={() => toScene(member.id)}>to scene</Button>
-      <Button size='xs' aria-label={`switch ${member.name}`} aria-pressed={switching} disabled={bar !== null} selected={switching} title={bar ?? 'pick the party to put them in, or a new one'} onClick={toggle}>switch party</Button>
-      {inParty ? <Button size='xs' variant='ghost' className='ml-auto' aria-label={`out of party ${member.name}`} disabled={bar !== null} title={bar ?? 'out of the party: outside time until they join one on a timeline'} onClick={() => leaveParty(member.id)}>×</Button> : null}
-      <PlayedBy id={member.id} name={member.name} />
+    <div className='flex flex-row gap-1 items-center' onClick={(e) => e.stopPropagation()}>
+      <Button size='xs' aria-label={member.name} selected={member.isActive || switching} onClick={() => pick(member.id)}>{member.name}</Button>
+      <Menu label={`${member.name} options`}>
+        <MenuItem bar={joinBar} hint='into the scene' onClick={() => toScene(member.id)}>to scene</MenuItem>
+        <MenuItem bar={bar} selected={switching} hint='pick the party to put them in, or a new one' onClick={toggle}>{switching ? 'cancel switching' : 'switch party'}</MenuItem>
+        {inParty ? <MenuItem bar={bar} hint='outside time until they join one on a timeline' onClick={() => leaveParty(member.id)}>out of party</MenuItem> : null}
+        <PlayedBy id={member.id} name={member.name} />
+        <MenuConfirm bar={bar} hint='off the roster and out of the campaign once it is saved; a player character keeps its own record' onConfirm={() => { removeFromCampaign(member.id) }}>remove from campaign</MenuConfirm>
+      </Menu>
     </div>
   )
 }

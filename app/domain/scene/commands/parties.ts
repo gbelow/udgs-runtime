@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { SceneState, Updater } from '../types'
-import { addInstance, makeName } from '../../instances'
+import { makeName } from '../../instances'
 import { getEmptiedParties, nextPartyName } from '../../campaign/rules/parties'
 import { getOpenAction } from '../rules/log'
 import { getSplitChase } from '../rules/chase'
@@ -36,16 +36,15 @@ export function joinFight(char: CampaignCharacter, partyId: string, partyName: s
   }
 }
 
-// A character brought straight into the fight, under an id nobody at the
-// table has `taken`, joins the party `into` names — made if the fight does not
-// have it — or else the newest party made in it, one that is not among
+// A character brought straight into the fight, under the id the campaign
+// lent them, joins the party `into` names — made if the fight does not have
+// it — or else the newest party made in it, one that is not among
 // `campaignParties`, or a party of their own, going by their sheet's name
 // made apart from the `reserved` ones (see `joinFight`).
-export function addToFight(char: CampaignCharacter, newId: () => string, taken: readonly string[], campaignParties: readonly string[], reserved: readonly string[], into?: string): Updater {
+export function addToFight(char: CampaignCharacter, newId: () => string, campaignParties: readonly string[], reserved: readonly string[], into?: string): Updater {
   return (state) => {
-    const added = addInstance(char, newId, taken)
     const made = Object.keys(state.parties).filter((pid) => !campaignParties.includes(pid))
-    return joinFight(added, into ?? made.at(-1) ?? newId(), '', reserved)(state)
+    return joinFight(char, into ?? made.at(-1) ?? newId(), '', reserved)(state)
   }
 }
 

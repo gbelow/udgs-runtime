@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { Card } from './SceneCards'
 import { CatalogDrawer, PlayedBy } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
-import { Button, NumberInput } from './ui'
+import { Button, Menu, MenuItem, NumberInput } from './ui'
 import { usePartiesPanel, useSceneCards } from '../hooks/useCombatState'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { useBringIntoParty } from '../hooks/useCharacterLibrary'
@@ -93,17 +93,18 @@ function PartyColumn({ id, name, ets, adding, toggleAdding, target, place, child
   return(
     <PartyFrame target={target} adding={adding} place={place}>
       {id === '' ? <span className='text-xs text-muted'>in no party</span>
-        : <div className='flex flex-col gap-1' onClick={(e) => e.stopPropagation()}>
-          <PartyHeader name={name} rename={(n) => renameParty(id, n)} adding={adding} toggleAdding={toggleAdding} locked={target} />
-          <Button size='xs' aria-label={`${name} back`} disabled={returnBar !== null} title={returnBar ?? 'the scene is over for the party: back to the campaign'} onClick={() => partyBack(id, ets)}>back from scene</Button>
+        : <div onClick={(e) => e.stopPropagation()}>
+          <PartyHeader name={name} rename={(n) => renameParty(id, n)} adding={adding} toggleAdding={toggleAdding} locked={target}>
+            <MenuItem bar={returnBar} hint='the scene is over for the party: back to the campaign' onClick={() => partyBack(id, ets)}>back from scene</MenuItem>
+          </PartyHeader>
         </div>}
       {children}
     </PartyFrame>
   )
 }
 
-// A member switched to another party or a new one of their own, or taken
-// out of the fight. The GM's to decide.
+// A member's menu: switched to another party or a new one of their own,
+// back to the campaign, or taken out of the fight. The GM's to decide.
 function MemberControls({ card, ets, switching, startSwitch }: { card: SceneCard, ets: number, switching: boolean, startSwitch: () => void }){
   const { moveBar } = usePartiesPanel()
   const { removeCharacter } = useCombatCommands()
@@ -113,11 +114,13 @@ function MemberControls({ card, ets, switching, startSwitch }: { card: SceneCard
   const bar = moveBar ?? gmBar
 
   return(
-    <div className='flex flex-row flex-wrap gap-1 items-center' onClick={(e) => e.stopPropagation()}>
-      <Button size='xs' aria-label={`switch ${card.name}`} aria-pressed={switching} disabled={bar !== null} selected={switching} title={bar ?? 'pick the party to put them in, or a new one'} onClick={startSwitch}>switch party</Button>
-      <Button size='xs' aria-label={`${card.name} back`} disabled={returnBar !== null} title={returnBar ?? 'the scene is over for them: back to the campaign'} onClick={() => back(card.id, ets)}>back</Button>
-      <Button size='xs' variant='ghost' className='ml-auto' aria-label={`remove ${card.name}`} disabled={bar !== null} title={bar ?? 'take out of the fight; one sent from the roster goes back to it'} onClick={() => removeCharacter(card.id)}>×</Button>
-      <PlayedBy id={card.id} name={card.name} />
+    <div className='flex flex-row justify-end'>
+      <Menu label={`${card.name} options`}>
+        <MenuItem bar={bar} selected={switching} hint='pick the party to put them in, or a new one' onClick={startSwitch}>{switching ? 'cancel switching' : 'switch party'}</MenuItem>
+        <MenuItem bar={returnBar} hint='the scene is over for them: back to the campaign' onClick={() => back(card.id, ets)}>back</MenuItem>
+        <MenuItem bad bar={bar} hint='one sent from the roster goes back to it; one brought straight in is gone' onClick={() => removeCharacter(card.id)}>take out of the fight</MenuItem>
+        <PlayedBy id={card.id} name={card.name} />
+      </Menu>
     </div>
   )
 }

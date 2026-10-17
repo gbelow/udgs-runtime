@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadIntoFight, loadOntoRoster, removeFromFight, resetFight, returnFromFight, saveFightLog, sendPartyToFight, sendToFight } from './fight'
+import { loadIntoFight, removeFromFight, resetFight, returnFromFight, saveFightLog, sendPartyToFight, sendToFight } from './fight'
 import { passRound } from '../../bot/table'
 import { commitAction, declareAction } from './action'
 import { endCombat } from './endCombat'
@@ -7,6 +7,7 @@ import { getNextRoundBar } from '../rules/turn'
 import { SceneStateSchema, type Table, type TableUpdater } from '../types'
 import { CampaignStateSchema } from '../../campaign/types'
 import { makeCampaignCharacter } from '../../factories'
+import { addToRoster } from '../../campaign/commands/roster'
 
 describe('starting a fight', () => {
   // "start combat" waited for everyone to agree to end a round that had not
@@ -55,7 +56,7 @@ describe('a character sent to a fight', () => {
   const back: TableUpdater = returnFromFight(['a', 'b'], 0)
   const scenarios: Record<string, TableUpdater[]> = {
     'fought and returned': [send, back],
-    'whose sheet is loaded onto the roster while away': [send, loadOntoRoster(again, newId), back],
+    'whose sheet is loaded onto the roster while away': [send, (t) => ({ ...t, campaign: addToRoster(again, newId)(t.campaign) }), back],
     'whose sheet was loaded into the fight first': [loadIntoFight(again, newId), send, back],
     'whose sheet is loaded into the fight while there': [send, loadIntoFight(again, newId), back],
     'removed from the fight': [send, removeFromFight('a'), back],

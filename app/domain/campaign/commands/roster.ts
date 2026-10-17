@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { CampaignUpdater, Homecoming } from '../types'
-import { addInstance } from '../../instances'
+import { withFreeId } from '../rules/roster'
 import { without } from '../../utils'
 import { addParty, dropEmptyParties, joinParty, withParty } from './parties'
 import { nameByParty } from './names'
@@ -12,12 +12,14 @@ function withoutAP(c: CampaignCharacter): CampaignCharacter {
 }
 
 // The character joins the roster, in the party `into` names or else the one
-// they were in or another (see `joinParty`), under an id nobody at the table
-// has `taken`, named by the party they join (`nameByParty`).
-export function addToRoster(char: CampaignCharacter, newId: () => string, taken: readonly string[], into?: string): CampaignUpdater {
+// they were in or another (see `joinParty`), under an id the campaign has not
+// given anyone else (`withFreeId`), named by the party they join
+// (`nameByParty`); with `into` null, in no party, outside time.
+export function addToRoster(char: CampaignCharacter, newId: () => string, into?: string | null): CampaignUpdater {
   return (state) => {
-    const added = addInstance(withoutAP(char), newId, taken)
+    const added = withFreeId(state, withoutAP(char), newId)
     const rostered = { ...state, characters: { ...state.characters, [added.id]: added } }
+    if (into === null) return rostered
     if (into && state.parties[into]) return nameByParty([added.id])({ ...rostered, partyOf: { ...rostered.partyOf, [added.id]: into } })
     return joinParty(added.id, newId)(rostered)
   }
@@ -35,7 +37,7 @@ export function checkIn(char: CampaignCharacter, home: Homecoming, fightName: st
     const opened = state.parties[home.partyId]
       ? withParty(home.partyId, (p) => ({ ...p, name: home.name || p.name }))(state)
       : addParty(home.partyId, home.from, nameInUse ? undefined : home.name)(state)
-    const back = dropEmptyParties({ ...opened, characters: { ...opened.characters, [char.id]: withoutAP(char) }, partyOf: { ...opened.partyOf, [char.id]: home.partyId } })
+    const back = dropEmptyParties({ ...opened, characters: { ...opened.characters, [char.id]: withoutAP(char) }, partyOf: { ...opened.partyOf, [char.id]: home.partyId }, lent: opened.lent.filter((l) => l !== char.id) })
     return nameByParty([char.id], fightName)(back)
   }
 }
@@ -65,8 +67,20 @@ export function checkOut(id: string): CampaignUpdater {
       ...state,
       characters,
       out: state.out.includes(id) ? state.out : [...state.out, id],
+      lent: state.lent.includes(id) ? state.lent : [...state.lent, id],
     }
   }
+}
+
+// The campaign lends the id to a fight, for a character brought straight
+// into it, so that nobody else is given it while they are there.
+export function lend(id: string): CampaignUpdater {
+  return (state) => (state.lent.includes(id) ? state : { ...state, lent: [...state.lent, id] })
+}
+
+// The id lent to a fight comes back, its character gone with the fight.
+export function release(id: string): CampaignUpdater {
+  return (state) => (state.lent.includes(id) ? { ...state, lent: state.lent.filter((l) => l !== id) } : state)
 }
 
 export function updateRosterCharacter(id: string, updater: (c: CampaignCharacter) => CampaignCharacter): CampaignUpdater {

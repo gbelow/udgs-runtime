@@ -8,7 +8,7 @@ import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from './clock'
 import { editNote, removeEntry, writeNote } from './journal'
 import { toMapUpdater, type MapCommand } from './mapRegistry'
 import { addMap, createParty, leaveParty, mergeParties, moveToParty, removeMap, renameParty, setPartyExposure, setPartyLit, setPartyPlace, splitOff, updateCampaignMap } from './parties'
-import { updateRosterCharacter } from './roster'
+import { addToRoster, removeFromRoster, updateRosterCharacter } from './roster'
 
 // The campaign's presses as data (cf. the scene's registry): the parties,
 // the clocks, the maps, the journal, and an edit to a character on the
@@ -49,6 +49,12 @@ export const campaignCommands = {
     .by((_, _party, _text, _gmOnly, author) => ({ author })),
   editNote: command((_, id: string, text: string, gmOnly: boolean) => editNote(id, text, gmOnly)).by(authorOf),
   removeEntry: command((_, id: string) => removeEntry(id)).by(authorOf),
+
+  // a character onto the roster, from the catalog or a request accepted: in
+  // the party named, or with null in none
+  addToRoster: command((ctx, character: CampaignCharacter, into?: string | null) => addToRoster(character, ctx.newId, into)).by(gm),
+  // and off it, out of the campaign: by the GM, or by whoever plays them
+  removeFromRoster: command((_, id: string) => removeFromRoster(id)).by(own),
 
   // an edit to a character on the roster, by whoever plays them
   edit: command((ctx, id: string, edit: CharacterCommand | GearCommand) =>

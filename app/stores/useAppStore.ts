@@ -5,7 +5,7 @@ import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 import type { Trade } from "../domain/item/rules/trade";
-import type { Profile, ProfileListing } from "../domain/profiles";
+import type { CampaignRow, Profile, ProfileListing } from "../domain/profiles";
 import type { Collection } from "../domain/campaign/types";
 import { without } from "../domain/utils";
 
@@ -102,8 +102,8 @@ export interface AppState {
   putCollection: (collection: Collection) => void
   dropCollection: (id: string) => void
   updateCollections: () => void
-  // the saved campaigns the profile plays
-  campaignList: { id: string, name: string }[]
+  // every saved campaign, as the profile sees it
+  campaignList: CampaignRow[]
   updateCampaignList: () => void
   // whether this is the dev server, where whoever is at the screen is the
   // developer

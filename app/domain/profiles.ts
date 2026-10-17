@@ -70,13 +70,68 @@ export function setMember(members: CampaignMembers, profile: string, role: Membe
   return role ? { ...members, [profile]: role } : without(members, profile)
 }
 
-// A saved campaign's row in the index: its name and who plays it, so a
-// profile's campaigns are listed without opening each.
+// Who asks to bring which character into a campaign: the profile asking, by
+// the id of the character they bring, one request per character.
+export const JoinRequestsSchema = z.record(z.string(), z.string())
+export type JoinRequests = z.infer<typeof JoinRequestsSchema>
+
+// A saved campaign's row in the index: its name, who plays it and who asks
+// to, so a profile's campaigns are listed, and joined, without opening each.
 export const CampaignListingSchema = z.object({
   name: z.string().catch(''),
   members: CampaignMembersSchema.catch({}),
-}).catch({ name: '', members: {} })
+  requests: JoinRequestsSchema.catch({}),
+}).catch({ name: '', members: {}, requests: {} })
 export type CampaignListing = z.infer<typeof CampaignListingSchema>
+
+// A request as the screen lists it: the character brought, named, and the
+// profile asking.
+export type JoinRequestRow = { character: string; name: string; profile: string }
+
+// A saved campaign as a profile sees it in the list: what they are in it, if
+// anything, and the requests they may see — every one for its GM, their own
+// for anyone else.
+export type CampaignRow = { id: string; name: string; member: MemberRole | null; requests: JoinRequestRow[] }
+
+export function getCampaignRow(id: string, row: CampaignListing, profile: string | null, characterName: (id: string) => string): CampaignRow {
+  const member = (profile && row.members[profile]) || null
+  const requests = Object.entries(row.requests)
+    .filter(([, by]) => member === 'gm' || by === profile)
+    .map(([character, by]) => ({ character, name: characterName(character), profile: by }))
+  return { id, name: row.name, member, requests }
+}
+
+// Why `profile` cannot ask to bring a character `owner` owns into a
+// campaign: it is not theirs, or it is asked for already.
+export function getJoinBar(row: CampaignListing, character: string, owner: string | null, profile: string | null): string | null {
+  if (profile === null || owner !== profile) return 'only its owner brings a character'
+  return character in row.requests ? 'asked for already' : null
+}
+
+// What the screen offers a profile for joining campaigns: the campaigns they
+// may ask to bring a character into (any they are not the GM of), their
+// characters, and the requests they have made and wait on.
+export type JoinView = {
+  campaigns: { id: string; name: string }[]
+  characters: { id: string; name: string }[]
+  pending: (JoinRequestRow & { campaign: string; campaignName: string })[]
+}
+
+export function getJoinView(rows: readonly CampaignRow[], characters: readonly { id: string; name: string; owner: string }[], profile: string | null): JoinView {
+  return {
+    campaigns: rows.filter((r) => r.member !== 'gm').map((r) => ({ id: r.id, name: r.name })),
+    characters: characters.filter((c) => c.owner === profile).map((c) => ({ id: c.id, name: c.name })),
+    pending: rows.filter((r) => r.member !== 'gm').flatMap((r) => r.requests.filter((q) => q.profile === profile).map((q) => ({ ...q, campaign: r.id, campaignName: r.name }))),
+  }
+}
+
+// The open campaign's requests as its GM answers them: each with the name of
+// the profile asking.
+export function getRequestRows(rows: readonly CampaignRow[], campaign: string, profiles: readonly ProfileListing[]): (JoinRequestRow & { profileName: string })[] {
+  const row = rows.find((r) => r.id === campaign)
+  if (!row || row.member !== 'gm') return []
+  return row.requests.map((q) => ({ ...q, profileName: profiles.find((p) => p.id === q.profile)?.name || 'a profile' }))
+}
 
 // Whether `profile` reads a collection: it is theirs, shared with them, or
 // shared with a campaign `inCampaign` says they read it through.

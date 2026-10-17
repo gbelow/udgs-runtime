@@ -312,7 +312,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   dropEmptyFightParties: (s) => combatCommands.dropEmptyFightParties(deepFreeze({ ...partied(s), partyOf: { a: 'x', b: 'x' } }), ['y']),
   createParty: (s) => combatCommands.createParty('z', 'Z')(deepFreeze(partied(s))),
   joinFight: (s) => combatCommands.joinFight(makeCampaignCharacter({ name: 'c' }), 'x', 'X', [])(s),
-  addToFight: (s) => combatCommands.addToFight(makeCampaignCharacter({ name: 'c' }), newId, [], [], [])(deepFreeze(partied(s))),
+  addToFight: (s) => combatCommands.addToFight(makeCampaignCharacter({ name: 'c' }), newId, [], [])(deepFreeze(partied(s))),
   moveToParty: (s) => combatCommands.moveToParty('a', 'y')(deepFreeze(partied(s))),
   splitOff: (s) => combatCommands.splitOff('a', newId)(deepFreeze(partied(s))),
   renameParty: (s) => combatCommands.renameParty('x', 'Z')(deepFreeze(partied(s))),
@@ -331,7 +331,9 @@ const away = ({ campaign, fight }: Table): Table => {
 // `p` on node `n1`, `a` with an exhaustion Will test to make, and the combat
 // subject's fight beside it, its strike cleared.
 const campaignCases: Record<string, (t: Table) => unknown> = {
-  addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued', [])(campaign),
+  addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued')(campaign),
+  lend: ({ campaign }) => campaignCommands.lend('c')(campaign),
+  release: ({ campaign }) => campaignCommands.release('a')(campaign),
   removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
   updateRosterCharacter: ({ campaign }) => campaignCommands.updateRosterCharacter('a', (c) => ({ ...c, held: [] }))(campaign),
   checkOut: ({ campaign }) => campaignCommands.checkOut('a')(campaign),
@@ -369,7 +371,6 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   saveFightLog: (t) => campaignCommands.saveFightLog(t),
   checkIn: ({ campaign }) => campaignCommands.checkIn(characterSubject(), { partyId: 'q', name: 'Q' }, 'c')(campaign),
   loadIntoFight: (t) => campaignCommands.loadIntoFight(characterSubject(), () => 'issued')(t),
-  loadOntoRoster: (t) => campaignCommands.loadOntoRoster(characterSubject(), () => 'issued')(t),
   removeFromFight: (t) => campaignCommands.removeFromFight('a')(deepFreeze(away(t))),
   resetFight: (t) => campaignCommands.resetFight(deepFreeze(away(t))),
 }

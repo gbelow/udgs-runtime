@@ -1,5 +1,5 @@
 'use client'
-import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CollectionFilter } from '../hooks/useCollections'
 
 // The shared visual vocabulary. Colour is by meaning (see globals.css): accent
@@ -323,6 +323,76 @@ export function ConfirmDelete({ remove }: { remove: () => Promise<void> | void }
         <Button onClick={() => setConfirm(false)}>cancel</Button>
       </>
     : <Button variant='bad' onClick={() => setConfirm(true)}>delete</Button>
+}
+
+const MenuClose = createContext<() => void>(() => {})
+
+// A ⋯ button that opens its options on a click, and closes on a click
+// outside it, on Escape, or once an option is chosen. Clicks inside it stay
+// inside, so a menu sits in a clickable frame without setting it off.
+export function Menu({ label, children }: { label: string, children: ReactNode }){
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', escape) }
+  }, [open])
+
+  return (
+    <div ref={box} className='relative inline-flex' onClick={(e) => e.stopPropagation()}>
+      <Button size='xs' variant='ghost' aria-label={label} aria-expanded={open} active={open} onClick={() => setOpen((o) => !o)}>⋯</Button>
+      {open ?
+        <div role='menu' className='absolute left-0 top-full mt-1 z-50 min-w-48 max-w-72 flex flex-col gap-0.5 bg-raised border border-line rounded p-1 shadow-lg shadow-black/40 text-xs text-left'>
+          <MenuClose.Provider value={() => setOpen(false)}>{children}</MenuClose.Provider>
+        </div>
+        : null}
+    </div>
+  )
+}
+
+// One option of a menu, closing it once chosen unless it should `stay` open.
+// One that cannot be chosen stays listed, with why under its label.
+export function MenuItem({ bar = null, hint, selected = false, bad = false, stay = false, onClick, children }: {
+  bar?: string | null, hint?: string, selected?: boolean, bad?: boolean, stay?: boolean, onClick: () => void, children: ReactNode,
+}){
+  const close = useContext(MenuClose)
+  return (
+    <button type='button' role='menuitem' disabled={bar !== null} title={hint}
+      className={`text-left px-2 py-1 rounded cursor-pointer hover:bg-surface disabled:cursor-default disabled:hover:bg-transparent ${selected ? 'bg-accent/15' : ''}`}
+      onClick={() => { onClick(); if (!stay) close() }}>
+      <span className={`${bad ? 'text-bad' : selected ? 'text-accent' : 'text-fg'} ${bar ? 'opacity-40' : ''}`}>{children}</span>
+      {bar ? <span className='block text-[10px] text-muted'>{bar}</span> : null}
+    </button>
+  )
+}
+
+// An option of a menu that throws something away: chosen, it asks again.
+export function MenuConfirm({ bar = null, hint, onConfirm, children }: { bar?: string | null, hint?: string, onConfirm: () => void, children: ReactNode }){
+  const close = useContext(MenuClose)
+  const [asking, setAsking] = useState(false)
+  if (!asking) return <MenuItem bad stay bar={bar} hint={hint} onClick={() => setAsking(true)}>{children}</MenuItem>
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center px-2 py-1'>
+      <Button size='xs' variant='bad' className='bg-bad/15' onClick={() => { onConfirm(); close() }}>confirm</Button>
+      <Button size='xs' onClick={() => setAsking(false)}>cancel</Button>
+    </div>
+  )
+}
+
+// A control in a menu that is more than one press (a picker, a switch),
+// under its label.
+export function MenuSection({ label, children }: { label: string, children: ReactNode }){
+  return (
+    <div className='flex flex-col gap-1 px-2 py-1 mt-0.5 border-t border-line'>
+      <SectionLabel>{label}</SectionLabel>
+      {children}
+    </div>
+  )
 }
 
 // Which collection of a catalog a picker shows.

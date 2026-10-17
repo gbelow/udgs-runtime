@@ -2,7 +2,7 @@
 import { useState, type ReactNode } from 'react'
 import { CharacterSelector } from './CharacterSelector'
 import { useCollectionFilter } from '../hooks/useCollections'
-import { Button, CollectionSelect, SectionLabel, barred, selectClass } from './ui'
+import { Button, CollectionSelect, MenuSection, SectionLabel, barred, selectClass } from './ui'
 import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
@@ -13,16 +13,19 @@ import type { ClockView } from '../domain/campaign/projections/clock'
 
 // What the run screen's modes draw alike.
 
-// Who plays a character: the GM gives them to a member of the campaign, or
-// takes them back.
+// Who plays a character, in their menu: the GM gives them to a member of the
+// campaign, or takes them back.
 export function PlayedBy({ id, name }: { id: string, name: string }){
   const { owner, options, bar, set } = usePlayedBy(id)
   return (
-    <select aria-label={`${name} played by`} className={`${selectClass} min-w-0`} disabled={bar !== null} title={bar ?? 'who plays them'}
-      value={owner ?? ''} onChange={(e) => set(e.target.value || null)}>
-      <option value=''>played by the GM</option>
-      {options.map((p) => <option key={p.id} value={p.id}>played by {p.name}</option>)}
-    </select>
+    <MenuSection label='played by'>
+      <select aria-label={`${name} played by`} className={selectClass} disabled={bar !== null} title={bar ?? 'who plays them'}
+        value={owner ?? ''} onChange={(e) => set(e.target.value || null)}>
+        <option value=''>the GM</option>
+        {options.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+      {bar ? <span className='text-[10px] text-muted'>{bar}</span> : null}
+    </MenuSection>
   )
 }
 
@@ -93,31 +96,40 @@ export function ClockLabel(){
   )
 }
 
-// When a party is and whether it is in play; the GM brings it to another
-// timeline's time, always forward, reading what that does to it first.
+// When a party is, in one line under its name: its moment or outside time,
+// and whether it is in play.
+export function TimelineSummary({ timeline }: { timeline: TimelineView }){
+  const { clock, night, active } = timeline
+  return(
+    <span className='flex flex-row flex-wrap gap-x-1.5 text-xs text-muted'>
+      {clock ? <Moment clock={clock} night={night} /> : <span className='text-fg'>outside time</span>}
+      <span>· {active ? 'in play' : 'not in play'}</span>
+    </span>
+  )
+}
+
+// Whether a party is in play, and bringing it to another timeline's time,
+// always forward, reading what that does to it first; the GM's, in the
+// party's menu.
 export function TimelineControl({ timeline }: { timeline: TimelineView }){
   const { setActive, sync } = usePartyCommands()
   const bar = useGmBar()
   const [chosen, setChosen] = useState<SyncOption | null>(null)
-  const { name, clock, night, active, options } = timeline
+  const { name, clock, active, options } = timeline
 
   return(
-    <div className='flex flex-col gap-1'>
-      <div className='flex flex-row flex-wrap gap-1.5 items-center text-xs text-muted'>
-        {clock
-          ? <Moment clock={clock} night={night} />
-          : <span className='text-fg'>outside time</span>}
-        <label className='flex items-center gap-1'>
-          <input type='checkbox' aria-label={`${name} in play`} {...barred(bar)} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />in play
-        </label>
-        {options.length > 0 ?
-          <select aria-label={`${name} sync`} className={selectClass} {...barred(bar)} value='' onChange={(e) => setChosen(options[parseInt(e.target.value)] ?? null)}>
-            <option value=''>sync…</option>
-            {options.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
-          </select>
-          : null}
-      </div>
-      {active && !clock ? <span className='text-xs text-muted'>outside time, {name} feels no time pass until it is placed on a timeline</span> : null}
+    <MenuSection label='timeline'>
+      <label className='flex items-center gap-1 text-xs'>
+        <input type='checkbox' aria-label={`${name} in play`} {...barred(bar)} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />in play
+      </label>
+      {options.length > 0 ?
+        <select aria-label={`${name} sync`} className={selectClass} {...barred(bar)} value='' onChange={(e) => setChosen(options[parseInt(e.target.value)] ?? null)}>
+          <option value=''>sync…</option>
+          {options.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+        </select>
+        : null}
+      {bar ? <span className='text-[10px] text-muted'>{bar}</span> : null}
+      {active && !clock ? <span className='text-[10px] text-muted'>outside time, {name} feels no time pass until it is placed on a timeline</span> : null}
       {chosen ?
         <div className='flex flex-row flex-wrap gap-1.5 items-center text-xs border border-accent rounded p-1'>
           <span className='text-fg'>{chosen.warning}</span>
@@ -125,6 +137,6 @@ export function TimelineControl({ timeline }: { timeline: TimelineView }){
           <Button size='xs' aria-label={`${name} cancel sync`} onClick={() => setChosen(null)}>cancel</Button>
         </div>
         : null}
-    </div>
+    </MenuSection>
   )
 }

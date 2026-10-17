@@ -10,6 +10,7 @@ import { makeCampaignCharacter } from '../domain/factories'
 import type { CampaignCharacter } from '../domain/types'
 import { useCombatStore } from './useCombatStore'
 import { useCampaignStore } from './useCampaignStore'
+import { CampaignStateSchema } from '../domain/campaign/types'
 
 // The board as a player works it, over the real combat store: a click goes
 // through `readClick`, the same reading of it the hook dispatches, and a button press is the
@@ -43,6 +44,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
   }
   const dice: Throw = table ? toTable(draw) : draw
   useCombatStore.setState({ ...SceneStateSchema.parse({}), activeCharacterId: null })
+  useCampaignStore.setState(CampaignStateSchema.parse({}))
   const record: SessionRecord = { table, start: SceneStateSchema.parse({}), sent: [] }
   let brush: TerrainBrush | null = null
   let reposition = false
