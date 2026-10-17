@@ -109,6 +109,18 @@ export function SectionLabel({ children, className = '' }: { children: ReactNode
   return <span className={`text-[10px] uppercase tracking-wider text-muted ${className}`}>{children}</span>
 }
 
+// A row of tabs with one open; the caller renders what the open one holds.
+export function Tabs<T extends string>({ tabs, value, onChange, label }: { tabs: readonly { id: T, label: string }[], value: T, onChange: (id: T) => void, label: string }){
+  return (
+    <div role='tablist' aria-label={label} className='flex flex-row gap-1 border-b border-line'>
+      {tabs.map((t) => (
+        <button key={t.id} type='button' role='tab' aria-selected={t.id === value} onClick={() => onChange(t.id)}
+          className={`px-3 py-1 text-sm cursor-pointer border-b-2 -mb-px ${t.id === value ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-fg'}`}>{t.label}</button>
+      ))}
+    </div>
+  )
+}
+
 // A catalog browsed by category: the headers listed, one category open at a
 // time and every one closed at start. A name typed in the filter narrows each
 // category to its matches and opens all those left. A group with a null

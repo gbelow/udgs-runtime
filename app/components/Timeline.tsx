@@ -13,7 +13,7 @@ type Moment = { party: string | null, name: string, clock: number, when: string 
 // one stops where it was. What was recorded or written is a dot where it
 // happened; pressing one, or a party's now, opens that moment, where a note
 // can be attached to it. The GM places a party on the timeline at a moment.
-export function CampaignTimeline({ starting, setStarting }: { starting: boolean, setStarting: (starting: boolean) => void }) {
+export function CampaignTimeline() {
   const chart = useTimelineChart()
   const { gmTools } = useRole()
   const [moment, setMoment] = useState<Moment | null>(null)
@@ -27,7 +27,7 @@ export function CampaignTimeline({ starting, setStarting }: { starting: boolean,
         </span>
         {gmTools && chart.parties.length > 0 ? <Button size='xs' className='ml-auto' selected={adding} aria-pressed={adding} onClick={() => setAdding(!adding)}>add a party</Button> : null}
       </div>
-      {chart.started ? null : <StartTimeline chart={chart} starting={starting} setStarting={setStarting} />}
+      {chart.started ? null : <StartTimeline chart={chart} />}
       {adding ? <PlaceParty chart={chart} done={() => setAdding(false)} /> : null}
       <div className='flex flex-col gap-1 overflow-x-auto'>
         <div className='flex flex-row gap-2 items-end min-w-[32rem]'>
@@ -112,18 +112,12 @@ function MomentPanel({ moment, close }: { moment: Moment, close: () => void }) {
 }
 
 // Before any party is on the timeline the campaign has not started: the GM
-// presses start and then clicks the party in the Parties section to start it
-// with.
-function StartTimeline({ chart, starting, setStarting }: { chart: TimelineChart, starting: boolean, setStarting: (starting: boolean) => void }) {
-  const { gmTools } = useRole()
+// starts it from the Parties tab by clicking the party to start it with.
+function StartTimeline({ chart }: { chart: TimelineChart }) {
   return (
     <div className='flex flex-row flex-wrap gap-2 items-center'>
       <span className='text-xs text-bad'>The campaign has not started: no party is in the timeline.</span>
-      {chart.parties.length === 0 ? <span className='text-xs text-muted'>create a party to start it with</span> : (
-        <Button size='xs' aria-label='start the timeline' aria-pressed={starting} selected={starting} disabled={!gmTools} title={gmTools ? 'then click the party to start it with' : 'only the GM starts the timeline'} onClick={() => setStarting(!starting)}>
-          {starting ? 'click a party above to start with it' : 'start the timeline'}
-        </Button>
-      )}
+      <span className='text-xs text-muted'>{chart.parties.length === 0 ? 'create a party in the Parties tab to start it with' : 'start it from the Parties tab'}</span>
     </div>
   )
 }

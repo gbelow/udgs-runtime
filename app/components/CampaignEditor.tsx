@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
+import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, Tabs, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
 import { CampaignTimeline } from './Timeline'
@@ -10,16 +10,25 @@ import { useCollectionFilter } from '../hooks/useCollections'
 import { MapEditingContext, useCampaignMapEditor } from '../hooks/useMap'
 import { MapBody } from './MapEditor'
 
+const CAMPAIGN_TABS = [
+  { id: 'members', label: 'Members' },
+  { id: 'maps', label: 'Maps' },
+  { id: 'parties', label: 'Parties' },
+  { id: 'timeline', label: 'Timeline' },
+  { id: 'journal', label: 'Journal' },
+] as const
+type CampaignTab = (typeof CAMPAIGN_TABS)[number]['id']
+
 // The campaign tab: the saved campaigns listed on the left, the one in play
-// on the right — its name, its maps, and its parties with who is in them,
-// when each is and whether it is in play. The table always plays some campaign; one never
+// on the right — its name, then in tabs its members, maps, and parties with who is in them,
+// when each is and whether it is in play, the timeline and the journal. The table always plays some campaign; one never
 // saved is named here to be saved. Opening or beginning another replaces it.
 export function CampaignEditor() {
   const { file, campaigns, saved, saveBar, setName, create, open, save, remove } = useCampaignFiles()
   const { gmTools } = useRole()
   // the saved campaign about to replace the one in play, or '' for a new one
   const [replacing, setReplacing] = useState<string | null>(null)
-  const [starting, setStarting] = useState(false)
+  const [tab, setTab] = useState<CampaignTab>('members')
 
   return (
     <div className='grid grid-cols-12 gap-2 py-2 text-left'>
@@ -51,17 +60,12 @@ export function CampaignEditor() {
           {saved && gmTools ? <ConfirmDelete remove={() => remove(file.id)} /> : null}
         </div>
         {saveBar ? <span className='text-xs text-muted'>{saveBar}</span> : null}
-        <SectionLabel>Members</SectionLabel>
-        <CampaignMembers />
-        <CampaignRequests />
-        <SectionLabel>Maps</SectionLabel>
-        <CampaignMaps />
-        <SectionLabel>Parties</SectionLabel>
-        <CampaignParties starting={starting} started={() => setStarting(false)} />
-        <SectionLabel>Timeline</SectionLabel>
-        <CampaignTimeline starting={starting} setStarting={setStarting} />
-        <SectionLabel>Journal</SectionLabel>
-        <CampaignJournal />
+        <Tabs label='campaign sections' tabs={CAMPAIGN_TABS} value={tab} onChange={setTab} />
+        {tab === 'members' ? <><CampaignMembers /><CampaignRequests /></> : null}
+        {tab === 'maps' ? <CampaignMaps /> : null}
+        {tab === 'parties' ? <CampaignParties /> : null}
+        {tab === 'timeline' ? <CampaignTimeline /> : null}
+        {tab === 'journal' ? <CampaignJournal /> : null}
       </div>
     </div>
   )

@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { Button, Menu, MenuConfirm, MenuItem } from './ui'
 import { CatalogDrawer, PlayedBy, TimelineControl, TimelineSummary } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
-import { useCampaignPartyCommands, useCampaignRoster, useMoveBars } from '../hooks/useCampaign'
+import { useCampaignPartyCommands, useCampaignRoster, useMoveBars, useTimelineChart } from '../hooks/useCampaign'
+import { useRole } from '../hooks/useRole'
 import { usePartyCommands, useToDowntimeBar } from '../hooks/useParty'
 import { useDowntimeCommands, useToExplorationBar } from '../hooks/useDowntime'
 import { usePartiesPanel } from '../hooks/useCombatState'
@@ -19,8 +20,12 @@ type Switching = { id: string; name: string; from: string | null }
 // then the party to put them in, or a new one, or taken out of every party,
 // where they are outside time. A party earlier on its timeline than the one
 // being left is closed, since time only goes forward.
-export function CampaignParties({ sequence, starting = false, started = () => {} }: { sequence?: Sequence, starting?: boolean, started?: () => void }){
+export function CampaignParties({ sequence }: { sequence?: Sequence }){
   const { parties, unplaced } = useCampaignRoster(sequence)
+  const chart = useTimelineChart()
+  const { gmTools } = useRole()
+  const [starting, setStarting] = useState(false)
+  const canStart = !sequence && !chart.started && parties.length > 0
   const { moveToParty, splitOff, bring, createParty, renameParty, startTimeline } = useCampaignPartyCommands()
   const { partyToScene } = usePartyCommands()
   const gmBar = useGmBar()
@@ -42,6 +47,12 @@ export function CampaignParties({ sequence, starting = false, started = () => {}
       <div className='flex flex-row flex-wrap gap-2 items-center'>
         {sequence ? null : <CreateParty create={createParty} hint='a new party with nobody in it yet, outside time' />}
         {switching ? <SwitchBanner name={switching.name} cancel={() => setSwitching(null)} /> : null}
+        {canStart ? (
+          <Button size='xs' variant='bad' className='bg-bad/15' aria-label='start the timeline' aria-pressed={starting} active={starting} disabled={!gmTools}
+            title={gmTools ? 'then click the party to start it with' : 'only the GM starts the timeline'} onClick={() => setStarting(!starting)}>
+            {starting ? 'click a party to start with it' : 'start the timeline'}
+          </Button>
+        ) : null}
       </div>
       <div className='flex flex-row gap-3 items-start'>
         {adding ? <CatalogDrawer label={`adding to ${adding.name}`} close={() => setAddingTo(null)} onSelect={(c) => bring(c, adding.id)} /> : null}
@@ -51,7 +62,7 @@ export function CampaignParties({ sequence, starting = false, started = () => {}
             const away = switching !== null && party.id !== switching.from
             const bar = away ? bars[party.id] ?? null : null
             return (
-              <PartyFrame key={party.id} target={starting || (away && bar === null)} adding={party.id === addingTo} closed={bar} place={() => { if (starting) { startTimeline(party.id); started() } else placeInto(party.id) }}>
+              <PartyFrame key={party.id} target={(starting && canStart) || (away && bar === null)} adding={party.id === addingTo} closed={bar} place={() => { if (starting && canStart) { startTimeline(party.id); setStarting(false) } else placeInto(party.id) }}>
                 <div className='flex flex-col gap-0.5' onClick={(e) => e.stopPropagation()}>
                   <PartyHeader name={party.name} rename={(n) => renameParty(party.id, n)} adding={party.id === addingTo} locked={gmBar !== null}
                     toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)}>
