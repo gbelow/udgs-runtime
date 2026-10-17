@@ -3,16 +3,20 @@ import { getDieBar, getOpenCalls, type Calls, type Thrower } from "../domain/pla
 import { realDice, throwOnScreen } from "../components/utils";
 import type { DieSource } from "../domain/play/dice";
 import { useTrayStore } from "../stores/useTrayStore";
-import { useActGate, useControlCheck } from "./useControl";
+import { useActGate, useRollerCheck } from "./useControl";
 import { useDicePlace } from "./useProfile";
 
-// Whoever throws the dice a command calls for, from this screen: the screen
-// rolls every call whose roller the one at it plays, unless they throw them in
-// the dice tray or roll their own at the table, and leaves the rest waiting.
+// Whoever throws the dice a command calls for where the command is played:
+// the GM's own characters' dice at once, when the GM throws on the screen;
+// every other die waits for its roller's own screen to answer it
+// (`useAutoThrow`).
 export function useThrower(): Thrower {
   const place = useDicePlace();
-  const controls = useControlCheck();
-  return { dice: realDice, answer: (call) => (place === 'screen' && controls(call.roller) ? throwOnScreen(call).die : null) };
+  const roller = useRollerCheck();
+  return { dice: realDice, answer: (call) => {
+    const r = roller(call.roller);
+    return place === 'screen' && r.own && !r.played ? throwOnScreen(call).die : null;
+  } };
 }
 
 // Why a die typed in cannot be the one rolled: `explodes` for a test whose
@@ -39,13 +43,14 @@ export function useDieAnswer(read: () => Calls, dispatch: (callId: string, die: 
   };
 }
 
-// For whoever throws in the dice tray, the tray opens by itself for every die
-// a sequence calls for from someone they play, as the screen would roll it
-// for them at once.
+// Every die a sequence calls for from someone whose dice are this screen's
+// own (`isOwnRoller`) is answered by itself, whoever's press called for it:
+// rolled at once for whoever throws on the screen, the tray opened for whoever
+// throws there. Whoever rolls at the table types theirs in.
 export function useAutoThrow(calls: Calls, answer: (callId: string, die: null) => void) {
   const place = useDicePlace();
-  const controls = useControlCheck();
-  const due = place === "tray" ? getOpenCalls(calls).filter((c) => controls(c.roller)).map((c) => c.id) : [];
+  const roller = useRollerCheck();
+  const due = place !== "table" ? getOpenCalls(calls).filter((c) => roller(c.roller).own).map((c) => c.id) : [];
   const throwFor = useRef(answer);
   throwFor.current = answer;
   const key = due.join(",");

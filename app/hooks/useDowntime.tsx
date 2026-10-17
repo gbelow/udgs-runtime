@@ -74,7 +74,7 @@ export function useDowntimeAnswer() {
   );
 }
 
-// The dice tray opened by itself for the dice the days call for.
+// The days' dice that are this screen's own, answered by themselves.
 export function useDowntimeAutoThrow() {
   useAutoThrow(useCampaignStore((s) => s.downtime.calls), useDowntimeAnswer());
 }

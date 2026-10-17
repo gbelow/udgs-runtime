@@ -127,6 +127,14 @@ export function canControl(owner: string | undefined, profile: string | null, ro
   return hasGmTools(role) || (profile !== null && owner === profile)
 }
 
+// Whether the dice of a character `owner` owns are `profile`'s to throw on
+// their own screen, as `role`: a player's own characters' dice, the GM's
+// every character no player plays. The GM answers a player's die only by
+// taking it over, never by itself.
+export function isOwnRoller(owner: string | undefined, profile: string | null, role: Role): boolean {
+  return owner === undefined ? hasGmTools(role) : profile !== null && owner === profile
+}
+
 // Why `profile`, as `role`, cannot play a character `owner` owns: someone
 // else plays them, named from `profiles`, or the GM does.
 export function getControlBar(owner: string | undefined, profile: string | null, role: Role, profiles: readonly ProfileListing[]): string | null {

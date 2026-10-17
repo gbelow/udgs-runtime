@@ -102,7 +102,7 @@ export function useETAnswer() {
   );
 }
 
-// The dice tray opened by itself for the dice the ET calls for.
+// The ET's dice that are this screen's own, answered by themselves.
 export function useETAutoThrow() {
   useAutoThrow(useCampaignStore((s) => s.exploration.calls), useETAnswer());
 }

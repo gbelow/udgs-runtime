@@ -25,7 +25,7 @@ export function useSceneAnswer() {
   );
 }
 
-// The dice tray opened by itself for the dice the scene calls for.
+// The scene's dice that are this screen's own, answered by themselves.
 export function useSceneAutoThrow() {
   useAutoThrow(useCombatStore((s) => s.calls), useSceneAnswer());
 }

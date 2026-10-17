@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { getActorBar, getCampaignRole, getOwner, type Actor, type Viewer } from "../domain/profiles";
+import { getActorBar, getCampaignRole, getOwner, isOwnRoller, type Actor, type Viewer } from "../domain/profiles";
 import { TAB_OWNER, useAppStore, useAppStoreApi, type AppState } from "../stores/useAppStore";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -20,6 +20,18 @@ const viewerOf = (app: ViewerFields, campaign: CampaignStore): Viewer => {
 export function useViewerCheck(): () => Viewer {
   const app = useAppStoreApi();
   return () => viewerOf(app.getState(), useCampaignStore.getState());
+}
+
+// Whether the dice of character `id` are the screen's own to throw
+// (`isOwnRoller`), and whether a player plays them, asked as
+// `useViewerCheck` is.
+export function useRollerCheck(): (id: string) => { own: boolean; played: boolean } {
+  const viewer = useViewerCheck();
+  return (id) => {
+    const v = viewer();
+    const owner = v.ownerOf(id);
+    return { own: isOwnRoller(owner, v.profile, v.role), played: owner !== undefined };
+  };
 }
 
 // Why whoever is at the screen cannot act for `actor`, asked as
