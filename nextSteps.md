@@ -155,6 +155,3 @@ After that, in my recommended order:
 2. Campaign export and import as JSON. It's cheap, because the save format is already validated and copes with old or partial saves. It gives you a backup before campaigns get valuable.
 3. Homebrew entries. Your own catalog entries, stored in Redis and merged with the built-in ones whenever a catalog is read. This is the biggest of the four, because every catalog read has to merge both sources.
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
-
-
-zoom and pan to the battlemap
