@@ -5,6 +5,36 @@ import { isRootAction } from './actionCatalog'
 // The fight's log of actions: which one is open, what answers what, and
 // what opened what.
 
+// The kinds whose participants are not simply whoever their record names: the
+// characters such a kind involves, which are noted in place of the ones its
+// record would give.
+const SPECIFIC_PARTICIPANTS: { [K in ActionKind]?: (state: SceneState, action: ActionOf<K>) => string[] } = {}
+
+// Every character of the fight an action involves, the ones it already notes
+// kept: what its kind says if it says (`SPECIFIC_PARTICIPANTS`), otherwise
+// whoever its record names in any field — declared by, aimed at, reached,
+// tested, protected, passed or held.
+export function getParticipants(state: SceneState, action: Action): string[] {
+  const specific = SPECIFIC_PARTICIPANTS[action.kind] as ((state: SceneState, action: Action) => string[]) | undefined
+  const found = new Set([...action.participants, ...(specific ? specific(state, action) : getNamed(state, action))])
+  return found.size === action.participants.length ? action.participants : [...found]
+}
+
+function getNamed(state: SceneState, action: Action): string[] {
+  const named: string[] = []
+  const walk = (value: unknown): void => {
+    if (typeof value === 'string') { if (state.characters[value]) named.push(value) }
+    else if (Array.isArray(value)) value.forEach(walk)
+    else if (value && typeof value === 'object') {
+      for (const [key, inner] of Object.entries(value)) {
+        if (key !== 'participants') { walk(key); walk(inner) }
+      }
+    }
+  }
+  walk(action)
+  return named
+}
+
 // The action being played out: the top of the stack. Nothing can be declared
 // while one is open, so there is only ever one root â€” except for the actions
 // a reaction opens (an opportunity attack, a follow, an escape from a blast),

@@ -1,7 +1,7 @@
 import { isCombatStarted } from '../rules/started'
 import type { CampaignCharacter } from '../../types'
 import type { Action, ActionKind, ActionOf, SceneState, RootAction, WithdrawalReason } from '../types'
-import { getAction, getLiveActions, getLiveReactionsTo, getOpenAction } from '../rules/log'
+import { getAction, getLiveActions, getParticipants, getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
@@ -34,7 +34,7 @@ import { deliverAll } from '../../character/commands/deliver'
 // in is noted as taken. What lands is noted in the round's registries: the
 // noise it made in its actor's own turn, the preparation it is.
 export function setActions(state: SceneState, declared: Action[], pushed: string[] = []): SceneState {
-  const stamped = declared.map((a) => stampHeld(state, a.turn === null ? { ...a, turn: state.turn, round: state.round } : a))
+  const stamped = declared.map((a) => noteParticipants(state, stampHeld(state, a.turn === null ? { ...a, turn: state.turn, round: state.round } : a)))
   const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
   const landed = state.stack.filter((id) => !live.has(id) && stamped.some((a) => a.id === id))
   const entering = landed.flatMap((id) => [...stamped.filter((a) => a.reactionTo === id), stamped.find((a) => a.id === id)!])
@@ -54,6 +54,12 @@ export function setActions(state: SceneState, declared: Action[], pushed: string
     prepared: [...state.prepared, ...entering.flatMap((a) => (a.kind === 'prepare' ? [a.id] : []))],
     bodyCover: entering.reduce((cover, a) => noteCover(state, stamped, cover, a), state.bodyCover),
   }))
+}
+
+// The action with every character its record names noted on it.
+function noteParticipants(state: SceneState, action: Action): Action {
+  const participants = getParticipants(state, action)
+  return participants === action.participants ? action : { ...action, participants }
 }
 
 // A reaction newly declared is noted on what it comes of that its own actor

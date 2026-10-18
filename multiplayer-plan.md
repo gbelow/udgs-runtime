@@ -51,6 +51,8 @@ Ruled 2026-10-17: the selected character is private to each screen. `activeChara
 - The selection moves to per-screen UI state.
 - `inTurnCharacter` stays shared.
 
+Done: the selection is the `Selected` type beside the scene and campaign state, kept in each screen's store and never in a schema, so the table's shared state (`app/net/protocol.ts`) leaves it out and a guest landing the host's state leaves their own alone. Commands take their actor as an argument; only projections and hooks read the selection.
+
 ### 6. Dispatch in the hooks
 
 A `useSceneDispatch()` hook returns `dispatch(command)`; local mode calls `applySceneCommand` into the combat store with this screen's sender. Convert one hook file at a time and delete the hook-side gates: `useCombatActions`, `useCombatCommands`, `useChase`, `useBoard`, `useSceneDice`, `useCombatState`, `useHandsLens` (`toFloor`), `useVttLink`.
@@ -93,6 +95,18 @@ Built: `relay/` is our own `ws` server (`pnpm relay`, its own `package.json` to 
 - Hidden information in exploration and downtime: more rules apply there; decided when those parts get their registries.
 - Ids an item command makes for itself (`duplicateItem` splitting a stack) are random rather than the table's, so a replayed session can differ there.
 
-## Hidden information in the scene
+## Hidden information
 
 Ruled 2026-10-17: a viewer sees the state of only the characters they control. The grid is drawn from one of those characters' perspective, and the characters any of them can pick from are the ones that character detects. A per-viewer projection does this on the host; the GM sees everything.
+
+Ruled 2026-10-18, how the views are made:
+
+- The host builds a view for each guest and sends them only that, diffed against the last view it sent them. The GM, and the host's own screen, are sent the whole state. A guest's `bar` runs on their view and the host judges again.
+- Seen in the scene: the characters the viewer controls, those any of them detects (`notices`), and those who share an exchange with them. Whoever is not seen is nowhere in the view, not by id and not by name.
+- Each action is marked with the characters it involves (`participants`), written by `setActions` as the facts happen. An exchange (a root action and what it opened) involves the union of its actions' participants. An entry is in a viewer's log when they control one of them or see all of them; where many take part, such as a blast or a crowd, it is in the log when they are involved or see its actor, and the participants they do not see are left out of it.
+- The open action and the turn holder are shared, so the panel always shows something is happening; an unseen actor's open action is shown without its actor.
+- Exploration and downtime: a viewer sees only the parties of the characters they control. The campaign's journal shows them what was written to those parties and to the campaign as a whole, and not the notes kept from the players.
+- Every field of the scene and campaign states is held by a registry typed on the state's keys, each saying how it is hidden, so a field added later does not compile until it says.
+- Tested by the fuzzer: after every press, a view for a viewer of one character and one of two parses, names no unseen character's id or name, draws without throwing, and keeps every link in its log; the GM's view is the whole state.
+
+Left to decide: what a viewer sees of a detected character they do not control (their whole sheet to begin with, a public face later), and a GM "view as" switch.

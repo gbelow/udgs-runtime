@@ -56,6 +56,11 @@ function sendToGuest(socket: WebSocket, to: string, message: ToGuest) {
   socket.send(`${to}\n${JSON.stringify(message)}`);
 }
 
+export function landShared(state: Shared) {
+  useCombatStore.setState(state.scene);
+  useCampaignStore.setState(state.campaign);
+}
+
 // A guest's side: the stores hold whatever the host last sent, the whole
 // state once and every change after it in order; a change missed asks for
 // the whole state again. A table that moves is followed to its new room.
@@ -65,8 +70,7 @@ export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => 
 
   const land = (state: Shared) => {
     base = state;
-    useCombatStore.setState(state.scene);
-    useCampaignStore.setState(state.campaign);
+    landShared(state);
   };
 
   socket.onmessage = (e) => {

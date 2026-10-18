@@ -316,6 +316,9 @@ const ActionBase = {
   // combat.tex "Preparing a reaction": the reactions its actor declared to
   // what it gave rise to, by id, written as each is declared
   reactedWithin: z.array(str).default([]),
+  // every character the record has come to name, written by `setActions` as
+  // each fact is written: whom a viewer may show the action to
+  participants: z.array(str).default([]),
   // who, among those it let answer, said they would not while it waited for
   // its die, written as each says it
   passed: z.array(str).default([]),

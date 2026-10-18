@@ -8,6 +8,8 @@ import { defRows } from '../domain/scene/rules/attack'
 import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
+import { getSeenBy } from '../domain/scene/rules/seen'
+import { getSceneSeenBy } from '../domain/scene/projections/seen'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
@@ -283,9 +285,51 @@ function plays(): Play[] {
 // The state as the schema holds it: the store's own actions left out.
 const dataOf = (s: SceneState): SceneState => SceneStateSchema.parse(s)
 
+// The first path in a value at which a string holds `needle`, or null.
+function whereIs(value: unknown, needle: string, path = ''): string | null {
+  if (typeof value === 'string') return value.includes(needle) ? path : null
+  if (value && typeof value === 'object') {
+    for (const [key, inner] of Object.entries(value)) {
+      const found = whereIs(inner, needle, `${path}.${key}`) ?? (key.includes(needle) ? `${path}.${key} (key)` : null)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+// What each player is shown, whoever of the fight's characters they play
+// alone or a pair of them: a fight the schema accepts, its log linked, and
+// none of the characters left out named anywhere; the GM is shown it all.
+function assertSeen(s: SceneState) {
+  const ids = Object.keys(s.characters)
+  expect(getSceneSeenBy(s, new Set(), true), 'the GM sees the fight whole').toBe(s)
+  const viewers = [...ids.map((id) => [id]), ...(ids.length > 2 ? [[ids[0], ids[1]]] : [])]
+  for (const controlled of viewers) {
+    const seen = getSceneSeenBy(s, new Set(controlled))
+    const view = SceneStateSchema.parse(JSON.parse(JSON.stringify(seen)))
+    const shown = getSeenBy(s, new Set(controlled))
+    const left = ids.filter((id) => !shown.has(id))
+    const text = JSON.stringify(view)
+    for (const id of left) {
+      expect(text.includes(id), `${controlled.join('+')} is shown ${id}, whom they do not see, at ${whereIs(view, id)}`).toBe(false)
+      const name = s.characters[id].name
+      expect(text.includes(JSON.stringify(name)), `${controlled.join('+')} is shown the name ${name}, whom they do not see, at ${whereIs(view, name)}`).toBe(false)
+    }
+    for (const id of controlled) expect(view.characters[id], `${id} sees themselves`).toBeDefined()
+    const known = new Set([...Object.keys(view.actions), ...view.journal.map((e) => e.action.id)])
+    for (const a of Object.values(view.actions)) {
+      for (const link of [a.reactionTo, a.spawnedBy, a.followUpOf]) {
+        if (link !== null) expect(known.has(link), `${controlled.join('+')} is shown ${a.kind} ${a.id} linked to ${link}, which they are not`).toBe(true)
+      }
+    }
+    for (const id of [...view.live, ...view.stack, ...view.landed]) expect(view.actions[id], `${controlled.join('+')} is shown ${id} on a list but not in the log`).toBeDefined()
+  }
+}
+
 function assertSound(h: Harness, storage: boolean) {
   const s = h.state()
   if (storage) {
+    assertSeen(s)
     const data = dataOf(s)
     expect(JSON.stringify(SceneStateSchema.parse(JSON.parse(JSON.stringify(data)))), 'the state survives storage').toBe(JSON.stringify(data))
   }
@@ -312,6 +356,11 @@ function assertSound(h: Harness, storage: boolean) {
     for (const link of [a.reactionTo, a.spawnedBy, a.followUpOf]) {
       if (link !== null) expect(known.has(link), `${a.kind} ${a.id} links to ${link}, which is in neither the log nor the journal`).toBe(true)
     }
+  }
+
+  for (const a of Object.values(s.actions)) {
+    const named = [a.actorId, a.targetId, ...a.results.map((r) => r.targetId), ...a.tested.map((t) => t.targetId), ...a.passed].filter((id): id is string => !!id && !!s.characters[id])
+    for (const id of named) expect(a.participants, `${a.kind} ${a.id} names ${id} but does not list them as a participant`).toContain(id)
   }
 
   const holders = Object.values(s.actions).filter((a) => a.step === 'held').map((a) => a.actorId)
