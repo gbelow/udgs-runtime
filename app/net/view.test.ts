@@ -6,6 +6,7 @@ import { ExplorationStateSchema } from '../domain/exploration/types'
 import { DowntimeStateSchema } from '../domain/downtime/types'
 import { SceneStateSchema } from '../domain/scene/types'
 import { readShared, type Shared } from './protocol'
+import { apply, diff } from './diff'
 import { viewFor } from './view'
 
 const NAMES: Record<string, string> = { a1: 'Aldric', a2: 'Aurelia', b1: 'Brunhild', c1: 'Cassian' }
@@ -66,5 +67,21 @@ describe('the table as a guest is shown it', () => {
   it('keeps the campaign\'s notes for the players, the GM\'s notes and a fight\'s log out of the journal', () => {
     const ids = viewFor(table(), 'alice').campaign.journal.map((e) => e.id)
     expect(ids).toEqual(['j1', 'j3'])
+  })
+
+  // a guest lands patches on the view they were sent, and must come to the view the host holds
+  it.each(['gm', ...viewers])('reaches %s view by patches as the table changes', (profile) => {
+    const t0 = table()
+    const t1: Shared = { ...t0, campaign: { ...t0.campaign, partyOf: { ...t0.campaign.partyOf, b1: 'pa' }, journal: [...t0.campaign.journal, { ...t0.campaign.journal[0], id: 'j9', party: 'pb' }] } }
+    const t2: Shared = { ...t1, campaign: { ...t1.campaign, owners: { ...t1.campaign.owners, a2: 'bob' }, parties: { pa: t1.campaign.parties.pa } } }
+    let sent = viewFor(t0, profile)
+    let held = JSON.parse(JSON.stringify(sent)) as Shared
+    for (const next of [t1, t2, t0]) {
+      const view = viewFor(next, profile)
+      const patch = diff(sent as never, view as never)
+      sent = view
+      if (patch) held = JSON.parse(JSON.stringify(apply(held as never, JSON.parse(JSON.stringify(patch))))) as Shared
+      expect(held).toEqual(JSON.parse(JSON.stringify(view)))
+    }
   })
 })

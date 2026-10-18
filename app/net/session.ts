@@ -2,37 +2,45 @@ import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import type { TableGuest, TableStatus } from "../stores/useTableStore";
 import { apply, diff } from "./diff";
+import { viewFor } from "./view";
 import { readShared, sharedOf, type CommandMessage, type FromRelay, type Shared, type ToGuest, type ToHost } from "./protocol";
 
 const current = (): Shared => sharedOf(useCombatStore.getState(), useCampaignStore.getState());
 
-// The host's side of the table: every change to the stores goes to the guests
-// as what changed since the last one sent, a guest who joins or asks again
-// gets the whole state, and a guest's command is played as sent by them —
-// `play` answers why it was refused, or null. Stops when the returned function
-// is called.
+// The host's side of the table: every change to the stores goes to each guest
+// as what changed in their own view of it since the last one sent them
+// (`viewFor`: a GM sees all, a player what concerns the characters they play),
+// a guest who joins or asks again gets their whole view, and a guest's command
+// is played as sent by them — `play` answers why it was refused, or null.
+// Stops when the returned function is called.
 export function hostTable(socket: WebSocket, play: (message: CommandMessage, profile: string) => string | null, onGuests: (guests: TableGuest[]) => void): () => void {
-  const guests = new Map<string, string>();
-  let sent = current();
-  let seq = 0;
+  const guests = new Map<string, { profile: string; sent: Shared; seq: number }>();
   let queued = false;
 
   const send = (to: string, message: ToGuest) => sendToGuest(socket, to, message);
   const flush = () => {
     queued = false;
     const next = current();
-    const patch = diff(sent, next);
-    sent = next;
-    if (patch && guests.size > 0) send('*', { kind: 'patch', seq: ++seq, patch });
+    for (const [id, guest] of guests) {
+      const view = viewFor(next, guest.profile);
+      const patch = diff(guest.sent, view);
+      guest.sent = view;
+      if (patch) send(id, { kind: 'patch', seq: ++guest.seq, patch });
+    }
   };
-  const sendWhole = (to: string) => { flush(); send(to, { kind: 'full', seq, state: sent }); };
+  const sendWhole = (to: string) => {
+    const guest = guests.get(to);
+    if (!guest) return;
+    guest.sent = viewFor(current(), guest.profile);
+    send(to, { kind: 'full', seq: guest.seq, state: guest.sent });
+  };
   const schedule = () => { if (!queued) { queued = true; queueMicrotask(flush); } };
-  const showGuests = () => onGuests([...guests].map(([id, profile]) => ({ id, profile })));
+  const showGuests = () => onGuests([...guests].map(([id, { profile }]) => ({ id, profile })));
 
   const stops = [useCombatStore.subscribe(schedule), useCampaignStore.subscribe(schedule)];
   socket.onmessage = (e) => {
     const m = JSON.parse(String(e.data)) as FromRelay;
-    if (m.kind === 'join') { guests.set(m.from, m.profile); sendWhole(m.from); showGuests(); }
+    if (m.kind === 'join') { guests.set(m.from, { profile: m.profile, sent: current(), seq: 0 }); sendWhole(m.from); showGuests(); }
     else if (m.kind === 'leave') { guests.delete(m.from); showGuests(); }
     else if (m.data.kind === 'resync') sendWhole(m.from);
     else {
