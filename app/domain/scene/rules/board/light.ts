@@ -4,6 +4,7 @@ import { SPELL_LIGHT } from '../../../tables'
 import { LIGHT_LEVELS } from '../../../lists'
 import { coordKey, distance } from './geometry'
 import { getPlacedFootprint, seesAcross } from './board'
+import { perState } from '../../../perState'
 import { isSuppressed } from '../../../character/rules/effects'
 
 // combat.tex "Darkness and light": "In a situation of darkness, the field of
@@ -28,7 +29,8 @@ function getCastLights(state: SceneState): Map<string, number> {
   return lit
 }
 
-function getLights(state: SceneState): Light[] {
+// Computed once per state: a view asks for the light on every cell.
+const getLights = perState((state: SceneState): Light[] => {
   const cast = getCastLights(state)
   const radiusOf = (item: { id: string; light: number | null }) => {
     const radii = [item.light, cast.get(item.id)].filter((r): r is number => r !== null && r !== undefined)
@@ -44,7 +46,7 @@ function getLights(state: SceneState): Light[] {
     return radius !== null && cell ? [{ cells: [cell], radius }] : []
   })
   return [...held, ...lying]
-}
+})
 
 // The light on a cell: bright where a light source reaches it, otherwise
 // the board's, dark where darkness is painted.
