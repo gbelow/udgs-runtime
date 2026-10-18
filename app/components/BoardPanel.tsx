@@ -18,7 +18,7 @@ const MODE_LABEL = {
   locked: 'an action is open',
 } as const
 
-const BRUSH_LABEL: Record<TerrainBrush, string> = {
+export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   wall: 'wall',
   glass: 'glass',
   sturdier: 'RES +5',
@@ -210,7 +210,7 @@ const ZONE_FILL = {
   miss: 'fill-bad/5',
 } as const
 
-function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClick: () => void }){
+export function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClick: () => void }){
   const fill = cell.isJumpTo ? 'fill-good/40'
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.zone ? ZONE_FILL[cell.zone]

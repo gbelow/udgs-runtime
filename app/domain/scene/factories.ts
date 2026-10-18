@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ActionSchema, BoardMapSchema, BoardSchema, CoordSchema, PlacementSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap } from './types'
+import { ActionSchema, BoardMapSchema, BoardSchema, CoordSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type SceneState } from './types'
 import { parseCoordKey } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
@@ -40,6 +40,11 @@ export function makeBoardMap(raw: unknown): BoardMap {
     name: name.success ? name.data.name : '',
     terrain: Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, { ...cell, layers: [] }])),
   })
+}
+
+// A fight of nobody on the kept board, for what is asked of a fight's board.
+export function sceneOfMap(map: BoardMap): SceneState {
+  return SceneStateSchema.parse({ board: { ...map, placements: {} } })
 }
 
 export function makeBoard(raw: unknown): Board {

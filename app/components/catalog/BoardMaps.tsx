@@ -1,23 +1,54 @@
 'use client'
-import { ConfirmDelete } from '../ui'
-import { useBoardMapList } from '../../hooks/useBoardMaps'
+import { useState } from 'react'
+import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, TextInput } from '../ui'
+import { BRUSH_LABEL, Cell } from '../BoardPanel'
+import { useBoardMapEditor } from '../../hooks/useBoardMaps'
+import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../../domain/lists'
+import type { TerrainBrush } from '../../domain/types'
 
 // The battle maps kept: the developer's, shared with everyone, and the
-// profile's own. A map is made on the scene's board and kept from its tools;
-// here they are looked over and put away.
+// profile's own. One is opened or begun anew, painted with the brushes the
+// scene's board has, and kept under its name.
 export function BoardMapsEditor() {
-  const { rows, devServer, remove } = useBoardMapList()
+  const { rows, view, map, openId, devServer, open, create, remove, save, setName, paint, light, resize } = useBoardMapEditor()
+  const [brush, setBrush] = useState<TerrainBrush>('wall')
+  const opened = rows.find((r) => r.id === openId)
+  const mine = opened ? !opened.shared || devServer : true
+
   return (
-    <div className='flex flex-col gap-1 text-left text-sm'>
-      {rows.length === 0 ? <span className='text-muted'>No battle maps kept yet: paint a board in a scene and keep it from the GM board tools.</span> : null}
-      {rows.map((r) => (
-        <div key={r.id} className='flex flex-row items-center gap-2'>
-          <span>{r.name || '—'}</span>
-          <span className='text-xs text-muted'>{r.shared ? 'shared with everyone' : 'yours'}</span>
+    <div className='grid grid-cols-12 gap-2 text-left'>
+      <div className='col-span-3 flex flex-col gap-1 border-r border-line pr-2 max-h-[85vh] overflow-y-auto'>
+        <CatalogList label='Battle maps' groups={[{ label: null, rows }]} nameOf={(r) => r.name}
+          beside={<Button size='xs' variant='good' onClick={create}>+ new</Button>}
+          render={(r) => (
+            <ListButton key={r.id} selected={r.id === openId} onClick={() => open(r.id)}>
+              {r.name || '—'} <span className='text-muted'>· {r.shared ? 'shared' : 'yours'}</span>
+            </ListButton>
+          )} />
+      </div>
+      <div className='col-span-9 flex flex-col gap-2 max-h-[85vh] overflow-y-auto pr-2'>
+        <div className='flex flex-row flex-wrap items-center gap-2'>
+          <TextInput className='w-64' aria-label='battle map name' placeholder='name it' value={map.name} onChange={(e) => setName(e.target.value)} />
+          <label className='flex flex-row items-center gap-1 text-xs'>radius
+            <TextInput className='w-16' type='number' min={1} max={30} aria-label='radius' value={map.radius} onChange={(e) => resize(Number(e.target.value))} />
+          </label>
           <span className='grow' />
-          {!r.shared || devServer ? <ConfirmDelete remove={() => remove(r.id)} /> : null}
+          <Button size='xs' variant='primary' disabled={!map.name.trim() || !mine} onClick={() => save(opened ? opened.shared : false)}>{opened?.shared ? 'save for all' : 'save mine'}</Button>
+          {!opened && devServer ? <Button size='xs' disabled={!map.name.trim()} onClick={() => save(true)}>save for all</Button> : null}
+          {opened && mine ? <ConfirmDelete remove={() => remove(opened.id)} /> : null}
         </div>
-      ))}
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>paint</SectionLabel>
+          {TERRAIN_BRUSHES.map((b) => <Button key={b} size='xs' selected={brush === b} onClick={() => setBrush(b)}>{BRUSH_LABEL[b]}</Button>)}
+        </div>
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>light</SectionLabel>
+          {LIGHT_LEVELS.map((l) => <Button key={l} size='xs' selected={view.light === l} onClick={() => light(l)}>{l}</Button>)}
+        </div>
+        <svg viewBox={view.viewBox} className='w-full max-h-[60vh] select-none' role='img' aria-label='battle map'>
+          {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => paint(c.cell, brush)} />)}
+        </svg>
+      </div>
     </div>
   )
 }

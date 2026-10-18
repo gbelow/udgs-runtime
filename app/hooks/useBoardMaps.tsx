@@ -1,7 +1,12 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { deleteBoardMap, saveBoardMap } from "../actions";
-import { getBoardMap } from "../domain/scene/projections/boardMap";
+import type { TerrainBrush } from "../domain/types";
+import type { Coord, LightLevel } from "../domain/scene/types";
+import type { BoardView } from "../domain/scene/projections/boardView";
+import { getBoardMap, getBoardMapView } from "../domain/scene/projections/boardMap";
+import { lightBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
+import { useBoardMapDraftStore } from "../stores/useBoardMapDraftStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSceneDispatch } from "./useSceneDispatch";
@@ -49,4 +54,39 @@ export function useBoardMaps() {
   };
 
   return { rows, devServer, save, load } as const;
+}
+
+// The Battle maps tab: a kept map opened or begun anew, painted with the
+// fight's own brushes, and kept again under its name, as the profile's own or
+// (dev server) for everyone. Keeping an opened map under another name moves
+// it to that name.
+export function useBoardMapEditor() {
+  const { rows, boardMaps, devServer, refresh, remove: removeKept } = useBoardMapList();
+  const openId = useBoardMapDraftStore((s) => s.openId);
+  const map = useBoardMapDraftStore((s) => s.map);
+  const open = useBoardMapDraftStore((s) => s.open);
+  const update = useBoardMapDraftStore((s) => s.updateMap);
+  const view: BoardView = useMemo(() => getBoardMapView(map), [map]);
+
+  const edit = (updater: BoardMapUpdater) => update(updater);
+
+  const save = async (shared: boolean) => {
+    const res = await saveBoardMap(map, shared);
+    if (!res.ok) { toast.error(res.error); return; }
+    toast.success(`Battle map ${map.name} saved.`);
+    const before = openId ? boardMaps[openId] : undefined;
+    if (openId && before && before.map.name !== map.name && (before.owner === null) === shared) await deleteBoardMap(openId);
+    refresh();
+  };
+
+  return {
+    rows, view, map, openId, devServer, save,
+    open: (id: string) => { if (id in boardMaps) open(id, boardMaps[id].map); },
+    create: () => open(null, newBoardMap()),
+    remove: async (id: string) => { await removeKept(id); if (id === openId) open(null, newBoardMap()); },
+    setName: (name: string) => edit(renameBoardMap(name)),
+    paint: (cell: Coord, brush: TerrainBrush) => edit(paintBoardMap(cell, brush)),
+    light: (level: LightLevel) => edit(lightBoardMap(level)),
+    resize: (radius: number) => edit(resizeBoardMap(radius)),
+  } as const;
 }

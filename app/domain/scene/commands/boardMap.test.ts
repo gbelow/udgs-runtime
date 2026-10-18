@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { loadBoardMap } from './board'
+import { loadBoardMap, paintTerrain } from './board'
+import { paintBoardMap } from './boardMapEdit'
+import { sceneOfMap } from '../factories'
+import { TERRAIN_BRUSHES } from '../../lists'
 import { getBoardMap } from '../projections/boardMap'
 import { BoardMapSchema, BoardSchema, SceneStateSchema } from '../types'
 import { makeBoardMap } from '../factories'
@@ -28,6 +31,19 @@ describe('a kept battle map', () => {
   it('is read whole from whatever comes in', () => {
     for (const raw of [null, 3, 'x', [], {}, { terrain: 4 }, { terrain: { nowhere: {} }, radius: 'wide' }]) {
       expect(BoardMapSchema.safeParse(makeBoardMap(raw)).success).toBe(true)
+    }
+  })
+})
+
+// The editor paints with the scene's brushes: the same press lands the same
+// ground on a kept map as on a fight's board.
+describe('painting a kept battle map', () => {
+  it('lands what the fight board lands, for every brush', () => {
+    const map = getBoardMap(SceneStateSchema.parse({ board: BoardSchema.parse({ terrain: { '1,0': { RES: 10, depth: 1 } } }) }), 'x')!
+    for (const brush of TERRAIN_BRUSHES) {
+      for (const cell of [{ q: 1, r: 0 }, { q: 0, r: 0 }]) {
+        expect(paintBoardMap(cell, brush)(map)).toEqual(getBoardMap(paintTerrain(cell, brush)(sceneOfMap(map)), 'x'))
+      }
     }
   })
 })
