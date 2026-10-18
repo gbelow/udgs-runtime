@@ -11,6 +11,7 @@ import { CharacterCreation } from './CharacterCreation';
 import { ProfileLanding, ProfileMenu } from './ProfileMenu';
 import { useProfileId } from '../hooks/useProfile';
 import { useTableSession } from '../hooks/useTable';
+import { useAutosave } from '../hooks/useCampaign';
 
 const TABS = [
   { tab: 'create', label: 'Create', mobile: true },
@@ -28,6 +29,7 @@ export function App(){
   const [open, setOpen] = useState(false)
 
   useTableSession()
+  useAutosave()
 
   if (!useProfileId()) return <ProfileLanding />
 

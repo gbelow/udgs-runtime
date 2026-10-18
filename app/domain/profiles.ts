@@ -76,12 +76,14 @@ export const JoinRequestsSchema = z.record(z.string(), z.string())
 export type JoinRequests = z.infer<typeof JoinRequestsSchema>
 
 // A saved campaign's row in the index: its name, who plays it and who asks
-// to, so a profile's campaigns are listed, and joined, without opening each.
+// to, and whether it is locked, so a profile's campaigns are listed, and
+// joined, without opening each.
 export const CampaignListingSchema = z.object({
   name: z.string().catch(''),
   members: CampaignMembersSchema.catch({}),
   requests: JoinRequestsSchema.catch({}),
-}).catch({ name: '', members: {}, requests: {} })
+  locked: z.boolean().catch(false),
+}).catch({ name: '', members: {}, requests: {}, locked: false })
 export type CampaignListing = z.infer<typeof CampaignListingSchema>
 
 // A request as the screen lists it: the character brought, named, and the
@@ -91,14 +93,14 @@ export type JoinRequestRow = { character: string; name: string; profile: string 
 // A saved campaign as a profile sees it in the list: what they are in it, if
 // anything, and the requests they may see — every one for its GM, their own
 // for anyone else.
-export type CampaignRow = { id: string; name: string; member: MemberRole | null; requests: JoinRequestRow[] }
+export type CampaignRow = { id: string; name: string; member: MemberRole | null; requests: JoinRequestRow[]; locked: boolean }
 
 export function getCampaignRow(id: string, row: CampaignListing, profile: string | null, characterName: (id: string) => string): CampaignRow {
   const member = (profile && row.members[profile]) || null
   const requests = Object.entries(row.requests)
     .filter(([, by]) => member === 'gm' || by === profile)
     .map(([character, by]) => ({ character, name: characterName(character), profile: by }))
-  return { id, name: row.name, member, requests }
+  return { id, name: row.name, member, requests, locked: row.locked }
 }
 
 // Why `profile` cannot ask to bring a character `owner` owns into a

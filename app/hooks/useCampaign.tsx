@@ -1,14 +1,16 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { answerRequest, deleteCampaign, loadCampaign, requestToJoin, saveCampaign, withdrawRequest } from "../actions";
-import { fromCampaignSave, getCampaignSaveBar, newCampaign, toCampaignSave } from "../domain/saves";
+import { answerRequest, deleteCampaign, loadCampaign, lockCampaign, requestToJoin, saveCampaign, unlockCampaign, withdrawRequest } from "../actions";
+import { asCopy, CampaignSaveSchema, fromCampaignSave, getCampaignSaveBar, getDeleteBar, hasPlay, isResumable, newCampaign, newFile, toFileInfo, toStoredCampaign, type CampaignFileInfo, type CampaignSave, type StoredCampaign } from "../domain/saves";
+import { dropAutosave, readAutosave, readLastAutosaveId, useAutosaveStore, writeAutosave } from "../stores/autosave";
+import { useTableStore } from "../stores/useTableStore";
 import { getMoveBars, getRosterIn, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
 import type { Sequence } from "../domain/campaign/types";
 import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
 import { useMapNames } from "./useMap";
 import type { Character } from "../domain/types";
 import { copyIntoPlay, makeCampaignCharacter } from "../domain/factories";
-import { useCampaignStore } from "../stores/useCampaignStore";
+import { getInPlay, useCampaignStore } from "../stores/useCampaignStore";
 import { useCampaignRole } from "./useRole";
 import { getJournalView } from "../domain/campaign/projections/journal";
 import { getTimelineChart } from "../domain/campaign/projections/timelineChart";
@@ -19,7 +21,8 @@ import { useAppStore } from "../stores/useAppStore";
 import { getJoinView, getMemberRows, getOwner, getOwnerOptions, getRequestRows, setMember, type MemberRole } from "../domain/profiles";
 import { useProfileId } from "./useProfile";
 import { useActGate, useGmBar } from "./useControl";
-import { useCampaignDispatch } from "./useSceneDispatch";
+import { useCampaignDispatch, useTableDispatch } from "./useSceneDispatch";
+import { useFighterCount } from "./useCombatState";
 
 // The campaign in play's parties and who is in them, gated on a digest since
 // the view is freshly allocated.
@@ -130,49 +133,152 @@ export function useCampaignRequests() {
   return { requests, refresh, accept: (character: string) => answer(character, true), decline: (character: string) => answer(character, false) } as const;
 }
 
+function play(save: CampaignSave, characters: unknown[]) {
+  useCampaignStore.getState().openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), toFileInfo(save), save.owners);
+}
+
+// The campaign in play as it is written, under `file`.
+function stored(file = useCampaignStore.getState().file): StoredCampaign {
+  return toStoredCampaign(file, getInPlay(), useCampaignStore.getState().owners);
+}
+
+// Opens campaign `id` where this screen left it, from its autosave, unless
+// the campaign was saved since or `fresh` asks for what is saved; one that
+// cannot be loaded plays on from its autosave, if there is one.
+async function resume(profile: string, id: string, fresh: boolean) {
+  const [res, kept] = await Promise.all([loadCampaign(id), fresh ? undefined : readAutosave(profile, id).catch(() => undefined)]);
+  const parsed = kept ? CampaignSaveSchema.safeParse(kept.save) : null;
+  const autosaved = parsed?.success ? parsed.data : null;
+  if (kept && isResumable(res.ok ? res.data.save : null, autosaved)) {
+    play(autosaved, kept.characters);
+    useAutosaveStore.getState().set(kept.at);
+    toast.success(`Campaign ${autosaved.name || 'unnamed'} resumed from its autosave.`);
+    return;
+  }
+  if (!res.ok) { toast.error(res.error); return; }
+  dropAutosave(profile, id).catch(() => undefined);
+  play(res.data.save, res.data.characters);
+  useAutosaveStore.getState().set(null);
+  toast.success(`Campaign ${res.data.save.name} opened${kept ? ' from its save, which is newer than its autosave' : ''}.`);
+}
+
+// Whether anything but whom the screen has picked changed.
+const changed = <T extends object>(s: T, before: T) =>
+  (Object.keys(s) as (keyof T)[]).some((k) => k !== 'activeCharacterId' && s[k] !== before[k]);
+
+// Keeps the campaign in play in this screen's autosave a moment after
+// anything in it changes, and brings back the one played last when the
+// profile is picked. A guest's stores follow the host's table and are never
+// kept.
+export function useAutosave() {
+  const profile = useProfileId();
+  useEffect(() => {
+    if (!profile) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const write = () => {
+      const { file } = useCampaignStore.getState();
+      if (file.savedAt === 0 && !hasPlay(getInPlay())) return;
+      const at = Date.now();
+      writeAutosave(profile, file.id, { ...stored(file), at })
+        .then(() => { if (useCampaignStore.getState().file.id === file.id) useAutosaveStore.getState().set(at); })
+        .catch((err) => console.error('Autosave failed:', err));
+    };
+    const schedule = <T extends object>(s: T, before: T) => {
+      if (!changed(s, before) || useTableStore.getState().mode === 'guest') return;
+      clearTimeout(timer);
+      timer = setTimeout(write, AUTOSAVE_DELAY);
+    };
+    const unsubscribe = [useCampaignStore.subscribe(schedule), useCombatStore.subscribe(schedule)];
+    readLastAutosaveId(profile).then((id) => { if (id && useTableStore.getState().mode !== 'guest') resume(profile, id, false); }).catch(() => undefined);
+    return () => { clearTimeout(timer); unsubscribe.forEach((u) => u()); };
+  }, [profile]);
+}
+
+const AUTOSAVE_DELAY = 2000;
+
 // The saved campaigns, and the one in play: begun anew, opened from the
-// saved ones, named, saved and deleted.
+// saved ones where this screen left them or from what is saved, named,
+// saved, saved as a copy, locked, unlocked and deleted.
 export function useCampaignFiles() {
   const file = useCampaignStore((s) => s.file);
   const setName = useCampaignStore((s) => s.setFileName);
   const openCampaign = useCampaignStore((s) => s.openCampaign);
-  const setMembers = useCampaignStore((s) => s.setMembers);
+  const setFile = useCampaignStore((s) => s.setFile);
+  const autosavedAt = useAutosaveStore((s) => s.at);
   const profile = useProfileId();
-  const fighting = useCombatStore((s) => Object.keys(s.characters).length > 0);
-  const saveBar = getCampaignSaveBar(file.name, fighting);
+  const fighting = useFighterCount() > 0;
+  const sendTable = useTableDispatch();
+  const saveBar = getCampaignSaveBar(file.name);
+  const deleteBar = getDeleteBar(file.locked);
   const { campaigns, refresh } = useCampaignList();
   const saved = useAppStore((s) => s.campaignList.some((c) => c.id === file.id));
   const refreshCharacters = useAppStore((s) => s.updatePlayerCharacterList);
 
-  const create = () => openCampaign(newCampaign(), { id: crypto.randomUUID(), name: '', members: profile ? { [profile]: 'gm' } : {} });
-
-  const open = async (id: string) => {
-    const res = await loadCampaign(id);
-    if (!res.ok) { toast.error(res.error); return; }
-    const { save, characters } = res.data;
-    openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), { id: save.id, name: save.name, members: save.members }, save.owners);
-    toast.success(`Campaign ${save.name} opened.`);
+  const create = () => {
+    openCampaign(newCampaign(), newFile(crypto.randomUUID(), profile ? { [profile]: 'gm' } : {}));
+    useAutosaveStore.getState().set(null);
   };
 
-  const save = async () => {
-    const s = useCampaignStore.getState();
-    const res = await saveCampaign(toCampaignSave(s.file.id, s.file.name, s.file.members, { campaign: s, exploration: s.exploration, downtime: s.downtime }, s.owners), Object.values(s.characters));
-    if (!res.ok) { toast.error(res.error); return; }
-    setMembers(res.data);
-    toast.success(`Campaign ${s.file.name} saved.`);
+  const open = (id: string) => { if (profile) resume(profile, id, false); };
+  const restart = () => { if (profile) resume(profile, file.id, true); };
+
+  // Writes the campaign in play under `as` and takes what the server says of
+  // it into the file.
+  const write = async (action: typeof saveCampaign, as: CampaignFileInfo, done: string) => {
+    const { save, characters } = stored(as);
+    const res = await action(save, characters);
+    if (!res.ok) { toast.error(res.error); return false; }
+    setFile({ ...as, ...res.data, locked: action === lockCampaign });
+    toast.success(done);
     refresh();
     refreshCharacters();
+    return true;
+  };
+
+  const save = () => write(saveCampaign, file, `Campaign ${file.name} saved.`);
+
+  const saveAsCopy = async (name: string) => {
+    const from = file.id;
+    if (await write(saveCampaign, asCopy(file, crypto.randomUUID(), name), `Saved as ${name}, now in play; ${file.name || 'the campaign'} is left as it was.`) && profile)
+      dropAutosave(profile, from).catch(() => undefined);
+  };
+
+  // A fight being played out is thrown away first: a locked campaign starts
+  // with nobody fighting.
+  const lock = () => {
+    if (fighting) sendTable({ kind: "resetFight", args: [] });
+    return write(lockCampaign, file, `Campaign ${file.name} saved and locked: what is saved from now on is saved as a copy.`);
+  };
+
+  const unlock = async () => {
+    const res = await unlockCampaign(file.id);
+    if (!res.ok) { toast.error(res.error); return; }
+    setFile({ locked: false });
+    toast.success(`Campaign ${file.name} unlocked.`);
+    refresh();
   };
 
   const remove = async (id: string) => {
     const res = await deleteCampaign(id);
     if (!res.ok) { toast.error(res.error); return; }
+    if (profile) dropAutosave(profile, id).catch(() => undefined);
     toast.success('Campaign deleted.');
     if (id === useCampaignStore.getState().file.id) create();
     refresh();
   };
 
-  return { file, campaigns, saved, saveBar, setName, create, open, save, remove } as const;
+  const copiedFrom = file.copiedFrom ? campaigns.find((c) => c.id === file.copiedFrom)?.name ?? null : null;
+
+  return {
+    file, campaigns, saved, fighting, copiedFrom,
+    savedText: file.savedAt ? stamp(file.savedAt) : null,
+    autosavedText: autosavedAt ? stamp(autosavedAt) : null,
+    saveBar, deleteBar, setName, create, open, restart, save, saveAsCopy, lock, unlock, remove,
+  } as const;
+}
+
+function stamp(at: number): string {
+  return new Date(at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 // Who plays character `id` in play, the members the GM may give them to, and

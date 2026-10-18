@@ -44,6 +44,7 @@ export type ToGuest =
   | { kind: 'full'; seq: number; state: Shared }
   | { kind: 'patch'; seq: number; patch: Patch }
   | { kind: 'refused'; why: string }
+  | { kind: 'moved'; room: string; roomName: string }
   | { kind: 'noHost' };
 
 export type FromRelay =

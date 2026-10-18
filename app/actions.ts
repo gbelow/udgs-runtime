@@ -3,7 +3,7 @@
 import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
-import { CampaignSaveSchema, type CampaignSave } from './domain/saves';
+import { CampaignSaveSchema, getCampaignSaveBar, getDeleteBar, getLockBar, getOverwriteBar, type CampaignSave } from './domain/saves';
 import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getAssignBar, getCampaignRole, getCampaignRow, getJoinBar, type CampaignRow, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
@@ -521,16 +521,34 @@ export async function answerRequest(campaign: string, character: string, accept:
 // of whoever saves it; the members it was saved with come back.
 // A character the GM gave a player is played by them from then on, as the
 // save records; one taken back is played by nobody.
-export async function saveCampaign(raw: CampaignSave, characters: CampaignCharacter[]): Promise<ActionResult<CampaignMembers>> {
+// A locked campaign is never saved over; play on it is saved as a copy.
+export async function saveCampaign(raw: CampaignSave, characters: CampaignCharacter[]): Promise<ActionResult<SavedCampaign>> {
+  return writeCampaign(raw, characters, false);
+}
+
+// Saves the campaign and locks it, so that it is played from as it stands
+// now; one with a fight being played out is refused.
+export async function lockCampaign(raw: CampaignSave, characters: CampaignCharacter[]): Promise<ActionResult<SavedCampaign>> {
+  return writeCampaign(raw, characters, true);
+}
+
+type SavedCampaign = { members: CampaignMembers, savedAt: number };
+
+async function writeCampaign(raw: CampaignSave, characters: CampaignCharacter[], locked: boolean): Promise<ActionResult<SavedCampaign>> {
+  const verb = locked ? 'lock' : 'save';
   const parsed = CampaignSaveSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: 'Not a campaign.' };
-  if (!parsed.data.name.trim()) return { ok: false, error: 'Campaigns need a name.' };
+  const bar = locked ? getLockBar(parsed.data.name, parsed.data.fight) : getCampaignSaveBar(parsed.data.name);
+  if (bar) return { ok: false, error: `Not saved: ${bar}.` };
   try {
     const { profile, dev } = await getViewer();
     if (!profile) return { ok: false, error: 'Pick a profile first.' };
-    const save = Object.keys(parsed.data.members).length ? parsed.data : { ...parsed.data, members: { [profile]: 'gm' as const } };
+    const members = Object.keys(parsed.data.members).length ? parsed.data.members : { [profile]: 'gm' as const };
+    const save: CampaignSave = { ...parsed.data, members, locked, savedAt: Date.now() };
     const [before, row] = await Promise.all([readCampaign(save.id), readCampaignRow(save.id)]);
-    if (before && !hasGmTools(getCampaignRole(before.members, profile, dev))) return { ok: false, error: 'Only a GM saves the campaign.' };
+    if (before && !hasGmTools(getCampaignRole(before.members, profile, dev))) return { ok: false, error: `Only a GM can ${verb} the campaign.` };
+    const overwriteBar = getOverwriteBar(before?.locked ?? false);
+    if (overwriteBar) return { ok: false, error: `Not saved: ${overwriteBar}.` };
     const assigned = Object.entries(save.owners).filter(([cid, owner]) => owner !== (before?.owners[cid] ?? null));
     const assignBar = assigned.map(([, owner]) => getAssignBar(save.members, owner)).find((bar) => bar !== null);
     if (assignBar) return { ok: false, error: `Not saved: ${assignBar}.` };
@@ -539,12 +557,29 @@ export async function saveCampaign(raw: CampaignSave, characters: CampaignCharac
     if (characters.length) writes.mset(Object.fromEntries(characters.map((c) => [campaignCharacterKey(save.id, c.id), c])));
     if (stale.length) writes.del(...stale);
     writes.set(campaignKey(save.id), save);
-    writes.hset(CAMPAIGN_INDEX_KEY, { [save.id]: { name: save.name, members: save.members, requests: row?.requests ?? {} } });
+    writes.hset(CAMPAIGN_INDEX_KEY, { [save.id]: { name: save.name, members: save.members, requests: row?.requests ?? {}, locked } });
     await writes.exec();
-    return { ok: true, data: save.members };
+    return { ok: true, data: { members: save.members, savedAt: save.savedAt } };
   } catch (err) {
-    console.error('Error saving campaign:', err);
-    return { ok: false, error: 'Failed to save campaign.' };
+    console.error(`Error (${verb}) campaign:`, err);
+    return { ok: false, error: `Failed to ${verb} campaign.` };
+  }
+}
+
+// The campaign may be saved over again; only a GM unlocks it.
+export async function unlockCampaign(id: string): Promise<ActionResult> {
+  try {
+    const [save, row, { profile, dev }] = await Promise.all([readCampaign(id), readCampaignRow(id), getViewer()]);
+    if (!save || !row) return { ok: false, error: 'Campaign not found.' };
+    if (!hasGmTools(getCampaignRole(save.members, profile, dev))) return { ok: false, error: 'Only a GM unlocks the campaign.' };
+    const writes = redis.pipeline();
+    writes.set(campaignKey(id), { ...save, locked: false });
+    writes.hset(CAMPAIGN_INDEX_KEY, { [id]: { ...row, locked: false } });
+    await writes.exec();
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error unlocking campaign:', err);
+    return { ok: false, error: 'Failed to unlock campaign.' };
   }
 }
 
@@ -569,6 +604,8 @@ export async function deleteCampaign(id: string): Promise<ActionResult> {
   try {
     const [save, { profile, dev }] = await Promise.all([readCampaign(id), getViewer()]);
     if (save && !hasGmTools(getCampaignRole(save.members, profile, dev))) return { ok: false, error: 'Only a GM deletes the campaign.' };
+    const deleteBar = getDeleteBar(save?.locked ?? false);
+    if (deleteBar) return { ok: false, error: `Not deleted: ${deleteBar}.` };
     const own = (save?.characterIds ?? []).map((cid) => campaignCharacterKey(id, cid));
     const writes = redis.pipeline();
     writes.del(...own, campaignKey(id));

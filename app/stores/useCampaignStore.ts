@@ -8,8 +8,7 @@ import { DowntimeState, DowntimeStateSchema, DowntimeUpdater } from '../domain/d
 import { makeCampaignCharacter } from '../domain/factories'
 import { loadIntoFight } from '../domain/scene/commands/fight'
 import { useCombatStore } from './useCombatStore'
-import { resetCombat } from '../domain/scene/commands/resetCombat'
-import type { CampaignInPlay } from '../domain/saves'
+import { newFile, type CampaignFileInfo, type CampaignInPlay } from '../domain/saves'
 import type { CampaignMembers, CharacterOwners } from '../domain/profiles'
 import { holdForDice } from '../domain/play/calls'
 
@@ -20,15 +19,17 @@ import { holdForDice } from '../domain/play/calls'
 // landed on both stores by `updateTable`; an exploration command reads and
 // writes the campaign and its own state together, landed by
 // `updateExploration`, and a downtime command likewise by `updateDowntime`.
-// Which saved campaign this is: the id it is saved under, its name, and who
-// plays it.
-export type CampaignFile = { id: string; name: string; members: CampaignMembers }
+// Which saved campaign this is: the id it is saved under, its name, who
+// plays it, and how it stands in storage.
+export type CampaignFile = CampaignFileInfo
 
 type CampaignActions = {
   setFileName: (name: string) => void
   setMembers: (members: CampaignMembers) => void
+  // what the server says of the campaign after writing it
+  setFile: (file: Partial<CampaignFile>) => void
   setOwner: (id: string, owner: string | null) => void
-  // replaces the campaign in play, and throws away any fight
+  // replaces the campaign in play, its fight with it
   openCampaign: (t: CampaignInPlay, file: CampaignFile, owners?: CharacterOwners) => void
   loadFighter: (rawCharacter: unknown) => void
   setActiveCharacter: (id: string) => void
@@ -52,16 +53,17 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
   activeCharacterId: null,
   exploration: ExplorationStateSchema.parse({}),
   downtime: DowntimeStateSchema.parse({}),
-  file: { id: crypto.randomUUID(), name: '', members: {} },
+  file: newFile(crypto.randomUUID()),
   owners: {},
 
   setFileName: (name) => set((s) => ({ file: { ...s.file, name } })),
   setMembers: (members) => set((s) => ({ file: { ...s.file, members } })),
+  setFile: (file) => set((s) => ({ file: { ...s.file, ...file } })),
   setOwner: (id, owner) => set((s) => ({ owners: { ...s.owners, [id]: owner } })),
 
   openCampaign: (t, file, owners = {}) => {
     set({ ...t.campaign, activeCharacterId: null, exploration: t.exploration, downtime: t.downtime, file, owners })
-    useCombatStore.setState(resetCombat(useCombatStore.getState()))
+    useCombatStore.setState({ ...t.fight, activeCharacterId: null })
   },
 
   updateCampaignState: (updater) => set((s) => holdForDice(called, s, { ...s, ...updater(s) })),
@@ -92,6 +94,13 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
 
   setActiveCharacter: (id) => set((s) => (s.characters[id] ? { activeCharacterId: id } : {})),
 }))
+
+// The campaign in play as a whole, out of both stores: what `openCampaign`
+// lands in them.
+export function getInPlay(): CampaignInPlay {
+  const s = useCampaignStore.getState()
+  return { campaign: s, exploration: s.exploration, downtime: s.downtime, fight: useCombatStore.getState() }
+}
 
 // Whoever leaves the roster is no longer picked.
 useCampaignStore.subscribe((s) => {

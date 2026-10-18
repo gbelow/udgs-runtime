@@ -17,7 +17,7 @@ export function hostTable(socket: WebSocket, play: (message: CommandMessage, pro
   let seq = 0;
   let queued = false;
 
-  const send = (to: string, message: ToGuest) => socket.send(`${to}\n${JSON.stringify(message)}`);
+  const send = (to: string, message: ToGuest) => sendToGuest(socket, to, message);
   const flush = () => {
     queued = false;
     const next = current();
@@ -45,10 +45,21 @@ export function hostTable(socket: WebSocket, play: (message: CommandMessage, pro
   return () => { stops.forEach((stop) => stop()); socket.onmessage = null; };
 }
 
+// The host's guests are told the table goes on in another room, before the
+// host leaves this one for it.
+export function announceMove(socket: WebSocket, room: string, roomName: string) {
+  sendToGuest(socket, '*', { kind: 'moved', room, roomName });
+}
+
+// A message from the host to guest `to`, or to every guest with '*'.
+function sendToGuest(socket: WebSocket, to: string, message: ToGuest) {
+  socket.send(`${to}\n${JSON.stringify(message)}`);
+}
+
 // A guest's side: the stores hold whatever the host last sent, the whole
 // state once and every change after it in order; a change missed asks for
-// the whole state again.
-export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => void, onRefused: (why: string) => void): () => void {
+// the whole state again. A table that moves is followed to its new room.
+export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => void, onRefused: (why: string) => void, onMoved: (room: string, roomName: string) => void): () => void {
   let base: Shared | null = null;
   let seq = 0;
 
@@ -68,6 +79,7 @@ export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => 
       land(apply(base, m.patch) as Shared);
     }
     else if (m.kind === 'refused') onRefused(m.why);
+    else if (m.kind === 'moved') onMoved(m.room, m.roomName);
     else { base = null; onStatus('noHost'); }
   };
   return () => { socket.onmessage = null; };

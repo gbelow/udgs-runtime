@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, Tabs, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
@@ -25,8 +25,7 @@ type CampaignTab = (typeof CAMPAIGN_TABS)[number]['id']
 // when each is and whether it is in play, the timeline and the journal. The table always plays some campaign; one never
 // saved is named here to be saved. Opening or beginning another replaces it.
 export function CampaignEditor() {
-  const { file, campaigns, saved, saveBar, setName, create, open, save, remove } = useCampaignFiles()
-  const { gmTools } = useRole()
+  const { file, campaigns, saveBar, create, open } = useCampaignFiles()
   const joinTable = useJoinTable()
   // the saved campaign about to replace the one in play, or '' for a new one
   const [replacing, setReplacing] = useState<string | null>(null)
@@ -39,33 +38,19 @@ export function CampaignEditor() {
           beside={<Button size='xs' variant='good' onClick={() => setReplacing('')}>+ new</Button>}
           render={(c) => (
             <div key={c.id} className='flex flex-row items-center gap-1'>
-              <div className='flex-1 min-w-0'><ListButton selected={c.id === file.id} onClick={() => setReplacing(c.id)}>{c.name || '—'}</ListButton></div>
+              <div className='flex-1 min-w-0'><ListButton selected={c.id === file.id} onClick={() => setReplacing(c.id)}>{c.name || '—'}{c.locked ? <span className='text-muted'> · locked</span> : null}</ListButton></div>
               {c.member === 'player' ? <Button size='xs' aria-label={`join the table of ${c.name}`} title="play it at the GM's table, from the run screen" onClick={() => joinTable(c.id, c.name)}>join table</Button> : null}
             </div>
           )} />
         {replacing !== null ?
-          <div className='flex flex-col gap-1 p-1 border border-accent rounded text-xs'>
-            <span>{replacing ? 'opening' : 'beginning'} a campaign replaces the one in play and throws away any fight; what was not saved is lost</span>
-            <div className='flex flex-row gap-1'>
-              <Button size='xs' variant='primary' aria-label='confirm replace' onClick={() => { if (replacing) open(replacing); else create(); setReplacing(null) }}>{replacing ? 'open' : 'begin'}</Button>
-              <Button size='xs' aria-label='cancel replace' onClick={() => setReplacing(null)}>cancel</Button>
-            </div>
-          </div>
+          <ConfirmRow text={`${replacing ? 'opening' : 'beginning'} a campaign replaces the one in play, fight and all; the autosave on this screen keeps it until it is opened again`}
+            confirm={replacing ? 'open' : 'begin'} variant='primary' onConfirm={() => { if (replacing) open(replacing); else create(); setReplacing(null) }} onCancel={() => setReplacing(null)} />
           : null}
         <SectionLabel>Join a campaign</SectionLabel>
         <JoinCampaign />
       </div>
       <div className='col-span-9 flex flex-col gap-3 max-h-[85vh] overflow-y-auto pr-2'>
-        <div className='flex flex-row items-center gap-2'>
-          <span className='text-xs text-muted'>name</span>
-          <TextInput className='w-64' aria-label='campaign name' placeholder='name it to save it' value={file.name} onChange={(e) => setName(e.target.value)} />
-          {saved ? null : <span className='text-xs text-muted'>not saved yet</span>}
-          <span className='grow' />
-          <Tooltip text={saveBar ?? 'save the campaign and its characters'}>
-            <Button variant='primary' disabled={saveBar !== null} onClick={save}>save</Button>
-          </Tooltip>
-          {saved && gmTools ? <ConfirmDelete remove={() => remove(file.id)} /> : null}
-        </div>
+        <CampaignFileBar />
         {saveBar ? <span className='text-xs text-muted'>{saveBar}</span> : null}
         <Tabs label='campaign sections' tabs={CAMPAIGN_TABS} value={tab} onChange={setTab} />
         {tab === 'members' ? <><CampaignMembers /><CampaignRequests /></> : null}
@@ -74,6 +59,75 @@ export function CampaignEditor() {
         {tab === 'timeline' ? <CampaignTimeline /> : null}
         {tab === 'journal' ? <CampaignJournal /> : null}
       </div>
+    </div>
+  )
+}
+
+// The campaign in play as it stands in storage: its name, when it was saved
+// and autosaved, and saving it, as a copy too, locking it, unlocking it,
+// going back to what is saved and deleting it. A locked campaign is saved
+// only as a copy, and locking one throws its fight away first.
+function CampaignFileBar() {
+  const { file, saved, fighting, copiedFrom, savedText, autosavedText, saveBar, deleteBar, setName, restart, save, saveAsCopy, lock, unlock, remove } = useCampaignFiles()
+  const { gmTools } = useRole()
+  // what is waiting to be confirmed
+  const [pending, setPending] = useState<'copy' | 'lock' | 'restart' | null>(null)
+  const [copyName, setCopyName] = useState('')
+  const cancel = () => setPending(null)
+  return (
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap items-center gap-2'>
+        <span className='text-xs text-muted'>name</span>
+        <TextInput className='w-64' aria-label='campaign name' placeholder='name it to save it' value={file.name} disabled={file.locked} onChange={(e) => setName(e.target.value)} />
+        {file.locked ? <span className='text-xs px-1 rounded border border-accent text-accent'>locked</span> : null}
+        <span className='text-xs text-muted'>
+          {savedText ? `saved ${savedText}` : saved ? 'saved' : 'not saved yet'}
+          {autosavedText ? ` · autosaved ${autosavedText}` : ''}
+          {copiedFrom ? ` · copy of ${copiedFrom}` : ''}
+        </span>
+        <span className='grow' />
+        {file.locked ? null : (
+          <Tooltip text={saveBar ?? 'save the campaign and its characters, fight and all'}>
+            <Button variant='primary' disabled={saveBar !== null} onClick={save}>save</Button>
+          </Tooltip>
+        )}
+        {saved ? <Button variant={file.locked ? 'primary' : undefined} onClick={() => { setCopyName(`${file.name} (copy)`); setPending('copy') }}>save as copy…</Button> : null}
+        {saved ? <Button title='throw away what was played since it was saved' onClick={() => setPending('restart')}>restart from saved</Button> : null}
+        {gmTools && file.locked ? <Button onClick={unlock}>unlock</Button> : null}
+        {gmTools && !file.locked ? (
+          <Tooltip text={saveBar ?? 'save the campaign and lock it: whatever is saved after is saved as a copy'}>
+            <Button disabled={saveBar !== null} onClick={() => fighting ? setPending('lock') : lock()}>lock</Button>
+          </Tooltip>
+        ) : null}
+        {saved && gmTools ? (deleteBar ? <Tooltip text={deleteBar}><Button variant='bad' disabled>delete</Button></Tooltip> : <ConfirmDelete remove={() => remove(file.id)} />) : null}
+      </div>
+      {pending === 'copy' ? (
+        <ConfirmRow text={`save what is in play as a new campaign, now in play; ${file.name || 'this one'} stays as it was saved`} confirm='save copy' variant='primary'
+          disabled={!copyName.trim()} onConfirm={() => { saveAsCopy(copyName); cancel() }} onCancel={cancel}>
+          <TextInput className='w-48' aria-label='copy name' value={copyName} onChange={(e) => setCopyName(e.target.value)} />
+        </ConfirmRow>
+      ) : null}
+      {pending === 'lock' ? (
+        <ConfirmRow text='a locked campaign starts with no fight: everyone sent from the roster goes back to it as the fight left them' confirm='drop the fight and lock'
+          onConfirm={() => { lock(); cancel() }} onCancel={cancel} />
+      ) : null}
+      {pending === 'restart' ? (
+        <ConfirmRow text={`go back to the campaign as it was saved${savedText ? ` ${savedText}` : ''}; what was played since is lost`} confirm='restart'
+          onConfirm={() => { restart(); cancel() }} onCancel={cancel} />
+      ) : null}
+    </div>
+  )
+}
+
+// A press asked about before it is made: what it does, anything it needs
+// filled in, and confirming or cancelling it.
+function ConfirmRow({ text, confirm, variant = 'bad', disabled, onConfirm, onCancel, children }: { text: string, confirm: string, variant?: 'bad' | 'primary', disabled?: boolean, onConfirm: () => void, onCancel: () => void, children?: ReactNode }) {
+  return (
+    <div className='flex flex-row flex-wrap items-center gap-1 p-1 border border-accent rounded text-xs'>
+      <span>{text}</span>
+      {children}
+      <Button size='xs' variant={variant} aria-label={`confirm ${confirm}`} disabled={disabled} onClick={onConfirm}>{confirm}</Button>
+      <Button size='xs' aria-label={`cancel ${confirm}`} onClick={onCancel}>cancel</Button>
     </div>
   )
 }

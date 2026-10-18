@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { barOf, playOf } from "../net/parts";
-import { hostTable, joinTable } from "../net/session";
+import { announceMove, hostTable, joinTable } from "../net/session";
 import type { CommandMessage } from "../net/protocol";
 import { useTableStore } from "../stores/useTableStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -17,15 +17,21 @@ import { useGameTab } from "./useGameTab";
 export function useTableSession() {
   const socket = useTableStore((s) => s.socket);
   const mode = useTableStore((s) => s.mode);
+  const profile = useAppStore((s) => s.profile);
   const viewerOf = useGuestViewerCheck();
   const thrower = useThrower();
-  const played = useRef({ viewerOf, thrower });
-  played.current = { viewerOf, thrower };
+  const played = useRef({ viewerOf, thrower, profile });
+  played.current = { viewerOf, thrower, profile };
 
   useEffect(() => {
     if (!socket || !mode) return;
     const { setStatus, setGuests } = useTableStore.getState();
-    if (mode === 'guest') return joinTable(socket, setStatus, (why) => toast.error(`The host refused it: ${why}.`));
+    if (mode === 'guest') return joinTable(socket, setStatus, (why) => toast.error(`The host refused it: ${why}.`), (room, roomName) => {
+      const { profile } = played.current;
+      if (!profile) return;
+      useTableStore.getState().open('guest', room, roomName, profile.id);
+      toast.info(`The table moved to ${roomName}, a copy of the campaign.`);
+    });
     return hostTable(socket, ({ part, command, gmMode }: CommandMessage, profile) => {
       const { viewerOf, thrower } = played.current;
       const why = barOf(part, command, viewerOf(profile, gmMode));
@@ -34,15 +40,21 @@ export function useTableSession() {
     }, setGuests);
   }, [socket, mode]);
 
-  // Another campaign opened on the screen leaves the table it was at; the
-  // host's own state arriving at a guest is the table's campaign, not
-  // another.
+  // Another campaign opened on the screen leaves the table it was at, but a
+  // copy of the table's campaign saved by its host takes the table along,
+  // its guests following; the host's own state arriving at a guest is the
+  // table's campaign, not another.
   useEffect(() => useCampaignStore.subscribe((s, before) => {
-    const { room, close } = useTableStore.getState();
-    if (room && s.file.id !== before.file.id && s.file.id !== room) {
-      close();
-      toast.info('Left the table: another campaign is open on this screen.');
+    const { room, mode, socket, open, close } = useTableStore.getState();
+    if (!room || s.file.id === before.file.id || s.file.id === room) return;
+    const { profile } = played.current;
+    if (mode === 'host' && socket && profile && s.file.copiedFrom === room) {
+      announceMove(socket, s.file.id, s.file.name);
+      open('host', s.file.id, s.file.name, profile.id);
+      return;
     }
+    close();
+    toast.info('Left the table: another campaign is open on this screen.');
   }), []);
 }
 
