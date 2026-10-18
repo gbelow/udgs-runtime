@@ -67,6 +67,12 @@ export function canSurgeAtAll(c: CampaignCharacter): boolean {
   return surgeKinds.some((kind) => canSurge(kind)(c))
 }
 
+// Whether some surge other than the focus surge is still open to the
+// character.
+export function canSurgeBesidesFocus(c: CampaignCharacter): boolean {
+  return surgeKinds.some((kind) => kind !== 'focus' && canSurge(kind)(c))
+}
+
 // Whether the character has AP to spend, or a surge that would give them
 // some.
 export function hasAPLeft(c: CampaignCharacter): boolean {

@@ -4,7 +4,7 @@ import type { SurgeKind } from '../../types'
 import type { SceneState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { canSurgeAtAll, hasAPLeft } from '../../character/rules/surge'
+import { canSurgeBesidesFocus, hasAPLeft } from '../../character/rules/surge'
 import { getLiveActions, getOpenAction, getPlayingOutBar } from './log'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
@@ -119,6 +119,7 @@ export function rollCunning(state: SceneState, id: string, dice: Dice): ContestR
 export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind): string | null {
   if (!isCombatStarted(state)) return 'combat has not started'
   if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
+  if (state.forcedSurge === id && kind === 'focus') return 'a feint forces a surge other than focus'
   return SURGES[kind].earmarked && !isInTurn(state, id) ? 'only in your own turn' : null
 }
 
@@ -151,7 +152,7 @@ export function getNextRoundBar(state: SceneState): string | null {
 function getForcedSurgeBar(state: SceneState, holder: string): string | null {
   const c = state.characters[holder]
   if (state.forcedSurge !== holder || !c || c.usedSurge !== null) return null
-  return canSurgeAtAll(c) ? 'forced to use an action surge' : null
+  return canSurgeBesidesFocus(c) ? 'forced to use an action surge' : null
 }
 
 // Why the turn cannot be ended now, or null.
