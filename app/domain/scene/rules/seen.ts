@@ -41,15 +41,26 @@ export function canSee(state: SceneState, observerId: string, targetId: string):
   return getSenseReaches(state, observerId, targetId).some((r) => r.active) && notices(state, observerId, targetId)
 }
 
+// Whom each character detects, worked out once for the fight as it stands: a
+// player's characters, and every screen and guest that shows the same fight,
+// share it.
+const sights = new WeakMap<SceneState, Map<string, Set<string>>>()
+
+export function getSightOf(state: SceneState, observerId: string): ReadonlySet<string> {
+  let ofState = sights.get(state)
+  if (!ofState) sights.set(state, ofState = new Map())
+  let sight = ofState.get(observerId)
+  if (!sight) ofState.set(observerId, sight = new Set(Object.keys(state.characters).filter((other) => canSee(state, observerId, other))))
+  return sight
+}
+
 // The characters a viewer sees: their own, those any of them detects, and
 // whoever shares an exchange with one of theirs — an unseen archer has been
 // seen by whoever they shot.
 export function getSeenBy(state: SceneState, controlled: ReadonlySet<string>): Set<string> {
   const own = [...controlled].filter((id) => state.characters[id])
   const seen = new Set(own)
-  for (const id of own) {
-    for (const other of Object.keys(state.characters)) if (canSee(state, id, other)) seen.add(other)
-  }
+  for (const id of own) getSightOf(state, id).forEach((other) => seen.add(other))
   for (const { participants } of getExchanges(state).values()) {
     if ([...participants].some((id) => controlled.has(id))) participants.forEach((id) => seen.add(id))
   }
