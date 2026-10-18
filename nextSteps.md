@@ -133,11 +133,9 @@ poison
 
 
 ## multiplayer
-- connection
-- character ownership split
-- assets ownership
-- sync gameplay
-- make a player facing screen for them to choose to join a campaign
+- reconnecting
+- exploration and downtime
+
 
 
 ## issues
@@ -147,7 +145,8 @@ poison
 
 abilities that teach other abilities - magic theory, ferocity lv 4, 
 
-HOP calculation - lower deflections or make it based off of attack score, not score minus defense.
+REBALANCE WEAPONS/ARMOR - bypassing armor is almost useless. non penetrating weapons are near useless. everything is extremelly deadly without metal.
+current test: cutting is only halved when does not cut. 
 
 
 After that, in my recommended order:
@@ -156,3 +155,6 @@ After that, in my recommended order:
 2. Campaign export and import as JSON. It's cheap, because the save format is already validated and copes with old or partial saves. It gives you a backup before campaigns get valuable.
 3. Homebrew entries. Your own catalog entries, stored in Redis and merged with the built-in ones whenever a catalog is read. This is the biggest of the four, because every catalog read has to merge both sources.
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
+
+
+zoom and pan to the battlemap
