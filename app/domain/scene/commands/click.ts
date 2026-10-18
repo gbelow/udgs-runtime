@@ -51,7 +51,7 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
       if (getBoardMode(state) === 'path') return { actor, apply: turnMove() }
       const id = ctx.selected
       if (!id) return NOTHING
-      if (ctx.reposition) return { actor: 'gmTool', apply: turnCharacter(id) }
+      if (ctx.reposition) return { actor: 'gm', apply: turnCharacter(id) }
       return isCombatStarted(state) ? NOTHING : { actor: { id }, apply: turnCharacter(id) }
     }
   }
@@ -60,14 +60,14 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
 const NOTHING = { actor: null, apply: (s: SceneState) => s }
 
 function readCell(state: SceneState, cell: Coord, ctx: ClickContext): ClickReading {
-  if (ctx.brush) return { actor: 'gmTool', apply: paintTerrain(cell, ctx.brush) }
+  if (ctx.brush) return { actor: 'gm', apply: paintTerrain(cell, ctx.brush) }
   const mode = getBoardMode(state)
   if (mode === 'path' || mode === 'jump' || mode === 'aim') {
     const pick = readPick(state, cell, ctx.newId)
     return pick ? { actor: { id: pick.actor }, apply: pick.apply } : NOTHING
   }
   if (mode === 'idle' && ctx.selected) {
-    return ctx.reposition ? { actor: 'gmTool', apply: repositionCharacter(ctx.selected, cell) } : { actor: { id: ctx.selected }, apply: placeCharacter(ctx.selected, cell) }
+    return ctx.reposition ? { actor: 'gm', apply: repositionCharacter(ctx.selected, cell) } : { actor: { id: ctx.selected }, apply: placeCharacter(ctx.selected, cell) }
   }
   return NOTHING
 }

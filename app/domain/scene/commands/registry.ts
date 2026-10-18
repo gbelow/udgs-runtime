@@ -43,7 +43,6 @@ const reactor = (_: SceneState, reactorId: string): Actor => ({ id: reactorId })
 const own = (_: SceneState, id: string): Actor => ({ id })
 const anyone = (): Actor => null
 const gm = (): Actor => 'gm'
-const gmTool = (): Actor => 'gmTool'
 // a die typed in from the table for a test the press makes, or the table's
 // (a die left out comes back null once it has been sent as JSON)
 const typed = (ctx: CommandContext, die?: number) => (die === undefined || die === null ? toThrower(ctx.thrower).dice : () => die)
@@ -92,13 +91,13 @@ export const sceneCommands = {
   click: command((ctx, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null): Updater =>
     (state) => readOn(ctx.newId, state, click, brush, reposition, selected)?.apply(state) ?? state)
     .by((state, click, brush, reposition, selected) => readOn(() => '', state, click, brush, reposition, selected)?.actor ?? null),
-  createBoard: command((_, radius: number) => createBoard(radius)).by(gmTool),
-  removeBoard: command(() => removeBoard).by(gmTool),
-  light: command((_, level: LightLevel) => setLight(level)).by(gmTool),
+  createBoard: command((_, radius: number) => createBoard(radius)).by(gm),
+  removeBoard: command(() => removeBoard).by(gm),
+  light: command((_, level: LightLevel) => setLight(level)).by(gm),
   // a board from a VTT, read best-effort
   importBoard: command((_, raw: unknown) => importBoard(raw)).by(anyone),
   // a kept board, with everyone off it
-  loadBoardMap: command((_, raw: unknown) => loadBoardMap(raw)).by(gmTool),
+  loadBoardMap: command((_, raw: unknown) => loadBoardMap(raw)).by(gm),
 
   // what a character lets go of, onto the floor: outside their own turn only
   // the GM lets go for them
