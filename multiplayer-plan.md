@@ -115,4 +115,4 @@ Ruled 2026-10-18: a guest is told of a refused press only that it did not stand 
 
 The token (`getPublicFace`) keeps a character's id, name, size, footprint, height, armor, body and its wounds, stance, helm and gauntlets, what is worn, held and on the back; the rest of the sheet reads as an empty one. What a guest's screen works out against a token (an attack's preview) is therefore an estimate; the host judges the real outcome. The scene's other fields that name a seen character (morale, concentration, held tests) are still shown whole. The fuzzer checks that a character a viewer sees but does not play carries an empty sheet.
 
-Left: closing the character tabs to a viewer who does not play the character, marking previews against a token as estimates, and a GM "view as" switch.
+The run screen shows the sheet tabs only for a character the viewer plays (the GM, any); a party-mate's sheet stays in the guest's campaign state, closed on screen only. Left: marking previews against a token as estimates, and a GM "view as" switch.

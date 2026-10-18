@@ -27,6 +27,7 @@ import { useGameTab } from '../hooks/useGameTab';
 import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
 import { useRole } from '../hooks/useRole';
+import { useActiveControlBar } from '../hooks/useControl';
 import { useTray } from '../hooks/useTray';
 import { useSceneAutoThrow } from '../hooks/useSceneDice';
 import { useETAutoThrow } from '../hooks/useParty';
@@ -102,6 +103,7 @@ export function RunScreen(){
   const { tab } = useGameTab()
   const { strip, views, resource, needs, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const hasActiveCharacter = useHasActiveCharacter()
+  const ownSheet = useActiveControlBar() === null
   const throwing = useTray().request !== null
   const waiting = useTableWaiting()
   const [opened, setOpened] = useState<CatalogView[]>([])
@@ -132,7 +134,7 @@ export function RunScreen(){
           </div>
           <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>{shown.node}</div>
         </section>
-        {hasActiveCharacter ? (
+        {hasActiveCharacter && ownSheet ? (
           <aside className='md:w-[32rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
             <SheetTabs />
           </aside>
@@ -186,6 +188,7 @@ function ModeSwitch(){
 const SHEET_TABS = ['sheet', 'knowledge', 'inventory', 'gear', 'abilities', 'spells', 'body'] as const
 type SheetTab = typeof SHEET_TABS[number]
 
+// The sheet of the active character, shown only to whoever plays them.
 // The inventory holds what an item is taken into — the hands, the worn
 // armor, the containers, the trade — so it stays short beside a catalog;
 // what the gear does in a fight is under gear.
@@ -200,7 +203,7 @@ function SheetTabs(){
         {SHEET_TABS.map((t) =>
           <Button key={t} size='xs' aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Button>)}
       </div>
-      <ControlLocked>
+      <>
         {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
         {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
         {tab === 'inventory' ? <GearLocked><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></GearLocked> : null}
@@ -208,7 +211,7 @@ function SheetTabs(){
         {tab === 'abilities' ? <AbilityPanel /> : null}
         {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
         {tab === 'body' ? <GmLocked><AfflictionsPannel /><WoundPanel /><CursePanel /></GmLocked> : null}
-      </ControlLocked>
+      </>
     </div>
   )
 }
