@@ -25,16 +25,17 @@ export function SceneStrip(){
       <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center px-2 py-1.5'>
         <Locked bar={useSceneDiceBar()} className='contents'>
           <FightControls />
+          <CharacterList />
+          <FightEnd />
         </Locked>
-        <CharacterList />
       </div>
     </div>
   )
 }
 
 function FightControls(){
-  const { nextRound, endCombat, resetCombat } = useCombatCommands()
-  const { round, nextRoundBar, endCombatBar } = useCombatState()
+  const { nextRound } = useCombatCommands()
+  const { round, nextRoundBar } = useCombatState()
 
   return(
     <div className='flex flex-row gap-2 items-center'>
@@ -43,6 +44,18 @@ function FightControls(){
         <Button aria-label='nextRound' disabled={nextRoundBar !== null} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
       </Tooltip>
       {nextRoundBar ? <span className='text-xs text-muted'>{nextRoundBar}</span> : null}
+    </div>
+  )
+}
+
+// Ending the fight, starting it over and how the table plays it, at the far
+// right of the strip.
+function FightEnd(){
+  const { endCombat, resetCombat } = useCombatCommands()
+  const { round, endCombatBar } = useCombatState()
+
+  return(
+    <div className='ml-auto flex flex-row gap-2 items-center'>
       {round > 0
         ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? 'the rounds end; everyone stays'} onClick={endCombat}>end combat</Button>
         : null}
