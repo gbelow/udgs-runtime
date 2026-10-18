@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, TextInput } from '../ui'
-import { BRUSH_LABEL, Cell, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, Cell, ZoomButtons, cellAt } from '../BoardPanel'
+import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardMapEditor } from '../../hooks/useBoardMaps'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../../domain/lists'
 import type { TerrainBrush } from '../../domain/types'
@@ -12,6 +13,7 @@ import type { TerrainBrush } from '../../domain/types'
 export function BoardMapsEditor() {
   const { rows, view, map, openId, devServer, open, create, remove, save, setName, paint, light, resize } = useBoardMapEditor()
   const [brush, setBrush] = useState<TerrainBrush>('wall')
+  const zoomPan = useZoomPan(view.viewBox)
   const opened = rows.find((r) => r.id === openId)
   const mine = opened ? !opened.shared || devServer : true
 
@@ -44,8 +46,10 @@ export function BoardMapsEditor() {
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>light</SectionLabel>
           {LIGHT_LEVELS.map((l) => <Button key={l} size='xs' selected={view.light === l} onClick={() => light(l)}>{l}</Button>)}
+          <span className='grow' />
+          <ZoomButtons zoomPan={zoomPan} />
         </div>
-        <svg viewBox={view.viewBox} className='w-full max-h-[60vh] select-none' role='img' aria-label='battle map'
+        <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label='battle map'
           onClick={(e) => { const cell = cellAt(e); if (cell) paint(cell, brush) }}>
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
         </svg>

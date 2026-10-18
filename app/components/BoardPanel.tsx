@@ -4,6 +4,7 @@ import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
 import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
+import { useZoomPan } from '../hooks/useZoomPan'
 import type { Coord } from '../domain/scene/types'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
@@ -46,7 +47,7 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 
 // The simulated grid: a hex field the GM paints, lights and repositions
 // characters on, each placed by hand the first time, and the surface a move
-// is walked on. Everything drawn is a field of the board view; the panel
+// is walked on, zoomed with the wheel and panned by dragging. Everything drawn is a field of the board view; the panel
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
@@ -56,6 +57,7 @@ export function BoardPanel(){
   const [tools, setTools] = useState(false)
   const { gmTools, gm } = useRole()
   const open = tools && gm
+  const zoomPan = useZoomPan(view.viewBox)
 
   if (!view.present) {
     return (
@@ -73,6 +75,7 @@ export function BoardPanel(){
     <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : repositioning ? 'click a cell to put the active character there, ↻ to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
+        <ZoomButtons zoomPan={zoomPan} />
         <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
         {gm ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false) }}>GM board tools</Button> : null}
         <Button size='xs' variant='ghost' aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)}>↻</Button>
@@ -120,7 +123,7 @@ export function BoardPanel(){
         </div>
       ) : null}
 
-      <svg viewBox={view.viewBox} className='w-full flex-1 min-h-0 select-none' role='img' aria-label='board'
+      <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
         onClick={(e) => { const cell = cellAt(e); if (cell) clickCell(cell, painting ? brush : null, repositioning) }}>
         <defs>
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
@@ -135,6 +138,14 @@ export function BoardPanel(){
       </svg>
     </Panel>
   )
+}
+
+export function ZoomButtons({ zoomPan }: { zoomPan: ReturnType<typeof useZoomPan> }){
+  return (<>
+    <Button size='xs' variant='ghost' aria-label='zoom in' title='zoom in (or the wheel)' onClick={zoomPan.zoomIn}>+</Button>
+    <Button size='xs' variant='ghost' aria-label='zoom out' title='zoom out (or the wheel)' onClick={zoomPan.zoomOut}>−</Button>
+    <Button size='xs' variant='ghost' aria-label='fit board' disabled={!zoomPan.zoomed} title='show the whole board' onClick={zoomPan.reset}>fit</Button>
+  </>)
 }
 
 // The battle maps kept: one is played on with everyone off it, and the ground
