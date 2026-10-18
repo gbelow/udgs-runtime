@@ -49,11 +49,14 @@ export function PartyCards(){
   const maps = useNodeOptions()
   const calls = useETCalls()
   const answer = useETAnswer()
+  const diceBar = useETDiceBar()
+
+  if (parties.length === 0) return <span className='text-xs text-muted'>a party needs to be loaded and a timeline needs to be started</span>
 
   return(
     <RosterCatalog>
       <DieCalls rows={calls} answer={answer} />
-      <Locked bar={useETDiceBar()}>
+      <Locked bar={diceBar}>
       {decisions.length > 0 ?
         <div className='flex flex-col gap-1 pb-2 border-b border-line'>
           <SectionLabel>Forced to rest</SectionLabel>
@@ -61,7 +64,6 @@ export function PartyCards(){
         </div>
         : null}
       <div className='flex flex-row flex-wrap gap-2 items-start'>
-        {parties.length === 0 ? <span className='text-xs text-muted'>nobody on the roster: add characters</span> : null}
         {parties.map((party) => <PartyCard key={party.id} party={party} maps={maps} />)}
       </div>
       </Locked>
