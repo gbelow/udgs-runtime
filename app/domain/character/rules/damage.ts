@@ -99,12 +99,11 @@ function getArriving(facts: Damage, target: Character): { arriving: Arriving[]; 
   const armor = armorAt(target, facts)
   const canCut = canCutArmor(facts, armor)
   const bypass = (value: number) => (facts.bypass ? Math.floor(value / 2) : 0)
-  const sent = facts.damage
-    .filter(({ kind }) => kind !== 'cut' || canCut)
-    .map(({ kind, value }) => {
-      const against = armorValue(armor, kind)
-      return { type: kind, value: value + bypass(against), against }
-    })
+  const sent = facts.damage.map(({ kind, value }) => {
+    const against = armorValue(armor, kind)
+    const carried = kind === 'cut' && !canCut ? Math.floor(value / 2) : value
+    return { type: kind, value: carried + bypass(against), against }
+  })
   const sentMeasured = getMeasured(sent)
   const wall = facts.wall && sentMeasured ? getAbsorbedShare(sentMeasured.value, facts.wall.RES) : 1
   const arriving = sent.map((a) => ({ ...a, value: Math.floor(a.value * wall) }))
@@ -185,9 +184,9 @@ function tierOf(damage: number, armor: number, TGH: number): number | null {
   return Math.min(MAX_TIER, Math.floor((damage - armor) / TGH))
 }
 
-// combat.tex "Physical attacks": "If the weapon is not capable of cutting its
-// target, the damage is blunt, otherwise, use the largest damage of the two,
-// but apply the additional effects of both" — every kind carried is measured
+// combat.tex "Physical attacks": "Use the largest damage of the two, but apply
+// the additional effects of both. If the weapon is not capable of cutting its
+// target, the cutting damage is halved" — every kind carried is measured
 // against its own armor value, the one that gets furthest past it causes the
 // injury, and the blunt tier causes the blunt effects regardless. "What
 // cuts?": harder than the target; combat.tex "Penetrating" buys the same
@@ -350,7 +349,7 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
   ]
   if (isArmorBare(target, facts)) steps.push(step(`no armor at the ${facts.location}: flesh`, 'combat.tex "Localized damage"'))
   if (facts.damage.some((d) => d.kind === 'cut') && !canCutArmor(facts, armor)) {
-    steps.push(step(`cutting cannot cut ${armor.name} (hardness ${facts.hardness} against ${getHardness(armor.material)})`, 'combat.tex "What cuts?"'))
+    steps.push(step(`cutting cannot cut ${armor.name}, so its damage is halved (hardness ${facts.hardness} against ${getHardness(armor.material)})`, 'combat.tex "What cuts?"'))
   }
   if (facts.bypass) steps.push(step('armor bypass adds half the armor value to the damage', 'combat.tex "Success Overflow", "Bypass"'))
   if (facts.wall) steps.push(step(`the wall in the way, RES ${facts.wall.RES}, lets ${share(wall)} of the damage past`, 'combat.tex "Cover", "Damage absorption"'))
