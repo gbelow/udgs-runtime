@@ -1,15 +1,16 @@
 import { createStore } from "zustand/vanilla";
 import { toast } from "sonner";
-import { getBasicCharList, getCampaignList, getCharacterList, getCollectionList, getMapList, getProfileList, getRaceList, JsonObject } from "../actions";
+import { getBasicCharList, getBoardMapList, getCampaignList, getCharacterList, getCollectionList, getMapList, getProfileList, getRaceList, JsonObject } from "../actions";
 import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 import type { Trade } from "../domain/item/rules/trade";
 import type { CampaignRow, Profile, ProfileListing } from "../domain/profiles";
 import type { Collection } from "../domain/campaign/types";
+import type { SavedBoardMap } from "../domain/scene/types";
 import { without } from "../domain/utils";
 
-export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'collections' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog' | 'campaign'
+export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'boards' | 'collections' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog' | 'campaign'
 
 // The run screen's modes, one per sequence that moves time: each is a tab of
 // its own, so the store that owns the active character stays the tab's.
@@ -22,7 +23,7 @@ export function isRunTab(tab: GameTabs): tab is RunTab {
 
 // The catalog's editors that hold a sheet of their own are tabs of their own
 // too, for the same reason: the races, made as characters, and the maps.
-const CATALOG_TABS = ['catalog', 'race', 'map', 'collections'] as const
+const CATALOG_TABS = ['catalog', 'race', 'map', 'boards', 'collections'] as const
 
 // The character editor's parts, each a tab of its own within it.
 export const EDITOR_TABS = ['body', 'trainables', 'gear'] as const
@@ -42,6 +43,7 @@ export const TAB_OWNER: Record<GameTabs, TabOwner> = {
   edit: 'character',
   race: 'race',
   map: null,
+  boards: null,
   collections: null,
   scene: 'combat',
   exploration: 'campaign',
@@ -91,6 +93,9 @@ export interface AppState {
   updateRaceList: () => void
   mapList: JsonObject
   updateMapList: () => void
+  // the battle maps kept: the developer's and the profile's own, by id
+  boardMaps: Record<string, SavedBoardMap>
+  updateBoardMaps: () => void
   // the profile picked at this screen, or null before one is
   profile: Profile | null
   setProfile: (profile: Profile) => void
@@ -124,7 +129,8 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     playerCharacterList: initialState.playerCharacterList || [],
     raceList: initialState.raceList || {},
     mapList: initialState.mapList || {},
-    
+    boardMaps: initialState.boardMaps || {},
+
     runTab: 'scene',
     editorTab: 'body',
     setEditorTab: (editorTab) => set({ editorTab }),
@@ -169,6 +175,12 @@ export const createAppStore = (initialState: Partial<AppState>) =>
       const res = await getMapList()
       if (!res.ok) { toast.error(res.error); return }
       set(s=> ({...s, mapList: res.data}) )
+    },
+
+    updateBoardMaps: async () => {
+      const res = await getBoardMapList()
+      if (!res.ok) { toast.error(res.error); return }
+      set({ boardMaps: res.data })
     },
 
     updatePlayerCharacterList: async () => {

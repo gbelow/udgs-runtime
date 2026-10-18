@@ -9,7 +9,7 @@ import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
-import { createBoard, importBoard, removeBoard, setLight } from './board'
+import { createBoard, importBoard, loadBoardMap, removeBoard, setLight } from './board'
 import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
@@ -97,6 +97,8 @@ export const sceneCommands = {
   light: command((_, level: LightLevel) => setLight(level)).by(gmTool),
   // a board from a VTT, read best-effort
   importBoard: command((_, raw: unknown) => importBoard(raw)).by(anyone),
+  // a kept board, with everyone off it
+  loadBoardMap: command((_, raw: unknown) => loadBoardMap(raw)).by(gmTool),
 
   // what a character lets go of, onto the floor: outside their own turn only
   // the GM lets go for them

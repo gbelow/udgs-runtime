@@ -3,6 +3,8 @@
 import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
+import { SavedBoardMapSchema, type BoardMap, type SavedBoardMap } from './domain/scene/types';
+import { makeBoardMap } from './domain/scene/factories';
 import { CampaignSaveSchema, getCampaignSaveBar, getDeleteBar, getLockBar, getOverwriteBar, type CampaignSave } from './domain/saves';
 import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getAssignBar, getCampaignRole, getCampaignRow, getJoinBar, type CampaignRow, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
@@ -221,6 +223,76 @@ export async function deleteMap(name: string): Promise<ActionResult> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { ok: false, error: 'Map file not found.' };
     console.error('Error deleting map:', err);
     return { ok: false, error: 'Failed to delete map.' };
+  }
+}
+
+// ── kept battle maps ────────────────────────────────────────────────────
+// The developer's are <name>.json under app/assets/boards, shared with
+// everyone; a profile's own are fields of one Redis hash, id -> the map and
+// its owner, seen by that profile alone.
+const BOARD_DIR = path.join(process.cwd(), "app/assets/boards");
+const BOARDS_KEY = 'boardMaps';
+const SHARED_PREFIX = 'shared:';
+
+export async function getBoardMapList(): Promise<ActionResult<Record<string, SavedBoardMap>>> {
+  try {
+    await fs.mkdir(BOARD_DIR, { recursive: true });
+    const files = await loadJsonFromFolder(BOARD_DIR);
+    const shared = Object.fromEntries(Object.entries(files).map(([name, raw]) => [SHARED_PREFIX + name, { id: SHARED_PREFIX + name, owner: null, map: makeBoardMap({ ...(raw as object), name }) }]));
+    const profile = await getProfileId();
+    const own = profile ? Object.fromEntries(Object.entries(await readIndex(BOARDS_KEY, SavedBoardMapSchema)).filter(([, b]) => b.owner === profile)) : {};
+    return { ok: true, data: { ...shared, ...own } };
+  } catch (err) {
+    console.error('Error loading battle maps:', err);
+    return { ok: false, error: 'Failed to load battle maps.' };
+  }
+}
+
+// Keeps the map under its name: as a file for everyone on the dev server, or
+// as the profile's own.
+export async function saveBoardMap(raw: BoardMap, shared: boolean): Promise<ActionResult> {
+  const map = makeBoardMap(raw);
+  if (!map.name.trim()) return { ok: false, error: 'Battle maps need a name.' };
+  try {
+    if (shared) {
+      if (!isDevServer()) return DEV_ONLY;
+      const filePath = resolveNamedFile(BOARD_DIR, map.name);
+      if (!filePath) return { ok: false, error: 'Battle map names must be a plain file name.' };
+      await fs.mkdir(BOARD_DIR, { recursive: true });
+      await fs.writeFile(filePath, JSON.stringify(map, null, 2) + "\n", "utf-8");
+      return { ok: true, data: undefined };
+    }
+    const profile = await getProfileId();
+    if (!profile) return { ok: false, error: 'Pick a profile first.' };
+    const own = Object.values(await readIndex(BOARDS_KEY, SavedBoardMapSchema)).find((b) => b.owner === profile && b.map.name === map.name);
+    const id = own?.id ?? crypto.randomUUID();
+    await redis.hset(BOARDS_KEY, { [id]: { id, owner: profile, map } });
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error saving battle map:', err);
+    return { ok: false, error: 'Failed to save battle map.' };
+  }
+}
+
+export async function deleteBoardMap(id: string): Promise<ActionResult> {
+  try {
+    if (id.startsWith(SHARED_PREFIX)) {
+      if (!isDevServer()) return DEV_ONLY;
+      const filePath = resolveNamedFile(BOARD_DIR, id.slice(SHARED_PREFIX.length));
+      if (!filePath) return { ok: false, error: 'Battle map names must be a plain file name.' };
+      await fs.unlink(filePath);
+      return { ok: true, data: undefined };
+    }
+    const { profile, dev } = await getViewer();
+    const before = SavedBoardMapSchema.safeParse(await redis.hget(BOARDS_KEY, id));
+    if (!before.success) return { ok: false, error: 'Battle map not found.' };
+    if (!isOwnerOrDev(before.data.owner, profile, dev)) return { ok: false, error: 'Only its owner deletes this battle map.' };
+    await redis.hdel(BOARDS_KEY, id);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { ok: false, error: 'Battle map not found.' };
+    console.error('Error deleting battle map:', err);
+    return { ok: false, error: 'Failed to delete battle map.' };
   }
 }
 

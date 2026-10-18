@@ -2,11 +2,12 @@
 import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
+import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
-import { Button, Panel, SectionLabel, TextInput, Tooltip } from './ui'
+import { Button, Panel, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
 
 const MODE_LABEL = {
@@ -59,6 +60,7 @@ export function BoardPanel(){
     return (
       <Panel meta='no grid: everyone is in reach'
         title={<span className='inline-flex items-center gap-2'>Board {gm ? <Button size='xs' variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button> : null}</span>}>
+        {gm ? <MapsRow canSave={false} /> : null}
         <SceneCards />
       </Panel>
     )
@@ -98,6 +100,7 @@ export function BoardPanel(){
           <Button key={l} size='xs' selected={view.light === l}
             onClick={() => light(l)}>{l}</Button>)}
       </div>
+      <MapsRow canSave />
       <LinkRow />
       {gmTools ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -129,6 +132,31 @@ export function BoardPanel(){
         {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId)} />)}
       </svg>
     </Panel>
+  )
+}
+
+// The battle maps kept: one is played on with everyone off it, and the ground
+// as it stands is kept under a name, as the profile's own or, on the dev
+// server, for everyone.
+function MapsRow({ canSave }: { canSave: boolean }){
+  const { rows, devServer, save, load } = useBoardMaps()
+  const [picked, setPicked] = useState('')
+  const [name, setName] = useState('')
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>maps</SectionLabel>
+      <select aria-label='battle map' className={selectClass} value={picked} onChange={(e) => setPicked(e.target.value)}>
+        <option value=''>—</option>
+        {rows.map((r) => <option key={r.id} value={r.id}>{r.name}{r.shared ? ' · shared' : ''}</option>)}
+      </select>
+      <Button size='xs' disabled={!picked} title='play on this ground: everyone comes off the board' onClick={() => load(picked)}>load</Button>
+      {canSave ? (<>
+        <span className='mx-1 text-line'>|</span>
+        <TextInput aria-label='battle map name' placeholder='name it' value={name} onChange={(e) => setName(e.target.value)} className='w-28' />
+        <Button size='xs' disabled={!name.trim()} onClick={() => save(name.trim(), false)}>save mine</Button>
+        {devServer ? <Button size='xs' disabled={!name.trim()} onClick={() => save(name.trim(), true)}>save for all</Button> : null}
+      </>) : null}
+    </div>
   )
 }
 

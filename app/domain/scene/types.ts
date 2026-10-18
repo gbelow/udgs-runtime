@@ -223,6 +223,22 @@ export const BoardSchema = z.object({
 }).strip()
 export type Board = z.infer<typeof BoardSchema>
 
+// A board kept to be played on again: the ground and its light, with nobody
+// standing on it and nothing an action left there.
+export const BoardMapSchema = BoardSchema.omit({ placements: true }).extend({
+  name: z.string().default(''),
+}).strip()
+export type BoardMap = z.infer<typeof BoardMapSchema>
+
+// A kept board as it is stored: the developer's, shared with everyone, or a
+// profile's own, seen by that profile alone.
+export const SavedBoardMapSchema = z.object({
+  id: z.string(),
+  owner: z.string().nullable().default(null),
+  map: BoardMapSchema,
+}).strip()
+export type SavedBoardMap = z.infer<typeof SavedBoardMapSchema>
+
 // ---------------------------------------------------------------------------
 // Actions
 

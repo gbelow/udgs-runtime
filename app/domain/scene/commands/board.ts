@@ -1,7 +1,7 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
 import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
-import { makeBoard } from '../factories'
+import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
@@ -42,6 +42,15 @@ export function setLight(light: LightLevel): Updater {
 // Refused while an action is open, for the same reason painting is.
 export function importBoard(raw: unknown): Updater {
   return (state) => (getOpenAction(state) ? state : { ...state, board: makeBoard(raw) })
+}
+
+// Plays the fight on a kept board: its ground and light, everyone off it and
+// what lay on the floor lying nowhere in particular. Refused while an action
+// is open, as painting is.
+export function loadBoardMap(raw: unknown): Updater {
+  return (state) => getOpenAction(state)
+    ? state
+    : { ...state, board: { ...makeBoard(makeBoardMap(raw)), placements: {} }, floor: state.floor.map((f) => ({ ...f, cell: null })) }
 }
 
 // Puts a character down where the table says, at the height of the ground

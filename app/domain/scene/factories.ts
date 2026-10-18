@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ActionSchema, BoardSchema, CoordSchema, PlacementSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board } from './types'
+import { ActionSchema, BoardMapSchema, BoardSchema, CoordSchema, PlacementSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap } from './types'
 import { parseCoordKey } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
@@ -28,6 +28,18 @@ function readEntries<T>(record: Record<string, unknown> | undefined, schema: z.Z
     if (parsed.success) entries.push([key, parsed.data])
   }
   return Object.fromEntries(entries)
+}
+
+// A kept board read the same way, whatever else is in it: the ground, with
+// nobody on it and no layer an action left.
+export function makeBoardMap(raw: unknown): BoardMap {
+  const { placements: _placements, terrain, ...rest } = makeBoard(raw)
+  const name = z.object({ name: z.string() }).safeParse(raw)
+  return BoardMapSchema.parse({
+    ...rest,
+    name: name.success ? name.data.name : '',
+    terrain: Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, { ...cell, layers: [] }])),
+  })
 }
 
 export function makeBoard(raw: unknown): Board {

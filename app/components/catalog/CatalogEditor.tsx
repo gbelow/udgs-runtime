@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { CatalogPanel } from './CatalogPanel'
 import { CollectionsEditor } from './Collections'
+import { BoardMapsEditor } from './BoardMaps'
 import { RaceCreator } from '../RaceCreator'
 import { MapEditor } from '../MapEditor'
 import { CATALOGS, CATALOG_NAMES, CatalogName } from '../../forms/catalogs'
@@ -24,11 +25,12 @@ export function CatalogEditor() {
         <Button selected={tab === 'collections'} onClick={() => setTab('collections')}>Collections</Button>
         <Button selected={tab === 'race'} onClick={() => setTab('race')}>Races</Button>
         <Button selected={tab === 'map'} onClick={() => setTab('map')}>Maps</Button>
+        <Button selected={tab === 'boards'} onClick={() => setTab('boards')}>Battle maps</Button>
         {CATALOG_NAMES.map((name) => (
           <Button key={name} selected={tab === 'catalog' && catalog === name} onClick={() => openAsset(name)}>{CATALOGS[name].label}</Button>
         ))}
       </div>
-      {tab === 'race' ? <RaceCreator /> : tab === 'map' ? <MapEditor /> : tab === 'collections' ? <CollectionsEditor /> : <CatalogPanel key={catalog} catalog={catalog} />}
+      {tab === 'race' ? <RaceCreator /> : tab === 'map' ? <MapEditor /> : tab === 'boards' ? <BoardMapsEditor /> : tab === 'collections' ? <CollectionsEditor /> : <CatalogPanel key={catalog} catalog={catalog} />}
     </div>
   )
 }
