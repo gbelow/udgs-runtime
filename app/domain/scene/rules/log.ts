@@ -12,7 +12,7 @@ const SPECIFIC_PARTICIPANTS: { [K in ActionKind]?: (state: SceneState, action: A
 
 // Every character of the fight an action involves, the ones it already notes
 // kept: what its kind says if it says (`SPECIFIC_PARTICIPANTS`), otherwise
-// whoever its record names in any field — declared by, aimed at, reached,
+// whoever its record names in any field â€” declared by, aimed at, reached,
 // tested, protected, passed or held.
 export function getParticipants(state: SceneState, action: Action): string[] {
   const specific = SPECIFIC_PARTICIPANTS[action.kind] as ((state: SceneState, action: Action) => string[]) | undefined
