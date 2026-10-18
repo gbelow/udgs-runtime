@@ -1,6 +1,7 @@
 import { isCombatStarted } from './started'
 import type { SceneState, Table } from '../types'
 import { getPlayingOutBar } from './log'
+import { getNextRoundBar } from './turn'
 import type { Homecoming } from '../../campaign/types'
 
 // Why the fight cannot give its characters back to the party now: the
@@ -17,10 +18,11 @@ export function getSaveLogBar(fight: SceneState): string | null {
   return fight.logSaved >= fight.landed.length ? 'nothing new since the log was last saved' : null
 }
 
-// Why the combat cannot end now, or null.
+// Why the combat cannot end now, or null: only where the round ends, once
+// everyone has agreed to end it.
 export function getEndCombatBar(fight: SceneState): string | null {
   if (!isCombatStarted(fight)) return 'combat has not started'
-  return getPlayingOutBar(fight)
+  return getPlayingOutBar(fight) ?? getNextRoundBar(fight)
 }
 
 // Why nobody can join the fight now, or null: before it starts, or at a round
