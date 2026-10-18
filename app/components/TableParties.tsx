@@ -7,7 +7,6 @@ import { Member, ToDowntime, ToExploration } from './CampaignParties'
 import { Menu, MenuItem, NumberInput } from './ui'
 import { useCombatState, usePartiesPanel } from '../hooks/useCombatState'
 import { useCombatCommands } from '../hooks/useCombatCommands'
-import { useBringIntoParty } from '../hooks/useCharacterLibrary'
 import { useCampaignPartyCommands, useMoveBars } from '../hooks/useCampaign'
 import { useFightTimelineClash, usePartyCommands, useTableParties } from '../hooks/useParty'
 import { useGmBar } from '../hooks/useControl'
@@ -20,16 +19,14 @@ type Switching = { id: string; name: string; from: string | null; fighter: boole
 // Every party of the table, the campaign's and the fight's under one id: a
 // member still on the roster is a name with its menu, a fighter a card with
 // its own. A party is made in the fight, empty and named, and filled from the
-// catalog opened beside it — onto the roster, or straight into the fight
-// while one is on; a member is switched by picking them and then the party to
+// catalog opened beside it — onto the roster, from where the party goes to
+// the scene; a member is switched by picking them and then the party to
 // put them in, or a new one. A party the fight made joins the campaign when
 // its fighters come back.
 export function TableParties({ sequence }: { sequence?: Sequence }){
   const { parties, loose, pick } = useTableParties(sequence)
   const campaign = useCampaignPartyCommands()
   const fight = useCombatCommands()
-  const bringIntoFight = useBringIntoParty()
-  const { joinBar } = usePartiesPanel()
   const clash = useFightTimelineClash()
   const [addingTo, setAddingTo] = useState<string | null>(null)
   const [switching, setSwitching] = useState<Switching | null>(null)
@@ -75,8 +72,7 @@ export function TableParties({ sequence }: { sequence?: Sequence }){
       </div>
       {clash ? <span className='text-xs text-bad'>{clash}</span> : null}
       <div className='flex flex-row gap-3 items-start'>
-        {adding ? <CatalogDrawer label={`adding to ${adding.name}`} close={() => setAddingTo(null)} bar={adding.adds === 'fight' ? joinBar : null}
-          onSelect={(c) => adding.adds === 'fight' ? bringIntoFight(c, adding.id) : campaign.bring(c, adding.id)} /> : null}
+        {adding ? <CatalogDrawer label={`adding to ${adding.name}`} close={() => setAddingTo(null)} onSelect={(c) => campaign.bring(c, adding.id)} /> : null}
         <div className='flex flex-col gap-3 items-start flex-1 min-w-0'>
           {nobody ? <span className='text-xs text-muted'>{sequence ? `no party running on a timeline is in ${sequence}: the campaign tab puts one there` : 'no parties yet: create one, then add characters to it'}</span> : null}
           {parties.map((party) => {
@@ -129,7 +125,7 @@ function PartyTop({ party, sequence, ets, adding, locked, rename, toggleAdding }
 
   return(
     <div className='flex flex-col gap-0.5' onClick={(e) => e.stopPropagation()}>
-      <PartyHeader name={party.name} rename={rename} adding={adding} toggleAdding={toggleAdding} locked={locked || gmBar !== null}>
+      <PartyHeader name={party.name} rename={rename} adding={adding} toggleAdding={toggleAdding} addBar={campaign ? null : 'a party made in the fight: send characters into it from the roster'} locked={locked || gmBar !== null}>
         {campaign && party.roster.length > 0 ? <MenuItem bar={joinBar ?? gmBar} hint='the whole party on the roster into the scene' onClick={() => partyToScene(party.id)}>to scene</MenuItem> : null}
         {party.fighters.length > 0 ? <MenuItem bar={returnBar ?? gmBar} hint='the scene is over for the party: back to the campaign' onClick={() => partyBack(party.id, ets)}>back from scene</MenuItem> : null}
         {party.inFight && party.fighters.length === 0 ? <MenuItem bad bar={gmBar} hint='the party is gone from the fight' onClick={() => deleteParty(party.id)}>delete party</MenuItem> : null}

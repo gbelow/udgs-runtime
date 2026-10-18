@@ -39,11 +39,3 @@ export function useLoadCharacter() {
     else if (isRunTab(tab) && owner === "combat") send({ kind: "loadIntoFight", args: [intoPlay(character)] });
   };
 }
-
-// A character picked from the catalog or the PCs, brought into a party of
-// the fight.
-export function useBringIntoParty() {
-  const send = useTableDispatch();
-  return (character: Character, partyId: string) =>
-    send({ kind: "loadIntoFight", args: [intoPlay(character), partyId] });
-}
