@@ -62,6 +62,9 @@ export function getForcedAfflictions(character: Character): AfflictionKey[] {
   // combat.tex "Wounds": a carried wound's consequence, for as long as it is,
   // and the legs lost or broken, as many as the stance can bear;
   // spells.tex "Curse": a carried curse's, the same
+  // combat.tex "Injuries and Death": collapsing at injury capacity.
+  if (character.injuries.injuryLevel >= getInjuryCapacity(character)) afflictions.add('immobile')
+
   for (const key of getWoundAfflictions(character)) afflictions.add(key)
   for (const key of getStanceAfflictions(character)) afflictions.add(key)
   for (const key of getCurseAfflictions(character)) afflictions.add(key)
@@ -146,6 +149,15 @@ const DEATH_PENALTY = 5
 
 export function isDead(c: Character): boolean {
   return isCampaignCharacter(c) && c.injuries.injuryLevel >= getDeathIL(c)
+}
+
+// combat.tex "Injuries and Death": injury capacity, the IL at which the
+// character collapses and goes immobile, is the fourth multiple of the
+// threshold.
+const CAPACITY_PENALTY = 4
+
+export function getInjuryCapacity(c: CampaignCharacter): number {
+  return CAPACITY_PENALTY * getIT(c)
 }
 
 // The IL that is death: the least at which the character is dead.
