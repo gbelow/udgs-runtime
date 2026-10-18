@@ -111,4 +111,6 @@ Ruled 2026-10-18, how the views are made:
 
 Built for the campaign: `getKnownBy` (campaign rules) names the parties of the characters a viewer plays and so the characters they are told of; the campaign, exploration and downtime each have a censor typed on their own keys (`projections/seen.ts`), and `app/net/view.ts` composes them with the scene's into `viewFor(state, profile)`, the GM getting the state itself. The journal shows a player what was written to their parties and to the campaign, never a GM note or the log of a fight (it names whoever fought). `hostTable` keeps each guest's profile, the last view sent them and their own sequence number, and sends each only the patch between their views. Left: a guest's refusal text (`refused.why`) may still name an unseen character, and a text that names an unseen character inside a longer line (a campaign-wide note) is not caught.
 
-Left to decide: what a viewer sees of a detected character they do not control (their whole sheet to begin with, a public face later), and a GM "view as" switch.
+Ruled 2026-10-18: a guest is told of a refused press only that it did not stand at the table. A detected character a viewer does not play is shown as a public face, a token, not their sheet. A party-mate the fight does not show stays in the campaign view, but their character tabs are closed to a viewer who does not play them.
+
+Left to decide: which fields a token keeps, and a GM "view as" switch.

@@ -7,6 +7,11 @@ import { readShared, sharedOf, type CommandMessage, type FromRelay, type Shared,
 
 const current = (): Shared => sharedOf(useCombatStore.getState(), useCampaignStore.getState());
 
+// What a guest is told of a press the host refused: the reason may name
+// someone the guest is not shown, and their own screen has refused what it
+// could already see.
+const REFUSED = 'it did not stand at the table';
+
 // The host's side of the table: every change to the stores goes to each guest
 // as what changed in their own view of it since the last one sent them
 // (`viewFor`: a GM sees all, a player what concerns the characters they play),
@@ -47,7 +52,7 @@ export function hostTable(socket: WebSocket, play: (message: CommandMessage, pro
       let why: string | null;
       try { why = play(m.data, m.profile); }
       catch (error) { console.error('a guest command could not be played', m.data, error); why = 'it could not be played'; }
-      if (why) send(m.from, { kind: 'refused', why });
+      if (why) send(m.from, { kind: 'refused', why: REFUSED });
     }
   };
   return () => { stops.forEach((stop) => stop()); socket.onmessage = null; };
