@@ -30,7 +30,7 @@ export function getETCastBar(c: Character, key: string): string | null {
 // Whom the caster can aim it at: anyone in their party not sent to a fight,
 // the dead too ("Revitalize").
 export function getETCastTargets(state: CampaignState, casterId: string): string[] {
-  return getPartyMembers(state, state.partyOf[casterId]).filter((id) => state.characters[id] && !state.out.includes(id))
+  return getPartyMembers(state, state.partyOf[casterId]).filter((id) => state.characters[id])
 }
 
 // The effects that land on whoever the cast is aimed at, and how many it

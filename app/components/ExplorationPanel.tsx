@@ -148,7 +148,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
       </span>
       <div className='flex flex-row flex-wrap gap-1.5'>
         {party.members.map((m) => (
-          <Button key={m.id} aria-label={m.name} disabled={m.out} selected={m.isActive} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.out ? 'in a fight' : m.plan}</span></Button>
+          <Button key={m.id} aria-label={m.name} disabled={m.away} selected={m.isActive} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.away ? 'in a fight' : m.plan}</span></Button>
         ))}
       </div>
       <Locked bar={partyBar} className='contents'>

@@ -116,7 +116,7 @@ export function fromCampaignSave(save: CampaignSave, characters: readonly Campai
   const partyOf = Object.fromEntries(Object.entries(save.campaign.partyOf).filter(([id]) => known(id)))
   const names = Object.fromEntries(Object.entries(save.campaign.names).filter(([id]) => known(id)))
   return {
-    campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, partyOf, names, out: save.campaign.out.filter(known), lent: save.campaign.lent.filter(fighting) }),
+    campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, partyOf, names, lent: save.campaign.lent.filter(fighting) }),
     exploration: save.exploration,
     downtime: save.downtime,
     fight: save.fight,

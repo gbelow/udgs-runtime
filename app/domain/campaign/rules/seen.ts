@@ -13,7 +13,7 @@ export type Known = {
 export function getKnownBy(state: CampaignState, controlled: ReadonlySet<string>): Known {
   const parties = new Set<string>()
   for (const id of controlled) if (state.partyOf[id]) parties.add(state.partyOf[id])
-  const everyone = new Set([...Object.keys(state.characters), ...Object.keys(state.partyOf), ...Object.keys(state.names), ...state.lent, ...state.out])
+  const everyone = new Set([...Object.keys(state.characters), ...Object.keys(state.partyOf), ...Object.keys(state.names), ...state.lent])
   const hidden = new Set([...everyone].filter((id) => !controlled.has(id) && !parties.has(state.partyOf[id])))
   const hiddenNames = new Set([...hidden].flatMap((id) => [state.characters[id]?.name, state.names[id]].filter((n): n is string => !!n)))
   return { controlled, parties, hidden, hiddenNames }

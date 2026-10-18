@@ -29,8 +29,7 @@ export function addToRoster(char: CampaignCharacter, newId: () => string, into?:
 // with, into the party the fight left them in — one it made joins the
 // campaign, under its own name unless another party has it. One the campaign
 // has not named yet is named by that party (`nameByParty`), by the name they
-// went by in the fight if they can be. They still sit out the ET they were
-// sent in.
+// went by in the fight if they can be.
 export function checkIn(char: CampaignCharacter, home: Homecoming, fightName: string): CampaignUpdater {
   return (state) => {
     const nameInUse = Object.values(state.parties).some((p) => p.name === home.name)
@@ -51,14 +50,11 @@ export function removeFromRoster(id: string): CampaignUpdater {
       characters: without(state.characters, id),
       partyOf: without(state.partyOf, id),
       names: without(state.names, id),
-      out: state.out.filter((o) => o !== id),
     })
   }
 }
 
-// survival.tex "Rest": "If rest is interrupted, it gets cancelled and the
-// interrupting event happens instead" — the character leaves the roster for
-// a fight but stays in their party, sitting out what they planned this ET.
+// The character leaves the roster for a fight but stays in their party.
 export function checkOut(id: string): CampaignUpdater {
   return (state) => {
     if (!state.characters[id]) return state
@@ -66,7 +62,6 @@ export function checkOut(id: string): CampaignUpdater {
     return {
       ...state,
       characters,
-      out: state.out.includes(id) ? state.out : [...state.out, id],
       lent: state.lent.includes(id) ? state.lent : [...state.lent, id],
     }
   }

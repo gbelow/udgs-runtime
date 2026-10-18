@@ -217,8 +217,6 @@ export const CampaignStateSchema = z.object({
   // the name each character in a party on a timeline goes by, which tells
   // copies of one sheet apart; kept while they are in a fight
   names: z.record(z.string(), z.string()).default({}),
-  // who was sent to a fight this ET and sits out what they planned
-  out: z.array(z.string()).default([]),
   // the ids the campaign has lent to a fight, sent from the roster or brought
   // straight in, until they come back or are gone: every id at the table is
   // the campaign's to give

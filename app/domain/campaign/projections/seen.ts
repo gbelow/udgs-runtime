@@ -21,7 +21,6 @@ const CENSORS: { [K in keyof CampaignState]: CampaignCensor<CampaignState[K]> } 
   parties: (parties, k) => only(parties, (id) => k.parties.has(id)),
   partyOf: (partyOf, k) => only(partyOf, (id) => !k.hidden.has(id)),
   names: unseen,
-  out: unseen,
   lent: unseen,
 }
 

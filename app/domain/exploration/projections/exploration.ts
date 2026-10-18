@@ -23,7 +23,7 @@ import {
   entersTargetDL, getAimedHeal, getLimbOptions, needsLimb, getETCastBar, getETCastCount, getETCastExhaustion, getETCastTargets, getETCastTest, getETSpells, isEnhanceable,
 } from '../rules/casting'
 
-export type MemberView = { id: string; name: string; isActive: boolean; plan: string; out: boolean }
+export type MemberView = { id: string; name: string; isActive: boolean; plan: string; away: boolean }
 export type GroupView = {
   id: string
   kind: GroupKind
@@ -105,7 +105,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
       knowledge: getLocationKnowledge(state, partyId),
       camp: getCamp(t, partyId),
       members: getPartyMembers(state, partyId).map((id) => ({
-        id, name: nameOf(state, id), isActive: id === state.activeCharacterId, plan: planOf(t, partyId, id), out: state.out.includes(id),
+        id, name: nameOf(state, id), isActive: id === state.activeCharacterId, plan: planOf(t, partyId, id), away: !state.characters[id],
       })),
       groups: Object.entries(getGroups(t, partyId)).map(([groupId, g]) => {
         const test = getGroupTest(state, partyId, g)

@@ -120,7 +120,7 @@ function liveDays(t: Downtime, id: string, days: number, test: Tester): Lived {
   let c = t.campaign.characters[id]
   const start = getPlan(t, id)
   const results: DowntimeResult[] = []
-  const interrupted = start.block && start.elapsed > 0 && (start.at !== getClockOf(t.campaign, id) || t.campaign.out.includes(id))
+  const interrupted = start.block && start.elapsed > 0 && (start.at !== getClockOf(t.campaign, id))
   if (interrupted) results.push({ name, what: start.block!.kind, roll: null, note: 'interrupted, the days spent on it are lost' })
   let plan: Plan = interrupted ? { ...start, block: null, elapsed: 0 } : start
   const living = plan.housed ? 0 : getLivingCost(t.campaign, id, plan.living)
@@ -162,7 +162,7 @@ export function passDays(days: number, thrown: Throw = toTable(() => 0)): Downti
     const recorded = playing.reduce<CampaignState>((campaign, partyId) => record({
       kind: 'days', party: partyId, title: `${describeSpan(days * ETS_PER_DAY)} of downtime`,
       lines: getDowntimeResultLines((byParty.get(partyId) ?? []).flatMap((l) => l.results)),
-    })(campaign), { ...t.campaign, characters, out: [] })
+    })(campaign), { ...t.campaign, characters })
     const moved = passETs(days * ETS_PER_DAY, playing)(recorded)
     const fedAll = { ...moved, characters: { ...moved.characters, ...Object.fromEntries(ids.map((id) => [id, fed(moved.characters[id])])) } }
     const plans = Object.fromEntries(lived.map(({ id, plan }) => [id, { ...plan, at: getClockOf(fedAll, id) ?? 0 }]))

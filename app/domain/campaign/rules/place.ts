@@ -65,11 +65,11 @@ export function getPartyMembers(state: CampaignState, partyId: string): string[]
 }
 
 // Who in the party is here to play out the time that passes: on the roster,
-// alive, and not sent to a fight during it.
+// alive, and not in a fight.
 export function getPartyPlayers(state: CampaignState, partyId: string): string[] {
   return getPartyMembers(state, partyId).filter((id) => {
     const c = state.characters[id]
-    return c && !isDead(c) && !state.out.includes(id)
+    return c && !isDead(c)
   })
 }
 

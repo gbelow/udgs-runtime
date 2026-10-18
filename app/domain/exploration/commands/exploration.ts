@@ -427,7 +427,7 @@ function closeET(t: Exploring, opening: Opening, played: Omit<PartyET, 't'>): Ex
     [pid, Object.fromEntries(Object.entries(gs).map(([gid, g]) => [gid, { ...g, members: [], roller: null }]))]))
   const camps = Object.fromEntries(Object.entries(t.exploration.camps).filter(([pid]) => here(pid)))
   return {
-    campaign: { ...t.campaign, out: [] },
+    campaign: t.campaign,
     exploration: { ...t.exploration, groups, camps, resting: [], casts: {}, opening: null, calls: {}, exhaustionRolls: opening.rolls, ...played },
   }
 }
