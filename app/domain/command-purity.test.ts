@@ -314,6 +314,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   moveToParty: (s) => combatCommands.moveToParty('a', 'y')(deepFreeze(partied(s))),
   splitOff: (s) => combatCommands.splitOff('a', newId)(deepFreeze(partied(s))),
   renameParty: (s) => combatCommands.renameParty('x', 'Z')(deepFreeze(partied(s))),
+  deleteParty: (s) => combatCommands.deleteParty('z')(deepFreeze(combatCommands.createParty('z', 'Z')(partied(s)))),
 }
 
 // The fight with `a` in party `x` and `b` in party `y`.

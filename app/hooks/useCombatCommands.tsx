@@ -49,8 +49,9 @@ export function useCombatCommands() {
   const createParty = (name: string) => dispatch({ kind: "createParty", args: [name] })
   const splitOff = (id: string) => dispatch({ kind: "splitOff", args: [id] })
   const renameParty = (partyId: string, name: string) => dispatch({ kind: "renameParty", args: [partyId, name] })
+  const deleteParty = (partyId: string) => dispatch({ kind: "deleteParty", args: [partyId] })
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
   const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
 }

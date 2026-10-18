@@ -68,6 +68,11 @@ export function splitOff(id: string, newId: () => string): Updater {
   }
 }
 
+// The party is gone from the fight. Refused while anyone is in it.
+export function deleteParty(partyId: string): Updater {
+  return (state) => (state.parties[partyId] && !Object.values(state.partyOf).includes(partyId) ? dropEmptyFightParties(state, [partyId]) : state)
+}
+
 export function renameParty(partyId: string, name: string): Updater {
   return (state) => (state.parties[partyId] && name ? { ...state, parties: { ...state.parties, [partyId]: { name } } } : state)
 }

@@ -14,7 +14,8 @@ import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { PartiesView } from './PartiesView';
-import { TableLink } from './RunParts';
+import { TableLink, TableWait } from './RunParts';
+import { useTableWaiting } from '../hooks/useTable';
 import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
@@ -102,6 +103,7 @@ export function RunScreen(){
   const { strip, views, resource, needs, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const hasActiveCharacter = useHasActiveCharacter()
   const throwing = useTray().request !== null
+  const waiting = useTableWaiting()
   const [opened, setOpened] = useState<CatalogView[]>([])
   const [center, setCenter] = useState<string>(views[0].key)
   const middle = [...views.map((v) => ({ ...v, catalog: false })), ...opened.map((v) => ({ key: v, node: CATALOGS[v], catalog: true }))]
@@ -114,9 +116,10 @@ export function RunScreen(){
       <AutoThrow />
       <div className='flex flex-row gap-3 items-start px-2 py-1.5 border-b border-line shrink-0'>
         <ModeSwitch />
-        <div className='flex-1 min-w-0'>{strip}</div>
+        <div className='flex-1 min-w-0'>{waiting ? null : strip}</div>
         <TableLink />
       </div>
+      {waiting ? <TableWait /> : <>
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
         <section className='flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
           <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -149,6 +152,7 @@ export function RunScreen(){
           </>}
         </div>
       </div>
+      </>}
     </div>
   )
 }

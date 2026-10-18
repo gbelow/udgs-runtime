@@ -6,6 +6,7 @@ import { CampaignJournal } from './Journal'
 import { CampaignTimeline } from './Timeline'
 import { useCampaignFiles, useCampaignMaps, useCampaignMembers, useCampaignRequests, useJoinRequests } from '../hooks/useCampaign'
 import { useRole } from '../hooks/useRole'
+import { useJoinTable } from '../hooks/useTable'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { MapEditingContext, useCampaignMapEditor } from '../hooks/useMap'
 import { MapBody } from './MapEditor'
@@ -26,6 +27,7 @@ type CampaignTab = (typeof CAMPAIGN_TABS)[number]['id']
 export function CampaignEditor() {
   const { file, campaigns, saved, saveBar, setName, create, open, save, remove } = useCampaignFiles()
   const { gmTools } = useRole()
+  const joinTable = useJoinTable()
   // the saved campaign about to replace the one in play, or '' for a new one
   const [replacing, setReplacing] = useState<string | null>(null)
   const [tab, setTab] = useState<CampaignTab>('members')
@@ -35,7 +37,12 @@ export function CampaignEditor() {
       <div className='col-span-3 flex flex-col gap-1 border-r border-line pr-2 max-h-[85vh] overflow-y-auto'>
         <CatalogList label='Campaigns' groups={[{ label: null, rows: campaigns }]} nameOf={(c) => c.name}
           beside={<Button size='xs' variant='good' onClick={() => setReplacing('')}>+ new</Button>}
-          render={(c) => <ListButton key={c.id} selected={c.id === file.id} onClick={() => setReplacing(c.id)}>{c.name || '—'}</ListButton>} />
+          render={(c) => (
+            <div key={c.id} className='flex flex-row items-center gap-1'>
+              <div className='flex-1 min-w-0'><ListButton selected={c.id === file.id} onClick={() => setReplacing(c.id)}>{c.name || '—'}</ListButton></div>
+              {c.member === 'player' ? <Button size='xs' aria-label={`join the table of ${c.name}`} title="play it at the GM's table, from the run screen" onClick={() => joinTable(c.id, c.name)}>join table</Button> : null}
+            </div>
+          )} />
         {replacing !== null ?
           <div className='flex flex-col gap-1 p-1 border border-accent rounded text-xs'>
             <span>{replacing ? 'opening' : 'beginning'} a campaign replaces the one in play and throws away any fight; what was not saved is lost</span>

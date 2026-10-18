@@ -1,19 +1,23 @@
 import { create } from 'zustand'
 
 // This screen's link to the table through the relay: whether it hosts the
-// table or joined it, how the link stands, and who has joined, for a host.
+// table or joined it, the campaign whose table it is, how the link stands,
+// and who has joined, for a host.
 export type TableMode = 'host' | 'guest'
 export type TableStatus = 'connecting' | 'open' | 'noHost' | 'closed'
 export type TableGuest = { id: string; profile: string }
 
 type TableStore = {
   mode: TableMode | null
+  // the campaign's id, which names the table's room, and its name
+  room: string | null
+  roomName: string
   status: TableStatus
   // why the link closed, when it closed by itself
   why: string | null
   guests: TableGuest[]
   socket: WebSocket | null
-  open: (mode: TableMode, room: string, profile: string) => void
+  open: (mode: TableMode, room: string, roomName: string, profile: string) => void
   close: () => void
   setStatus: (status: TableStatus) => void
   setGuests: (guests: TableGuest[]) => void
@@ -23,15 +27,17 @@ const RELAY_URL = process.env.NEXT_PUBLIC_RELAY_URL ?? 'ws://localhost:8787'
 
 export const useTableStore = create<TableStore>((set, get) => ({
   mode: null,
+  room: null,
+  roomName: '',
   status: 'closed',
   why: null,
   guests: [],
   socket: null,
 
-  open: (mode, room, profile) => {
+  open: (mode, room, roomName, profile) => {
     get().socket?.close()
     const socket = new WebSocket(`${RELAY_URL}?room=${encodeURIComponent(room)}&as=${mode}&profile=${encodeURIComponent(profile)}`)
-    set({ mode, socket, status: 'connecting', why: null, guests: [] })
+    set({ mode, room, roomName, socket, status: 'connecting', why: null, guests: [] })
     if (mode === 'host') socket.onopen = () => set({ status: 'open' })
     socket.onclose = (e) => {
       if (get().socket !== socket) return
@@ -41,7 +47,7 @@ export const useTableStore = create<TableStore>((set, get) => ({
 
   close: () => {
     const socket = get().socket
-    set({ socket: null, mode: null, status: 'closed', why: null, guests: [] })
+    set({ socket: null, mode: null, room: null, roomName: '', status: 'closed', why: null, guests: [] })
     socket?.close()
   },
 

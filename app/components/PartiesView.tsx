@@ -56,7 +56,7 @@ export function PartiesView(){
         <div className='flex flex-row flex-wrap gap-3 items-start flex-1 min-w-0'>
           {parties.length === 0 ? <span className='text-xs text-muted'>no parties yet: create one, then add characters to it</span> : null}
           {parties.map((party) => (
-            <PartyColumn key={party.id} id={party.id} name={party.name} ets={ets}
+            <PartyColumn key={party.id} id={party.id} name={party.name} ets={ets} empty={party.cards.length === 0}
               adding={party.id === addingTo} toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)}
               target={switching !== null && party.id !== '' && party.id !== switching.from} place={() => placeInto(party.id)}>
               {party.cards.map((card) => (
@@ -84,8 +84,8 @@ function AddCatalog({ partyId, name, close }: { partyId: string, name: string, c
 // One party: its name, the button that opens the catalog for it, and its
 // members. While a member is being switched, a click on it puts them here.
 // The members in no party have no name and no catalog.
-function PartyColumn({ id, name, ets, adding, toggleAdding, target, place, children }: { id: string, name: string, ets: number, adding: boolean, toggleAdding: () => void, target: boolean, place: () => void, children?: ReactNode }){
-  const { renameParty } = useCombatCommands()
+function PartyColumn({ id, name, ets, empty, adding, toggleAdding, target, place, children }: { id: string, name: string, ets: number, empty: boolean, adding: boolean, toggleAdding: () => void, target: boolean, place: () => void, children?: ReactNode }){
+  const { renameParty, deleteParty } = useCombatCommands()
   const { partyBack } = usePartyCommands()
   const gmBar = useGmBar()
   const returnBar = useCombatState().returnBar ?? gmBar
@@ -96,6 +96,7 @@ function PartyColumn({ id, name, ets, adding, toggleAdding, target, place, child
         : <div onClick={(e) => e.stopPropagation()}>
           <PartyHeader name={name} rename={(n) => renameParty(id, n)} adding={adding} toggleAdding={toggleAdding} locked={target}>
             <MenuItem bar={returnBar} hint='the scene is over for the party: back to the campaign' onClick={() => partyBack(id, ets)}>back from scene</MenuItem>
+            <MenuItem bad bar={gmBar ?? (empty ? null : 'only an empty party can be deleted')} hint='the party is gone from the fight' onClick={() => deleteParty(id)}>delete party</MenuItem>
           </PartyHeader>
         </div>}
       {children}

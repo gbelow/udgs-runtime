@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { barOf, playOf } from "../net/parts";
 import { hostTable, joinTable } from "../net/session";
@@ -9,6 +9,7 @@ import { useAppStore } from "../stores/useAppStore";
 import { useGuestViewerCheck } from "./useControl";
 import { useThrower } from "./useDieCalls";
 import { useRole } from "./useRole";
+import { useGameTab } from "./useGameTab";
 
 // Keeps the screen's link to the table running while it is open, whichever
 // tab is shown: a host plays its guests' commands as sent by them, with its
@@ -32,22 +33,57 @@ export function useTableSession() {
       return why;
     }, setGuests);
   }, [socket, mode]);
+
+  // Another campaign opened on the screen leaves the table it was at; the
+  // host's own state arriving at a guest is the table's campaign, not
+  // another.
+  useEffect(() => useCampaignStore.subscribe((s, before) => {
+    const { room, close } = useTableStore.getState();
+    if (room && s.file.id !== before.file.id && s.file.id !== room) {
+      close();
+      toast.info('Left the table: another campaign is open on this screen.');
+    }
+  }), []);
 }
 
-// The link to the table as the Run screen offers it: the campaign's GM hosts
-// it, a player joins it, each by the campaign open on their screen.
+// Joining the table of campaign `id`, from wherever it is offered: the
+// screen goes to the run screen, which follows the host once it is there.
+export function useJoinTable(): (id: string, name: string) => void {
+  const profile = useAppStore((s) => s.profile);
+  const open = useTableStore((s) => s.open);
+  const { runTab, setTab } = useGameTab();
+  return (id, name) => {
+    if (!profile) return;
+    open('guest', id, name, profile.id);
+    setTab(runTab);
+  };
+}
+
+// The link to the table as the Run screen offers it: a GM hosts the campaign
+// open on their screen; anyone else joins one of the campaigns they play.
 export function useTableLink() {
   const { gmTools } = useRole();
   const profile = useAppStore((s) => s.profile);
   const profileList = useAppStore((s) => s.profileList);
-  const room = useCampaignStore((s) => s.file.id);
-  const { mode, status, why, guests, open, close } = useTableStore();
+  const rows = useAppStore((s) => s.campaignList);
+  const file = useCampaignStore((s) => s.file);
+  const { mode, room, roomName, status, why, guests, open, close } = useTableStore();
+  const join = useJoinTable();
+  const played = useMemo(() => rows.filter((r) => r.member === 'player').map((r) => ({ id: r.id, name: r.name })), [rows]);
   const nameOf = (id: string) => profileList.find((p) => p.id === id)?.name ?? id;
   return {
-    mode, status, why,
+    mode, status, why, roomName,
     guests: guests.map((g) => ({ id: g.id, name: nameOf(g.profile) })),
-    offer: gmTools ? 'host' as const : 'guest' as const,
-    connect: () => { if (profile) open(gmTools ? 'host' : 'guest', room, profile.id); },
+    canHost: gmTools,
+    played,
+    host: () => { if (profile) open('host', file.id, file.name, profile.id); },
+    join,
+    reconnect: () => { if (profile && mode && room) open(mode, room, roomName, profile.id); },
     leave: close,
   } as const;
+}
+
+// Whether the screen joined a table whose state is not on it yet.
+export function useTableWaiting(): boolean {
+  return useTableStore((s) => s.mode === 'guest' && s.status !== 'open');
 }

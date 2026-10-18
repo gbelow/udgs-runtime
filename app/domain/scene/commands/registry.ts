@@ -19,7 +19,7 @@ import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../
 import { rollHeld } from './heldTest'
 import { rollMorale, setTablePressure } from './morale'
 import { continueRound, holdOn, letGo, nextRound } from './nextRound'
-import { createParty, moveToParty, renameParty, splitOff } from './parties'
+import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
 import { endTurn, rollContest, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
 import {
@@ -135,6 +135,7 @@ export const sceneCommands = {
   moveToParty: command((_, id: string, partyId: string) => moveToParty(id, partyId)).by(own),
   createParty: command((ctx, name: string) => createParty(ctx.newId(), name)).by(gm),
   splitOff: command((ctx, id: string) => splitOff(id, ctx.newId)).by(own),
+  deleteParty: command((_, partyId: string) => deleteParty(partyId)).by(gm),
   renameParty: command((_, partyId: string, name: string) => renameParty(partyId, name)).by(gm),
 
   // combat.tex "Chases"

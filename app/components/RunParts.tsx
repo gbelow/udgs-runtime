@@ -127,25 +127,44 @@ export function TimelineControl({ timeline }: { timeline: TimelineView }){
   )
 }
 
-const LINK_STATUS = { connecting: 'connecting…', open: 'at the table', noHost: 'waiting for the GM to host', closed: 'link closed' } as const
+const LINK_STATUS = { connecting: 'connecting to', open: 'at the table of', noHost: 'waiting for the GM to host', closed: 'link closed to' } as const
 
-// The screen's link to the table: the GM hosts the campaign open on their
-// screen, and a player joins it to play from their own.
+// The screen's link to the table: a GM hosts the campaign open on their
+// screen, and anyone else joins the table of a campaign they play, without
+// opening it first.
 export function TableLink(){
-  const { mode, status, why, guests, offer, connect, leave } = useTableLink()
+  const { mode, status, why, roomName, guests, canHost, played, host, join, reconnect, leave } = useTableLink()
 
-  if (!mode) return (
-    <Button size='xs' aria-label={`${offer} table`} title={offer === 'host' ? 'let the players join this campaign from their screens' : "play this campaign from the GM's table"} onClick={connect}>
-      {offer === 'host' ? 'host table' : 'join table'}
-    </Button>
+  if (!mode) return canHost ? (
+    <Button size='xs' aria-label='host table' title='let the players join this campaign from their screens' onClick={host}>host table</Button>
+  ) : played.length > 0 ? (
+    <select aria-label='join table' className={`${selectClass} w-fit`} value='' onChange={(e) => { const c = played.find((p) => p.id === e.target.value); if (c) join(c.id, c.name) }}>
+      <option value=''>join a table…</option>
+      {played.map((c) => <option key={c.id} value={c.id}>{c.name || '—'}</option>)}
+    </select>
+  ) : (
+    <span className='text-[10px] text-muted'>no table to join: you play in no campaign yet</span>
   )
   return (
     <span className='inline-flex items-center gap-1.5 text-[10px] text-muted'>
       <span title={mode === 'host' && guests.length > 0 ? guests.map((g) => g.name).join(', ') : undefined}>
-        {status === 'open' && mode === 'host' ? `hosting · ${guests.length} joined` : LINK_STATUS[status]}{status === 'closed' && why ? `: ${why}` : ''}
+        {status === 'open' && mode === 'host' ? `hosting ${roomName || 'this campaign'} · ${guests.length} joined` : `${LINK_STATUS[status]} ${roomName || 'the campaign'}`}{status === 'closed' && why ? `: ${why}` : ''}
       </span>
-      {status === 'closed' ? <Button size='xs' aria-label='reconnect table' onClick={connect}>reconnect</Button> : null}
+      {status === 'closed' ? <Button size='xs' aria-label='reconnect table' onClick={reconnect}>reconnect</Button> : null}
       <Button size='xs' variant='ghost' aria-label='leave table' onClick={leave}>leave</Button>
     </span>
+  )
+}
+
+// What a screen that joined a table shows until the host's state is on it,
+// in place of its own, which is not the table's.
+export function TableWait(){
+  const { status, why, roomName } = useTableLink()
+  return (
+    <div className='flex-1 flex items-center justify-center text-sm text-muted p-4 text-center'>
+      {status === 'connecting' ? `Connecting to the table of ${roomName || 'the campaign'}…`
+        : status === 'noHost' ? `Waiting for the GM to host ${roomName || 'the campaign'}. The table appears here as soon as they do.`
+        : `The link to the table of ${roomName || 'the campaign'} is closed${why ? `: ${why}` : ''}. Reconnect or leave from the corner above.`}
+    </div>
   )
 }

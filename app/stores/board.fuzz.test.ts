@@ -859,6 +859,7 @@ function chasePlays(): Play[] {
     { name: 'next round', weight: 3, run: (h) => h.send({ kind: 'nextRound', args: [] }) },
     { name: 'split someone off', weight: 2, run: (h, pick) => h.send({ kind: 'splitOff', args: [pick(Object.keys(h.state().characters))] }) },
     { name: 'create a party', run: (h) => h.send({ kind: 'createParty', args: [''] }) },
+    { name: 'delete a party', run: (h, pick) => { const ids = Object.keys(h.state().parties); if (ids.length) h.send({ kind: 'deleteParty', args: [pick(ids)] }) } },
     { name: 'move someone to another party', run: (h, pick) => h.send({ kind: 'moveToParty', args: [pick(Object.keys(h.state().characters)), pick(Object.keys(h.state().parties))] }) },
     {
       name: 'chase another party',
