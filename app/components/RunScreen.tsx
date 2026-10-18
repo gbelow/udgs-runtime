@@ -14,7 +14,7 @@ import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { PartiesView } from './PartiesView';
-import { TableLink, TableWait } from './RunParts';
+import { TableLink, TableWait, ViewAs } from './RunParts';
 import { useTableWaiting } from '../hooks/useTable';
 import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
@@ -253,6 +253,7 @@ function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => v
             {CATALOG_VIEWS.map((v) => <Button key={v} size='xs' aria-label={`open ${v}`} onClick={() => open(v)}>{v}</Button>)}
           </div>
           {gmTools}
+          <ViewAs />
         </div>
       ) : children}
     </>

@@ -3,6 +3,7 @@ import { getActorBar, getCampaignRole, getOwner, isOwnRoller, type Actor, type V
 import { TAB_OWNER, useAppStore, useAppStoreApi, type AppState } from "../stores/useAppStore";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useTableStore } from "../stores/useTableStore";
 
 type ViewerFields = Pick<AppState, "profile" | "devServer" | "gmMode" | "profileList">;
 
@@ -66,6 +67,14 @@ export function useActorBar(actor: Actor): string | null {
   const profileList = useAppStore((s) => s.profileList);
   const app = { profile, devServer, gmMode, profileList };
   return useCampaignStore((s) => getActorBar(actor, viewerOf(app, s, profile?.id ?? null, gmMode)));
+}
+
+// Whether the screen is shown character `id` as a token only: it joined a
+// table, and the character is not one it plays (`getPublicFace`). What is
+// worked out against one is an estimate.
+export function useIsToken(id: string | null): boolean {
+  const joined = useTableStore((s) => s.mode === 'guest');
+  return useControlBar(id) !== null && joined;
 }
 
 // Why only the GM may use the GM's own controls, or null for the GM.

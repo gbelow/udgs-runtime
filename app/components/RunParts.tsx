@@ -8,6 +8,7 @@ import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { usePlayedBy } from '../hooks/useCampaign'
 import { useTableLink } from '../hooks/useTable'
+import { useViewAs } from '../hooks/useViewAs'
 import type { Character } from '../domain/types'
 import type { TimelineView } from '../domain/campaign/projections/timeline'
 import type { ClockView } from '../domain/campaign/projections/clock'
@@ -165,6 +166,37 @@ export function TableWait(){
       {status === 'connecting' ? `Connecting to the table of ${roomName || 'the campaign'}…`
         : status === 'noHost' ? `Waiting for the GM to host ${roomName || 'the campaign'}. The table appears here as soon as they do.`
         : `The link to the table of ${roomName || 'the campaign'} is closed${why ? `: ${why}` : ''}. Reconnect or leave from the corner above.`}
+    </div>
+  )
+}
+
+// The GM checks what the table shows a player: who they play, the tokens they
+// see, who the fight leaves out of their view, and how much of the logs they get.
+export function ViewAs(){
+  const [profile, setProfile] = useState('')
+  const { players, summary } = useViewAs(profile)
+  const list = (names: string[]) => names.length > 0 ? names.join(', ') : '—'
+
+  return(
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row gap-1 items-center'>
+        <SectionLabel>view as</SectionLabel>
+        <select aria-label='view as player' className={`${selectClass} w-fit`} value={profile} onChange={(e) => setProfile(e.target.value)}>
+          <option value=''>nobody</option>
+          {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
+      {summary ? (
+        <dl className='grid grid-cols-[auto_1fr] gap-x-2 text-xs text-muted'>
+          <dt>plays</dt><dd className='text-fg'>{list(summary.played)}</dd>
+          <dt>sees as tokens</dt><dd className='text-fg'>{list(summary.tokens)}</dd>
+          <dt>left out of the fight</dt><dd className='text-fg'>{list(summary.leftOut)}</dd>
+          <dt>party-mates</dt><dd className='text-fg'>{list(summary.partyMates)}</dd>
+          <dt>parties</dt><dd className='text-fg'>{summary.parties.shown} of {summary.parties.of}</dd>
+          <dt>journal</dt><dd className='text-fg'>{summary.journal.shown} of {summary.journal.of}</dd>
+          <dt>fight log</dt><dd className='text-fg'>{summary.log.shown} of {summary.log.of}</dd>
+        </dl>
+      ) : null}
     </div>
   )
 }

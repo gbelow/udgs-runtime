@@ -1,5 +1,6 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
+import { useIsToken } from '../hooks/useControl'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
 import type { MovementOption } from '../domain/scene/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/scene/projections/actionPanel'
@@ -483,8 +484,10 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
 // The test as it stands, and what each side adds up from. An explosion has
 // no attacker's side: its DL is what the reactors' reflexes are rolled against.
 function Test({ open }: { open: OpenActionView }){
+  const estimate = useIsToken(open.targetId)
   return (
     <div className='flex flex-col text-xs text-muted'>
+      {estimate ? <span title='you are shown only the token of the target: the host judges the real test'>≈ an estimate against a character you do not play</span> : null}
       {open.score.terms.length > 0 ? <TermLine label='score' terms={open.score.terms} total={open.score.total} /> : null}
       <TermLine label='vs DL' terms={open.DL.terms} total={open.DL.total} />
     </div>
