@@ -13,10 +13,9 @@ import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
-import { PartiesView } from './PartiesView';
+import { TableParties } from './TableParties';
 import { TableLink, TableWait, ViewAs } from './RunParts';
 import { useTableWaiting } from '../hooks/useTable';
-import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
@@ -56,7 +55,7 @@ type Mode = {
 const MODES: Record<RunTab, Mode> = {
   scene: {
     strip: <SceneStrip />,
-    parties: <PartiesView />,
+    parties: <TableParties />,
     space: <SceneSpace />,
     resource: <SimpleResource rssName={'AP'} />,
     needs: false,
@@ -67,7 +66,7 @@ const MODES: Record<RunTab, Mode> = {
   },
   exploration: {
     strip: <ExplorationStrip />,
-    parties: <CampaignParties sequence='exploration' />,
+    parties: <TableParties sequence='exploration' />,
     space: <PartyCards />,
     needs: true,
     actions: <ControlLocked><ExplorationSection /></ControlLocked>,
@@ -75,7 +74,7 @@ const MODES: Record<RunTab, Mode> = {
   },
   downtime: {
     strip: <DowntimeStrip />,
-    parties: <CampaignParties sequence='downtime' />,
+    parties: <TableParties sequence='downtime' />,
     space: <DowntimeRoster />,
     needs: true,
     actions: <ControlLocked><DowntimeActions /></ControlLocked>,
@@ -89,7 +88,9 @@ const CATALOGS = {
   spells: <SpellSelector wide />,
 }
 type CatalogView = keyof typeof CATALOGS
-const OVERLAYS = ['parties', ...Object.keys(CATALOGS) as CatalogView[]] as const
+type OverlayView = 'parties' | CatalogView
+const OVERLAYS = ['parties', ...Object.keys(CATALOGS) as CatalogView[]] as const satisfies readonly OverlayView[]
+const isCatalog = (v: OverlayView): v is CatalogView => v in CATALOGS
 
 const PICK = <span className='text-xs text-muted'>pick a character</span>
 
@@ -113,9 +114,9 @@ export function RunScreen(){
   const throwing = useTray().request !== null
   const waiting = useTableWaiting()
   const [opened, setOpened] = useState<CatalogView[]>([])
-  const [over, setOver] = useState<'parties' | CatalogView | null>(null)
-  const toggle = (v: 'parties' | CatalogView) => {
-    if (v !== 'parties') setOpened((o) => (o.includes(v) ? o : [...o, v]))
+  const [over, setOver] = useState<OverlayView | null>(null)
+  const toggle = (v: OverlayView) => {
+    if (isCatalog(v)) setOpened((o) => (o.includes(v) ? o : [...o, v]))
     setOver(over === v ? null : v)
   }
 
@@ -131,8 +132,8 @@ export function RunScreen(){
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
         <section className='relative flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
           <div className='flex flex-row flex-wrap gap-1 items-center'>
-            {OVERLAYS.filter((v) => v === 'parties' || hasGmTools).map((v) =>
-              <Button key={v} size='xs' aria-label={v === 'parties' ? v : `open ${v}`} aria-pressed={over === v} selected={over === v} onClick={() => toggle(v)}>{v}</Button>)}
+            {OVERLAYS.filter((v) => !isCatalog(v) || hasGmTools).map((v) =>
+              <Button key={v} size='xs' aria-label={isCatalog(v) ? `open ${v}` : v} aria-pressed={over === v} selected={over === v} onClick={() => toggle(v)}>{v}</Button>)}
           </div>
           <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>{space}</div>
           <Overlay title='parties' shown={over === 'parties'} close={() => setOver(null)}>{parties}</Overlay>
@@ -166,13 +167,14 @@ export function RunScreen(){
   )
 }
 
-// A panel docked to the left of the middle, over the mode's space, the full
-// height of it and see-through. It stays mounted while closed, so what was
+// A panel docked to the left of the middle, over the mode's space, opaque. The
+// catalogs are a fixed width; the parties grow with their content across, up
+// to the width of the middle. It stays mounted while closed, so what was
 // half done in it is still there when it opens again.
 function Overlay({ title, wide = false, shown, close, children }: { title: string, wide?: boolean, shown: boolean, close: () => void, children: ReactNode }){
   return(
     <div role='dialog' aria-label={title} hidden={!shown}
-      className={`absolute z-10 left-2 top-10 bottom-2 ${wide ? 'w-[40rem]' : 'w-96'} max-w-[calc(100%-1rem)] overflow-y-auto p-2 rounded border border-line bg-raised/25 shadow-lg shadow-black/40 flex-col gap-2 ${shown ? 'flex' : ''}`}>
+      className={`absolute z-10 left-2 top-10 bottom-2 ${wide ? 'w-[40rem]' : 'w-max min-w-96'} max-w-[calc(100%-1rem)] overflow-y-auto p-2 rounded border border-line bg-raised shadow-lg shadow-black/40 flex-col gap-2 ${shown ? 'flex' : ''}`}>
       <div className='flex flex-row items-center justify-between'>
         <SectionLabel>{title}</SectionLabel>
         <Button size='xs' variant='ghost' aria-label={`close ${title}`} onClick={close}>×</Button>

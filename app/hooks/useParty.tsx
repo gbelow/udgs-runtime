@@ -1,7 +1,11 @@
 import type { CastPlan, Decision, Exploring, Group, GroupKind } from "../domain/exploration/types";
 import { getMoments, getMomentsDigest, type MomentView } from "../domain/campaign/projections/timeline";
 import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/maps";
-import type { At } from "../domain/campaign/types";
+import type { At, Sequence } from "../domain/campaign/types";
+import { getTableParties, type TablePartiesView } from "../domain/scene/projections/tableParties";
+import type { CombatRosterEntry } from "../domain/scene/projections/roster";
+import { useCampaignRoster } from "./useCampaign";
+import { useSceneCards } from "./useCombatState";
 import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
 import { getSaveLogBar } from "../domain/scene/rules/fight";
@@ -29,6 +33,14 @@ export function useParties(): PartiesView {
 export function useMoments(): MomentView[] {
   useCampaignStore(getMomentsDigest);
   return getMoments(useCampaignStore.getState());
+}
+
+// The campaign's parties and the fight's joined by id, and the pick of a
+// fighter; gated by the two views it joins.
+export function useTableParties(sequence?: Sequence): TablePartiesView & { pick: (entry: CombatRosterEntry) => void } {
+  const roster = useCampaignRoster();
+  const { parties: cards, pick } = useSceneCards();
+  return { ...getTableParties(roster, cards, sequence), pick };
 }
 
 // Why the fight's log cannot be saved to the journal now.

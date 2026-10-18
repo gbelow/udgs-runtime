@@ -6,25 +6,31 @@ import { getRosterName } from '../rules/roster'
 import { perState } from '../../perState'
 import { getTimelineView, type TimelineView } from './timeline'
 
-export type RosterMember = { id: string; name: string; isActive: boolean }
+// `fighting` is a member sent to the fight, off the roster until it sends them back.
+export type RosterMember = { id: string; name: string; isActive: boolean; fighting: boolean }
 // `playing` is the sequence the party is in, or none while it is frozen or
-// outside time; `sequence` is the one it will be in when it plays.
-export type RosterPartyView = { id: string; name: string; sequence: Sequence; playing: Sequence | null; timeline: TimelineView; members: RosterMember[] }
+// outside time; `sequence` is the one it will be in when it plays. `fighting`
+// is whether any of its members is in the fight.
+export type RosterPartyView = { id: string; name: string; sequence: Sequence; playing: Sequence | null; fighting: boolean; timeline: TimelineView; members: RosterMember[] }
 export type RosterView = {
   parties: RosterPartyView[]
   // on the roster in no party, and so outside time
   unplaced: RosterMember[]
 }
 
-const member = (state: SeenCampaign, id: string): RosterMember => ({ id, name: getRosterName(state, id), isActive: id === state.activeCharacterId })
+const member = (state: SeenCampaign, id: string): RosterMember => ({ id, name: getRosterName(state, id), isActive: id === state.activeCharacterId, fighting: !state.characters[id] })
 
-// The campaign's parties out of a fight, in play first, each with when it is
-// and who is in it and the sequence it is in, and whoever is in no party.
+// The campaign's parties, in play first, each with when it is and who is in
+// it — those sent to the fight too, marked — and the sequence it is in, and
+// whoever is in no party.
 export const getRosterView = perState((state: SeenCampaign): RosterView => {
-  const parties = Object.entries(state.parties).map(([id, party]) => ({
-    id, name: party.name, sequence: party.sequence, playing: isPlaying(party) ? party.sequence : null, timeline: getTimelineView(state, id, party),
-    members: getPartyMembers(state, id).filter((m) => state.characters[m]).map((m) => member(state, m)),
-  }))
+  const parties = Object.entries(state.parties).map(([id, party]) => {
+    const members = getPartyMembers(state, id).map((m) => member(state, m))
+    return {
+      id, name: party.name, sequence: party.sequence, playing: isPlaying(party) ? party.sequence : null, fighting: members.some((m) => m.fighting), timeline: getTimelineView(state, id, party),
+      members,
+    }
+  })
   return {
     parties: [...parties.filter((p) => p.timeline.active), ...parties.filter((p) => !p.timeline.active)],
     unplaced: Object.keys(state.characters).filter((id) => !state.parties[state.partyOf[id]]).map((id) => member(state, id)),
