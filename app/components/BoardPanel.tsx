@@ -4,6 +4,7 @@ import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
 import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
+import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
 import type { Coord } from '../domain/scene/types'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
@@ -56,13 +57,14 @@ export function BoardPanel(){
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
   const { gmTools, gm } = useRole()
+  const gmBar = useGmBar()
   const open = tools && gm
   const zoomPan = useZoomPan(view.viewBox)
 
   if (!view.present) {
     return (
       <Panel meta='no grid: everyone is in reach'
-        title={<span className='inline-flex items-center gap-2'>Board {gm ? <Button size='xs' variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button> : null}</span>}>
+        title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' variant='primary' aria-label='new board' disabled={gmBar !== null} title={gmBar ?? 'draw a hex grid for the scene'} onClick={() => create(6)}>simulate a grid</Button></span>}>
         {gm ? <MapsRow canSave={false} /> : null}
         <SceneCards />
       </Panel>
@@ -79,7 +81,7 @@ export function BoardPanel(){
         <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
         {gm ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false) }}>GM board tools</Button> : null}
         <Button size='xs' variant='ghost' aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)}>↻</Button>
-        {gm ? <Button size='xs' variant='ghost' aria-label='remove board' disabled={view.mode !== 'idle'} title={view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach'} onClick={remove}>no grid</Button> : null}
+        <Button size='xs' variant='ghost' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>
       </>}>
 
       {open ? (<>

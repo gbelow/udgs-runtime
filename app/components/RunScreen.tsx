@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic'
 import { WeaponPanel } from './WeaponPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
-import { ActionLog } from './ActionPanel';
+import { ActionLog, SaveLogButton } from './ActionPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { HandsPanel } from './HandsPanel';
 import { ContainerPanel } from './ContainerPanel';
@@ -37,8 +37,10 @@ import type { RunTab } from '../stores/useAppStore';
 type Mode = {
   // what moves time and who is in play, along the top
   strip: ReactNode
-  // the mode's own spaces in the middle, the first shown by default
-  views: { key: string, node: ReactNode }[]
+  // who is in play, in a popover over the middle
+  parties: ReactNode
+  // the mode's own space in the middle
+  space: ReactNode
   // what the active character spends beside the tiles every mode has, and
   // the button beside their injuries
   resource?: ReactNode
@@ -48,30 +50,33 @@ type Mode = {
   actions: ReactNode
   // what the GM does to the mode that no character does
   gmTools?: ReactNode
-  log: { label: string, node: ReactNode }
+  log: { label: string, node: ReactNode, action?: ReactNode }
 }
 
 const MODES: Record<RunTab, Mode> = {
   scene: {
     strip: <SceneStrip />,
-    views: [{ key: 'parties', node: <PartiesView /> }, { key: 'scene', node: <SceneSpace /> }],
+    parties: <PartiesView />,
+    space: <SceneSpace />,
     resource: <SimpleResource rssName={'AP'} />,
     needs: false,
     injuryAction: <KillButton />,
     actions: <SceneActions />,
     gmTools: <GmSceneTools />,
-    log: { label: 'Log', node: <ActionLog /> },
+    log: { label: 'Log', node: <ActionLog />, action: <SaveLogButton /> },
   },
   exploration: {
     strip: <ExplorationStrip />,
-    views: [{ key: 'parties', node: <CampaignParties sequence='exploration' /> }, { key: 'plans', node: <PartyCards /> }],
+    parties: <CampaignParties sequence='exploration' />,
+    space: <PartyCards />,
     needs: true,
     actions: <ControlLocked><ExplorationSection /></ControlLocked>,
     log: { label: 'Last ET', node: <div className='flex flex-col gap-2'><LastEtLog /><RecentJournal /></div> },
   },
   downtime: {
     strip: <DowntimeStrip />,
-    views: [{ key: 'parties', node: <CampaignParties sequence='downtime' /> }, { key: 'roster', node: <DowntimeRoster /> }],
+    parties: <CampaignParties sequence='downtime' />,
+    space: <DowntimeRoster />,
     needs: true,
     actions: <ControlLocked><DowntimeActions /></ControlLocked>,
     log: { label: 'Last days', node: <div className='flex flex-col gap-2'><LastDaysLog /><RecentJournal /></div> },
@@ -84,7 +89,7 @@ const CATALOGS = {
   spells: <SpellSelector wide />,
 }
 type CatalogView = keyof typeof CATALOGS
-const CATALOG_VIEWS = Object.keys(CATALOGS) as CatalogView[]
+const OVERLAYS = ['parties', ...Object.keys(CATALOGS) as CatalogView[]] as const
 
 const PICK = <span className='text-xs text-muted'>pick a character</span>
 
@@ -101,17 +106,18 @@ const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
 // mode's.
 export function RunScreen(){
   const { tab } = useGameTab()
-  const { strip, views, resource, needs, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
+  const { strip, parties, space, resource, needs, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
+  const { gmTools: hasGmTools } = useRole()
   const hasActiveCharacter = useHasActiveCharacter()
   const ownSheet = useActiveControlBar() === null
   const throwing = useTray().request !== null
   const waiting = useTableWaiting()
   const [opened, setOpened] = useState<CatalogView[]>([])
-  const [center, setCenter] = useState<string>(views[0].key)
-  const middle = [...views.map((v) => ({ ...v, catalog: false })), ...opened.map((v) => ({ key: v, node: CATALOGS[v], catalog: true }))]
-  const shown = middle.find((v) => v.key === center) ?? middle[0]
-  const open = (v: CatalogView) => { setOpened((o) => (o.includes(v) ? o : [...o, v])); setCenter(v) }
-  const close = (v: CatalogView) => setOpened((o) => o.filter((x) => x !== v))
+  const [over, setOver] = useState<'parties' | CatalogView | null>(null)
+  const toggle = (v: 'parties' | CatalogView) => {
+    if (v !== 'parties') setOpened((o) => (o.includes(v) ? o : [...o, v]))
+    setOver(over === v ? null : v)
+  }
 
   return(
     <div className='flex flex-col md:h-[calc(100vh-3rem)] text-left text-sm'>
@@ -123,16 +129,14 @@ export function RunScreen(){
       </div>
       {waiting ? <TableWait /> : <>
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
-        <section className='flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
+        <section className='relative flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
           <div className='flex flex-row flex-wrap gap-1 items-center'>
-            {middle.map((v) => (
-              <span key={v.key} className='inline-flex items-center'>
-                <Button size='xs' aria-label={`view ${v.key}`} selected={v === shown} onClick={() => setCenter(v.key)}>{v.key}</Button>
-                {v.catalog ? <Button size='xs' variant='ghost' aria-label={`close ${v.key}`} title={`close the ${v.key} catalog`} onClick={() => close(v.key as CatalogView)}>×</Button> : null}
-              </span>
-            ))}
+            {OVERLAYS.filter((v) => v === 'parties' || hasGmTools).map((v) =>
+              <Button key={v} size='xs' aria-label={v === 'parties' ? v : `open ${v}`} aria-pressed={over === v} selected={over === v} onClick={() => toggle(v)}>{v}</Button>)}
           </div>
-          <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>{shown.node}</div>
+          <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>{space}</div>
+          <Overlay title='parties' shown={over === 'parties'} close={() => setOver(null)}>{parties}</Overlay>
+          {opened.map((v) => <Overlay key={v} title={v} wide shown={over === v} close={() => setOver(null)}>{v === 'items' || hasActiveCharacter ? CATALOGS[v] : PICK}</Overlay>)}
         </section>
         {hasActiveCharacter ? (
           <aside className='md:w-[32rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
@@ -145,16 +149,35 @@ export function RunScreen(){
           {hasActiveCharacter ? <Status resource={resource} needs={needs} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          <ActionColumn open={open} gmTools={gmTools}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
+          <ActionColumn gmTools={gmTools}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
           {throwing ? <DiceTray /> : <>
-            <SectionLabel>{log.label}</SectionLabel>
+            <div className='flex flex-row items-center justify-between gap-2'>
+              <SectionLabel>{log.label}</SectionLabel>
+              {log.action}
+            </div>
             <div className='flex-1 min-h-0 overflow-y-auto'>{log.node}</div>
           </>}
         </div>
       </div>
       </>}
+    </div>
+  )
+}
+
+// A panel docked to the left of the middle, over the mode's space, the full
+// height of it and see-through. It stays mounted while closed, so what was
+// half done in it is still there when it opens again.
+function Overlay({ title, wide = false, shown, close, children }: { title: string, wide?: boolean, shown: boolean, close: () => void, children: ReactNode }){
+  return(
+    <div role='dialog' aria-label={title} hidden={!shown}
+      className={`absolute z-10 left-2 top-10 bottom-2 ${wide ? 'w-[40rem]' : 'w-96'} max-w-[calc(100%-1rem)] overflow-y-auto p-2 rounded border border-line bg-raised/25 shadow-lg shadow-black/40 flex-col gap-2 ${shown ? 'flex' : ''}`}>
+      <div className='flex flex-row items-center justify-between'>
+        <SectionLabel>{title}</SectionLabel>
+        <Button size='xs' variant='ghost' aria-label={`close ${title}`} onClick={close}>×</Button>
+      </div>
+      {children}
     </div>
   )
 }
@@ -239,7 +262,7 @@ function Status({ resource, needs, injuryAction }: { resource?: ReactNode, needs
 // Who acts from the bar: the active character, or — for the GM and the
 // developer — the GM, who opens the catalogs and does to the mode what no
 // character does. Each mode locks what is not the screen's to press.
-function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => void, gmTools: ReactNode, children: ReactNode }){
+function ActionColumn({ gmTools, children }: { gmTools: ReactNode, children: ReactNode }){
   const { gmTools: hasGmTools, gm, setGmMode } = useRole()
 
   return(
@@ -252,10 +275,6 @@ function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => v
       </div>
       {gm ? (
         <div className='flex flex-col gap-1'>
-          <div className='flex flex-row flex-wrap gap-1 items-center'>
-            <SectionLabel>catalog</SectionLabel>
-            {CATALOG_VIEWS.map((v) => <Button key={v} size='xs' aria-label={`open ${v}`} onClick={() => open(v)}>{v}</Button>)}
-          </div>
           {gmTools}
           <ViewAs />
         </div>

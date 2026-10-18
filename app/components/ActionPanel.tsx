@@ -1,6 +1,7 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
-import { useIsToken } from '../hooks/useControl'
+import { useGmBar, useIsToken } from '../hooks/useControl'
+import { usePartyCommands, useSaveLogBar } from '../hooks/useParty'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
 import type { MovementOption } from '../domain/scene/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/scene/projections/actionPanel'
@@ -602,6 +603,15 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: 
 // The round so far, newest first: what was changed by hand since the last
 // action, then each action played out with everything it drew. The newest
 // stands open; the others fold to a line.
+// Writes the fight's log so far to the journal; the GM's, unless the table
+// says otherwise.
+export function SaveLogButton(){
+  const { saveLog } = usePartyCommands()
+  const gmBar = useGmBar()
+  const saveLogBar = useSaveLogBar() ?? gmBar
+  return <Button size='xs' aria-label='save log' disabled={saveLogBar !== null} title={saveLogBar ?? "write the fight's log so far to the journal"} onClick={saveLog}>save log to journal</Button>
+}
+
 export function ActionLog(){
   const { view } = useCombatActions()
   const { episodes, edits } = view

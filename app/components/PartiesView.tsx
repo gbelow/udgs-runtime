@@ -3,11 +3,11 @@ import { useState, type ReactNode } from 'react'
 import { Card } from './SceneCards'
 import { CatalogDrawer, PlayedBy } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
-import { Button, Menu, MenuItem, NumberInput } from './ui'
+import { Menu, MenuItem, NumberInput } from './ui'
 import { usePartiesPanel, useSceneCards } from '../hooks/useCombatState'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { useBringIntoParty } from '../hooks/useCharacterLibrary'
-import { useFightTimelineClash, usePartyCommands, useSaveLogBar } from '../hooks/useParty'
+import { useFightTimelineClash, usePartyCommands } from '../hooks/useParty'
 import { useCombatState } from '../hooks/useCombatState'
 import { useGmBar } from '../hooks/useControl'
 import type { SceneCard } from '../domain/scene/projections/cards'
@@ -31,9 +31,6 @@ export function PartiesView(){
   const adding = names.find((p) => p.id === addingTo) ?? null
   const clash = useFightTimelineClash()
   const [ets, setEts] = useState(0)
-  const { saveLog } = usePartyCommands()
-  const gmBar = useGmBar()
-  const saveLogBar = useSaveLogBar() ?? gmBar
 
   const placeInto = (partyId: string | null) => {
     if (switching && partyId === null) splitOff(switching.id)
@@ -46,8 +43,7 @@ export function PartiesView(){
       <div className='flex flex-row flex-wrap gap-2 items-center'>
         <CreateParty create={createParty} hint='a new party with nobody in it yet' />
         {switching ? <SwitchBanner name={switching.name} cancel={() => setSwitching(null)} /> : null}
-        <Button size='xs' className='ml-auto' aria-label='save log' disabled={saveLogBar !== null} title={saveLogBar ?? "write the fight's log so far to the journal"} onClick={saveLog}>save log to journal</Button>
-        <span className='text-xs text-muted whitespace-nowrap'>ETs the scene took</span>
+        <span className='ml-auto text-xs text-muted whitespace-nowrap'>ETs the scene took</span>
         <NumberInput className='w-10' aria-label='ETs taken' title='passed for each party when the last of it comes back' value={ets} onChange={(e) => setEts(parseInt(e.target.value) || 0)} />
       </div>
       {clash ? <span className='text-xs text-bad'>{clash}</span> : null}
