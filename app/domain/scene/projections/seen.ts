@@ -1,5 +1,6 @@
 import type { SceneState } from '../types'
 import { getSeenBy, getVisibleActions } from '../rules/seen'
+import { getPublicFace } from '../../character/lenses/face'
 import { hide, keep, prune, type Censor, type Hidden } from '../../prune'
 
 // The fight as a viewer who controls some of its characters is shown it
@@ -24,7 +25,8 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
     return kept.length === Object.keys(calls).length ? calls : Object.fromEntries(kept)
   },
   resume: unseen,
-  characters: unseen,
+  // a character the viewer sees but does not play shows as a token
+  characters: (characters, c) => unseen(Object.fromEntries(Object.entries(characters).filter(([id]) => !c.hidden.has(id)).map(([id, ch]) => [id, c.controlled.has(id) ? ch : getPublicFace(ch)])), c),
   // a party with none of its members seen is not shown
   parties: (parties, c) => {
     const shown = new Set(Object.entries(c.state.partyOf).filter(([id]) => !c.hidden.has(id)).map(([, party]) => party))
@@ -80,7 +82,7 @@ export function getSceneSeenBy(state: SceneState, controlled: ReadonlySet<string
   if (everything) return state
   const seen = getSeenBy(state, controlled)
   const hidden = new Set(Object.keys(state.characters).filter((id) => !seen.has(id)))
-  if (hidden.size === 0) return state
+  if (hidden.size === 0 && Object.keys(state.characters).every((id) => controlled.has(id))) return state
   const context: Context = { state, controlled, hidden, visible: getVisibleActions(state, controlled, seen) }
   const entries = Object.entries(CENSORS) as [keyof SceneState, SceneCensor<unknown>][]
   return Object.fromEntries(entries.map(([key, censor]) => [key, censor(state[key], context)])) as SceneState

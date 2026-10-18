@@ -19,7 +19,7 @@ import { getChaseStartBar, getDeclareOrder } from '../domain/scene/rules/chase'
 import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
-import { SurgeKindSchema, type Character } from '../domain/types'
+import { CampaignCharacterSchema, SurgeKindSchema, type Character } from '../domain/types'
 import { archer, bomber, crossbowman, brawler, mage, medic, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
@@ -316,6 +316,13 @@ function assertSeen(s: SceneState) {
       expect(text.includes(JSON.stringify(name)), `${controlled.join('+')} is shown the name ${name}, whom they do not see, at ${whereIs(view, name)}`).toBe(false)
     }
     for (const id of controlled) expect(view.characters[id], `${id} sees themselves`).toBeDefined()
+    const blank = CampaignCharacterSchema.parse({})
+    for (const id of shown) {
+      if (controlled.includes(id) || !view.characters[id]) continue
+      const { trainables, containers, injuries, resources, abilities, spells, notes } = view.characters[id]
+      expect({ trainables, containers, injuries, resources, abilities, spells, notes }, `${controlled.join('+')} is shown the sheet of ${id}, whom they do not play`)
+        .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: blank.injuries, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, notes: blank.notes })
+    }
     const known = new Set([...Object.keys(view.actions), ...view.journal.map((e) => e.action.id)])
     for (const a of Object.values(view.actions)) {
       for (const link of [a.reactionTo, a.spawnedBy, a.followUpOf]) {
