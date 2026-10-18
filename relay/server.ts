@@ -11,7 +11,8 @@ import { randomUUID } from 'node:crypto'
 //   guest →   <payload>, any JSON
 //   → host    {"kind":"join"|"leave","from","profile"} and
 //             {"kind":"message","from","profile","data":<payload>}
-//   → guest   the host's payloads, and {"kind":"noHost"} while it has none
+//   → guest   the host's payloads, and {"kind":"noHost"} while it has none,
+//             also in answer to a message sent while there is none
 
 type Guest = { id: string; profile: string; socket: WebSocket }
 type Room = { host: WebSocket | null; guests: Map<string, Guest> }
@@ -71,7 +72,8 @@ server.on('connection', (socket, request) => {
   if (room.host) room.host.send(notice('join', guest))
   else socket.send('{"kind":"noHost"}')
   socket.on('message', (raw) => {
-    room.host?.send(`{"kind":"message","from":${JSON.stringify(guest.id)},"profile":${JSON.stringify(profile)},"data":${raw.toString()}}`)
+    if (!room.host) return socket.send('{"kind":"noHost"}')
+    room.host.send(`{"kind":"message","from":${JSON.stringify(guest.id)},"profile":${JSON.stringify(profile)},"data":${raw.toString()}}`)
   })
   socket.on('close', () => {
     room.guests.delete(guest.id)

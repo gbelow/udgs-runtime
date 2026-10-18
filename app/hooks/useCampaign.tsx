@@ -166,35 +166,71 @@ async function resume(profile: string, id: string, fresh: boolean) {
 const changed = <T extends object>(s: T, before: T) =>
   (Object.keys(s) as (keyof T)[]).some((k) => k !== 'activeCharacterId' && s[k] !== before[k]);
 
-// Keeps the campaign in play in this screen's autosave a moment after
-// anything in it changes, and brings back the one played last when the
-// profile is picked. A guest's stores follow the host's table and are never
-// kept.
+// Writes the campaign in play over its saved copy, when it has one that is
+// not locked: what a fight's end and an ET's end leave is kept on the server.
+async function keepSaved() {
+  const { file, setFile } = useCampaignStore.getState();
+  if (file.savedAt === 0 || file.locked) return;
+  const { save, characters } = stored(file);
+  const res = await saveCampaign(save, characters);
+  if (!res.ok) { toast.error(res.error); return; }
+  setFile({ ...res.data, locked: false });
+}
+
+// Keeps the campaign in play in this screen's autosave after every change to
+// it, one write at a time with the last state always the one written, and
+// brings back the one played last when the profile is picked. The end of a
+// fight and the end of an ET also save it to the server. A guest's stores
+// follow the host's table and are never kept.
 export function useAutosave() {
   const profile = useProfileId();
   useEffect(() => {
     if (!profile) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const write = () => {
+    let queued = false;
+    let writing = false;
+    let again = false;
+    const write = async () => {
       const { file } = useCampaignStore.getState();
       if (file.savedAt === 0 && !hasPlay(getInPlay())) return;
       const at = Date.now();
-      writeAutosave(profile, file.id, { ...stored(file), at })
-        .then(() => { if (useCampaignStore.getState().file.id === file.id) useAutosaveStore.getState().set(at); })
-        .catch((err) => console.error('Autosave failed:', err));
+      try {
+        await writeAutosave(profile, file.id, { ...stored(file), at });
+        if (useCampaignStore.getState().file.id === file.id) useAutosaveStore.getState().set(at);
+      } catch (err) { console.error('Autosave failed:', err); }
+    };
+    const flush = async () => {
+      queued = false;
+      if (writing) { again = true; return; }
+      writing = true;
+      do { again = false; await write(); } while (again);
+      writing = false;
     };
     const schedule = <T extends object>(s: T, before: T) => {
-      if (!changed(s, before) || useTableStore.getState().mode === 'guest') return;
-      clearTimeout(timer);
-      timer = setTimeout(write, AUTOSAVE_DELAY);
+      if (!changed(s, before) || useTableStore.getState().mode === 'guest' || queued) return;
+      queued = true;
+      queueMicrotask(flush);
     };
-    const unsubscribe = [useCampaignStore.subscribe(schedule), useCombatStore.subscribe(schedule)];
+
+    let keeping = false;
+    const keep = () => {
+      if (useTableStore.getState().mode === 'guest' || keeping) return;
+      keeping = true;
+      setTimeout(() => { keeping = false; keepSaved().catch((err) => console.error('Saving the campaign failed:', err)); }, 0);
+    };
+    const fighters = (s: { characters: object }) => Object.keys(s.characters).length;
+    const unsubscribe = [
+      useCampaignStore.subscribe(schedule),
+      useCombatStore.subscribe(schedule),
+      useCombatStore.subscribe((s, before) => { if (fighters(before) > 0 && fighters(s) === 0) keep(); }),
+      useCampaignStore.subscribe((s, before) => {
+        const [a, b] = [s.exploration, before.exploration];
+        if (a.results !== b.results || a.castResults !== b.castResults || a.stayResults !== b.stayResults) keep();
+      }),
+    ];
     readLastAutosaveId(profile).then((id) => { if (id && useTableStore.getState().mode !== 'guest') resume(profile, id, false); }).catch(() => undefined);
-    return () => { clearTimeout(timer); unsubscribe.forEach((u) => u()); };
+    return () => unsubscribe.forEach((u) => u());
   }, [profile]);
 }
-
-const AUTOSAVE_DELAY = 2000;
 
 // The saved campaigns, and the one in play: begun anew, opened from the
 // saved ones where this screen left them or from what is saved, named,

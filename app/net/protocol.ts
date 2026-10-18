@@ -36,14 +36,15 @@ export const readShared = (raw: Shared): Shared => ({
   },
 });
 
-export type CommandMessage = { [P in PartName]: { kind: 'command'; part: P; command: Commands[P]; gmMode: boolean } }[PartName];
+export type CommandMessage = { [P in PartName]: { kind: 'command'; id: string; part: P; command: Commands[P]; gmMode: boolean } }[PartName];
 
 export type ToHost = CommandMessage | { kind: 'resync' };
 
 export type ToGuest =
   | { kind: 'full'; seq: number; state: Shared }
   | { kind: 'patch'; seq: number; patch: Patch }
-  | { kind: 'refused'; why: string }
+  | { kind: 'ack'; id: string }
+  | { kind: 'refused'; id: string; why: string }
   | { kind: 'moved'; room: string; roomName: string }
   | { kind: 'noHost' };
 

@@ -52,7 +52,7 @@ export function hostTable(socket: WebSocket, play: (message: CommandMessage, pro
       let why: string | null;
       try { why = play(m.data, m.profile); }
       catch (error) { console.error('a guest command could not be played', m.data, error); why = 'it could not be played'; }
-      if (why) send(m.from, { kind: 'refused', why: REFUSED });
+      send(m.from, why ? { kind: 'refused', id: m.data.id, why: REFUSED } : { kind: 'ack', id: m.data.id });
     }
   };
   return () => { stops.forEach((stop) => stop()); socket.onmessage = null; };
@@ -77,7 +77,7 @@ export function landShared(state: Shared) {
 // A guest's side: the stores hold whatever the host last sent, the whole
 // state once and every change after it in order; a change missed asks for
 // the whole state again. A table that moves is followed to its new room.
-export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => void, onRefused: (why: string) => void, onMoved: (room: string, roomName: string) => void): () => void {
+export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => void, onAnswer: (id: string, why: string | null) => void, onMoved: (room: string, roomName: string) => void): () => void {
   let base: Shared | null = null;
   let seq = 0;
 
@@ -95,7 +95,8 @@ export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => 
       seq = m.seq;
       land(apply(base, m.patch) as Shared);
     }
-    else if (m.kind === 'refused') onRefused(m.why);
+    else if (m.kind === 'ack') onAnswer(m.id, null);
+    else if (m.kind === 'refused') onAnswer(m.id, m.why);
     else if (m.kind === 'moved') onMoved(m.room, m.roomName);
     else { base = null; onStatus('noHost'); }
   };

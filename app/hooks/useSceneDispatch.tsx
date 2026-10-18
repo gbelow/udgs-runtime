@@ -8,7 +8,8 @@ import { useThrower } from "./useDieCalls";
 
 // A press sent as data from this screen: refused, why is said; otherwise
 // played into the store that keeps its part, with this screen's dice and ids,
-// or, on a screen that joined a table, sent to its host to play. Whether it
+// or, on a screen that joined a table, sent to its host to play, one press at
+// a time and the screen changes only when the host's state arrives. Whether it
 // was sent.
 function useDispatchOf<P extends PartName>(part: P): (command: Commands[P]) => boolean {
   const viewer = useViewerCheck();
@@ -20,7 +21,10 @@ function useDispatchOf<P extends PartName>(part: P): (command: Commands[P]) => b
     const table = useTableStore.getState();
     if (table.mode !== 'guest') { playOf(part, command, thrower); return true; }
     if (!table.socket || table.status !== 'open') { toast.error('Not at the table: the link to its host is down.'); return false; }
-    sendToHost(table.socket, { kind: 'command', part, command, gmMode: v.gmMode } as CommandMessage);
+    if (table.pending) { toast.error('Wait: the host has not yet confirmed your last press.'); return false; }
+    const id = crypto.randomUUID();
+    table.press(id, (why) => toast.error(`The host did not play it: ${why}.`));
+    sendToHost(table.socket, { kind: 'command', id, part, command, gmMode: v.gmMode } as CommandMessage);
     return true;
   };
 }

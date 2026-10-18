@@ -25,8 +25,14 @@ export function useTableSession() {
 
   useEffect(() => {
     if (!socket || !mode) return;
-    const { setStatus, setGuests } = useTableStore.getState();
-    if (mode === 'guest') return joinTable(socket, setStatus, (why) => toast.error(`The host refused it: ${why}.`), (room, roomName) => {
+    const { setStatus, setGuests, settle, abandon } = useTableStore.getState();
+    if (mode === 'guest') return joinTable(socket, (status) => {
+      setStatus(status);
+      if (status === 'noHost') abandon('the host is away');
+    }, (id, why) => {
+      settle(id);
+      if (why) toast.error(`The host refused it: ${why}.`);
+    }, (room, roomName) => {
       const { profile } = played.current;
       if (!profile) return;
       useTableStore.getState().open('guest', room, roomName, profile.id);
@@ -79,12 +85,12 @@ export function useTableLink() {
   const profileList = useAppStore((s) => s.profileList);
   const rows = useAppStore((s) => s.campaignList);
   const file = useCampaignStore((s) => s.file);
-  const { mode, room, roomName, status, why, guests, open, close } = useTableStore();
+  const { mode, room, roomName, status, why, attempt, guests, open, close } = useTableStore();
   const join = useJoinTable();
   const played = useMemo(() => rows.filter((r) => r.member === 'player').map((r) => ({ id: r.id, name: r.name })), [rows]);
   const nameOf = (id: string) => profileList.find((p) => p.id === id)?.name ?? id;
   return {
-    mode, status, why, roomName,
+    mode, status, why, attempt, roomName,
     guests: guests.map((g) => ({ id: g.id, name: nameOf(g.profile) })),
     canHost: gmTools,
     played,
