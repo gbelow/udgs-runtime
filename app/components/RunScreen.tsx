@@ -134,9 +134,9 @@ export function RunScreen(){
           </div>
           <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>{shown.node}</div>
         </section>
-        {hasActiveCharacter && ownSheet ? (
+        {hasActiveCharacter ? (
           <aside className='md:w-[32rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
-            <SheetTabs />
+            <SheetTabs own={ownSheet} />
           </aside>
         ) : null}
       </div>
@@ -187,23 +187,27 @@ function ModeSwitch(){
 
 const SHEET_TABS = ['sheet', 'knowledge', 'inventory', 'gear', 'abilities', 'spells', 'body'] as const
 type SheetTab = typeof SHEET_TABS[number]
+const LOOKER_TABS: readonly SheetTab[] = ['gear']
 
-// The sheet of the active character, shown only to whoever plays them.
+// The sheet of the active character: all of it to whoever plays them, only
+// their gear, closed, to everyone else.
 // The inventory holds what an item is taken into — the hands, the worn
 // armor, the containers, the trade — so it stays short beside a catalog;
 // what the gear does in a fight is under gear.
-function SheetTabs(){
-  const [tab, setTab] = useState<SheetTab>('inventory')
+function SheetTabs({ own }: { own: boolean }){
+  const [picked, setTab] = useState<SheetTab>('inventory')
+  const tabs = own ? SHEET_TABS : LOOKER_TABS
+  const tab = tabs.find((t) => t === picked) ?? tabs[0]
   const { tableName } = useActiveCharacterData()
 
   return(
     <div className='flex flex-col gap-2'>
       <span className='text-base font-medium'>{tableName}</span>
       <div className='flex flex-row flex-wrap gap-1'>
-        {SHEET_TABS.map((t) =>
+        {tabs.map((t) =>
           <Button key={t} size='xs' aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Button>)}
       </div>
-      <>
+      <ControlLocked>
         {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
         {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
         {tab === 'inventory' ? <GearLocked><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></GearLocked> : null}
@@ -211,7 +215,7 @@ function SheetTabs(){
         {tab === 'abilities' ? <AbilityPanel /> : null}
         {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
         {tab === 'body' ? <GmLocked><AfflictionsPannel /><WoundPanel /><CursePanel /></GmLocked> : null}
-      </>
+      </ControlLocked>
     </div>
   )
 }
