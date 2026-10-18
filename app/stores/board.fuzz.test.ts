@@ -9,6 +9,7 @@ import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getSeenBy } from '../domain/scene/rules/seen'
+import { getBoardViewFrom } from '../domain/scene/projections/boardView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
@@ -357,6 +358,20 @@ function assertSound(h: Harness, storage: boolean) {
     }
   }
   expect(view.tokens.map((t) => t.id).sort(), 'the board draws every placed character').toEqual(Object.keys(placements).filter((id) => s.characters[id]).sort())
+
+  // the board from the active character's eyes draws them, and anyone it
+  // draws whose sight the cells and the detection agree on
+  const eye = s.activeCharacterId
+  if (eye !== null && placements[eye]) {
+    const from = getBoardViewFrom(s)
+    const unseen = new Set(from.cells.filter((c) => c.unseen).map((c) => c.key))
+    const seenToken = from.tokens.find((t) => t.id === eye)
+    expect(seenToken, 'the active character is drawn from their own eyes').toBeDefined()
+    expect(seenToken!.cells.some((c) => unseen.has(c.key)), 'the active character stands out of their own sight').toBe(false)
+    for (const t of from.tokens) {
+      expect(t.cells.some((c) => !unseen.has(c.key)), `${t.id} is drawn from the eyes of ${eye} though every cell of them is out of sight`).toBe(true)
+    }
+  }
 
   const known = new Set([...Object.values(s.actions), ...s.journal.map((e) => e.action)].map((a) => a.id))
   for (const a of Object.values(s.actions)) {

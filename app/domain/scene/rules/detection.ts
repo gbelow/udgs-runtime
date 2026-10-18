@@ -206,6 +206,17 @@ function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from:
   return seeInto(state, from, at, () => seesInDimLight(observer))
 }
 
+// Whether an active sense of the observer takes in anything of a cell of the
+// ground from where they stand — what the board shows of it to their eyes.
+// Their own cells are always taken in; off the board, every cell is.
+export function canSenseCell(state: SceneState, observerId: string, cell: Coord): boolean {
+  const c = state.characters[observerId]
+  const from = getPlacedFootprint(state, observerId)
+  if (!c || !from || from.some((own) => sameCell(own, cell))) return true
+  return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).some((sense) =>
+    c.senses[sense].active && canUse(state, c, sense) && getImpairmentInto(state, c, from, [cell], sense) !== 'total')
+}
+
 function getImpairment(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses): Impairment {
   if (typeof toward === 'string') return IMPAIRMENTS[sense](state, observer.id, toward, observer.senses[sense].range)
   const from = getPlacedFootprint(state, observer.id)

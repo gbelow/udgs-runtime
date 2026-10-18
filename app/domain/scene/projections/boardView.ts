@@ -21,6 +21,8 @@ import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
 import { getAwaited } from '../rules/options'
+import { canSenseCell } from '../rules/detection'
+import { getSightOf } from '../rules/seen'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -53,6 +55,9 @@ export type BoardCellView = {
   // is a light source that makes it bright
   light: LightLevel
   lit: boolean
+  // the board seen from the active character's eyes: no active sense of theirs
+  // takes the cell in (`getBoardViewFrom`)
+  unseen: boolean
   occupants: string[]
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
@@ -252,6 +257,7 @@ function buildBoardView(state: SeenScene): BoardView {
       noise: terrain?.noise ?? 0,
       light,
       lit: light === 'bright' && (board.light !== 'bright' || !!terrain?.dark),
+      unseen: false,
       occupants: occupancy[key] ?? [],
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,
@@ -338,6 +344,30 @@ function buildBoardView(state: SeenScene): BoardView {
 
 export const getBoardView = perState(buildBoardView)
 
+// The board as the active character's eyes take it in: the cells none of
+// their active senses reach are marked unseen, and only they and the
+// characters they detect are drawn, with what lies on cells they see and the
+// binds between characters drawn. The whole board when nobody placed is active.
+export const getBoardViewFrom = perState((state: SeenScene): BoardView => {
+  const view = getBoardView(state)
+  const eye = state.activeCharacterId
+  if (!view.present || !eye || !state.board?.placements[eye]) return view
+  const sight = getSightOf(state, eye)
+  const shown = (id: string) => id === eye || sight.has(id)
+  const cells = view.cells.map((c) => (canSenseCell(state, eye, c.cell) ? c : { ...c, unseen: true }))
+  const unseen = new Set(cells.filter((c) => c.unseen).map((c) => c.key))
+  const tokens = view.tokens.filter((t) => shown(t.id))
+  const drawn = new Set(tokens.map((t) => t.id))
+  return {
+    ...view,
+    cells,
+    tokens,
+    ghosts: view.ghosts.filter((g) => drawn.has(g.id)),
+    floor: view.floor.filter((f) => { const at = state.floor.find((x) => x.item.id === f.itemId)?.cell; return !at || !unseen.has(coordKey(at)) }),
+    binds: view.binds.filter((b) => b.key.slice(b.key.indexOf(':') + 1).split('~').every((id) => drawn.has(id))),
+  }
+})
+
 // The segment between two token centres that lies outside both tokens'
 // circles; the centres themselves when the tokens overlap.
 const TOKEN_RIM = 0.66
@@ -365,3 +395,4 @@ function elevationLabel(elevation: number): string {
 }
 
 export const getBoardViewDigest = perState((state: SeenScene) => JSON.stringify(getBoardView(state)))
+export const getBoardViewFromDigest = perState((state: SeenScene) => JSON.stringify(getBoardViewFrom(state)))

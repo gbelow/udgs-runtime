@@ -47,7 +47,8 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // is walked on. Everything drawn is a field of the board view; the panel
 // only translates it into shapes.
 export function BoardPanel(){
-  const { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard()
+  const [fromActive, setFromActive] = useState(false)
+  const { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
@@ -69,6 +70,7 @@ export function BoardPanel(){
     <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : repositioning ? 'click a cell to put the active character there, ↻ to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
+        <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
         {gm ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false) }}>GM board tools</Button> : null}
         <Button size='xs' variant='ghost' aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)}>↻</Button>
         {gm ? <Button size='xs' variant='ghost' aria-label='remove board' disabled={view.mode !== 'idle'} title={view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach'} onClick={remove}>no grid</Button> : null}
@@ -185,6 +187,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.zone ? ZONE_FILL[cell.zone]
     : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/15'
+    : cell.unseen ? 'fill-fg/50'
     : cell.threatened ? 'fill-bad/10'
     : cell.fire > 0 ? 'fill-injury-2/30'
     : cell.fuels.length > 0 ? 'fill-accent/15'
@@ -196,6 +199,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
   const title = [
     cell.key,
+    cell.unseen ? 'out of sight' : null,
     TERRAIN_LABEL[cell.terrain],
     cell.strength,
     cell.elevation ? `${cell.elevation} m` : null,
@@ -216,7 +220,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' onClick={onClick}>
       <title>{title}</title>
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
-      {TERRAIN_GLYPH[cell.terrain] ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
+      {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
       {cell.fire > 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-injury-2 pointer-events-none' fontSize={0.35}>{`🔥${cell.fire}`}</text> : null}
       {cell.noise > 0 && cell.fire === 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.35}>{`♪${cell.noise}`}</text> : null}

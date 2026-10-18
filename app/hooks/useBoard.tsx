@@ -1,6 +1,6 @@
 import type { Coord, LightLevel } from "../domain/scene/types";
 import type { TerrainBrush } from "../domain/types";
-import { BoardView, getBoardView, getBoardViewDigest } from "../domain/scene/projections/boardView";
+import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest } from "../domain/scene/projections/boardView";
 import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSceneDispatch } from "./useSceneDispatch";
@@ -10,9 +10,9 @@ import { useSceneDispatch } from "./useSceneDispatch";
 // domain's to say (`readClick`): a click that picks a character is this
 // screen's alone, and any other is sent as a scene command with whom the
 // screen has picked.
-export function useBoard() {
-  useCombatStore(getBoardViewDigest);
-  const view: BoardView = getBoardView(useCombatStore.getState());
+export function useBoard(fromActive = false) {
+  useCombatStore(fromActive ? getBoardViewFromDigest : getBoardViewDigest);
+  const view: BoardView = (fromActive ? getBoardViewFrom : getBoardView)(useCombatStore.getState());
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
 
