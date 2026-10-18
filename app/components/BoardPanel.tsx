@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { memo, useState, type MouseEvent } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
 import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
+import type { Coord } from '../domain/scene/types'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
@@ -119,13 +120,14 @@ export function BoardPanel(){
         </div>
       ) : null}
 
-      <svg viewBox={view.viewBox} className='w-full flex-1 min-h-0 select-none' role='img' aria-label='board'>
+      <svg viewBox={view.viewBox} className='w-full flex-1 min-h-0 select-none' role='img' aria-label='board'
+        onClick={(e) => { const cell = cellAt(e); if (cell) clickCell(cell, painting ? brush : null, repositioning) }}>
         <defs>
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
           </marker>
         </defs>
-        {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, painting ? brush : null, repositioning)} />)}
+        {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
@@ -210,7 +212,25 @@ const ZONE_FILL = {
   miss: 'fill-bad/5',
 } as const
 
-export function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClick: () => void }){
+// The cell a click on the board landed on, if it landed on one: the board
+// takes one handler for all its cells, so a cell is the same drawing for as
+// long as what it shows is.
+export function cellAt(e: MouseEvent): Coord | null {
+  const el = (e.target as Element).closest('[data-q]')
+  return el ? { q: Number(el.getAttribute('data-q')), r: Number(el.getAttribute('data-r')) } : null
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) && Array.isArray(b) && a.length === 0 && b.length === 0) return true
+  return typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b)
+}
+
+function sameCellDrawing(a: { cell: BoardCellView, hex: string }, b: { cell: BoardCellView, hex: string }): boolean {
+  return a.hex === b.hex && (Object.keys(a.cell) as (keyof BoardCellView)[]).every((k) => k === 'cell' || sameValue(a.cell[k], b.cell[k]))
+}
+
+export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex: string }){
   const fill = cell.isJumpTo ? 'fill-good/40'
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.zone ? ZONE_FILL[cell.zone]
@@ -245,7 +265,7 @@ export function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string,
     cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,
   ].filter((s) => s !== null).join(' · ')
   return (
-    <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' onClick={onClick}>
+    <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
@@ -255,7 +275,7 @@ export function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string,
       {cell.pathStep !== null ? <text x={0} y={0.45} textAnchor='middle' className='fill-fg pointer-events-none' fontSize={0.4}>{cell.pathStep}</text> : null}
     </g>
   )
-}
+}, sameCellDrawing)
 
 function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, onClick: () => void }){
   const ring = token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
