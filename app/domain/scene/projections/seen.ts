@@ -1,62 +1,23 @@
 import type { SceneState } from '../types'
 import { getSeenBy, getVisibleActions } from '../rules/seen'
+import { hide, keep, prune, type Censor, type Hidden } from '../../prune'
 
 // The fight as a viewer who controls some of its characters is shown it
 // (multiplayer-plan.md "Hidden information"): a fight that is valid on its
 // own, with whoever they do not see nowhere in it, by id or by name.
 
-// Fields that hold a pair of characters together: a row or object that
-// names an unseen one in them goes whole, rather than losing one of the two.
-const TOGETHER = new Set(['members', 'pair'])
-
-type Hidden = ReadonlySet<string>
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
-
-// Whether a row is about an unseen character: one of its own fields names
-// them, or a field that holds a pair together does.
-const aboutHidden = (row: unknown, hidden: Hidden): boolean => {
-  if (!isRecord(row)) return false
-  return Object.entries(row).some(([key, v]) =>
-    (typeof v === 'string' && hidden.has(v)) || (TOGETHER.has(key) && Array.isArray(v) && v.some((x) => typeof x === 'string' && hidden.has(x))))
-}
-
-// `value` with every unseen character taken out: a record loses their keys, a
-// list their ids and the rows that are about them, a field that names one
-// reads '' (nobody). What holds none comes back as the same object.
-export function prune<T>(value: T, hidden: Hidden): T {
-  if (Array.isArray(value)) {
-    const kept = value.filter((v) => !(typeof v === 'string' && hidden.has(v)) && !aboutHidden(v, hidden)).map((v) => prune(v, hidden))
-    return (kept.length === value.length && kept.every((v, i) => v === value[i]) ? value : kept) as T
-  }
-  if (isRecord(value)) {
-    let changed = false
-    const out: Record<string, unknown> = {}
-    for (const [key, v] of Object.entries(value)) {
-      if (hidden.has(key)) { changed = true; continue }
-      const next = typeof v === 'string' && hidden.has(v) ? '' : TOGETHER.has(key) ? v : prune(v, hidden)
-      if (next !== v) changed = true
-      out[key] = next
-    }
-    return (changed ? out : value) as T
-  }
-  return value
-}
-
 type Context = { state: SceneState; controlled: ReadonlySet<string>; hidden: Hidden; visible: ReadonlySet<string> }
-type Censor<V> = (value: V, c: Context) => V
+type SceneCensor<V> = Censor<V, Context>
 
-const keep = <V>(value: V): V => value
-const hide = <V>(empty: V): Censor<V> => () => empty
 const unseen = <V>(value: V, c: Context): V => prune(value, c.hidden)
-const nobody: Censor<string> = (id, c) => (c.hidden.has(id) ? '' : id)
+const nobody: SceneCensor<string> = (id, c) => (c.hidden.has(id) ? '' : id)
 
 const onlyShown = <V extends Record<string, unknown>>(value: V, c: Context): V =>
   prune(Object.fromEntries(Object.entries(value).filter(([id]) => c.visible.has(id))), c.hidden) as V
 
 // Every field of the fight says how it is hidden, so that one added does not
 // compile until it does.
-const CENSORS: { [K in keyof SceneState]: Censor<SceneState[K]> } = {
+const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   // a die waits on its roller's screen; a call for an unseen roller is not shown
   calls: (calls, c) => {
     const kept = Object.entries(calls).filter(([, call]) => !c.hidden.has(call.roller))
@@ -121,6 +82,6 @@ export function getSceneSeenBy(state: SceneState, controlled: ReadonlySet<string
   const hidden = new Set(Object.keys(state.characters).filter((id) => !seen.has(id)))
   if (hidden.size === 0) return state
   const context: Context = { state, controlled, hidden, visible: getVisibleActions(state, controlled, seen) }
-  const entries = Object.entries(CENSORS) as [keyof SceneState, Censor<unknown>][]
+  const entries = Object.entries(CENSORS) as [keyof SceneState, SceneCensor<unknown>][]
   return Object.fromEntries(entries.map(([key, censor]) => [key, censor(state[key], context)])) as SceneState
 }

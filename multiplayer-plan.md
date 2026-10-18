@@ -109,4 +109,6 @@ Ruled 2026-10-18, how the views are made:
 - Every field of the scene and campaign states is held by a registry typed on the state's keys, each saying how it is hidden, so a field added later does not compile until it says.
 - Tested by the fuzzer: after every press, a view for a viewer of one character and one of two parses, names no unseen character's id or name, draws without throwing, and keeps every link in its log; the GM's view is the whole state.
 
+Built for the campaign: `getKnownBy` (campaign rules) names the parties of the characters a viewer plays and so the characters they are told of; the campaign, exploration and downtime each have a censor typed on their own keys (`projections/seen.ts`), and `app/net/view.ts` composes them with the scene's into `viewFor(state, profile)`, the GM getting the state itself. The journal shows a player what was written to their parties and to the campaign, never a GM note or the log of a fight (it names whoever fought). Left: the views are not sent yet, and a text that names an unseen character inside a longer line (a campaign-wide note) is not caught.
+
 Left to decide: what a viewer sees of a detected character they do not control (their whole sheet to begin with, a public face later), and a GM "view as" switch.
