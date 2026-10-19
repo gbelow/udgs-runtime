@@ -35,6 +35,7 @@ export function endCombat(thrown: Throw): Updater {
       heldTests: [],
       turnsTaken: [],
       prepared: [],
+      following: {},
       stealthTurns: [],
       pressure: [],
     }

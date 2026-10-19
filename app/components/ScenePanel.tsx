@@ -6,7 +6,7 @@ import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
 import { Button, Dropdown, SectionLabel, Tooltip } from './ui';
 import { ControlLocked, Locked } from './Locks';
-import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
+import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useFollowControls, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
@@ -121,6 +121,7 @@ export function SceneActions(){
           <SectionLabel>surge</SectionLabel>
           <SurgeControl />
         </div>
+        <FollowControl />
       </ControlLocked>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -261,6 +262,26 @@ function HeldTestsPanel(){
             <span className='text-xs text-muted'>{r.result}</span>
           }
         </div>
+      ))}
+    </div>
+  )
+}
+
+// combat.tex "Follow": whom the active character follows this round, marked in
+// their own turn.
+function FollowControl(){
+  const { follow } = useCombatCommands()
+  const { marked, options } = useFollowControls()
+  if (options.length === 0) return null
+
+  return(
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>follow</SectionLabel>
+      {options.map((o) => (
+        <Tooltip key={o.id} text={o.bar ?? (marked === o.id ? `stop following ${o.name}` : `follow ${o.name} when they move`)}>
+          <Button size='xs' aria-label={`follow ${o.name}`} aria-pressed={marked === o.id} active={marked === o.id}
+            disabled={marked !== o.id && o.bar !== null} onClick={() => follow(marked === o.id ? null : o.id)}>{o.name}</Button>
+        </Tooltip>
       ))}
     </div>
   )

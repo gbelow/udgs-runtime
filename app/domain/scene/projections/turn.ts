@@ -8,6 +8,7 @@ import { getActionNoun } from './labels'
 import { getFightName } from '../rules/fighters'
 import { getCompelledSurge } from '../rules/stress'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
+import { getFollowOptions } from '../rules/follow'
 import { getStealthScore, getStealthTurn } from '../rules/stealth'
 
 // The turn buttons as the character sees them: whose turn it is, who asked
@@ -74,6 +75,14 @@ export function getCombatSurgeOptions(state: SceneState, id: string): SurgeOptio
   const c = state.characters[id]
   if (!c) return []
   return getSurgeOptions(c, getCompelledSurge(state, id)).map((o) => (getSurgeTurnBar(state, id, o.kind) ? { ...o, available: false } : o))
+}
+
+// combat.tex "Follow" — whom the character follows this round, and each one
+// they may mark with why not.
+export type FollowControls = { marked: string; options: { id: string; name: string; bar: string | null }[] }
+
+export function getFollowControls(state: SceneState, id: string): FollowControls {
+  return { marked: state.following[id] ?? '', options: getFollowOptions(state, id) }
 }
 
 // Why the round cannot pass, as the button says it: an action under way is

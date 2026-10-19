@@ -13,6 +13,7 @@ import { createBoard, importBoard, loadBoardMap, removeBoard, setLight } from '.
 import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
+import { follow } from './follow'
 import { dropToFloor, throwOffShieldToFloor } from './floor'
 import { updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
@@ -120,6 +121,7 @@ export const sceneCommands = {
   toggleContest: command((_, id: string) => toggleContest(id)).by(own),
   toggleAgreeToEnd: command((_, id: string) => toggleAgreeToEnd(id)).by(own),
   surge: command((_, id: string, kind: SurgeKind) => surge(id, kind)).by(own),
+  follow: command((_, id: string, targetId: string | null) => follow(id, targetId)).by(own),
   endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),
   rollContest: command((ctx) => rollContest(ctx.thrower)).by(gm),
   nextRound: command((ctx) => nextRound(ctx.thrower)).by(gm),

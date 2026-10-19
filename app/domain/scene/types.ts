@@ -1591,6 +1591,9 @@ export const SceneStateSchema = z.object({
   // The preparations landed in the round, by id, lapsing at its end
   // (combat.tex "Preparing a reaction")
   prepared: z.array(str).default([]),
+  // combat.tex "Follow": whom each character marked to follow, by id, lapsing
+  // at the round's end
+  following: z.record(str, str).default({}),
   // combat.tex "Actions in stealth": each turn of the round, by its number,
   // who held it, whom they began it undetected by, and the AP their actions in
   // it have spent, all of it and what an ear hears more of (`StealthTurnSchema`)

@@ -6,7 +6,7 @@ import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getGearBar } from "../domain/scene/rules/turn";
-import { getCombatSurgeOptions, getEndCombatNote, getNextRoundNote, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
+import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundNote, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -109,6 +109,18 @@ export function useCombatSurgeOptions(): SurgeOption[] {
   useCombatStore((s) => (s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId).map((o) => `${o.kind}:${o.title}:${o.available ? 1 : 0}:${o.used ? 1 : 0}`).join('|') : ''));
   const s = useCombatStore.getState();
   return s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId) : [];
+}
+
+// combat.tex "Follow" — whom the active character follows and whom they may
+// mark, gated on a digest since the rows are freshly allocated.
+export function useFollowControls(): FollowControls {
+  useCombatStore((s) => {
+    if (!s.activeCharacterId) return '';
+    const f = getFollowControls(s, s.activeCharacterId);
+    return `${f.marked}|${f.options.map((o) => `${o.id}:${o.bar ?? ''}`).join('|')}`;
+  });
+  const s = useCombatStore.getState();
+  return s.activeCharacterId ? getFollowControls(s, s.activeCharacterId) : { marked: '', options: [] };
 }
 
 // combat.tex "Morale" — who the round called to a test and how each went,

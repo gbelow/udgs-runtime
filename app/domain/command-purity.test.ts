@@ -420,7 +420,8 @@ function cleared(s: SceneState): SceneState {
 // for, which opens the follow as a move of `b`'s own, on a frozen state each
 // step along.
 function spawnedFollow(s: SceneState): SceneState {
-  const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(declaredMove(s))))
+  const marked = { ...s, following: { b: 'a' } }
+  const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(declaredMove(marked))))
   const followed = deepFreeze(combatCommands.declareReaction('b', { kind: 'follow' }, newId)(committed))
   return combatCommands.payAction(newId, () => 5)(followed)
 }

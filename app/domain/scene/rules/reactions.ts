@@ -351,8 +351,6 @@ function pickUpTriggers(state: SceneState, root: PickUpAction): Trigger[] {
 // weapon while within its attack range" — the first step taken from a cell
 // already within someone's melee range to one closer to them. Stepping into
 // range is not yet moving towards the weapon while within it.
-// combat.tex "Follow": "as a reaction to any movement except running,
-// follow another character who is already within melee range."
 // combat.tex "Opportunity Attack": "standing up in melee range" is a
 // triggering action; the attack is fought before the mover is up, at step 0.
 // Going prone triggers nothing.
@@ -387,7 +385,9 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     const enters = firstStep(distances, (previous, now) => previous > FLEE_PERIMETER && now <= FLEE_PERIMETER)
     if (enters !== null && !isInTurn(state, id)) triggers.push({ characterId: id, kind: 'flee', at: enters })
     const range = getMeleeRange(state.characters[id])
-    if (range > 0 && distances[0] <= range && root.movement !== 'run' && !reactive) triggers.push({ characterId: id, kind: 'follow', at: null })
+    // combat.tex "Follow": "as a reaction to any movement except running" —
+    // of the one the follower marked in their turn, already within melee range
+    if (state.following[id] === root.actorId && range > 0 && distances[0] <= range && root.movement !== 'run' && !reactive) triggers.push({ characterId: id, kind: 'follow', at: null })
     const spray = sprayReach(state.characters[id])
     const aimed = spray > 0 ? getApproachStep(distances, spray) : null
     if (aimed !== null) triggers.push(...retargetsOf(state.characters[id], aimed))
