@@ -208,13 +208,14 @@ function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from:
 
 // Whether an active sense of the observer takes in anything of a cell of the
 // ground from where they stand — what the board shows of it to their eyes.
-// Their own cells are always taken in; off the board, every cell is.
-export function canSenseCell(state: SceneState, observerId: string, cell: Coord): boolean {
+// Their own cells are always taken in; off the board, every cell is. Which
+// senses the observer can use is settled once, for all the cells asked of.
+export function getCellSenser(state: SceneState, observerId: string): (cell: Coord) => boolean {
   const c = state.characters[observerId]
   const from = getPlacedFootprint(state, observerId)
-  if (!c || !from || from.some((own) => sameCell(own, cell))) return true
-  return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).some((sense) =>
-    c.senses[sense].active && canUse(state, c, sense) && getImpairmentInto(state, c, from, [cell], sense) !== 'total')
+  if (!c || !from) return () => true
+  const senses = (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).filter((sense) => c.senses[sense].active && canUse(state, c, sense))
+  return (cell) => from.some((own) => sameCell(own, cell)) || senses.some((sense) => getImpairmentInto(state, c, from, [cell], sense) !== 'total')
 }
 
 function getImpairment(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses): Impairment {

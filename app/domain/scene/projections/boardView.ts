@@ -21,7 +21,7 @@ import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
 import { getAwaited } from '../rules/options'
-import { canSenseCell } from '../rules/detection'
+import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
 
 // The board as the simulation tool draws it: every cell with what is on it
@@ -354,7 +354,8 @@ export const getBoardViewFrom = perState((state: SeenScene): BoardView => {
   if (!view.present || !eye || !state.board?.placements[eye]) return view
   const sight = getSightOf(state, eye)
   const shown = (id: string) => id === eye || sight.has(id)
-  const cells = view.cells.map((c) => (canSenseCell(state, eye, c.cell) ? c : { ...c, unseen: true }))
+  const senses = getCellSenser(state, eye)
+  const cells = view.cells.map((c) => (senses(c.cell) ? c : { ...c, unseen: true }))
   const unseen = new Set(cells.filter((c) => c.unseen).map((c) => c.key))
   const tokens = view.tokens.filter((t) => shown(t.id))
   const drawn = new Set(tokens.map((t) => t.id))
