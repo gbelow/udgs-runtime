@@ -4,7 +4,7 @@ import { REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
 import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from './geometry'
-import { findRowVariant, findWeaponRow } from '../weaponRow'
+import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 
 // The board rules read the spatial facts of a fight off `state.board`.
@@ -225,7 +225,7 @@ export function getBodyCoverToward(state: SceneState, id: string): Coord | null 
   const cover = state.bodyCover[id]
   const c = state.characters[id]
   if (!cover || !c) return null
-  return getWieldedWeapons(c).some((w) => w.key === cover.weaponKey && w.weapon.shield?.body) ? cover.toward : null
+  return getWieldedWeapons(c).some((w) => w.key === cover.weaponKey && !w.broken && w.weapon.shield?.body) ? cover.toward : null
 }
 
 // What stands between the cells something is shot or blown from and the
@@ -311,8 +311,8 @@ export function isInShotRange(state: SceneState, action: ShootAction, targetId: 
 // row `fits` accepts, when it is given — never under a cell; 0 with nothing
 // to strike with.
 export function getMeleeRange(c: Character, fits: (atk: WeaponAttack) => boolean = () => true): number {
-  return Math.max(0, ...getWieldedWeapons(c).flatMap((w) =>
-    w.weapon.attacks.flatMap((a) => (isMeleeRange(a.range) && fits(a) ? [getReach(w.weapon, a.range)] : [])),
+  return Math.max(0, ...getWeaponRows(c).flatMap((row) =>
+    isRowUsable(c, row) && isMeleeRange(row.atk.range) && fits(row.atk) ? [getReach(row.weapon, row.atk.range)] : [],
   ))
 }
 

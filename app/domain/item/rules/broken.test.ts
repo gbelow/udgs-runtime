@@ -3,6 +3,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema } from '../../types'
 import { getWeaponPanels } from '../../character/lenses/gear'
 import { getAttackOptions } from '../../scene/rules/attack'
+import { getMeleeRange } from '../../scene/rules/board/board'
 import { breakItem, holdItem, repairItem } from '../commands'
 
 // gear.tex "Weapon Breakage": "A broken weapon can no longer be used".
@@ -20,5 +21,15 @@ describe('a broken weapon', () => {
     expect(getAttackOptions(broken, 'strike', true).some((o) => o.weaponKey === dagger.id)).toBe(false)
 
     expect(heldRows(repairItem(dagger.id)(broken)).some((r) => r.usable)).toBe(true)
+  })
+
+  // A broken weapon still counted as reach, so its holder was offered opportunity attacks with no row to answer them.
+  it('threatens nobody until it is repaired', () => {
+    const daggers = [1, 2].map(() => ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 }))
+    const held = daggers.reduce((c, d) => holdItem(d)(c), makeCampaignCharacter({}))
+    const broken = daggers.reduce((c, d) => breakItem(d.id)(c), held)
+    expect(getMeleeRange(held)).toBeGreaterThan(0)
+    expect(getMeleeRange(broken)).toBe(0)
+    expect(getMeleeRange(daggers.reduce((c, d) => repairItem(d.id)(c), broken))).toBe(getMeleeRange(held))
   })
 })
