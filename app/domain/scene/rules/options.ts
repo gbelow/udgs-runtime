@@ -8,7 +8,7 @@ import { getSocialCost, getSocialSayBar, getTauntBar } from './social'
 import { getStressSocial } from './stress'
 import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
-import { hasAffliction } from '../../character/rules/afflictions'
+import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { hasGrant } from '../../character/rules/effects'
@@ -165,7 +165,7 @@ function listAvailableActions(state: SceneState, characterId: string): ActionOpt
 
   if (!open) return withSurges(state, c, listOwn(state, c), (s) => listOwn(s, s.characters[c.id]), false)
 
-  if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
+  if (!isAnswerable(state, open) || !canAnswer(open, characterId) || isDead(c)) return []
   return withSurges(state, c, getAnswers(state, c, open), (s) => getAnswers(s, s.characters[c.id], open), true)
 }
 
@@ -243,7 +243,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return closeBySurge(state, c, closeWhileConcentrating(c, closeIfUnconscious(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
     const cost = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
@@ -371,7 +371,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         return [answer({ kind }, null, reason)]
       }
     }
-  }))))
+  })))))
 }
 
 // The actions a character may take on their own initiative, one entry per

@@ -104,12 +104,13 @@ export function getMoraleCalled(state: SceneState): string[] {
 export function getMoraleBar(state: SceneState, id: string): string | null {
   const call = state.morale.find((m) => m.id === id)
   if (!call || !state.characters[id]) return 'not called to a morale test'
+  if (isDead(state.characters[id])) return 'dead'
   return call.roll ? 'already tested this round' : null
 }
 
 // Why a turn waits on the morale tests, or null.
 export function getMoraleTurnBar(state: SceneState): string | null {
-  const pending = state.morale.filter((call) => call.roll === null && state.characters[call.id]).map((call) => call.id)
+  const pending = state.morale.filter((call) => call.roll === null && state.characters[call.id] && !isDead(state.characters[call.id])).map((call) => call.id)
   return pending.length > 0 ? `waiting for ${pending.map((id) => getFightName(state, id)).join(', ')} to test morale` : null
 }
 

@@ -1,7 +1,7 @@
 import { LIMIT_STRESS_ACTIONS, type LimitStressAction } from '../../lists'
 import { MORALE_SPELLS, type MoraleSpell } from '../../tables'
 import { isSpellKey } from '../../spells'
-import { getAfflictions } from '../../character/rules/afflictions'
+import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { getLinkSpell } from '../../character/rules/concentration'
 import type { CastAction, MoraleSpellOutcome, SceneState, SpellTestAction } from '../types'
 import { getAction } from './log'
@@ -15,6 +15,12 @@ export function getMoraleSpell(key: string): MoraleSpell | null {
   return isSpellKey(key) ? MORALE_SPELLS[key] ?? null : null
 }
 
+// The dead make no morale test.
+function isDeadIn(state: SceneState, id: string): boolean {
+  const c = state.characters[id]
+  return !!c && isDead(c)
+}
+
 // Who a cast of a morale spell puts to the test once it hits: the one aimed
 // at, or (spells.tex "Overwhelming Terror", "Provocative Mockery") "all
 // targets within range of active synesthesia or under the effect of
@@ -22,10 +28,10 @@ export function getMoraleSpell(key: string): MoraleSpell | null {
 export function getMoraleSpellTargets(state: SceneState, root: CastAction): string[] {
   const spell = getMoraleSpell(root.key)
   if (!spell || !isSpellKey(root.key)) return []
-  if (spell.reach === 'target') return root.targetId ? [root.targetId] : []
+  if (spell.reach === 'target') return root.targetId && !isDeadIn(state, root.targetId) ? [root.targetId] : []
   const link = getLinkSpell(root.key)
   const linked = link ? getLinkedTargets(state, root.actorId, link) : []
-  return Object.keys(state.characters).filter((id) => id !== root.actorId
+  return Object.keys(state.characters).filter((id) => id !== root.actorId && !isDeadIn(state, id)
     && (linked.includes(id) || getSenseReaches(state, root.actorId, id).some((r) => r.sense === 'synesthesia' && r.active)))
 }
 

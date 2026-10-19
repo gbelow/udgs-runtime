@@ -14,6 +14,8 @@ import type { Dice } from '../../play/dice'
 import { getCunning } from '../../character/rules/skills'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
+import { getPartners } from './partners'
+import { isImmobile } from './situational'
 import { sumTerms } from '../../character/rules/terms'
 
 // play.tex "Combat": each character acts in turns "decided on a 'first to
@@ -127,11 +129,12 @@ export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind):
 // the remaining agree to end the round." Someone agrees by saying so, or
 // without saying anything once they have no AP left and no surge that
 // would give them more, or nothing to do in a chase round; the dead have
-// nothing left to agree to.
+// nothing left to agree to, and neither has the immobile held by no one: only
+// escape is theirs to use (combat.tex "Immobile").
 export function hasAgreedToEnd(state: SceneState, id: string): boolean {
   const c = state.characters[id]
   if (!c) return true
-  return state.agreedToEnd.includes(id) || isDead(c) || !hasAPLeft(c) || isIdleInChase(state, id)
+  return state.agreedToEnd.includes(id) || isDead(c) || (isImmobile(state, c) && getPartners(state, id).length === 0) || !hasAPLeft(c) || isIdleInChase(state, id)
 }
 
 // Why the round cannot be passed now, or null: a turn under way has to be
