@@ -270,7 +270,7 @@ export function ActionPanel(){
         <div className='flex flex-col gap-1'>
           {view.reactors.map((r) => {
             if (r.strike) {
-              return <LockedFor key={r.id} id={r.id}><ReactorStrike reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} /></LockedFor>
+              return <LockedFor key={r.id} id={r.id}><ReactorStrike reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} onPass={() => pass(r.id)} /></LockedFor>
             }
             return (
               <LockedFor key={r.id} id={r.id}>
@@ -293,8 +293,8 @@ export function ActionPanel(){
           <div className='flex flex-row gap-1'>
             <LockedFor id={open.actorId}>
               {view.die
-                ? <Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button>
-                : <Button variant='primary' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button>}
+                ? <Tooltip text={view.goBar}><Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button></Tooltip>
+                : <Tooltip text={view.goBar}><Button variant='primary' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button></Tooltip>}
             </LockedFor>
             {view.canAccept ? <LockedFor id={open.targetId}><Button variant='default' aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</Button></LockedFor> : null}
             <Button variant='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
@@ -421,13 +421,14 @@ function SweepDirections({ direction, onTurn }: { direction: SweepDirection, onT
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: Partial<ActionDraft>) => void }){
+function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, onAmend: (fields: Partial<ActionDraft>) => void, onPass: () => void }){
   const strike = reactor.strike!
   const chosen = reactor.options.find((o) => o.chosen)
   return (
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>{reactor.name}</SectionLabel>
+        <Button size='xs' title='take the declared reaction back and answer with nothing' onClick={onPass}>nothing</Button>
         <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'join shot' : 'opportunity attack')}</span>
         {strike.partner ? (['strike', 'grapple'] as const).map((m) =>
           <Button key={m} size='xs' selected={strike.mode === m} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Button>) : null}
@@ -476,7 +477,7 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
           </Button>)}
       </div>
       <StrikeModifiers modifiers={strike.modifiers} onPress={onAmend} />
-      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : 'that attack cannot be made from there as declared') : 'pick the attack'}</span> : null}
+      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : strike.bar ?? 'that attack cannot be made from there as declared') : 'pick the attack'}</span> : null}
       </> : null}
     </div>
   )

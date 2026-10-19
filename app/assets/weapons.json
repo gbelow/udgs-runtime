@@ -384,7 +384,7 @@
       {
         "name": "1h thrust",
         "handed": "one",
-        "range": "short",
+        "range": "long I",
         "material": "metal",
         "RES": 20,
         "blunt": 2,

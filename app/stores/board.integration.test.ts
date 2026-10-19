@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { fighter } from '../domain/bot/fixtures'
+import { fighter, spearman } from '../domain/bot/fixtures'
 import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getAvailableActions } from '../domain/scene/rules/options'
+import { getOpenAction } from '../domain/scene/rules/log'
 
 // Click to effect, over the real combat store: what a player does on the
 // board and the panels, and what stands afterwards. Expected values are what
@@ -150,5 +151,62 @@ describe('a move blocked after passing someone who evaded', () => {
     const cells = stands.map((s) => s.split(':')[0])
     expect(new Set(cells).size).toBe(cells.length)
     expect(h.view().tokens).toHaveLength(3)
+  })
+})
+
+// Answering with nothing was dropped for anyone with no answer open to them (a
+// caster on the focus surge, say), so their button never lit and looked broken.
+describe('answering a move with nothing', () => {
+  it('is recorded for everyone who may answer, whether or not they had an answer open', () => {
+    const h = openHarness()
+    h.bring(fighter('Cy'), fighter('Bob'), fighter('Fay'), fighter('Dee'))
+    h.createBoard(4)
+    for (const [name, q, r] of [['Cy', 0, 1], ['Bob', 1, 0], ['Fay', 2, -1], ['Dee', -3, 3]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.select('Cy')
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    h.cell(1, 0)
+    h.cell(2, -1)
+    h.cell(2, -2)
+    h.commit()
+    const others = ['Bob', 'Fay', 'Dee'].map((n) => h.idOf(n))
+    expect(getAvailableActions(h.state(), h.idOf('Dee')).some((o) => o.available)).toBe(false)
+    for (const id of others) h.send({ kind: 'pass', args: [id] })
+    expect(getOpenAction(h.state())?.passed.sort()).toEqual(others.sort())
+  })
+})
+
+// An opportunity attack was offered whenever any attack the reactor holds
+// reaches the mover's space, and only once declared did it turn out that the
+// attack they could actually pick did not: the table waited on a reaction that
+// could not be made, with no reason given. A spear's reach is cut by a metre
+// for whoever stands below the mover.
+describe('a move past someone whose attacks cannot reach it', () => {
+  const stillWaiting = (lowered: [number, number][]) => {
+    const h = openHarness()
+    h.bring(fighter('Cy'), spearman('Bob'))
+    h.createBoard(7)
+    h.paint('lower', lowered)
+    for (const [name, q, r] of [['Cy', 0, 0], ['Bob', 3, 1]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.select('Cy')
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    for (const [q, r] of [[1, 0], [2, 0], [3, 0]] as const) h.cell(q, r)
+    h.commit()
+    return getOpenAction(h.state()) !== null
+  }
+
+  it('waits on the reaction when it can be made', () => {
+    expect(stillWaiting([])).toBe(true)
+  })
+
+  it('does not wait on one that cannot', () => {
+    expect(stillWaiting([[3, 1]])).toBe(false)
   })
 })

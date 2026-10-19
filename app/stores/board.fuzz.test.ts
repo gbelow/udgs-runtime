@@ -803,6 +803,8 @@ const DUELS = [
   { name: 'a netter and a warden', a: netter, b: warden, apart: 2 },
   { name: 'a bent serpent and a brawler', a: serpent, b: brawler, apart: 2 },
   { name: 'a bleeding medic and a spearman', a: medic, b: spearman, apart: 1 },
+  { name: 'a brawler and a warden', a: brawler, b: warden, apart: 2 },
+  { name: 'a brawler and a spearman', a: brawler, b: spearman, apart: 2 },
 ]
 
 const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'drop a held item', 'take a whole action'].includes(p.name))

@@ -13,7 +13,7 @@ import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
-import { isInReach, isInShotRange } from './board/board'
+import { getDistanceBetween, getStrikeReach, isInReach, isInShotRange } from './board/board'
 import { isSheltered } from './chase'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { needsClimbTest } from './board/cliff'
@@ -61,6 +61,39 @@ import { getStrikeContext, getStrikePrice, isStrikeDeclarationOpen, type StrikeH
 // aimed at someone it may be, what it costs as declared, and the step the
 // table is waiting on.
 
+// Why the opportunity attack cannot be fought as declared, or null: judged
+// where its actor will stand when it is fought (`getOpportunityState`), with
+// the attack it was declared as. `stage` counts the checks it passed before
+// failing, so of several attacks the one that came nearest can be told.
+export function getOpportunityCheck(state: SceneState, c: Character, action: ActionOf<'opportunityAttack'>): { bar: string | null; stage: number } {
+  const target = action.targetId ?? ''
+  const fail = (bar: string, stage: number) => ({ bar, stage })
+  if (action.mode === 'grapple') {
+    if (findGrapple(getGrapples(state), action.actorId, target) === null) return fail('no grapple with them to use a maneuver in', 0)
+    if (!getManeuverTargets(state, action.actorId, action.maneuver).includes(target)) return fail(`${action.maneuver} cannot be done to them`, 1)
+    if (!isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
+    return canAfford(c, getActionCost(c, 'grappleManeuver'), isCombatStarted(state)) ? { bar: null, stage: 3 } : fail('cannot afford a maneuver', 2)
+  }
+  const strike = getOpportunityStrike(action, '')
+  const fought = getOpportunityState(state, action)
+  // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
+  const root = getRootOf(state, action)
+  if (root && !action.catch && findTrigger(state, root, action)?.catchOnly) return fail('a runner only in grabbing reach: a grab, not an attack', 0)
+  if (getAttackVariant(c, strike, isCombatStarted(state)) === null) return fail('that attack is not one they have in hand', 1)
+  const cost = getOwnCost(state, strike)
+  if (!cost || !isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
+  if (!canAfford(c, cost, isCombatStarted(state))) return fail(`cannot afford ${cost.AP} AP${cost.STA ? ` and ${cost.STA} STA` : ''}`, 3)
+  if (!isInReach(fought, strike, target)) {
+    const distance = getDistanceBetween(fought, action.actorId, target)
+    const reach = getStrikeReach(fought, strike)
+    return fail(`out of reach from where it is fought: ${distance} m away, the attack reaches ${reach} m`, 4)
+  }
+  if (!isStrikeOpen(state, action)) return fail('that variant is not open to them now', 5)
+  return isAimOnTarget(state, strike) ? { bar: null, stage: 7 } : fail('the aim is not on the target', 6)
+}
+
+export const getOpportunityBar = (state: SceneState, c: Character, action: ActionOf<'opportunityAttack'>): string | null => getOpportunityCheck(state, c, action).bar
+
 // Whether everything the action needs declared has been, and names things
 // its actor can actually use: a strike or a shot a variation of a row in
 // hand, an explosion aimed where it can go off, a block or intercept a DEF
@@ -100,17 +133,8 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
       return explosionBlockRows(c).some((row) => row.wielded.key === action.weaponKey && row.atk.name === action.attack)
     case 'evasiveJump':
       return action.to !== null || !hasJumpSpace(state, action.actorId, action.targetId ?? '') || !state.board?.placements[action.actorId]
-    case 'opportunityAttack': {
-      const partner = findGrapple(getGrapples(state), action.actorId, action.targetId ?? '') !== null
-      if (action.mode === 'grapple') return partner && getManeuverTargets(state, action.actorId, action.maneuver).includes(action.targetId ?? '')
-      const strike = getOpportunityStrike(action, '')
-      const fought = getOpportunityState(state, action)
-      // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
-      const root = getRootOf(state, action)
-      if (root && !action.catch && findTrigger(state, root, action)?.catchOnly) return false
-      const cost = getOwnCost(state, strike)
-      return getAttackVariant(c, strike, isCombatStarted(state)) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost, isCombatStarted(state)) && isInReach(fought, strike, action.targetId ?? '') && isStrikeOpen(state, action) && isAimOnTarget(state, strike)
-    }
+    case 'opportunityAttack':
+      return getOpportunityBar(state, c, action) === null
     // combat.tex "Coordinated Shots": a shot they can fire, from where they
     // stand, at the target of the shot they join
     case 'joinShot': {

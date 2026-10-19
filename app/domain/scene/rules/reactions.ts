@@ -16,10 +16,10 @@ import { firstStep, getApproachStep, getPathDistances } from './approach'
 import { getPreparedTriggers } from './prepared'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
-import { hasShootingRow } from './attack'
+import { defRows, hasShootingRow } from './attack'
 import { getGroundCell } from './floorAttack'
 import { drawsOpportunity, getContestRecipe } from './recipes'
-import { getProtectors } from './protect'
+import { getInterceptors, getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
 import { getSweepTargets, isSweep, isSweepLink } from './sweep'
@@ -205,9 +205,12 @@ function strikeTriggers(state: SceneState, root: StrikeAction): Trigger[] {
   const flankers = getFlankers(state, root.actorId, root.targetId)
     .filter((id) => getMeleeRange(state.characters[id]) > 0)
     .map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
-  // combat.tex "Protect": whoever stands by the line may block or intercept
-  const protectors = getProtectors(state, root)
-    .flatMap((id) => (['block', 'intercept'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
+  // combat.tex "Protect": whoever stands by the line may block, and whoever is
+  // in short range of the attacker may intercept
+  const protectors = [
+    ...getProtectors(state, root).map((id): Trigger => ({ characterId: id, kind: 'block', at: null })),
+    ...getInterceptors(state, root, defRows).map((id): Trigger => ({ characterId: id, kind: 'intercept', at: null })),
+  ]
   const counters: Trigger[] = contest ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
   const retargets = getFlankers(state, root.actorId, root.targetId, sprayReach).flatMap((id) => retargetsOf(state.characters[id], null))
   return [...defenses, ...counters, ...protectors, ...flankers, ...retargets]

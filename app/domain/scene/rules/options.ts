@@ -24,10 +24,11 @@ import { getFeintBar } from './feint'
 import { getExtinguishCells } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
+import { getEvasionCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { perState } from '../../perState'
+import { getFightName } from './fighters'
 import { canAnswer, getLiveActions, getLiveReactionsTo, getOpenAction, getReactionsTo, withLiveActions } from './log'
 import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, getRowBar } from './attack'
 import { getReloadBar, getReloadRows } from './reload'
@@ -116,6 +117,21 @@ export const getAwaited = perState((state: SceneState): string[] => {
   const answered = new Set(getLiveReactionsTo(state, open.id).map((r) => r.actorId))
   return Object.keys(state.characters).filter((id) => !answered.has(id) && !open.passed.includes(id) && hasOpenAnswer(state, [id]))
 })
+
+// Why the committed action cannot be rolled or paid for yet, or null: a die
+// the table has called for, someone who has not answered, a reaction not yet
+// finished, or an action nobody can pay for.
+export function getGoBar(state: SceneState, root: Action): string | null {
+  const dice = getDiceBar(state.calls)
+  if (dice) return dice
+  const awaited = getAwaited(state)
+  if (awaited.length > 0) return `waiting on ${awaited.map((id) => getFightName(state, id)).join(', ')}: each answers or picks nothing`
+  const reactions = getReactionsTo(state, root.id)
+  const unfinished = reactions.find((r) => !isDeclarationComplete(state, state.characters[r.actorId], r))
+  if (unfinished) return `${getFightName(state, unfinished.actorId)}'s ${getActionDef(unfinished.kind).label} is not finished${unfinished.kind === 'opportunityAttack' ? `: ${getOpportunityBar(state, state.characters[unfinished.actorId], unfinished)}` : ''}`
+  const broke = [root, ...reactions].find((a) => getPayableCost(state, a) === null)
+  return broke ? `${getFightName(state, broke.actorId)} cannot pay for the ${getActionDef(broke.kind).label}` : null
+}
 
 // Everything the character may declare right now: their own actions while no
 // action is open and it is their turn, and their reactions while a committed
@@ -292,15 +308,16 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         return [answer({ kind }), answer({ kind, boost: true }, boosted, gate ?? (canAfford(c, boosted, charged) ? null : 'cannot afford'))]
       }
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
-      // cost" — it is open only to someone who can pay for a strike, or,
-      // against a grapple partner, for a maneuver (combat.tex "Grapple
-      // Maneuvers": "can be used like opportunity attacks")
+      // cost" — open to someone with a strike, or, against a grapple partner,
+      // a maneuver, that can be fought as declared from where the mover will
+      // be: each is tried as the reaction it would be declared as, and when
+      // none passes the one that came nearest says why
       case 'opportunityAttack': {
-        const strikes = getFreeAttackOptions(state, c, 'strike')
-        const partner = getPartners(state, c.id).includes(open.actorId)
-        const affordable = strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged))
-          || (partner && canAfford(c, getActionCost(c, 'grappleManeuver'), charged))
-        const reason = strikes.length === 0 && !partner ? 'no melee weapon in hand' : affordable ? null : 'cannot afford a strike'
+        const probe = (fields: Partial<ActionOf<'opportunityAttack'>>) => makeAction('opportunityAttack', { id: '', actorId: c.id, targetId: trigger.against ?? open.actorId, reactionTo: open.id, at: trigger.at, catch: trigger.catchOnly === true, ...fields })
+        const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant }))
+        const maneuvers = getPartners(state, c.id).includes(open.actorId) ? GRAPPLE_MANEUVERS.map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
+        const checks = [...strikes, ...maneuvers].map((a) => getOpportunityCheck(state, c, a))
+        const reason = checks.length === 0 ? 'no melee weapon in hand' : checks.some((k) => k.bar === null) ? null : checks.reduce((best, k) => (k.stage > best.stage ? k : best)).bar
         return [answer({ kind, at: trigger.at }, null, reason)]
       }
       // combat.tex "Push and drag": tagging along is paid in the movement of

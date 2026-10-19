@@ -244,8 +244,7 @@ function isOnShotLine(state: SceneState, shot: ShootAction, guard: CampaignChara
 
 function isPlacedToDefend(state: SceneState, root: StrikeAction | ShootAction, owner: CampaignCharacter, p: PrepareAction, placement: Placement): boolean {
   if (root.kind === 'shoot') return isOnShotLine(state, root, owner, placement) && guardRows(state, owner, root).some((row) => row.wielded.key === p.weaponKey && row.atk.name === p.attack)
-  if (!isOnProtectLine(state, root, owner.id, placement)) return false
-  return p.main !== 'intercept' || isInInterceptRange(state, root, owner.id, placement, p.weaponKey, p.attack)
+  return p.main === 'intercept' ? isInInterceptRange(state, root, owner.id, placement, p.weaponKey, p.attack) : isOnProtectLine(state, root, owner.id, placement)
 }
 
 // The step of the way, counted from 1, at which the mover comes into the

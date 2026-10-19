@@ -1,9 +1,10 @@
 import type { ActionOf, SceneState, Placement, StrikeAction } from '../types'
+import type { CampaignCharacter } from '../../types'
 import { disk, line, ring, sameCell, setDistance } from './board/geometry'
 import { getFootprint, getPlacedFootprint, getReach } from './board/board'
 import { getMoveBlockCells, getStrikeLandings } from './move'
 import { canStandAt } from './board/ground'
-import { findWeaponRow } from './weaponRow'
+import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getReactionsTo } from './log'
 import { hasGrant } from '../../character/rules/effects'
 import { getSurgeAP } from '../../character/rules/surge'
@@ -17,22 +18,43 @@ export type GuardingReaction = ActionOf<'block'> | ActionOf<'intercept'>
 // one space distance of the line between attacker and target. The defender
 // can block or intercept an attack directed at an ally." Anyone may (the
 // table's ruling: the fight has no sides). The line runs between where the
-// two stand.
+// two stand, and the protector stands nearer the attacker than the target
+// does (the table's ruling): beside or behind the target is no protection.
 export function isOnProtectLine(state: SceneState, root: StrikeAction, id: string, placement: Placement): boolean {
   const c = state.characters[id]
   const from = state.board?.placements[root.actorId]
   const to = root.targetId ? state.board?.placements[root.targetId] : undefined
   if (!c || !from || !to) return false
-  return setDistance(getFootprint(c, placement), line(from.cell, to.cell)) <= 1
+  const attacker = getPlacedFootprint(state, root.actorId) ?? [from.cell]
+  const target = getPlacedFootprint(state, root.targetId!) ?? [to.cell]
+  const here = getFootprint(c, placement)
+  return setDistance(here, line(from.cell, to.cell)) <= 1 && setDistance(here, attacker) < setDistance(target, attacker)
 }
 
-// Who may protect the strike's target: anyone else placed on the line, or
+// Who may block for the strike's target: anyone else placed on the line, or
 // able to step onto it (`getDefenderSteps`).
 export function getProtectors(state: SceneState, root: StrikeAction): string[] {
   return Object.keys(state.characters).filter((id) => {
     const at = state.board?.placements[id]
     if (id === root.actorId || id === root.targetId || !at) return false
     return isOnProtectLine(state, root, id, at) || getDefenderSteps(state, root, id).length > 0
+  })
+}
+
+// combat.tex "Protect", "Intercept": whoever else could intercept for the
+// strike's target, which asks only for the weapon's short range of the
+// attacker, from where they stand or after a step they may take
+// (`getDefenderSteps`, `getAdvanceSteps`).
+export function getInterceptors(state: SceneState, root: StrikeAction, rowsOf: (c: CampaignCharacter) => WeaponRow[]): string[] {
+  return Object.keys(state.characters).filter((id) => {
+    const c = state.characters[id]
+    const at = state.board?.placements[id]
+    if (id === root.actorId || id === root.targetId || !at) return false
+    return rowsOf(c).some((row) => {
+      const key = row.wielded.key
+      const inRange = (p: Placement) => isInInterceptRange(state, root, id, p, key, row.atk.name)
+      return inRange(at) || getDefenderSteps(state, root, id, inRange).length > 0 || getAdvanceSteps(state, root, id, key, row.atk.name).length > 0
+    })
   })
 }
 
@@ -43,7 +65,9 @@ export function getProtectors(state: SceneState, root: StrikeAction): string[] {
 // table's ruling). A martyr holding the reaction surge their limit stress
 // action made may run as far as that surge's AP buys (creating.tex "Limit
 // Stress Actions": "to protect an ally and reposition"), the table's ruling.
-export function getDefenderSteps(state: SceneState, root: StrikeAction, id: string): Placement[] {
+// `placed` is where the step may end: on the line, for a block; an intercept
+// asks only for its own range (`isInInterceptRange`).
+export function getDefenderSteps(state: SceneState, root: StrikeAction, id: string, placed: (p: Placement) => boolean = (p) => isOnProtectLine(state, root, id, p)): Placement[] {
   const c = state.characters[id]
   const from = state.board?.placements[id]
   const martyr = isMartyrGuard(state, id)
@@ -53,7 +77,7 @@ export function getDefenderSteps(state: SceneState, root: StrikeAction, id: stri
   return disk(from.cell, reach)
     .filter((cell) => !sameCell(cell, from.cell))
     .map((cell) => ({ ...from, cell }))
-    .filter((p) => canStandAt(state, id, p, getStrikeLandings(state, root.id, id)) && isOnProtectLine(state, root, id, p))
+    .filter((p) => canStandAt(state, id, p, getStrikeLandings(state, root.id, id)) && placed(p))
 }
 
 // combat.tex "Intercept": "It requires the defender to be in short range" —
@@ -69,7 +93,7 @@ export function isInInterceptRange(state: SceneState, root: StrikeAction, id: st
 // abilities.tex "Defensive Advance": "Spend 1 STA to move forward to get in
 // range to intercept, adding shield cover to the defense" — one space
 // towards the attacker (the table's ruling), to where the intercept reaches
-// them; one protecting someone else stays on the line.
+// them.
 export function getAdvanceSteps(state: SceneState, root: StrikeAction, id: string, weaponKey: string, attack: string): Placement[] {
   const c = state.characters[id]
   const from = state.board?.placements[id]
@@ -80,28 +104,30 @@ export function getAdvanceSteps(state: SceneState, root: StrikeAction, id: strin
     .map((cell) => ({ ...from, cell }))
     .filter((p) => canStandAt(state, id, p, getStrikeLandings(state, root.id, id)) && setDistance(getFootprint(c, p), attacker) < before)
     .filter((p) => isInInterceptRange(state, root, id, p, weaponKey, attack))
-    .filter((p) => id === root.targetId || isOnProtectLine(state, root, id, p))
 }
 
 // Where the step the block or intercept is declared with may go: a
 // Defensive Advance's, or a Defender's.
 export function getGuardSteps(state: SceneState, root: StrikeAction, reaction: GuardingReaction): Placement[] {
   if (reaction.kind === 'intercept' && reaction.advance) return getAdvanceSteps(state, root, reaction.actorId, reaction.weaponKey, reaction.attack)
-  return reaction.actorId === root.targetId ? [] : getDefenderSteps(state, root, reaction.actorId)
+  if (reaction.actorId === root.targetId) return []
+  return reaction.kind === 'intercept'
+    ? getDefenderSteps(state, root, reaction.actorId, (p) => isInInterceptRange(state, root, reaction.actorId, p, reaction.weaponKey, reaction.attack))
+    : getDefenderSteps(state, root, reaction.actorId)
 }
 
 // Whether the block or intercept stands where it may be made from, once it
 // has taken the step it names: the step one it may take — and a Defensive
 // Advance always takes one — an intercept within short range of the
-// attacker, one made for someone else from the line. Anywhere, on a fight
-// without a board.
+// attacker, wherever it stands, a block made for someone else from the line.
+// Anywhere, on a fight without a board.
 export function isGuardPlaced(state: SceneState, root: StrikeAction, reaction: GuardingReaction): boolean {
   const here = state.board?.placements[reaction.actorId]
   if (!here) return true
   if (reaction.to && !getGuardSteps(state, root, reaction).some((p) => sameCell(p.cell, reaction.to!.cell))) return false
   if (!reaction.to && reaction.kind === 'intercept' && reaction.advance) return false
   const at = reaction.to ?? here
-  if (reaction.actorId !== root.targetId && !isOnProtectLine(state, root, reaction.actorId, at)) return false
+  if (reaction.kind === 'block' && reaction.actorId !== root.targetId && !isOnProtectLine(state, root, reaction.actorId, at)) return false
   return reaction.kind !== 'intercept' || isInInterceptRange(state, root, reaction.actorId, at, reaction.weaponKey, reaction.attack)
 }
 

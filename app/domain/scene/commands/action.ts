@@ -281,7 +281,7 @@ export function passReaction(actorId: string): Updater {
     const open = getAnswerableOpen(state)
     if (!open) return state
     const taken = getLiveReactionsTo(state, open.id).filter((r) => r.actorId === actorId)
-    if (!taken.length && !getAwaited(state).includes(actorId)) return state
+    if (!canAnswer(open, actorId)) return state
     const withdrawn = taken.length ? pruneReactions(withdrawActions(state, taken.map((r) => r.id), 'tookBack')) : state
     const root = getAnswerableOpen(withdrawn)
     return root && !root.passed.includes(actorId) ? replaceActions(withdrawn, [{ ...root, passed: [...root.passed, actorId] }]) : withdrawn

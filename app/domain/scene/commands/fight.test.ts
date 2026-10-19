@@ -25,6 +25,22 @@ describe('starting a fight', () => {
     const again = sendToFight(['a', 'b'])(returnFromFight(['a', 'b'], 0)(ended))
     expect(getNextRoundBar(again.fight)).toBeNull()
   })
+
+  // resetting mid round change left the round change standing at round 0: the
+  // board and chase panels stayed hidden behind it and combat could not start.
+  // A die called for before the reset stayed open with nobody left to throw
+  // it: "waiting on 1 die", and nothing could be done.
+  it('is open after a reset in the middle of a round change', () => {
+    const a = { ...makeCampaignCharacter({ name: 'a' }), id: 'a' }
+    const table: Table = { campaign: CampaignStateSchema.parse({ characters: { a } }), fight: SceneStateSchema.parse({}) }
+    const sent = sendToFight(['a'])(table)
+    const call = { id: 'x', roller: 'a', label: 'test', explodes: false, mode: 'normal' as const, test: null, die: null, source: 'screen' as const }
+    const changing = { ...sent, fight: { ...sent.fight, round: 1, roundStep: 'rest' as const, calls: { x: call } } }
+    const reset = resetFight(changing)
+    expect(reset.fight.roundStep).toBeNull()
+    expect(reset.fight.calls).toEqual({})
+    expect(getNextRoundBar(reset.fight)).toBeNull()
+  })
 })
 
 describe("saving the fight's log", () => {

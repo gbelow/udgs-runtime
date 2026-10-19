@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { fighter, spearman, warden } from '../domain/bot/fixtures'
-import { payAction, resolveAction, rollAction, withdrawReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { fighter, spearman } from '../domain/bot/fixtures'
+import { holdItem } from '../domain/item/commands/hands'
+import { ItemSchema } from '../domain/types'
+import { withdrawReaction } from '../domain/scene/commands/action'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getAvailableActions } from '../domain/scene/rules/options'
@@ -118,15 +120,15 @@ describe('answering a committed strike', () => {
   })
 })
 
-// The fuzzer found two answers to one strike landing on the same space: the
-// evader's jump and the guard's step were each offered the space the other had
-// taken, and both ended on it.
-describe('two answers that move', () => {
-  it('do not both come to rest on the same space', () => {
+// combat.tex "Protect": a defender within one space of the line between
+// attacker and target may block for the ally; the table's ruling adds that they
+// stand nearer the attacker than the target does, so beside or behind is out.
+describe('protecting an ally from a strike', () => {
+  const blockOpenFor = (guardAt: [number, number]) => {
     const h = openHarness()
-    h.bring(fighter('Gus'), fighter('Dee'), warden('Ann'))
+    h.bring(spearman('Gus'), fighter('Dee'), holdItem(ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 }))(fighter('Ann')))
     h.createBoard(5)
-    for (const [name, q, r] of [['Gus', -2, 1], ['Dee', -1, 1], ['Ann', -2, 3]] as const) {
+    for (const [name, q, r] of [['Gus', 3, 0], ['Dee', 2, 2], ['Ann', guardAt[0], guardAt[1]]] as const) {
       h.select(name)
       h.cell(q, r)
     }
@@ -137,14 +139,51 @@ describe('two answers that move', () => {
     h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
     h.token('Dee')
     h.commit()
-    const jump = getAvailableActions(h.state(), h.idOf('Dee')).find((o) => o.draft.kind === 'evasiveJump' && o.available)!
-    h.send({ kind: 'react', args: [h.idOf('Dee'), jump.draft] })
-    const block = getAvailableActions(h.state(), h.idOf('Ann')).find((o) => o.draft.kind === 'block' && o.available)!
-    h.send({ kind: 'react', args: [h.idOf('Ann'), block.draft] })
-    h.cell(-1, 2)
-    h.cell(-1, 2)
-    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) h.press(step)
-    const cells = Object.values(h.state().board!.placements).map((p) => `${p.cell.q},${p.cell.r}`)
-    expect(new Set(cells).size).toBe(cells.length)
+    return getAvailableActions(h.state(), h.idOf('Ann')).some((o) => o.draft.kind === 'block' && o.available)
+  }
+
+  it('is open to someone between them', () => {
+    expect(blockOpenFor([2, 1])).toBe(true)
+  })
+
+  it('is closed to someone beside the target, though a space from the line', () => {
+    expect(blockOpenFor([1, 2])).toBe(false)
+  })
+
+  it('is closed to someone behind the target', () => {
+    expect(blockOpenFor([2, 3])).toBe(false)
+  })
+})
+
+// combat.tex "Protect": "The defender can block or intercept an attack
+// directed at an ally"; "Intercept": "It requires the defender to be in short
+// range". The table's ruling: an intercept for an ally asks for nothing but
+// that range, where a block must also be nearer the attacker than the target.
+describe('intercepting for an ally', () => {
+  const answersFor = (guardAt: [number, number]) => {
+    const h = openHarness()
+    h.bring(spearman('Gus'), fighter('Dee'), holdItem(ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 }))(fighter('Ann')))
+    h.createBoard(5)
+    for (const [name, q, r] of [['Gus', 3, 0], ['Dee', 3, 1], ['Ann', guardAt[0], guardAt[1]]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.select('Gus')
+    h.startTurn()
+    h.declare({ kind: 'strike' })
+    const row = getActionPanel(h.state()).attacks[0]
+    h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
+    h.token('Dee')
+    h.commit()
+    const open = (kind: string) => getAvailableActions(h.state(), h.idOf('Ann')).some((o) => o.draft.kind === kind && o.available)
+    return { block: open('block'), intercept: open('intercept') }
+  }
+
+  it('is open beside the attacker, where no block can be nearer than the target', () => {
+    expect(answersFor([4, 0])).toEqual({ block: false, intercept: true })
+  })
+
+  it('is closed out of short range of the attacker', () => {
+    expect(answersFor([5, 1]).intercept).toBe(false)
   })
 })

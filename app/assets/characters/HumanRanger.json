@@ -29,7 +29,7 @@
       "talent": ""
     },
     "accuracy": {
-      "value": 2,
+      "value": 3,
       "name": "Accuracy",
       "XP": 0,
       "type": "skill",
@@ -57,7 +57,7 @@
       "talent": ""
     },
     "prestidigitation": {
-      "value": 0,
+      "value": 2,
       "name": "Prestidigitation",
       "XP": 0,
       "type": "skill",
@@ -155,7 +155,7 @@
       "talent": ""
     },
     "AGI": {
-      "value": 12,
+      "value": 14,
       "name": "Agility",
       "XP": 0,
       "type": "attribute",
@@ -169,7 +169,7 @@
       "talent": ""
     },
     "CON": {
-      "value": 1,
+      "value": 2,
       "name": "Constitution",
       "XP": 0,
       "type": "talent",
@@ -190,7 +190,7 @@
       "talent": ""
     },
     "DEX": {
-      "value": 2,
+      "value": 3,
       "name": "Dexterity",
       "XP": 0,
       "type": "talent",
@@ -204,7 +204,7 @@
       "talent": ""
     },
     "ranged": {
-      "value": 2,
+      "value": 3,
       "name": "Ranged",
       "XP": 0,
       "type": "proficiency",
@@ -658,7 +658,8 @@
     "muffles": false,
     "loaded": null,
     "light": null,
-    "potion": null
+    "consume": null,
+    "food": null
   },
   "held": [
     {
@@ -678,7 +679,8 @@
       "muffles": false,
       "loaded": null,
       "light": null,
-      "potion": null
+      "consume": null,
+      "food": null
     }
   ],
   "onBack": null,
@@ -708,7 +710,8 @@
               "muffles": false,
               "loaded": null,
               "light": null,
-              "potion": null
+              "consume": null,
+              "food": null
             },
             {
               "id": "bcb1fceb-4b46-41a0-b7ab-e35753b59e9d",
@@ -745,7 +748,8 @@
                         "muffles": false,
                         "loaded": null,
                         "light": null,
-                        "potion": null
+                        "consume": null,
+                        "food": null
                       },
                       {
                         "id": "542bceac-3d78-4869-a929-224ff88f2cbb",
@@ -764,7 +768,8 @@
                         "muffles": false,
                         "loaded": null,
                         "light": null,
-                        "potion": null
+                        "consume": null,
+                        "food": null
                       }
                     ]
                   },
@@ -789,7 +794,8 @@
               "muffles": false,
               "loaded": null,
               "light": null,
-              "potion": null
+              "consume": null,
+              "food": null
             }
           ]
         },
@@ -814,10 +820,23 @@
       "name": "archer",
       "XP": 0,
       "type": "ability"
+    },
+    "quick-shooter": {
+      "value": 1,
+      "name": "quick-shooter",
+      "XP": 0,
+      "type": "ability"
+    },
+    "archer-s-muscles": {
+      "value": 1,
+      "name": "archer-s-muscles",
+      "XP": 0,
+      "type": "ability"
     }
   },
   "spells": {},
   "raceDraft": null,
+  "attributeBalanceBase": 10,
   "limitStress": null,
   "notes": ""
 }

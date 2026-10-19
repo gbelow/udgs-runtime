@@ -6,8 +6,8 @@ import type { Area, Character, Item, MoveKind } from '../../types'
 import { getActionDef, isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { ActionOption, getAvailableActions, getAwaited } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isPreparedRequired } from '../rules/action'
+import { ActionOption, getAvailableActions, getAwaited, getGoBar } from '../rules/options'
+import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -92,6 +92,8 @@ export type ReactorOptions = {
     variant: string
     location: HitLocation
     complete: boolean
+    // why an opportunity attack cannot be fought as declared, when it cannot
+    bar: string | null
     // what the strike is declared as besides (rules/strikeDeclaration.ts)
     modifiers: StrikeModifierView[]
     // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
@@ -129,7 +131,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
         ? {
             options: declared.kind === 'joinShot'
               ? getFreeAttackOptions(state, c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
-              : getFreeAttackOptions(state, c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant) && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }))),
+              : getFreeAttackOptions(state, c, 'strike').filter((o) => declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, { ...declared, mode: 'strike', weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }) === null : isVariantOpen(state, declared, o.variant)),
             shot: declared.kind === 'joinShot',
             ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
             ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
@@ -138,6 +140,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             variant: declared.variant,
             location: declared.location,
             complete: isDeclarationComplete(state, c, declared),
+            bar: declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, declared) : null,
             modifiers: declared.kind === 'joinShot' ? [] : getStrikeModifierViews(state, declared),
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
             partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
@@ -326,6 +329,8 @@ export type ActionPanelView = {
   compare: boolean
   canRoll: boolean
   canPay: boolean
+  // why neither the roll nor the payment is open at `react`, or null
+  goBar: string | null
   // a spell's test its target may take without rolling
   canAccept: boolean
   // an evasive jump is declared but has not picked its landing yet
@@ -366,7 +371,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -397,6 +402,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
   const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
   const move = open.kind === 'move' && open.step === 'define' ? open : null
   const die = needsDie(state, open)
+  const goBar = step === 'react' ? getGoBar(state, open) : null
   const payable = step === 'commit' && getPayableCost(state, open) !== null
   const holds = step === 'commit' && !payable && getHoldCost(state, open) !== null
   const cost = getOwnCost(state, open)
@@ -522,8 +528,9 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     holds,
     die,
     compare: drag !== null,
-    canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open) && getAwaited(state).length === 0,
-    canPay: step === 'react' && !die && areReactionsComplete(state, open) && canPayAll(state, open) && getAwaited(state).length === 0,
+    canRoll: step === 'react' && die && goBar === null,
+    canPay: step === 'react' && !die && goBar === null,
+    goBar,
     canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
     restMove: isRootAction(open) && canMoveWhileResting(state, open),
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
