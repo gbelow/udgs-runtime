@@ -29,8 +29,15 @@ export function SceneCards(){
 export function Card({ card, onClick, children }: { card: SceneCard, onClick: () => void, children?: ReactNode }){
   const frame = card.targetable ? 'border-bad animate-pulse' : card.isActive ? 'border-accent bg-accent/10' : 'border-line hover:border-muted'
   return (
-    <div className={`w-52 rounded border flex flex-col bg-surface ${frame} ${card.dead ? 'opacity-50' : ''}`}>
-      <button type='button' aria-label={`card ${card.name}`} onClick={onClick} className='text-left p-2 flex flex-col gap-1'>
+    <div
+      className={`w-52 rounded border flex flex-col bg-surface cursor-pointer ${frame} ${card.dead ? 'opacity-50' : ''}`}
+      onClick={(e) => {
+        const control = (e.target as HTMLElement).closest('button, input, select, a')
+        if (control && control !== e.currentTarget.firstElementChild) return
+        onClick()
+      }}
+    >
+      <button type='button' aria-label={`card ${card.name}`} className='text-left p-2 flex flex-col gap-1'>
         <div className='flex flex-row items-baseline gap-1.5'>
           <span className='font-medium truncate'>{card.name}</span>
           {card.isInTurn ? <span className='text-[10px] text-accent'>in turn</span> : null}

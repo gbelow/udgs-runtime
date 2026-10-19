@@ -107,9 +107,18 @@ export function commitAction(thrown: Throw, newId: () => string): Updater {
     if (!cost && !hold) return state
     // combat.tex "Concentration": what it cannot be paid for, it is held over
     const committed: RootAction = { ...withCommitFacts(state, actor, open, toThrower(thrown).dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, step: 'react' }
-    const locked = replaceActions(state, [withStealthFacts(state, committed)])
+    const locked = replaceActions(state, [withStealthFacts(state, withMatesPassed(state, committed))])
     return hasOpenAnswer(locked) ? locked : rollOrPay(thrown, newId)(locked)
   }
+}
+
+// The actor's party mates begin by answering with nothing, except the one the
+// action is aimed at; each may still declare a reaction instead.
+function withMatesPassed(state: SceneState, root: RootAction): RootAction {
+  const party = state.partyOf[root.actorId]
+  if (!party) return root
+  const mates = Object.keys(state.characters).filter((id) => id !== root.actorId && id !== root.targetId && state.partyOf[id] === party && !root.passed.includes(id))
+  return mates.length ? { ...root, passed: [...root.passed, ...mates] } : root
 }
 
 // combat.tex "Stealth in combat": what the root writes down of who had whom
