@@ -3,6 +3,9 @@ import { getDieBar, getOpenCalls, type Calls, type Thrower } from "../domain/pla
 import { realDice, throwOnScreen } from "../components/utils";
 import type { DieSource } from "../domain/play/dice";
 import { useTrayStore } from "../stores/useTrayStore";
+import { useTableStore } from "../stores/useTableStore";
+import { useAppStore } from "../stores/useAppStore";
+import { useCampaignStore } from "../stores/useCampaignStore";
 import { useActGate, useRollerCheck } from "./useControl";
 import { useDicePlace } from "./useProfile";
 
@@ -50,6 +53,11 @@ export function useDieAnswer(read: () => Calls, dispatch: (callId: string, die: 
 export function useAutoThrow(calls: Calls, answer: (callId: string, die: null) => void) {
   const place = useDicePlace();
   const roller = useRollerCheck();
+  useCampaignStore((s) => s.owners);
+  useCampaignStore((s) => s.file.members);
+  useAppStore((s) => s.profile);
+  useAppStore((s) => s.gmMode);
+  useTableStore((s) => s.guests);
   const due = place !== "table" ? getOpenCalls(calls).filter((c) => roller(c.roller).own).map((c) => c.id) : [];
   const throwFor = useRef(answer);
   throwFor.current = answer;

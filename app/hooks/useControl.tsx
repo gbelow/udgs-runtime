@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { getActorBar, getCampaignRole, getOwner, isOwnRoller, type Actor, type Viewer } from "../domain/profiles";
+import { getActorBar, getCampaignRole, getOwner, isAbsentRoller, isOwnRoller, type Actor, type Viewer } from "../domain/profiles";
 import { TAB_OWNER, useAppStore, useAppStoreApi, type AppState } from "../stores/useAppStore";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -36,7 +36,9 @@ export function useRollerCheck(): (id: string) => { own: boolean; played: boolea
   return (id) => {
     const v = viewer();
     const owner = v.ownerOf(id);
-    return { own: isOwnRoller(owner, v.profile, v.role), played: owner !== undefined };
+    const table = useTableStore.getState();
+    const absent = table.mode !== 'guest' && isAbsentRoller(owner, v.role, table.guests.map((g) => g.profile));
+    return { own: isOwnRoller(owner, v.profile, v.role) || absent, played: owner !== undefined };
   };
 }
 

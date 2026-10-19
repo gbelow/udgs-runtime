@@ -190,6 +190,13 @@ export function isOwnRoller(owner: string | undefined, profile: string | null, r
   return owner === undefined ? hasGmTools(role) : profile !== null && owner === profile
 }
 
+// Whether a character `owner` owns has no screen of their own at the table to
+// throw its dice on, so the GM's screen throws them: the GM's tools, and
+// nobody of `seated` is `owner`.
+export function isAbsentRoller(owner: string | undefined, role: Role, seated: readonly string[]): boolean {
+  return owner !== undefined && hasGmTools(role) && !seated.includes(owner)
+}
+
 // Why `profile`, as `role`, cannot play a character `owner` owns: someone
 // else plays them, named from `profiles`, or the GM does.
 export function getControlBar(owner: string | undefined, profile: string | null, role: Role, profiles: readonly ProfileListing[]): string | null {
