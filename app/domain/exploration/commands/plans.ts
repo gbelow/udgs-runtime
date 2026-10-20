@@ -1,6 +1,6 @@
 import type { CastPlan, Decision, ExplorationState, ExplorationUpdater, Group, GroupKind } from '../types'
 import { CastPlanSchema, GroupSchema } from '../types'
-import { getDecisionsCalled, getExplorationBar } from '../rules/exploration'
+import { getDecisionsCalled, getPlanBar, isResolved } from '../rules/exploration'
 import { getSequenceBar } from '../../campaign/rules/clock'
 import { getETCastBar, getETCastCount, getETCastTargets } from '../rules/casting'
 import { isSpellKey } from '../../spells'
@@ -13,11 +13,12 @@ const onExploration = (update: (e: ExplorationState) => ExplorationState): Explo
 const onGroups = (partyId: string, update: (e: ExplorationState) => ExplorationState): ExplorationUpdater =>
   (t) => (getSequenceBar(t.campaign, partyId, 'exploration') ? t : onExploration(update)(t))
 
+// A group's plan, set until it is resolved.
 const withGroup = (partyId: string, groupId: string, update: (g: Group) => Group): ExplorationUpdater =>
-  onGroups(partyId, (e) => {
+  (t) => (isResolved(t, partyId, groupId) ? t : onGroups(partyId, (e) => {
     const group = e.groups[partyId]?.[groupId]
     return group ? { ...e, groups: { ...e.groups, [partyId]: { ...e.groups[partyId], [groupId]: update(group) } } } : e
-  })
+  })(t))
 
 // Out of any group, rest and cast the character planned.
 function clearPlan(id: string, e: ExplorationState): ExplorationState {
@@ -34,11 +35,11 @@ export function addGroup(partyId: string, kind: GroupKind, newId: () => string):
 }
 
 export function removeGroup(partyId: string, groupId: string): ExplorationUpdater {
-  return onGroups(partyId, (e) => {
+  return (t) => (isResolved(t, partyId, groupId) ? t : onGroups(partyId, (e) => {
     if (!e.groups[partyId]) return e
     const { [groupId]: _gone, ...groups } = e.groups[partyId]
     return { ...e, groups: { ...e.groups, [partyId]: groups } }
-  })
+  })(t))
 }
 
 // The table's settings for the group's test.
@@ -56,7 +57,7 @@ export function setRoller(partyId: string, groupId: string, roller: string): Exp
 export function joinGroup(id: string, groupId: string): ExplorationUpdater {
   return (t) => {
     const partyId = t.campaign.partyOf[id]
-    if (getExplorationBar(t.campaign, id) || !t.exploration.groups[partyId]?.[groupId]) return t
+    if (getPlanBar(t, id) || !t.exploration.groups[partyId]?.[groupId] || isResolved(t, partyId, groupId)) return t
     const cleared = { ...t, exploration: clearPlan(id, t.exploration) }
     return withGroup(partyId, groupId, (g) => ({ ...g, members: [...g.members, id], roller: g.roller ?? id }))(cleared)
   }
@@ -65,7 +66,7 @@ export function joinGroup(id: string, groupId: string): ExplorationUpdater {
 // The character rests the coming ET, or, with false, is idle.
 export function setResting(id: string, resting: boolean): ExplorationUpdater {
   return (t) => {
-    if (getExplorationBar(t.campaign, id)) return t
+    if (getPlanBar(t, id)) return t
     const cleared = clearPlan(id, t.exploration)
     return { ...t, exploration: resting ? { ...cleared, resting: [...cleared.resting, id] } : cleared }
   }
@@ -85,7 +86,7 @@ export function decide(id: string, decision: Decision): ExplorationUpdater {
 export function planCast(id: string, key: string): ExplorationUpdater {
   return (t) => {
     const c = t.campaign.characters[id]
-    if (!c || getExplorationBar(t.campaign, id) || (isETMedicine(key) ? getETTreatBar(c, key) : getETCastBar(c, key))) return t
+    if (!c || getPlanBar(t, id) || (isETMedicine(key) ? getETTreatBar(c, key) : getETCastBar(c, key))) return t
     const cleared = clearPlan(id, t.exploration)
     return { ...t, exploration: { ...cleared, casts: { ...cleared.casts, [id]: CastPlanSchema.parse({ key }) } } }
   }
@@ -97,7 +98,7 @@ export function planCast(id: string, key: string): ExplorationUpdater {
 export function setCast(id: string, settings: Partial<Omit<CastPlan, 'key'>>): ExplorationUpdater {
   return (t) => {
     const plan = t.exploration.casts[id]
-    if (!plan || !(isSpellKey(plan.key) || isETMedicine(plan.key))) return t
+    if (!plan || getPlanBar(t, id) || !(isSpellKey(plan.key) || isETMedicine(plan.key))) return t
     const reachable = getETCastTargets(t.campaign, id)
     const count = isETMedicine(plan.key) ? TREAT_COUNT : getETCastCount(plan.key)
     const targets = (settings.targets ?? plan.targets).filter((target, i, all) => reachable.includes(target) && all.indexOf(target) === i).slice(0, count)

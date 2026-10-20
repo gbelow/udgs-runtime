@@ -51,11 +51,13 @@ export const DECISIONS = ['leave', 'stay', 'carry'] as const
 export const DecisionSchema = z.enum(DECISIONS)
 export type Decision = z.infer<typeof DecisionSchema>
 
-// The coming ET once its Will tests are rolled, waiting on the decisions
-// they call for.
+// The ET under way once its Will tests are rolled: the decisions they call
+// for, and the camp each party started it with, which its tasks are read
+// against while it changes plan by plan.
 export const OpeningSchema = z.object({
   rolls: z.record(z.string(), TestRollSchema).default({}),
   decisions: z.record(z.string(), DecisionSchema).default({}),
+  start: z.record(z.string(), CampSchema).default({}),
 })
 export type Opening = z.infer<typeof OpeningSchema>
 
@@ -99,6 +101,20 @@ export const GroupResultSchema = z.object({
   events: z.array(MetSchema).default([]),
 })
 export type GroupResult = z.infer<typeof GroupResultSchema>
+
+// A group's plan once resolved: what it came to, who spent the ET on it, and
+// the items it put on the party's pile. What takes the whole ET finishes only
+// when the ET closes, everyone at once, so that an ET cut short leaves it
+// undone: where the group ends up, taking what it found, and the degree a
+// camp task lands on the camp at.
+export const ResolvedSchema = z.object({
+  result: GroupResultSchema.nullable(),
+  working: z.array(z.string()).default([]),
+  moves: z.object({ at: AtSchema.nullable(), ids: z.array(z.string()) }).nullable().default(null),
+  found: z.array(z.string()).default([]),
+  task: z.object({ kind: GroupKindSchema, degree: DegreeSchema }).nullable().default(null),
+})
+export type Resolved = z.infer<typeof ResolvedSchema>
 
 // spells.tex "Casting spells": a spell whose cost takes the ET, cast over it
 // instead of resting or going with a group — or, the same way, an ability
@@ -154,9 +170,15 @@ export const ExplorationStateSchema = z.object({
   // timeline; another day has none
   rests: z.record(z.string(), z.object({ day: z.number(), count: z.number() })).default({}),
   opening: OpeningSchema.nullable().default(null),
-  // what the travels and searches of the passing ET met, by party and group,
-  // held for the table once it asks tests of anyone; null until then
-  meeting: z.record(z.string(), z.record(z.string(), MeetingSchema)).nullable().default(null),
+  // the plans of the ET under way resolved so far, by party and group; their
+  // members make no other plan until the ET closes
+  resolved: z.record(z.string(), z.record(z.string(), ResolvedSchema)).default({}),
+  // the plan being resolved whose events met ask a test, held for the table
+  // to change its DL before the test is called
+  pending: z.object({ party: z.string(), group: z.string(), meeting: MeetingSchema }).nullable().default(null),
+  // the plan whose dice the table is throwing; null while they are the ET's
+  // passing
+  running: z.object({ party: z.string(), group: z.string() }).nullable().default(null),
   // survival.tex "Events": what each party has found, to share out
   piles: z.record(z.string(), z.array(ItemSchema)).default({}),
   // the tests the passing ET has called for, waiting on their dice

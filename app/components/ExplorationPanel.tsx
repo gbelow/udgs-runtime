@@ -109,12 +109,12 @@ function MeetingRows({ meeting }: { meeting: MetView[] }){
           {m.test ?
             <>
               <span className='text-xs text-muted'>everyone tests {m.test.skill} vs DL <span className='font-mono text-fg'>{m.test.DL}</span>, changed by</span>
-              <NumberInput className='w-12' aria-label={`${m.name} DL change`} {...barred(gmBar)} value={m.test.adjust} onChange={(e) => adjustMet(m.partyId, m.groupId, m.index, parseInt(e.target.value) || 0)} />
+              <NumberInput className='w-12' aria-label={`${m.name} DL change`} {...barred(gmBar)} value={m.test.adjust} onChange={(e) => adjustMet(m.index, parseInt(e.target.value) || 0)} />
             </>
             : null}
         </div>
       ))}
-      <span className='text-xs text-muted'>next ET calls the tests and lands what was met</span>
+      <span className='text-xs text-muted'>resolving the plan again calls the tests and lands what was met</span>
     </div>
   )
 }
@@ -135,7 +135,7 @@ export function LastEtLog(){
 // the groups going on an action.
 function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 
-  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller } = usePartyCommands()
+  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan } = usePartyCommands()
   const gmBar = useGmBar()
   const partyBar = useActorBar({ anyOf: party.members.map((m) => m.id) })
   const choose = (key: string) => setPlace(party.id, maps.flatMap((m) => m.nodes).find((n) => n.key === key)?.at ?? null)
@@ -185,7 +185,12 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
         ))}
       </div>
       <Locked bar={partyBar} className='contents'>
-      {party.groups.map((g, i) => (
+      {party.groups.map((g, i) => g.resolved ?
+        <div key={g.id} className='flex flex-col gap-0.5 border-t border-line pt-1'>
+          <span className='text-xs font-medium'>{g.kind} {i + 1} · resolved</span>
+          {g.resolved.map((line, n) => <span key={n} className='text-xs text-muted whitespace-pre-wrap'>{line}</span>)}
+        </div>
+        :
         <div key={g.id} className='flex flex-row flex-wrap gap-1.5 items-center border-t border-line pt-1'>
           <span className='text-xs font-medium'>{g.kind} {i + 1}</span>
           <select aria-label={`${g.kind} ${i + 1} roller`} className={selectClass} value={g.roller ?? ''} onChange={(e) => setRoller(party.id, g.id, e.target.value)}>
@@ -221,9 +226,12 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
             <span className='text-xs text-muted'>skill <span className='font-mono text-fg'>{g.skill}</span> vs {g.kind === 'search' && party.place ? 'events' : <span className='font-mono text-fg'>{g.DL}</span>}</span>
             : null}
           <span className='text-xs text-muted'>{g.members.map((m) => m.name).join(', ') || 'nobody'}</span>
+          <Tooltip text={g.resolveBar ?? 'go on this plan now, before the others'}>
+            <Button aria-label={`resolve ${g.kind} ${i + 1}`} disabled={g.resolveBar !== null} onClick={() => resolvePlan(party.id, g.id)}>resolve</Button>
+          </Tooltip>
           <Button aria-label={`remove ${g.kind} ${i + 1}`} variant='ghost' onClick={() => removeGroup(party.id, g.id)}>×</Button>
         </div>
-      ))}
+      )}
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <span className='text-xs text-muted'>add</span>
         {GROUP_KINDS.map((kind) => <Button key={kind} aria-label={`${party.name} add ${kind}`} variant='ghost' disabled={kind === 'firewood' && !party.wood} title={kind === 'firewood' && !party.wood ? 'no wood here' : undefined} onClick={() => addGroup(party.id, kind)}>{kind}</Button>)}

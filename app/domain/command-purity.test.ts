@@ -388,7 +388,7 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   setResting: (t) => explorationCommands.setResting('a', true)(t),
   planCast: (t) => explorationCommands.planCast('a', 'regenerate')(t),
   setCast: (t) => explorationCommands.setCast('a', { targets: ['b'], enhance: 1 })({ ...t, exploration: { ...t.exploration, casts: { a: { key: 'regenerate', targets: [], wound: null, item: '', DL: 0, enhance: 0, effortless: false } } } }),
-  decide: (t) => explorationCommands.decide('b', 'carry')({ ...t, exploration: { ...t.exploration, opening: { rolls: { b: { die: 0, score: 0, DL: 5, degree: 'miss' } }, decisions: {} } } }),
+  decide: (t) => explorationCommands.decide('b', 'carry')({ ...t, exploration: { ...t.exploration, opening: { rolls: { b: { die: 0, score: 0, DL: 5, degree: 'miss' } }, decisions: {}, start: {} } } }),
   eat: ({ campaign }) => explorationCommands.eat('a', 3)(campaign),
   eatFood: ({ campaign }) => explorationCommands.eatFood('a', 'ration')({ ...campaign, characters: { ...campaign.characters, a: { ...campaign.characters.a, held: [...campaign.characters.a.held, ItemSchema.parse({ id: 'ration', name: 'Ration', type: 'food', food: 3, amount: 2 })] } } }),
   drink: ({ campaign }) => explorationCommands.drink('a')(campaign),
@@ -396,7 +396,8 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   passET: (t) => explorationCommands.passET(() => 0, () => 'q')({ ...t, exploration: { ...t.exploration, resting: ['a'] } }),
   answerET: (t) => explorationCommands.answerET('group:p:g', 4, 'entered', () => 0, () => 'q')({ ...t, exploration: { ...t.exploration, calls: { 'group:p:g': { id: 'group:p:g', roller: 'b', label: 'travel', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, source: 'screen' } } } }),
   toDowntime: (t) => explorationCommands.toDowntime('p')(t),
-  adjustMet: (t) => explorationCommands.adjustMet('p', 'g', 0, -3)({ ...t, exploration: { ...t.exploration, meeting: { p: { g: MeetingSchema.parse({ roll: null, events: [{ owner: { kind: 'connection', id: 'c' }, event: 'e', name: 'climb', DL: 5, degree: 'hit', outcome: { test: {} } }] }) } } } }),
+  adjustMet: (t) => explorationCommands.adjustMet(0, -3)({ ...t, exploration: { ...t.exploration, pending: { party: 'p', group: 'g', meeting: MeetingSchema.parse({ roll: null, events: [{ owner: { kind: 'connection', id: 'c' }, event: 'e', name: 'climb', DL: 5, degree: 'hit', outcome: { test: {} } }] }) } } }),
+  resolvePlan: (t) => explorationCommands.resolvePlan('p', 'g', () => 0, () => 'q')(t),
   takeFromPile: (t) => explorationCommands.takeFromPile('p', 'found', 'a', 'belt', 'quick')({ ...t, exploration: { ...t.exploration, piles: { p: [ItemSchema.parse({ id: 'found', name: 'Ration', type: 'food', food: 3, amount: 1 })] } } }),
 }
 

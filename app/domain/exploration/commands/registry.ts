@@ -6,7 +6,7 @@ import { commandsOver, playedBy, rollerOf, type CommandOf } from '../../registry
 import type { CampaignUpdater } from '../../campaign/types'
 import { getGroupActor } from '../rules/exploration'
 import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from '../types'
-import { adjustMet, answerET, drink, eat, eatFood, passET, takeFromPile, takeItem, toDowntime } from './exploration'
+import { adjustMet, answerET, drink, eat, eatFood, passET, resolvePlan, takeFromPile, takeItem, toDowntime } from './exploration'
 import { addGroup, decide, joinGroup, planCast, removeGroup, setCast, setGroup, setResting, setRoller } from './plans'
 
 // Exploration's presses as data (cf. the scene's registry): each member's
@@ -40,10 +40,12 @@ export const explorationCommands = {
   setGroup: command((_, partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => setGroup(partyId, groupId, settings))
     .by((t, partyId, _groupId, settings) => getGroupActor(t, partyId, settings)),
   setRoller: command((_, partyId: string, groupId: string, roller: string) => setRoller(partyId, groupId, roller)).by((t, partyId) => getGroupActor(t, partyId)),
+  // a group's plan resolved on its own, by whoever plays someone in it
+  resolvePlan: command((ctx, partyId: string, groupId: string) => resolvePlan(partyId, groupId, ctx.thrower, ctx.newId)).by((t, partyId) => getGroupActor(t, partyId)),
 
   // the ET passed, and a party taken out of it
   passET: command((ctx) => passET(ctx.thrower, ctx.newId)).by(gm),
-  adjustMet: command((_, partyId: string, groupId: string, index: number, adjust: number) => adjustMet(partyId, groupId, index, adjust)).by(gm),
+  adjustMet: command((_, index: number, adjust: number) => adjustMet(index, adjust)).by(gm),
   toDowntime: command((_, partyId: string) => toDowntime(partyId)).by(gm),
 
   // a die the ET called for, answered by whoever throws it

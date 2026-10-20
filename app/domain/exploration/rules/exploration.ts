@@ -161,6 +161,22 @@ export function getExplorationBar(state: CampaignState, id: string): string | nu
   return getSequenceBar(state, state.partyOf[id], 'exploration')
 }
 
+// Whether the group's plan has been resolved in the ET under way.
+export function isResolved(t: Exploring, partyId: string, groupId: string): boolean {
+  return !!t.exploration.resolved[partyId]?.[groupId]
+}
+
+// Why the character cannot change their plan now: what keeps them from the
+// ET loop, or a plan of theirs already resolved in the ET under way, which
+// holds them until everyone's ET is over.
+export function getPlanBar(t: Exploring, id: string): string | null {
+  const bar = getExplorationBar(t.campaign, id)
+  if (bar) return bar
+  const partyId = t.campaign.partyOf[id]
+  const spent = Object.entries(getGroups(t, partyId)).some(([groupId, g]) => g.members.includes(id) && isResolved(t, partyId, groupId))
+  return spent ? 'spent this ET; waiting for the others' : null
+}
+
 // Why the party cannot leave exploration for downtime now: it is not
 // exploring, an ET waits on the table, one of it is in a fight, or it is on
 // the map but not in a settlement (story.tex "Downtime": a town downtime can
@@ -198,19 +214,40 @@ export function getGroupActor(t: Exploring, partyId: string, settings: Partial<G
 }
 
 // Why the ET cannot pass now: time must be able to pass (`getTimeBar`), every
-// group needs its roller, and every forced rest whose group goes away needs a
-// decision.
+// group not resolved yet needs its roller, and every forced rest whose group
+// goes away needs a decision.
 export function getPassBar(t: Exploring): string | null {
   const bar = getTimeBar(t.campaign, 'exploration')
   if (bar) return bar
   const open = getOpenCalls(t.exploration.calls).length
   if (open > 0) return `waiting on ${open} ${open === 1 ? 'die' : 'dice'}`
   for (const partyId of getPlayingParties(t.campaign, 'exploration')) {
-    for (const group of Object.values(getGroups(t, partyId))) {
-      const bar = getGroupBar(t, partyId, group)
+    for (const [groupId, group] of Object.entries(getGroups(t, partyId))) {
+      const bar = isResolved(t, partyId, groupId) ? null : getGroupBar(t, partyId, group)
       if (bar) return bar
     }
   }
+  return getUndecidedBar(t)
+}
+
+function getUndecidedBar(t: Exploring): string | null {
   const undecided = getDecisionsCalled(t).find((id) => !t.exploration.opening?.decisions[id])
   return undecided ? `decide for ${getRosterName(t.campaign, undecided)}` : null
+}
+
+// Why the group's plan cannot be resolved now, on its own: time must be able
+// to pass, the dice called for must be in, no other plan may be waiting on
+// the table, and the group must be ready to go and not resolved already.
+export function getResolveBar(t: Exploring, partyId: string, groupId: string): string | null {
+  const bar = getTimeBar(t.campaign, 'exploration')
+  if (bar) return bar
+  if (!getPlayingParties(t.campaign, 'exploration').includes(partyId)) return 'not exploring'
+  const group = getGroups(t, partyId)[groupId]
+  if (!group) return 'no such group'
+  if (isResolved(t, partyId, groupId)) return 'resolved this ET'
+  const open = getOpenCalls(t.exploration.calls).length
+  if (open > 0) return `waiting on ${open} ${open === 1 ? 'die' : 'dice'}`
+  const pending = t.exploration.pending
+  if (pending && (pending.party !== partyId || pending.group !== groupId)) return 'another plan waits on the table'
+  return getGroupBar(t, partyId, group) ?? getUndecidedBar(t)
 }

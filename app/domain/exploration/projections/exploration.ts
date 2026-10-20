@@ -5,7 +5,7 @@ import { TREAT_COUNT, getETMedicine, getETTreatBar, getETTreatTest, getUnsetWoun
 import { ABILITIES } from '../../abilities'
 import { getConsume, getDosesLeft } from '../../item/rules/consumables'
 import { getConsumeBar } from '../../item/rules/doses'
-import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, StayResult, TestRoll } from '../types'
+import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, Resolved, StayResult, TestRoll } from '../types'
 import type { RollMode } from '../../play/dice'
 import { describeOutcome, describeRoll } from '../../play/test'
 import { perPair } from '../../perState'
@@ -14,8 +14,8 @@ import { getPlaceKey } from '../../campaign/projections/maps'
 import { isPlaying } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
 import {
-  canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups,
-  getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getRestExposure, getWear, hasWood,
+  canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getGroups,
+  getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlanBar, getResolveBar, getRestExposure, getWear, hasWood,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { getChargeTargets } from '../../character/rules/spells'
@@ -41,6 +41,10 @@ export type GroupView = {
   target: string | null
   seek: EventType
   tool: boolean
+  // why it cannot be resolved on its own now, and, once resolved, what it
+  // came to, a line each
+  resolveBar: string | null
+  resolved: string[] | null
 }
 export type PlaceView = { node: string; name: string; terrain: string | null; tags: TerrainTag[] }
 export type PartyView = {
@@ -133,6 +137,8 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
           id: groupId, kind: g.kind, members: g.members.map((id) => ({ id, name: nameOf(state, id) })), roller: g.roller,
           skill: test?.skill ?? null, DL: test?.DL ?? null, entersDL: getMapDL(state, party, g) === null, enteredDL: g.DL,
           mode: g.mode, target: g.target, seek: g.seek, tool: g.tool,
+          resolveBar: getResolveBar(t, partyId, groupId),
+          resolved: getResolvedLines(exploration.resolved[partyId]?.[groupId] ?? null),
         }
       }),
       paths: place ? getConnectionsFrom(place).map((p) => ({ id: p.id, name: p.toName, DL: p.DL })) : [],
@@ -141,15 +147,24 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),
-  meeting: exploration.meeting && Object.entries(exploration.meeting).flatMap(([partyId, groups]) =>
-    Object.entries(groups).flatMap(([groupId, m]) => m.events.map((e, index): MetView => ({
-      partyId, groupId, index, group: `${state.parties[partyId]?.name ?? ''} · ${exploration.groups[partyId]?.[groupId]?.kind ?? ''}`,
-      name: e.name, DL: e.DL, degree: e.degree, text: e.outcome.text,
-      test: e.outcome.test && { skill: e.outcome.test.skill, DL: e.outcome.test.DL + e.adjust, adjust: e.adjust },
-    })))),
+  meeting: exploration.pending && getMeetingView(state, exploration, exploration.pending),
   lastET: getETResultLines(exploration.results, exploration.castResults, exploration.stayResults, true),
   }
 })
+
+// What a resolved plan came to, as the ET's results will read it.
+function getResolvedLines(resolved: Resolved | null): string[] | null {
+  if (!resolved) return null
+  return resolved.result ? getETResultLines([resolved.result], [], []) : ['nobody went']
+}
+
+function getMeetingView(state: SeenCampaign, exploration: ExplorationState, pending: NonNullable<ExplorationState['pending']>): MetView[] {
+  const group = `${state.parties[pending.party]?.name ?? ''} · ${exploration.groups[pending.party]?.[pending.group]?.kind ?? ''}`
+  return pending.meeting.events.map((e, index) => ({
+    partyId: pending.party, groupId: pending.group, index, group, name: e.name, DL: e.DL, degree: e.degree, text: e.outcome.text,
+    test: e.outcome.test && { skill: e.outcome.test.skill, DL: e.outcome.test.DL + e.adjust, adjust: e.adjust },
+  }))
+}
 
 export const getPartiesView = (t: Exploring & { campaign: SeenCampaign }): PartiesView => partiesView(t.campaign, t.exploration)
 
@@ -241,7 +256,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
     ? [{ plan: 'cast', label: castPanel.spells.every((s) => isETMedicine(s.key)) ? 'treat' : 'cast', IL: 0, exhaustion: 1 + (castPanel.plan?.exhaustion ?? 0), hunger: 0, thirst: 0, idle: false, selected: !!plannedCast }]
     : []
   return {
-    bar: getExplorationBar(state, id),
+    bar: getPlanBar(t, id),
     options: [...groups, ...cast, rest, idle].map(worn),
     cast: castPanel,
     willDL: getExhaustionTest(c)?.DL ?? null,
