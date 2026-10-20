@@ -29,17 +29,30 @@
       "events": {
         "fd6be700-ee88-4cfb-a008-e38c2db8dafb": {
           "name": "Event 1",
-          "types": [
-            "obstacle"
+          "stage": 0,
+          "stages": [
+            {
+              "name": "",
+              "types": [
+                "obstacle"
+              ],
+              "DL": 0,
+              "outcomes": {
+                "critical": {
+                  "text": ""
+                },
+                "hit": {
+                  "text": ""
+                },
+                "graze": {
+                  "text": ""
+                },
+                "miss": {
+                  "text": ""
+                }
+              }
+            }
           ],
-          "DL": 0,
-          "enabler": null,
-          "outcomes": {
-            "critical": "",
-            "hit": "",
-            "graze": "",
-            "miss": ""
-          },
           "way": "there"
         }
       }

@@ -2,6 +2,7 @@ import type { CastPlan, Decision, Exploring, Group, GroupKind } from "../domain/
 import { getMoments, getMomentsDigest, type MomentView } from "../domain/campaign/projections/timeline";
 import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/maps";
 import type { At, Sequence } from "../domain/campaign/types";
+import type { SlotKind } from "../domain/types";
 import { getTableParties, type TablePartiesView } from "../domain/scene/projections/tableParties";
 import type { CombatRosterEntry } from "../domain/scene/projections/roster";
 import { useCampaignRoster } from "./useCampaign";
@@ -142,6 +143,7 @@ export function usePartyCommands() {
     eatFood: (itemId: string) => withActive((id) => explore({ kind: "eatFood", args: [id, itemId] })),
     takeItem: (itemId: string) => withActive((id) => explore({ kind: "takeItem", args: [id, itemId] })),
     drink: () => withActive((id) => explore({ kind: "drink", args: [id] })),
+    takeFromPile: (partyId: string, itemId: string, containerKey: string, slot: SlotKind) => withActive((id) => explore({ kind: "takeFromPile", args: [id, partyId, itemId, containerKey, slot] })),
     setExposure: (partyId: string, exposure: number) => send({ kind: "setPartyExposure", args: [partyId, exposure] }),
     setLit: (partyId: string, lit: boolean) => send({ kind: "setPartyLit", args: [partyId, lit] }),
     setPlace: (partyId: string, at: At | null) => send({ kind: "setPartyPlace", args: [partyId, at] }),
@@ -154,6 +156,7 @@ export function usePartyCommands() {
     setRoller: (partyId: string, groupId: string, roller: string) => explore({ kind: "setRoller", args: [partyId, groupId, roller] }),
     decide: (id: string, decision: Decision) => explore({ kind: "decide", args: [id, decision] }),
     passET: () => explore({ kind: "passET", args: [] }),
+    adjustMet: (partyId: string, groupId: string, index: number, adjust: number) => explore({ kind: "adjustMet", args: [partyId, groupId, index, adjust] }),
     toDowntime: (partyId: string) => explore({ kind: "toDowntime", args: [partyId] }),
     partyToScene: (partyId: string) => toFight({ kind: "sendPartyToFight", args: [partyId] }),
     toScene: (id: string) => toFight({ kind: "sendToFight", args: [[id]] }),

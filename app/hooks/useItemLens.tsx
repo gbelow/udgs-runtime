@@ -19,6 +19,11 @@ function getCatalogRows(scale: number): ItemCatalogRow[] {
   return rows;
 }
 
+// The catalog as printed, for picking an entry by key (what an event yields).
+export function useItemCatalogRows(): ItemCatalogRow[] {
+  return getCatalogRows(GEAR_SIZE);
+}
+
 // The pending selection as the item it would place — what the container and
 // hands panels test each destination against. A catalog pick is stamped
 // afresh here and again on placement, so no two placements share an id; a

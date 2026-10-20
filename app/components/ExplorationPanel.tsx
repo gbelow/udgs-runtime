@@ -9,7 +9,7 @@ import { Locked, LockedFor } from './Locks';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
 import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
 import { ROLL_MODES, type RollMode } from '../domain/play/dice';
-import type { CastPanel, PartiesView, PartyView } from '../domain/exploration/projections/exploration';
+import type { CastPanel, MetView, PartiesView, PartyView } from '../domain/exploration/projections/exploration';
 import type { MapOptions } from '../domain/campaign/projections/maps';
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
@@ -45,7 +45,7 @@ export function ExplorationStrip(){
 // the roster.
 export function PartyCards(){
 
-  const { parties, decisions } = useParties()
+  const { parties, decisions, meeting } = useParties()
   const maps = useNodeOptions()
   const calls = useETCalls()
   const answer = useETAnswer()
@@ -63,6 +63,7 @@ export function PartyCards(){
           {decisions.map((d) => <DecisionRow key={d.id} decision={d} />)}
         </div>
         : null}
+      {meeting ? <MeetingRows meeting={meeting} /> : null}
       <div className='flex flex-row flex-wrap gap-2 items-start'>
         {parties.map((party) => <PartyCard key={party.id} party={party} maps={maps} />)}
       </div>
@@ -85,6 +86,35 @@ function DecisionRow({ decision: d }: { decision: PartiesView['decisions'][numbe
           <Button key={option} aria-label={`${d.name} ${option}`} selected={d.decision === option} onClick={() => decide(d.id, option)}>{option === 'leave' ? 'leave behind' : option}</Button>
         ))}
       </LockedFor>
+    </div>
+  )
+}
+
+// survival.tex "Events": what the passing ET met, held while the table
+// changes the DL of the tests it asks for what the characters do about it;
+// the next ET press calls them.
+function MeetingRows({ meeting }: { meeting: MetView[] }){
+
+  const { adjustMet } = usePartyCommands()
+  const gmBar = useGmBar()
+
+  return(
+    <div className='flex flex-col gap-1 pb-2 border-b border-line'>
+      <SectionLabel>Met this ET</SectionLabel>
+      {meeting.map((m) => (
+        <div key={`${m.partyId}:${m.groupId}:${m.index}`} className='flex flex-row flex-wrap gap-1.5 items-center'>
+          <span className='text-xs text-muted'>{m.group}</span>
+          <span className='text-xs font-medium'>{m.name}</span>
+          <span className='text-xs text-muted'>vs DL <span className='font-mono text-fg'>{m.DL}</span>, {m.degree}{m.text ? `: ${m.text}` : ''}</span>
+          {m.test ?
+            <>
+              <span className='text-xs text-muted'>everyone tests {m.test.skill} vs DL <span className='font-mono text-fg'>{m.test.DL}</span>, changed by</span>
+              <NumberInput className='w-12' aria-label={`${m.name} DL change`} {...barred(gmBar)} value={m.test.adjust} onChange={(e) => adjustMet(m.partyId, m.groupId, m.index, parseInt(e.target.value) || 0)} />
+            </>
+            : null}
+        </div>
+      ))}
+      <span className='text-xs text-muted'>next ET calls the tests and lands what was met</span>
     </div>
   )
 }
@@ -146,6 +176,9 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
       <span className='text-xs text-muted'>
         shelter <span className='font-mono text-fg'>{party.camp.shelter}</span> · firewood <span className='font-mono text-fg'>{party.camp.firewood}</span> ET · fire <span className='text-fg'>{party.camp.fire ? 'burning' : 'out'}</span>{party.camp.progress.length > 0 ? ` · under way: ${party.camp.progress.join(', ')}` : ''} · rest exposure <span className='font-mono text-fg'>{party.restExposure}</span>
       </span>
+      {party.pile.length > 0 ?
+        <span className='text-xs text-muted'>found: {party.pile.map((i) => `${i.name} ×${i.amount}`).join(', ')}</span>
+        : null}
       <div className='flex flex-row flex-wrap gap-1.5'>
         {party.members.map((m) => (
           <Button key={m.id} aria-label={m.name} disabled={m.away} selected={m.isActive} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.away ? 'in a fight' : m.plan}</span></Button>
@@ -205,8 +238,8 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 export function ExplorationSection(){
 
   const [nutrition, setNutrition] = useState(3)
-  const { bar, options, cast, willDL, lastRoll, potion, foods, medicines } = useExploration()
-  const { joinGroup, rest, planCast, setCast, eat, eatFood, drink, takeItem } = usePartyCommands()
+  const { bar, options, cast, willDL, lastRoll, potion, foods, medicines, pile } = useExploration()
+  const { joinGroup, rest, planCast, setCast, eat, eatFood, drink, takeItem, takeFromPile } = usePartyCommands()
   const closed = (plan: unknown) => plan === 'cast' && cast.ready === null
 
   return(
@@ -243,6 +276,18 @@ export function ExplorationSection(){
             <Button key={m.id} aria-label={`take ${m.name}`} disabled={bar !== null || m.bar !== null} title={bar ?? m.bar ?? undefined} onClick={() => takeItem(m.id)}>
               take {m.name} <span className='text-muted'>×{m.doses}</span>
             </Button>
+          ))}
+        </div>
+        : null}
+      {pile.length > 0 ?
+        <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+          <span className='text-xs text-muted'>found</span>
+          {pile.map((i) => (
+            <select key={i.id} aria-label={`take ${i.name}`} className={selectClass} value='' disabled={bar !== null || i.places.length === 0} title={bar ?? (i.places.length === 0 ? 'no room for it' : undefined)}
+              onChange={(e) => { const place = i.places[parseInt(e.target.value)]; if (place) takeFromPile(i.partyId, i.id, place.containerKey, place.slot) }}>
+              <option value=''>take {i.name} ×{i.amount}…</option>
+              {i.places.map((p, n) => <option key={`${p.containerKey}:${p.slot}`} value={n}>{p.label}</option>)}
+            </select>
           ))}
         </div>
         : null}

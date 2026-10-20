@@ -4,10 +4,11 @@ What `survival.tex` asks for that the campaign layer does not do yet. The book's
 
 ## Events
 
-- Events are text the table reads. None of them changes anything yet: no wear, food, water, shelter, knowledge or position comes out of them.
-- Extra wear from an exploration action comes from wear events ("Wear: an event that increases wear for the EA"), not from the terrain. Terrain wear is paid every ET by everyone on the node.
-- An event can be what a path needs done to be finished (a climb, a swim). Today nothing can stop a group from arriving: travel ends where the roll and the draw say, and the event's outcome is only read.
-- Search: "a crit over the event DL allows interacting with it and going for another event for which there was a hit or crit" is left to each event's own resolution.
+- An event is in one stage at a time, and only the GM moves it to another (in the campaign's copy of the map). Nothing in play moves a stage.
+- Searching an event found before is not easier yet (a known event is to be found at DL −5).
+- Ambient events (rain, strong wind) that land on the whole node by chance or when the GM sets them off, changing its exposure.
+- An event cannot hand anyone to a scene yet: an encounter's graze or miss is meant to force one, a crit or hit to offer it, and an event can be a forced scene.
+- A camp cannot stand in a found shelter yet, and nobody can be found in theirs.
 - Random encounter while making camp (optional): one per day of long camping, drawn from wear and encounter events only.
 - Connection events that the test was "high enough" to avoid are read by degree, never skipped.
 

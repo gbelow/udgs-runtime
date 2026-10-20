@@ -1,19 +1,19 @@
 import { getRosterName } from '../../campaign/rules/roster'
-import type { CampaignCharacter, Degree } from '../../types'
-import type { At, CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
-import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, StayResult, TestRoll } from '../types'
+import type { CampaignCharacter, Degree, Item, SlotKind } from '../../types'
+import type { At, CampaignState, CampaignUpdater, CrawlEvent, EventOwner, EventStage, Wear } from '../../campaign/types'
+import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Meeting, Met, Opening, StayResult, TestRoll } from '../types'
 import { CampSchema } from '../types'
 import { rollPercent, type Dice, type DieSource } from '../../play/dice'
-import { getDegree } from '../../play/test'
+import { getDegree, type Test } from '../../play/test'
 import { answerCall, getOpenCalls, makeCaller, toCallRoll, type CallResult, type CallSpec, type Throw } from '../../play/calls'
 import { getETResultLines } from '../projections/exploration'
-import { addExhaustion, addIL, gainHunger, gainThirst, heal } from '../../character/commands/heal'
+import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
   getPassBar, getRestExposure, getRestsToday, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
-import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
+import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, getStage, isFound } from '../rules/events'
 import { getDay, getPlayingParties } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
 import { passETs } from '../../campaign/commands/clock'
@@ -24,7 +24,11 @@ import { updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
 import { takeDose } from '../../character/commands/consume'
 import { chargeItem, consumeItem } from '../../item/commands/hands'
-import { findCarriedItem } from '../../item/rules/containers'
+import { canFitItem, findCarriedItem, getContainer } from '../../item/rules/containers'
+import { addItemToContainer } from '../../item/commands/items'
+import { getCatalogItem } from '../../item/rules/items'
+import { payCost } from '../../character/commands/cost'
+import { skillLenses } from '../../character/lenses'
 import { produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey } from '../../spells'
 import { BONE_SETTING_PER_DAY, getETTreatBar, getETTreatPlanBar, getETTreatTest, isETMedicine, isETSpared, type ETMedicineKey } from '../rules/medicine'
@@ -69,6 +73,34 @@ export function takeItem(id: string, itemId: string): CampaignUpdater {
 export function drink(id: string): CampaignUpdater {
   return onCharacter(id, (c) =>
     ({ ...c, resources: { ...c.resources, thirst: Math.max(0, c.resources.thirst - 1) } }))
+}
+
+// survival.tex "Events": an item off the party's found pile, put where the
+// character has room for it; refused for one not in that party or with no
+// room there.
+export function takeFromPile(partyId: string, itemId: string, id: string, containerKey: string, slot: SlotKind): ExplorationUpdater {
+  return (t) => {
+    const item = t.exploration.piles[partyId]?.find((i) => i.id === itemId)
+    const c = t.campaign.characters[id]
+    const container = c && getContainer(c, containerKey)
+    if (!item || t.campaign.partyOf[id] !== partyId || getExplorationBar(t.campaign, id) || !container || !canFitItem(container, slot, item)) return t
+    return {
+      campaign: updateRosterCharacter(id, addItemToContainer(containerKey, slot, item))(t.campaign),
+      exploration: { ...t.exploration, piles: { ...t.exploration.piles, [partyId]: t.exploration.piles[partyId].filter((i) => i.id !== itemId) } },
+    }
+  }
+}
+
+// What the table does to the DL of the test an event met asks, for what
+// those meeting it do about it (a rope thrown down a climb).
+export function adjustMet(partyId: string, groupId: string, index: number, adjust: number): ExplorationUpdater {
+  return (t) => {
+    const met = t.exploration.meeting?.[partyId]?.[groupId]
+    if (!t.exploration.meeting || !met?.events[index]) return t
+    const events = met.events.map((e, i) => (i === index ? { ...e, adjust } : e))
+    const party = { ...t.exploration.meeting[partyId], [groupId]: { ...met, events } }
+    return { ...t, exploration: { ...t.exploration, meeting: { ...t.exploration.meeting, [partyId]: party } } }
+  }
 }
 
 // survival.tex "Healing Potions": "heal IL in the course of an ET. Healing
@@ -139,72 +171,99 @@ function landTask(group: Group, degree: Degree, camp: Camp): Camp {
   }
 }
 
-type Met = GroupResult['events'][number]
-
 // Where a group that went ends the ET: at a node of the map, or null off
 // it. A group with no `moves` is where it started.
-type Outcome = { roll: TestRoll | null; note: string; camp: Camp; moves: { at: At | null } | null; events: Met[] }
+type Outcome = Meeting & { camp: Camp }
+
+// An event of a node or a path in the stage it is in; one left with no
+// stage is not there to be met.
+type Listed = { id: string; event: CrawlEvent; stage: EventStage }
+const listed = (events: [string, CrawlEvent][]): Listed[] =>
+  events.flatMap(([id, event]) => {
+    const stage = getStage(event)
+    return stage ? [{ id, event, stage }] : []
+  })
 
 // survival.tex "Events": each event met resolves itself, by the degree the
-// group's score comes to against it.
-const meeting = (state: CampaignState, present: string[], score: number, night: number) => (event: CrawlEvent): Met => {
-  const DL = getEventDL(state, present, night, event)
+// group's score comes to against the stage it is in.
+type Meet = (owner: EventOwner) => (l: Listed) => Met
+const meeting = (score: number, night: number): Meet => (owner) => ({ id, event, stage }) => {
+  const DL = getEventDL(stage, night)
   const degree = getDegree(score, DL)
-  return { name: event.name, DL, degree, outcome: event.outcomes[degree] }
+  return { owner, event: id, name: event.name, DL, degree, outcome: stage.outcomes[degree], adjust: 0, tests: [] }
 }
 
-type Drawn = { path: Path } | { event: CrawlEvent } | null
+type Drawn = { path: Path } | { event: Listed } | null
 
 // survival.tex "Travel": "A crit or hit means that no one got lost";
 // "Grazes and misses": a random event of the node, the path that was
 // looked for among them, and "If the exploration test result is lower than
 // 0, also add paths to other nodes". The group ends where what was drawn
 // is: drawing a path, or an event on it, travels it. "Connection events:
-// happen when traveling from one node to another", each met by the score.
-function travel(from: At, place: Place, group: Group, roll: TestRoll, meet: (e: CrawlEvent) => Met, dice: Dice): Omit<Outcome, 'camp'> {
+// happen when traveling from one node to another", each met by the score;
+// one that stops the group keeps it where it set out from.
+function travel(from: At, place: Place, group: Group, roll: TestRoll, meet: Meet, dice: Dice): Meeting {
   const paths = getConnectionsFrom(place)
   const chosen = paths.find((p) => p.id === group.target)
   if (!chosen) return { roll, note: 'no path', moves: null, events: [] }
-  const along = (path: Path, note: string) => ({ roll, note, moves: { at: { map: from.map, node: path.to } }, events: path.events.map(meet) })
+  const onPath = (path: Path) => listed(path.events.map((e) => [e.id, e]))
+  const along = (path: Path, note: string): Meeting => {
+    const events = onPath(path).map(meet({ kind: 'connection', id: path.id }))
+    const stop = events.find((e) => e.outcome.stop)
+    return stop
+      ? { roll, note: `stopped by ${stop.name} on the way to ${path.toName}`, moves: null, events }
+      : { roll, note, moves: { at: { map: from.map, node: path.to } }, events }
+  }
   if (won(roll.degree)) return along(chosen, `arrived at ${chosen.toName}`)
   const weighted = (DL: number, item: Drawn) => ({ weight: getEventWeight(DL), item })
   const drawn = drawWeighted<Drawn>([
-    ...Object.values(place.node.events).map((event) => weighted(event.DL, { event })),
+    ...listed(Object.entries(place.node.events)).map((l) => weighted(l.stage.DL, { event: l })),
     weighted(chosen.DL, { path: chosen }),
-    ...chosen.events.map((event) => weighted(event.DL, { path: chosen })),
+    ...onPath(chosen).map((l) => weighted(l.stage.DL, { path: chosen })),
     ...(roll.score < 0 ? paths.filter((p) => p !== chosen).map((path) => weighted(path.DL, { path })) : []),
     { weight: BLANK_WEIGHT, item: null },
   ], rollPercent(dice))
   if (drawn && 'path' in drawn) return along(drawn.path, drawn.path === chosen ? `arrived at ${drawn.path.toName}` : `lost, came to ${drawn.path.toName}`)
-  if (drawn) return { roll, note: `held up at ${place.node.name}`, moves: null, events: [meet(drawn.event)] }
+  if (drawn) return { roll, note: `held up at ${place.node.name}`, moves: null, events: [meet({ kind: 'node', id: place.id })(drawn.event)] }
   return { roll, note: `lost, still at ${place.node.name}`, moves: null, events: [] }
 }
 
 // survival.tex "Search": "Characters find the easiest event of the type that
 // was searched for and for which their test value was high enough";
-// "Grazes and misses": otherwise a random event of the node. The roll is
-// read against the event met, or, with none, the easiest one looked for.
-function search(place: Place, group: Group, roll: TestRoll, meet: (e: CrawlEvent) => Met, dice: Dice): Omit<Outcome, 'camp'> {
-  const events = Object.values(place.node.events)
-  const sought = events.filter((e) => e.types.includes(group.seek)).map(meet).sort((x, y) => x.DL - y.DL)
-  const against = (met: Met | undefined): TestRoll => (met ? { ...roll, DL: met.DL, degree: met.degree } : roll)
-  const found = sought.find((met) => isFound(met.degree))
-  if (found) return { roll: against(found), note: `found ${found.name}`, moves: null, events: [found] }
-  const drawn = drawWeighted<CrawlEvent | null>([
-    ...events.map((event) => ({ weight: getEventWeight(event.DL), item: event })),
+// "Event DL": "A crit over the event DL allows interacting with it and, if
+// the event does not take the whole ET, go for another event for which
+// there was a hit or crit"; "Grazes and misses": otherwise a random event
+// of the node. The roll is read against the event met, or, with none, the
+// easiest one looked for.
+function search(place: Place, group: Group, roll: TestRoll, meet: Meet, dice: Dice): Meeting {
+  const events = listed(Object.entries(place.node.events))
+  const met = events.map(meet({ kind: 'node', id: place.id })).sort((x, y) => x.DL - y.DL)
+  const sought = met.filter((m) => events.find((l) => l.id === m.event)?.stage.types.includes(group.seek))
+  const against = (m: Met | undefined): TestRoll => (m ? { ...roll, DL: m.DL, degree: m.degree } : roll)
+  const found = sought.find((m) => isFound(m.degree))
+  if (found) {
+    const chain = [found]
+    for (const m of met) {
+      const last = chain[chain.length - 1]
+      if (last.degree !== 'critical' || last.outcome.takesET) break
+      if (!chain.includes(m) && isFound(m.degree)) chain.push(m)
+    }
+    return { roll: against(found), note: `found ${chain.map((m) => m.name).join(', then ')}`, moves: null, events: chain }
+  }
+  const drawn = drawWeighted<Listed | null>([
+    ...events.map((l) => ({ weight: getEventWeight(l.stage.DL), item: l })),
     { weight: BLANK_WEIGHT, item: null },
   ], rollPercent(dice))
   if (!drawn) return { roll: against(sought[0]), note: `found no ${group.seek}`, moves: null, events: [] }
-  const met = meet(drawn)
-  return { roll: against(sought[0]), note: `found no ${group.seek}, came upon ${drawn.name}`, moves: null, events: [met] }
+  return { roll: against(sought[0]), note: `found no ${group.seek}, came upon ${drawn.event.name}`, moves: null, events: [meet({ kind: 'node', id: place.id })(drawn)] }
 }
 
 // One group's test, made by its roller, and what it leaves the camp and
 // where it takes the group. `start` is the camp as the ET found it.
-function goOn(state: CampaignState, partyId: string, groupId: string, start: Camp, camp: Camp, group: Group, going: string[], test: Tester, dice: Dice): Outcome {
+function goOn(state: CampaignState, partyId: string, groupId: string, start: Camp, camp: Camp, group: Group, test: Tester, dice: Dice): Outcome {
   const party = state.parties[partyId]
   const place = getPlace(state, party)
-  const stays = { camp, moves: null, events: [] }
+  const stays = { camp, moves: null, events: [] as Met[] }
   if (group.kind === 'firewood' && !hasWood(state, party)) return { ...stays, roll: null, note: 'no wood here' }
   if (group.kind === 'fire' && start.firewood <= 0) return { ...stays, roll: null, note: 'no firewood' }
   if ((group.kind === 'firewood' || group.kind === 'fire') && start.progress.includes(group.kind)) {
@@ -218,13 +277,22 @@ function goOn(state: CampaignState, partyId: string, groupId: string, start: Cam
   const result = test({ id: `group:${partyId}:${groupId}`, roller: group.roller, label: group.kind, test: groupTest, mode: group.mode })
   if (!result) return { ...stays, roll: null, note: '' }
   const roll = toCallRoll(result)
-  const meet = meeting(state, going, roll.score, getNightDL(state, party))
+  const meet = meeting(roll.score, getNightDL(state, party))
   if (group.kind === 'travel') return { camp, ...(place && party.at ? travel(party.at, place, group, roll, meet, dice) : { roll, note: '', moves: { at: null }, events: [] }) }
   if (group.kind === 'search' && place) return { camp, ...search(place, group, roll, meet, dice) }
   return { ...stays, roll, note: '', camp: landTask(group, roll.degree, camp) }
 }
 
-type PartyET = { t: Exploring; results: GroupResult[]; castResults: CastResult[]; stayResults: StayResult[] }
+type PartyET = { t: Exploring; results: GroupResult[]; castResults: CastResult[]; stayResults: StayResult[]; meetings: Record<string, Meeting>; asks: boolean }
+
+type Step = (c: CampaignCharacter) => CampaignCharacter
+
+const push = (landing: Record<string, Step[]>, id: string, step: Step) => {
+  landing[id] = [...(landing[id] ?? []), step]
+}
+
+// survival.tex "Wear": paid as any cost is.
+const payWear = (wear: Wear): Step => payCost({ AP: 0, STA: 0, ...wear }, false)
 
 // What the party's casts over the ET came to: who spent it casting and the
 // exhaustion each cast cost them, the health each target rests with on top,
@@ -344,6 +412,13 @@ function passParty(t: Exploring, partyId: string, opening: Opening, test: Tester
   const working: Record<string, Group> = {}
   const moves: { at: At | null; ids: string[] }[] = []
   const results: GroupResult[] = []
+  // what the events met land on whoever met them, once the table has looked
+  // at those that ask it anything
+  const asked = t.exploration.meeting !== null
+  const meetings: Record<string, Meeting> = {}
+  const metLanding: Record<string, Step[]> = {}
+  const found: { ids: string[]; items: Item[] }[] = []
+  let asks = false
 
   for (const [groupId, group] of Object.entries(getGroups(t, partyId))) {
     const members = group.members.filter((id) => players.includes(id))
@@ -356,10 +431,37 @@ function passParty(t: Exploring, partyId: string, opening: Opening, test: Tester
     const going = members.filter((id) => !forced(id))
     if (going.length === 0) continue
     for (const id of going) working[id] = group
-    const outcome = goOn(state, partyId, groupId, start, camp, group, going, test, dice)
+    const held = isAway(group.kind) ? t.exploration.meeting?.[partyId]?.[groupId] : undefined
+    const outcome: Outcome = held ? { ...held, camp } : goOn(state, partyId, groupId, start, camp, group, test, dice)
     camp = outcome.camp
+    if (isAway(group.kind)) meetings[groupId] = { roll: outcome.roll, note: outcome.note, moves: outcome.moves, events: outcome.events }
+    const events = outcome.events.map((met, i): Met => {
+      if (asksTable(met.outcome) && !asked) {
+        asks = true
+        return met
+      }
+      for (const id of going) push(metLanding, id, payWear(met.outcome.wear))
+      const items = met.outcome.items.flatMap(({ key, amount }) => {
+        const item = getCatalogItem(key, amount)
+        return item ? [{ ...item, id: newId() }] : []
+      })
+      if (items.length > 0) found.push({ ids: going, items })
+      const check = met.outcome.test
+      if (!check) return met
+      const tests = going.flatMap((id) => {
+        const label = `${met.name}: ${check.skill}`
+        const eventTest: Test = { skill: skillLenses[check.skill].get(state.characters[id]), DL: check.DL + met.adjust, explodes: false, scale: 'degrees' }
+        const result = test({ id: `event:${partyId}:${groupId}:${i}:${id}`, roller: id, label, test: eventTest })
+        if (!result) return []
+        const roll = toCallRoll(result)
+        const landed = check.results[roll.degree]
+        push(metLanding, id, payWear(landed.wear))
+        return [{ name: name(id), roll, text: landed.text }]
+      })
+      return { ...met, tests }
+    })
     if (outcome.moves) moves.push({ at: outcome.moves.at, ids: [...going, ...forcedIn.filter((id) => opening.decisions[id] === 'carry')] })
-    results.push({ party: party.name, kind: group.kind, members: going.map(name), roll: outcome.roll, note: outcome.note, events: outcome.events })
+    results.push({ party: party.name, kind: group.kind, members: going.map(name), roll: outcome.roll, note: outcome.note, events })
   }
 
   // survival.tex "Campfire": a fire burns its firewood, 1 ET of it per ET.
@@ -383,13 +485,14 @@ function passParty(t: Exploring, partyId: string, opening: Opening, test: Tester
     const planned = resting ? rest(drank, exposure, cast.bonus[id] ?? 0)
       : group ? addExhaustion(1)(addIL(getWear(drank, getExplorationAction(group.kind)))(drank))
       : addExhaustion(1 + (cast.exhaustion[id] ?? 0))(drank)
-    characters[id] = [addIL(wear.IL), addExhaustion(wear.exhaustion), gainHunger(wear.hunger), gainThirst(wear.thirst)]
-      .reduce((c, step) => step(c), planned)
+    characters[id] = payWear(wear)(planned)
   }
   // what the casts put on their targets lands once the ET's rest is had, so
   // healing banked as a potion's is spent over the next
-  for (const [id, landing] of Object.entries(cast.landing)) {
-    if (characters[id]) characters[id] = landing.reduce((c, step) => step(c), characters[id])
+  for (const landing of [cast.landing, metLanding]) {
+    for (const [id, steps] of Object.entries(landing)) {
+      if (characters[id]) characters[id] = steps.reduce((c, step) => step(c), characters[id])
+    }
   }
   const rests = { ...t.exploration.rests, ...Object.fromEntries(Object.entries(count).map(([id, n]) => [id, { day, count: n }])) }
   const exploration = { ...t.exploration, rests, camps: { ...t.exploration.camps, [partyId]: camp } }
@@ -402,13 +505,15 @@ function passParty(t: Exploring, partyId: string, opening: Opening, test: Tester
   if (moves.length === 1 && members.every((id) => moves[0].ids.includes(id))) {
     const at = moves[0].at ?? party.at
     return {
-      t: {
+      t: pileUp({
         campaign: { ...passed.campaign, parties: { ...passed.campaign.parties, [partyId]: { ...lived.parties[partyId], at } } },
         exploration: { ...exploration, camps: { ...exploration.camps, [partyId]: CampSchema.parse({ at }) } },
-      },
+      }, found),
       results,
       castResults: cast.results,
       stayResults,
+      meetings,
+      asks,
     }
   }
   const campaign = moves.reduce((s, move) => {
@@ -416,19 +521,33 @@ function passParty(t: Exploring, partyId: string, opening: Opening, test: Tester
     const added = addParty(newPartyId, { ...lived.parties[partyId], at: move.at ?? party.at })(s)
     return { ...added, partyOf: { ...added.partyOf, ...Object.fromEntries(move.ids.map((id) => [id, newPartyId])) } }
   }, passed.campaign)
-  return { t: { ...passed, campaign }, results, castResults: cast.results, stayResults }
+  return { t: pileUp({ ...passed, campaign }, found), results, castResults: cast.results, stayResults, meetings, asks }
+}
+
+// survival.tex "Events": what a group found goes to the pile of the party
+// it ends the ET in, for the table to share out.
+function pileUp(t: Exploring, found: { ids: string[]; items: Item[] }[]): Exploring {
+  return found.reduce((acc, { ids, items }) => {
+    const partyId = acc.campaign.partyOf[ids[0]]
+    if (!partyId) return acc
+    const piles = { ...acc.exploration.piles, [partyId]: [...(acc.exploration.piles[partyId] ?? []), ...items] }
+    return { ...acc, exploration: { ...acc.exploration, piles } }
+  }, t)
 }
 
 // The ET over: its plans emptied for the next, the groups and camps of
 // parties no longer there dropped, its tests kept to read.
-function closeET(t: Exploring, opening: Opening, played: Omit<PartyET, 't'>): Exploring {
+type Played = Pick<PartyET, 'results' | 'castResults' | 'stayResults'>
+
+function closeET(t: Exploring, opening: Opening, played: Played): Exploring {
   const here = (pid: string) => pid in t.campaign.parties
   const groups = Object.fromEntries(Object.entries(t.exploration.groups).filter(([pid]) => here(pid)).map(([pid, gs]) =>
     [pid, Object.fromEntries(Object.entries(gs).map(([gid, g]) => [gid, { ...g, members: [], roller: null }]))]))
   const camps = Object.fromEntries(Object.entries(t.exploration.camps).filter(([pid]) => here(pid)))
+  const piles = Object.fromEntries(Object.entries(t.exploration.piles).filter(([pid, pile]) => here(pid) && pile.length > 0))
   return {
     campaign: t.campaign,
-    exploration: { ...t.exploration, groups, camps, resting: [], casts: {}, opening: null, calls: {}, exhaustionRolls: opening.rolls, ...played },
+    exploration: { ...t.exploration, groups, camps, piles, resting: [], casts: {}, opening: null, meeting: null, calls: {}, exhaustionRolls: opening.rolls, ...played },
   }
 }
 
@@ -437,8 +556,10 @@ function closeET(t: Exploring, opening: Opening, played: Omit<PartyET, 't'>): Ex
 // tests it opens with; if one forces a rest on someone whose group goes away,
 // the pass waits for the table to decide what happens to them, and the next
 // press goes on. Then it calls for the tests of its groups and casts, and for
-// those a cast that landed leaves its targets, and plays the ET out once every
-// die is in.
+// those a cast that landed leaves its targets. Where an event met asks a test
+// of anyone, it stops with what was met held, for the table to change the
+// DL of the test by what they do; the next press calls those tests. It plays
+// the ET out once every die is in.
 export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
   return (t) => {
     if (getPassBar(t)) return t
@@ -449,7 +570,7 @@ export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
     if (getOpenCalls(caller.calls).length > 0) return waiting(t)
     if (getPassBar(opened)) return waiting(opened)
     const opening = opened.exploration.opening ?? { rolls: {}, decisions: {} }
-    const played = getPlayingParties(opened.campaign, 'exploration').reduce<PartyET>((acc, partyId) => {
+    const played = getPlayingParties(opened.campaign, 'exploration').reduce<Played & { t: Exploring; meeting: Record<string, Record<string, Meeting>>; asks: boolean }>((acc, partyId) => {
       const clock = acc.t.campaign.parties[partyId]?.clock ?? null
       const next = passParty(acc.t, partyId, opening, caller.test, dice, newId)
       const lines = getETResultLines(next.results, next.castResults, next.stayResults)
@@ -459,11 +580,15 @@ export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
         results: [...acc.results, ...next.results],
         castResults: [...acc.castResults, ...next.castResults],
         stayResults: [...acc.stayResults, ...next.stayResults],
+        meeting: { ...acc.meeting, [partyId]: next.meetings },
+        asks: acc.asks || next.asks,
       }
-    }, { t: opened, results: [], castResults: [], stayResults: [] })
+    }, { t: opened, results: [], castResults: [], stayResults: [], meeting: {}, asks: false })
     if (getOpenCalls(caller.calls).length > 0) return waiting(opened)
-    const { t: closing, ...results } = played
-    return closeET(closing, opening, results)
+    // what was met waits for the table before the tests it asks are called
+    if (played.asks) return { ...opened, exploration: { ...opened.exploration, calls: caller.calls, meeting: played.meeting } }
+    const { results, castResults, stayResults } = played
+    return closeET(played.t, opening, { results, castResults, stayResults })
   }
 }
 

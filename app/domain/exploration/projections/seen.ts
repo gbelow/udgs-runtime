@@ -23,6 +23,8 @@ const CENSORS: { [K in keyof ExplorationState]: ExplorationCensor<ExplorationSta
   casts: unseen,
   rests: unseen,
   opening: unseen,
+  meeting: (meeting, k) => (meeting ? unseen(only(meeting, (party) => k.parties.has(party)), k) : meeting),
+  piles: (piles, k) => only(piles, (party) => k.parties.has(party)),
   calls: (calls, k) => only(calls, (id) => !k.hidden.has(calls[id].roller)),
   exhaustionRolls: unseen,
   results: ofParties,

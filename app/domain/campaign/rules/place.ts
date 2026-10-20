@@ -1,5 +1,5 @@
-import type { At, CampaignState, Connection, CrawlMap, CrawlNode, Party, PathEvent, Terrain, TerrainWear } from '../types'
-import { TerrainWearSchema } from '../types'
+import type { At, CampaignState, Connection, CrawlMap, CrawlNode, Party, PathEvent, Terrain, Wear } from '../types'
+import { WearSchema } from '../types'
 import { isDead } from '../../character/rules/afflictions'
 import { getNodeTerrain } from './terrain'
 
@@ -30,8 +30,8 @@ export function isSamePlace(a: { at: At | null }, b: { at: At | null }): boolean
 // example, spending an ET in the desert without shelter always inflicts an
 // extra thirst" — paid every ET by everyone on the node, whatever they do;
 // a shelter is a node of its own, with its own wear.
-export function getTerrainWear(state: CampaignState, party: Party): TerrainWear {
-  return getPlace(state, party)?.terrain?.wear ?? TerrainWearSchema.parse({})
+export function getTerrainWear(state: CampaignState, party: Party): Wear {
+  return getPlace(state, party)?.terrain?.wear ?? WearSchema.parse({})
 }
 
 // survival.tex "Terrain": "Every terrain has a value of exposure"; off the
@@ -41,7 +41,7 @@ export function getExposure(state: CampaignState, party: Party): number {
   return place?.terrain ? place.terrain.exposure : party.exposure
 }
 
-export type Path = { id: string; connection: Connection; to: string; toName: string; DL: number; events: PathEvent[] }
+export type Path = { id: string; connection: Connection; to: string; toName: string; DL: number; events: (PathEvent & { id: string })[] }
 
 // The paths out of the place, each as travelled from it: the node at the
 // other end, the DL that way, and the events met going that way.
@@ -54,7 +54,7 @@ export function getConnectionsFrom({ map, id: node }: Place): Path[] {
       const to = there ? connection.b : connection.a
       return {
         id, connection, to, toName: map.nodes[to]?.name ?? to, DL: there ? connection.DL : connection.backDL,
-        events: Object.values(connection.events).filter((e) => e.way === 'both' || e.way === way),
+        events: Object.entries(connection.events).filter(([, e]) => e.way === 'both' || e.way === way).map(([eventId, e]) => ({ ...e, id: eventId })),
       }
     })
 }

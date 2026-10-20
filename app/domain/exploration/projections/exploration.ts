@@ -1,4 +1,6 @@
 import type { EventType, SeenCampaign, TerrainTag } from '../../campaign/types'
+import { SlotKindSchema, type Degree, type SlotKind } from '../../types'
+import { canFitItem, getOpenContainers } from '../../item/rules/containers'
 import { TREAT_COUNT, getETMedicine, getETTreatBar, getETTreatTest, getUnsetWounds, isETMedicine, type ETMedicineKey } from '../rules/medicine'
 import { ABILITIES } from '../../abilities'
 import { getConsume, getDosesLeft } from '../../item/rules/consumables'
@@ -61,12 +63,30 @@ export type PartyView = {
   // the paths a travel can go along, and the parties it can merge with
   paths: { id: string; name: string; DL: number }[]
   others: { id: string; name: string }[]
+  // survival.tex "Events": what the party has found, to share out
+  pile: { id: string; name: string; amount: number }[]
+}
+// An event a group of the passing ET met, held for the table: the degree its
+// score came to, what the outcome says, and the test it asks of everyone
+// present, with the table's change to its DL.
+export type MetView = {
+  partyId: string
+  groupId: string
+  index: number
+  group: string
+  name: string
+  DL: number
+  degree: Degree
+  text: string
+  test: { skill: string; DL: number; adjust: number } | null
 }
 export type DecisionView = { id: string; name: string; decision: Decision | null }
 export type PartiesView = {
   dayETs: number
   parties: PartyView[]
   decisions: DecisionView[]
+  // what the passing ET met, while the table looks at it; null otherwise
+  meeting: MetView[] | null
   // what the last ET came to, a line each
   lastET: string[]
 }
@@ -117,9 +137,16 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
       }),
       paths: place ? getConnectionsFrom(place).map((p) => ({ id: p.id, name: p.toName, DL: p.DL })) : [],
       others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && p.sequence === party.sequence && isSamePlace(p, party)).map(([id, p]) => ({ id, name: p.name })),
+      pile: (exploration.piles[partyId] ?? []).map((i) => ({ id: i.id, name: i.name || i.refId, amount: i.amount })),
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),
+  meeting: exploration.meeting && Object.entries(exploration.meeting).flatMap(([partyId, groups]) =>
+    Object.entries(groups).flatMap(([groupId, m]) => m.events.map((e, index): MetView => ({
+      partyId, groupId, index, group: `${state.parties[partyId]?.name ?? ''} · ${exploration.groups[partyId]?.[groupId]?.kind ?? ''}`,
+      name: e.name, DL: e.DL, degree: e.degree, text: e.outcome.text,
+      test: e.outcome.test && { skill: e.outcome.test.skill, DL: e.outcome.test.DL + e.adjust, adjust: e.adjust },
+    })))),
   lastET: getETResultLines(exploration.results, exploration.castResults, exploration.stayResults, true),
   }
 })
@@ -180,6 +207,9 @@ export type ExplorationPanel = {
   // gear.tex "Potions and Medicine": what the character carries a dose of
   // to take, the doses left and why one cannot be taken now
   medicines: { id: string; name: string; doses: number; bar: string | null }[]
+  // survival.tex "Events": what their party found, and where they have room
+  // for each
+  pile: { partyId: string; id: string; name: string; amount: number; places: { containerKey: string; slot: SlotKind; label: string }[] }[]
 }
 
 // survival.tex "Exhaustion", "Rest", "Wear" — what each plan for the coming
@@ -189,7 +219,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const state = t.campaign
   const c = id ? state.characters[id] : undefined
   const party = id ? state.parties[state.partyOf[id]] : undefined
-  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [], medicines: [] }
+  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [], medicines: [], pile: [] }
   const partyId = state.partyOf[id]
   const plan = planOf(t, partyId, id)
   const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, hunger: 0, thirst: 0, idle: true, selected: plan === 'idle' }
@@ -219,6 +249,12 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
     potion: c.injuries.potion,
     foods: getCarriedItems(c).flatMap((i) => (i.food === null ? [] : [{ id: i.id, name: i.name, amount: i.amount, nutrition: i.food, charged: i.charge !== null }])),
     medicines: getCarriedItems(c).flatMap((i) => (getConsume(i) ? [{ id: i.id, name: i.name, doses: getDosesLeft(i), bar: getConsumeBar(c, i) }] : [])),
+    pile: (t.exploration.piles[partyId] ?? []).map((item) => ({
+      partyId, id: item.id, name: item.name || item.refId, amount: item.amount,
+      places: Object.entries(getOpenContainers(c)).flatMap(([containerKey, container]) => SlotKindSchema.options
+        .filter((slot) => container.slots[slot].numSlots > 0 && canFitItem(container, slot, item))
+        .map((slot) => ({ containerKey, slot, label: `${container.name} · ${slot}` }))),
+    })),
   }
 }
 
@@ -299,7 +335,11 @@ export function getETResultLines(results: GroupResult[], castResults: CastResult
   return [
     ...results.flatMap((r) => [
       `${of(r.party)}${r.kind} (${r.members.join(', ')})${describeOutcome(r.roll, r.note)}`,
-      ...r.events.map((e) => `  ${e.name} vs DL ${e.DL}, ${e.degree}${e.outcome ? `: ${e.outcome}` : ''}`),
+      ...r.events.flatMap((e) => [
+        `  ${e.name} vs DL ${e.DL}, ${e.degree}${e.outcome.text ? `: ${e.outcome.text}` : ''}`,
+        ...(e.outcome.items.length > 0 ? [`    found ${e.outcome.items.map((i) => `${i.amount} ${i.key}`).join(', ')}`] : []),
+        ...e.tests.map((test) => `    ${test.name}: ${describeRoll(test.roll)}${test.text ? `: ${test.text}` : ''}`),
+      ]),
     ]),
     ...castResults.flatMap((r) => [
       `${of(r.party)}${r.caster} cast ${r.spell}${r.targets.length > 0 ? ` on ${r.targets.join(', ')}` : ''}${describeOutcome(r.roll, r.note)}`,

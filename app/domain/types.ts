@@ -657,6 +657,9 @@ export const CostSchema = z.object({
   STA: num.default(0),
   exhaustion: num.default(0),
   IL: num.default(0), // causes loss or gain of attribute
+  // survival.tex "Wear": paid only outside a fight, and named only where paid
+  hunger: num.optional(),
+  thirst: num.optional(),
   ET: num.default(0), // exploration turns, spent by the exploration loop rather than here
 }).strip()
 
@@ -1133,7 +1136,7 @@ export const AbilityFamilySchema = z.object({
   family: str.default(''),
   section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
   activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
-  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }), // what a use of an active ability takes, on top of its instant cost effects
+  cost: CostSchema.prefault({}), // what a use of an active ability takes, on top of its instant cost effects
   concentration: z.boolean().default(false), // combat.tex "Concentration": a use needs the focus surge and may be held over to the next round
   target: AbilityTargetSchema.default('self'),
   stages: z.array(AbilityStageSchema).min(1),
@@ -1149,7 +1152,7 @@ export const AbilitySchema = z.object({
   stage: num.default(1),
   section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
   activation: ActivationSchema.default('passive'),
-  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
+  cost: CostSchema.prefault({}),
   concentration: z.boolean().default(false),
   target: AbilityTargetSchema.default('self'),
   requires: z.array(str).default([]), // catalog keys that must already be learned
@@ -1274,7 +1277,7 @@ export const SpellSchema = z.object({
   name: str.default(''),
   section: str.default(''), // the book's school, lowercased: the fallback casting knowledge
   type: SpellTypeSchema.default('instant'),
-  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }), // paid before the roll
+  cost: CostSchema.prefault({}), // paid before the roll
   // spells.tex "Sustained Spells": what holding it costs at every round
   // change; null is the casting cost again
   upkeep: CostSchema.nullable().default(null),

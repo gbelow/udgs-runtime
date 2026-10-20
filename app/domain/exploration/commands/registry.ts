@@ -1,16 +1,18 @@
 import type { Throw } from '../../play/calls'
 import type { DieSource } from '../../play/dice'
+import type { SlotKind } from '../../types'
 import type { Actor } from '../../profiles'
 import { commandsOver, playedBy, rollerOf, type CommandOf } from '../../registry'
 import type { CampaignUpdater } from '../../campaign/types'
 import { getGroupActor } from '../rules/exploration'
 import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from '../types'
-import { answerET, drink, eat, eatFood, passET, takeItem, toDowntime } from './exploration'
+import { adjustMet, answerET, drink, eat, eatFood, passET, takeFromPile, takeItem, toDowntime } from './exploration'
 import { addGroup, decide, joinGroup, planCast, removeGroup, setCast, setGroup, setResting, setRoller } from './plans'
 
 // Exploration's presses as data (cf. the scene's registry): each member's
-// plan for the coming ET, the groups, what a member eats and drinks, the ET
-// passed, a die it called for answered, and a party taken into downtime.
+// plan for the coming ET, the groups, what a member eats and drinks and takes
+// off the found pile, the ET passed, the DL of what it met changed, a die it
+// called for answered, and a party taken into downtime.
 
 export type ExplorationContext = { thrower: Throw; newId: () => string }
 
@@ -30,6 +32,7 @@ export const explorationCommands = {
   eatFood: command((_, id: string, itemId: string) => onCampaign(eatFood(id, itemId))).by(own),
   takeItem: command((_, id: string, itemId: string) => onCampaign(takeItem(id, itemId))).by(own),
   drink: command((_, id: string) => onCampaign(drink(id))).by(own),
+  takeFromPile: command((_, id: string, partyId: string, itemId: string, containerKey: string, slot: SlotKind) => takeFromPile(partyId, itemId, id, containerKey, slot)).by(own),
 
   // a party's groups, its own business but for the DL, which the GM sets
   addGroup: command((ctx, partyId: string, kind: GroupKind) => addGroup(partyId, kind, ctx.newId)).by((t, partyId) => getGroupActor(t, partyId)),
@@ -40,6 +43,7 @@ export const explorationCommands = {
 
   // the ET passed, and a party taken out of it
   passET: command((ctx) => passET(ctx.thrower, ctx.newId)).by(gm),
+  adjustMet: command((_, partyId: string, groupId: string, index: number, adjust: number) => adjustMet(partyId, groupId, index, adjust)).by(gm),
   toDowntime: command((_, partyId: string) => toDowntime(partyId)).by(gm),
 
   // a die the ET called for, answered by whoever throws it

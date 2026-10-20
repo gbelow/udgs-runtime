@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, type Selected } from '../types'
+import { CampaignCharacterSchema, CostSchema, SkillKeySchema, type Selected } from '../types'
 
 // survival.tex "Events": the 8 types of events.
 export const EVENT_TYPES = ['place', 'encounter', 'obstacle', 'treasure', 'wear', 'food', 'shelter', 'water'] as const
@@ -11,34 +11,68 @@ export const TERRAIN_TAGS = ['wood', 'rain', 'cold', 'heat', 'insects', 'threats
 export const TerrainTagSchema = z.enum(TERRAIN_TAGS)
 export type TerrainTag = z.infer<typeof TerrainTagSchema>
 
-// survival.tex "Events": something on a node or a connection, found on purpose
-// against its DL. Each event resolves itself: the table reads the outcome for
-// the degree the test came to against it. "Knowledge enablers": the knowledge
-// level it needs from someone present.
-export const CrawlEventSchema = z.object({
+// survival.tex "Wear": what an exploration action costs on top of the usual,
+// from the terrain ("spending an ET in the desert without shelter always
+// inflicts an extra thirst") or from an event met: a cost, paid as the
+// character pays any.
+export const WearSchema = CostSchema.pick({ IL: true, exhaustion: true }).extend({ hunger: z.number().default(0), thirst: z.number().default(0) })
+export type Wear = z.infer<typeof WearSchema>
+
+const perDegree = <T extends z.ZodType>(outcome: T) =>
+  z.object({ critical: outcome, hit: outcome, graze: outcome, miss: outcome })
+
+// What lands on one who made an event's test, by their degree.
+export const EventResultSchema = z.object({
+  text: z.string().default(''),
+  wear: WearSchema.prefault({}),
+})
+export type EventResult = z.infer<typeof EventResultSchema>
+
+// survival.tex "Events": "Everyone must make a DL 3 climbing test" — a test
+// each one present makes, its DL lowered or raised by the table as what
+// they do calls for.
+export const EventTestSchema = z.object({
+  skill: SkillKeySchema.default('climb'),
+  DL: z.number().default(0),
+  results: perDegree(EventResultSchema.prefault({})).prefault({}),
+})
+export type EventTest = z.infer<typeof EventTestSchema>
+
+// What an event comes to at one degree: what the table reads, the wear it
+// costs everyone present, what is found, the test it asks of each of them,
+// and, on a path, whether it keeps the group from arriving. `takesET` is the
+// event's word on whether it takes the whole ET (survival.tex "Event DL").
+export const EventOutcomeSchema = z.object({
+  text: z.string().default(''),
+  takesET: z.boolean().default(true),
+  stop: z.boolean().default(false),
+  wear: WearSchema.prefault({}),
+  items: z.array(z.object({ key: z.string(), amount: z.number().default(1) })).default([]),
+  test: EventTestSchema.nullable().default(null),
+})
+export type EventOutcome = z.infer<typeof EventOutcomeSchema>
+
+// One state an event can be in — the tree empty or in fruit, the deer alive
+// or butchered — with the DL it is found against, the types it is searched
+// for by, and what it comes to at each degree.
+export const EventStageSchema = z.object({
   name: z.string().default(''),
   types: z.array(EventTypeSchema).default([]),
   DL: z.number().default(0),
-  enabler: z.object({ knowledge: z.string(), level: z.number() }).nullable().default(null),
-  outcomes: z.object({
-    critical: z.string().default(''),
-    hit: z.string().default(''),
-    graze: z.string().default(''),
-    miss: z.string().default(''),
-  }).default({ critical: '', hit: '', graze: '', miss: '' }),
+  outcomes: perDegree(EventOutcomeSchema.prefault({})).prefault({}),
+})
+export type EventStage = z.infer<typeof EventStageSchema>
+
+// survival.tex "Events": something on a node or a connection, found on
+// purpose against its DL. Each event resolves itself, by the outcome for the
+// degree the test came to against the stage it is in; the GM moves it from
+// one stage to another.
+export const CrawlEventSchema = z.object({
+  name: z.string().default(''),
+  stage: z.number().default(0),
+  stages: z.array(EventStageSchema).default(() => [EventStageSchema.parse({})]),
 })
 export type CrawlEvent = z.infer<typeof CrawlEventSchema>
-
-// survival.tex "Terrain": "Terrain can have value for extra wear. For
-// example, spending an ET in the desert without shelter always inflicts an
-// extra thirst" — what every EA in it costs on top of the usual wear.
-export const TerrainWearSchema = z.object({
-  IL: z.number().default(0),
-  exhaustion: z.number().default(0),
-  hunger: z.number().default(0),
-  thirst: z.number().default(0),
-})
-export type TerrainWear = z.infer<typeof TerrainWearSchema>
 
 // survival.tex "Terrain": a preset a node is made of, kept in the terrain
 // catalog outside any map. `knowledge` is the one location knowledge is read
@@ -47,7 +81,7 @@ export const TerrainSchema = z.object({
   name: z.string().default(''),
   exposure: z.number().default(0),
   shelterDL: z.number().default(0),
-  wear: TerrainWearSchema.default({ IL: 0, exhaustion: 0, hunger: 0, thirst: 0 }),
+  wear: WearSchema.prefault({}),
   knowledge: z.string().default('survival'),
   tags: z.array(TerrainTagSchema).default([]),
 })

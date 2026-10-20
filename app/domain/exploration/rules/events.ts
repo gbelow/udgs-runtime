@@ -1,6 +1,5 @@
 import type { Degree } from '../../types'
-import type { CampaignState, CrawlEvent } from '../../campaign/types'
-import { getKnowledge } from '../../character/rules/knowledge'
+import type { CrawlEvent, EventOutcome, EventStage } from '../../campaign/types'
 
 // survival.tex "Random event": "put all available events in a numbered list
 // and roll ... Leave numbers blank or add some events multiple times." The
@@ -23,20 +22,22 @@ export function drawWeighted<T>(entries: { weight: number; item: T }[], percent:
   return null
 }
 
-// creating.tex "Knowledge as Enabler": "a penalty of -5 per missing
-// knowledge level", the knowledge held by "any member of the team that is
-// present in the exploration action".
-export function getEnablerPenalty(state: CampaignState, present: string[], event: CrawlEvent): number {
-  if (!event.enabler) return 0
-  const { knowledge, level } = event.enabler
-  const best = Math.max(0, ...present.map((id) => getKnowledge(knowledge)(state.characters[id])))
-  return 5 * Math.max(0, level - best)
+// The stage the event is in, or null for one left with none.
+export function getStage(event: CrawlEvent): EventStage | null {
+  return event.stages[event.stage] ?? event.stages[0] ?? null
 }
 
-// The DL an exploration score is read against for an event: its own, with
-// the night and any missing knowledge on top.
-export function getEventDL(state: CampaignState, present: string[], night: number, event: CrawlEvent): number {
-  return event.DL + night + getEnablerPenalty(state, present, event)
+// The DL an exploration score is read against for an event: its stage's,
+// with the night on top.
+export function getEventDL(stage: EventStage, night: number): number {
+  return stage.DL + night
+}
+
+// Whether what an event came to waits on the table before it lands: it
+// asks a test of everyone present, whose DL the table may change for what
+// they do.
+export function asksTable(outcome: EventOutcome): boolean {
+  return outcome.test !== null
 }
 
 // survival.tex "Search": "Characters find the easiest event of the type that

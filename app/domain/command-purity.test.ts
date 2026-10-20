@@ -27,7 +27,7 @@ import { CampaignStateSchema, CollectionSchema, CrawlMapSchema, type CampaignSta
 import type { Table } from './scene/types'
 import * as explorationModule from './exploration/commands/exploration'
 import * as plansModule from './exploration/commands/plans'
-import { ExplorationStateSchema, type Exploring } from './exploration/types'
+import { ExplorationStateSchema, MeetingSchema, type Exploring } from './exploration/types'
 import * as downtimeModule from './downtime/commands/downtime'
 import * as downtimePlansModule from './downtime/commands/plans'
 import { DowntimeStateSchema, type Downtime } from './downtime/types'
@@ -396,6 +396,8 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   passET: (t) => explorationCommands.passET(() => 0, () => 'q')({ ...t, exploration: { ...t.exploration, resting: ['a'] } }),
   answerET: (t) => explorationCommands.answerET('group:p:g', 4, 'entered', () => 0, () => 'q')({ ...t, exploration: { ...t.exploration, calls: { 'group:p:g': { id: 'group:p:g', roller: 'b', label: 'travel', explodes: false, test: { skill: 0, DL: 5, scale: 'degrees', grazes: false }, mode: 'normal', die: null, source: 'screen' } } } }),
   toDowntime: (t) => explorationCommands.toDowntime('p')(t),
+  adjustMet: (t) => explorationCommands.adjustMet('p', 'g', 0, -3)({ ...t, exploration: { ...t.exploration, meeting: { p: { g: MeetingSchema.parse({ roll: null, events: [{ owner: { kind: 'connection', id: 'c' }, event: 'e', name: 'climb', DL: 5, degree: 'hit', outcome: { test: {} } }] }) } } } }),
+  takeFromPile: (t) => explorationCommands.takeFromPile('p', 'found', 'a', 'belt', 'quick')({ ...t, exploration: { ...t.exploration, piles: { p: [ItemSchema.parse({ id: 'found', name: 'Ration', type: 'food', food: 3, amount: 1 })] } } }),
 }
 
 // `a` and `b` holding each other, nothing open.
@@ -492,7 +494,7 @@ function declaredPush(s: SceneState): SceneState {
 // Two nodes joined by a path, an event on each; the terrain is a name the
 // catalog may not have, which a node falls back from.
 function mapSubject(): CrawlMap {
-  const event = { name: 'wolves', types: ['encounter'], DL: 5, outcomes: { hit: 'avoided' } }
+  const event = { name: 'wolves', stages: [{ types: ['encounter'], DL: 5, outcomes: { hit: { text: 'avoided' } } }, { name: 'gone' }] }
   return CrawlMapSchema.parse({
     name: 'm',
     nodes: { n1: { name: 'A', terrain: 'forest', custom: { exposure: 2 }, events: { e: event } }, n2: { name: 'B', terrain: 'forest' } },
@@ -522,11 +524,15 @@ const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setConnection: (m) => mapModule.setConnection('c', { backDL: 9 })(m),
   removeConnection: (m) => mapModule.removeConnection('c')(m),
   addEvent: (m) => mapModule.addEvent({ kind: 'connection', id: 'c' }, () => 'f')(m),
-  setEvent: (m) => mapModule.setEvent({ kind: 'node', id: 'n1' }, 'e', { DL: 0 })(m),
+  setEvent: (m) => mapModule.setEvent({ kind: 'node', id: 'n1' }, 'e', { name: 'deer' })(m),
+  setEventStage: (m) => mapModule.setEventStage({ kind: 'node', id: 'n1' }, 'e', 1)(m),
+  addStage: (m) => mapModule.addStage({ kind: 'node', id: 'n1' }, 'e')(m),
+  removeStage: (m) => mapModule.removeStage({ kind: 'connection', id: 'c' }, 'e', 0)(m),
+  setStage: (m) => mapModule.setStage({ kind: 'node', id: 'n1' }, 'e', 0, { DL: 0 })(m),
+  setOutcome: (m) => mapModule.setOutcome({ kind: 'node', id: 'n1' }, 'e', 0, 'miss', { stop: true, wear: { IL: 1, exhaustion: 0, hunger: 0, thirst: 0 } })(m),
   setEventWay: (m) => mapModule.setEventWay('c', 'e', 'both')(m),
   removeEvent: (m) => mapModule.removeEvent({ kind: 'node', id: 'n1' }, 'e')(m),
-  toggleEventType: (m) => mapModule.toggleEventType({ kind: 'connection', id: 'c' }, 'e', 'food')(m),
-  setEnabler: (m) => mapModule.setEnabler({ kind: 'connection', id: 'c' }, 'e', 'survival', 2)(m),
+  toggleStageType: (m) => mapModule.toggleStageType({ kind: 'connection', id: 'c' }, 'e', 0, 'food')(m),
 }
 
 function combatSubject(): SceneState {

@@ -5,11 +5,13 @@ import { Button, CollectionSelect, ListButton, NumberInput, Panel, SectionLabel,
 import { MapCanvas, type MapSelection } from './MapCanvas'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { MapEditingContext, useMapEditing, useMapEditor } from '../hooks/useMap'
-import { EVENT_TYPES, TERRAIN_TAGS, WAYS, type EventOwner, type TerrainValues, type Way } from '../domain/campaign/types'
+import { EVENT_TYPES, EventTestSchema, TERRAIN_TAGS, WAYS, type EventOutcome, type EventOwner, type EventResult, type EventTest, type TerrainValues, type Wear, type Way } from '../domain/campaign/types'
+import { SkillKeySchema, type Degree } from '../domain/types'
+import { useItemCatalogRows } from '../hooks/useItemLens'
 import { knowledges_list } from '../domain/lists'
 import type { EventView, NodeEditorView } from '../domain/campaign/projections/map'
 
-const OUTCOMES = ['critical', 'hit', 'graze', 'miss'] as const
+const DEGREES_SHOWN = ['critical', 'hit', 'graze', 'miss'] as const
 const WEAR_KEYS = ['IL', 'exhaustion', 'hunger', 'thirst'] as const
 
 // survival.tex "Creating the point crawl": the saved maps on the left, the
@@ -35,6 +37,7 @@ export function MapEditor() {
 // kept: the catalog's, or one of the campaign's copies.
 export function MapBody() {
   const { view } = useMapEditing()
+  const items = useItemCatalogRows()
   const [picked, select] = useState<MapSelection>(null)
   const selected = picked && (picked.kind === 'node' ? view.nodes.some((n) => n.id === picked.id) : view.connections.some((c) => c.id === picked.id)) ? picked : null
   return (
@@ -47,6 +50,9 @@ export function MapBody() {
       </div>
       <datalist id='knowledges'>
         {knowledges_list.map((k) => <option key={k} value={k} />)}
+      </datalist>
+      <datalist id='catalog-items'>
+        {items.map((i) => <option key={i.key} value={i.key}>{i.name}</option>)}
       </datalist>
     </div>
   )
@@ -192,36 +198,131 @@ function PathInspector({ id, close }: { id: string, close: () => void }) {
   )
 }
 
-// survival.tex "Events": an event, its DL to be found, what it needs known,
-// and what it comes to at each degree.
+// survival.tex "Events": an event, the stage it is in, which the GM moves it
+// between, and each stage's DL to be found, its types and what it comes to
+// at each degree. One stage is open at a time.
 function EventEditor({ owner, event, children }: { owner: EventOwner, event: EventView, children?: ReactNode }) {
-  const { setEvent, toggleType, setEnabler, removeEvent } = useMapEditing()
+  const { setEvent, setEventStage, addStage, removeStage, setStage, toggleType, removeEvent } = useMapEditing()
+  const [open, setOpen] = useState(event.stage)
+  const index = event.stages[open] ? open : 0
+  const stage = event.stages[index]
+  const label = (s: EventView['stages'][number], i: number) => s.name || `stage ${i + 1}`
   return (
     <div className='flex flex-col gap-1 ml-4 pl-2 border-l border-line'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <TextInput className='w-40' aria-label='event name' value={event.name} onChange={(e) => setEvent(owner, event.id, { name: e.target.value })} />
         {children}
-        <span className='text-xs text-muted'>DL</span>
-        <NumberInput className='w-10' aria-label={`${event.name} DL`} value={event.DL} onChange={(e) => setEvent(owner, event.id, { DL: parseInt(e.target.value) || 0 })} />
-        {EVENT_TYPES.map((type) => (
-          <Button key={type} size='xs' variant='ghost' selected={event.types.includes(type)} onClick={() => toggleType(owner, event.id, type)}>{type}</Button>
-        ))}
-        <span className='text-xs text-muted'>needs</span>
-        <TextInput className='w-28' list='knowledges' aria-label={`${event.name} enabler`} placeholder='knowledge' value={event.enabler?.knowledge ?? ''}
-          onChange={(e) => setEnabler(owner, event.id, e.target.value, event.enabler?.level ?? 1)} />
-        {event.enabler ?
-          <NumberInput className='w-10' aria-label={`${event.name} enabler level`} value={event.enabler.level}
-            onChange={(e) => setEnabler(owner, event.id, event.enabler?.knowledge ?? '', parseInt(e.target.value) || 0)} />
-          : null}
+        <span className='text-xs text-muted'>is</span>
+        <select aria-label={`${event.name} stage`} className={selectClass} value={event.stage} onChange={(e) => setEventStage(owner, event.id, parseInt(e.target.value))}>
+          {event.stages.map((s, i) => <option key={i} value={i}>{label(s, i)}</option>)}
+        </select>
         <Button aria-label={`remove ${event.name}`} variant='ghost' onClick={() => removeEvent(owner, event.id)}>×</Button>
       </div>
-      {OUTCOMES.map((degree) => (
-        <div key={degree} className='flex flex-row gap-1.5 items-center'>
-          <span className='text-xs text-muted w-14'>{degree}</span>
-          <TextInput className='grow' aria-label={`${event.name} ${degree}`} value={event.outcomes[degree]}
-            onChange={(e) => setEvent(owner, event.id, { outcomes: { ...event.outcomes, [degree]: e.target.value } })} />
-        </div>
-      ))}
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        {event.stages.map((s, i) => (
+          <Button key={i} size='xs' variant='ghost' selected={i === index} onClick={() => setOpen(i)}>{label(s, i)}{i === event.stage ? ' •' : ''}</Button>
+        ))}
+        <Button size='xs' variant='ghost' aria-label={`${event.name} add stage`} onClick={() => { addStage(owner, event.id); setOpen(event.stages.length) }}>+ stage</Button>
+      </div>
+      {stage ?
+        <>
+          <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+            <TextInput className='w-28' aria-label={`${event.name} stage name`} placeholder={label(stage, index)} value={stage.name} onChange={(e) => setStage(owner, event.id, index, { name: e.target.value })} />
+            <span className='text-xs text-muted'>DL</span>
+            <NumberInput className='w-10' aria-label={`${event.name} DL`} value={stage.DL} onChange={(e) => setStage(owner, event.id, index, { DL: parseInt(e.target.value) || 0 })} />
+            {EVENT_TYPES.map((type) => (
+              <Button key={type} size='xs' variant='ghost' selected={stage.types.includes(type)} onClick={() => toggleType(owner, event.id, index, type)}>{type}</Button>
+            ))}
+            {event.stages.length > 1 ?
+              <Button size='xs' variant='ghost' aria-label={`${event.name} remove stage`} onClick={() => { removeStage(owner, event.id, index); setOpen(0) }}>remove stage</Button>
+              : null}
+          </div>
+          {DEGREES_SHOWN.map((degree) => (
+            <OutcomeEditor key={degree} owner={owner} event={event} index={index} degree={degree} />
+          ))}
+        </>
+        : null}
     </div>
+  )
+}
+
+// What the stage comes to at one degree: the text the table reads, whether
+// it takes the whole ET, whether it stops a group on the path, the wear it
+// costs everyone present, what is found, and the test it asks of each.
+function OutcomeEditor({ owner, event, index, degree }: { owner: EventOwner, event: EventView, index: number, degree: Degree }) {
+  const { setOutcome } = useMapEditing()
+  const outcome = event.stages[index].outcomes[degree]
+  const set = (patch: Partial<EventOutcome>) => setOutcome(owner, event.id, index, degree, patch)
+  const test = outcome.test
+  const name = `${event.name} ${degree}`
+  return (
+    <div className='flex flex-col gap-1 border-t border-line pt-1'>
+      <div className='flex flex-row gap-1.5 items-center'>
+        <span className='text-xs text-muted w-14'>{degree}</span>
+        <TextInput className='grow' aria-label={name} value={outcome.text} onChange={(e) => set({ text: e.target.value })} />
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <label className='text-xs text-muted flex items-center gap-1'>
+          <input type='checkbox' aria-label={`${name} takes the ET`} checked={outcome.takesET} onChange={(e) => set({ takesET: e.target.checked })} />takes the ET
+        </label>
+        {owner.kind === 'connection' ?
+          <label className='text-xs text-muted flex items-center gap-1'>
+            <input type='checkbox' aria-label={`${name} stops`} checked={outcome.stop} onChange={(e) => set({ stop: e.target.checked })} />stops the group
+          </label>
+          : null}
+        <WearInputs label={name} wear={outcome.wear} set={(wear) => set({ wear })} />
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <span className='text-xs text-muted'>finds</span>
+        {outcome.items.map((item, i) => (
+          <span key={i} className='flex flex-row gap-1 items-center'>
+            <NumberInput className='w-12' aria-label={`${name} item ${i + 1} amount`} value={item.amount}
+              onChange={(e) => set({ items: outcome.items.map((it, n) => (n === i ? { ...it, amount: Math.max(1, parseInt(e.target.value) || 1) } : it)) })} />
+            <TextInput className='w-32' list='catalog-items' aria-label={`${name} item ${i + 1}`} value={item.key}
+              onChange={(e) => set({ items: outcome.items.map((it, n) => (n === i ? { ...it, key: e.target.value } : it)) })} />
+            <Button size='xs' variant='ghost' aria-label={`${name} remove item ${i + 1}`} onClick={() => set({ items: outcome.items.filter((_, n) => n !== i) })}>×</Button>
+          </span>
+        ))}
+        <Button size='xs' variant='ghost' aria-label={`${name} add item`} onClick={() => set({ items: [...outcome.items, { key: '', amount: 1 }] })}>+ item</Button>
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <label className='text-xs text-muted flex items-center gap-1'>
+          <input type='checkbox' aria-label={`${name} test`} checked={test !== null} onChange={(e) => set({ test: e.target.checked ? EventTestSchema.parse({}) : null })} />everyone tests
+        </label>
+        {test ?
+          <>
+            <select aria-label={`${name} test skill`} className={selectClass} value={test.skill} onChange={(e) => set({ test: { ...test, skill: e.target.value as EventTest['skill'] } })}>
+              {SkillKeySchema.options.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <span className='text-xs text-muted'>DL</span>
+            <NumberInput className='w-10' aria-label={`${name} test DL`} value={test.DL} onChange={(e) => set({ test: { ...test, DL: parseInt(e.target.value) || 0 } })} />
+          </>
+          : null}
+      </div>
+      {test ? DEGREES_SHOWN.map((d) => {
+        const result = test.results[d]
+        const setResult = (patch: Partial<EventResult>) => set({ test: { ...test, results: { ...test.results, [d]: { ...result, ...patch } } } })
+        return (
+          <div key={d} className='flex flex-row flex-wrap gap-1.5 items-center ml-20'>
+            <span className='text-xs text-muted w-12'>{d}</span>
+            <TextInput className='w-48' aria-label={`${name} test ${d}`} value={result.text} onChange={(e) => setResult({ text: e.target.value })} />
+            <WearInputs label={`${name} test ${d}`} wear={result.wear} set={(wear) => setResult({ wear })} />
+          </div>
+        )
+      }) : null}
+    </div>
+  )
+}
+
+function WearInputs({ label, wear, set }: { label: string, wear: Wear, set: (wear: Wear) => void }) {
+  return (
+    <>
+      {WEAR_KEYS.map((key) => (
+        <span key={key} className='flex flex-row gap-1 items-center'>
+          <span className='text-xs text-muted'>{key}</span>
+          <NumberInput className='w-10' aria-label={`${label} wear ${key}`} value={wear[key]} onChange={(e) => set({ ...wear, [key]: parseInt(e.target.value) || 0 })} />
+        </span>
+      ))}
+    </>
   )
 }

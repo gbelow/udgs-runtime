@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { DegreeSchema } from '../types'
+import { DegreeSchema, ItemSchema } from '../types'
 import { ROLL_MODES } from '../play/dice'
 import { TestRollSchema, type TestRoll } from '../play/test'
 import { CallsSchema } from '../play/calls'
-import { AtSchema, EventTypeSchema, type CampaignState } from '../campaign/types'
+import { AtSchema, EventOutcomeSchema, EventTypeSchema, type CampaignState } from '../campaign/types'
 
 // survival.tex "Exploration Action (EA)", "Making camp": what a group of a
 // party goes on together for an ET. Travel and search take it away from the
@@ -59,6 +59,34 @@ export const OpeningSchema = z.object({
 })
 export type Opening = z.infer<typeof OpeningSchema>
 
+// survival.tex "Events": an event a group met, where it is, the DL it was
+// read against, the degree the group's score came to and the outcome for
+// it; the table's change to the DL of the test it asks (a rope thrown down
+// the climb), and each member's test of it once made.
+export const MetSchema = z.object({
+  owner: z.object({ kind: z.enum(['node', 'connection']), id: z.string() }),
+  event: z.string(),
+  name: z.string(),
+  DL: z.number(),
+  degree: DegreeSchema,
+  outcome: EventOutcomeSchema,
+  adjust: z.number().default(0),
+  tests: z.array(z.object({ name: z.string(), roll: TestRollSchema, text: z.string() })).default([]),
+})
+export type Met = z.infer<typeof MetSchema>
+
+// What a group's travel or search came to before what it met lands: its
+// roll, where it ends the ET (null off the map, no `moves` where it
+// started) and the events met. Kept while the table looks at what was met,
+// so the draws stand.
+export const MeetingSchema = z.object({
+  roll: TestRollSchema.nullable(),
+  note: z.string().default(''),
+  moves: z.object({ at: AtSchema.nullable() }).nullable().default(null),
+  events: z.array(MetSchema).default([]),
+})
+export type Meeting = z.infer<typeof MeetingSchema>
+
 // What a group's ET came to, as the table reads it afterwards. `roll` is
 // null where no test was made: a task finished from progress, a fire lit by
 // a tool, or nothing to light.
@@ -68,8 +96,7 @@ export const GroupResultSchema = z.object({
   members: z.array(z.string()),
   roll: TestRollSchema.nullable(),
   note: z.string().default(''),
-  // the events met, with the outcome for the degree reached against each
-  events: z.array(z.object({ name: z.string(), DL: z.number(), degree: DegreeSchema, outcome: z.string() })).default([]),
+  events: z.array(MetSchema).default([]),
 })
 export type GroupResult = z.infer<typeof GroupResultSchema>
 
@@ -127,6 +154,11 @@ export const ExplorationStateSchema = z.object({
   // timeline; another day has none
   rests: z.record(z.string(), z.object({ day: z.number(), count: z.number() })).default({}),
   opening: OpeningSchema.nullable().default(null),
+  // what the travels and searches of the passing ET met, by party and group,
+  // held for the table once it asks tests of anyone; null until then
+  meeting: z.record(z.string(), z.record(z.string(), MeetingSchema)).nullable().default(null),
+  // survival.tex "Events": what each party has found, to share out
+  piles: z.record(z.string(), z.array(ItemSchema)).default({}),
   // the tests the passing ET has called for, waiting on their dice
   calls: CallsSchema.default({}),
   // what the last ET opened with and what its groups came to
