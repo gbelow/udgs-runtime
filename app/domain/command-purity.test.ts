@@ -22,6 +22,8 @@ import * as partiesModule from './campaign/commands/parties'
 import * as collectionsModule from './campaign/commands/collections'
 import * as journalModule from './campaign/commands/journal'
 import * as namesModule from './campaign/commands/names'
+import * as scenesModule from './campaign/commands/scenes'
+import * as episodeModule from './scene/commands/episode'
 import * as mapModule from './campaign/commands/map'
 import * as eventModule from './campaign/commands/event'
 import { CampaignStateSchema, CollectionSchema, CrawlEventSchema, CrawlMapSchema, type CampaignState, type Collection, type CrawlEvent, type CrawlMap } from './campaign/types'
@@ -47,7 +49,7 @@ import armorsCatalog from '../assets/armors.json'
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule, ...answerModule }
-const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...journalModule, ...namesModule }
+const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...journalModule, ...namesModule, ...scenesModule, ...episodeModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
 
@@ -377,6 +379,9 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   removeFromFight: (t) => campaignCommands.removeFromFight('a')(deepFreeze(away(t))),
   resetFight: (t) => campaignCommands.resetFight(deepFreeze(away(t))),
   toggleBreakage: (t) => campaignCommands.toggleBreakage(deepFreeze(away(t))),
+  passBy: ({ campaign }) => campaignCommands.passBy('s')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null } } }),
+  playScene: (t) => campaignCommands.playScene('s', null, {}, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [], scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: true, event: 'E', at: { map: 'm', node: 'n1' } } } }, fight: resetCombatModule.resetCombat(t.fight) })),
+  leaveBehind: ({ campaign, fight }) => campaignCommands.leaveBehind({ ...fight, foundAt: 'm/n1', floor: [{ item: ItemSchema.parse({ id: 'i' }), cell: null }] }, campaign),
 }
 
 // Exploration's subject is the campaign's beside what exploration keeps:

@@ -10,6 +10,7 @@ import armors from '../../assets/armors.json'
 import ammo from '../../assets/ammo.json'
 import containers from '../../assets/containers.json'
 import items from '../../assets/items.json'
+import { useCatalogCharacterNames, useSharedBoardNames } from '../../hooks/useScenePresets'
 
 const input = `${inputClass} text-sm w-full`
 
@@ -24,14 +25,25 @@ const textarea: Widget = ({ value, onChange }) => (
 function suggesting(options: (parent: Record<string, unknown>) => readonly string[]): Widget {
   return function Suggesting({ value, onChange, parent }) {
     const list = options(parent)
-    const listId = `suggest-${list.length}-${list[0] ?? ''}`
-    return (
-      <>
-        <input className={input} type='text' list={listId} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
-        <datalist id={listId}>{list.map((k) => <option key={k} value={k} />)}</datalist>
-      </>
-    )
+    return <SuggestInput value={value} onChange={onChange} list={list} />
   }
+}
+
+// Suggesting what a hook reads, such as the battle maps kept.
+function suggestingFrom(useOptions: () => readonly string[]): Widget {
+  return function SuggestingFrom({ value, onChange }) {
+    return <SuggestInput value={value} onChange={onChange} list={useOptions()} />
+  }
+}
+
+function SuggestInput({ value, onChange, list }: { value: unknown; onChange: (v: unknown) => void; list: readonly string[] }) {
+  const listId = `suggest-${list.length}-${list[0] ?? ''}`
+  return (
+    <>
+      <input className={input} type='text' list={listId} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
+      <datalist id={listId}>{list.map((k) => <option key={k} value={k} />)}</datalist>
+    </>
+  )
 }
 
 // A requirement's name is a key into whichever catalog its kind points at —
@@ -141,5 +153,11 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
     knowledge: suggesting(() => knowledges_list),
   },
   events: {},
+  scenes: {
+    text: textarea,
+    board: suggestingFrom(useSharedBoardNames),
+    'opponents.key': suggestingFrom(useCatalogCharacterNames),
+    'treasure.key': suggesting(() => Object.keys(items)),
+  },
   knowledges: { description: textarea },
 }

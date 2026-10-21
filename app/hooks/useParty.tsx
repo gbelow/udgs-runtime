@@ -11,6 +11,7 @@ import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
 import { getSaveLogBar } from "../domain/scene/rules/fight";
 import type { TableCommand } from "../domain/scene/commands/tableRegistry";
+import { getSceneMaterials } from "../domain/scene/projections/prepared";
 import { getPassBar, getToDowntimeBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
@@ -117,6 +118,8 @@ export function usePartyCommands() {
   const explore = useExplorationDispatch();
   const pick = useCampaignStore((s) => s.setActiveCharacter);
   const setTab = useAppStore((s) => s.setSelectedGameTab);
+  const boardMaps = useAppStore((s) => s.boardMaps);
+  const baseCharacterList = useAppStore((s) => s.baseCharacterList);
 
   // the plans and the meals are the active character's own
   const withActive = (run: (id: string) => void) => {
@@ -169,5 +172,12 @@ export function usePartyCommands() {
     partyBack: (partyId: string, ets: number) => comeBack({ kind: "returnPartyFromFight", args: [partyId, ets] }),
     back: (id: string, ets: number) => comeBack({ kind: "returnFromFight", args: [[id], ets] }),
     saveLog: () => sendTable({ kind: "saveFightLog", args: [] }),
+    // a waiting scene played on the shared battle map and against the catalog
+    // characters it names, as this screen has them loaded, and followed into
+    playScene: (scene: { id: string; board: string; opponents: string[] }) => {
+      const { board, opponents } = getSceneMaterials(scene, boardMaps, baseCharacterList);
+      toFight({ kind: "playScene", args: [scene.id, board, opponents] });
+    },
+    passBy: (sceneId: string) => send({ kind: "passBy", args: [sceneId] }),
   };
 }

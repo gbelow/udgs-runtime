@@ -135,7 +135,7 @@ export function LastEtLog(){
 // the groups going on an action.
 function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 
-  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan, campIn, toggleWeatherTag, setWeatherRaise, clearWeather, setOffAmbient } = usePartyCommands()
+  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan, campIn, toggleWeatherTag, setWeatherRaise, clearWeather, setOffAmbient, playScene, passBy } = usePartyCommands()
   const gmBar = useGmBar()
   const partyBar = useActorBar({ anyOf: party.members.map((m) => m.id) })
   const choose = (key: string) => setPlace(party.id, maps.flatMap((m) => m.nodes).find((n) => n.key === key)?.at ?? null)
@@ -201,8 +201,17 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
         shelter <span className='font-mono text-fg'>{party.camp.shelter}</span> · firewood <span className='font-mono text-fg'>{party.camp.firewood}</span> ET · fire <span className='text-fg'>{party.camp.fire ? 'burning' : 'out'}</span>{party.camp.progress.length > 0 ? ` · under way: ${party.camp.progress.join(', ')}` : ''} · rest exposure <span className='font-mono text-fg'>{party.restExposure}</span>
       </span>
       {party.pile.length > 0 ?
-        <span className='text-xs text-muted'>found: {party.pile.map((i) => `${i.name} ×${i.amount}`).join(', ')}</span>
+        <span className='text-xs text-muted'>found: {party.pile.map((i) => `${i.name} ×${i.amount}${i.left ? ' (left here)' : ''}`).join(', ')}</span>
         : null}
+      {party.scenes.map((s) => (
+        <div key={s.id} className='flex flex-row flex-wrap gap-1.5 items-center border-t border-line pt-1'>
+          <span className='text-xs font-medium'>{s.name}</span>
+          <span className='text-xs text-muted'>{s.forced ? 'forced' : 'offered'}{s.event ? ` · from ${s.event}` : ''} · met by {s.members.join(', ')}</span>
+          {s.text ? <span className='text-xs text-muted'>{s.text}</span> : null}
+          <Button size='xs' variant='primary' aria-label={`play ${s.name}`} disabled={s.playBar !== null} title={s.playBar ?? undefined} onClick={() => playScene(s)}>play</Button>
+          {s.forced ? null : <Button size='xs' variant='ghost' aria-label={`pass ${s.name} by`} onClick={() => passBy(s.id)}>pass by</Button>}
+        </div>
+      ))}
       <div className='flex flex-row flex-wrap gap-1.5'>
         {party.members.map((m) => (
           <Button key={m.id} aria-label={m.name} disabled={m.away} selected={m.isActive} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.away ? 'in a fight' : m.plan}</span></Button>
@@ -270,7 +279,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 export function ExplorationSection(){
 
   const [nutrition, setNutrition] = useState(3)
-  const { bar, options, cast, willDL, lastRoll, potion, foods, medicines, pile } = useExploration()
+  const { bar, options, cast, willDL, lastRoll, potion, foods, medicines, pileBar, pile } = useExploration()
   const { joinGroup, rest, planCast, setCast, eat, eatFood, drink, takeItem, takeFromPile } = usePartyCommands()
   const closed = (plan: unknown) => plan === 'cast' && cast.ready === null
 
@@ -315,7 +324,7 @@ export function ExplorationSection(){
         <div className='flex flex-row flex-wrap gap-1.5 items-center'>
           <span className='text-xs text-muted'>found</span>
           {pile.map((i) => (
-            <select key={i.id} aria-label={`take ${i.name}`} className={selectClass} value='' disabled={bar !== null || i.places.length === 0} title={bar ?? (i.places.length === 0 ? 'no room for it' : undefined)}
+            <select key={i.id} aria-label={`take ${i.name}`} className={selectClass} value='' disabled={pileBar !== null || i.places.length === 0} title={pileBar ?? (i.places.length === 0 ? 'no room for it' : undefined)}
               onChange={(e) => { const place = i.places[parseInt(e.target.value)]; if (place) takeFromPile(i.partyId, i.id, place.containerKey, place.slot) }}>
               <option value=''>take {i.name} ×{i.amount}…</option>
               {i.places.map((p, n) => <option key={`${p.containerKey}:${p.slot}`} value={n}>{p.label}</option>)}

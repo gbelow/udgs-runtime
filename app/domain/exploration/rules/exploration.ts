@@ -1,5 +1,5 @@
 import { getRosterName } from '../../campaign/rules/roster'
-import type { CampaignCharacter, Degree } from '../../types'
+import type { CampaignCharacter, Degree, Item } from '../../types'
 import type { ExplorationAction } from '../../lists'
 import type { Ambient, CampaignState, Party, PlaceChange } from '../../campaign/types'
 import type { Camp, Exploring, Group, GroupKind } from '../types'
@@ -13,6 +13,7 @@ import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getClockOf, getDay, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar, isNight } from '../../campaign/rules/clock'
 import { changePlace, getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, getPlaceKey, isOutsideSettlement, isPartyAway, isSamePlace, type PlaceNow } from '../../campaign/rules/place'
 import { getEvent } from '../../campaign/rules/events'
+import { getWaitingSceneBar } from '../../campaign/rules/scenes'
 import { getStage } from './events'
 import type { Actor } from '../../profiles'
 
@@ -58,6 +59,16 @@ export function getCampShelter(t: Exploring, partyId: string): { id: string; nam
   const event = camp.in ? getPlace(t.campaign, t.campaign.parties[partyId])?.node.events[camp.in] : undefined
   const change = event ? getStage(event)?.shelter : null
   return camp.in && event && change ? { id: camp.in, name: getEvent(event).name, change } : null
+}
+
+// What the party may take: what it found, and what a scene left lying where
+// it stands.
+export function getPileItems(t: Exploring, partyId: string): { item: Item; left: boolean }[] {
+  const key = getPlaceKey(t.campaign.parties[partyId]?.at ?? null)
+  return [
+    ...(t.exploration.piles[partyId] ?? []).map((item) => ({ item, left: false })),
+    ...(key ? t.campaign.left[key] ?? [] : []).map((item) => ({ item, left: true })),
+  ]
 }
 
 // The ambient events of the node the party stands on, in the stage they are
@@ -283,6 +294,8 @@ export function getPassBar(t: Exploring): string | null {
   if (bar) return bar
   const open = getOpenCalls(t.exploration.calls).length
   if (open > 0) return `waiting on ${open} ${open === 1 ? 'die' : 'dice'}`
+  const scene = getWaitingSceneBar(t.campaign, getPlayingParties(t.campaign, 'exploration'))
+  if (scene) return scene
   for (const partyId of getPlayingParties(t.campaign, 'exploration')) {
     for (const [groupId, group] of Object.entries(getGroups(t, partyId))) {
       const bar = isResolved(t, partyId, groupId) ? null : getGroupBar(t, partyId, group)

@@ -1,3 +1,4 @@
+import { getPlaySceneBar, getScenePreset } from '../../campaign/rules/scenes'
 import type { EventType, PlaceChange, SeenCampaign, TerrainTag } from '../../campaign/types'
 import { SlotKindSchema, type Degree, type SlotKind } from '../../types'
 import { canFitItem, getOpenContainers } from '../../item/rules/containers'
@@ -15,7 +16,7 @@ import { isPlaying } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getGroups,
-  getAmbient, getCampShelter, getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlaceNow, getPlanBar, getResolveBar, getRestExposure, getShelters, getWear, hasWood,
+  getAmbient, getCampShelter, getExplorationBar, getPileItems, getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlaceNow, getPlanBar, getResolveBar, getRestExposure, getShelters, getWear, hasWood,
   type AmbientOn,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
@@ -78,7 +79,11 @@ export type PartyView = {
   paths: { id: string; name: string; DL: number }[]
   others: { id: string; name: string }[]
   // survival.tex "Events": what the party has found, to share out
-  pile: { id: string; name: string; amount: number }[]
+  // what the party may take: what it found, and what was left lying here
+  pile: { id: string; name: string; amount: number; left: boolean }[]
+  // the prepared scenes waiting for it: what the table needs to play one, a
+  // shared battle map's name and the catalog characters it is played against
+  scenes: { id: string; name: string; text: string; event: string; forced: boolean; members: string[]; board: string; opponents: string[]; playBar: string | null }[]
 }
 // An event a group of the passing ET met, held for the table: the degree its
 // score came to, what the outcome says, and the test it asks of everyone
@@ -161,7 +166,15 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
       }),
       paths: place ? getConnectionsFrom(place).map((p) => ({ id: p.id, name: p.toName, DL: p.DL })) : [],
       others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && p.sequence === party.sequence && isSamePlace(p, party)).map(([id, p]) => ({ id, name: p.name })),
-      pile: (exploration.piles[partyId] ?? []).map((i) => ({ id: i.id, name: i.name || i.refId, amount: i.amount })),
+      pile: getPileItems(t, partyId).map(({ item, left }) => ({ id: item.id, name: item.name || item.refId, amount: item.amount, left })),
+      scenes: Object.entries(state.scenes).filter(([, s]) => s.party === partyId).map(([id, s]) => {
+        const preset = getScenePreset(s.preset)
+        return {
+          id, name: preset.name, text: preset.text, event: s.event, forced: s.forced, members: s.members.map((m) => nameOf(state, m)),
+          board: preset.board, opponents: preset.opponents.map((o) => o.key),
+          playBar: getPlaySceneBar(state, id),
+        }
+      }),
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),
@@ -265,8 +278,9 @@ export type ExplorationPanel = {
   // gear.tex "Potions and Medicine": what the character carries a dose of
   // to take, the doses left and why one cannot be taken now
   medicines: { id: string; name: string; doses: number; bar: string | null }[]
-  // survival.tex "Events": what their party found, and where they have room
-  // for each
+  // survival.tex "Events": what their party found, or a scene left where it
+  // stands, where they have room for each, and why they cannot take any now
+  pileBar: string | null
   pile: { partyId: string; id: string; name: string; amount: number; places: { containerKey: string; slot: SlotKind; label: string }[] }[]
 }
 
@@ -277,7 +291,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const state = t.campaign
   const c = id ? state.characters[id] : undefined
   const party = id ? state.parties[state.partyOf[id]] : undefined
-  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [], medicines: [], pile: [] }
+  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [], medicines: [], pileBar: null, pile: [] }
   const partyId = state.partyOf[id]
   const plan = planOf(t, partyId, id)
   const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, hunger: 0, thirst: 0, idle: true, selected: plan === 'idle' }
@@ -307,8 +321,9 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
     potion: c.injuries.potion,
     foods: getCarriedItems(c).flatMap((i) => (i.food === null ? [] : [{ id: i.id, name: i.name, amount: i.amount, nutrition: i.food, charged: i.charge !== null }])),
     medicines: getCarriedItems(c).flatMap((i) => (getConsume(i) ? [{ id: i.id, name: i.name, doses: getDosesLeft(i), bar: getConsumeBar(c, i) }] : [])),
-    pile: (t.exploration.piles[partyId] ?? []).map((item) => ({
-      partyId, id: item.id, name: item.name || item.refId, amount: item.amount,
+    pileBar: getExplorationBar(state, id),
+    pile: getPileItems(t, partyId).map(({ item, left }) => ({
+      partyId, id: item.id, name: `${item.name || item.refId}${left ? ' (left here)' : ''}`, amount: item.amount,
       places: Object.entries(getOpenContainers(c)).flatMap(([containerKey, container]) => SlotKindSchema.options
         .filter((slot) => container.slots[slot].numSlots > 0 && canFitItem(container, slot, item))
         .map((slot) => ({ containerKey, slot, label: `${container.name} · ${slot}` }))),
@@ -397,6 +412,7 @@ export function getETResultLines(results: GroupResult[], castResults: CastResult
         `  ${e.name} vs DL ${e.DL}, ${e.degree}${e.outcome.text ? `: ${e.outcome.text}` : ''}`,
         ...(e.outcome.items.length > 0 ? [`    found ${e.outcome.items.map((i) => `${i.amount} ${i.key}`).join(', ')}`] : []),
         ...(e.outcome.weather ? [`    weather: ${describePlaceChange(e.outcome.weather)}`] : []),
+        ...(e.outcome.scene ? [`    ${e.outcome.scene.forced ? 'led to' : 'offered'} the scene ${getScenePreset(e.outcome.scene.preset).name}`] : []),
         ...e.tests.map((test) => `    ${test.name}: ${describeRoll(test.roll)}${test.text ? `: ${test.text}` : ''}`),
       ]),
     ]),

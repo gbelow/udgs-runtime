@@ -8,6 +8,7 @@ import type { EventView } from '../domain/campaign/projections/map'
 import type { EventCommand } from '../domain/campaign/commands/eventRegistry'
 import { useItemCatalogRows } from '../hooks/useItemLens'
 import { useCollectionFilter } from '../hooks/useCollections'
+import { useScenePresets } from '../hooks/useScenePresets'
 
 const DEGREES_SHOWN = ['critical', 'hit', 'graze', 'miss'] as const
 const WEAR_KEYS = ['IL', 'exhaustion', 'hunger', 'thirst'] as const
@@ -104,6 +105,7 @@ function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView,
   const outcome = event.stages[index].outcomes[degree]
   const set = (patch: Partial<EventOutcome>) => edit({ kind: 'setOutcome', args: [index, degree, patch] })
   const name = `${event.name} ${degree}`
+  const presets = useScenePresets()
   return (
     <div className='flex flex-col gap-1 border-t border-line pt-1'>
       <div className='flex flex-row gap-1.5 items-center'>
@@ -126,6 +128,20 @@ function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView,
           <input type='checkbox' aria-label={`${name} weather`} checked={outcome.weather !== null} onChange={(e) => set({ weather: e.target.checked ? PlaceChangeSchema.parse({}) : null })} />weather this ET
         </label>
         {outcome.weather ? <PlaceChangeInputs label={`${name} weather`} change={outcome.weather} set={(weather) => set({ weather })} /> : null}
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <span className='text-xs text-muted'>leads to the scene</span>
+        <select aria-label={`${name} scene`} className={selectClass} value={outcome.scene?.preset ?? ''}
+          onChange={(e) => set({ scene: e.target.value ? { preset: e.target.value, forced: outcome.scene?.forced ?? (degree === 'graze' || degree === 'miss') } : null })}>
+          <option value=''>none</option>
+          {presets.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+          {outcome.scene && !presets.some((p) => p.key === outcome.scene?.preset) ? <option value={outcome.scene.preset}>{outcome.scene.preset} (not in the catalog)</option> : null}
+        </select>
+        {outcome.scene ?
+          <label className='text-xs text-muted flex items-center gap-1'>
+            <input type='checkbox' aria-label={`${name} scene forced`} checked={outcome.scene.forced} onChange={(e) => outcome.scene && set({ scene: { ...outcome.scene, forced: e.target.checked } })} />forced, not offered
+          </label>
+          : null}
       </div>
       <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
         <span className='text-xs text-muted'>finds</span>

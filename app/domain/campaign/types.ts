@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, CostSchema, SkillKeySchema, type Selected } from '../types'
+import { CampaignCharacterSchema, CostSchema, ItemSchema, SkillKeySchema, type Selected } from '../types'
 
 // survival.tex "Events": the 8 types of events.
 export const EVENT_TYPES = ['place', 'encounter', 'obstacle', 'treasure', 'wear', 'food', 'shelter', 'water'] as const
@@ -55,6 +55,7 @@ export type EventTest = z.infer<typeof EventTestSchema>
 // and, on a path, whether it keeps the group from arriving. `takesET` is the
 // event's word on whether it takes the whole ET (survival.tex "Event DL").
 // `weather` is what it does to the place the party stands on, for the ET.
+// `scene` is a prepared scene it leads to, played out before the ET passes.
 export const EventOutcomeSchema = z.object({
   text: z.string().default(''),
   takesET: z.boolean().default(true),
@@ -63,8 +64,22 @@ export const EventOutcomeSchema = z.object({
   items: z.array(z.object({ key: z.string(), amount: z.number().default(1) })).default([]),
   test: EventTestSchema.nullable().default(null),
   weather: PlaceChangeSchema.nullable().default(null),
+  scene: z.object({ preset: z.string(), forced: z.boolean().default(true) }).nullable().default(null),
 })
 export type EventOutcome = z.infer<typeof EventOutcomeSchema>
+
+// A scene prepared in the catalog for an event to lead to: what the table
+// reads, the battle map it is played on (a shared one, by name; none for a
+// scene with no board), the catalog characters it is played against, so many
+// of each, and the treasure lying there, from the item catalog.
+export const ScenePresetSchema = z.object({
+  name: z.string().default(''),
+  text: z.string().default(''),
+  board: z.string().default(''),
+  opponents: z.array(z.object({ key: z.string().default(''), count: z.number().default(1) })).default([]),
+  treasure: z.array(z.object({ key: z.string().default(''), amount: z.number().default(1) })).default([]),
+})
+export type ScenePreset = z.infer<typeof ScenePresetSchema>
 
 // survival.tex "Wear": an event that "can have a chance to happen regardless
 // of the exploration test result" — rain, a storm. It is met by no
@@ -225,7 +240,7 @@ export const PartySchema = z.object({
 export type Party = z.infer<typeof PartySchema>
 
 // The catalogs a collection lists entries of.
-export const CATALOG_KINDS = ['characters', 'races', 'maps', 'abilities', 'spells', 'weapons', 'armors', 'ammo', 'items', 'containers', 'terrains', 'events', 'knowledges'] as const
+export const CATALOG_KINDS = ['characters', 'races', 'maps', 'abilities', 'spells', 'weapons', 'armors', 'ammo', 'items', 'containers', 'terrains', 'events', 'scenes', 'knowledges'] as const
 export const CatalogKindSchema = z.enum(CATALOG_KINDS)
 export type CatalogKind = z.infer<typeof CatalogKindSchema>
 
@@ -270,6 +285,19 @@ export const CampaignEntrySchema = z.object({
 })
 export type CampaignEntry = z.infer<typeof CampaignEntrySchema>
 
+// A prepared scene an event met led to, waiting to be played out or, offered
+// rather than forced, passed by: by the members of the party who met it, at
+// the place they met it.
+export const WaitingSceneSchema = z.object({
+  preset: z.string(),
+  party: z.string(),
+  members: z.array(z.string()).default([]),
+  forced: z.boolean().default(true),
+  event: z.string().default(''),
+  at: AtSchema.nullable().default(null),
+})
+export type WaitingScene = z.infer<typeof WaitingSceneSchema>
+
 // The campaign above every scene: the roster of everyone in play who is not
 // in a fight, and the parties they are in, where, and when, each party on a
 // timeline of its own. What a mode keeps for itself (exploration's plans and
@@ -298,6 +326,12 @@ export const CampaignStateSchema = z.object({
   // straight in, until they come back or are gone: every id at the table is
   // the campaign's to give
   lent: z.array(z.string()).default([]),
+  // the prepared scenes events led to, by id, until they are played or
+  // passed by; nobody's ET passes while one of its party's waits
+  scenes: z.record(z.string(), WaitingSceneSchema).default({}),
+  // what a scene left lying where it was played, by place key, for whoever
+  // stands there to take
+  left: z.record(z.string(), z.array(ItemSchema)).default({}),
 })
 
 export type CampaignState = z.infer<typeof CampaignStateSchema>

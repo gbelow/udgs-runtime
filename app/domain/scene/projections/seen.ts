@@ -68,6 +68,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   stack: (ids, c) => ids.filter((id) => c.visible.has(id)),
   landed: (ids, c) => ids.filter((id) => c.visible.has(id)),
   logSaved: keep,
+  foundAt: keep,
   names: unseen,
   journal: (entries, c) => entries.filter((e) => c.visible.has(e.action.id)).map((e) => { const action = prune(e.action, c.hidden); return action === e.action ? e : { ...e, action } }),
   edits: (edits, c) => edits.map((e) => { const changes = unseen(e.changes, c); return changes === e.changes ? e : { ...e, changes } }).filter((e) => e.changes.length > 0),

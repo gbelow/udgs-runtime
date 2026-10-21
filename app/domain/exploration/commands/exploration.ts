@@ -11,7 +11,7 @@ import { getAmbientLines, getETResultLines, type AmbientLanded } from '../projec
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getAmbient, getDecisionsCalled, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
+  getAmbient, getDecisionsCalled, getPileItems, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, getStage, isFound } from '../rules/events'
@@ -78,19 +78,21 @@ export function drink(id: string): CampaignUpdater {
     ({ ...c, resources: { ...c.resources, thirst: Math.max(0, c.resources.thirst - 1) } }))
 }
 
-// survival.tex "Events": an item off the party's found pile, put where the
-// character has room for it; refused for one not in that party or with no
-// room there.
+// survival.tex "Events": an item off the party's found pile, or left by a
+// scene where it stands, put where the character has room for it; refused
+// for one not in that party or with no room there.
 export function takeFromPile(partyId: string, itemId: string, id: string, containerKey: string, slot: SlotKind): ExplorationUpdater {
   return (t) => {
-    const item = t.exploration.piles[partyId]?.find((i) => i.id === itemId)
+    const taken = getPileItems(t, partyId).find((p) => p.item.id === itemId)
     const c = t.campaign.characters[id]
     const container = c && getContainer(c, containerKey)
-    if (!item || t.campaign.partyOf[id] !== partyId || getExplorationBar(t.campaign, id) || !container || !canFitItem(container, slot, item)) return t
-    return {
-      campaign: updateRosterCharacter(id, addItemToContainer(containerKey, slot, item))(t.campaign),
-      exploration: { ...t.exploration, piles: { ...t.exploration.piles, [partyId]: t.exploration.piles[partyId].filter((i) => i.id !== itemId) } },
+    if (!taken || t.campaign.partyOf[id] !== partyId || getExplorationBar(t.campaign, id) || !container || !canFitItem(container, slot, taken.item)) return t
+    const campaign = updateRosterCharacter(id, addItemToContainer(containerKey, slot, taken.item))(t.campaign)
+    if (taken.left) {
+      const key = getPlaceKey(t.campaign.parties[partyId].at)
+      return { campaign: { ...campaign, left: { ...campaign.left, [key]: campaign.left[key].filter((i) => i.id !== itemId) } }, exploration: t.exploration }
     }
+    return { campaign, exploration: { ...t.exploration, piles: { ...t.exploration.piles, [partyId]: t.exploration.piles[partyId].filter((i) => i.id !== itemId) } } }
   }
 }
 
@@ -571,8 +573,12 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
   const passing = key && weather.length > 0 ? { ...t.exploration.passing, [key]: [...(t.exploration.passing[key] ?? []), ...weather] } : t.exploration.passing
   const met = party.at ? events.map((e) => getEventKey(party.at!.map, e.owner, e.event)) : []
   const known = { ...t.exploration.known, ...Object.fromEntries(going.map((id) => [id, [...new Set([...(t.exploration.known[id] ?? []), ...met])]])) }
+  // the prepared scenes the events met lead to, waiting for whoever met them
+  const scenes = Object.fromEntries(events.flatMap((e) => (e.outcome.scene
+    ? [[newId(), { preset: e.outcome.scene.preset, party: partyId, members: going, forced: e.outcome.scene.forced, event: e.name, at: party.at }]]
+    : [])))
   return done(
-    { campaign: { ...state, characters }, exploration: { ...t.exploration, piles, passing, known } },
+    { campaign: { ...state, characters, scenes: { ...state.scenes, ...scenes } }, exploration: { ...t.exploration, piles, passing, known } },
     {
       result, working: going, moves: outcome.moves && { at: outcome.moves.at, ids: [...going, ...carried] }, found: found.map((i) => i.id),
       task: outcome.task && { kind: group.kind, degree: outcome.task },

@@ -1663,6 +1663,9 @@ export const SceneStateSchema = z.object({
   // Every bind of the fight: grapples (combat.tex "Grapple"), one per pair
   binds: z.array(BindSchema).default([]),
   floor: z.array(FloorItemSchema).default([]),
+  // where the prepared scene being played was met, by place key: what is
+  // left on the floor when the fight ends is left there
+  foundAt: z.string().nullable().default(null),
 }).strip()
 
 export type SceneState = z.infer<typeof SceneStateSchema>

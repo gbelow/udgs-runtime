@@ -15,6 +15,7 @@ import { getFightLogLines } from '../projections/episode'
 import { getPartyMembers } from '../../campaign/rules/place'
 import { getTableNames, withFreeId } from '../../campaign/rules/roster'
 import { getFightName } from '../rules/fighters'
+import { leaveBehind } from './episode'
 
 // Takes these characters off the roster and into the fight, under the ids
 // they have, each in the party they are in, or one of their own if they are in
@@ -95,7 +96,8 @@ export function returnFromFight(ids: string[], ets: number): TableUpdater {
     })(campaign), back)
     const campaign = passETs(ets, done)(recorded)
     const fight = leaving.reduce((f, c) => removeFromCombat(c.id)(f), table.fight)
-    return { campaign, fight: Object.keys(fight.characters).length === 0 ? resetCombat(fight) : fight }
+    if (Object.keys(fight.characters).length > 0) return { campaign, fight }
+    return { campaign: leaveBehind(fight, campaign), fight: resetCombat(fight) }
   }
 }
 

@@ -9,6 +9,7 @@ import { editNote, removeEntry, writeNote } from './journal'
 import { toMapUpdater, type MapCommand } from './mapRegistry'
 import { addMap, createParty, leaveParty, mergeParties, moveToParty, removeMap, renameParty, setPartyExposure, setPartyLit, setPartyPlace, splitOff, updateCampaignMap } from './parties'
 import { addToRoster, removeFromRoster, updateRosterCharacter } from './roster'
+import { passBy } from './scenes'
 
 // The campaign's presses as data (cf. the scene's registry): the parties,
 // the clocks, the maps, the journal, and an edit to a character on the
@@ -32,6 +33,9 @@ export const campaignCommands = {
   setPartyExposure: command((_, partyId: string, exposure: number) => setPartyExposure(partyId, exposure)).by(gm),
   setPartyLit: command((_, partyId: string, lit: boolean) => setPartyLit(partyId, lit)).by(gm),
   setPartyPlace: command((_, partyId: string, at: At | null) => setPartyPlace(partyId, at)).by(gm),
+
+  // an offered scene passed by, by anyone who met it
+  passBy: command((_, sceneId: string) => passBy(sceneId)).by((state, sceneId) => ({ anyOf: state.scenes[sceneId]?.members ?? [] })),
 
   // the clocks
   setDayETs: command((_, dayETs: number) => setDayETs(dayETs)).by(gm),

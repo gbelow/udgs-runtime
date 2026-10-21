@@ -2,6 +2,7 @@ import type { Actor } from '../../profiles'
 import { commandsOver, playedBy, type CommandOf } from '../../registry'
 import type { CampaignCharacter } from '../../types'
 import type { Table } from '../types'
+import { playScene } from './episode'
 import { loadIntoFight, removeFromFight, resetFight, returnFromFight, returnPartyFromFight, saveFightLog, sendPartyToFight, sendToFight, toggleBreakage } from './fight'
 
 // What crosses between the campaign and the fight, as data (cf. the scene's
@@ -24,6 +25,9 @@ export const tableCommands = {
   removeFromFight: command((_, id: string) => removeFromFight(id)).by(gm),
   resetFight: command(() => resetFight).by(gm),
   toggleBreakage: command(() => toggleBreakage).by(gm),
+  // a prepared scene an event led to, played by anyone who met it
+  playScene: command((ctx, sceneId: string, board: unknown | null, opponents: Record<string, unknown>) => playScene(sceneId, board, opponents, ctx.newId))
+    .by((table, sceneId) => ({ anyOf: table.campaign.scenes[sceneId]?.members ?? [] })),
 }
 
 export type TableCommand = CommandOf<typeof tableCommands>
