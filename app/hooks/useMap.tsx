@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo } from "react";
 import { toast } from "sonner";
-import type { Connection, CrawlEvent, CrawlNode, EventOutcome, EventOwner, EventStage, EventType, TerrainTag, TerrainValues, Wear, Way } from "../domain/campaign/types";
-import type { Degree } from "../domain/types";
+import type { Connection, CrawlNode, EventOwner, TerrainTag, TerrainValues, Wear, Way } from "../domain/campaign/types";
+import type { EventCommand } from "../domain/campaign/commands/eventRegistry";
 import { getCampaignMapEditorView, getMapEditorView, type MapEditorView } from "../domain/campaign/projections/map";
 import type { Point } from "../domain/campaign/rules/layout";
 import { toMapUpdater, type MapCommand } from "../domain/campaign/commands/mapRegistry";
@@ -89,14 +89,8 @@ function mapEditing(update: (edit: MapCommand) => void) {
     setConnection: (id: string, patch: Partial<Pick<Connection, 'DL' | 'backDL'>>) => update({ kind: 'setConnection', args: [id, patch] }),
     setWay: (connectionId: string, eventId: string, way: Way) => update({ kind: 'setEventWay', args: [connectionId, eventId, way] }),
     removeConnection: (id: string) => update({ kind: 'removeConnection', args: [id] }),
-    addEvent: (owner: EventOwner) => update({ kind: 'addEvent', args: [owner] }),
-    setEvent: (owner: EventOwner, eventId: string, patch: Partial<Pick<CrawlEvent, 'name'>>) => update({ kind: 'setEvent', args: [owner, eventId, patch] }),
-    setEventStage: (owner: EventOwner, eventId: string, index: number) => update({ kind: 'setEventStage', args: [owner, eventId, index] }),
-    addStage: (owner: EventOwner, eventId: string) => update({ kind: 'addStage', args: [owner, eventId] }),
-    removeStage: (owner: EventOwner, eventId: string, index: number) => update({ kind: 'removeStage', args: [owner, eventId, index] }),
-    setStage: (owner: EventOwner, eventId: string, index: number, patch: Partial<Pick<EventStage, 'name' | 'DL'>>) => update({ kind: 'setStage', args: [owner, eventId, index, patch] }),
-    toggleType: (owner: EventOwner, eventId: string, index: number, type: EventType) => update({ kind: 'toggleStageType', args: [owner, eventId, index, type] }),
-    setOutcome: (owner: EventOwner, eventId: string, index: number, degree: Degree, patch: Partial<EventOutcome>) => update({ kind: 'setOutcome', args: [owner, eventId, index, degree, patch] }),
+    addEvent: (owner: EventOwner, template: string | null) => update({ kind: 'addEvent', args: [owner, template] }),
+    editEvent: (owner: EventOwner, eventId: string, command: EventCommand) => update({ kind: 'editEvent', args: [owner, eventId, command] }),
     removeEvent: (owner: EventOwner, eventId: string) => update({ kind: 'removeEvent', args: [owner, eventId] }),
   } as const;
 }

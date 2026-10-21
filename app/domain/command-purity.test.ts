@@ -23,7 +23,8 @@ import * as collectionsModule from './campaign/commands/collections'
 import * as journalModule from './campaign/commands/journal'
 import * as namesModule from './campaign/commands/names'
 import * as mapModule from './campaign/commands/map'
-import { CampaignStateSchema, CollectionSchema, CrawlMapSchema, type CampaignState, type Collection, type CrawlMap } from './campaign/types'
+import * as eventModule from './campaign/commands/event'
+import { CampaignStateSchema, CollectionSchema, CrawlEventSchema, CrawlMapSchema, type CampaignState, type Collection, type CrawlEvent, type CrawlMap } from './campaign/types'
 import type { Table } from './scene/types'
 import * as explorationModule from './exploration/commands/exploration'
 import * as plansModule from './exploration/commands/plans'
@@ -496,7 +497,7 @@ function declaredPush(s: SceneState): SceneState {
 // Two nodes joined by a path, an event on each; the terrain is a name the
 // catalog may not have, which a node falls back from.
 function mapSubject(): CrawlMap {
-  const event = { name: 'wolves', stages: [{ types: ['encounter'], DL: 5, outcomes: { hit: { text: 'avoided' } } }, { name: 'gone' }] }
+  const event = { custom: { name: 'wolves', stages: [{ types: ['encounter'], DL: 5, outcomes: { hit: { text: 'avoided' } } }, { name: 'gone' }] } }
   return CrawlMapSchema.parse({
     name: 'm',
     nodes: { n1: { name: 'A', terrain: 'forest', custom: { exposure: 2 }, events: { e: event } }, n2: { name: 'B', terrain: 'forest' } },
@@ -525,16 +526,24 @@ const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   addConnection: (m) => mapModule.addConnection('n2', 'n1', 1, 2, () => 'd')(m),
   setConnection: (m) => mapModule.setConnection('c', { backDL: 9 })(m),
   removeConnection: (m) => mapModule.removeConnection('c')(m),
-  addEvent: (m) => mapModule.addEvent({ kind: 'connection', id: 'c' }, () => 'f')(m),
-  setEvent: (m) => mapModule.setEvent({ kind: 'node', id: 'n1' }, 'e', { name: 'deer' })(m),
-  setEventStage: (m) => mapModule.setEventStage({ kind: 'node', id: 'n1' }, 'e', 1)(m),
-  addStage: (m) => mapModule.addStage({ kind: 'node', id: 'n1' }, 'e')(m),
-  removeStage: (m) => mapModule.removeStage({ kind: 'connection', id: 'c' }, 'e', 0)(m),
-  setStage: (m) => mapModule.setStage({ kind: 'node', id: 'n1' }, 'e', 0, { DL: 0 })(m),
-  setOutcome: (m) => mapModule.setOutcome({ kind: 'node', id: 'n1' }, 'e', 0, 'miss', { stop: true, wear: { IL: 1, exhaustion: 0, hunger: 0, thirst: 0 } })(m),
+  addEvent: (m) => mapModule.addEvent({ kind: 'connection', id: 'c' }, null, () => 'f')(m),
+  editEvent: (m) => mapModule.editEvent({ kind: 'connection', id: 'c' }, 'e', eventModule.removeStage(0))(m),
   setEventWay: (m) => mapModule.setEventWay('c', 'e', 'both')(m),
   removeEvent: (m) => mapModule.removeEvent({ kind: 'node', id: 'n1' }, 'e')(m),
-  toggleStageType: (m) => mapModule.toggleStageType({ kind: 'connection', id: 'c' }, 'e', 0, 'food')(m),
+}
+
+// An event of its own, two stages, in the second.
+const eventSubject = (): CrawlEvent => CrawlEventSchema.parse({ stage: 1, custom: { name: 'deer', stages: [{ types: ['food'], DL: 5 }, { name: 'butchered' }] } })
+
+const eventCases: Record<string, (e: CrawlEvent) => unknown> = {
+  setEventName: (e) => eventModule.setEventName('elk')(e),
+  setEventStage: (e) => eventModule.setEventStage(0)(e),
+  addStage: (e) => eventModule.addStage()(e),
+  removeStage: (e) => eventModule.removeStage(0)(e),
+  setStage: (e) => eventModule.setStage(0, { DL: 0 })(e),
+  toggleStageType: (e) => eventModule.toggleStageType(0, 'water')(e),
+  setOutcome: (e) => eventModule.setOutcome(0, 'miss', { stop: true, wear: { IL: 1, exhaustion: 0, hunger: 0, thirst: 0 } })(e),
+  resetEventValue: (e) => eventModule.resetEventValue('stages')({ ...e, template: 'Deer' }),
 }
 
 function combatSubject(): SceneState {
@@ -593,6 +602,12 @@ describe('commands are pure updaters', () => {
   })
   it.each(Object.entries(mapCases))('%s leaves its map alone', (_name, run) => {
     const subject = mapSubject()
+    const pristine = structuredClone(subject)
+    run(deepFreeze(subject))
+    expect(subject).toEqual(pristine)
+  })
+  it.each(Object.entries(eventCases))('%s leaves its event alone', (_name, run) => {
+    const subject = eventSubject()
     const pristine = structuredClone(subject)
     run(deepFreeze(subject))
     expect(subject).toEqual(pristine)
@@ -661,6 +676,7 @@ describe('every command is covered', () => {
     ['exploration', explorationCommands, explorationCases],
     ['downtime', downtimeCommands, downtimeCases],
     ['map', mapModule, mapCases],
+    ['event', eventModule, eventCases],
     ['collection', collectionsModule, collectionCases],
     ['creation', creationCommands, creationCases],
   ] as const)('%s commands all have a purity case', (_family, module, cases) => {

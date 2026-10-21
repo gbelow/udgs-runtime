@@ -1,5 +1,6 @@
 import type { Degree } from '../../types'
 import type { CrawlEvent, EventOutcome, EventStage } from '../../campaign/types'
+import { getEvent } from '../../campaign/rules/events'
 
 // survival.tex "Random event": "put all available events in a numbered list
 // and roll ... Leave numbers blank or add some events multiple times." The
@@ -24,7 +25,8 @@ export function drawWeighted<T>(entries: { weight: number; item: T }[], percent:
 
 // The stage the event is in, or null for one left with none.
 export function getStage(event: CrawlEvent): EventStage | null {
-  return event.stages[event.stage] ?? event.stages[0] ?? null
+  const { stages } = getEvent(event)
+  return stages[event.stage] ?? stages[0] ?? null
 }
 
 // The DL an exploration score is read against for an event: its stage's,

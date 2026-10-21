@@ -15,6 +15,7 @@ import {
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, getStage, isFound } from '../rules/events'
 import { getDay, getPlayingParties } from '../../campaign/rules/clock'
+import { getEvent } from '../../campaign/rules/events'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
 import { passETs } from '../../campaign/commands/clock'
 import { record } from '../../campaign/commands/journal'
@@ -194,7 +195,7 @@ type Meet = (owner: EventOwner) => (l: Listed) => Met
 const meeting = (score: number, night: number): Meet => (owner) => ({ id, event, stage }) => {
   const DL = getEventDL(stage, night)
   const degree = getDegree(score, DL)
-  return { owner, event: id, name: event.name, DL, degree, outcome: stage.outcomes[degree], adjust: 0, tests: [] }
+  return { owner, event: id, name: getEvent(event).name, DL, degree, outcome: stage.outcomes[degree], adjust: 0, tests: [] }
 }
 
 type Drawn = { path: Path } | { event: Listed } | null
@@ -259,7 +260,8 @@ function search(place: Place, group: Group, roll: TestRoll, meet: Meet, dice: Di
     { weight: BLANK_WEIGHT, item: null },
   ], rollPercent(dice))
   if (!drawn) return { roll: against(sought[0]), note: `found no ${group.seek}`, moves: null, events: [] }
-  return { roll: against(sought[0]), note: `found no ${group.seek}, came upon ${drawn.event.name}`, moves: null, events: [meet({ kind: 'node', id: place.id })(drawn)] }
+  const came = meet({ kind: 'node', id: place.id })(drawn)
+  return { roll: against(sought[0]), note: `found no ${group.seek}, came upon ${came.name}`, moves: null, events: [came] }
 }
 
 // One group's test, made by its roller, and what it leaves the camp and

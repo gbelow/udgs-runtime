@@ -1,10 +1,27 @@
-import type { CampaignState, CrawlEvent, CrawlMap, Party, PathEvent, Settlement, Terrain, TerrainValues } from '../types'
+import type { CampaignState, CrawlEvent, CrawlMap, EventTemplate, Party, Settlement, Terrain, TerrainValues, Way } from '../types'
 import { getNodeTerrain, getTerrainPresets } from '../rules/terrain'
+import { getEvent, getEventTemplates, hasEventTemplate } from '../rules/events'
 import { getPartiesOn } from '../rules/place'
 import { MAP_HEIGHT, MAP_WIDTH, getNodePositions } from '../rules/layout'
 
-export type EventView = CrawlEvent & { id: string }
-export type PathEventView = PathEvent & { id: string }
+// An event as the editor shows it: what it is made of, the template it is
+// made of (and whether the catalog still has it), the stage it is in, and
+// which of its values it changed itself.
+export type EventView = EventTemplate & {
+  id: string
+  template: string | null
+  missing: boolean
+  stage: number
+  custom: (keyof EventTemplate)[]
+}
+export type PathEventView = EventView & { way: Way }
+
+export function getEventView(id: string, event: CrawlEvent): EventView {
+  return {
+    ...getEvent(event), id, template: event.template, missing: event.template !== null && !hasEventTemplate(event.template), stage: event.stage,
+    custom: event.template ? (Object.keys(event.custom) as (keyof EventTemplate)[]) : [],
+  }
+}
 export type NodeEditorView = {
   id: string
   name: string
@@ -29,11 +46,12 @@ export type MapEditorView = {
   name: string
   graph: MapGraphView
   presets: string[]
+  // the event templates a new event can be made of
+  templates: { key: string; name: string }[]
   nodes: NodeEditorView[]
   connections: { id: string; a: string; b: string; aName: string; bName: string; DL: number; backDL: number; events: PathEventView[] }[]
 }
 
-const withIds = <E,>(events: Record<string, E>): (E & { id: string })[] => Object.entries(events).map(([id, e]) => ({ ...e, id }))
 
 // survival.tex "Creating the point crawl" — the map being made, as lists to
 // edit: each node with what it is made of, each path with the nodes it joins.
@@ -56,12 +74,14 @@ export function getMapEditorView(map: CrawlMap, on: Record<string, Party[]> = {}
       }),
     },
     presets: getTerrainPresets(),
+    templates: getEventTemplates(),
     nodes: Object.entries(map.nodes).map(([id, n]) => ({
-      id, name: n.name, terrain: n.terrain, settlement: n.settlement, values: getNodeTerrain(n), custom: Object.keys(n.custom) as (keyof TerrainValues)[], events: withIds(n.events),
+      id, name: n.name, terrain: n.terrain, settlement: n.settlement, values: getNodeTerrain(n), custom: Object.keys(n.custom) as (keyof TerrainValues)[], events: Object.entries(n.events).map(([eventId, e]) => getEventView(eventId, e)),
       removeBar: removeBar(id),
     })),
     connections: Object.entries(map.connections).map(([id, c]) => ({
-      id, a: c.a, b: c.b, aName: nodeName(c.a), bName: nodeName(c.b), DL: c.DL, backDL: c.backDL, events: withIds(c.events),
+      id, a: c.a, b: c.b, aName: nodeName(c.a), bName: nodeName(c.b), DL: c.DL, backDL: c.backDL,
+      events: Object.entries(c.events).map(([eventId, e]) => ({ ...getEventView(eventId, e), way: e.way })),
     })),
   }
 }

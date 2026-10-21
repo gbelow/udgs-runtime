@@ -1,7 +1,8 @@
-import type { Degree } from '../../types'
-import type { Connection, CrawlEvent, CrawlNode, EventOutcome, EventOwner, EventStage, EventType, MapUpdater, PathEvent, TerrainTag, TerrainValues, Wear, Way } from '../types'
-import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, EventStageSchema, PathEventSchema, SettlementSchema, WearSchema } from '../types'
+import type { Connection, CrawlEvent, CrawlNode, EventOwner, MapUpdater, PathEvent, TerrainTag, TerrainValues, Wear, Way } from '../types'
+import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, PathEventSchema, SettlementSchema, WearSchema } from '../types'
 import { getNodeTerrain } from '../rules/terrain'
+import { getEvent } from '../rules/events'
+import type { EventUpdater } from './event'
 import { clampToMap, getFreeSpot, getPlacedMap, type Point } from '../rules/layout'
 import { without } from '../../utils'
 
@@ -114,57 +115,21 @@ function withEvents(owner: EventOwner, update: <E extends CrawlEvent>(events: Re
   return owner.kind === 'node' ? withNode(owner.id, (n) => ({ ...n, events: update(n.events) })) : withPath(owner.id, update)
 }
 
-export function addEvent(owner: EventOwner, newId: () => string): MapUpdater {
+// A new event on the node or path: made of a template from the events
+// catalog, or of nothing but its own stage.
+export function addEvent(owner: EventOwner, template: string | null, newId: () => string): MapUpdater {
   return (map) => {
     const events = owner.kind === 'node' ? map.nodes[owner.id]?.events : map.connections[owner.id]?.events
-    const name = nextName('Event', Object.values(events ?? {}).map((e) => e.name))
+    const made = template ? { template } : { custom: { name: nextName('Event', Object.values(events ?? {}).map((e) => getEvent(e).name)) } }
     return owner.kind === 'node'
-      ? withNode(owner.id, (n) => ({ ...n, events: { ...n.events, [newId()]: CrawlEventSchema.parse({ name }) } }))(map)
-      : withPath(owner.id, (es) => ({ ...es, [newId()]: PathEventSchema.parse({ name }) }))(map)
+      ? withNode(owner.id, (n) => ({ ...n, events: { ...n.events, [newId()]: CrawlEventSchema.parse(made) } }))(map)
+      : withPath(owner.id, (es) => ({ ...es, [newId()]: PathEventSchema.parse(made) }))(map)
   }
 }
 
-export function setEvent(owner: EventOwner, eventId: string, patch: Partial<Pick<CrawlEvent, 'name'>>): MapUpdater {
-  return withEvent(owner, eventId, (e) => ({ ...e, ...patch }))
-}
-
-function withEvent(owner: EventOwner, eventId: string, update: <E extends CrawlEvent>(event: E) => E): MapUpdater {
-  return withEvents(owner, (events) => (events[eventId] ? { ...events, [eventId]: update(events[eventId]) } : events))
-}
-
-const withStage = (owner: EventOwner, eventId: string, index: number, update: (stage: EventStage) => EventStage): MapUpdater =>
-  withEvent(owner, eventId, (e) => (e.stages[index] ? { ...e, stages: e.stages.map((s, i) => (i === index ? update(s) : s)) } : e))
-
-// The GM moves the event to another of its stages: the tree in fruit, the
-// deer butchered, the treasure taken.
-export function setEventStage(owner: EventOwner, eventId: string, index: number): MapUpdater {
-  return withEvent(owner, eventId, (e) => (e.stages[index] ? { ...e, stage: index } : e))
-}
-
-export function addStage(owner: EventOwner, eventId: string): MapUpdater {
-  return withEvent(owner, eventId, (e) =>
-    ({ ...e, stages: [...e.stages, EventStageSchema.parse({ name: nextName('Stage', e.stages.map((s) => s.name)) })] }))
-}
-
-// An event keeps one stage at least; the one it is in stays where it is.
-export function removeStage(owner: EventOwner, eventId: string, index: number): MapUpdater {
-  return withEvent(owner, eventId, (e) => {
-    if (e.stages.length <= 1 || !e.stages[index]) return e
-    const stage = e.stage === index ? 0 : e.stage > index ? e.stage - 1 : e.stage
-    return { ...e, stage, stages: e.stages.filter((_, i) => i !== index) }
-  })
-}
-
-export function setStage(owner: EventOwner, eventId: string, index: number, patch: Partial<Pick<EventStage, 'name' | 'DL'>>): MapUpdater {
-  return withStage(owner, eventId, index, (s) => ({ ...s, ...patch }))
-}
-
-export function toggleStageType(owner: EventOwner, eventId: string, index: number, type: EventType): MapUpdater {
-  return withStage(owner, eventId, index, (s) => ({ ...s, types: toggled(s.types, type) }))
-}
-
-export function setOutcome(owner: EventOwner, eventId: string, index: number, degree: Degree, patch: Partial<EventOutcome>): MapUpdater {
-  return withStage(owner, eventId, index, (s) => ({ ...s, outcomes: { ...s.outcomes, [degree]: { ...s.outcomes[degree], ...patch } } }))
+// An edit made to one event of the node or path.
+export function editEvent(owner: EventOwner, eventId: string, update: EventUpdater): MapUpdater {
+  return withEvents(owner, (events) => (events[eventId] ? { ...events, [eventId]: { ...events[eventId], ...update(events[eventId]) } } : events))
 }
 
 // Which way along the path the event happens.

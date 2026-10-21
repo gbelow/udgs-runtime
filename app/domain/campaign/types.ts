@@ -63,14 +63,24 @@ export const EventStageSchema = z.object({
 })
 export type EventStage = z.infer<typeof EventStageSchema>
 
+// survival.tex "Events": what an event is — its name and its stages — as the
+// events catalog keeps it, outside any map, for events on any map to be made
+// of.
+export const EventTemplateSchema = z.object({
+  name: z.string().default(''),
+  stages: z.array(EventStageSchema).default(() => [EventStageSchema.parse({})]),
+})
+export type EventTemplate = z.infer<typeof EventTemplateSchema>
+
 // survival.tex "Events": something on a node or a connection, found on
 // purpose against its DL. Each event resolves itself, by the outcome for the
 // degree the test came to against the stage it is in; the GM moves it from
-// one stage to another.
+// one stage to another. It is made of a template from the catalog, by key,
+// and keeps only what it changes of it — or, with none, is all its own.
 export const CrawlEventSchema = z.object({
-  name: z.string().default(''),
+  template: z.string().nullable().default(null),
   stage: z.number().default(0),
-  stages: z.array(EventStageSchema).default(() => [EventStageSchema.parse({})]),
+  custom: EventTemplateSchema.partial().default({}),
 })
 export type CrawlEvent = z.infer<typeof CrawlEventSchema>
 
@@ -182,7 +192,7 @@ export const PartySchema = z.object({
 export type Party = z.infer<typeof PartySchema>
 
 // The catalogs a collection lists entries of.
-export const CATALOG_KINDS = ['characters', 'races', 'maps', 'abilities', 'spells', 'weapons', 'armors', 'ammo', 'items', 'containers', 'terrains', 'knowledges'] as const
+export const CATALOG_KINDS = ['characters', 'races', 'maps', 'abilities', 'spells', 'weapons', 'armors', 'ammo', 'items', 'containers', 'terrains', 'events', 'knowledges'] as const
 export const CatalogKindSchema = z.enum(CATALOG_KINDS)
 export type CatalogKind = z.infer<typeof CatalogKindSchema>
 

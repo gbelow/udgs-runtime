@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { TerrainSchema, type CatalogKind } from '../domain/campaign/types'
+import { EventTemplateSchema, TerrainSchema, type CatalogKind } from '../domain/campaign/types'
 import type { CatalogRow } from '../domain/campaign/projections/collections'
 import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerEntrySchema, ItemEntrySchema, SpecificKnowledgeEntrySchema, SpellSchema, WeaponSchema } from '../domain/types'
 import { slug } from '../domain/utils'
@@ -12,6 +12,7 @@ import ammo from '../assets/ammo.json'
 import items from '../assets/items.json'
 import containers from '../assets/containers.json'
 import terrains from '../assets/terrains.json'
+import events from '../assets/events.json'
 import knowledges from '../assets/knowledges.json'
 
 // The editable catalogs: one JSON file under app/assets each, its schema,
@@ -61,6 +62,11 @@ export const CATALOGS = {
   },
   terrains: {
     label: 'Terrains', file: 'terrains.json', schema: TerrainSchema, data: terrains,
+    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
+  },
+  // edited with the map's own event editor rather than the schema's form
+  events: {
+    label: 'Events', file: 'events.json', schema: EventTemplateSchema, data: events,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
   },
   // keyed as a character holds it, so named as one can be

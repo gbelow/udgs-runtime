@@ -6,10 +6,13 @@ import { describeSchema } from '../../forms/schemaFields'
 import { CATALOGS, CatalogName } from '../../forms/catalogs'
 import { useCatalogEditor } from '../../hooks/useCatalogEditor'
 import { Button, CatalogList, ConfirmDelete, ListButton } from '../ui'
+import { EventEditor, ItemKeyList } from '../EventEditor'
+import { useEventTemplateDraft } from '../../hooks/useEventTemplate'
 
 // One catalog: its entries listed by group on the left, the schema-driven
 // form for the picked or new entry on the right. Every catalog is this same
-// panel; what differs is in forms/catalogs.ts and the overrides.
+// panel; what differs is in forms/catalogs.ts and the overrides, but for the
+// events, whose stages are edited as the map edits an event's.
 export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
   const { label, groups, draft, open, create, edit, save, remove } = useCatalogEditor(catalog)
   const type = useMemo(() => describeSchema(CATALOGS[catalog].schema), [catalog])
@@ -31,12 +34,26 @@ export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
               <Button variant='primary' onClick={save}>save</Button>
               {!draft.fresh && <ConfirmDelete remove={remove} />}
             </div>
-            <SchemaForm type={type} value={draft.value} onChange={(v) => edit(v as Record<string, unknown>)} overrides={OVERRIDES[catalog]} />
+            {catalog === 'events'
+              ? <EventTemplateForm value={draft.value} onChange={edit} />
+              : <SchemaForm type={type} value={draft.value} onChange={(v) => edit(v as Record<string, unknown>)} overrides={OVERRIDES[catalog]} />}
           </>
         ) : (
           <span className='text-sm text-muted'>Pick an entry to edit, or create a new one.</span>
         )}
       </div>
     </div>
+  )
+}
+
+// survival.tex "Events": an event template, edited with the map's event
+// editor; it is in no stage, which only an event on a map is.
+function EventTemplateForm({ value, onChange }: { value: Record<string, unknown>, onChange: (value: Record<string, unknown>) => void }) {
+  const { view, edit } = useEventTemplateDraft(value, onChange)
+  return (
+    <>
+      <ItemKeyList />
+      <EventEditor event={view} edit={edit} placed={false} path />
+    </>
   )
 }
