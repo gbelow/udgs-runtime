@@ -576,7 +576,7 @@ function OptionButton({ option, active = false, onClick }: { option: ActionOptio
       <Button size='xs' selected={active}
         disabled={!option.available} onClick={onClick}>
         {option.label} <Cost cost={option.cost} />
-        {option.surge ? <span className='ml-1 text-accent'>{option.surge} surge</span> : null}
+        {option.surge ? <span className='ml-1 text-accent'>surge</span> : null}
       </Button>
     </Closed>
   )

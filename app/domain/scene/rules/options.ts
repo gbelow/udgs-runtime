@@ -212,7 +212,7 @@ function withSurges(state: SceneState, c: CampaignCharacter, now: ActionOption[]
     if (o.available) return o
     for (const { kind, options } of probes) {
       const viaSurge = options.find((a) => a.available && sameDraft(a.draft, o.draft))
-      if (viaSurge) return opens ? { ...viaSurge, surge: kind } : { ...o, surge: kind, reason: `needs the ${kind} surge` }
+      if (viaSurge) return opens ? { ...viaSurge, surge: kind } : { ...o, surge: kind, reason: 'needs a surge' }
     }
     return o
   })

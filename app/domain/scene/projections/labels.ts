@@ -31,7 +31,7 @@ export function getActionNoun(action: ActionDraft): string {
 // defense made with something, what it is made with.
 export function getOptionLabel(state: SceneState, actorId: string, option: ActionOption): string {
   const label = getDraftLabel(state, actorId, option)
-  return option.surge ? `${label} (${option.surge} surge first)` : label
+  return option.surge ? `${label} (surge first)` : label
 }
 
 function getDraftLabel(state: SceneState, actorId: string, option: ActionOption): string {
