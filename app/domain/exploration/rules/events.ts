@@ -1,6 +1,5 @@
 import type { Degree } from '../../types'
-import type { CrawlEvent, EventOutcome, EventStage } from '../../campaign/types'
-import { getEvent } from '../../campaign/rules/events'
+import type { EventOutcome, EventTemplate } from '../../campaign/types'
 
 // survival.tex "Random event": "put all available events in a numbered list
 // and roll ... Leave numbers blank or add some events multiple times." The
@@ -23,20 +22,14 @@ export function drawWeighted<T>(entries: { weight: number; item: T }[], percent:
   return null
 }
 
-// The stage the event is in, or null for one left with none.
-export function getStage(event: CrawlEvent): EventStage | null {
-  const { stages } = getEvent(event)
-  return stages[event.stage] ?? stages[0] ?? null
-}
-
 // The table's ruling: an event someone present has met before is found at
 // DL -5.
 export const KNOWN_DL = -5
 
-// The DL an exploration score is read against for an event: its stage's,
-// with the night on top, and easier for an event met before.
-export function getEventDL(stage: EventStage, night: number, known: boolean): number {
-  return stage.DL + night + (known ? KNOWN_DL : 0)
+// The DL an exploration score is read against for an event: its own, with
+// the night on top, and easier for an event met before.
+export function getEventDL(event: EventTemplate, night: number, known: boolean): number {
+  return event.DL + night + (known ? KNOWN_DL : 0)
 }
 
 // Whether what an event came to waits on the table before it lands: it

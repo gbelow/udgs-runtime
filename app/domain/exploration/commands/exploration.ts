@@ -1,6 +1,6 @@
 import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Degree, Item, SlotKind } from '../../types'
-import type { At, CampaignState, CampaignUpdater, CrawlEvent, EventOwner, EventStage, PlaceChange, TerrainTag, Wear } from '../../campaign/types'
+import type { At, CampaignState, CampaignUpdater, CrawlEvent, EventOwner, EventTemplate, PlaceChange, TerrainTag, Wear } from '../../campaign/types'
 import { PlaceChangeSchema } from '../../campaign/types'
 import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupKind, GroupResult, Meeting, Met, Opening, Resolved, StayResult, TestRoll } from '../types'
 import { CampSchema } from '../types'
@@ -17,15 +17,17 @@ import {
   getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
-import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, getStage, isFound } from '../rules/events'
+import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
 import { getDay, getPlayingParties } from '../../campaign/rules/clock'
 import { getEvent } from '../../campaign/rules/events'
 import { getEventKey, getPlaceKey, type PlaceNow } from '../../campaign/rules/place'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
 import { passETs } from '../../campaign/commands/clock'
+import { editEvent } from '../../campaign/commands/map'
+import { takeItems } from '../../campaign/commands/event'
 import { record } from '../../campaign/commands/journal'
 import { without } from '../../utils'
-import { addParty, setPartySequence } from '../../campaign/commands/parties'
+import { addParty, setPartySequence, updateCampaignMap } from '../../campaign/commands/parties'
 import { updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
 import { takeDose } from '../../character/commands/consume'
@@ -304,22 +306,22 @@ function landTask(kind: GroupKind, degree: Degree, camp: Camp): Camp {
 // it. A group with no `moves` is where it started.
 type Outcome = Meeting & { task: Degree | null }
 
-// An event of a node or a path in the stage it is in; one left with no
-// stage is not there to be met, nor one whose stage is ambient.
-type Listed = { id: string; event: CrawlEvent; stage: EventStage }
+// An event of a node or a path as it is now; an ambient one is not met by a
+// test.
+type Listed = { id: string; event: CrawlEvent; made: EventTemplate }
 const listed = (events: [string, CrawlEvent][]): Listed[] =>
   events.flatMap(([id, event]) => {
-    const stage = getStage(event)
-    return stage && !stage.ambient ? [{ id, event, stage }] : []
+    const made = getEvent(event)
+    return made.ambient ? [] : [{ id, event, made }]
   })
 
 // survival.tex "Events": each event met resolves itself, by the degree the
-// group's score comes to against the stage it is in.
+// group's score comes to against it.
 type Meet = (owner: EventOwner) => (l: Listed) => Met
-const meeting = (score: number, night: number, known: (owner: EventOwner, id: string) => boolean): Meet => (owner) => ({ id, event, stage }) => {
-  const DL = getEventDL(stage, night, known(owner, id))
+const meeting = (score: number, night: number, known: (owner: EventOwner, id: string) => boolean): Meet => (owner) => ({ id, made }) => {
+  const DL = getEventDL(made, night, known(owner, id))
   const degree = getDegree(score, DL)
-  return { owner, event: id, name: getEvent(event).name, DL, degree, outcome: stage.outcomes[degree], adjust: 0, tests: [] }
+  return { owner, event: id, name: made.name, text: made.text, DL, degree, outcome: made.outcomes[degree], adjust: 0, tests: [] }
 }
 
 type Drawn = { path: Path } | { event: Listed } | null
@@ -346,9 +348,9 @@ function travel(from: At, place: Place, group: Group, roll: TestRoll, meet: Meet
   if (won(roll.degree)) return along(chosen, `arrived at ${chosen.toName}`)
   const weighted = (DL: number, item: Drawn) => ({ weight: getEventWeight(DL), item })
   const drawn = drawWeighted<Drawn>([
-    ...listed(Object.entries(place.node.events)).map((l) => weighted(l.stage.DL, { event: l })),
+    ...listed(Object.entries(place.node.events)).map((l) => weighted(l.made.DL, { event: l })),
     weighted(chosen.DL, { path: chosen }),
-    ...onPath(chosen).map((l) => weighted(l.stage.DL, { path: chosen })),
+    ...onPath(chosen).map((l) => weighted(l.made.DL, { path: chosen })),
     ...(roll.score < 0 ? paths.filter((p) => p !== chosen).map((path) => weighted(path.DL, { path })) : []),
     { weight: BLANK_WEIGHT, item: null },
   ], rollPercent(dice))
@@ -367,7 +369,7 @@ function travel(from: At, place: Place, group: Group, roll: TestRoll, meet: Meet
 function search(place: Place, group: Group, roll: TestRoll, meet: Meet, dice: Dice): Meeting {
   const events = listed(Object.entries(place.node.events))
   const met = events.map(meet({ kind: 'node', id: place.id })).sort((x, y) => x.DL - y.DL)
-  const sought = met.filter((m) => events.find((l) => l.id === m.event)?.stage.types.includes(group.seek))
+  const sought = met.filter((m) => events.find((l) => l.id === m.event)?.made.types.includes(group.seek))
   const against = (m: Met | undefined): TestRoll => (m ? { ...roll, DL: m.DL, degree: m.degree } : roll)
   const found = sought.find((m) => isFound(m.degree))
   if (found) {
@@ -380,7 +382,7 @@ function search(place: Place, group: Group, roll: TestRoll, meet: Meet, dice: Di
     return { roll: against(found), note: `found ${chain.map((m) => m.name).join(', then ')}`, moves: null, events: chain }
   }
   const drawn = drawWeighted<Listed | null>([
-    ...events.map((l) => ({ weight: getEventWeight(l.stage.DL), item: l })),
+    ...events.map((l) => ({ weight: getEventWeight(l.made.DL), item: l })),
     { weight: BLANK_WEIGHT, item: null },
   ], rollPercent(dice))
   if (!drawn) return { roll: against(sought[0]), note: `found no ${group.seek}`, moves: null, events: [] }
@@ -611,12 +613,16 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
   const passing = key && weather.length > 0 ? { ...t.exploration.passing, [key]: [...(t.exploration.passing[key] ?? []), ...weather] } : t.exploration.passing
   const met = party.at ? events.map((e) => getEventKey(party.at!.map, e.owner, e.event)) : []
   const known = { ...t.exploration.known, ...Object.fromEntries(going.map((id) => [id, [...new Set([...(t.exploration.known[id] ?? []), ...met])]])) }
+  // what was found taken off the events it was found on, on the campaign's
+  // map
+  const at = party.at
+  const taken = at ? events.filter((e) => e.outcome.items.length > 0).reduce((s, e) => updateCampaignMap(at.map, editEvent(e.owner, e.event, takeItems))(s), state) : state
   // the prepared scenes the events met lead to, waiting for whoever met them
   const scenes = Object.fromEntries(events.flatMap((e) => (e.outcome.scene
     ? [[newId(), { preset: e.outcome.scene.preset, party: partyId, members: going, forced: e.outcome.scene.forced, event: e.name, at: party.at }]]
     : [])))
   return done(
-    { campaign: { ...state, characters, scenes: { ...state.scenes, ...scenes } }, exploration: { ...t.exploration, piles, passing, known } },
+    { campaign: { ...taken, characters, scenes: { ...state.scenes, ...scenes } }, exploration: { ...t.exploration, piles, passing, known } },
     {
       result, working: going, moves: outcome.moves && { at: outcome.moves.at, ids: [...going, ...carried] }, found: found.map((i) => i.id),
       task: outcome.task && { kind: group.kind, degree: outcome.task },

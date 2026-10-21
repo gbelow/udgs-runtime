@@ -418,7 +418,7 @@ export function getETResultLines(results: GroupResult[], castResults: CastResult
     ...results.flatMap((r) => [
       `${of(r.party)}${r.kind} (${r.members.join(', ')})${describeOutcome(r.roll, r.note)}`,
       ...r.events.flatMap((e) => [
-        `  ${e.name} vs DL ${e.DL}, ${e.degree}${e.outcome.text ? `: ${e.outcome.text}` : ''}`,
+        `  ${e.name}${e.text ? ` (${e.text})` : ''} vs DL ${e.DL}, ${e.degree}${e.outcome.text ? `: ${e.outcome.text}` : ''}`,
         ...(e.outcome.items.length > 0 ? [`    found ${e.outcome.items.map((i) => `${i.amount} ${i.key}`).join(', ')}`] : []),
         ...(e.outcome.weather ? [`    weather: ${describePlaceChange(e.outcome.weather)}`] : []),
         ...(e.outcome.scene ? [`    ${e.outcome.scene.forced ? 'led to' : 'offered'} the scene ${getScenePreset(e.outcome.scene.preset).name}`] : []),

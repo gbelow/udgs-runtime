@@ -1,1 +1,75 @@
-{}
+{
+  "hello event": {
+    "name": "hello event",
+    "types": [],
+    "DL": 0,
+    "outcomes": {
+      "critical": {
+        "text": "",
+        "takesET": true,
+        "stop": false,
+        "wear": {
+          "IL": 0,
+          "exhaustion": 0,
+          "hunger": 0,
+          "thirst": 0
+        },
+        "items": [],
+        "test": null,
+        "weather": null,
+        "scene": null,
+        "learning": null
+      },
+      "hit": {
+        "text": "",
+        "takesET": true,
+        "stop": false,
+        "wear": {
+          "IL": 0,
+          "exhaustion": 0,
+          "hunger": 0,
+          "thirst": 0
+        },
+        "items": [],
+        "test": null,
+        "weather": null,
+        "scene": null,
+        "learning": null
+      },
+      "graze": {
+        "text": "",
+        "takesET": true,
+        "stop": false,
+        "wear": {
+          "IL": 0,
+          "exhaustion": 0,
+          "hunger": 0,
+          "thirst": 0
+        },
+        "items": [],
+        "test": null,
+        "weather": null,
+        "scene": null,
+        "learning": null
+      },
+      "miss": {
+        "text": "",
+        "takesET": true,
+        "stop": false,
+        "wear": {
+          "IL": 0,
+          "exhaustion": 0,
+          "hunger": 0,
+          "thirst": 0
+        },
+        "items": [],
+        "test": null,
+        "weather": null,
+        "scene": null,
+        "learning": null
+      }
+    },
+    "shelter": null,
+    "ambient": null
+  }
+}

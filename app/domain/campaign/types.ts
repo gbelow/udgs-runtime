@@ -98,39 +98,35 @@ export const AmbientSchema = z.object({
 })
 export type Ambient = z.infer<typeof AmbientSchema>
 
-// One state an event can be in — the tree empty or in fruit, the deer alive
-// or butchered — with the DL it is found against, the types it is searched
-// for by, and what it comes to at each degree. A shelter (survival.tex
-// "Events": "finds a place with better exposure than the rest of the node")
-// says what the place is like to a party that camps in it. An ambient stage
-// is met by no test, so its DL, types and outcomes are not read.
-export const EventStageSchema = z.object({
+// survival.tex "Events": what an event is, as the events catalog keeps it
+// outside any map, for events on any map to be made of: its name and what
+// the table reads of it, the DL the exploration test finds it against, the
+// types it is searched for by, and what it comes to at each degree. A
+// shelter ("finds a place with better exposure than the rest of the node")
+// says what the place is like to a party that camps in it; an ambient event
+// is met by no test, so its DL, types and outcomes are not read. What its
+// outcomes find is taken off it once found, unless it `renews` (a spring, a
+// tree that fruits again).
+export const EventTemplateSchema = z.object({
   name: z.string().default(''),
+  text: z.string().default(''),
   types: z.array(EventTypeSchema).default([]),
   DL: z.number().default(0),
   outcomes: perDegree(EventOutcomeSchema.prefault({})).prefault({}),
   shelter: PlaceChangeSchema.nullable().default(null),
   ambient: AmbientSchema.nullable().default(null),
-})
-export type EventStage = z.infer<typeof EventStageSchema>
-
-// survival.tex "Events": what an event is — its name and its stages — as the
-// events catalog keeps it, outside any map, for events on any map to be made
-// of.
-export const EventTemplateSchema = z.object({
-  name: z.string().default(''),
-  stages: z.array(EventStageSchema).default(() => [EventStageSchema.parse({})]),
+  renews: z.boolean().default(false),
 })
 export type EventTemplate = z.infer<typeof EventTemplateSchema>
 
 // survival.tex "Events": something on a node or a connection, found on
 // purpose against its DL. Each event resolves itself, by the outcome for the
-// degree the test came to against the stage it is in; the GM moves it from
-// one stage to another. It is made of a template from the catalog, by key,
-// and keeps only what it changes of it — or, with none, is all its own.
+// degree the test came to; play and the GM change it as it goes (the tree
+// stripped, the deer butchered). It is made of a template from the catalog,
+// by key, and keeps only what it changes of it — or, with none, is all its
+// own.
 export const CrawlEventSchema = z.object({
   template: z.string().nullable().default(null),
-  stage: z.number().default(0),
   custom: EventTemplateSchema.partial().default({}),
 })
 export type CrawlEvent = z.infer<typeof CrawlEventSchema>

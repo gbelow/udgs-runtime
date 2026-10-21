@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Button, CollectionSelect, NumberInput, TextInput, selectClass } from './ui'
 import { AmbientSchema, EVENT_TYPES, EventTestSchema, PlaceChangeSchema, TERRAIN_TAGS, type EventOutcome, type EventResult, type EventTest, type Ambient, type PlaceChange, type TerrainTag, type Wear } from '../domain/campaign/types'
 import { SkillKeySchema, type Degree } from '../domain/types'
@@ -16,95 +16,85 @@ const WEAR_KEYS = ['IL', 'exhaustion', 'hunger', 'thirst'] as const
 
 type Edit = (command: EventCommand) => void
 
-// survival.tex "Events": an event, and each of its stages' DL to be found,
-// its types and what it comes to at each degree, one stage open at a time.
-// On a map (`placed`) it is also the stage it is in, which the GM moves it
-// between, the template it is made of, and what it changed of it.
-export function EventEditor({ event, edit, placed, path, remove, children }: {
+// survival.tex "Events": an event — its name and what the table reads of it,
+// the DL it is found against, its types, and what it comes to at each degree
+// — on a node, on a path, or (`on: 'any'`) a template either may be made of:
+// a path's event may turn a group back, a node's may be ambient or a shelter.
+// Each value changed from the template it is made of can be taken from it
+// again.
+export function EventEditor({ event, edit, on, remove, children }: {
   event: EventView
   edit: Edit
-  placed: boolean
-  path?: boolean
+  on: 'node' | 'path' | 'any'
   remove?: () => void
   children?: ReactNode
 }) {
-  const [open, setOpen] = useState(event.stage)
-  const index = event.stages[open] ? open : 0
-  const stage = event.stages[index]
-  const label = (s: EventView['stages'][number], i: number) => s.name || `stage ${i + 1}`
-  const changed = (key: 'name' | 'stages', text: string) => (event.custom.includes(key) ?
-    <button type='button' className='text-xs text-accent' title={`changed here; click to take the ${key} from ${event.template} again`} onClick={() => edit({ kind: 'resetEventValue', args: [key] })}>{text} ↺</button>
+  const reset = (key: EventView['custom'][number]) => (event.custom.includes(key) ?
+    <button type='button' className='text-xs text-accent' title={`changed here; click to take it from ${event.template} again`} onClick={() => edit({ kind: 'resetEventValue', args: [key] })}>↺</button>
     : null)
   return (
     <div className='flex flex-col gap-1 ml-4 pl-2 border-l border-line'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-        <TextInput className='w-40' aria-label='event name' value={event.name} onChange={(e) => edit({ kind: 'setEventName', args: [e.target.value] })} />
-        {changed('name', 'name')}
+        <TextInput className='w-40' aria-label='event name' value={event.name} onChange={(e) => edit({ kind: 'setEvent', args: [{ name: e.target.value }] })} />
+        {reset('name')}
         {event.template ? <span className='text-xs text-muted'>from {event.template}{event.missing ? ' (not in the catalog)' : ''}</span> : null}
         {children}
-        {placed ?
-          <>
-            <span className='text-xs text-muted'>is</span>
-            <select aria-label={`${event.name} stage`} className={selectClass} value={event.stage} onChange={(e) => edit({ kind: 'setEventStage', args: [parseInt(e.target.value)] })}>
-              {event.stages.map((s, i) => <option key={i} value={i}>{label(s, i)}</option>)}
-            </select>
-          </>
-          : null}
         {remove ? <Button aria-label={`remove ${event.name}`} variant='ghost' onClick={remove}>×</Button> : null}
       </div>
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        {event.stages.map((s, i) => (
-          <Button key={i} size='xs' variant='ghost' selected={i === index} onClick={() => setOpen(i)}>{label(s, i)}{placed && i === event.stage ? ' •' : ''}</Button>
-        ))}
-        <Button size='xs' variant='ghost' aria-label={`${event.name} add stage`} onClick={() => { edit({ kind: 'addStage', args: [] }); setOpen(event.stages.length) }}>+ stage</Button>
-        {changed('stages', 'stages changed')}
+      <div className='flex flex-row gap-1.5 items-center'>
+        <TextInput className='grow' aria-label={`${event.name} description`} placeholder='what it is: a grove to make camp, a group of bandits' value={event.text} onChange={(e) => edit({ kind: 'setEvent', args: [{ text: e.target.value }] })} />
+        {reset('text')}
       </div>
-      {stage ?
-        <>
-          <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-            <TextInput className='w-28' aria-label={`${event.name} stage name`} placeholder={label(stage, index)} value={stage.name} onChange={(e) => edit({ kind: 'setStage', args: [index, { name: e.target.value }] })} />
-            {stage.ambient ? null :
-              <>
-                <span className='text-xs text-muted'>DL</span>
-                <NumberInput className='w-10' aria-label={`${event.name} DL`} value={stage.DL} onChange={(e) => edit({ kind: 'setStage', args: [index, { DL: parseInt(e.target.value) || 0 }] })} />
-                {EVENT_TYPES.map((type) => (
-                  <Button key={type} size='xs' variant='ghost' selected={stage.types.includes(type)} onClick={() => edit({ kind: 'toggleStageType', args: [index, type] })}>{type}</Button>
-                ))}
-              </>}
-            {event.stages.length > 1 ?
-              <Button size='xs' variant='ghost' aria-label={`${event.name} remove stage`} onClick={() => { edit({ kind: 'removeStage', args: [index] }); setOpen(0) }}>remove stage</Button>
-              : null}
-          </div>
-          {path ? null :
-            <label className='text-xs text-muted flex items-center gap-1'>
-              <input type='checkbox' aria-label={`${event.name} ambient`} checked={stage.ambient !== null}
-                onChange={(e) => edit({ kind: 'setStage', args: [index, { ambient: e.target.checked ? AmbientSchema.parse({}) : null }] })} />ambient: happens by itself, met by no exploration test
-            </label>}
-          {stage.ambient ? <AmbientInputs label={event.name} ambient={stage.ambient} set={(ambient) => edit({ kind: 'setStage', args: [index, { ambient }] })} /> : null}
-          {stage.ambient ? null : <>
-          <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-            <label className='text-xs text-muted flex items-center gap-1'>
-              <input type='checkbox' aria-label={`${event.name} shelter`} checked={stage.shelter !== null}
-                onChange={(e) => edit({ kind: 'setStage', args: [index, { shelter: e.target.checked ? PlaceChangeSchema.parse({}) : null }] })} />a shelter to camp in
-            </label>
-            {stage.shelter ? <PlaceChangeInputs label={`${event.name} shelter`} change={stage.shelter} set={(shelter) => edit({ kind: 'setStage', args: [index, { shelter }] })} /> : null}
-          </div>
-          {DEGREES_SHOWN.map((degree) => (
-            <OutcomeEditor key={degree} event={event} index={index} degree={degree} path={path ?? false} edit={edit} />
+      {on === 'path' ? null :
+        <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+          <label className='text-xs text-muted flex items-center gap-1'>
+            <input type='checkbox' aria-label={`${event.name} ambient`} checked={event.ambient !== null}
+              onChange={(e) => edit({ kind: 'setEvent', args: [{ ambient: e.target.checked ? AmbientSchema.parse({}) : null }] })} />ambient: happens by itself, met by no exploration test
+          </label>
+          {reset('ambient')}
+        </div>}
+      {event.ambient ? <AmbientInputs label={event.name} ambient={event.ambient} set={(ambient) => edit({ kind: 'setEvent', args: [{ ambient }] })} /> : <>
+        <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+          <span className='text-xs text-muted'>found at DL</span>
+          <NumberInput className='w-10' aria-label={`${event.name} DL`} value={event.DL} onChange={(e) => edit({ kind: 'setEvent', args: [{ DL: parseInt(e.target.value) || 0 }] })} />
+          {reset('DL')}
+          {EVENT_TYPES.map((type) => (
+            <Button key={type} size='xs' variant='ghost' selected={event.types.includes(type)} onClick={() => edit({ kind: 'toggleEventType', args: [type] })}>{type}</Button>
           ))}
+          {reset('types')}
+        </div>
+        <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+          {on === 'path' ? null : <>
+            <label className='text-xs text-muted flex items-center gap-1'>
+              <input type='checkbox' aria-label={`${event.name} shelter`} checked={event.shelter !== null}
+                onChange={(e) => edit({ kind: 'setEvent', args: [{ shelter: e.target.checked ? PlaceChangeSchema.parse({}) : null }] })} />a shelter to camp in
+            </label>
+            {event.shelter ? <PlaceChangeInputs label={`${event.name} shelter`} change={event.shelter} set={(shelter) => edit({ kind: 'setEvent', args: [{ shelter }] })} /> : null}
+            {reset('shelter')}
           </>}
-        </>
-        : null}
+          <label className='text-xs text-muted flex items-center gap-1' title='what is found stays on it to be found again: a spring, a tree that fruits again'>
+            <input type='checkbox' aria-label={`${event.name} renews`} checked={event.renews} onChange={(e) => edit({ kind: 'setEvent', args: [{ renews: e.target.checked }] })} />renews what it gives
+          </label>
+          {reset('renews')}
+        </div>
+        <div className='flex flex-row items-center gap-1'>
+          <span className='text-xs text-muted'>what it comes to</span>
+          {reset('outcomes')}
+        </div>
+        {DEGREES_SHOWN.map((degree) => (
+          <OutcomeEditor key={degree} event={event} degree={degree} on={on} edit={edit} />
+        ))}
+      </>}
     </div>
   )
 }
 
-// What the stage comes to at one degree: the text the table reads, whether
-// it takes the whole ET, whether it stops a group on the path, the wear it
-// costs everyone present, what is found, and the test it asks of each.
-function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView, index: number, degree: Degree, path: boolean, edit: Edit }) {
-  const outcome = event.stages[index].outcomes[degree]
-  const set = (patch: Partial<EventOutcome>) => edit({ kind: 'setOutcome', args: [index, degree, patch] })
+// What the event comes to at one degree: the text the table reads, whether
+// it takes the whole ET, whether it turns a group on the path back, the wear
+// it costs everyone present, what is found, and the test it asks of each.
+function OutcomeEditor({ event, degree, on, edit }: { event: EventView, degree: Degree, on: 'node' | 'path' | 'any', edit: Edit }) {
+  const outcome = event.outcomes[degree]
+  const set = (patch: Partial<EventOutcome>) => edit({ kind: 'setOutcome', args: [degree, patch] })
   const name = `${event.name} ${degree}`
   const presets = useScenePresets()
   return (
@@ -117,11 +107,10 @@ function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView,
         <label className='text-xs text-muted flex items-center gap-1'>
           <input type='checkbox' aria-label={`${name} takes the ET`} checked={outcome.takesET} onChange={(e) => set({ takesET: e.target.checked })} />takes the ET
         </label>
-        {path ?
-          <label className='text-xs text-muted flex items-center gap-1'>
-            <input type='checkbox' aria-label={`${name} stops`} checked={outcome.stop} onChange={(e) => set({ stop: e.target.checked })} />stops the group
-          </label>
-          : null}
+        {on === 'node' ? null :
+          <label className='text-xs text-muted flex items-center gap-1' title='on a path: the group does not arrive, and ends the ET where it set out from'>
+            <input type='checkbox' aria-label={`${name} turns back`} checked={outcome.stop} onChange={(e) => set({ stop: e.target.checked })} />turns them back
+          </label>}
         <WearInputs label={name} wear={outcome.wear} set={(wear) => set({ wear })} />
       </div>
       <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>

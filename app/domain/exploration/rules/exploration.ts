@@ -15,7 +15,6 @@ import { changePlace, getConnectionsFrom, getExposure, getPartyMembers, getParty
 import { getEvent } from '../../campaign/rules/events'
 import { getWaitingSceneBar } from '../../campaign/rules/scenes'
 import { findCarriedItem } from '../../item/rules/containers'
-import { getStage } from './events'
 import type { Actor } from '../../profiles'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
@@ -53,12 +52,11 @@ export function getCamp(t: Exploring, partyId: string): Camp {
   return camp && isSamePlace(camp, { at }) ? camp : CampSchema.parse({ at })
 }
 
-// The shelter event the party's camp stands in, in the stage it is in, if
-// that stage is a shelter.
+// The shelter event the party's camp stands in, while it is one.
 export function getCampShelter(t: Exploring, partyId: string): { id: string; name: string; change: PlaceChange } | null {
   const camp = getCamp(t, partyId)
   const event = camp.in ? getPlace(t.campaign, t.campaign.parties[partyId])?.node.events[camp.in] : undefined
-  const change = event ? getStage(event)?.shelter : null
+  const change = event ? getEvent(event).shelter : null
   return camp.in && event && change ? { id: camp.in, name: getEvent(event).name, change } : null
 }
 
@@ -83,7 +81,7 @@ export function getPileItems(t: Exploring, partyId: string): { item: Item; left:
   ]
 }
 
-// The ambient events of the node the party stands on, in the stage they are
+// The ambient events of the node the party stands on, as they are
 // in, and whether each is happening this ET.
 export type AmbientOn = Ambient & { id: string; name: string; on: boolean }
 export function getAmbient(t: Exploring, partyId: string): AmbientOn[] {
@@ -92,7 +90,7 @@ export function getAmbient(t: Exploring, partyId: string): AmbientOn[] {
   if (!place) return []
   const on = t.exploration.ambient[getPlaceKey(party.at)] ?? []
   return Object.entries(place.node.events).flatMap(([id, event]) => {
-    const ambient = getStage(event)?.ambient
+    const ambient = getEvent(event).ambient
     return ambient ? [{ ...ambient, id, name: getEvent(event).name, on: on.includes(id) }] : []
   })
 }
@@ -143,7 +141,7 @@ export function getShelters(t: Exploring, partyId: string): { id: string; name: 
   const found = new Set(Object.values(t.exploration.resolved[partyId] ?? {}).flatMap((r) =>
     (r.result?.events ?? []).filter((e) => e.owner.kind === 'node' && e.owner.id === place.id && (e.degree === 'hit' || e.degree === 'critical')).map((e) => e.event)))
   return Object.entries(place.node.events)
-    .filter(([id, event]) => getStage(event)?.shelter && (found.has(id) || camp.in === id))
+    .filter(([id, event]) => getEvent(event).shelter && (found.has(id) || camp.in === id))
     .map(([id, event]) => ({ id, name: getEvent(event).name, in: camp.in === id }))
 }
 

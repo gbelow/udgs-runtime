@@ -117,7 +117,7 @@ function NodeInspector({ id, close }: { id: string, close: () => void }) {
       </div>
       <NodeTerrain node={n} />
       {n.events.map((e) => (
-        <EventEditor key={e.id} event={e} placed edit={(command) => editEvent({ kind: 'node', id: n.id }, e.id, command)} remove={() => removeEvent({ kind: 'node', id: n.id }, e.id)} />
+        <EventEditor key={e.id} event={e} on='node' edit={(command) => editEvent({ kind: 'node', id: n.id }, e.id, command)} remove={() => removeEvent({ kind: 'node', id: n.id }, e.id)} />
       ))}
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <AddEvent templates={view.templates} add={(template) => addEvent({ kind: 'node', id: n.id }, template)} />
@@ -178,7 +178,7 @@ function PathInspector({ id, close }: { id: string, close: () => void }) {
         <NumberInput className='w-10' aria-label={`${c.bName} to ${c.aName} DL`} value={c.backDL} onChange={(e) => setConnection(c.id, { backDL: parseInt(e.target.value) || 0 })} />
       </div>
       {c.events.map((e) => (
-        <EventEditor key={e.id} event={e} placed path edit={(command) => editEvent({ kind: 'connection', id: c.id }, e.id, command)} remove={() => removeEvent({ kind: 'connection', id: c.id }, e.id)}>
+        <EventEditor key={e.id} event={e} on='path' edit={(command) => editEvent({ kind: 'connection', id: c.id }, e.id, command)} remove={() => removeEvent({ kind: 'connection', id: c.id }, e.id)}>
           <select aria-label={`${e.name} way`} className={selectClass} value={e.way} onChange={(ev) => setWay(c.id, e.id, ev.target.value as Way)}>
             {WAYS.map((way) => (
               <option key={way} value={way}>{way === 'both' ? 'both ways' : way === 'there' ? `${c.aName} → ${c.bName}` : `${c.bName} → ${c.aName}`}</option>

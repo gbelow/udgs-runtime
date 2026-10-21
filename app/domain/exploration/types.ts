@@ -71,6 +71,8 @@ export const MetSchema = z.object({
   owner: z.object({ kind: z.enum(['node', 'connection']), id: z.string() }),
   event: z.string(),
   name: z.string(),
+  // what the table reads of the event: a grove to make camp
+  text: z.string().default(''),
   DL: z.number(),
   degree: DegreeSchema,
   outcome: EventOutcomeSchema,

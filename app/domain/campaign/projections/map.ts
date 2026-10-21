@@ -11,14 +11,13 @@ export type EventView = EventTemplate & {
   id: string
   template: string | null
   missing: boolean
-  stage: number
   custom: (keyof EventTemplate)[]
 }
 export type PathEventView = EventView & { way: Way }
 
 export function getEventView(id: string, event: CrawlEvent): EventView {
   return {
-    ...getEvent(event), id, template: event.template, missing: event.template !== null && !hasEventTemplate(event.template), stage: event.stage,
+    ...getEvent(event), id, template: event.template, missing: event.template !== null && !hasEventTemplate(event.template),
     custom: event.template ? (Object.keys(event.custom) as (keyof EventTemplate)[]) : [],
   }
 }

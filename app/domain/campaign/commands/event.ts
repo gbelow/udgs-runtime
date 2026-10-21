@@ -1,65 +1,47 @@
 import type { Degree } from '../../types'
-import type { CrawlEvent, EventOutcome, EventStage, EventTemplate, EventType } from '../types'
-import { EventStageSchema } from '../types'
+import type { CrawlEvent, EventOutcome, EventTemplate, EventType } from '../types'
 import { getEvent } from '../rules/events'
 
 // survival.tex "Events": an event made by hand, the same on a map and in the
-// events catalog. What it changes is kept on the event; on one made of a
-// template, a change to its stages takes them all over from the template.
+// events catalog. What it changes is kept on the event, value by value, over
+// the template it is made of.
 
 export type EventUpdater = (event: CrawlEvent) => CrawlEvent
 
 const toggled = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
 
-const withStages = (update: (stages: EventStage[], stage: number) => { stages: EventStage[]; stage?: number }): EventUpdater =>
-  (e) => {
-    const changed = update(getEvent(e).stages, e.stage)
-    return { ...e, stage: changed.stage ?? e.stage, custom: { ...e.custom, stages: changed.stages } }
-  }
+export type EventPatch = Partial<Pick<EventTemplate, 'name' | 'text' | 'DL' | 'shelter' | 'ambient' | 'renews'>>
 
-const withStage = (index: number, update: (stage: EventStage) => EventStage): EventUpdater =>
-  (e) => (getEvent(e).stages[index] ? withStages((stages) => ({ stages: stages.map((s, i) => (i === index ? update(s) : s)) }))(e) : e)
-
-export function setEventName(name: string): EventUpdater {
-  return (e) => ({ ...e, custom: { ...e.custom, name } })
+export function setEvent(patch: EventPatch): EventUpdater {
+  return (e) => ({ ...e, custom: { ...e.custom, ...patch } })
 }
 
-// The GM moves the event to another of its stages: the tree in fruit, the
-// deer butchered, the treasure taken.
-export function setEventStage(index: number): EventUpdater {
-  return (e) => (getEvent(e).stages[index] ? { ...e, stage: index } : e)
+export function toggleEventType(type: EventType): EventUpdater {
+  return (e) => ({ ...e, custom: { ...e.custom, types: toggled(getEvent(e).types, type) } })
 }
 
-export function addStage(): EventUpdater {
-  return withStages((stages) => ({ stages: [...stages, EventStageSchema.parse({ name: `Stage ${stages.length + 1}` })] }))
-}
-
-// An event keeps one stage at least; the one it is in stays where it is.
-export function removeStage(index: number): EventUpdater {
+// What the event comes to at one degree; the outcomes are taken over from
+// the template together.
+export function setOutcome(degree: Degree, patch: Partial<EventOutcome>): EventUpdater {
   return (e) => {
-    const { stages } = getEvent(e)
-    if (stages.length <= 1 || !stages[index]) return e
-    return withStages((all, stage) => ({ stages: all.filter((_, i) => i !== index), stage: stage === index ? 0 : stage > index ? stage - 1 : stage }))(e)
+    const { outcomes } = getEvent(e)
+    return { ...e, custom: { ...e.custom, outcomes: { ...outcomes, [degree]: { ...outcomes[degree], ...patch } } } }
   }
 }
 
-export function setStage(index: number, patch: Partial<Pick<EventStage, 'name' | 'DL' | 'shelter' | 'ambient'>>): EventUpdater {
-  return withStage(index, (s) => ({ ...s, ...patch }))
-}
-
-export function toggleStageType(index: number, type: EventType): EventUpdater {
-  return withStage(index, (s) => ({ ...s, types: toggled(s.types, type) }))
-}
-
-export function setOutcome(index: number, degree: Degree, patch: Partial<EventOutcome>): EventUpdater {
-  return withStage(index, (s) => ({ ...s, outcomes: { ...s.outcomes, [degree]: { ...s.outcomes[degree], ...patch } } }))
+// survival.tex "Events": what its outcomes find, taken off it once found,
+// unless it renews.
+export const takeItems: EventUpdater = (e) => {
+  const { outcomes, renews } = getEvent(e)
+  if (renews || Object.values(outcomes).every((o) => o.items.length === 0)) return e
+  const emptied = (o: EventOutcome): EventOutcome => ({ ...o, items: [] })
+  return { ...e, custom: { ...e.custom, outcomes: { critical: emptied(outcomes.critical), hit: emptied(outcomes.hit), graze: emptied(outcomes.graze), miss: emptied(outcomes.miss) } } }
 }
 
 // The event takes this from its template again.
 export function resetEventValue(key: keyof EventTemplate): EventUpdater {
   return (e) => {
     const { [key]: _gone, ...custom } = e.custom
-    const stage = key === 'stages' ? 0 : e.stage
-    return { ...e, stage, custom }
+    return { ...e, custom }
   }
 }

@@ -538,23 +538,20 @@ const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setConnection: (m) => mapModule.setConnection('c', { backDL: 9 })(m),
   removeConnection: (m) => mapModule.removeConnection('c')(m),
   addEvent: (m) => mapModule.addEvent({ kind: 'connection', id: 'c' }, null, () => 'f')(m),
-  editEvent: (m) => mapModule.editEvent({ kind: 'connection', id: 'c' }, 'e', eventModule.removeStage(0))(m),
+  editEvent: (m) => mapModule.editEvent({ kind: 'connection', id: 'c' }, 'e', eventModule.setEvent({ DL: 2 }))(m),
   setEventWay: (m) => mapModule.setEventWay('c', 'e', 'both')(m),
   removeEvent: (m) => mapModule.removeEvent({ kind: 'node', id: 'n1' }, 'e')(m),
 }
 
-// An event of its own, two stages, in the second.
-const eventSubject = (): CrawlEvent => CrawlEventSchema.parse({ stage: 1, custom: { name: 'deer', stages: [{ types: ['food'], DL: 5 }, { name: 'butchered' }] } })
+// An event of its own: a deer, with meat to find.
+const eventSubject = (): CrawlEvent => CrawlEventSchema.parse({ custom: { name: 'deer', types: ['food'], DL: 5, outcomes: { hit: { items: [{ key: 'Meat', amount: 2 }] } } } })
 
 const eventCases: Record<string, (e: CrawlEvent) => unknown> = {
-  setEventName: (e) => eventModule.setEventName('elk')(e),
-  setEventStage: (e) => eventModule.setEventStage(0)(e),
-  addStage: (e) => eventModule.addStage()(e),
-  removeStage: (e) => eventModule.removeStage(0)(e),
-  setStage: (e) => eventModule.setStage(0, { DL: 0 })(e),
-  toggleStageType: (e) => eventModule.toggleStageType(0, 'water')(e),
-  setOutcome: (e) => eventModule.setOutcome(0, 'miss', { stop: true, wear: { IL: 1, exhaustion: 0, hunger: 0, thirst: 0 } })(e),
-  resetEventValue: (e) => eventModule.resetEventValue('stages')({ ...e, template: 'Deer' }),
+  setEvent: (e) => eventModule.setEvent({ name: 'elk', DL: 0 })(e),
+  toggleEventType: (e) => eventModule.toggleEventType('water')(e),
+  setOutcome: (e) => eventModule.setOutcome('miss', { stop: true, wear: { IL: 1, exhaustion: 0, hunger: 0, thirst: 0 } })(e),
+  takeItems: (e) => eventModule.takeItems(e),
+  resetEventValue: (e) => eventModule.resetEventValue('DL')({ ...e, template: 'Deer' }),
 }
 
 function combatSubject(): SceneState {

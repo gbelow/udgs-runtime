@@ -4,7 +4,7 @@ What `survival.tex` asks for that the campaign layer does not do yet. The book's
 
 ## Events
 
-- An event is in one stage at a time, and only the GM moves it to another (in the campaign's copy of the map). Nothing in play moves a stage.
+- An event changes only by the GM editing it (in the campaign's copy of the map), and by what is found on it being taken off, unless it renews. Nothing else in play changes an event.
 - Ambient events find nothing, and their wear and tests land on everyone on the node, a party camped in a shelter too; the GM calls off one the shelter keeps out.
 - A prepared scene places nobody on its battle map: the GM places the fighters by hand. Opponents brought back from it join the roster like anyone a fight brings in; the GM takes the defeated out of the fight first.
 - A waiting scene is not undone by throwing the fight away: it is gone once played.

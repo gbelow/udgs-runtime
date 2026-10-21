@@ -12,7 +12,7 @@ import { useEventTemplateDraft } from '../../hooks/useEventTemplate'
 // One catalog: its entries listed by group on the left, the schema-driven
 // form for the picked or new entry on the right. Every catalog is this same
 // panel; what differs is in forms/catalogs.ts and the overrides, but for the
-// events, whose stages are edited as the map edits an event's.
+// events, edited as the map edits an event.
 export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
   const { label, groups, draft, open, create, edit, save, remove } = useCatalogEditor(catalog)
   const type = useMemo(() => describeSchema(CATALOGS[catalog].schema), [catalog])
@@ -47,13 +47,13 @@ export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
 }
 
 // survival.tex "Events": an event template, edited with the map's event
-// editor; it is in no stage, which only an event on a map is.
+// editor, offering what an event on a node or on a path may be.
 function EventTemplateForm({ value, onChange }: { value: Record<string, unknown>, onChange: (value: Record<string, unknown>) => void }) {
   const { view, edit } = useEventTemplateDraft(value, onChange)
   return (
     <>
       <ItemKeyList />
-      <EventEditor event={view} edit={edit} placed={false} path />
+      <EventEditor event={view} edit={edit} on='any' />
     </>
   )
 }
