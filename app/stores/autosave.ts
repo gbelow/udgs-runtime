@@ -32,6 +32,7 @@ async function run<T>(mode: IDBTransactionMode, act: (store: IDBObjectStore) => 
     const req = act(tx.objectStore(STORE))
     tx.oncomplete = () => resolve(req ? req.result : undefined)
     tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error ?? new DOMException('the transaction was aborted', 'AbortError'))
   })
 }
 

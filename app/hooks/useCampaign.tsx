@@ -142,10 +142,16 @@ function stored(file = useCampaignStore.getState().file): StoredCampaign {
   return toStoredCampaign(file, getInPlay(), useCampaignStore.getState().owners);
 }
 
+// The autosave write under way, if any: what the campaign in play last
+// changed to is not in storage until it is done.
+let writing: Promise<void> | null = null;
+
 // Opens campaign `id` where this screen left it, from its autosave, unless
 // the campaign was saved since or `fresh` asks for what is saved; one that
-// cannot be loaded plays on from its autosave, if there is one.
+// cannot be loaded plays on from its autosave, if there is one. What is being
+// written is waited for first, so the autosave read is the campaign's latest.
 async function resume(profile: string, id: string, fresh: boolean) {
+  await writing;
   const [res, kept] = await Promise.all([loadCampaign(id), fresh ? undefined : readAutosave(profile, id).catch(() => undefined)]);
   const parsed = kept ? CampaignSaveSchema.safeParse(kept.save) : null;
   const autosaved = parsed?.success ? parsed.data : null;
@@ -187,7 +193,7 @@ export function useAutosave() {
   useEffect(() => {
     if (!profile) return;
     let queued = false;
-    let writing = false;
+    let busy = false;
     let again = false;
     const write = async () => {
       const { file } = useCampaignStore.getState();
@@ -200,10 +206,15 @@ export function useAutosave() {
     };
     const flush = async () => {
       queued = false;
-      if (writing) { again = true; return; }
-      writing = true;
-      do { again = false; await write(); } while (again);
-      writing = false;
+      if (busy) { again = true; return; }
+      busy = true;
+      const loop = (async () => {
+        try { do { again = false; await write(); } while (again); }
+        catch (err) { console.error('Autosave failed:', err); }
+        finally { busy = false; }
+      })();
+      writing = loop;
+      await loop;
     };
     const schedule = <T extends object>(s: T, before: T) => {
       if (!changed(s, before) || useTableStore.getState().mode === 'guest' || queued) return;
