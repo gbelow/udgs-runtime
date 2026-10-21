@@ -1,11 +1,10 @@
 import { z } from 'zod'
-import { KnowledgesSchema, ProficienciesSchema, SkillsSchema, type Knowledges, type Proficiencies, type Skills } from '../types'
+import { KnowledgesSchema, LearningTestSchema, ProficienciesSchema, SkillRefSchema, SkillsSchema, type Knowledges, type Proficiencies, type Skills } from '../types'
 import { TestRollSchema } from '../play/test'
 import { CallsSchema } from '../play/calls'
 import { LIVING_LEVELS } from '../lists'
 import type { CampaignState } from '../campaign/types'
 
-const SkillKeySchema = z.enum(Object.keys(SkillsSchema.shape) as [keyof Skills, ...(keyof Skills)[]])
 type TrainingKey = keyof Skills | keyof Proficiencies | keyof Knowledges
 const TrainingKeySchema = z.enum([...Object.keys(SkillsSchema.shape), ...Object.keys(ProficienciesSchema.shape), ...Object.keys(KnowledgesSchema.shape)] as [TrainingKey, ...TrainingKey[]])
 
@@ -18,13 +17,7 @@ export const TrainingTargetSchema = z.discriminatedUnion('kind', [
 ])
 export type TrainingTarget = z.infer<typeof TrainingTargetSchema>
 
-// story.tex "Job": "arbitrary skill or knowledge vs DL" — a knowledge by
-// name, formal or specific.
-export const SkillRefSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('skill'), key: SkillKeySchema }),
-  z.object({ kind: z.literal('knowledge'), name: z.string() }),
-])
-export type SkillRef = z.infer<typeof SkillRefSchema>
+export { SkillRefSchema, type SkillRef } from '../types'
 
 // The table's answer to a training request: a trainer is found, or not.
 export const DECISIONS = ['pending', 'accepted', 'refused'] as const
@@ -51,12 +44,8 @@ export const BlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('job'), days: z.number().default(10), test: SkillRefSchema, DL: z.number().default(5), wage: z.number().default(0) }),
   // "Healing": a doctor's IL a day, at a price per IL
   z.object({ kind: z.literal('doctor'), days: z.number().default(1), capacity: z.number().default(4), price: z.number().default(10) }),
-  // story.tex "Learning tests": levels of a specific knowledge by degree, up
-  // to a limit
-  z.object({
-    kind: z.literal('learning'), days: z.number().default(30), test: SkillRefSchema, DL: z.number().default(5),
-    knowledge: z.string().default(''), gains: z.tuple([z.number(), z.number(), z.number(), z.number()]).default([0, 1, 2, 3]), max: z.number().default(4),
-  }),
+  // story.tex "Learning tests": a month spent learning
+  z.object({ kind: z.literal('learning'), days: z.number().default(30) }).extend(LearningTestSchema.shape),
 ])
 export type Block = z.infer<typeof BlockSchema>
 export type BlockKind = Block['kind']

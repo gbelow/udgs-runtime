@@ -166,6 +166,7 @@ export function usePartyCommands() {
     setWeatherRaise: (partyId: string, raise: number) => explore({ kind: "setWeatherRaise", args: [partyId, raise] }),
     clearWeather: (partyId: string) => explore({ kind: "clearWeather", args: [partyId] }),
     setOffAmbient: (partyId: string, eventId: string) => explore({ kind: "setOffAmbient", args: [partyId, eventId] }),
+    readItem: (itemId: string) => withActive((id) => explore({ kind: "readItem", args: [id, itemId] })),
     toDowntime: (partyId: string) => explore({ kind: "toDowntime", args: [partyId] }),
     partyToScene: (partyId: string) => toFight({ kind: "sendPartyToFight", args: [partyId] }),
     toScene: (id: string) => toFight({ kind: "sendToFight", args: [[id]] }),

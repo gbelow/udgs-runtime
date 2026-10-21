@@ -1,5 +1,4 @@
 import type { CampaignCharacter, Character, Degree, Proficiencies } from '../../types'
-import { DEGREES } from '../../types'
 import { type LivingLevel } from '../../lists'
 import type { CampaignState, Settlement } from '../../campaign/types'
 import type { Activity, Block, Downtime, Plan, SkillRef, TrainingTarget } from '../types'
@@ -12,9 +11,7 @@ import { COST_OF_LIVING, DAYS_PER_XP, SELF_TRAINING_YIELD, TRAINER_RATES } from 
 import { PROFICIENCY_TALENTS, SKILL_TALENTS, getTrainableRaisePrice, isSkillKey, type LearningPrice } from '../../character/rules/learning'
 import { getAbilityTrainingPrice } from '../../character/rules/abilities'
 import { getLongCampHealing } from '../../character/rules/recovery'
-import { skillTermGetters } from '../../character/rules/skills'
-import { getKnowledgeTestTerms, isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
-import { sumTerms } from '../../character/rules/terms'
+import { isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
 import { isDead } from '../../character/rules/afflictions'
 import { getPartyMembers, getPlace, isOutsideSettlement, isPartyAway } from '../../campaign/rules/place'
 import { getClockOf, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar } from '../../campaign/rules/clock'
@@ -119,19 +116,7 @@ export function getTargetName(target: TrainingTarget): string {
 
 // ── tests ────────────────────────────────────────────────
 
-// story.tex "Knowledge": a knowledge is tested at "2x Knowledge"; a skill at
-// its value.
-export function getSkillValue(ref: SkillRef): (c: Character) => number {
-  return (c) => sumTerms(ref.kind === 'skill' ? skillTermGetters[ref.key](c) : getKnowledgeTestTerms(ref.name)(c))
-}
-
-export function getSkillTest(ref: SkillRef, DL: number): (c: Character) => Test {
-  return (c) => ({ skill: getSkillValue(ref)(c), DL, explodes: false, scale: 'degrees' })
-}
-
-export function getSkillName(ref: SkillRef): string {
-  return ref.kind === 'skill' ? ref.key : ref.name
-}
+export { getSkillName, getSkillTest, getSkillValue } from '../../character/rules/skillRef'
 
 // What a test's skill is trained as; nothing for a specific knowledge, which
 // is not trained.
@@ -152,11 +137,6 @@ export function getJobTraining(block: Extract<Block, { kind: 'job' }>): (c: Char
   }
 }
 
-// story.tex "Learning tests": the levels gained for the degree, by the order
-// miss, graze, hit, crit.
-export function getLearningGain(block: Extract<Block, { kind: 'learning' }>, degree: Degree): number {
-  return block.gains[DEGREES.indexOf(degree)]
-}
 
 // ── days ─────────────────────────────────────────────────
 

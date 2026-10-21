@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, CostSchema, ItemSchema, SkillKeySchema, type Selected } from '../types'
+import { CampaignCharacterSchema, CostSchema, ItemSchema, LearningTestSchema, SkillKeySchema, type Selected } from '../types'
 
 // survival.tex "Events": the 8 types of events.
 export const EVENT_TYPES = ['place', 'encounter', 'obstacle', 'treasure', 'wear', 'food', 'shelter', 'water'] as const
@@ -55,7 +55,9 @@ export type EventTest = z.infer<typeof EventTestSchema>
 // and, on a path, whether it keeps the group from arriving. `takesET` is the
 // event's word on whether it takes the whole ET (survival.tex "Event DL").
 // `weather` is what it does to the place the party stands on, for the ET.
-// `scene` is a prepared scene it leads to, played out before the ET passes.
+// `scene` is a prepared scene it leads to, played out before the ET passes;
+// `learning` a learning test each of them makes (story.tex "Learning tests":
+// "climbing a tall tree to see the surrounding area").
 export const EventOutcomeSchema = z.object({
   text: z.string().default(''),
   takesET: z.boolean().default(true),
@@ -65,6 +67,7 @@ export const EventOutcomeSchema = z.object({
   test: EventTestSchema.nullable().default(null),
   weather: PlaceChangeSchema.nullable().default(null),
   scene: z.object({ preset: z.string(), forced: z.boolean().default(true) }).nullable().default(null),
+  learning: LearningTestSchema.nullable().default(null),
 })
 export type EventOutcome = z.infer<typeof EventOutcomeSchema>
 

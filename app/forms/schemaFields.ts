@@ -13,6 +13,8 @@ export type FieldType =
   | { kind: 'enum'; options: string[] }
   | { kind: 'object'; fields: Field[] }
   | { kind: 'array'; element: FieldType; elementSchema: z.ZodType; min: number }
+  // a fixed number of values, each of its own kind
+  | { kind: 'tuple'; items: FieldType[] }
   | { kind: 'nullable'; inner: FieldType; innerSchema: z.ZodType }
   // absent from the record altogether, so a saved entry carries the field only
   // while it is set
@@ -36,6 +38,7 @@ type Def = {
   values?: unknown[]
   entries?: Record<string, unknown>
   element?: z.ZodType
+  items?: z.ZodType[]
   shape?: Record<string, z.ZodType>
   options?: z.ZodType[]
   discriminator?: string
@@ -89,6 +92,7 @@ export function describeSchema(schema: z.ZodType, within: Set<z.ZodType> = new S
     case 'object': return { kind: 'object', fields: describeFields(d.shape ?? {}, inner) }
     case 'array':
       return d.element ? { kind: 'array', element: describeSchema(d.element, inner), elementSchema: d.element, min: minLength(d) } : { kind: 'unknown' }
+    case 'tuple': return { kind: 'tuple', items: (d.items ?? []).map((item) => describeSchema(item, inner)) }
     case 'nullable':
       return d.innerType ? { kind: 'nullable', inner: describeSchema(d.innerType, inner), innerSchema: d.innerType } : { kind: 'unknown' }
     case 'optional':
@@ -125,6 +129,7 @@ export function emptyValue(schema: z.ZodType): unknown {
       return d.options?.[0] ? emptyValue(d.options[0]) : undefined
     case 'array':
       return Array.from({ length: minLength(d) }, () => (d.element ? emptyValue(d.element) : undefined))
+    case 'tuple': return (d.items ?? []).map(emptyValue)
     case 'literal': return d.values?.[0]
     case 'enum': return Object.keys(d.entries ?? {})[0]
     case 'string': return ''

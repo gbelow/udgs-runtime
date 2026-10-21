@@ -9,6 +9,7 @@ import type { EventCommand } from '../domain/campaign/commands/eventRegistry'
 import { useItemCatalogRows } from '../hooks/useItemLens'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { useScenePresets } from '../hooks/useScenePresets'
+import { LearningInputs, LearningToggle } from './LearningInputs'
 
 const DEGREES_SHOWN = ['critical', 'hit', 'graze', 'miss'] as const
 const WEAR_KEYS = ['IL', 'exhaustion', 'hunger', 'thirst'] as const
@@ -157,6 +158,11 @@ function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView,
         <Button size='xs' variant='ghost' aria-label={`${name} add item`} onClick={() => set({ items: [...outcome.items, { key: '', amount: 1 }] })}>+ item</Button>
       </div>
       <TestInputs label={name} test={outcome.test} set={(test) => set({ test })} />
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <span className='text-xs text-muted'>everyone learns</span>
+        {outcome.learning ? <LearningInputs label={name} learning={outcome.learning} set={(learning) => set({ learning })} /> : null}
+        <LearningToggle label={name} learning={outcome.learning} set={(learning) => set({ learning })} />
+      </div>
     </div>
   )
 }

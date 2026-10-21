@@ -8,6 +8,7 @@ What `survival.tex` asks for that the campaign layer does not do yet. The book's
 - Ambient events find nothing, and their wear and tests land on everyone on the node, a party camped in a shelter too; the GM calls off one the shelter keeps out.
 - A prepared scene places nobody on its battle map: the GM places the fighters by hand. Opponents brought back from it join the roster like anyone a fight brings in; the GM takes the defeated out of the fight first.
 - A waiting scene is not undone by throwing the fight away: it is gone once played.
+- Nothing records who has read a map: the GM has a character read it, and decides whether a second reading of it or of a copy teaches anything.
 - Nobody can be found in their shelter yet: a party camped in one is not something another party's search meets.
 - Random encounter while making camp (optional): one per day of long camping, drawn from wear and encounter events only.
 - Connection events that the test was "high enough" to avoid are read by degree, never skipped.

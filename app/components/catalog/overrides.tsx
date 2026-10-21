@@ -11,6 +11,8 @@ import ammo from '../../assets/ammo.json'
 import containers from '../../assets/containers.json'
 import items from '../../assets/items.json'
 import { useCatalogCharacterNames, useSharedBoardNames } from '../../hooks/useScenePresets'
+import { LearningGains } from '../LearningInputs'
+import type { LearningTest } from '../../domain/types'
 
 const input = `${inputClass} text-sm w-full`
 
@@ -45,6 +47,13 @@ function SuggestInput({ value, onChange, list }: { value: unknown; onChange: (v:
     </>
   )
 }
+
+// story.tex "Learning tests": the levels gained by degree, four numbers.
+const learningGains: Widget = ({ value, onChange }) => (
+  <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+    <LearningGains label='item' gains={value as LearningTest['gains']} set={onChange} />
+  </div>
+)
 
 // A requirement's name is a key into whichever catalog its kind points at —
 // spells.tex "Requirements": a gear item is the one the character has to
@@ -134,6 +143,7 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   ammo: {},
   items: {
     refId: itemRef,
+    'learning.gains': learningGains,
     description: textarea,
     bulk: bulkSelect,
     // a catalog item is a template; the id is minted when a copy lands on a character

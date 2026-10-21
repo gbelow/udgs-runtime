@@ -14,6 +14,7 @@ import { getClockOf, getDay, getPlayBar, getPlayingParties, getSequenceBar, getT
 import { changePlace, getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, getPlaceKey, isOutsideSettlement, isPartyAway, isSamePlace, type PlaceNow } from '../../campaign/rules/place'
 import { getEvent } from '../../campaign/rules/events'
 import { getWaitingSceneBar } from '../../campaign/rules/scenes'
+import { findCarriedItem } from '../../item/rules/containers'
 import { getStage } from './events'
 import type { Actor } from '../../profiles'
 
@@ -59,6 +60,17 @@ export function getCampShelter(t: Exploring, partyId: string): { id: string; nam
   const event = camp.in ? getPlace(t.campaign, t.campaign.parties[partyId])?.node.events[camp.in] : undefined
   const change = event ? getStage(event)?.shelter : null
   return camp.in && event && change ? { id: camp.in, name: getEvent(event).name, change } : null
+}
+
+// story.tex "Learning tests": why the character cannot read the item now:
+// they are not exploring, the ET waits on dice, or it teaches nothing they
+// carry.
+export function getReadBar(t: Exploring, id: string, itemId: string): string | null {
+  const bar = getExplorationBar(t.campaign, id)
+  if (bar) return bar
+  if (getOpenCalls(t.exploration.calls).length > 0) return 'waiting on dice'
+  const c = t.campaign.characters[id]
+  return c && findCarriedItem(c, itemId)?.item.learning ? null : 'nothing to read'
 }
 
 // What the party may take: what it found, and what a scene left lying where

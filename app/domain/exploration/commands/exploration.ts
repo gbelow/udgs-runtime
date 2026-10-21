@@ -7,11 +7,14 @@ import { CampSchema } from '../types'
 import { rollPercent, type Dice, type DieSource } from '../../play/dice'
 import { getDegree, type Test } from '../../play/test'
 import { answerCall, getOpenCalls, makeCaller, toCallRoll, type CallResult, type CallSpec, type Caller, type Throw } from '../../play/calls'
-import { getAmbientLines, getETResultLines, type AmbientLanded } from '../projections/exploration'
+import { describeLearned, getAmbientLines, getETResultLines, type AmbientLanded } from '../projections/exploration'
+import { getLearnedLevel, getSkillName, getSkillTest } from '../../character/rules/skillRef'
+import { raiseSpecificKnowledge } from '../../character/commands/learning'
+import { describeRoll } from '../../play/test'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getAmbient, getDecisionsCalled, getPileItems, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
+  getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, getStage, isFound } from '../rules/events'
@@ -93,6 +96,32 @@ export function takeFromPile(partyId: string, itemId: string, id: string, contai
       return { campaign: { ...campaign, left: { ...campaign.left, [key]: campaign.left[key].filter((i) => i.id !== itemId) } }, exploration: t.exploration }
     }
     return { campaign, exploration: { ...t.exploration, piles: { ...t.exploration.piles, [partyId]: t.exploration.piles[partyId].filter((i) => i.id !== itemId) } } }
+  }
+}
+
+// story.tex "Learning tests": an item the character carries read, a map of
+// a region, as the table has them do it: the test it names, and the
+// knowledge it teaches raised by the degree, up to its limit. It takes no
+// time; the GM decides when it may be read again. It waits on its die, and
+// is refused as `getReadBar` says.
+export function readItem(id: string, itemId: string, thrown: Throw): ExplorationUpdater {
+  return (t) => {
+    if (getReadBar(t, id, itemId)) return t
+    const c = t.campaign.characters[id]
+    const item = findCarriedItem(c, itemId)?.item
+    const learning = item?.learning
+    if (!item || !learning) return t
+    const partyId = t.campaign.partyOf[id] ?? null
+    const caller = makeCaller(t.exploration.calls, thrown)
+    const result = caller.test({ id: `read:${id}:${itemId}`, roller: id, label: `${item.name}: ${getSkillName(learning.test)}`, test: getSkillTest(learning.test, learning.DL)(c) })
+    if (!result) return { ...t, exploration: { ...t.exploration, calls: caller.calls, running: { kind: 'read', party: partyId ?? '', reader: id, item: itemId } } }
+    const roll = toCallRoll(result)
+    const { name, held, level } = getLearnedLevel(learning, roll.degree)(c)
+    const campaign = record({
+      kind: 'et', party: partyId, title: `${getRosterName(t.campaign, id)} read ${item.name}`,
+      lines: [`${describeRoll(roll)} — ${describeLearned(name, held, level)}`],
+    })(updateRosterCharacter(id, raiseSpecificKnowledge(name, level))(t.campaign))
+    return { campaign, exploration: { ...t.exploration, calls: {}, running: null } }
   }
 }
 
@@ -547,8 +576,7 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
       if (item) found.push({ ...item, id: newId() })
     }
     const check = met.outcome.test
-    if (!check) return met
-    const tests = going.flatMap((id) => {
+    const tests = check ? going.flatMap((id) => {
       const eventTest: Test = { skill: skillLenses[check.skill].get(state.characters[id]), DL: check.DL + met.adjust, explodes: false, scale: 'degrees' }
       const result = test({ id: `event:${partyId}:${groupId}:${i}:${id}`, roller: id, label: `${met.name}: ${check.skill}`, test: eventTest })
       if (!result) return []
@@ -556,8 +584,18 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
       const landed = check.results[roll.degree]
       push(landing, id, payWear(landed.wear))
       return [{ name: name(id), roll, text: landed.text }]
-    })
-    return { ...met, tests }
+    }) : []
+    const learning = met.outcome.learning
+    const learned = learning ? going.flatMap((id) => {
+      const c = state.characters[id]
+      const result = test({ id: `learn:${partyId}:${groupId}:${i}:${id}`, roller: id, label: `${met.name}: ${getSkillName(learning.test)}`, test: getSkillTest(learning.test, learning.DL)(c) })
+      if (!result) return []
+      const roll = toCallRoll(result)
+      const { name: knowledge, held, level } = getLearnedLevel(learning, roll.degree)(c)
+      push(landing, id, raiseSpecificKnowledge(knowledge, level))
+      return [{ name: name(id), roll, text: describeLearned(knowledge, held, level) }]
+    }) : []
+    return check || learning ? { ...met, tests: [...tests, ...learned] } : met
   })
   const characters = { ...state.characters }
   for (const [id, steps] of Object.entries(landing)) {
@@ -701,7 +739,7 @@ export function resolvePlan(partyId: string, groupId: string, thrown: Throw, new
   return (t) => {
     if (getResolveBar(t, partyId, groupId)) return t
     const caller = makeCaller(t.exploration.calls, thrown)
-    const waiting = (s: Exploring): Exploring => ({ ...s, exploration: { ...s.exploration, calls: caller.calls, running: { party: partyId, group: groupId } } })
+    const waiting = (s: Exploring): Exploring => ({ ...s, exploration: { ...s.exploration, calls: caller.calls, running: { kind: 'plan', party: partyId, group: groupId } } })
     const { open, ready } = openedET(t, caller)
     if (!ready) return waiting(open)
     const resolved = resolveGroup(open, partyId, groupId, caller.test, caller.dice, newId)
@@ -766,6 +804,8 @@ export function answerET(callId: string, die: number, source: DieSource, thrown:
     const answered = { ...t, exploration: { ...t.exploration, calls } }
     if (getOpenCalls(calls).length > 0) return answered
     const running = t.exploration.running
-    return running ? resolvePlan(running.party, running.group, thrown, newId)(answered) : passET(thrown, newId)(answered)
+    if (running?.kind === 'plan') return resolvePlan(running.party, running.group, thrown, newId)(answered)
+    if (running?.kind === 'read') return readItem(running.reader, running.item, thrown)(answered)
+    return passET(thrown, newId)(answered)
   }
 }

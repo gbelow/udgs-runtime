@@ -10,6 +10,7 @@ function kinds(type: FieldType): string[] {
   switch (type.kind) {
     case 'object': return [type.kind, ...type.fields.flatMap((f) => kinds(f.type))]
     case 'array': return [type.kind, ...kinds(type.element)]
+    case 'tuple': return [type.kind, ...type.items.flatMap(kinds)]
     case 'nullable': case 'optional': return [type.kind, ...kinds(type.inner)]
     case 'union': return [type.kind, ...type.options.flatMap((o) => o.fields.flatMap((f) => kinds(f.type)))]
     default: return [type.kind]

@@ -10,6 +10,7 @@ import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
 import { knowledgeName } from '../../character/rules/knowledge'
+import { getLearnedLevel } from '../../character/rules/skillRef'
 import { getRestRecovery } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
@@ -17,7 +18,7 @@ import { record } from '../../campaign/commands/journal'
 import { setPartySequence } from '../../campaign/commands/parties'
 import { ETS_PER_DAY, describeSpan, getClockOf, getPlayingParties } from '../../campaign/rules/clock'
 import {
-  getBlockDays, getBlockSettlement, getDoctorHealing, getDowntimeBar, getDowntimeCharacters, getDowntimeHealing, getJobTraining, getLearningGain,
+  getBlockDays, getBlockSettlement, getDoctorHealing, getDowntimeBar, getDowntimeCharacters, getDowntimeHealing, getJobTraining,
   getLivingCost, getPlan, getPlanExposure, getSelfTrainingTest, getSelfTrainingXP, getSkillName, getSkillTest, getTargetName, getToExplorationBar,
 } from '../rules/downtime'
 
@@ -102,8 +103,7 @@ function resolveBlock(id: string, c: CampaignCharacter, block: Block, test: Test
       const what = `learning ${name} (${getSkillName(block.test)})`
       const rolled = rollSkill(what, block.test, block.DL)
       if (!rolled) return waiting(what)
-      const held = c.specificKnowledges[name] ?? 0
-      const level = Math.min(block.max, held + getLearningGain(block, rolled.degree))
+      const { held, level } = getLearnedLevel(block, rolled.degree)(c)
       const note = level > held ? `${name} ${held} → ${level}` : 'nothing learned'
       return { c: raiseSpecificKnowledge(name, level)(c), result: { what, roll: rolled, note } }
     }

@@ -134,6 +134,18 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
         </div>
       )
     }
+    case 'tuple': {
+      const items = (value as unknown[]) ?? []
+      return (
+        <div className='flex flex-row flex-wrap gap-1'>
+          {type.items.map((item, i) => (
+            <div key={i} className='w-16'>
+              <Value type={item} value={items[i]} onChange={(v) => onChange(type.items.map((_, j) => (j === i ? v : items[j])))} path={`${path} ${i + 1}`} overrides={overrides} parent={parent} />
+            </div>
+          ))}
+        </div>
+      )
+    }
     case 'nullable':
     case 'optional':
       return <Unsettable type={type} value={value} onChange={onChange} path={path} overrides={overrides} parent={parent} />

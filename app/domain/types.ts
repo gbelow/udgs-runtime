@@ -315,6 +315,27 @@ export const SourceSchema = z.object({
 }).strip()
 export type Source = z.infer<typeof SourceSchema>
 
+// story.tex "Job": "arbitrary skill or knowledge vs DL" — a skill, or a
+// knowledge by name, formal or specific.
+export const SkillRefSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('skill'), key: SkillKeySchema }),
+  z.object({ kind: z.literal('knowledge'), name: z.string() }),
+])
+export type SkillRef = z.infer<typeof SkillRefSchema>
+
+// story.tex "Learning tests": a test against a DL whose degree says how many
+// levels of a specific knowledge it gains, by the order miss, graze, hit,
+// crit, up to a level it cannot take anyone past — a month in a town, a tree
+// climbed to see the land around, a map read.
+export const LearningTestSchema = z.object({
+  test: SkillRefSchema.default({ kind: 'knowledge', name: 'survival' }),
+  DL: z.number().default(5),
+  knowledge: z.string().default(''),
+  gains: z.tuple([z.number(), z.number(), z.number(), z.number()]).default([0, 1, 2, 3]),
+  max: z.number().default(4),
+})
+export type LearningTest = z.infer<typeof LearningTestSchema>
+
 export const ItemSchema = z.object({
   id: str.default(() => crypto.randomUUID()),
   name: str.default(''), // with no refId, this + description is all that says what the item is
@@ -364,6 +385,9 @@ export const ItemSchema = z.object({
   // points defined in the portion itself" — one unit of the stack is a
   // portion; null for what is not food
   food: num.nullable().default(null),
+  // story.tex "Learning tests": what reading it teaches, a map of a region;
+  // absent for what teaches nothing
+  learning: LearningTestSchema.optional(),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb"), and the id of the character it was cut from
   part: z.lazy(() => BodyPartSchema).optional(),

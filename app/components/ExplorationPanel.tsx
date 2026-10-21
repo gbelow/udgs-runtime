@@ -279,8 +279,9 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 export function ExplorationSection(){
 
   const [nutrition, setNutrition] = useState(3)
-  const { bar, options, cast, willDL, lastRoll, potion, foods, medicines, pileBar, pile } = useExploration()
-  const { joinGroup, rest, planCast, setCast, eat, eatFood, drink, takeItem, takeFromPile } = usePartyCommands()
+  const { bar, options, cast, willDL, lastRoll, potion, foods, medicines, pileBar, readable, pile } = useExploration()
+  const { joinGroup, rest, planCast, setCast, eat, eatFood, drink, takeItem, takeFromPile, readItem } = usePartyCommands()
+  const gmBar = useGmBar()
   const closed = (plan: unknown) => plan === 'cast' && cast.ready === null
 
   return(
@@ -319,6 +320,16 @@ export function ExplorationSection(){
             </Button>
           ))}
         </div>
+        : null}
+      {readable.length > 0 ?
+        <Locked bar={gmBar} className='flex flex-row flex-wrap gap-1.5 items-center'>
+          <span className='text-xs text-muted'>have them read</span>
+          {readable.map((r) => (
+            <Button key={r.id} size='xs' aria-label={`read ${r.name}`} disabled={r.bar !== null} title={r.bar ?? `a learning test of ${r.knowledge || 'nothing named'}, DL ${r.DL}`} onClick={() => readItem(r.id)}>
+              {r.name} <span className='text-muted'>· {r.knowledge || '?'} DL {r.DL}</span>
+            </Button>
+          ))}
+        </Locked>
         : null}
       {pile.length > 0 ?
         <div className='flex flex-row flex-wrap gap-1.5 items-center'>

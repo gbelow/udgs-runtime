@@ -180,7 +180,11 @@ export const ExplorationStateSchema = z.object({
   pending: z.object({ party: z.string(), group: z.string(), meeting: MeetingSchema }).nullable().default(null),
   // the plan whose dice the table is throwing; null while they are the ET's
   // passing
-  running: z.object({ party: z.string(), group: z.string() }).nullable().default(null),
+  // passing, or the item a character is reading
+  running: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('plan'), party: z.string(), group: z.string() }),
+    z.object({ kind: z.literal('read'), party: z.string(), reader: z.string(), item: z.string() }),
+  ]).nullable().default(null),
   // survival.tex "Events": what each party has found, to share out
   piles: z.record(z.string(), z.array(ItemSchema)).default({}),
   // the weather the table calls on a node, by place key, until it changes it

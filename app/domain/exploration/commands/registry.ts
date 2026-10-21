@@ -7,7 +7,7 @@ import { commandsOver, playedBy, rollerOf, type CommandOf } from '../../registry
 import type { CampaignUpdater } from '../../campaign/types'
 import { getGroupActor } from '../rules/exploration'
 import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from '../types'
-import { adjustMet, answerET, campIn, clearWeather, drink, eat, eatFood, passET, resolvePlan, setOffAmbient, setWeatherRaise, takeFromPile, takeItem, toDowntime, toggleWeatherTag } from './exploration'
+import { adjustMet, answerET, campIn, clearWeather, drink, eat, eatFood, passET, readItem, resolvePlan, setOffAmbient, setWeatherRaise, takeFromPile, takeItem, toDowntime, toggleWeatherTag } from './exploration'
 import { addGroup, decide, joinGroup, planCast, removeGroup, setCast, setGroup, setResting, setRoller } from './plans'
 
 // Exploration's presses as data (cf. the scene's registry): each member's
@@ -54,6 +54,8 @@ export const explorationCommands = {
   setWeatherRaise: command((_, partyId: string, raise: number) => setWeatherRaise(partyId, raise)).by(gm),
   clearWeather: command((_, partyId: string) => clearWeather(partyId)).by(gm),
   setOffAmbient: command((_, partyId: string, eventId: string) => setOffAmbient(partyId, eventId)).by(gm),
+  // an item a character carries read, when the GM has them read it
+  readItem: command((ctx, id: string, itemId: string) => readItem(id, itemId, ctx.thrower)).by(gm),
   toDowntime: command((_, partyId: string) => toDowntime(partyId)).by(gm),
 
   // a die the ET called for, answered by whoever throws it

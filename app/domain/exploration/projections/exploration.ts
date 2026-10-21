@@ -16,7 +16,7 @@ import { isPlaying } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getGroups,
-  getAmbient, getCampShelter, getExplorationBar, getPileItems, getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlaceNow, getPlanBar, getResolveBar, getRestExposure, getShelters, getWear, hasWood,
+  getAmbient, getCampShelter, getExplorationBar, getPileItems, getReadBar, getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlaceNow, getPlanBar, getResolveBar, getRestExposure, getShelters, getWear, hasWood,
   type AmbientOn,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
@@ -192,6 +192,11 @@ export function describePlaceChange(change: PlaceChange): string {
   ].filter(Boolean).join(', ')
 }
 
+// What a learning test came to: "Darkwood 0 → 2", or nothing learned.
+export function describeLearned(name: string, held: number, level: number): string {
+  return level > held ? `${name} ${held} → ${level}` : `nothing learned of ${name}`
+}
+
 // An ambient event in words: "Rain: it pours (exposure +1, +rain)".
 export function describeAmbient(a: AmbientOn): string {
   const weather = describePlaceChange(a.weather)
@@ -281,6 +286,9 @@ export type ExplorationPanel = {
   // survival.tex "Events": what their party found, or a scene left where it
   // stands, where they have room for each, and why they cannot take any now
   pileBar: string | null
+  // story.tex "Learning tests": what they carry that teaches by reading it,
+  // the GM's to have them read
+  readable: { id: string; name: string; knowledge: string; DL: number; bar: string | null }[]
   pile: { partyId: string; id: string; name: string; amount: number; places: { containerKey: string; slot: SlotKind; label: string }[] }[]
 }
 
@@ -291,7 +299,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const state = t.campaign
   const c = id ? state.characters[id] : undefined
   const party = id ? state.parties[state.partyOf[id]] : undefined
-  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [], medicines: [], pileBar: null, pile: [] }
+  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [], medicines: [], pileBar: null, readable: [], pile: [] }
   const partyId = state.partyOf[id]
   const plan = planOf(t, partyId, id)
   const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, hunger: 0, thirst: 0, idle: true, selected: plan === 'idle' }
@@ -322,6 +330,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
     foods: getCarriedItems(c).flatMap((i) => (i.food === null ? [] : [{ id: i.id, name: i.name, amount: i.amount, nutrition: i.food, charged: i.charge !== null }])),
     medicines: getCarriedItems(c).flatMap((i) => (getConsume(i) ? [{ id: i.id, name: i.name, doses: getDosesLeft(i), bar: getConsumeBar(c, i) }] : [])),
     pileBar: getExplorationBar(state, id),
+    readable: getCarriedItems(c).flatMap((i) => (i.learning ? [{ id: i.id, name: i.name, knowledge: i.learning.knowledge, DL: i.learning.DL, bar: getReadBar(t, id, i.id) }] : [])),
     pile: getPileItems(t, partyId).map(({ item, left }) => ({
       partyId, id: item.id, name: `${item.name || item.refId}${left ? ' (left here)' : ''}`, amount: item.amount,
       places: Object.entries(getOpenContainers(c)).flatMap(([containerKey, container]) => SlotKindSchema.options
