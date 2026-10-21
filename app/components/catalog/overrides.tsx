@@ -159,9 +159,7 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
     'slots.medium.items': hidden,
     'slots.large.items': hidden,
   },
-  terrains: {
-    knowledge: suggesting(() => knowledges_list),
-  },
+  terrains: {},
   events: {},
   scenes: {
     text: textarea,

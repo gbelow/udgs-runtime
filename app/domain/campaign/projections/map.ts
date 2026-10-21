@@ -26,6 +26,8 @@ export type NodeEditorView = {
   name: string
   terrain: string | null
   settlement: Settlement | null
+  // the knowledge the node names itself, none to take the map's
+  knowledge: string | null
   // what the node is made of, and which of those values it changed itself
   values: Terrain | null
   custom: (keyof TerrainValues)[]
@@ -43,6 +45,7 @@ export type MapGraphView = {
 }
 export type MapEditorView = {
   name: string
+  knowledge: string
   graph: MapGraphView
   presets: string[]
   // the event templates a new event can be made of
@@ -61,6 +64,7 @@ export function getMapEditorView(map: CrawlMap, on: Record<string, Party[]> = {}
   const removeBar = (id: string) => (on[id]?.length ? `${on[id].map((p) => p.name).join(', ')} ${on[id].length === 1 ? 'is' : 'are'} on it` : null)
   return {
     name: map.name,
+    knowledge: map.knowledge,
     graph: {
       width: MAP_WIDTH,
       height: MAP_HEIGHT,
@@ -75,7 +79,7 @@ export function getMapEditorView(map: CrawlMap, on: Record<string, Party[]> = {}
     presets: getTerrainPresets(),
     templates: getEventTemplates(),
     nodes: Object.entries(map.nodes).map(([id, n]) => ({
-      id, name: n.name, terrain: n.terrain, settlement: n.settlement, values: getNodeTerrain(n), custom: Object.keys(n.custom) as (keyof TerrainValues)[], events: Object.entries(n.events).map(([eventId, e]) => getEventView(eventId, e)),
+      id, name: n.name, terrain: n.terrain, settlement: n.settlement, knowledge: n.knowledge, values: getNodeTerrain(n), custom: Object.keys(n.custom) as (keyof TerrainValues)[], events: Object.entries(n.events).map(([eventId, e]) => getEventView(eventId, e)),
       removeBar: removeBar(id),
     })),
     connections: Object.entries(map.connections).map(([id, c]) => ({

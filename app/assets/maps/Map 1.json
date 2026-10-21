@@ -1,23 +1,122 @@
 {
   "name": "Map 1",
+  "knowledge": "survival",
   "nodes": {
     "c35b9d09-9ba6-4147-b278-01d301196326": {
       "name": "Node 2",
       "terrain": "Forest",
+      "settlement": null,
+      "x": 353,
+      "y": 169,
       "custom": {},
       "events": {}
     },
     "0014e657-fb86-496f-b901-3f6176903309": {
       "name": "Node 3",
       "terrain": "Forest",
+      "settlement": null,
+      "x": 551,
+      "y": 168,
       "custom": {},
       "events": {}
     },
     "279a7ad0-2f1b-4008-8b3c-3b12902e1bde": {
       "name": "Node 1",
       "terrain": "Forest",
-      "custom": {},
-      "events": {}
+      "settlement": null,
+      "x": 160,
+      "y": 171,
+      "knowledge": "lorien",
+      "custom": {
+        "tags": []
+      },
+      "events": {
+        "b4885625-1ccb-4d23-bb2a-7e8caa011ac6": {
+          "template": null,
+          "custom": {
+            "name": "Event 1",
+            "text": "a grove to make camp",
+            "types": [
+              "shelter"
+            ],
+            "DL": 0,
+            "outcomes": {
+              "critical": {
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
+              },
+              "hit": {
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
+              },
+              "graze": {
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
+              },
+              "miss": {
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
+              }
+            },
+            "shelter": {
+              "exposure": 0,
+              "raise": 0,
+              "add": [],
+              "remove": []
+            },
+            "ambient": null,
+            "renews": false
+          }
+        }
+      }
     }
   },
   "connections": {
@@ -31,28 +130,91 @@
           "template": null,
           "custom": {
             "name": "Event 1",
+            "text": "",
             "types": [
               "obstacle"
             ],
             "DL": 0,
             "outcomes": {
               "critical": {
-                "text": ""
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
               },
               "hit": {
-                "text": ""
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
               },
               "graze": {
-                "text": ""
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
               },
               "miss": {
-                "text": ""
+                "text": "",
+                "takesET": true,
+                "stop": false,
+                "wear": {
+                  "IL": 0,
+                  "exhaustion": 0,
+                  "hunger": 0,
+                  "thirst": 0
+                },
+                "items": [],
+                "test": null,
+                "weather": null,
+                "scene": null,
+                "learning": null
               }
-            }
+            },
+            "shelter": null,
+            "ambient": null,
+            "renews": false
           },
           "way": "there"
         }
       }
+    },
+    "01d35b99-9272-46db-8b64-e72b8bb07d48": {
+      "a": "c35b9d09-9ba6-4147-b278-01d301196326",
+      "b": "0014e657-fb86-496f-b901-3f6176903309",
+      "DL": 0,
+      "backDL": 0,
+      "events": {}
     }
   }
 }

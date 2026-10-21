@@ -132,14 +132,12 @@ export const CrawlEventSchema = z.object({
 export type CrawlEvent = z.infer<typeof CrawlEventSchema>
 
 // survival.tex "Terrain": a preset a node is made of, kept in the terrain
-// catalog outside any map. `knowledge` is the one location knowledge is read
-// from.
+// catalog outside any map.
 export const TerrainSchema = z.object({
   name: z.string().default(''),
   exposure: z.number().default(0),
   shelterDL: z.number().default(0),
   wear: WearSchema.prefault({}),
-  knowledge: z.string().default('survival'),
   tags: z.array(TerrainTagSchema).default([]),
 })
 export type Terrain = z.infer<typeof TerrainSchema>
@@ -150,7 +148,6 @@ export const TerrainValuesSchema = z.object({
   exposure: z.number(),
   shelterDL: z.number(),
   wear: z.object({ IL: z.number(), exhaustion: z.number(), hunger: z.number(), thirst: z.number() }),
-  knowledge: z.string(),
   tags: z.array(TerrainTagSchema),
 })
 export type TerrainValues = z.infer<typeof TerrainValuesSchema>
@@ -171,6 +168,8 @@ export const CrawlNodeSchema = z.object({
   // where the node is drawn; none until it is put somewhere
   x: z.number().nullable().default(null),
   y: z.number().nullable().default(null),
+  // the knowledge location knowledge is read from here, when not the map's
+  knowledge: z.string().nullable().default(null),
   custom: TerrainValuesSchema.partial().default({}),
   events: z.record(z.string(), CrawlEventSchema).default({}),
 })
@@ -196,8 +195,11 @@ export const ConnectionSchema = z.object({
 })
 export type Connection = z.infer<typeof ConnectionSchema>
 
+// survival.tex "Exploring and traveling": the specific knowledge about the
+// location is one for the whole map; a node may name another.
 export const CrawlMapSchema = z.object({
   name: z.string().default(''),
+  knowledge: z.string().default('survival'),
   nodes: z.record(z.string(), CrawlNodeSchema).default({}),
   connections: z.record(z.string(), ConnectionSchema).default({}),
 })

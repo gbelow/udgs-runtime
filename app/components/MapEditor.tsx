@@ -34,10 +34,15 @@ export function MapEditor() {
 // terrain and events, a path's DLs and events. Edited wherever the map is
 // kept: the catalog's, or one of the campaign's copies.
 export function MapBody() {
-  const { view } = useMapEditing()
+  const { view, setMapKnowledge } = useMapEditing()
   const [picked, select] = useState<MapSelection>(null)
   const selected = picked && (picked.kind === 'node' ? view.nodes.some((n) => n.id === picked.id) : view.connections.some((c) => c.id === picked.id)) ? picked : null
   return (
+    <>
+    <div className='flex flex-row gap-1.5 items-center'>
+      <span className='text-xs text-muted' title='survival.tex "Exploring and traveling": the specific knowledge about the location'>location knowledge</span>
+      <TextInput className='w-32' list='knowledges' aria-label='map knowledge' value={view.knowledge} onChange={(e) => setMapKnowledge(e.target.value)} />
+    </div>
     <div className='flex flex-col lg:flex-row gap-3 items-start'>
       <MapCanvas selected={selected} select={select} />
       <div className='flex flex-col gap-2 w-full lg:w-[28rem] shrink-0'>
@@ -50,6 +55,7 @@ export function MapBody() {
       </datalist>
       <ItemKeyList />
     </div>
+    </>
   )
 }
 
@@ -89,7 +95,7 @@ function MapHeader() {
 }
 
 function NodeInspector({ id, close }: { id: string, close: () => void }) {
-  const { view, setNode, toggleSettlement, setSettlementLiving, removeNode, addEvent, editEvent, removeEvent } = useMapEditing()
+  const { view, setNode, setNodeKnowledge, toggleSettlement, setSettlementLiving, removeNode, addEvent, editEvent, removeEvent } = useMapEditing()
   const filter = useCollectionFilter('terrains')
   const n = view.nodes.find((n) => n.id === id)
   if (!n) return null
@@ -114,6 +120,12 @@ function NodeInspector({ id, close }: { id: string, close: () => void }) {
             <NumberInput className='w-12' step={0.1} aria-label={`${n.name} living cost`} value={n.settlement.living} onChange={(e) => setSettlementLiving(n.id, parseFloat(e.target.value) || 0)} />
           </>
           : null}
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+        {n.knowledge === null ?
+          <span className='text-xs text-muted'>knowledge</span>
+          : <button type='button' className='text-xs text-accent' title="changed on this node; click to take the map's" onClick={() => setNodeKnowledge(n.id, null)}>knowledge ↺</button>}
+        <TextInput className='w-28' list='knowledges' aria-label={`${n.name} knowledge`} value={n.knowledge ?? view.knowledge} onChange={(e) => setNodeKnowledge(n.id, e.target.value)} />
       </div>
       <NodeTerrain node={n} />
       {n.events.map((e) => (
@@ -153,8 +165,6 @@ function NodeTerrain({ node }: { node: NodeEditorView }) {
           <NumberInput className='w-10' aria-label={`${node.name} wear ${key}`} value={values.wear[key]} onChange={(e) => customizeWear(node.id, { [key]: parseInt(e.target.value) || 0 })} />
         </span>
       ))}
-      {label('knowledge', 'knowledge')}
-      <TextInput className='w-28' list='knowledges' aria-label={`${node.name} knowledge`} value={values.knowledge} onChange={(e) => customizeNode(node.id, { knowledge: e.target.value })} />
       {label('tags', 'tags')}
       {TERRAIN_TAGS.map((tag) => (
         <Button key={tag} size='xs' variant='ghost' selected={values.tags.includes(tag)} onClick={() => toggleTag(node.id, tag)}>{tag}</Button>

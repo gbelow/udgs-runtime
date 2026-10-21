@@ -192,11 +192,13 @@ export function getNightDL(state: CampaignState, party: Party): number {
 }
 
 // survival.tex "Exploring and traveling": "the specific knowledge about the
-// location", held by whoever in the party knows the terrain best.
+// location", held by whoever in the party knows the place best: the map's
+// knowledge, or the one the node names.
 export function getLocationKnowledge(state: CampaignState, partyId: string): number {
-  const terrain = getPlace(state, state.parties[partyId])?.terrain
-  if (!terrain) return 0
-  return Math.max(0, ...getPartyPlayers(state, partyId).map((id) => getKnowledge(terrain.knowledge)(state.characters[id])))
+  const place = getPlace(state, state.parties[partyId])
+  if (!place) return 0
+  const knowledge = place.node.knowledge ?? place.map.knowledge
+  return Math.max(0, ...getPartyPlayers(state, partyId).map((id) => getKnowledge(knowledge)(state.characters[id])))
 }
 
 // The DL the map sets a group's test, before night: the path travelled, the

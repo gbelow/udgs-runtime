@@ -23,6 +23,16 @@ export function setMapName(name: string): MapUpdater {
   return (map) => ({ ...map, name })
 }
 
+export function setMapKnowledge(knowledge: string): MapUpdater {
+  return (map) => ({ ...map, knowledge })
+}
+
+// The node reads location knowledge from this knowledge, or from the map's
+// again with null.
+export function setNodeKnowledge(id: string, knowledge: string | null): MapUpdater {
+  return withNode(id, (n) => ({ ...n, knowledge }))
+}
+
 // The node goes where it is put, or to the first free spot.
 export function addNode(newId: () => string, at?: Point): MapUpdater {
   return (drawn) => {

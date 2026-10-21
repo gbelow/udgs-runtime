@@ -9,7 +9,8 @@
       "hunger": 0,
       "thirst": 0
     },
-    "knowledge": "survival",
-    "tags": []
+    "tags": [
+      "wood"
+    ]
   }
 }

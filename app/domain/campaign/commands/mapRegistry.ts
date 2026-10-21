@@ -4,7 +4,7 @@ import type { Connection, CrawlNode, EventOwner, MapUpdater, TerrainTag, Terrain
 import { toEventUpdater, type EventCommand } from './eventRegistry'
 import {
   addConnection, addEvent, addNode, moveNode, customizeNode, customizeNodeWear, editEvent, removeConnection, removeEvent, removeNode, resetNodeValue, setConnection,
-  setEventWay, setMapName, setNode, setSettlementLiving, toggleSettlement, toggleNodeTag,
+  setEventWay, setMapKnowledge, setMapName, setNode, setNodeKnowledge, setSettlementLiving, toggleSettlement, toggleNodeTag,
 } from './map'
 
 // The map editor's changes, as data, so that one made to a campaign's map on
@@ -16,6 +16,8 @@ const edit = editsOver<MapContext, MapUpdater>()
 
 export const mapCommands = {
   setMapName: edit((_, name: string) => setMapName(name)),
+  setMapKnowledge: edit((_, knowledge: string) => setMapKnowledge(knowledge)),
+  setNodeKnowledge: edit((_, id: string, knowledge: string | null) => setNodeKnowledge(id, knowledge)),
   addNode: edit((ctx, at?: Point) => addNode(ctx.newId, at)),
   moveNode: edit((_, id: string, to: Point) => moveNode(id, to)),
   setNode: edit((_, id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => setNode(id, patch)),

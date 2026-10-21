@@ -524,6 +524,8 @@ const collectionCases: Record<string, (c: Collection) => unknown> = {
 
 const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setMapName: (m) => mapModule.setMapName('n')(m),
+  setMapKnowledge: (m) => mapModule.setMapKnowledge('lorien')(m),
+  setNodeKnowledge: (m) => mapModule.setNodeKnowledge('n1', 'lorien')(m),
   addNode: (m) => mapModule.addNode(() => 'n3')(m),
   moveNode: (m) => mapModule.moveNode('n1', { x: 300, y: 200 })(m),
   setNode: (m) => mapModule.setNode('n1', { name: 'C' })(m),

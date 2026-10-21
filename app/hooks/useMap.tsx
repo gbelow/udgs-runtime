@@ -75,6 +75,8 @@ export function useMapEditing(): MapEditing {
 function mapEditing(update: (edit: MapCommand) => void) {
   return {
     setName: (name: string) => update({ kind: 'setMapName', args: [name] }),
+    setMapKnowledge: (knowledge: string) => update({ kind: 'setMapKnowledge', args: [knowledge] }),
+    setNodeKnowledge: (id: string, knowledge: string | null) => update({ kind: 'setNodeKnowledge', args: [id, knowledge] }),
     addNode: (at?: Point) => update({ kind: 'addNode', args: at ? [at] : [] }),
     moveNode: (id: string, to: Point) => update({ kind: 'moveNode', args: [id, to] }),
     setNode: (id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => update({ kind: 'setNode', args: [id, patch] }),
