@@ -27,6 +27,7 @@ import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
 import { apply, diff } from '../net/diff'
 import { sharedSceneOf } from '../net/protocol'
+import { getImposed, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_KINDS, IMPOSE_DRAFT, IMPOSE_EFFECTS, IMPOSE_SKILLS } from '../domain/scene/rules/impose'
 
 // A player who presses whatever there is to press, in no order: every click
 // the board takes and every button the panels dispatch, thrown at a fight of
@@ -204,6 +205,20 @@ function plays(): Play[] {
     },
     { name: 'paint a cell', run: (h, pick) => { const cells = h.view().cells; if (!cells.length) return; h.holdBrush(pick(TERRAIN_BRUSHES)); h.click({ on: 'cell', cell: pick(cells).cell }); h.holdBrush(null) } },
     { name: 'set the light', run: (h, pick) => h.light(pick(LIGHT_LEVELS)) },
+    {
+      name: 'ask for a test',
+      run: (h, pick) => {
+        const draft = { ...IMPOSE_DRAFT, effect: pick(IMPOSE_EFFECTS), skill: pick(IMPOSE_SKILLS), damageKind: pick(IMPOSE_DAMAGE_KINDS), affliction: pick(IMPOSE_AFFLICTIONS), amount: pick([1, 6, 20]), AP: pick([0, 2]), STA: pick([0, 3]), height: pick([1, 4, 12]) }
+        h.send({ kind: 'impose', args: [Object.keys(h.state().characters), getImposed(draft)] })
+      },
+    },
+    {
+      name: 'roll an owed test',
+      run: (h, pick) => {
+        const owing = Object.values(h.state().characters).filter((c) => c.pending.length > 0)
+        if (owing.length) h.send({ kind: 'edit', args: [pick(owing).id, { kind: 'resolvePending', args: [0] }, true] })
+      },
+    },
     { name: 'click a token', run: (h, pick) => h.token(pick(names(h))) },
     { name: 'click a floor item', run: (h, pick) => { const floor = h.view().floor; if (floor.length) h.floor(pick(floor).itemId) } },
     { name: 'click turn', run: (h) => h.turn() },

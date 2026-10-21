@@ -4,7 +4,7 @@ import type { Actor } from '../../profiles'
 import { commandsOver, playedBy, rollerOf, type CommandOf } from '../../registry'
 import type { SpellModification } from '../../tables'
 import type { ChaseCover, ChaseTier, CrossingSkill } from '../../lists'
-import type { CampaignCharacter, SurgeKind, TerrainBrush } from '../../types'
+import type { CampaignCharacter, Delivery, SurgeKind, TerrainBrush } from '../../types'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
@@ -15,7 +15,7 @@ import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
 import { follow } from './follow'
 import { dropToFloor, throwOffShieldToFloor } from './floor'
-import { updateCharacter, updateInventory } from './characters'
+import { impose, updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
 import { rollMorale, setTablePressure } from './morale'
@@ -108,9 +108,12 @@ export const sceneCommands = {
   // an edit to a character's sheet, and a move with their gear, which the
   // fight refuses outside their own turn unless the GM makes it
   edit: command((ctx, id: string, edit: CharacterCommand, gm: boolean) =>
-    updateCharacter(id, sheet(ctx, edit), gm ? 'GM edit' : undefined)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
+    updateCharacter(id, sheet(ctx, edit), edit.kind === 'resolvePending' ? 'called test' : gm ? 'GM edit' : undefined)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
   editGear: command((ctx, id: string, edit: GearCommand, gm: boolean) =>
     updateInventory(id, sheet(ctx, edit), gm)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
+
+  // a test the GM calls for, with the effect that rides on it
+  impose: command((_, ids: string[], delivery: Delivery) => impose(ids, delivery)).by(gm),
 
   // a die the scene called for, answered by whoever throws it
   answer: command((ctx, callId: string, die: number, source: DieSource) => answerScene(callId, die, source, ctx.thrower, ctx.newId))

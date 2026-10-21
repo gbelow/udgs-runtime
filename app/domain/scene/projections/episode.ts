@@ -228,7 +228,7 @@ export function describeChange(state: SceneState, change: Change): string {
 export function describeChangeTo(change: Change): string {
   switch (change.kind) {
     case 'value': return `${change.what} ${change.from} → ${change.to}`
-    case 'gain': return `${change.gained ? 'gained' : 'lost'} ${change.what} ${change.name}`
+    case 'gain': return change.what === 'test' ? `${change.gained ? 'owes a' : 'rolled the'} ${change.name}` : `${change.gained ? 'gained' : 'lost'} ${change.what} ${change.name}`
     case 'move': return `${change.from} → ${change.to}`
   }
 }

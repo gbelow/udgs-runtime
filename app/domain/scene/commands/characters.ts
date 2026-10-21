@@ -1,5 +1,6 @@
 import { isCombatStarted } from '../rules/started'
-import type { CampaignCharacter } from '../../types'
+import type { CampaignCharacter, Delivery } from '../../types'
+import { deliver } from '../../character/commands/deliver'
 import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
 import { getHeldActions } from '../rules/hold'
@@ -38,6 +39,14 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter, char
     const changes = getChanges(state, after, 'edit')
     return changes.length === 0 ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.landed.length, changes }] }
   }
+}
+
+// The GM lays a delivery on each of the characters: a test they are owed to
+// roll and the effect that rides on it, or an effect that lands at once. Each
+// waits on their own die (`resolvePending`). Refused while an action is open,
+// since it may be theirs or aimed at them.
+export function impose(ids: string[], delivery: Delivery): Updater {
+  return (state) => (getOpenAction(state) ? state : ids.reduce((acc, id) => updateCharacter(id, deliver(delivery), 'GM called a test')(acc), state))
 }
 
 // A move with the character's gear — drawing, stowing, donning, sliding a

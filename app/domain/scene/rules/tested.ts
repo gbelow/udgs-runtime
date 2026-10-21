@@ -34,8 +34,8 @@ function test(state: SceneState, id: string, delivery: Delivery, die: number | u
   const result = resolveTest({ skill: sumTerms(skillTerms), DL: delivery.test.DL, explodes: false, scale: 'degrees', terms: { skill: skillTerms, DL: DLTerms } }, () => die)
   const roll: ActionRoll = { die: result.die, DL: result.DL, score: result.score, degree: result.degree, HOP: 0, skillTerms, DLTerms }
   tested.push({ targetId: id, name: delivery.effect.name, roll })
-  const degree = resisted(result.degree)
-  return degree === 'miss' ? null : { ...delivery, degree, then }
+  const degree = delivery.test.direct ? result.degree : resisted(result.degree)
+  return !delivery.test.direct && degree === 'miss' ? null : { ...delivery, degree, then }
 }
 
 // The landing action with its deliveries' tests rolled.

@@ -306,6 +306,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
+  impose: (s) => combatCommands.impose(['a', 'b'], { effect: { name: 'fall', trigger: 'instant', type: 'fall', effect: { height: 6 } }, degree: null, test: { roll: 'balance', DL: 6, direct: true }, when: null, then: [], locks: null })(deepFreeze(cleared(s))),
   updateCharacter: (s) => combatCommands.updateCharacter('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
   updateInventory: (s) => combatCommands.updateInventory('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
   dropEmptyFightParties: (s) => combatCommands.dropEmptyFightParties(deepFreeze({ ...partied(s), partyOf: { a: 'x', b: 'x' } }), ['y']),

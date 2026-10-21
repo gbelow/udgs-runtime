@@ -16,6 +16,7 @@ import { cure, inflict } from './addAffliction'
 import { mend } from './heal'
 import { woundPart } from './wounds'
 import { getPartWound } from '../rules/wounds'
+import { getFallDeliveries } from '../rules/fall'
 import { loseConcentration } from './spells'
 
 // The one place a delivered effect changes a character. A delivery whose
@@ -44,6 +45,8 @@ export function deliver(delivery: Delivery, parent: Outcome | null = null): (c: 
         const outcome = getOutcome(effect.effect, degree, c)
         return follow(delivery, degree, outcome)(takeOutcome(outcome)(c))
       }
+      case 'fall':
+        return follow(delivery, degree, null)(deliverAll(getFallDeliveries(c, effect.effect.height, false, degree))(c))
       case 'break':
         return follow(delivery, degree, null)(breaksOn(effect.effect.chance, effect.effect.roll) ? breakItem(effect.effect.itemId)(c) : c)
       case 'affliction':
@@ -87,9 +90,11 @@ export function resolvePending(index: number, dice: Dice): (c: CampaignCharacter
   return (c: CampaignCharacter) => {
     const delivery = c.pending[index]
     if (!delivery?.test) return c
-    const degree = resisted(resolveTest({ skill: sumTerms(getTestRollTerms(c, delivery.test.roll)), DL: delivery.test.DL, explodes: false, scale: 'degrees' }, dice).degree)
+    const { direct } = delivery.test
+    const rolled = resolveTest({ skill: sumTerms(getTestRollTerms(c, delivery.test.roll)), DL: delivery.test.DL, explodes: false, scale: 'degrees' }, dice).degree
+    const degree = direct ? rolled : resisted(rolled)
     const rest = { ...c, pending: c.pending.filter((_, i) => i !== index) }
-    return degree === 'miss' ? rest : deliver({ ...delivery, degree, test: delivery.test })(rest)
+    return !direct && degree === 'miss' ? rest : deliver({ ...delivery, degree, test: delivery.test })(rest)
   }
 }
 

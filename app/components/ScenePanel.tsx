@@ -4,7 +4,8 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
-import { Button, Dropdown, SectionLabel, Tooltip } from './ui';
+import { Button, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
 import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useFollowControls, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
@@ -148,26 +149,93 @@ function SceneCalls(){
 // declaration aimed on the board or the roster like a character's action.
 const GM_TOOLS = [
   { label: 'explosion', title: 'an explosion where the GM aims it' },
-  { label: 'effect', title: 'an effect on the characters the GM picks' },
-  { label: 'test', title: 'a test the GM asks of the characters picked, rolled from held tests' },
   { label: 'triggers', title: "fire one of the scene's triggers" },
 ] as const
 
 export function GmSceneTools(){
+  const [testOpen, setTestOpen] = useState(false)
   const cowardBar = useCowardBar()
   const { defaultToCoward } = useCombatCommands()
 
   return(
-    <div className='flex flex-row flex-wrap gap-1 items-center'>
-      <SectionLabel>scene</SectionLabel>
-      {GM_TOOLS.map((t) => (
-        <Tooltip key={t.label} text={`${t.title} — not built yet`}>
-          <Button size='xs' aria-label={`gm ${t.label}`} disabled>{t.label}</Button>
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>scene</SectionLabel>
+        <Tooltip text='a test the GM asks of the characters picked, with what rides on it'>
+          <Button size='xs' aria-label='gm test' selected={testOpen} onClick={() => setTestOpen(!testOpen)}>test</Button>
         </Tooltip>
-      ))}
-      <Tooltip text={cowardBar ?? 'nobody for the active character to insult or negotiate with: they default to coward'}>
-        <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} onClick={defaultToCoward}>default to coward</Button>
-      </Tooltip>
+        {GM_TOOLS.map((t) => (
+          <Tooltip key={t.label} text={`${t.title} — not built yet`}>
+            <Button size='xs' aria-label={`gm ${t.label}`} disabled>{t.label}</Button>
+          </Tooltip>
+        ))}
+        <Tooltip text={cowardBar ?? 'nobody for the active character to insult or negotiate with: they default to coward'}>
+          <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} onClick={defaultToCoward}>default to coward</Button>
+        </Tooltip>
+      </div>
+      {testOpen ? <ImposePanel /> : null}
+    </div>
+  )
+}
+
+// The GM asks the characters picked for a test and says what rides on it
+// first; each rolls their own die, and the degree decides how hard it lands.
+function ImposePanel(){
+  const { options, parties, picked, toggle, toggleParty, draft, set, DL, bar, impose } = useImpose()
+  const fall = draft.effect === 'fall'
+
+  return(
+    <div className='flex flex-col gap-1 text-xs'>
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
+        {parties.map((p) => (
+          <div key={p.id} className='flex flex-row flex-wrap gap-x-2 items-center'>
+            {p.name ? <Button size='xs' aria-label={`pick party ${p.name}`} onClick={() => toggleParty(p)}>{p.name}</Button> : null}
+            {p.entries.map((e) => (
+              <label key={e.id} className='flex gap-1 items-center'>
+                <input type='checkbox' aria-label={`pick ${e.name}`} checked={picked.includes(e.id)} onChange={() => toggle(e.id)} />
+                {e.name}
+              </label>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center'>
+        <select className={selectClass} aria-label='effect' value={draft.effect} onChange={(e) => set({ effect: e.target.value as typeof draft.effect })}>
+          {options.effects.map((k) => <option key={k} value={k}>{k}</option>)}
+        </select>
+        {draft.effect === 'damage' ? (
+          <>
+            <NumberInput className='w-10' aria-label='damage' value={draft.amount} onChange={(e) => set({ amount: Number(e.target.value) })} />
+            <select className={selectClass} aria-label='damage kind' value={draft.damageKind} onChange={(e) => set({ damageKind: e.target.value as typeof draft.damageKind })}>
+              {options.damageKinds.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </>
+        ) : null}
+        {draft.effect === 'affliction' ? (
+          <select className={selectClass} aria-label='affliction' value={draft.affliction} onChange={(e) => set({ affliction: e.target.value as typeof draft.affliction })}>
+            {options.afflictions.map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+        ) : null}
+        {draft.effect === 'cost' ? (
+          <>
+            AP <NumberInput className='w-10' aria-label='AP lost' value={draft.AP} onChange={(e) => set({ AP: Number(e.target.value) })} />
+            STA <NumberInput className='w-10' aria-label='STA lost' value={draft.STA} onChange={(e) => set({ STA: Number(e.target.value) })} />
+          </>
+        ) : null}
+        {fall ? <>height <NumberInput className='w-10' aria-label='fall height' value={draft.height} onChange={(e) => set({ height: Number(e.target.value) })} /> m</> : null}
+        {fall ? <span className='text-muted'>Balance test vs DL {DL}</span> : (
+          <>
+            <select className={selectClass} aria-label='test skill' value={draft.skill ?? ''} onChange={(e) => set({ skill: (e.target.value || null) as typeof draft.skill })}>
+              <option value=''>no test</option>
+              {options.skills.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            {DL !== null ? <>DL <NumberInput className='w-10' aria-label='test DL' value={draft.DL} onChange={(e) => set({ DL: Number(e.target.value) })} /></> : null}
+          </>
+        )}
+        <Tooltip text={bar ?? 'lay it on the characters picked'}>
+          <Button size='xs' aria-label='impose' disabled={bar !== null} onClick={impose}>ask</Button>
+        </Tooltip>
+      </div>
     </div>
   )
 }

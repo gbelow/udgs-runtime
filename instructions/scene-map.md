@@ -309,7 +309,7 @@ app/domain/scene/
 │   ├── registry.ts     sceneCommands: every scene press and board click as data (kind and plain args), the command it runs and whom it acts for; applySceneCommand refuses what the sender may not do. Lists the chase's commands without being a crossing point (eslint rule 6)
 │   ├── tableRegistry.ts tableCommands: what crosses between the campaign and the fight (sent, brought back, loaded, taken out, reset), as data on the same pattern (domain/registry.ts)
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
-│   ├── characters.ts   removeFromCombat, updateCharacter
+│   ├── characters.ts   removeFromCombat, updateCharacter, impose (the GM lays a delivery — a test and what rides on it — on the characters picked, each rolling their own pending die)
 │   ├── parties.ts      joinFight, addToFight, moveToParty, splitOff, renameParty: the scene's parties, inherited from the campaign and changed by the table
 │   ├── nextRound.ts    the round change, a step at a time (its order in `rules/roundChange.ts`, where it stands in `state.roundStep`): nextRound (AP received on top of what is left, tanatosis woken, the round's registries emptied, swimming and stealth called), continueRound (bleeding, then the environment: burning and gas; the AP cut down to the round's and the round end's upkeep paid by whoever keeps nothing going; then who joins, then the morale calls; then back to turns), holdOn / letGo (a concentrating character's choice, written to `state.concentration`: held spells' charges, upkeep and the focus surge, an action held over carried on, or everything let go and the held actions finished)
 │   ├── hold.ts         actions held over to the next round: holdOver (the commit), giveUpHeld (a reaction gives it up), breakHeld (an interruption breaks it), finishHeld (the round change: who finishes and the cunning order), carryOver (holding on), releaseNextHeld (taken up at `react` once nothing is open; called by `advance`)
@@ -372,7 +372,8 @@ app/domain/scene/
 │   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
 │   ├── approach.ts     how a mover's way brings them to someone: distances along it, the step that first comes within a range
 │   ├── prepared.ts     prepared reactions: what is prepared in the round, its zone and triggers (a move's, and an attack's for a defense made for an ally), what a fired one opened, a defense's reposition, cancelling and no chaining
-│   ├── fall.ts         a fall: its DL, damage, what each degree of the Balance test leaves of it
+│   ├── fall.ts         a fall: its DL and test terms, the landing's ground (the damage per degree is `character/rules/fall.ts`, shared with the `fall` effect)
+│   ├── impose.ts       the GM's test: the draft the form fills, the delivery it makes (a fall is tested on Balance against its height's DL, its degree read directly), why nothing can be laid on now
 │   ├── reactionMoves.ts the moves evasion, follow and explosion reflexes open
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out

@@ -97,7 +97,7 @@ export type Result = z.infer<typeof ResultSchema>
 const ChangePhase = z.enum(['roll', 'save', 'resolve', 'edit'])
 export const ChangeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('value'), phase: ChangePhase, id: str, what: str, from: num, to: num }).strip(),
-  z.object({ kind: z.literal('gain'), phase: ChangePhase, id: str, what: z.enum(['wound', 'affliction', 'part', 'surge']), name: str, gained: z.boolean() }).strip(),
+  z.object({ kind: z.literal('gain'), phase: ChangePhase, id: str, what: z.enum(['wound', 'affliction', 'part', 'surge', 'test']), name: str, gained: z.boolean() }).strip(),
   z.object({ kind: z.literal('move'), phase: ChangePhase, id: str, what: z.enum(['item', 'character']), name: str, from: str, to: str }).strip(),
 ])
 export type Change = z.infer<typeof ChangeSchema>

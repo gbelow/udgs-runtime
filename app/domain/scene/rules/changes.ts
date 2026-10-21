@@ -1,5 +1,6 @@
 import type { CampaignCharacter, Item } from '../../types'
 import type { Change, SceneState } from '../types'
+import { getPendingRows, type PendingRow } from '../../character/lenses/pending'
 import { getFightName } from './fighters'
 
 // What a step changed in the fight: every number a character carries, every
@@ -33,7 +34,7 @@ export function getChanges(before: SceneState, after: SceneState, phase: Phase):
 
 function getCharacterChanges(id: string, was: CampaignCharacter, now: CampaignCharacter, phase: Phase): Change[] {
   const values = COUNTERS.flatMap(({ what, read }): Change[] => (read(was) === read(now) ? [] : [{ kind: 'value', phase, id, what, from: read(was), to: read(now) }]))
-  const gain = (what: 'wound' | 'affliction' | 'part' | 'surge', names: { name: string; gained: boolean }[]): Change[] => names.map(({ name, gained }) => ({ kind: 'gain', phase, id, what, name, gained }))
+  const gain = (what: 'wound' | 'affliction' | 'part' | 'surge' | 'test', names: { name: string; gained: boolean }[]): Change[] => names.map(({ name, gained }) => ({ kind: 'gain', phase, id, what, name, gained }))
 
   const woundName = (c: CampaignCharacter, w: { name: string; part: string }) => `${w.name} (${c.body.find((p) => p.id === w.part)?.name ?? w.part})`
   const hadWounds = new Set(was.injuries.wounds.map((w) => woundName(was, w)))
@@ -42,14 +43,23 @@ function getCharacterChanges(id: string, was: CampaignCharacter, now: CampaignCh
   const hasAfflictions = new Set(now.afflictions)
   const lostBefore = new Set(was.body.filter((p) => p.lost).map((p) => p.name))
   const lostNow = new Set(now.body.filter((p) => p.lost).map((p) => p.name))
+  const owedBefore = new Set(getPendingRows(was).map(owedName))
+  const owedNow = new Set(getPendingRows(now).map(owedName))
 
   return [
     ...values,
     ...gain('wound', [...diffSets(hadWounds, hasWounds)]),
     ...gain('affliction', [...diffSets(hadAfflictions, hasAfflictions)]),
     ...gain('part', [...diffSets(lostBefore, lostNow)]),
+    ...gain('test', [...diffSets(owedBefore, owedNow)]),
     ...(was.usedSurge === now.usedSurge ? [] : gain('surge', [{ name: (now.usedSurge ?? was.usedSurge) as string, gained: now.usedSurge !== null }])),
   ]
+}
+
+// A test a delivery waits on, as the log names it: the skill, the DL and what
+// rides on it.
+function owedName(row: PendingRow): string {
+  return `${row.roll} test vs DL ${row.DL} (${row.name})`
 }
 
 function diffSets(was: Set<string>, now: Set<string>): { name: string; gained: boolean }[] {

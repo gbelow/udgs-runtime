@@ -922,8 +922,16 @@ export const SpiritEffectSchema = z.object({
 }).strip()
 export type SpiritEffect = z.infer<typeof SpiritEffectSchema>
 
+// combat.tex "Fall damage": a fall of `height` metres, its damage and prone
+// read off the degree of the Balance test it is landed at.
+export const FallEffectSchema = z.object({
+  height: num.default(0),
+}).strip()
+export type FallEffect = z.infer<typeof FallEffectSchema>
+
 export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('break'), effect: BreakEffectSchema }).strip(),
+  z.object({ ...EffectBase, type: z.literal('fall'), effect: FallEffectSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('spirit'), effect: SpiritEffectSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('cost'), effect: CostSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('buff'), effect: BuffSchema }).strip(),
@@ -956,9 +964,12 @@ export type Condition = z.infer<typeof ConditionSchema>
 export const TestRollKeySchema = z.union([SkillKeySchema, z.literal('spirit')])
 export type TestRollKey = z.infer<typeof TestRollKeySchema>
 
+// `direct`: the test is the effect's own (a Balance test for a fall), so its
+// degree is the degree the effect lands at, not one turned against it.
 export const DeliveryTestSchema = z.object({
   roll: TestRollKeySchema,
   DL: num.default(0),
+  direct: z.boolean().optional(),
 }).strip()
 export type DeliveryTest = z.infer<typeof DeliveryTestSchema>
 
