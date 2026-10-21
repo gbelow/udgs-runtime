@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Button, CollectionSelect, NumberInput, TextInput, selectClass } from './ui'
-import { EVENT_TYPES, EventTestSchema, PlaceChangeSchema, TERRAIN_TAGS, type EventOutcome, type EventResult, type EventTest, type PlaceChange, type TerrainTag, type Wear } from '../domain/campaign/types'
+import { AmbientSchema, EVENT_TYPES, EventTestSchema, PlaceChangeSchema, TERRAIN_TAGS, type EventOutcome, type EventResult, type EventTest, type Ambient, type PlaceChange, type TerrainTag, type Wear } from '../domain/campaign/types'
 import { SkillKeySchema, type Degree } from '../domain/types'
 import type { EventView } from '../domain/campaign/projections/map'
 import type { EventCommand } from '../domain/campaign/commands/eventRegistry'
@@ -61,15 +61,25 @@ export function EventEditor({ event, edit, placed, path, remove, children }: {
         <>
           <div className='flex flex-row flex-wrap gap-1.5 items-center'>
             <TextInput className='w-28' aria-label={`${event.name} stage name`} placeholder={label(stage, index)} value={stage.name} onChange={(e) => edit({ kind: 'setStage', args: [index, { name: e.target.value }] })} />
-            <span className='text-xs text-muted'>DL</span>
-            <NumberInput className='w-10' aria-label={`${event.name} DL`} value={stage.DL} onChange={(e) => edit({ kind: 'setStage', args: [index, { DL: parseInt(e.target.value) || 0 }] })} />
-            {EVENT_TYPES.map((type) => (
-              <Button key={type} size='xs' variant='ghost' selected={stage.types.includes(type)} onClick={() => edit({ kind: 'toggleStageType', args: [index, type] })}>{type}</Button>
-            ))}
+            {stage.ambient ? null :
+              <>
+                <span className='text-xs text-muted'>DL</span>
+                <NumberInput className='w-10' aria-label={`${event.name} DL`} value={stage.DL} onChange={(e) => edit({ kind: 'setStage', args: [index, { DL: parseInt(e.target.value) || 0 }] })} />
+                {EVENT_TYPES.map((type) => (
+                  <Button key={type} size='xs' variant='ghost' selected={stage.types.includes(type)} onClick={() => edit({ kind: 'toggleStageType', args: [index, type] })}>{type}</Button>
+                ))}
+              </>}
             {event.stages.length > 1 ?
               <Button size='xs' variant='ghost' aria-label={`${event.name} remove stage`} onClick={() => { edit({ kind: 'removeStage', args: [index] }); setOpen(0) }}>remove stage</Button>
               : null}
           </div>
+          {path ? null :
+            <label className='text-xs text-muted flex items-center gap-1'>
+              <input type='checkbox' aria-label={`${event.name} ambient`} checked={stage.ambient !== null}
+                onChange={(e) => edit({ kind: 'setStage', args: [index, { ambient: e.target.checked ? AmbientSchema.parse({}) : null }] })} />ambient: happens by itself, met by no exploration test
+            </label>}
+          {stage.ambient ? <AmbientInputs label={event.name} ambient={stage.ambient} set={(ambient) => edit({ kind: 'setStage', args: [index, { ambient }] })} /> : null}
+          {stage.ambient ? null : <>
           <div className='flex flex-row flex-wrap gap-1.5 items-center'>
             <label className='text-xs text-muted flex items-center gap-1'>
               <input type='checkbox' aria-label={`${event.name} shelter`} checked={stage.shelter !== null}
@@ -80,6 +90,7 @@ export function EventEditor({ event, edit, placed, path, remove, children }: {
           {DEGREES_SHOWN.map((degree) => (
             <OutcomeEditor key={degree} event={event} index={index} degree={degree} path={path ?? false} edit={edit} />
           ))}
+          </>}
         </>
         : null}
     </div>
@@ -92,7 +103,6 @@ export function EventEditor({ event, edit, placed, path, remove, children }: {
 function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView, index: number, degree: Degree, path: boolean, edit: Edit }) {
   const outcome = event.stages[index].outcomes[degree]
   const set = (patch: Partial<EventOutcome>) => edit({ kind: 'setOutcome', args: [index, degree, patch] })
-  const test = outcome.test
   const name = `${event.name} ${degree}`
   return (
     <div className='flex flex-col gap-1 border-t border-line pt-1'>
@@ -130,32 +140,42 @@ function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView,
         ))}
         <Button size='xs' variant='ghost' aria-label={`${name} add item`} onClick={() => set({ items: [...outcome.items, { key: '', amount: 1 }] })}>+ item</Button>
       </div>
+      <TestInputs label={name} test={outcome.test} set={(test) => set({ test })} />
+    </div>
+  )
+}
+
+// The test an event asks of everyone it lands on, and what each degree of it
+// says and costs.
+function TestInputs({ label, test, set }: { label: string, test: EventTest | null, set: (test: EventTest | null) => void }) {
+  return (
+    <>
       <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
         <label className='text-xs text-muted flex items-center gap-1'>
-          <input type='checkbox' aria-label={`${name} test`} checked={test !== null} onChange={(e) => set({ test: e.target.checked ? EventTestSchema.parse({}) : null })} />everyone tests
+          <input type='checkbox' aria-label={`${label} test`} checked={test !== null} onChange={(e) => set(e.target.checked ? EventTestSchema.parse({}) : null)} />everyone tests
         </label>
         {test ?
           <>
-            <select aria-label={`${name} test skill`} className={selectClass} value={test.skill} onChange={(e) => set({ test: { ...test, skill: e.target.value as EventTest['skill'] } })}>
+            <select aria-label={`${label} test skill`} className={selectClass} value={test.skill} onChange={(e) => set({ ...test, skill: e.target.value as EventTest['skill'] })}>
               {SkillKeySchema.options.map((k) => <option key={k} value={k}>{k}</option>)}
             </select>
             <span className='text-xs text-muted'>DL</span>
-            <NumberInput className='w-10' aria-label={`${name} test DL`} value={test.DL} onChange={(e) => set({ test: { ...test, DL: parseInt(e.target.value) || 0 } })} />
+            <NumberInput className='w-10' aria-label={`${label} test DL`} value={test.DL} onChange={(e) => set({ ...test, DL: parseInt(e.target.value) || 0 })} />
           </>
           : null}
       </div>
       {test ? DEGREES_SHOWN.map((d) => {
         const result = test.results[d]
-        const setResult = (patch: Partial<EventResult>) => set({ test: { ...test, results: { ...test.results, [d]: { ...result, ...patch } } } })
+        const setResult = (patch: Partial<EventResult>) => set({ ...test, results: { ...test.results, [d]: { ...result, ...patch } } })
         return (
           <div key={d} className='flex flex-row flex-wrap gap-1.5 items-center ml-20'>
             <span className='text-xs text-muted w-12'>{d}</span>
-            <TextInput className='w-48' aria-label={`${name} test ${d}`} value={result.text} onChange={(e) => setResult({ text: e.target.value })} />
-            <WearInputs label={`${name} test ${d}`} wear={result.wear} set={(wear) => setResult({ wear })} />
+            <TextInput className='w-48' aria-label={`${label} test ${d}`} value={result.text} onChange={(e) => setResult({ text: e.target.value })} />
+            <WearInputs label={`${label} test ${d}`} wear={result.wear} set={(wear) => setResult({ wear })} />
           </div>
         )
       }) : null}
-    </div>
+    </>
   )
 }
 
@@ -192,6 +212,29 @@ function PlaceChangeInputs({ label, change, set }: { label: string, change: Plac
         </Button>
       ))}
     </>
+  )
+}
+
+// An ambient stage: its chance in 100 to happen each ET, what the table
+// reads when it does, the weather it brings on the node, the wear it costs
+// everyone there, and the test it asks of each.
+function AmbientInputs({ label, ambient, set }: { label: string, ambient: Ambient, set: (ambient: Ambient) => void }) {
+  const name = `${label} ambient`
+  return (
+    <div className='flex flex-col gap-1 border-t border-line pt-1'>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+        <NumberInput className='w-12' aria-label={`${label} chance`} value={ambient.chance} onChange={(e) => set({ ...ambient, chance: parseInt(e.target.value) || 0 })} />
+        <span className='text-xs text-muted'>% of ETs</span>
+        <TextInput className='grow' aria-label={`${name} text`} placeholder='what happens' value={ambient.text} onChange={(e) => set({ ...ambient, text: e.target.value })} />
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <PlaceChangeInputs label={name} change={ambient.weather} set={(weather) => set({ ...ambient, weather })} />
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <WearInputs label={name} wear={ambient.wear} set={(wear) => set({ ...ambient, wear })} />
+      </div>
+      <TestInputs label={name} test={ambient.test} set={(test) => set({ ...ambient, test })} />
+    </div>
   )
 }
 

@@ -187,6 +187,9 @@ export const ExplorationStateSchema = z.object({
   weather: z.record(z.string(), PlaceChangeSchema).default({}),
   // the weather events brought on a node, by place key, for the ET under way
   passing: z.record(z.string(), z.array(PlaceChangeSchema)).default({}),
+  // the ambient events happening on a node, by place key, for the ET under
+  // way
+  ambient: z.record(z.string(), z.array(z.string())).default({}),
   // the events each character has met, by event key: the table's ruling is
   // that one met before is found at DL -5
   known: z.record(z.string(), z.array(z.string())).default({}),

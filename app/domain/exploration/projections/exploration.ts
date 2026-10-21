@@ -15,7 +15,8 @@ import { isPlaying } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getGroups,
-  getCampShelter, getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlaceNow, getPlanBar, getResolveBar, getRestExposure, getShelters, getWear, hasWood,
+  getAmbient, getCampShelter, getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlaceNow, getPlanBar, getResolveBar, getRestExposure, getShelters, getWear, hasWood,
+  type AmbientOn,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { getChargeTargets } from '../../character/rules/spells'
@@ -67,6 +68,8 @@ export type PartyView = {
   knowledge: number
   camp: Camp
   weather: WeatherView
+  // the ambient events of the node, and whether each happens this ET
+  ambient: { id: string; name: string; chance: number; on: boolean; line: string }[]
   // the shelters of the node the party may camp in, and whether it does
   shelters: { id: string; name: string; in: boolean }[]
   members: MemberView[]
@@ -138,6 +141,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
         raise: exploration.weather[key]?.raise ?? 0, called: key in exploration.weather,
         passing: (exploration.passing[key] ?? []).map(describePlaceChange), shelter: getCampShelter(t, partyId)?.name ?? null,
       },
+      ambient: getAmbient(t, partyId).map((a) => ({ id: a.id, name: a.name, chance: a.chance, on: a.on, line: describeAmbient(a) })),
       shelters: getShelters(t, partyId),
       nightDL: getNightDL(state, party),
       knowledge: getLocationKnowledge(state, partyId),
@@ -173,6 +177,22 @@ export function describePlaceChange(change: PlaceChange): string {
     ...change.add.map((tag) => `+${tag}`),
     ...change.remove.map((tag) => `−${tag}`),
   ].filter(Boolean).join(', ')
+}
+
+// An ambient event in words: "Rain: it pours (exposure +1, +rain)".
+export function describeAmbient(a: AmbientOn): string {
+  const weather = describePlaceChange(a.weather)
+  return `${a.name}${a.text ? `: ${a.text}` : ''}${weather ? ` (${weather})` : ''}`
+}
+
+// The ambient events that happened where a party stood, and the tests each
+// asked, as the ET's results read them.
+export type AmbientLanded = { ambient: AmbientOn; tests: { name: string; roll: TestRoll; text: string }[] }
+export function getAmbientLines(landed: AmbientLanded[]): string[] {
+  return landed.flatMap(({ ambient, tests }) => [
+    describeAmbient(ambient),
+    ...tests.map((test) => `  ${test.name}: ${describeRoll(test.roll)}${test.text ? `: ${test.text}` : ''}`),
+  ])
 }
 
 // What a resolved plan came to, as the ET's results will read it.

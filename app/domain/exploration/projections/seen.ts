@@ -29,6 +29,7 @@ const CENSORS: { [K in keyof ExplorationState]: ExplorationCensor<ExplorationSta
   piles: (piles, k) => only(piles, (party) => k.parties.has(party)),
   weather: unseen,
   passing: unseen,
+  ambient: unseen,
   known: unseen,
   calls: (calls, k) => only(calls, (id) => !k.hidden.has(calls[id].roller)),
   exhaustionRolls: unseen,

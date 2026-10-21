@@ -1,7 +1,7 @@
 import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Degree } from '../../types'
 import type { ExplorationAction } from '../../lists'
-import type { CampaignState, Party, PlaceChange } from '../../campaign/types'
+import type { Ambient, CampaignState, Party, PlaceChange } from '../../campaign/types'
 import type { Camp, Exploring, Group, GroupKind } from '../types'
 import { CampSchema } from '../types'
 import type { Test } from '../../play/test'
@@ -60,10 +60,25 @@ export function getCampShelter(t: Exploring, partyId: string): { id: string; nam
   return camp.in && event && change ? { id: camp.in, name: getEvent(event).name, change } : null
 }
 
+// The ambient events of the node the party stands on, in the stage they are
+// in, and whether each is happening this ET.
+export type AmbientOn = Ambient & { id: string; name: string; on: boolean }
+export function getAmbient(t: Exploring, partyId: string): AmbientOn[] {
+  const party = t.campaign.parties[partyId]
+  const place = getPlace(t.campaign, party)
+  if (!place) return []
+  const on = t.exploration.ambient[getPlaceKey(party.at)] ?? []
+  return Object.entries(place.node.events).flatMap(([id, event]) => {
+    const ambient = getStage(event)?.ambient
+    return ambient ? [{ ...ambient, id, name: getEvent(event).name, on: on.includes(id) }] : []
+  })
+}
+
 // survival.tex "Terrain": what the place the party stands on is like now:
 // its terrain (off the map, the exposure the table enters), then the weather
-// the table calls on it, then what events brought on it this ET, then the
-// shelter the camp stands in, which keeps out what it keeps out.
+// the table calls on it, then the ambient events happening on it, then what
+// events met brought on it this ET, then the shelter the camp stands in,
+// which keeps out what it keeps out.
 export function getPlaceNow(t: Exploring, partyId: string): PlaceNow {
   const party = t.campaign.parties[partyId]
   const terrain = getPlace(t.campaign, party)?.terrain ?? null
@@ -71,6 +86,7 @@ export function getPlaceNow(t: Exploring, partyId: string): PlaceNow {
   const shelter = getCampShelter(t, partyId)
   const changes = [
     ...(key && t.exploration.weather[key] ? [t.exploration.weather[key]] : []),
+    ...getAmbient(t, partyId).filter((a) => a.on).map((a) => a.weather),
     ...(key ? t.exploration.passing[key] ?? [] : []),
     ...(shelter ? [shelter.change] : []),
   ]

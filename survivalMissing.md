@@ -5,7 +5,7 @@ What `survival.tex` asks for that the campaign layer does not do yet. The book's
 ## Events
 
 - An event is in one stage at a time, and only the GM moves it to another (in the campaign's copy of the map). Nothing in play moves a stage.
-- Ambient events (rain, strong wind) that land on the whole node by chance or when the GM sets them off. The weather layer they land in is built: events met and the GM already change a node's exposure and tags.
+- Ambient events find nothing, and their wear and tests land on everyone on the node, a party camped in a shelter too; the GM calls off one the shelter keeps out.
 - An event cannot hand anyone to a scene yet: an encounter's graze or miss is meant to force one, a crit or hit to offer it, and an event can be a forced scene.
 - Nobody can be found in their shelter yet: a party camped in one is not something another party's search meets.
 - Random encounter while making camp (optional): one per day of long camping, drawn from wear and encounter events only.

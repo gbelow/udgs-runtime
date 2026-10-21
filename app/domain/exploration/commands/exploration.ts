@@ -7,11 +7,11 @@ import { CampSchema } from '../types'
 import { rollPercent, type Dice, type DieSource } from '../../play/dice'
 import { getDegree, type Test } from '../../play/test'
 import { answerCall, getOpenCalls, makeCaller, toCallRoll, type CallResult, type CallSpec, type Caller, type Throw } from '../../play/calls'
-import { getETResultLines } from '../projections/exploration'
+import { getAmbientLines, getETResultLines, type AmbientLanded } from '../projections/exploration'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getDecisionsCalled, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
+  getAmbient, getDecisionsCalled, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, getStage, isFound } from '../rules/events'
@@ -104,6 +104,48 @@ export function campIn(partyId: string, eventId: string | null): ExplorationUpda
   }
 }
 
+// survival.tex "Wear": the ambient events happening where the party stands,
+// landing at the ET's close on everyone in it who plays the ET: their wear,
+// and the test each asks, whose degree says what more it costs.
+function landAmbient(t: Exploring, partyId: string, test: Tester): { t: Exploring; landed: AmbientLanded[] } {
+  const state = t.campaign
+  const players = getPartyPlayers(state, partyId)
+  const landing: Record<string, Step[]> = {}
+  const landed = getAmbient(t, partyId).filter((a) => a.on).map((ambient): AmbientLanded => {
+    for (const id of players) push(landing, id, payWear(ambient.wear))
+    const check = ambient.test
+    if (!check) return { ambient, tests: [] }
+    const tests = players.flatMap((id) => {
+      const ambientTest: Test = { skill: skillLenses[check.skill].get(state.characters[id]), DL: check.DL, explodes: false, scale: 'degrees' }
+      const result = test({ id: `ambient:${partyId}:${ambient.id}:${id}`, roller: id, label: `${ambient.name}: ${check.skill}`, test: ambientTest })
+      if (!result) return []
+      const roll = toCallRoll(result)
+      const results = check.results[roll.degree]
+      push(landing, id, payWear(results.wear))
+      return [{ name: getRosterName(state, id), roll, text: results.text }]
+    })
+    return { ambient, tests }
+  })
+  const characters = { ...state.characters }
+  for (const [id, steps] of Object.entries(landing)) {
+    if (characters[id]) characters[id] = steps.reduce((c, step) => step(c), characters[id])
+  }
+  return { t: { ...t, campaign: { ...state, characters } }, landed }
+}
+
+// survival.tex "Wear": an ambient event of the node the party stands on set
+// off by the table for the ET under way, or, happening, called off.
+export function setOffAmbient(partyId: string, eventId: string): ExplorationUpdater {
+  return (t) => {
+    const key = getPlaceKey(t.campaign.parties[partyId]?.at ?? null)
+    const a = getAmbient(t, partyId).find((e) => e.id === eventId)
+    if (!key || !a) return t
+    const on = t.exploration.ambient[key] ?? []
+    const next = a.on ? on.filter((id) => id !== eventId) : [...on, eventId]
+    return { ...t, exploration: { ...t.exploration, ambient: { ...t.exploration.ambient, [key]: next } } }
+  }
+}
+
 // The weather the table calls on the node the party stands on, kept there
 // until it changes it; a tag toggled is added, or kept out, against what the
 // place is like now.
@@ -180,8 +222,9 @@ export function toDowntime(partyId: string): ExplorationUpdater {
 // survival.tex "Exhaustion": the Will tests the coming ET opens with, made
 // once by everyone who plays it. Each party's camp as the ET found it is kept
 // to read its tasks against; what was under way from the last ET is the
-// tasks' to finish, not the camp's any more.
-function openET(t: Exploring, test: Tester): Exploring {
+// tasks' to finish, not the camp's any more. Each ambient event of a node a
+// party stands on happens by its chance, once for the node.
+function openET(t: Exploring, test: Tester, dice: Dice): Exploring {
   const state = t.campaign
   const rolls: Record<string, TestRoll> = {}
   const parties = getPlayingParties(state, 'exploration')
@@ -194,7 +237,17 @@ function openET(t: Exploring, test: Tester): Exploring {
   }
   const start = Object.fromEntries(parties.map((partyId) => [partyId, getCamp(t, partyId)]))
   const camps = { ...t.exploration.camps, ...Object.fromEntries(parties.map((partyId) => [partyId, { ...start[partyId], progress: [] }])) }
-  return { ...t, exploration: { ...t.exploration, camps, opening: { rolls, decisions: {}, start } } }
+  const ambient = { ...t.exploration.ambient }
+  const rolled = new Set<string>()
+  for (const partyId of parties) {
+    const key = getPlaceKey(state.parties[partyId].at)
+    if (!key || rolled.has(key)) continue
+    rolled.add(key)
+    for (const a of getAmbient(t, partyId)) {
+      if (!a.on && a.chance > 0 && rollPercent(dice) < a.chance) ambient[key] = [...(ambient[key] ?? []), a.id]
+    }
+  }
+  return { ...t, exploration: { ...t.exploration, camps, ambient, opening: { rolls, decisions: {}, start } } }
 }
 
 const won = (degree: Degree) => degree === 'hit' || degree === 'critical'
@@ -221,12 +274,12 @@ function landTask(kind: GroupKind, degree: Degree, camp: Camp): Camp {
 type Outcome = Meeting & { task: Degree | null }
 
 // An event of a node or a path in the stage it is in; one left with no
-// stage is not there to be met.
+// stage is not there to be met, nor one whose stage is ambient.
 type Listed = { id: string; event: CrawlEvent; stage: EventStage }
 const listed = (events: [string, CrawlEvent][]): Listed[] =>
   events.flatMap(([id, event]) => {
     const stage = getStage(event)
-    return stage ? [{ id, event, stage }] : []
+    return stage && !stage.ambient ? [{ id, event, stage }] : []
   })
 
 // survival.tex "Events": each event met resolves itself, by the degree the
@@ -621,7 +674,7 @@ function closeET(t: Exploring, opening: Opening, played: Played): Exploring {
   return {
     campaign: t.campaign,
     exploration: {
-      ...t.exploration, groups, camps, piles, resting: [], casts: {}, opening: null, resolved: {}, pending: null, running: null, passing: {}, calls: {},
+      ...t.exploration, groups, camps, piles, resting: [], casts: {}, opening: null, resolved: {}, pending: null, running: null, passing: {}, ambient: {}, calls: {},
       exhaustionRolls: opening.rolls, ...played,
     },
   }
@@ -630,7 +683,7 @@ function closeET(t: Exploring, opening: Opening, played: Played): Exploring {
 // The ET opened by whichever press comes first, once the Will tests are in,
 // and whether it is ready to go on: every decision they call for is made.
 function openedET(t: Exploring, caller: Caller): { open: Exploring; ready: boolean } {
-  const open = t.exploration.opening ? t : openET(t, caller.test)
+  const open = t.exploration.opening ? t : openET(t, caller.test, caller.dice)
   if (caller.waiting()) return { open: t, ready: false }
   return { open, ready: getDecisionsCalled(open).every((id) => !!open.exploration.opening?.decisions[id]) }
 }
@@ -680,8 +733,9 @@ export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
     }
     const played = getPlayingParties(s.campaign, 'exploration').reduce<Played & { t: Exploring }>((acc, partyId) => {
       const clock = acc.t.campaign.parties[partyId]?.clock ?? null
-      const next = closeParty(acc.t, partyId, opening, caller.test, newId)
-      const lines = getETResultLines(next.results, next.castResults, next.stayResults)
+      const ambient = landAmbient(acc.t, partyId, caller.test)
+      const next = closeParty(ambient.t, partyId, opening, caller.test, newId)
+      const lines = [...getAmbientLines(ambient.landed), ...getETResultLines(next.results, next.castResults, next.stayResults)]
       const t = lines.length === 0 ? next.t : { ...next.t, campaign: record({ kind: 'et', party: partyId, title: 'an ET', lines, clock })(next.t.campaign) }
       return {
         t,

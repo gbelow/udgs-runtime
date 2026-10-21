@@ -66,17 +66,33 @@ export const EventOutcomeSchema = z.object({
 })
 export type EventOutcome = z.infer<typeof EventOutcomeSchema>
 
+// survival.tex "Wear": an event that "can have a chance to happen regardless
+// of the exploration test result" — rain, a storm. It is met by no
+// exploration test: each ET it happens on the whole node by its chance in
+// 100, or when the table sets it off, brings its weather on it for the ET,
+// and costs everyone there its wear and what the test it asks comes to.
+export const AmbientSchema = z.object({
+  chance: z.number().default(0),
+  text: z.string().default(''),
+  weather: PlaceChangeSchema.prefault({}),
+  wear: WearSchema.prefault({}),
+  test: EventTestSchema.nullable().default(null),
+})
+export type Ambient = z.infer<typeof AmbientSchema>
+
 // One state an event can be in — the tree empty or in fruit, the deer alive
 // or butchered — with the DL it is found against, the types it is searched
 // for by, and what it comes to at each degree. A shelter (survival.tex
 // "Events": "finds a place with better exposure than the rest of the node")
-// says what the place is like to a party that camps in it.
+// says what the place is like to a party that camps in it. An ambient stage
+// is met by no test, so its DL, types and outcomes are not read.
 export const EventStageSchema = z.object({
   name: z.string().default(''),
   types: z.array(EventTypeSchema).default([]),
   DL: z.number().default(0),
   outcomes: perDegree(EventOutcomeSchema.prefault({})).prefault({}),
   shelter: PlaceChangeSchema.nullable().default(null),
+  ambient: AmbientSchema.nullable().default(null),
 })
 export type EventStage = z.infer<typeof EventStageSchema>
 

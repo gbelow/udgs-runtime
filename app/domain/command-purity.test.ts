@@ -403,6 +403,7 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   campIn: (t) => explorationCommands.campIn('p', null)(t),
   toggleWeatherTag: (t) => explorationCommands.toggleWeatherTag('p', 'rain')(t),
   setWeatherRaise: (t) => explorationCommands.setWeatherRaise('p', 2)(t),
+  setOffAmbient: (t) => explorationCommands.setOffAmbient('p', 'e')(t),
   clearWeather: (t) => explorationCommands.clearWeather('p')({ ...t, exploration: { ...t.exploration, weather: { 'm/n1': { exposure: null, raise: 1, add: ['rain'], remove: [] } } } }),
   takeFromPile: (t) => explorationCommands.takeFromPile('p', 'found', 'a', 'belt', 'quick')({ ...t, exploration: { ...t.exploration, piles: { p: [ItemSchema.parse({ id: 'found', name: 'Ration', type: 'food', food: 3, amount: 1 })] } } }),
 }

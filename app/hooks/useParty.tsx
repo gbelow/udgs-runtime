@@ -162,6 +162,7 @@ export function usePartyCommands() {
     toggleWeatherTag: (partyId: string, tag: TerrainTag) => explore({ kind: "toggleWeatherTag", args: [partyId, tag] }),
     setWeatherRaise: (partyId: string, raise: number) => explore({ kind: "setWeatherRaise", args: [partyId, raise] }),
     clearWeather: (partyId: string) => explore({ kind: "clearWeather", args: [partyId] }),
+    setOffAmbient: (partyId: string, eventId: string) => explore({ kind: "setOffAmbient", args: [partyId, eventId] }),
     toDowntime: (partyId: string) => explore({ kind: "toDowntime", args: [partyId] }),
     partyToScene: (partyId: string) => toFight({ kind: "sendPartyToFight", args: [partyId] }),
     toScene: (id: string) => toFight({ kind: "sendToFight", args: [[id]] }),

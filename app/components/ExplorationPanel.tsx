@@ -135,7 +135,7 @@ export function LastEtLog(){
 // the groups going on an action.
 function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 
-  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan, campIn, toggleWeatherTag, setWeatherRaise, clearWeather } = usePartyCommands()
+  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan, campIn, toggleWeatherTag, setWeatherRaise, clearWeather, setOffAmbient } = usePartyCommands()
   const gmBar = useGmBar()
   const partyBar = useActorBar({ anyOf: party.members.map((m) => m.id) })
   const choose = (key: string) => setPlace(party.id, maps.flatMap((m) => m.nodes).find((n) => n.key === key)?.at ?? null)
@@ -177,6 +177,11 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
           <span className='text-xs text-muted'>exposure +</span>
           <NumberInput className='w-10' aria-label={`${party.name} weather exposure`} value={party.weather.raise} onChange={(e) => setWeatherRaise(party.id, parseInt(e.target.value) || 0)} />
           {party.weather.called ? <Button size='xs' variant='ghost' aria-label={`${party.name} clear weather`} onClick={() => clearWeather(party.id)}>clear</Button> : null}
+          {party.ambient.map((a) => (
+            <Button key={a.id} size='xs' variant='ghost' aria-label={a.on ? `call off ${a.name}` : `set off ${a.name}`} selected={a.on}
+              title={a.on ? a.line : `happens by itself ${a.chance}% of ETs`} onClick={() => setOffAmbient(party.id, a.id)}>{a.name} {a.chance}%</Button>
+          ))}
+          {party.ambient.filter((a) => a.on).map((a) => <span key={a.id} className='text-xs text-muted'>· this ET: {a.line}</span>)}
           {party.weather.passing.map((line, i) => <span key={i} className='text-xs text-muted'>· this ET: {line}</span>)}
         </Locked>
         : null}
