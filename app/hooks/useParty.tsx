@@ -1,7 +1,7 @@
 import type { CastPlan, Decision, Exploring, Group, GroupKind } from "../domain/exploration/types";
 import { getMoments, getMomentsDigest, type MomentView } from "../domain/campaign/projections/timeline";
 import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/maps";
-import type { At, Sequence } from "../domain/campaign/types";
+import type { At, Sequence, TerrainTag } from "../domain/campaign/types";
 import type { SlotKind } from "../domain/types";
 import { getTableParties, type TablePartiesView } from "../domain/scene/projections/tableParties";
 import type { CombatRosterEntry } from "../domain/scene/projections/roster";
@@ -158,6 +158,10 @@ export function usePartyCommands() {
     passET: () => explore({ kind: "passET", args: [] }),
     adjustMet: (index: number, adjust: number) => explore({ kind: "adjustMet", args: [index, adjust] }),
     resolvePlan: (partyId: string, groupId: string) => explore({ kind: "resolvePlan", args: [partyId, groupId] }),
+    campIn: (partyId: string, eventId: string | null) => explore({ kind: "campIn", args: [partyId, eventId] }),
+    toggleWeatherTag: (partyId: string, tag: TerrainTag) => explore({ kind: "toggleWeatherTag", args: [partyId, tag] }),
+    setWeatherRaise: (partyId: string, raise: number) => explore({ kind: "setWeatherRaise", args: [partyId, raise] }),
+    clearWeather: (partyId: string) => explore({ kind: "clearWeather", args: [partyId] }),
     toDowntime: (partyId: string) => explore({ kind: "toDowntime", args: [partyId] }),
     partyToScene: (partyId: string) => toFight({ kind: "sendPartyToFight", args: [partyId] }),
     toScene: (id: string) => toFight({ kind: "sendToFight", args: [[id]] }),

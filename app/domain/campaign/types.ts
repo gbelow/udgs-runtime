@@ -6,8 +6,9 @@ export const EVENT_TYPES = ['place', 'encounter', 'obstacle', 'treasure', 'wear'
 export const EventTypeSchema = z.enum(EVENT_TYPES)
 export type EventType = z.infer<typeof EventTypeSchema>
 
-// survival.tex "Terrain tags".
-export const TERRAIN_TAGS = ['wood', 'rain', 'cold', 'heat', 'insects', 'threats'] as const
+// survival.tex "Terrain tags", and wind, which the book does not list: it
+// is what the events that blow it and shelter from it say it is.
+export const TERRAIN_TAGS = ['wood', 'rain', 'wind', 'cold', 'heat', 'insects', 'threats'] as const
 export const TerrainTagSchema = z.enum(TERRAIN_TAGS)
 export type TerrainTag = z.infer<typeof TerrainTagSchema>
 
@@ -17,6 +18,17 @@ export type TerrainTag = z.infer<typeof TerrainTagSchema>
 // character pays any.
 export const WearSchema = CostSchema.pick({ IL: true, exhaustion: true }).extend({ hunger: z.number().default(0), thirst: z.number().default(0) })
 export type Wear = z.infer<typeof WearSchema>
+
+// What changes a place for a while — weather an event brings or the table
+// calls, or a shelter: its exposure set to a value, or raised, and terrain
+// tags added or taken away.
+export const PlaceChangeSchema = z.object({
+  exposure: z.number().nullable().default(null),
+  raise: z.number().default(0),
+  add: z.array(TerrainTagSchema).default([]),
+  remove: z.array(TerrainTagSchema).default([]),
+})
+export type PlaceChange = z.infer<typeof PlaceChangeSchema>
 
 const perDegree = <T extends z.ZodType>(outcome: T) =>
   z.object({ critical: outcome, hit: outcome, graze: outcome, miss: outcome })
@@ -42,6 +54,7 @@ export type EventTest = z.infer<typeof EventTestSchema>
 // costs everyone present, what is found, the test it asks of each of them,
 // and, on a path, whether it keeps the group from arriving. `takesET` is the
 // event's word on whether it takes the whole ET (survival.tex "Event DL").
+// `weather` is what it does to the place the party stands on, for the ET.
 export const EventOutcomeSchema = z.object({
   text: z.string().default(''),
   takesET: z.boolean().default(true),
@@ -49,17 +62,21 @@ export const EventOutcomeSchema = z.object({
   wear: WearSchema.prefault({}),
   items: z.array(z.object({ key: z.string(), amount: z.number().default(1) })).default([]),
   test: EventTestSchema.nullable().default(null),
+  weather: PlaceChangeSchema.nullable().default(null),
 })
 export type EventOutcome = z.infer<typeof EventOutcomeSchema>
 
 // One state an event can be in — the tree empty or in fruit, the deer alive
 // or butchered — with the DL it is found against, the types it is searched
-// for by, and what it comes to at each degree.
+// for by, and what it comes to at each degree. A shelter (survival.tex
+// "Events": "finds a place with better exposure than the rest of the node")
+// says what the place is like to a party that camps in it.
 export const EventStageSchema = z.object({
   name: z.string().default(''),
   types: z.array(EventTypeSchema).default([]),
   DL: z.number().default(0),
   outcomes: perDegree(EventOutcomeSchema.prefault({})).prefault({}),
+  shelter: PlaceChangeSchema.nullable().default(null),
 })
 export type EventStage = z.infer<typeof EventStageSchema>
 

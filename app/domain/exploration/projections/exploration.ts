@@ -1,4 +1,4 @@
-import type { EventType, SeenCampaign, TerrainTag } from '../../campaign/types'
+import type { EventType, PlaceChange, SeenCampaign, TerrainTag } from '../../campaign/types'
 import { SlotKindSchema, type Degree, type SlotKind } from '../../types'
 import { canFitItem, getOpenContainers } from '../../item/rules/containers'
 import { TREAT_COUNT, getETMedicine, getETTreatBar, getETTreatTest, getUnsetWounds, isETMedicine, type ETMedicineKey } from '../rules/medicine'
@@ -12,10 +12,10 @@ import { perPair } from '../../perState'
 import { getRosterName } from '../../campaign/rules/roster'
 import { getPlaceKey } from '../../campaign/projections/maps'
 import { isPlaying } from '../../campaign/rules/clock'
-import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
+import { getConnectionsFrom, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getGroups,
-  getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlanBar, getResolveBar, getRestExposure, getWear, hasWood,
+  getCampShelter, getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPlaceNow, getPlanBar, getResolveBar, getRestExposure, getShelters, getWear, hasWood,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { getChargeTargets } from '../../character/rules/spells'
@@ -47,6 +47,10 @@ export type GroupView = {
   resolved: string[] | null
 }
 export type PlaceView = { node: string; name: string; terrain: string | null; tags: TerrainTag[] }
+// What the place is like beyond its terrain: the weather the table calls on
+// it, a line for each weather events brought this ET, and the shelter the
+// camp stands in.
+export type WeatherView = { raise: number; called: boolean; passing: string[]; shelter: string | null }
 export type PartyView = {
   id: string
   name: string
@@ -62,6 +66,9 @@ export type PartyView = {
   nightDL: number
   knowledge: number
   camp: Camp
+  weather: WeatherView
+  // the shelters of the node the party may camp in, and whether it does
+  shelters: { id: string; name: string; in: boolean }[]
   members: MemberView[]
   groups: GroupView[]
   // the paths a travel can go along, and the parties it can merge with
@@ -116,15 +123,22 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
   dayETs: state.dayETs,
   parties: Object.entries(state.parties).filter(([, party]) => isPlaying(party) && party.sequence === 'exploration').map(([partyId, party]) => {
     const place = getPlace(state, party)
+    const now = getPlaceNow(t, partyId)
+    const key = getPlaceKey(party.at)
     return {
       id: partyId,
       name: party.name,
-      placeKey: getPlaceKey(party.at),
-      place: place ? { node: place.id, name: place.node.name, terrain: place.terrain?.name ?? null, tags: place.terrain?.tags ?? [] } : null,
-      exposure: getExposure(state, party),
+      placeKey: key,
+      place: place ? { node: place.id, name: place.node.name, terrain: place.terrain?.name ?? null, tags: now.tags ?? [] } : null,
+      exposure: now.exposure,
       restExposure: getRestExposure(t, partyId),
       lit: party.lit,
-      wood: hasWood(state, party),
+      wood: hasWood(t, partyId),
+      weather: {
+        raise: exploration.weather[key]?.raise ?? 0, called: key in exploration.weather,
+        passing: (exploration.passing[key] ?? []).map(describePlaceChange), shelter: getCampShelter(t, partyId)?.name ?? null,
+      },
+      shelters: getShelters(t, partyId),
       nightDL: getNightDL(state, party),
       knowledge: getLocationKnowledge(state, partyId),
       camp: getCamp(t, partyId),
@@ -151,6 +165,15 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
   lastET: getETResultLines(exploration.results, exploration.castResults, exploration.stayResults, true),
   }
 })
+
+// A change to a place in words: "exposure 1, +rain, −wind".
+export function describePlaceChange(change: PlaceChange): string {
+  return [
+    change.exposure !== null ? `exposure ${change.exposure}` : change.raise ? `exposure ${change.raise > 0 ? '+' : ''}${change.raise}` : '',
+    ...change.add.map((tag) => `+${tag}`),
+    ...change.remove.map((tag) => `−${tag}`),
+  ].filter(Boolean).join(', ')
+}
 
 // What a resolved plan came to, as the ET's results will read it.
 function getResolvedLines(resolved: Resolved | null): string[] | null {
@@ -353,6 +376,7 @@ export function getETResultLines(results: GroupResult[], castResults: CastResult
       ...r.events.flatMap((e) => [
         `  ${e.name} vs DL ${e.DL}, ${e.degree}${e.outcome.text ? `: ${e.outcome.text}` : ''}`,
         ...(e.outcome.items.length > 0 ? [`    found ${e.outcome.items.map((i) => `${i.amount} ${i.key}`).join(', ')}`] : []),
+        ...(e.outcome.weather ? [`    weather: ${describePlaceChange(e.outcome.weather)}`] : []),
         ...e.tests.map((test) => `    ${test.name}: ${describeRoll(test.roll)}${test.text ? `: ${test.text}` : ''}`),
       ]),
     ]),

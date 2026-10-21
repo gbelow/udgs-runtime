@@ -3,7 +3,7 @@ import { DegreeSchema, ItemSchema } from '../types'
 import { ROLL_MODES } from '../play/dice'
 import { TestRollSchema, type TestRoll } from '../play/test'
 import { CallsSchema } from '../play/calls'
-import { AtSchema, EventOutcomeSchema, EventTypeSchema, type CampaignState } from '../campaign/types'
+import { AtSchema, EventOutcomeSchema, EventTypeSchema, PlaceChangeSchema, type CampaignState } from '../campaign/types'
 
 // survival.tex "Exploration Action (EA)", "Making camp": what a group of a
 // party goes on together for an ET. Travel and search take it away from the
@@ -38,6 +38,8 @@ export const CampSchema = z.object({
   firewood: z.number().default(0),
   fire: z.boolean().default(false),
   progress: z.array(z.enum(['firewood', 'fire'])).default([]),
+  // the shelter event of its node the camp stands in, by id; none in the open
+  in: z.string().nullable().default(null),
 })
 export type Camp = z.infer<typeof CampSchema>
 
@@ -181,6 +183,13 @@ export const ExplorationStateSchema = z.object({
   running: z.object({ party: z.string(), group: z.string() }).nullable().default(null),
   // survival.tex "Events": what each party has found, to share out
   piles: z.record(z.string(), z.array(ItemSchema)).default({}),
+  // the weather the table calls on a node, by place key, until it changes it
+  weather: z.record(z.string(), PlaceChangeSchema).default({}),
+  // the weather events brought on a node, by place key, for the ET under way
+  passing: z.record(z.string(), z.array(PlaceChangeSchema)).default({}),
+  // the events each character has met, by event key: the table's ruling is
+  // that one met before is found at DL -5
+  known: z.record(z.string(), z.array(z.string())).default({}),
   // the tests the passing ET has called for, waiting on their dice
   calls: CallsSchema.default({}),
   // what the last ET opened with and what its groups came to

@@ -5,18 +5,16 @@ What `survival.tex` asks for that the campaign layer does not do yet. The book's
 ## Events
 
 - An event is in one stage at a time, and only the GM moves it to another (in the campaign's copy of the map). Nothing in play moves a stage.
-- Searching an event found before is not easier yet (a known event is to be found at DL −5).
-- Ambient events (rain, strong wind) that land on the whole node by chance or when the GM sets them off, changing its exposure.
+- Ambient events (rain, strong wind) that land on the whole node by chance or when the GM sets them off. The weather layer they land in is built: events met and the GM already change a node's exposure and tags.
 - An event cannot hand anyone to a scene yet: an encounter's graze or miss is meant to force one, a crit or hit to offer it, and an event can be a forced scene.
-- A camp cannot stand in a found shelter yet, and nobody can be found in theirs.
+- Nobody can be found in their shelter yet: a party camped in one is not something another party's search meets.
 - Random encounter while making camp (optional): one per day of long camping, drawn from wear and encounter events only.
 - Connection events that the test was "high enough" to avoid are read by degree, never skipped.
 
 ## Shelter
 
-- A shelter is a node of its own, with its own terrain and wear, reached from the node it is in.
-- Finding a shelter in a node can take no ET. Paths all take 1 ET today; nothing reaches a node in 0.
-- Items that lower exposure (tent, bedroll, measures against cold, heat or insects) do not exist. Only a built shelter and the campfire lower it.
+- A shelter is an event of its node, not a node: a party camps in one it found, and its exposure and tags apply while it stays. Its own wear is not modelled.
+- Items that lower exposure (tent, bedroll, measures against cold, heat or insects) do not exist. Only a built shelter, a shelter event and the campfire lower it.
 
 ## Tracking
 

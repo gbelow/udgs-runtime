@@ -6,7 +6,7 @@ import { useETAnswer, useETCalls, useETDiceBar, useExploration, useNodeOptions, 
 import { DieCalls } from './DieCalls';
 import { useActorBar, useGmBar } from '../hooks/useControl';
 import { Locked, LockedFor } from './Locks';
-import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
+import { EVENT_TYPES, TERRAIN_TAGS, type EventType } from '../domain/campaign/types';
 import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
 import { ROLL_MODES, type RollMode } from '../domain/play/dice';
 import type { CastPanel, MetView, PartiesView, PartyView } from '../domain/exploration/projections/exploration';
@@ -135,7 +135,7 @@ export function LastEtLog(){
 // the groups going on an action.
 function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 
-  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan } = usePartyCommands()
+  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan, campIn, toggleWeatherTag, setWeatherRaise, clearWeather } = usePartyCommands()
   const gmBar = useGmBar()
   const partyBar = useActorBar({ anyOf: party.members.map((m) => m.id) })
   const choose = (key: string) => setPlace(party.id, maps.flatMap((m) => m.nodes).find((n) => n.key === key)?.at ?? null)
@@ -168,6 +168,25 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
           </select>
           : null}
       </Locked>
+      {party.place ?
+        <Locked bar={gmBar} className='flex flex-row flex-wrap gap-1 items-center'>
+          <span className='text-xs text-muted'>weather</span>
+          {TERRAIN_TAGS.map((tag) => (
+            <Button key={tag} size='xs' variant='ghost' aria-label={`${party.name} ${tag}`} selected={party.place?.tags.includes(tag)} onClick={() => toggleWeatherTag(party.id, tag)}>{tag}</Button>
+          ))}
+          <span className='text-xs text-muted'>exposure +</span>
+          <NumberInput className='w-10' aria-label={`${party.name} weather exposure`} value={party.weather.raise} onChange={(e) => setWeatherRaise(party.id, parseInt(e.target.value) || 0)} />
+          {party.weather.called ? <Button size='xs' variant='ghost' aria-label={`${party.name} clear weather`} onClick={() => clearWeather(party.id)}>clear</Button> : null}
+          {party.weather.passing.map((line, i) => <span key={i} className='text-xs text-muted'>· this ET: {line}</span>)}
+        </Locked>
+        : null}
+      {party.shelters.length > 0 ?
+        <Locked bar={partyBar} className='flex flex-row flex-wrap gap-1 items-center'>
+          {party.shelters.map((s) => (
+            <Button key={s.id} size='xs' aria-label={s.in ? `leave ${s.name}` : `camp in ${s.name}`} selected={s.in} onClick={() => campIn(party.id, s.in ? null : s.id)}>{s.in ? `camped in ${s.name} · leave` : `camp in ${s.name}`}</Button>
+          ))}
+        </Locked>
+        : null}
       {party.place ?
         <span className='text-xs text-muted'>
           {party.place.terrain ?? 'no terrain'}{party.place.tags.length > 0 ? ` (${party.place.tags.join(', ')})` : ''} · location knowledge <span className='font-mono text-fg'>{party.knowledge}</span>{party.nightDL > 0 ? <> · night <span className='font-mono text-fg'>+{party.nightDL}</span> DL</> : null}

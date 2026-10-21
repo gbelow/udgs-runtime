@@ -43,7 +43,7 @@ export function removeStage(index: number): EventUpdater {
   }
 }
 
-export function setStage(index: number, patch: Partial<Pick<EventStage, 'name' | 'DL'>>): EventUpdater {
+export function setStage(index: number, patch: Partial<Pick<EventStage, 'name' | 'DL' | 'shelter'>>): EventUpdater {
   return withStage(index, (s) => ({ ...s, ...patch }))
 }
 

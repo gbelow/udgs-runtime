@@ -400,6 +400,10 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   toDowntime: (t) => explorationCommands.toDowntime('p')(t),
   adjustMet: (t) => explorationCommands.adjustMet(0, -3)({ ...t, exploration: { ...t.exploration, pending: { party: 'p', group: 'g', meeting: MeetingSchema.parse({ roll: null, events: [{ owner: { kind: 'connection', id: 'c' }, event: 'e', name: 'climb', DL: 5, degree: 'hit', outcome: { test: {} } }] }) } } }),
   resolvePlan: (t) => explorationCommands.resolvePlan('p', 'g', () => 0, () => 'q')(t),
+  campIn: (t) => explorationCommands.campIn('p', null)(t),
+  toggleWeatherTag: (t) => explorationCommands.toggleWeatherTag('p', 'rain')(t),
+  setWeatherRaise: (t) => explorationCommands.setWeatherRaise('p', 2)(t),
+  clearWeather: (t) => explorationCommands.clearWeather('p')({ ...t, exploration: { ...t.exploration, weather: { 'm/n1': { exposure: null, raise: 1, add: ['rain'], remove: [] } } } }),
   takeFromPile: (t) => explorationCommands.takeFromPile('p', 'found', 'a', 'belt', 'quick')({ ...t, exploration: { ...t.exploration, piles: { p: [ItemSchema.parse({ id: 'found', name: 'Ration', type: 'food', food: 3, amount: 1 })] } } }),
 }
 

@@ -29,10 +29,14 @@ export function getStage(event: CrawlEvent): EventStage | null {
   return stages[event.stage] ?? stages[0] ?? null
 }
 
+// The table's ruling: an event someone present has met before is found at
+// DL -5.
+export const KNOWN_DL = -5
+
 // The DL an exploration score is read against for an event: its stage's,
-// with the night on top.
-export function getEventDL(stage: EventStage, night: number): number {
-  return stage.DL + night
+// with the night on top, and easier for an event met before.
+export function getEventDL(stage: EventStage, night: number, known: boolean): number {
+  return stage.DL + night + (known ? KNOWN_DL : 0)
 }
 
 // Whether what an event came to waits on the table before it lands: it

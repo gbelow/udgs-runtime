@@ -1,6 +1,7 @@
 import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Degree, Item, SlotKind } from '../../types'
-import type { At, CampaignState, CampaignUpdater, CrawlEvent, EventOwner, EventStage, Wear } from '../../campaign/types'
+import type { At, CampaignState, CampaignUpdater, CrawlEvent, EventOwner, EventStage, PlaceChange, TerrainTag, Wear } from '../../campaign/types'
+import { PlaceChangeSchema } from '../../campaign/types'
 import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupKind, GroupResult, Meeting, Met, Opening, Resolved, StayResult, TestRoll } from '../types'
 import { CampSchema } from '../types'
 import { rollPercent, type Dice, type DieSource } from '../../play/dice'
@@ -10,12 +11,13 @@ import { getETResultLines } from '../projections/exploration'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getDecisionsCalled, getPassBar, getResolveBar, getRestExposure, getRestsToday, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved,
+  getDecisionsCalled, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, getStage, isFound } from '../rules/events'
 import { getDay, getPlayingParties } from '../../campaign/rules/clock'
 import { getEvent } from '../../campaign/rules/events'
+import { getEventKey, getPlaceKey, type PlaceNow } from '../../campaign/rules/place'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
 import { passETs } from '../../campaign/commands/clock'
 import { record } from '../../campaign/commands/journal'
@@ -91,6 +93,44 @@ export function takeFromPile(partyId: string, itemId: string, id: string, contai
     }
   }
 }
+
+// survival.tex "Events": the party's camp moved into a shelter of its node
+// that a plan of it found this ET, at no cost in time, or, with null, back
+// out into the open.
+export function campIn(partyId: string, eventId: string | null): ExplorationUpdater {
+  return (t) => {
+    if (eventId !== null && !getShelters(t, partyId).some((s) => s.id === eventId)) return t
+    return { ...t, exploration: { ...t.exploration, camps: { ...t.exploration.camps, [partyId]: { ...getCamp(t, partyId), in: eventId } } } }
+  }
+}
+
+// The weather the table calls on the node the party stands on, kept there
+// until it changes it; a tag toggled is added, or kept out, against what the
+// place is like now.
+export function toggleWeatherTag(partyId: string, tag: TerrainTag): ExplorationUpdater {
+  return withWeather(partyId, (weather, now) => (now.tags?.includes(tag)
+    ? { ...weather, add: weather.add.filter((other) => other !== tag), remove: [...new Set([...weather.remove, tag])] }
+    : { ...weather, remove: weather.remove.filter((other) => other !== tag), add: [...new Set([...weather.add, tag])] }))
+}
+
+export function setWeatherRaise(partyId: string, raise: number): ExplorationUpdater {
+  return withWeather(partyId, (weather) => ({ ...weather, raise }))
+}
+
+export function clearWeather(partyId: string): ExplorationUpdater {
+  return (t) => {
+    const key = getPlaceKey(t.campaign.parties[partyId]?.at ?? null)
+    return key ? { ...t, exploration: { ...t.exploration, weather: without(t.exploration.weather, key) } } : t
+  }
+}
+
+const withWeather = (partyId: string, update: (weather: PlaceChange, now: PlaceNow) => PlaceChange): ExplorationUpdater =>
+  (t) => {
+    const key = getPlaceKey(t.campaign.parties[partyId]?.at ?? null)
+    if (!key) return t
+    const weather = update(t.exploration.weather[key] ?? PlaceChangeSchema.parse({}), getPlaceNow(t, partyId))
+    return { ...t, exploration: { ...t.exploration, weather: { ...t.exploration.weather, [key]: weather } } }
+  }
 
 // What the table does to the DL of the test an event met asks, for what
 // those meeting it do about it (a rope thrown down a climb).
@@ -192,8 +232,8 @@ const listed = (events: [string, CrawlEvent][]): Listed[] =>
 // survival.tex "Events": each event met resolves itself, by the degree the
 // group's score comes to against the stage it is in.
 type Meet = (owner: EventOwner) => (l: Listed) => Met
-const meeting = (score: number, night: number): Meet => (owner) => ({ id, event, stage }) => {
-  const DL = getEventDL(stage, night)
+const meeting = (score: number, night: number, known: (owner: EventOwner, id: string) => boolean): Meet => (owner) => ({ id, event, stage }) => {
+  const DL = getEventDL(stage, night, known(owner, id))
   const degree = getDegree(score, DL)
   return { owner, event: id, name: getEvent(event).name, DL, degree, outcome: stage.outcomes[degree], adjust: 0, tests: [] }
 }
@@ -265,12 +305,14 @@ function search(place: Place, group: Group, roll: TestRoll, meet: Meet, dice: Di
 }
 
 // One group's test, made by its roller, and what it leaves the camp and
-// where it takes the group. `start` is the camp as the ET found it.
-function goOn(state: CampaignState, partyId: string, groupId: string, start: Camp, group: Group, test: Tester, dice: Dice): Outcome {
+// where it takes the group. `start` is the camp as the ET found it; `going`
+// who goes, whose memory of an event makes it easier to find.
+function goOn(t: Exploring, partyId: string, groupId: string, start: Camp, group: Group, going: string[], test: Tester, dice: Dice): Outcome {
+  const state = t.campaign
   const party = state.parties[partyId]
   const place = getPlace(state, party)
   const stays = { task: null, moves: null, events: [] as Met[] }
-  if (group.kind === 'firewood' && !hasWood(state, party)) return { ...stays, roll: null, note: 'no wood here' }
+  if (group.kind === 'firewood' && !hasWood(t, partyId)) return { ...stays, roll: null, note: 'no wood here' }
   if (group.kind === 'fire' && start.firewood <= 0) return { ...stays, roll: null, note: 'no firewood' }
   if ((group.kind === 'firewood' || group.kind === 'fire') && start.progress.includes(group.kind)) {
     return { ...stays, roll: null, note: 'finished from the last ET', task: 'hit' }
@@ -283,7 +325,8 @@ function goOn(state: CampaignState, partyId: string, groupId: string, start: Cam
   const result = test({ id: `group:${partyId}:${groupId}`, roller: group.roller, label: group.kind, test: groupTest, mode: group.mode })
   if (!result) return { ...stays, roll: null, note: '' }
   const roll = toCallRoll(result)
-  const meet = meeting(roll.score, getNightDL(state, party))
+  const known = (owner: EventOwner, id: string) => !!party.at && knowsEvent(t, going, getEventKey(party.at.map, owner, id))
+  const meet = meeting(roll.score, getNightDL(state, party), known)
   if (group.kind === 'travel') return { task: null, ...(place && party.at ? travel(party.at, place, group, roll, meet, dice) : { roll, note: '', moves: { at: null }, events: [] }) }
   if (group.kind === 'search' && place) return { task: null, ...search(place, group, roll, meet, dice) }
   return { ...stays, roll, note: '', task: roll.degree }
@@ -433,7 +476,7 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
   if (going.length === 0) return done(t, { result: null, working: [], moves: null, found: [], task: null })
   const pending = t.exploration.pending
   const held = pending && pending.party === partyId && pending.group === groupId ? pending.meeting : null
-  const outcome: Outcome = held ? { ...held, task: null } : goOn(state, partyId, groupId, opening.start[partyId] ?? getCamp(t, partyId), group, test, dice)
+  const outcome: Outcome = held ? { ...held, task: null } : goOn(t, partyId, groupId, opening.start[partyId] ?? getCamp(t, partyId), group, going, test, dice)
   if (!held && outcome.events.some((e) => asksTable(e.outcome))) {
     const meeting = { roll: outcome.roll, note: outcome.note, moves: outcome.moves, events: outcome.events }
     return { ...t, exploration: { ...t.exploration, pending: { party: partyId, group: groupId, meeting } } }
@@ -468,8 +511,15 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
   const carried = forcedIn.filter((id) => opening.decisions[id] === 'carry')
   const result = { party: party.name, kind: group.kind, members: going.map(name), roll: outcome.roll, note: outcome.note, events }
   const piles = found.length > 0 ? { ...t.exploration.piles, [partyId]: [...(t.exploration.piles[partyId] ?? []), ...found] } : t.exploration.piles
+  // what the events met bring on the place for the ET, and the memory of them
+  // whoever went keeps
+  const key = getPlaceKey(party.at)
+  const weather = events.flatMap((met) => (met.outcome.weather ? [met.outcome.weather] : []))
+  const passing = key && weather.length > 0 ? { ...t.exploration.passing, [key]: [...(t.exploration.passing[key] ?? []), ...weather] } : t.exploration.passing
+  const met = party.at ? events.map((e) => getEventKey(party.at!.map, e.owner, e.event)) : []
+  const known = { ...t.exploration.known, ...Object.fromEntries(going.map((id) => [id, [...new Set([...(t.exploration.known[id] ?? []), ...met])]])) }
   return done(
-    { campaign: { ...state, characters }, exploration: { ...t.exploration, piles } },
+    { campaign: { ...state, characters }, exploration: { ...t.exploration, piles, passing, known } },
     {
       result, working: going, moves: outcome.moves && { at: outcome.moves.at, ids: [...going, ...carried] }, found: found.map((i) => i.id),
       task: outcome.task && { kind: group.kind, degree: outcome.task },
@@ -571,7 +621,7 @@ function closeET(t: Exploring, opening: Opening, played: Played): Exploring {
   return {
     campaign: t.campaign,
     exploration: {
-      ...t.exploration, groups, camps, piles, resting: [], casts: {}, opening: null, resolved: {}, pending: null, running: null, calls: {},
+      ...t.exploration, groups, camps, piles, resting: [], casts: {}, opening: null, resolved: {}, pending: null, running: null, passing: {}, calls: {},
       exhaustionRolls: opening.rolls, ...played,
     },
   }

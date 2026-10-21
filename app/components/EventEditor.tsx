@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { Button, CollectionSelect, NumberInput, TextInput, selectClass } from './ui'
-import { EVENT_TYPES, EventTestSchema, type EventOutcome, type EventResult, type EventTest, type Wear } from '../domain/campaign/types'
+import { EVENT_TYPES, EventTestSchema, PlaceChangeSchema, TERRAIN_TAGS, type EventOutcome, type EventResult, type EventTest, type PlaceChange, type TerrainTag, type Wear } from '../domain/campaign/types'
 import { SkillKeySchema, type Degree } from '../domain/types'
 import type { EventView } from '../domain/campaign/projections/map'
 import type { EventCommand } from '../domain/campaign/commands/eventRegistry'
@@ -70,6 +70,13 @@ export function EventEditor({ event, edit, placed, path, remove, children }: {
               <Button size='xs' variant='ghost' aria-label={`${event.name} remove stage`} onClick={() => { edit({ kind: 'removeStage', args: [index] }); setOpen(0) }}>remove stage</Button>
               : null}
           </div>
+          <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+            <label className='text-xs text-muted flex items-center gap-1'>
+              <input type='checkbox' aria-label={`${event.name} shelter`} checked={stage.shelter !== null}
+                onChange={(e) => edit({ kind: 'setStage', args: [index, { shelter: e.target.checked ? PlaceChangeSchema.parse({}) : null }] })} />a shelter to camp in
+            </label>
+            {stage.shelter ? <PlaceChangeInputs label={`${event.name} shelter`} change={stage.shelter} set={(shelter) => edit({ kind: 'setStage', args: [index, { shelter }] })} /> : null}
+          </div>
           {DEGREES_SHOWN.map((degree) => (
             <OutcomeEditor key={degree} event={event} index={index} degree={degree} path={path ?? false} edit={edit} />
           ))}
@@ -103,6 +110,12 @@ function OutcomeEditor({ event, index, degree, path, edit }: { event: EventView,
           </label>
           : null}
         <WearInputs label={name} wear={outcome.wear} set={(wear) => set({ wear })} />
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
+        <label className='text-xs text-muted flex items-center gap-1'>
+          <input type='checkbox' aria-label={`${name} weather`} checked={outcome.weather !== null} onChange={(e) => set({ weather: e.target.checked ? PlaceChangeSchema.parse({}) : null })} />weather this ET
+        </label>
+        {outcome.weather ? <PlaceChangeInputs label={`${name} weather`} change={outcome.weather} set={(weather) => set({ weather })} /> : null}
       </div>
       <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
         <span className='text-xs text-muted'>finds</span>
@@ -154,6 +167,29 @@ export function WearInputs({ label, wear, set }: { label: string, wear: Wear, se
           <span className='text-xs text-muted'>{key}</span>
           <NumberInput className='w-10' aria-label={`${label} wear ${key}`} value={wear[key]} onChange={(e) => set({ ...wear, [key]: parseInt(e.target.value) || 0 })} />
         </span>
+      ))}
+    </>
+  )
+}
+
+// What a change does to a place: its exposure set to a value (left empty, it
+// is raised by the other number instead), and each tag added, taken away, or
+// left as it is.
+function PlaceChangeInputs({ label, change, set }: { label: string, change: PlaceChange, set: (change: PlaceChange) => void }) {
+  const cycle = (tag: TerrainTag): PlaceChange => (change.add.includes(tag)
+    ? { ...change, add: change.add.filter((t) => t !== tag), remove: [...change.remove, tag] }
+    : change.remove.includes(tag) ? { ...change, remove: change.remove.filter((t) => t !== tag) } : { ...change, add: [...change.add, tag] })
+  return (
+    <>
+      <span className='text-xs text-muted'>exposure =</span>
+      <NumberInput className='w-10' aria-label={`${label} exposure`} value={change.exposure ?? ''} onChange={(e) => set({ ...change, exposure: e.target.value === '' ? null : parseInt(e.target.value) || 0 })} />
+      <span className='text-xs text-muted'>or +</span>
+      <NumberInput className='w-10' aria-label={`${label} raise`} disabled={change.exposure !== null} value={change.raise} onChange={(e) => set({ ...change, raise: parseInt(e.target.value) || 0 })} />
+      {TERRAIN_TAGS.map((tag) => (
+        <Button key={tag} size='xs' variant='ghost' selected={change.add.includes(tag) || change.remove.includes(tag)} aria-label={`${label} ${tag}`}
+          title='click: add it, again: keep it out, again: leave it' onClick={() => set(cycle(tag))}>
+          {change.add.includes(tag) ? `+${tag}` : change.remove.includes(tag) ? `−${tag}` : tag}
+        </Button>
       ))}
     </>
   )

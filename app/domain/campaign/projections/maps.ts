@@ -1,5 +1,6 @@
 import type { At, CampaignState, CrawlMap } from '../types'
 import { perState } from '../../perState'
+import { getPlaceKey } from '../rules/place'
 
 export type CampaignMapView = { id: string; name: string; nodes: number; parties: string[] }
 
@@ -8,9 +9,7 @@ export type NodeOption = { key: string; name: string; at: At }
 export type MapOptions = { id: string; name: string; nodes: NodeOption[] }
 
 // The key a picker of nodes knows the place by; none off the map.
-export function getPlaceKey(at: At | null): string {
-  return at ? `${at.map}/${at.node}` : ''
-}
+export { getPlaceKey }
 
 // The campaign's own maps, each with how many nodes it has and the parties
 // standing on it.

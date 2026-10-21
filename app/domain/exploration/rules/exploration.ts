@@ -1,7 +1,7 @@
 import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Degree } from '../../types'
 import type { ExplorationAction } from '../../lists'
-import type { CampaignState, Party } from '../../campaign/types'
+import type { CampaignState, Party, PlaceChange } from '../../campaign/types'
 import type { Camp, Exploring, Group, GroupKind } from '../types'
 import { CampSchema } from '../types'
 import type { Test } from '../../play/test'
@@ -11,7 +11,9 @@ import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getClockOf, getDay, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar, isNight } from '../../campaign/rules/clock'
-import { getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, isOutsideSettlement, isPartyAway, isSamePlace } from '../../campaign/rules/place'
+import { changePlace, getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, getPlaceKey, isOutsideSettlement, isPartyAway, isSamePlace, type PlaceNow } from '../../campaign/rules/place'
+import { getEvent } from '../../campaign/rules/events'
+import { getStage } from './events'
 import type { Actor } from '../../profiles'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
@@ -49,22 +51,66 @@ export function getCamp(t: Exploring, partyId: string): Camp {
   return camp && isSamePlace(camp, { at }) ? camp : CampSchema.parse({ at })
 }
 
+// The shelter event the party's camp stands in, in the stage it is in, if
+// that stage is a shelter.
+export function getCampShelter(t: Exploring, partyId: string): { id: string; name: string; change: PlaceChange } | null {
+  const camp = getCamp(t, partyId)
+  const event = camp.in ? getPlace(t.campaign, t.campaign.parties[partyId])?.node.events[camp.in] : undefined
+  const change = event ? getStage(event)?.shelter : null
+  return camp.in && event && change ? { id: camp.in, name: getEvent(event).name, change } : null
+}
+
+// survival.tex "Terrain": what the place the party stands on is like now:
+// its terrain (off the map, the exposure the table enters), then the weather
+// the table calls on it, then what events brought on it this ET, then the
+// shelter the camp stands in, which keeps out what it keeps out.
+export function getPlaceNow(t: Exploring, partyId: string): PlaceNow {
+  const party = t.campaign.parties[partyId]
+  const terrain = getPlace(t.campaign, party)?.terrain ?? null
+  const key = getPlaceKey(party.at)
+  const shelter = getCampShelter(t, partyId)
+  const changes = [
+    ...(key && t.exploration.weather[key] ? [t.exploration.weather[key]] : []),
+    ...(key ? t.exploration.passing[key] ?? [] : []),
+    ...(shelter ? [shelter.change] : []),
+  ]
+  return changes.reduce(changePlace, { exposure: getExposure(t.campaign, party), tags: terrain ? terrain.tags : null })
+}
+
 // survival.tex "Terrain tags": "wood: allows looking for firewood"; off the
 // map nothing says otherwise.
-export function hasWood(state: CampaignState, party: Party): boolean {
-  const terrain = getPlace(state, party)?.terrain
-  return !terrain || terrain.tags.includes('wood')
+export function hasWood(t: Exploring, partyId: string): boolean {
+  const { tags } = getPlaceNow(t, partyId)
+  return !tags || tags.includes('wood')
 }
 
 // survival.tex "Shelter": "improves the exposure for resting by 1 on a hit
 // and by 2 on a crit"; "Campfire": "reduces exposure to cold and insects by
-// 1", on terrain tagged with either; off the map, on any.
+// 1", on ground tagged with either; off the map, on any.
 export function getRestExposure(t: Exploring, partyId: string): number {
-  const party = t.campaign.parties[partyId]
   const camp = getCamp(t, partyId)
-  const terrain = getPlace(t.campaign, party)?.terrain
-  const warms = !terrain || terrain.tags.includes('cold') || terrain.tags.includes('insects')
-  return Math.max(0, getExposure(t.campaign, party) - camp.shelter - (camp.fire && warms ? 1 : 0))
+  const { exposure, tags } = getPlaceNow(t, partyId)
+  const warms = !tags || tags.includes('cold') || tags.includes('insects')
+  return Math.max(0, exposure - camp.shelter - (camp.fire && warms ? 1 : 0))
+}
+
+// The shelters of the node the party may camp in: one a plan of the party
+// found this ET (a hit or better against it), and the one it camps in.
+export function getShelters(t: Exploring, partyId: string): { id: string; name: string; in: boolean }[] {
+  const party = t.campaign.parties[partyId]
+  const place = getPlace(t.campaign, party)
+  if (!place) return []
+  const camp = getCamp(t, partyId)
+  const found = new Set(Object.values(t.exploration.resolved[partyId] ?? {}).flatMap((r) =>
+    (r.result?.events ?? []).filter((e) => e.owner.kind === 'node' && e.owner.id === place.id && (e.degree === 'hit' || e.degree === 'critical')).map((e) => e.event)))
+  return Object.entries(place.node.events)
+    .filter(([id, event]) => getStage(event)?.shelter && (found.has(id) || camp.in === id))
+    .map(([id, event]) => ({ id, name: getEvent(event).name, in: camp.in === id }))
+}
+
+// Whether anyone of `ids` has met the event before.
+export function knowsEvent(t: Exploring, ids: string[], key: string): boolean {
+  return ids.some((id) => t.exploration.known[id]?.includes(key))
 }
 
 // survival.tex "Rest": "Resting only heals 3 times per day. Any further

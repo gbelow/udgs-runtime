@@ -1,4 +1,4 @@
-import type { At, CampaignState, Connection, CrawlMap, CrawlNode, Party, PathEvent, Terrain, Wear } from '../types'
+import type { At, CampaignState, Connection, CrawlMap, CrawlNode, EventOwner, Party, PathEvent, PlaceChange, Terrain, TerrainTag, Wear } from '../types'
 import { WearSchema } from '../types'
 import { isDead } from '../../character/rules/afflictions'
 import { getNodeTerrain } from './terrain'
@@ -22,6 +22,26 @@ export function getPartiesOn(state: CampaignState, mapId: string): Record<string
 
 // Whether the two stand on the same node of the same map, or are both off
 // the map.
+// What a place is like once a change is made to it: its exposure set, or
+// raised, and its tags added to and taken away from; off the map, where no
+// tags are kept, only the exposure changes.
+export type PlaceNow = { exposure: number; tags: TerrainTag[] | null }
+
+export function changePlace(place: PlaceNow, change: PlaceChange): PlaceNow {
+  const tags = place.tags && [...new Set([...place.tags, ...change.add])].filter((tag) => !change.remove.includes(tag))
+  return { exposure: change.exposure ?? place.exposure + change.raise, tags }
+}
+
+// A place by one string, '' off the map.
+export function getPlaceKey(at: At | null): string {
+  return at ? `${at.map}/${at.node}` : ''
+}
+
+// An event of a map by one string: the place it is on, or the path.
+export function getEventKey(map: string, owner: EventOwner, id: string): string {
+  return `${map}/${owner.kind}/${owner.id}/${id}`
+}
+
 export function isSamePlace(a: { at: At | null }, b: { at: At | null }): boolean {
   return a.at?.map === b.at?.map && a.at?.node === b.at?.node
 }
