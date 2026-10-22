@@ -361,24 +361,38 @@ export function resolveDL(c: Character, dl: string, roll: string): ResolvedTest 
   }
 }
 
-export function resolveTest(c: Character, spell: Spell): ResolvedTest | null {
-  return spell.test ? resolveDL(c, spell.test.dl, spell.test.roll) : null
+export function resolveTest(c: Character, key: SpellKey): ResolvedTest | null {
+  const test = getSpellTest(key)
+  return test ? resolveDL(c, test.dl, test.roll) : null
 }
 
-// The skill the spell's targets test with, as the book words the test
-// ("Charisma vs will"), the first named; null when it names none the sheet
-// has.
+// What the spell leaves its target to test, as the book words it: the spell's
+// own test, or the one the morale effect it carries forces. `roll` is the
+// target's skill and `plus` what the book adds to it; `enhance` is what one
+// "Enhance Spell" adds to the DL.
+type TargetTest = { dl: string; roll: string; plus: string[]; enhance: number }
+
+export function getSpellTest(key: SpellKey): TargetTest | null {
+  const { test, morale } = SPELLS[key]
+  if (morale?.resist) return { dl: morale.resist.dl, roll: morale.resist.roll, plus: morale.resist.plus ? [morale.resist.plus] : [], enhance: morale.resist.enhance }
+  if (!test) return null
+  const [roll, ...plus] = test.roll.split('+').map((t) => t.trim())
+  return { dl: test.dl, roll, plus: plus.filter(Boolean), enhance: 0 }
+}
+
+// The skill the spell's targets test with ("Charisma vs will"); null when it
+// names none the sheet has.
 export function getSpellTestRoll(key: SpellKey): keyof Skills | null {
-  const roll = (SPELLS[key].test?.roll ?? '').split('+')[0].trim()
+  const roll = getSpellTest(key)?.roll ?? ''
   return roll in skillTermGetters ? roll as keyof Skills : null
 }
 
 // What the book adds to the target's side of the test, the caster's
 // (spells.tex "Pacify": "will + Charisma"), or a number ("health + 2").
 export function getSpellTestAddedTerms(caster: Character, key: SpellKey): Term[] {
-  const test = SPELLS[key].test
+  const test = getSpellTest(key)
   if (!test) return []
-  return test.roll.split('+').slice(1).map((t) => t.trim()).filter(Boolean)
+  return test.plus
     .map((label) => ({ label: /^\d+$/.test(label) ? label : `caster's ${label}`, value: resolveDL(caster, label, test.roll).value ?? 0 }))
 }
 

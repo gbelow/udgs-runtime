@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -1225,6 +1225,20 @@ export type SpellScales = z.infer<typeof SpellScalesSchema>
 
 const NO_SCALES = { damage: false, area: false, reach: false }
 
+// combat.tex "Morale": a spell that puts its target to the morale test at
+// once. `taunt` leaves the target enraged instead of afraid; `compels` is the
+// limit stress action a miss activates in place of the target's own
+// ('suggested': the one the caster picked), `constraint` what it binds it to;
+// `pacify` is a test the target remakes to be rid of fear and anger, and
+// activates nothing.
+export const MoraleEffectSchema = z.object({
+  taunt: z.boolean().default(false),
+  compels: z.enum([...LIMIT_STRESS_ACTIONS, 'suggested']).nullable().default(null),
+  constraint: z.enum(COMPULSION_CONSTRAINTS).nullable().default(null),
+  pacify: z.boolean().default(false),
+}).strip()
+export type MoraleEffect = z.infer<typeof MoraleEffectSchema>
+
 // What a spell does, one effect at a time, each with its own reach: who it
 // lands on (the caster, the one target, everyone in an area), how far the
 // caster can put it (metres; null is touch or self), the area it
@@ -1235,7 +1249,9 @@ const NO_SCALES = { damage: false, area: false, reach: false }
 // target until something resolves it (spells.tex "Curse"). `count` is how
 // many the caster may aim a target effect at ("up to 10 creatures"), and
 // `enhance` what one "Enhance Spell" adds to its number: a heal's amount, a
-// buff's value.
+// buff's value. A test's `plus` is what the book adds to the
+// target's side ("will + Charisma"), and its `enhance` what one "Enhance
+// Spell" adds to the DL.
 const SpellEffectEnvelope = {
   target: z.enum(['self', 'target', 'area']).default('target'),
   count: num.default(1),
@@ -1243,7 +1259,7 @@ const SpellEffectEnvelope = {
   range: num.nullable().default(null),
   area: AreaSchema.nullable().default(null),
   scales: SpellScalesSchema.default(NO_SCALES),
-  resist: z.object({ dl: str.default(''), roll: SkillKeySchema }).strip().nullable().default(null),
+  resist: z.object({ dl: str.default(''), roll: SkillKeySchema, plus: str.default(''), enhance: num.default(0) }).strip().nullable().default(null),
   duration: z.enum(['instant', 'held', 'locked']).default('instant'),
 }
 export const SpellEffectSchema = z.discriminatedUnion('type', [
@@ -1267,6 +1283,15 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('spirit'), effect: z.object({}).strip().default({}) }).strip(),
 ])
 export type SpellEffect = z.infer<typeof SpellEffectSchema>
+
+// combat.tex "Morale": the test it forces is the target's own morale test,
+// opened in the fight (scene/rules/moraleSpell.ts), so nothing is delivered
+// and it is not a SpellEffect.
+// `minds` is everyone within the caster's active synesthesia or under their
+// telepathic link.
+export const MoraleSpellEffectSchema = z.object({ ...EffectBase, ...SpellEffectEnvelope, target: z.enum(['target', 'minds']).default('target'), type: z.literal('morale'), effect: MoraleEffectSchema }).strip()
+export type MoraleSpellEffect = z.infer<typeof MoraleSpellEffectSchema>
+export const CatalogEffectSchema = z.discriminatedUnion('type', [...SpellEffectSchema.options, MoraleSpellEffectSchema])
 
 // An effect one degree of the spell's test lets through. The cast decided
 // who it reaches and the test whether it lands, so it carries neither —
@@ -1359,7 +1384,7 @@ export const SpellSchema = z.object({
   // outcome; an effect the target dodges carries its own `resist` instead
   test: SpellTestSchema.nullable().default(null),
   outcomes: SpellOutcomesSchema.nullable().default(null),
-  effects: z.array(SpellEffectSchema).default([]),
+  effects: z.array(CatalogEffectSchema).default([]),
 }).strip()
 export type SpellInput = z.input<typeof SpellSchema>
 export type Spell = z.infer<typeof SpellSchema>

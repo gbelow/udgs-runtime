@@ -287,6 +287,10 @@ export type ChaseCover = (typeof CHASE_COVERS)[number]
 export const LIMIT_STRESS_ACTIONS = ['coward', 'violent', 'tanatosis', 'abusive', 'traitor', 'martyr'] as const
 export type LimitStressAction = (typeof LIMIT_STRESS_ACTIONS)[number]
 
+// combat.tex "Compulsions": what a spell may bind a compelled action to —
+// attacking its caster, or running from them.
+export const COMPULSION_CONSTRAINTS = ['attack', 'flee'] as const
+
 // story.tex "Cost of Living": the living standards, poorest first.
 export const LIVING_LEVELS = ['miserable', 'poor', 'medium', 'rich', 'lavish'] as const
 export type LivingLevel = (typeof LIVING_LEVELS)[number]

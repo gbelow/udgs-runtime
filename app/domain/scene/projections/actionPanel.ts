@@ -443,7 +443,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       extend: cast ? { times: cast.extend, DL: cast.extend * EXTEND.DL } : null,
       castItemId: gear?.itemId ?? '',
       chargeItemId: gear?.chargeItemId ?? '',
-      suggestion: cast && getMoraleSpell(cast.key)?.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,
+      suggestion: cast && getMoraleSpell(cast.key)?.effect.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       mode: open.kind === 'move' ? open.mode : 'normal',

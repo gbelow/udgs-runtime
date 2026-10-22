@@ -1,5 +1,4 @@
-import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type ChaseTier, type FootprintPreset, type LimitStressAction, type LivingLevel } from './lists'
-import type { SpellKey } from './spells'
+import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type ChaseTier, type FootprintPreset, type LivingLevel } from './lists'
 import type { AfflictionKey, Coord, Degree, Fuel, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
@@ -466,32 +465,6 @@ export const SOCIAL_BONUS = 1
 // the morale test DL by +1 for the team".
 export const PRESSURE_KINDS = ['intimidate', 'taunt', 'rally', 'insult'] as const
 export const INSULT_BONUS = 1
-
-// spells.tex, the Animancy spells whose test is a morale test (combat.tex
-// "Morale"). `reach`: the one aimed at, within `range` metres, or everyone
-// within the caster's active synesthesia or under their telepathic link (the
-// table's ruling: the cast range printed for those is not theirs). `taunt`
-// leaves the target enraged instead of afraid; `compels` is the limit stress
-// action a miss activates in place of the target's own ('suggested': the one
-// the caster picked), `constraint` what it binds it to; `pacify` is a test the
-// target remakes to be rid of fear and anger, and activates nothing.
-export type MoraleSpell = {
-  reach: 'target' | 'minds'
-  range: number | null
-  taunt: boolean
-  compels: LimitStressAction | 'suggested' | null
-  constraint: 'attack' | 'flee' | null
-  pacify: boolean
-}
-const SINGLE = { reach: 'target', range: 15, taunt: false, compels: null, constraint: null, pacify: false } as const
-export const MORALE_SPELLS: Partial<Record<SpellKey, MoraleSpell>> = {
-  frighten: SINGLE,
-  offend: { ...SINGLE, taunt: true },
-  pacify: { ...SINGLE, pacify: true },
-  suggestion: { ...SINGLE, compels: 'suggested' },
-  'overwhelming-terror': { reach: 'minds', range: null, taunt: false, compels: 'coward', constraint: 'flee', pacify: false },
-  'provocative-mockery': { reach: 'minds', range: null, taunt: true, compels: 'violent', constraint: 'attack', pacify: false },
-}
 
 // spells.tex "Spiritual Strike": a blow to the spirit, whoever launches it.
 // The target tests SPI + `SM`xSM against the attacker's SPI + `SM`xSM; the

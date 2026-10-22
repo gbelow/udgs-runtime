@@ -4,7 +4,7 @@ import type { CastPlan } from '../types'
 import type { Test } from '../../play/test'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { SPELL_MODIFICATIONS } from '../../tables'
-import { getCastingDL, getSpellSkill, getSpellTestAddedTerms, getSpellTestRoll, getUnmetCastLabel, hasChargeTarget, isCastOverETs, resolveDL } from '../../character/rules/spells'
+import { getCastingDL, getSpellSkill, getSpellTest, getSpellTestAddedTerms, getSpellTestRoll, getUnmetCastLabel, hasChargeTarget, isCastOverETs, resolveDL } from '../../character/rules/spells'
 import { enhanceEffect, getSpellEffects, produceSpellEffect } from '../../character/rules/production'
 import { getTestRollTerms } from '../../character/rules/spirit'
 import { sumTerms } from '../../character/rules/terms'
@@ -43,7 +43,7 @@ function getAimedEffects(key: SpellKey): SpellEffect[] {
 
 export function getETCastCount(key: SpellKey): number {
   if (SPELLS[key].type === 'charged') return 0
-  return Math.max(SPELLS[key].test ? 1 : 0, ...getAimedEffects(key).map((e) => e.count))
+  return Math.max(getSpellTest(key) ? 1 : 0, ...getAimedEffects(key).map((e) => e.count))
 }
 
 // The heal the spell puts on its target, which the plan may have to name a
@@ -72,7 +72,7 @@ export function hasPlannedLimb(caster: Character, target: Character | undefined,
 
 // Whether "Enhance Spell" adds anything to what the spell does.
 export function isEnhanceable(key: SpellKey): boolean {
-  return SPELLS[key].effects.some((e) => e.enhance !== 0)
+  return SPELLS[key].effects.some((e) => e.enhance !== 0) || !!getSpellTest(key)?.enhance
 }
 
 // The casting test: the caster's skill with the spell against its DL; the
@@ -127,16 +127,17 @@ export function getETRestBonus(key: SpellKey, enhance: number): number {
 // Whether the table has to enter the DL of the target's test: the book
 // names one the domain cannot work out ("poison DL").
 export function entersTargetDL(caster: Character, key: SpellKey): boolean {
-  const test = SPELLS[key].test
+  const test = getSpellTest(key)
   return !!test && getSpellTestRoll(key) !== null && resolveDL(caster, test.dl, test.roll).extra !== ''
 }
 
 // spells.tex "Immune modulation": the test the spell lets its target make,
-// against its DL as the caster sets it, or the one the table entered.
-export function getETTargetTest(caster: Character, target: Character, key: SpellKey, entered: number): Test | null {
+// against its DL as the caster sets it, or the one the table entered, raised
+// by each enhancement bought.
+export function getETTargetTest(caster: Character, target: Character, key: SpellKey, entered: number, enhance: number): Test | null {
   const roll = getSpellTestRoll(key)
-  const test = SPELLS[key].test
+  const test = getSpellTest(key)
   if (!roll || !test) return null
-  const DL = entersTargetDL(caster, key) ? entered : resolveDL(caster, test.dl, test.roll).value ?? 0
+  const DL = (entersTargetDL(caster, key) ? entered : resolveDL(caster, test.dl, test.roll).value ?? 0) + test.enhance * enhance
   return { skill: sumTerms([...getTestRollTerms(target, roll), ...getSpellTestAddedTerms(caster, key)]), DL, explodes: false, scale: 'degrees' }
 }

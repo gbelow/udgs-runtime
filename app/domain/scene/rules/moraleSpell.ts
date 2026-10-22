@@ -1,6 +1,6 @@
 import { LIMIT_STRESS_ACTIONS, type LimitStressAction } from '../../lists'
-import { MORALE_SPELLS, type MoraleSpell } from '../../tables'
-import { isSpellKey } from '../../spells'
+import type { MoraleEffect, MoraleSpellEffect } from '../../types'
+import { SPELLS, isSpellKey } from '../../spells'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { getLinkSpell } from '../../character/rules/concentration'
 import type { CastAction, MoraleSpellOutcome, SceneState, SpellTestAction } from '../types'
@@ -11,8 +11,8 @@ import { getSenseReaches } from './detection'
 import { getMoraleOutcome } from './morale'
 import { getSituationalAfflictions } from './situational'
 
-export function getMoraleSpell(key: string): MoraleSpell | null {
-  return isSpellKey(key) ? MORALE_SPELLS[key] ?? null : null
+export function getMoraleSpell(key: string): MoraleSpellEffect | null {
+  return isSpellKey(key) ? SPELLS[key].morale : null
 }
 
 // The dead make no morale test.
@@ -28,7 +28,7 @@ function isDeadIn(state: SceneState, id: string): boolean {
 export function getMoraleSpellTargets(state: SceneState, root: CastAction): string[] {
   const spell = getMoraleSpell(root.key)
   if (!spell || !isSpellKey(root.key)) return []
-  if (spell.reach === 'target') return root.targetId && !isDeadIn(state, root.targetId) ? [root.targetId] : []
+  if (spell.target === 'target') return root.targetId && !isDeadIn(state, root.targetId) ? [root.targetId] : []
   const link = getLinkSpell(root.key)
   const linked = link ? getLinkedTargets(state, root.actorId, link) : []
   return Object.keys(state.characters).filter((id) => id !== root.actorId && !isDeadIn(state, id)
@@ -57,20 +57,20 @@ export function canAimMoraleSpell(state: SceneState, root: CastAction, targetId:
   if (!spell) return true
   const distance = getDistanceBetween(state, root.actorId, targetId)
   const inRange = spell.range === null || distance === null || distance <= spell.range
-  return inRange && (spell.compels !== 'suggested' || getSuggestible(state, targetId).length > 0)
+  return inRange && (spell.effect.compels !== 'suggested' || getSuggestible(state, targetId).length > 0)
 }
 
 // spells.tex "Suggestion": the declaration is not whole until it names a
 // limit stress action the target may be given.
 export function isSuggestionComplete(state: SceneState, root: CastAction): boolean {
-  if (getMoraleSpell(root.key)?.compels !== 'suggested') return true
+  if (getMoraleSpell(root.key)?.effect.compels !== 'suggested') return true
   return !!root.targetId && root.suggested !== null && getSuggestible(state, root.targetId).includes(root.suggested)
 }
 
 // The limit stress action a miss on the spell's test activates: the one the
 // spell names, the one suggested, or the target's own — a martyr the test
 // leaves enraged being violent (creating.tex "Limit Stress Actions").
-function getCompelled(state: SceneState, test: SpellTestAction, spell: MoraleSpell, inflicted: string[]): LimitStressAction | null {
+function getCompelled(state: SceneState, test: SpellTestAction, spell: MoraleEffect, inflicted: string[]): LimitStressAction | null {
   if (spell.compels === 'suggested') {
     const cast = test.spawnedBy ? getAction(state, test.spawnedBy) : null
     return cast?.kind === 'cast' ? cast.suggested : null
@@ -86,8 +86,9 @@ function getCompelled(state: SceneState, test: SpellTestAction, spell: MoraleSpe
 // a hit or better rids the target of fear and anger and takes back a limit
 // stress action they still owe; anything less does nothing.
 export function getMoraleSpellOutcome(state: SceneState, test: SpellTestAction): MoraleSpellOutcome | null {
-  const spell = getMoraleSpell(test.key)
-  if (!spell || !test.targetId || (!test.roll && !test.accepted)) return null
+  const morale = getMoraleSpell(test.key)
+  if (!morale || !test.targetId || (!test.roll && !test.accepted)) return null
+  const spell = morale.effect
   const degree = test.accepted || !test.roll ? 'miss' : test.roll.degree
   const beaten = degree === 'hit' || degree === 'critical'
   if (spell.pacify) {

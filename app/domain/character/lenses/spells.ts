@@ -129,7 +129,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         miracle: getMiracleSkill(c, key),
         DL,
         hitAt,
-        test: resolveTest(c, spell),
+        test: resolveTest(c, key),
         effects: getSpellEffectRows(c, key),
         outcomes: spell.outcomes === null ? [] :
           DEGREES.filter((d) => spell.outcomes![d].text).map((d) => ({ degree: d, text: spell.outcomes![d].text })),

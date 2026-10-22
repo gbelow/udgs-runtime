@@ -436,7 +436,9 @@
         },
         "resist": {
           "dl": "Accuracy",
-          "roll": "reflex"
+          "roll": "reflex",
+          "plus": "",
+          "enhance": 0
         },
         "duration": "held",
         "fromGear": 1
@@ -706,7 +708,9 @@
         },
         "resist": {
           "dl": "Accuracy",
-          "roll": "reflex"
+          "roll": "reflex",
+          "plus": "",
+          "enhance": 0
         },
         "duration": "held",
         "fromGear": 2.5
@@ -961,7 +965,9 @@
         },
         "resist": {
           "dl": "Accuracy",
-          "roll": "reflex"
+          "roll": "reflex",
+          "plus": "",
+          "enhance": 0
         },
         "duration": "held",
         "fromGear": null
@@ -1333,7 +1339,9 @@
         },
         "resist": {
           "dl": "Charisma",
-          "roll": "will"
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
         },
         "duration": "locked"
       }
@@ -1489,10 +1497,7 @@
     "durationETs": 0,
     "description": "Allows the target to remake a morale test and get rid of afraid and enraged.",
     "enhance": "",
-    "test": {
-      "dl": "morale aggravators",
-      "roll": "will + Charisma"
-    },
+    "test": null,
     "outcomes": {
       "miss": {
         "text": "nothing",
@@ -1511,7 +1516,36 @@
         "effects": []
       }
     },
-    "effects": []
+    "effects": [
+      {
+        "name": "Pacify",
+        "trigger": "instant",
+        "type": "morale",
+        "count": 1,
+        "enhance": 0,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "duration": "instant",
+        "effect": {
+          "taunt": false,
+          "compels": null,
+          "constraint": null,
+          "pacify": true
+        },
+        "target": "target",
+        "range": 15,
+        "resist": {
+          "dl": "morale aggravators",
+          "roll": "will",
+          "plus": "Charisma",
+          "enhance": 0
+        }
+      }
+    ]
   },
   "frighten": {
     "name": "Frighten",
@@ -1547,12 +1581,38 @@
     "durationETs": 0,
     "description": "A psychic intimidate that triggers an immediate morale test.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma + morale aggravators",
-      "roll": "will"
-    },
+    "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Frighten",
+        "trigger": "instant",
+        "type": "morale",
+        "count": 1,
+        "enhance": 0,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "duration": "instant",
+        "effect": {
+          "taunt": false,
+          "compels": null,
+          "constraint": null,
+          "pacify": false
+        },
+        "target": "target",
+        "range": 15,
+        "resist": {
+          "dl": "Charisma + morale aggravators",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        }
+      }
+    ]
   },
   "offend": {
     "name": "Offend",
@@ -1588,12 +1648,38 @@
     "durationETs": 0,
     "description": "A psychic taunt that triggers an immediate morale test that makes the target enraged.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma + morale aggravators",
-      "roll": "will"
-    },
+    "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Offend",
+        "trigger": "instant",
+        "type": "morale",
+        "count": 1,
+        "enhance": 0,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "duration": "instant",
+        "effect": {
+          "taunt": true,
+          "compels": null,
+          "constraint": null,
+          "pacify": false
+        },
+        "target": "target",
+        "range": 15,
+        "resist": {
+          "dl": "Charisma + morale aggravators",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        }
+      }
+    ]
   },
   "suggestion": {
     "name": "Suggestion",
@@ -1629,12 +1715,38 @@
     "durationETs": 0,
     "description": "Tells a creature that can hear and understand the words and is confused, enraged, or afraid to do something, which triggers an immediate morale test. The limit stress actions triggered can be either the target's natural one or violent when enraged, coward when afraid and all to confused. The exact action being suggested must match the available limit stress actions.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma + morale aggravators",
-      "roll": "will"
-    },
+    "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Suggestion",
+        "trigger": "instant",
+        "type": "morale",
+        "count": 1,
+        "enhance": 0,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "duration": "instant",
+        "effect": {
+          "taunt": false,
+          "compels": "suggested",
+          "constraint": null,
+          "pacify": false
+        },
+        "target": "target",
+        "range": 15,
+        "resist": {
+          "dl": "Charisma + morale aggravators",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        }
+      }
+    ]
   },
   "overwhelming-terror": {
     "name": "Overwhelming Terror",
@@ -1680,12 +1792,38 @@
     "durationETs": 0,
     "description": "Intimidates and forces an immediate morale test on all targets within range of active synesthesia or under the effect of telepathic link. They are compelled to run away from the caster on a limit stress action.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma + morale aggravators",
-      "roll": "will"
-    },
+    "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Overwhelming Terror",
+        "trigger": "instant",
+        "type": "morale",
+        "count": 1,
+        "enhance": 0,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "duration": "instant",
+        "effect": {
+          "taunt": false,
+          "compels": "coward",
+          "constraint": "flee",
+          "pacify": false
+        },
+        "target": "minds",
+        "range": null,
+        "resist": {
+          "dl": "Charisma + morale aggravators",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        }
+      }
+    ]
   },
   "provocative-mockery": {
     "name": "Provocative Mockery",
@@ -1731,12 +1869,38 @@
     "durationETs": 0,
     "description": "Taunts and forces an immediate morale test on all targets within range of active synesthesia or under the effect of telepathic link. They are compelled to attack the caster on a limit stress action.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma + morale aggravators",
-      "roll": "will"
-    },
+    "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Provocative Mockery",
+        "trigger": "instant",
+        "type": "morale",
+        "count": 1,
+        "enhance": 0,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "duration": "instant",
+        "effect": {
+          "taunt": true,
+          "compels": "violent",
+          "constraint": "attack",
+          "pacify": false
+        },
+        "target": "minds",
+        "range": null,
+        "resist": {
+          "dl": "Charisma + morale aggravators",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        }
+      }
+    ]
   },
   "command": {
     "name": "Command",
@@ -3563,7 +3727,9 @@
         },
         "resist": {
           "dl": "Accuracy",
-          "roll": "reflex"
+          "roll": "reflex",
+          "plus": "",
+          "enhance": 0
         },
         "duration": "instant",
         "fromGear": null
@@ -3647,7 +3813,9 @@
         },
         "resist": {
           "dl": "7",
-          "roll": "reflex"
+          "roll": "reflex",
+          "plus": "",
+          "enhance": 0
         },
         "duration": "instant",
         "fromGear": null

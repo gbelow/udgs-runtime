@@ -108,7 +108,7 @@ export function enhanceEffect<E extends SpellEffect>(effect: E, enhanced: number
 // "Curse"), so the target can read it off the catalog and beat it.
 export function produceSpellEffect(c: Character, effect: SpellEffect, size: number = getSize(c), key: string | null = null, enhanced = 0): Delivery {
   if (effect.type === 'spirit') return produceSpiritAttack(c)
-  const test = effect.resist ? { roll: effect.resist.roll, DL: resolveDL(c, effect.resist.dl, effect.resist.roll).value ?? 0 } : null
+  const test = effect.resist ? { roll: effect.resist.roll, DL: (resolveDL(c, effect.resist.dl, effect.resist.roll).value ?? 0) + effect.resist.enhance * enhanced } : null
   return { effect: bare(c, enhanceEffect(effect, enhanced), size, effect.target === 'area'), degree: test ? null : 'hit', test, when: null, then: [], locks: effect.duration === 'locked' ? key : null }
 }
 

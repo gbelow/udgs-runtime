@@ -518,7 +518,7 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
     const bonus = getETRestBonus(key, bought.enhance)
     const tests: CastResult['tests'] = []
     for (const target of targets) {
-      const theirs = getETTargetTest(caster, state.characters[target], key, plan.DL)
+      const theirs = getETTargetTest(caster, state.characters[target], key, plan.DL, bought.enhance)
       const resisted = theirs ? test({ id: `target:${id}:${target}`, roller: target, label: `against ${base.spell}`, test: theirs }) : null
       if (resisted) tests.push({ name: name(target), roll: toCallRoll(resisted) })
       out.landing[target] = [...(out.landing[target] ?? []), deliverAll(deliveries)]

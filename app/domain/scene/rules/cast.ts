@@ -7,7 +7,7 @@ import { getAction } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTest, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
 import { isSpellActive } from '../../character/rules/effects'
 import { getLinkSpell, mayCastWhileConcentrating } from '../../character/rules/concentration'
@@ -286,7 +286,7 @@ export function isTargeted(root: CastAction): boolean {
 // reaches every mind the caster reaches (rules/moraleSpell.ts).
 function isTargetedSpell(key: SpellKey): boolean {
   const morale = getMoraleSpell(key)
-  if (morale) return morale.reach === 'target'
+  if (morale) return morale.target === 'target'
   const link = getLinkSpell(key)
   if (link !== null) return link === key
   return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key].effects).length > 0
@@ -351,16 +351,20 @@ export function getSpellTestSkillTerms(state: SceneState, action: SpellTestActio
 
 // The caster's side of the test, term by term: the book's "Charisma" resolved
 // for the caster, and the "morale aggravators" the target is under as the
-// fight stands (combat.tex "Morale").
+// fight stands (combat.tex "Morale"), and what the enhancements bought on the
+// cast that opened the test add (spells.tex "Enhance Spell").
 export function getSpellTestDLTerms(state: SceneState, action: SpellTestAction): Term[] {
   const caster = state.characters[action.actorId]
-  const test = isSpellKey(action.key) ? SPELLS[action.key].test : null
+  const test = isSpellKey(action.key) ? getSpellTest(action.key) : null
   if (!caster || !test) return []
+  const cast = test.enhance !== 0 && action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  const enhanced = cast?.kind === 'cast' ? (cast.improved.enhance ?? 0) * test.enhance : 0
   return [
     ...test.dl.split('+').map((t) => t.trim()).filter(Boolean).map((label) => ({
       label,
       value: label === 'morale aggravators' && action.targetId ? getMoraleDL(state, action.targetId) : resolveDL(caster, label, test.roll).value ?? 0,
     })),
+    ...(enhanced ? [{ label: 'enhanced', value: enhanced }] : []),
     ...(action.targetId ? getSensoryTermsOfDL(state, caster.id, test.dl, action.targetId, 'active') : []),
   ]
 }
