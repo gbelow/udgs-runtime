@@ -711,20 +711,19 @@ function closeParty(t: Exploring, partyId: string, opening: Opening, test: Teste
   return { t: split, results, castResults: cast.results, stayResults }
 }
 
-// The ET over: its plans emptied for the next, the groups, camps and piles
-// of parties no longer there dropped, its tests kept to read.
+// The ET over: its plans gone, the groups included, for the next to make anew,
+// the camps and piles of parties no longer there dropped, its tests kept to
+// read.
 type Played = Pick<PartyET, 'results' | 'castResults' | 'stayResults'>
 
 function closeET(t: Exploring, opening: Opening, played: Played): Exploring {
   const here = (pid: string) => pid in t.campaign.parties
-  const groups = Object.fromEntries(Object.entries(t.exploration.groups).filter(([pid]) => here(pid)).map(([pid, gs]) =>
-    [pid, Object.fromEntries(Object.entries(gs).map(([gid, g]) => [gid, { ...g, members: [], roller: null }]))]))
   const camps = Object.fromEntries(Object.entries(t.exploration.camps).filter(([pid]) => here(pid)))
   const piles = Object.fromEntries(Object.entries(t.exploration.piles).filter(([pid, pile]) => here(pid) && pile.length > 0))
   return {
     campaign: t.campaign,
     exploration: {
-      ...t.exploration, groups, camps, piles, resting: [], casts: {}, opening: null, resolved: {}, pending: null, running: null, passing: {}, ambient: {}, calls: {},
+      ...t.exploration, groups: {}, camps, piles, resting: [], casts: {}, opening: null, resolved: {}, pending: null, running: null, passing: {}, ambient: {}, calls: {},
       exhaustionRolls: opening.rolls, ...played,
     },
   }
