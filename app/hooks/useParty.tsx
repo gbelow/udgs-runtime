@@ -1,4 +1,4 @@
-import type { CastPlan, Decision, Exploring, Group, GroupKind } from "../domain/exploration/types";
+import type { CastPlan, Decision, Exploring, GroupKind, GroupSettings } from "../domain/exploration/types";
 import { getMoments, getMomentsDigest, type MomentView } from "../domain/campaign/projections/timeline";
 import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/maps";
 import type { At, Sequence, TerrainTag } from "../domain/campaign/types";
@@ -9,6 +9,7 @@ import { useCampaignRoster } from "./useCampaign";
 import { useSceneCards } from "./useCombatState";
 import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
+import { getExplorationMaps, getExplorationMapsDigest, type ExplorationMapView } from "../domain/exploration/projections/map";
 import { getSaveLogBar } from "../domain/scene/rules/fight";
 import type { TableCommand } from "../domain/scene/commands/tableRegistry";
 import { getSceneMaterials } from "../domain/scene/projections/prepared";
@@ -28,6 +29,13 @@ const exploring = (s: CampaignStore): Exploring & { campaign: CampaignStore } =>
 export function useParties(): PartiesView {
   useCampaignStore((s) => getPartiesDigest(exploring(s)));
   return getPartiesView(exploring(useCampaignStore.getState()));
+}
+
+// The maps the exploring parties stand on, gated on a digest since the view
+// is freshly allocated.
+export function useExplorationMaps(): ExplorationMapView[] {
+  useCampaignStore((s) => getExplorationMapsDigest(exploring(s)));
+  return getExplorationMaps(exploring(useCampaignStore.getState()));
 }
 
 // The moments the parties in play are living, gated on a digest since the
@@ -153,9 +161,9 @@ export function usePartyCommands() {
     setDayETs: (dayETs: number) => send({ kind: "setDayETs", args: [dayETs] }),
     merge: (fromId: string, intoId: string) => send({ kind: "mergeParties", args: [fromId, intoId] }),
     setActive: (partyId: string, active: boolean) => send({ kind: "setPartyActive", args: [partyId, active] }),
-    addGroup: (partyId: string, kind: GroupKind) => explore({ kind: "addGroup", args: [partyId, kind] }),
+    addGroup: (partyId: string, kind: GroupKind, settings: GroupSettings = {}) => explore({ kind: "addGroup", args: [partyId, kind, settings] }),
     removeGroup: (partyId: string, groupId: string) => explore({ kind: "removeGroup", args: [partyId, groupId] }),
-    setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => explore({ kind: "setGroup", args: [partyId, groupId, settings] }),
+    setGroup: (partyId: string, groupId: string, settings: GroupSettings) => explore({ kind: "setGroup", args: [partyId, groupId, settings] }),
     setRoller: (partyId: string, groupId: string, roller: string) => explore({ kind: "setRoller", args: [partyId, groupId, roller] }),
     decide: (id: string, decision: Decision) => explore({ kind: "decide", args: [id, decision] }),
     passET: () => explore({ kind: "passET", args: [] }),

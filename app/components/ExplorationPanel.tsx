@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { Button, NumberInput, SectionLabel, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog } from './RunParts';
-import { useETAnswer, useETCalls, useETDiceBar, useExploration, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
+import { useETAnswer, useETCalls, useETDiceBar, useExploration, useExplorationMaps, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
+import { MapDrawing, type MapSelection } from './MapCanvas';
 import { DieCalls } from './DieCalls';
 import { useActorBar, useGmBar } from '../hooks/useControl';
 import { Locked, LockedFor } from './Locks';
@@ -11,6 +12,7 @@ import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/typ
 import { ROLL_MODES, type RollMode } from '../domain/play/dice';
 import type { CastPanel, MetView, PartiesView, PartyView } from '../domain/exploration/projections/exploration';
 import type { MapOptions } from '../domain/campaign/projections/maps';
+import type { ExplorationMapView } from '../domain/exploration/projections/map';
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
@@ -57,18 +59,71 @@ export function PartyCards(){
     <RosterCatalog>
       <DieCalls rows={calls} answer={answer} />
       <Locked bar={diceBar}>
-      {decisions.length > 0 ?
-        <div className='flex flex-col gap-1 pb-2 border-b border-line'>
-          <SectionLabel>Forced to rest</SectionLabel>
-          {decisions.map((d) => <DecisionRow key={d.id} decision={d} />)}
+      <div className='flex flex-col lg:flex-row gap-3 items-start'>
+        <div className='flex flex-col gap-2 w-full lg:w-auto lg:shrink-0'>
+          {decisions.length > 0 ?
+            <div className='flex flex-col gap-1 pb-2 border-b border-line'>
+              <SectionLabel>Forced to rest</SectionLabel>
+              {decisions.map((d) => <DecisionRow key={d.id} decision={d} />)}
+            </div>
+            : null}
+          {meeting ? <MeetingRows meeting={meeting} /> : null}
+          <div className='flex flex-col gap-2'>
+            {parties.map((party) => <PartyCard key={party.id} party={party} maps={maps} />)}
+          </div>
         </div>
-        : null}
-      {meeting ? <MeetingRows meeting={meeting} /> : null}
-      <div className='flex flex-row flex-wrap gap-2 items-start'>
-        {parties.map((party) => <PartyCard key={party.id} party={party} maps={maps} />)}
+        <PlayMaps />
       </div>
       </Locked>
     </RosterCatalog>
+  )
+}
+
+// survival.tex "Point crawl": the maps the parties explore, for the GM, one
+// at a time; a path picked offers each party at its ends a travel along it.
+function PlayMaps(){
+
+  const maps = useExplorationMaps()
+  const gmBar = useGmBar()
+  const [shown, show] = useState<string | null>(null)
+  const map = maps.find((m) => m.id === shown) ?? maps[0]
+
+  if (gmBar || !map) return null
+
+  return(
+    <div className='flex flex-col gap-1 w-full lg:flex-1 min-w-0'>
+      {maps.length > 1 ?
+        <div className='flex flex-row flex-wrap gap-1'>
+          {maps.map((m) => <Button key={m.id} size='xs' variant='ghost' aria-label={`map ${m.name}`} selected={m.id === map.id} onClick={() => show(m.id)}>{m.name}</Button>)}
+        </div>
+        : <SectionLabel>{map.name}</SectionLabel>}
+      <PlayMap key={map.id} map={map} />
+    </div>
+  )
+}
+
+function PlayMap({ map }: { map: ExplorationMapView }){
+
+  const { addGroup } = usePartyCommands()
+  const [picked, select] = useState<MapSelection>(null)
+  const travels = picked?.kind === 'connection' ? map.travels[picked.id] ?? [] : null
+
+  return(
+    <div className='flex flex-col gap-3'>
+      <MapDrawing graph={map.graph} selected={picked} select={select} marked={map.planned} hint='click a path to travel it · wheel to zoom · drag the ground to pan' />
+      {travels ?
+        <div className='flex flex-col gap-1 w-full lg:w-72 shrink-0'>
+          <SectionLabel>Travel</SectionLabel>
+          {travels.length === 0 ? <span className='text-xs text-muted'>no exploring party stands at either end</span> : null}
+          {travels.map((o) => (
+            <Button key={o.partyId} aria-label={`${o.party} travel to ${o.to}`} disabled={o.planned} title={o.planned ? 'a travel group of the party is set on this path' : undefined}
+              onClick={() => picked && addGroup(o.partyId, 'travel', { target: picked.id })}>
+              {o.party} → {o.to} <span className='text-muted'>· DL {o.DL}{o.planned ? ' · planned' : ''}</span>
+            </Button>
+          ))}
+        </div>
+        : null}
+    </div>
   )
 }
 

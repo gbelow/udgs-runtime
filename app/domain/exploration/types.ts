@@ -28,6 +28,8 @@ export const GroupSchema = z.object({
   tool: z.boolean().default(false),
 })
 export type Group = z.infer<typeof GroupSchema>
+// what the table sets of a group's test
+export type GroupSettings = Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>
 
 // survival.tex "Making camp": what has been set up on the node it stands on;
 // a party elsewhere has none of it. A graze on firewood or the fire leaves

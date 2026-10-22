@@ -55,27 +55,32 @@ export type MapEditorView = {
 }
 
 
+// The map as it is drawn, each node naming the parties in `on` standing on it.
+export function getMapGraph(map: CrawlMap, on: Record<string, Party[]> = {}): MapGraphView {
+  const at = getNodePositions(map)
+  return {
+    width: MAP_WIDTH,
+    height: MAP_HEIGHT,
+    nodes: Object.entries(map.nodes).map(([id, n]) => ({
+      id, name: n.name, ...at[id], terrain: n.terrain, settlement: n.settlement !== null, events: Object.keys(n.events).length, parties: (on[id] ?? []).map((p) => p.name),
+    })),
+    edges: Object.entries(map.connections).flatMap(([id, c]) => {
+      const a = at[c.a], b = at[c.b]
+      return a && b ? [{ id, a: c.a, b: c.b, ax: a.x, ay: a.y, bx: b.x, by: b.y, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, DL: c.DL, backDL: c.backDL, events: Object.keys(c.events).length }] : []
+    }),
+  }
+}
+
 // survival.tex "Creating the point crawl" — the map being made, as lists to
 // edit: each node with what it is made of, each path with the nodes it joins.
 // A node the parties in `on` stand on stays while they are there.
 export function getMapEditorView(map: CrawlMap, on: Record<string, Party[]> = {}): MapEditorView {
   const nodeName = (id: string) => map.nodes[id]?.name ?? id
-  const at = getNodePositions(map)
   const removeBar = (id: string) => (on[id]?.length ? `${on[id].map((p) => p.name).join(', ')} ${on[id].length === 1 ? 'is' : 'are'} on it` : null)
   return {
     name: map.name,
     knowledge: map.knowledge,
-    graph: {
-      width: MAP_WIDTH,
-      height: MAP_HEIGHT,
-      nodes: Object.entries(map.nodes).map(([id, n]) => ({
-        id, name: n.name, ...at[id], terrain: n.terrain, settlement: n.settlement !== null, events: Object.keys(n.events).length, parties: (on[id] ?? []).map((p) => p.name),
-      })),
-      edges: Object.entries(map.connections).flatMap(([id, c]) => {
-        const a = at[c.a], b = at[c.b]
-        return a && b ? [{ id, a: c.a, b: c.b, ax: a.x, ay: a.y, bx: b.x, by: b.y, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, DL: c.DL, backDL: c.backDL, events: Object.keys(c.events).length }] : []
-      }),
-    },
+    graph: getMapGraph(map, on),
     presets: getTerrainPresets(),
     templates: getEventTemplates(),
     nodes: Object.entries(map.nodes).map(([id, n]) => ({

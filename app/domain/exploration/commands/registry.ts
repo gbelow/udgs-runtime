@@ -6,7 +6,7 @@ import type { Actor } from '../../profiles'
 import { commandsOver, playedBy, rollerOf, type CommandOf } from '../../registry'
 import type { CampaignUpdater } from '../../campaign/types'
 import { getGroupActor } from '../rules/exploration'
-import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from '../types'
+import type { CastPlan, Decision, Exploring, ExplorationUpdater, GroupKind, GroupSettings } from '../types'
 import { adjustMet, answerET, campIn, clearWeather, drink, eat, eatFood, passET, readItem, resolvePlan, setOffAmbient, setWeatherRaise, takeFromPile, takeItem, toDowntime, toggleWeatherTag } from './exploration'
 import { addGroup, decide, joinGroup, planCast, removeGroup, setCast, setGroup, setResting, setRoller } from './plans'
 
@@ -36,9 +36,10 @@ export const explorationCommands = {
   takeFromPile: command((_, id: string, partyId: string, itemId: string, containerKey: string, slot: SlotKind) => takeFromPile(partyId, itemId, id, containerKey, slot)).by(own),
 
   // a party's groups, its own business but for the DL, which the GM sets
-  addGroup: command((ctx, partyId: string, kind: GroupKind) => addGroup(partyId, kind, ctx.newId)).by((t, partyId) => getGroupActor(t, partyId)),
+  addGroup: command((ctx, partyId: string, kind: GroupKind, settings: GroupSettings = {}) => addGroup(partyId, kind, ctx.newId, settings))
+    .by((t, partyId, _kind, settings) => getGroupActor(t, partyId, settings)),
   removeGroup: command((_, partyId: string, groupId: string) => removeGroup(partyId, groupId)).by((t, partyId) => getGroupActor(t, partyId)),
-  setGroup: command((_, partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => setGroup(partyId, groupId, settings))
+  setGroup: command((_, partyId: string, groupId: string, settings: GroupSettings) => setGroup(partyId, groupId, settings))
     .by((t, partyId, _groupId, settings) => getGroupActor(t, partyId, settings)),
   setRoller: command((_, partyId: string, groupId: string, roller: string) => setRoller(partyId, groupId, roller)).by((t, partyId) => getGroupActor(t, partyId)),
   // the camp moved into a shelter found, or out of it

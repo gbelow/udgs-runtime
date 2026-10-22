@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from './ui'
 import { useMapEditing } from '../hooks/useMap'
+import type { Point } from '../domain/campaign/rules/layout'
+import type { MapGraphView } from '../domain/campaign/projections/map'
 
 export type MapSelection = { kind: 'node' | 'connection'; id: string } | null
 
@@ -13,26 +15,59 @@ type Drag =
 
 type Box = { x: number; y: number; w: number; h: number }
 
+// What the drawing lets its user change: nodes added and moved, paths drawn
+// from the picked node's handle, and, while `connecting`, a click on another
+// node joining it to the picked one.
+type DrawingEdit = {
+  addNode: (at?: Point) => void
+  moveNode: (id: string, to: Point) => void
+  connect: (a: string, b: string) => void
+  connecting: boolean
+  stopConnecting: () => void
+}
+
 const NODE_R = 26
 const HANDLE_R = 7
 const ZOOM_STEP = 1.2
 const MIN_ZOOM = 0.25
 const MAX_ZOOM = 8
 
-// survival.tex "Creating the point crawl": the map drawn as nodes joined by
-// paths. A click picks a node or a path; a node is dragged to where it sits;
-// a path is made by dragging from the picked node's handle onto another
-// node, or with "connect" and a click on the other. The wheel zooms where
-// the pointer is, and dragging the empty ground pans.
+// survival.tex "Creating the point crawl": the map being made, drawn with
+// the tools to make it beside the zoom.
 export function MapCanvas({ selected, select }: { selected: MapSelection, select: (s: MapSelection) => void }) {
   const { view, addNode, moveNode, addConnection } = useMapEditing()
-  const { graph } = view
+  const [connecting, setConnecting] = useState(false)
+  const edit: DrawingEdit = { addNode, moveNode, connect: (a, b) => addConnection(a, b, 0, 0), connecting, stopConnecting: () => setConnecting(false) }
+  return (
+    <MapDrawing graph={view.graph} selected={selected} select={select} edit={edit}
+      hint='double-click to add a node there · drag a node to move it · drag its handle onto another node to join them · wheel to zoom · drag the ground to pan'
+      tools={<>
+        <Button size='xs' variant='ghost' onClick={() => addNode()}>+ node</Button>
+        <Button size='xs' variant='ghost' selected={connecting} disabled={selected?.kind !== 'node'} onClick={() => setConnecting(!connecting)}>
+          {connecting ? 'click the other node…' : 'connect'}
+        </Button>
+      </>} />
+  )
+}
+
+// survival.tex "Point crawl": the map drawn as nodes joined by paths. A click
+// picks a node or a path, the paths in `marked` drawn out; the wheel zooms
+// where the pointer is, and dragging the empty ground pans. With `edit`, the
+// map is changed on it too.
+export function MapDrawing({ graph, selected, select, marked = [], edit, tools, hint }: {
+  graph: MapGraphView
+  selected: MapSelection
+  select: (s: MapSelection) => void
+  marked?: string[]
+  edit?: DrawingEdit
+  tools?: ReactNode
+  hint: string
+}) {
   const svg = useRef<SVGSVGElement>(null)
   const [drag, show] = useState<Drag | null>(null)
   // read by the pointer handlers, which can fire again before a render
   const current = useRef<Drag | null>(null)
   const setDrag = (d: Drag | null) => { current.current = d; show(d) }
-  const [connecting, setConnecting] = useState(false)
   const fit: Box = { x: 0, y: 0, w: graph.width, h: graph.height }
   const [box, setBox] = useState<Box>(fit)
 
@@ -65,11 +100,12 @@ export function MapCanvas({ selected, select }: { selected: MapSelection, select
 
   const pickNode = (e: React.PointerEvent, id: string) => {
     e.stopPropagation()
-    if (connecting && selected?.kind === 'node' && selected.id !== id) {
-      addConnection(selected.id, id, 0, 0)
-      setConnecting(false)
+    if (edit?.connecting && selected?.kind === 'node' && selected.id !== id) {
+      edit.connect(selected.id, id)
+      edit.stopConnecting()
     }
     select({ kind: 'node', id })
+    if (!edit) return
     const n = graph.nodes.find((n) => n.id === id)!
     svg.current!.setPointerCapture(e.pointerId)
     setDrag({ kind: 'move', id, x: n.x, y: n.y, moved: false })
@@ -94,7 +130,7 @@ export function MapCanvas({ selected, select }: { selected: MapSelection, select
 
   const startPan = (e: React.PointerEvent) => {
     select(null)
-    setConnecting(false)
+    edit?.stopConnecting()
     svg.current!.setPointerCapture(e.pointerId)
     setDrag({ kind: 'pan', clientX: e.clientX, clientY: e.clientY, from: box })
   }
@@ -102,10 +138,10 @@ export function MapCanvas({ selected, select }: { selected: MapSelection, select
   const onUp = (e: React.PointerEvent) => {
     const d = current.current
     if (!d) return
-    if (d.kind === 'move' && d.moved) moveNode(d.id, { x: d.x, y: d.y })
+    if (d.kind === 'move' && d.moved) edit?.moveNode(d.id, { x: d.x, y: d.y })
     if (d.kind === 'link') {
       const to = nodeUnder(e)
-      if (to && to !== d.from) addConnection(d.from, to, 0, 0)
+      if (to && to !== d.from) edit?.connect(d.from, to)
     }
     setDrag(null)
   }
@@ -115,28 +151,27 @@ export function MapCanvas({ selected, select }: { selected: MapSelection, select
   return (
     <div className='flex flex-col gap-1 min-w-0 grow'>
       <div className='flex flex-row items-center gap-2'>
-        <Button size='xs' variant='ghost' onClick={() => addNode()}>+ node</Button>
-        <Button size='xs' variant='ghost' selected={connecting} disabled={selected?.kind !== 'node'} onClick={() => setConnecting(!connecting)}>
-          {connecting ? 'click the other node…' : 'connect'}
-        </Button>
+        {tools}
         <Button size='xs' variant='ghost' onClick={() => zoom(ZOOM_STEP)}>+</Button>
         <Button size='xs' variant='ghost' onClick={() => zoom(1 / ZOOM_STEP)}>−</Button>
         <Button size='xs' variant='ghost' onClick={() => setBox(fit)}>fit</Button>
-        <span className='text-xs text-muted'>double-click to add a node there · drag a node to move it · drag its handle onto another node to join them · wheel to zoom · drag the ground to pan</span>
+        <span className='text-xs text-muted'>{hint}</span>
       </div>
       <svg ref={svg} role='img' aria-label='point crawl map' viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
         className='w-full rounded border border-line bg-surface touch-none select-none'
         onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => setDrag(null)}
         onPointerDown={startPan}
-        onDoubleClick={(e) => addNode(at(e))}>
+        onDoubleClick={edit ? (e) => edit.addNode(at(e)) : undefined}>
         {graph.edges.map((c) => {
           const a = drawn(c.a) ?? { x: c.ax, y: c.ay }, b = drawn(c.b) ?? { x: c.bx, y: c.by }
           const isSel = selected?.kind === 'connection' && selected.id === c.id
+          const isMarked = marked.includes(c.id)
           const moving = drag?.kind === 'move' && drag.moved && (drag.id === c.a || drag.id === c.b)
           return (
-            <g key={c.id} className='cursor-pointer' onPointerDown={(e) => { e.stopPropagation(); select({ kind: 'connection', id: c.id }); setConnecting(false) }} onDoubleClick={(e) => e.stopPropagation()}>
+            <g key={c.id} className='cursor-pointer' onPointerDown={(e) => { e.stopPropagation(); select({ kind: 'connection', id: c.id }); edit?.stopConnecting() }} onDoubleClick={(e) => e.stopPropagation()}>
               <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeWidth={26} className='stroke-transparent' />
-              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeWidth={isSel ? 4 : 2} className={isSel ? 'stroke-accent' : 'stroke-muted'} pointerEvents='none' />
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} strokeWidth={isSel ? 4 : 2} strokeDasharray={isMarked ? '8 5' : undefined}
+                className={isSel ? 'stroke-accent' : isMarked ? 'stroke-good' : 'stroke-muted'} pointerEvents='none' />
               {moving ? null :
                 <text x={c.mx} y={c.my - 8} textAnchor='middle' className={`text-[13px] font-mono pointer-events-none ${isSel ? 'fill-accent' : 'fill-muted'}`}>
                   {c.DL} / {c.backDL}{c.events ? ` ◆${c.events}` : ''}
@@ -151,15 +186,15 @@ export function MapCanvas({ selected, select }: { selected: MapSelection, select
           const p = drawn(n.id) ?? n
           const isSel = selected?.kind === 'node' && selected.id === n.id
           return (
-            <g key={n.id} data-node={n.id} className='cursor-grab' onPointerDown={(e) => pickNode(e, n.id)} onDoubleClick={(e) => e.stopPropagation()}>
+            <g key={n.id} data-node={n.id} className={edit ? 'cursor-grab' : 'cursor-pointer'} onPointerDown={(e) => pickNode(e, n.id)} onDoubleClick={(e) => e.stopPropagation()}>
               {n.settlement ?
-                <rect x={p.x - NODE_R} y={p.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2} rx={8} strokeWidth={isSel ? 3 : 2} className={`fill-raised ${isSel ? 'stroke-accent' : 'stroke-line'}`} />
-                : <circle cx={p.x} cy={p.y} r={NODE_R} strokeWidth={isSel ? 3 : 2} className={`fill-raised ${isSel ? 'stroke-accent' : 'stroke-line'}`} />}
+                <rect x={p.x - NODE_R} y={p.y - NODE_R} width={NODE_R * 2} height={NODE_R * 2} rx={8} strokeWidth={isSel ? 3 : 2} className={`fill-raised ${isSel ? 'stroke-accent' : n.parties.length ? 'stroke-good' : 'stroke-line'}`} />
+                : <circle cx={p.x} cy={p.y} r={NODE_R} strokeWidth={isSel ? 3 : 2} className={`fill-raised ${isSel ? 'stroke-accent' : n.parties.length ? 'stroke-good' : 'stroke-line'}`} />}
               <text x={p.x} y={p.y + 4} textAnchor='middle' className='text-[12px] fill-fg pointer-events-none'>{n.events ? `◆${n.events}` : ''}</text>
               <text x={p.x} y={p.y + NODE_R + 16} textAnchor='middle' className='text-[14px] fill-fg pointer-events-none'>{n.name}</text>
               {n.terrain ? <text x={p.x} y={p.y + NODE_R + 30} textAnchor='middle' className='text-[11px] fill-muted pointer-events-none'>{n.terrain}</text> : null}
               {n.parties.length ? <text x={p.x} y={p.y - NODE_R - 8} textAnchor='middle' className='text-[12px] fill-good pointer-events-none'>{n.parties.join(', ')}</text> : null}
-              {isSel ?
+              {isSel && edit ?
                 <circle cx={p.x + NODE_R} cy={p.y - NODE_R} r={HANDLE_R} className='fill-accent cursor-crosshair' onPointerDown={(e) => startLink(e, n.id)}>
                   <title>drag onto another node to join them</title>
                 </circle>

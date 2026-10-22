@@ -1,4 +1,4 @@
-import type { CastPlan, Decision, ExplorationState, ExplorationUpdater, Group, GroupKind } from '../types'
+import type { CastPlan, Decision, ExplorationState, ExplorationUpdater, Group, GroupKind, GroupSettings } from '../types'
 import { CastPlanSchema, GroupSchema } from '../types'
 import { getDecisionsCalled, getPlanBar, isResolved } from '../rules/exploration'
 import { getSequenceBar } from '../../campaign/rules/clock'
@@ -28,9 +28,9 @@ function clearPlan(id: string, e: ExplorationState): ExplorationState {
   return { ...e, groups, resting: e.resting.filter((r) => r !== id), casts }
 }
 
-export function addGroup(partyId: string, kind: GroupKind, newId: () => string): ExplorationUpdater {
+export function addGroup(partyId: string, kind: GroupKind, newId: () => string, settings: GroupSettings = {}): ExplorationUpdater {
   return (t) => (t.campaign.parties[partyId]
-    ? onGroups(partyId, (e) => ({ ...e, groups: { ...e.groups, [partyId]: { ...e.groups[partyId], [newId()]: GroupSchema.parse({ kind }) } } }))(t)
+    ? onGroups(partyId, (e) => ({ ...e, groups: { ...e.groups, [partyId]: { ...e.groups[partyId], [newId()]: GroupSchema.parse({ ...settings, kind }) } } }))(t)
     : t)
 }
 
@@ -43,7 +43,7 @@ export function removeGroup(partyId: string, groupId: string): ExplorationUpdate
 }
 
 // The table's settings for the group's test.
-export function setGroup(partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>): ExplorationUpdater {
+export function setGroup(partyId: string, groupId: string, settings: GroupSettings): ExplorationUpdater {
   return withGroup(partyId, groupId, (g) => ({ ...g, ...settings }))
 }
 
