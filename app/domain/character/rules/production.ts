@@ -1,10 +1,10 @@
-import { DamageSchema, type Area, type Character, type DamageComponent, type Degree, type Delivery, type Effect, type Item, type OutcomeEffect, type Spell, type SpellEffect } from '../../types'
+import { DamageSchema, type Area, type Character, type DamageComponent, type Degree, type Delivery, type Effect, type Item, type OutcomeEffect, type SpellEffect } from '../../types'
 import { getSourceDamage } from '../../item/rules/items'
 import type { SpellModification } from '../../tables'
 import { getDMAt, getRMAt, getSize } from './size'
 import { getForce } from './skills'
 import { getSpellGear, resolveDL } from './spells'
-import { SPELLS, type SpellKey } from '../../spells'
+import { SPELLS, getSpellOutcomes, type LoadedSpell, type SpellKey } from '../../spells'
 import { produceSpiritAttack } from './spirit'
 
 // spells.tex "Casting spells": what a spell produces once it is cast — its
@@ -120,8 +120,8 @@ export function landed(effect: Effect): Delivery {
 // spells.tex "Casting spells": what the target's own result on the spell's
 // test lets through, as this caster makes it at the spell's size. The test
 // is already rolled, so each lands as it is.
-export function produceOutcome(c: Character, spell: Spell, degree: Degree, size: number = getSize(c)): Delivery[] {
-  return (spell.outcomes?.[degree].effects ?? []).map((e) => landed(bare(c, e, size, false)))
+export function produceOutcome(c: Character, spell: LoadedSpell, degree: Degree, size: number = getSize(c)): Delivery[] {
+  return (getSpellOutcomes(spell)?.[degree].effects ?? []).map((e) => landed(bare(c, e, size, false)))
 }
 
 // spells.tex "Extend Spell": "increase the casting range of a spell by

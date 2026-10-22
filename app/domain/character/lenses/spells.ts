@@ -1,6 +1,6 @@
 import { getUnmetRequirements, requirementsLabel } from '../rules/requirements'
 import { DEGREES, type Area, type Character, type Spell, type SpellMethod } from '../../types'
-import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
+import { SPELLS, SPELL_KEYS, SpellKey, getSpellOutcomes } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
 import { getSpellEffects, produceEffects } from '../rules/production'
 import { ResolvedTest, getSpellLearnBlocks, getCastSize, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
@@ -114,6 +114,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
     .filter((key) => key in SPELLS)
     .map((key) => {
       const spell = SPELLS[key]
+      const outcomesOf = getSpellOutcomes(spell)
       const learned = c.spells[key]
       const DL = getCastingDL(spell, false)
       const hitAt = DL === null ? null : DL + HIT_MARGIN
@@ -131,8 +132,8 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         hitAt,
         test: resolveTest(c, key),
         effects: getSpellEffectRows(c, key),
-        outcomes: spell.outcomes === null ? [] :
-          DEGREES.filter((d) => spell.outcomes![d].text).map((d) => ({ degree: d, text: spell.outcomes![d].text })),
+        outcomes: outcomesOf === null ? [] :
+          DEGREES.filter((d) => outcomesOf[d].text).map((d) => ({ degree: d, text: outcomesOf[d].text })),
         range: rangeLabel(spell),
         costText: spell.costText,
         description: spell.description,

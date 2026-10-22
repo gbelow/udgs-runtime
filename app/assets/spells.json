@@ -2182,61 +2182,84 @@
     "durationETs": 0,
     "description": "Causes a great sensation of pain to everyone connected by telepathic link.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma",
-      "roll": "will"
-    },
-    "outcomes": {
-      "miss": {
-        "text": "-6 AP",
-        "effects": [
-          {
-            "name": "Pain",
-            "trigger": "instant",
-            "type": "cost",
-            "effect": {
-              "AP": 6,
-              "STA": 0,
-              "exhaustion": 0,
-              "IL": 0,
-              "ET": 0
+    "test": null,
+    "outcomes": null,
+    "effects": [
+      {
+        "name": "Pain",
+        "trigger": "instant",
+        "type": "test",
+        "effect": {
+          "outcomes": {
+            "miss": {
+              "text": "-6 AP",
+              "effects": [
+                {
+                  "name": "Pain",
+                  "trigger": "instant",
+                  "type": "cost",
+                  "effect": {
+                    "AP": 6,
+                    "STA": 0,
+                    "exhaustion": 0,
+                    "IL": 0,
+                    "ET": 0
+                  },
+                  "scales": {
+                    "damage": false
+                  }
+                }
+              ]
             },
-            "scales": {
-              "damage": false
+            "graze": {
+              "text": "-4 AP",
+              "effects": [
+                {
+                  "name": "Pain",
+                  "trigger": "instant",
+                  "type": "cost",
+                  "effect": {
+                    "AP": 4,
+                    "STA": 0,
+                    "exhaustion": 0,
+                    "IL": 0,
+                    "ET": 0
+                  },
+                  "scales": {
+                    "damage": false
+                  }
+                }
+              ]
+            },
+            "hit": {
+              "text": "",
+              "effects": []
+            },
+            "critical": {
+              "text": "",
+              "effects": []
             }
           }
-        ]
-      },
-      "graze": {
-        "text": "-4 AP",
-        "effects": [
-          {
-            "name": "Pain",
-            "trigger": "instant",
-            "type": "cost",
-            "effect": {
-              "AP": 4,
-              "STA": 0,
-              "exhaustion": 0,
-              "IL": 0,
-              "ET": 0
-            },
-            "scales": {
-              "damage": false
-            }
-          }
-        ]
-      },
-      "hit": {
-        "text": "",
-        "effects": []
-      },
-      "critical": {
-        "text": "",
-        "effects": []
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 0,
+        "range": 15,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": {
+          "dl": "Charisma",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        },
+        "duration": "instant"
       }
-    },
-    "effects": []
+    ]
   },
   "visual-interference": {
     "name": "Visual Interference",
@@ -2286,29 +2309,52 @@
     "durationETs": 0,
     "description": "Causes blindness in a target connected by telepathic link. They redo the will test every round while the spell is sustained.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma",
-      "roll": "will"
-    },
-    "outcomes": {
-      "miss": {
-        "text": "blinded",
-        "effects": []
-      },
-      "graze": {
-        "text": "blinded",
-        "effects": []
-      },
-      "hit": {
-        "text": "",
-        "effects": []
-      },
-      "critical": {
-        "text": "",
-        "effects": []
+    "test": null,
+    "outcomes": null,
+    "effects": [
+      {
+        "name": "Visual Interference",
+        "trigger": "instant",
+        "type": "test",
+        "effect": {
+          "outcomes": {
+            "miss": {
+              "text": "blinded",
+              "effects": []
+            },
+            "graze": {
+              "text": "blinded",
+              "effects": []
+            },
+            "hit": {
+              "text": "",
+              "effects": []
+            },
+            "critical": {
+              "text": "",
+              "effects": []
+            }
+          }
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 0,
+        "range": 15,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": {
+          "dl": "Charisma",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        },
+        "duration": "instant"
       }
-    },
-    "effects": []
+    ]
   },
   "spiritual-strike": {
     "name": "Spiritual Strike",
@@ -2428,29 +2474,52 @@
     "durationETs": 0,
     "description": "Creates a telepathic link with a nearby creature, or with anyone who allows the link. The caster can speak directly to the mind of their target during the duration of the spell. The link is broken by hitting on any will test triggered by the caster or until the maximum distance is exceeded. It is possible to cast the spell again to affect multiple targets at the same time. Telepathic link allows casting spells that depend on it while concentrating. These spells are made against all targets affected by link simultaneously. Each simultaneous link increases the difficulty of spellcasting test by 3.",
     "enhance": "increases DL by 2.",
-    "test": {
-      "dl": "Charisma",
-      "roll": "will"
-    },
-    "outcomes": {
-      "miss": {
-        "text": "linked",
-        "effects": []
-      },
-      "graze": {
-        "text": "linked",
-        "effects": []
-      },
-      "hit": {
-        "text": "",
-        "effects": []
-      },
-      "critical": {
-        "text": "",
-        "effects": []
+    "test": null,
+    "outcomes": null,
+    "effects": [
+      {
+        "name": "Telepathic Link",
+        "trigger": "instant",
+        "type": "test",
+        "effect": {
+          "outcomes": {
+            "miss": {
+              "text": "linked",
+              "effects": []
+            },
+            "graze": {
+              "text": "linked",
+              "effects": []
+            },
+            "hit": {
+              "text": "",
+              "effects": []
+            },
+            "critical": {
+              "text": "",
+              "effects": []
+            }
+          }
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 0,
+        "range": 20,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": {
+          "dl": "Charisma",
+          "roll": "will",
+          "plus": "",
+          "enhance": 2
+        },
+        "duration": "instant"
       }
-    },
-    "effects": []
+    ]
   },
   "spiritual-walk": {
     "name": "Spiritual Walk",

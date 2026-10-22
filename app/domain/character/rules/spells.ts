@@ -1,5 +1,5 @@
 import { CampaignCharacter, Character, Charge, ChargeTrigger, Grant, Item, Requirement, Skills, Spell, SpellMethod, SpellMethodSchema } from '../../types'
-import { SPELLS, SpellKey, isSpellKey } from '../../spells'
+import { SPELLS, SpellKey, getSpellOutcomes, isSpellKey } from '../../spells'
 import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
@@ -140,7 +140,8 @@ export function getSpellBaseSize(c: Character, key: SpellKey): number {
 // asks before it can be bought.
 export function isScaledSpell(key: SpellKey): boolean {
   const spell = SPELLS[key]
-  const outcomes = spell.outcomes ? Object.values(spell.outcomes).flatMap((o) => o.effects) : []
+  const all = getSpellOutcomes(spell)
+  const outcomes = all ? Object.values(all).flatMap((o) => o.effects) : []
   return spell.effects.some((e) => e.scales.damage || e.scales.area || e.scales.reach) || outcomes.some((e) => e.scales.damage)
 }
 
@@ -373,8 +374,9 @@ export function resolveTest(c: Character, key: SpellKey): ResolvedTest | null {
 type TargetTest = { dl: string; roll: string; plus: string[]; enhance: number }
 
 export function getSpellTest(key: SpellKey): TargetTest | null {
-  const { test, morale } = SPELLS[key]
-  if (morale?.resist) return { dl: morale.resist.dl, roll: morale.resist.roll, plus: morale.resist.plus ? [morale.resist.plus] : [], enhance: morale.resist.enhance }
+  const { test, morale, forced } = SPELLS[key]
+  const resist = (morale ?? forced)?.resist
+  if (resist) return { dl: resist.dl, roll: resist.roll, plus: resist.plus ? [resist.plus] : [], enhance: resist.enhance }
   if (!test) return null
   const [roll, ...plus] = test.roll.split('+').map((t) => t.trim())
   return { dl: test.dl, roll, plus: plus.filter(Boolean), enhance: 0 }

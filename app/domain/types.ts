@@ -1291,7 +1291,6 @@ export type SpellEffect = z.infer<typeof SpellEffectSchema>
 // telepathic link.
 export const MoraleSpellEffectSchema = z.object({ ...EffectBase, ...SpellEffectEnvelope, target: z.enum(['target', 'minds']).default('target'), type: z.literal('morale'), effect: MoraleEffectSchema }).strip()
 export type MoraleSpellEffect = z.infer<typeof MoraleSpellEffectSchema>
-export const CatalogEffectSchema = z.discriminatedUnion('type', [...SpellEffectSchema.options, MoraleSpellEffectSchema])
 
 // An effect one degree of the spell's test lets through. The cast decided
 // who it reaches and the test whether it lands, so it carries neither —
@@ -1327,6 +1326,13 @@ export const SpellOutcomesSchema = z.object({
   critical: SpellOutcomeSchema.default(NO_OUTCOME),
 }).strip() satisfies z.ZodType<Record<Degree, SpellOutcome>>
 export type SpellOutcomes = z.infer<typeof SpellOutcomesSchema>
+
+// spells.tex "Casting spells": the test the spell leaves its target, whose
+// degree picks the outcome it suffers. Like the morale effect it is opened in
+// the fight and delivers nothing itself; what lands is the outcome's effects.
+export const TestSpellEffectSchema = z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('test'), effect: z.object({ outcomes: SpellOutcomesSchema }).strip() }).strip()
+export type TestSpellEffect = z.infer<typeof TestSpellEffectSchema>
+export const CatalogEffectSchema = z.discriminatedUnion('type', [...SpellEffectSchema.options, MoraleSpellEffectSchema, TestSpellEffectSchema])
 
 export const SpellKnowledgeRequirementSchema = z.object({
   name: str.default(''), // a knowledge name, lowercased: a formal knowledge's key or a specific knowledge's name
