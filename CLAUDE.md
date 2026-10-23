@@ -71,6 +71,7 @@ Hooks (`app/hooks/`) are thin adapters, one per concern — keep new logic out o
 - New game mechanics: check `rule_graph.json` for name collisions and use the `urn:ttrpg:` namespace when extracting rules. `tools/` holds Python scripts (`extract_rule_graph.py`, `visualize_schema.py`) that generate `rule_graph.json` / `dangling_references.json`.
 - On Windows, avoid chained `cmd /c dir && type`; use single commands to reduce process-spawn overhead.
 - Don't leave comments describing the diff or the reasoning behind a change — that belongs in the commit message, not the file
+- Never write an em dash (—) in a code comment; use a comma, colon, parentheses or a new sentence. Check every comment you add before finishing.
 
 ## Testing culture
 
