@@ -16,6 +16,7 @@ import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/board/hazard'
 import { getChanges } from '../rules/changes'
 import { getBrokenArcs } from '../rules/fireAgain'
+import { getLinkSpent } from '../rules/cast'
 import { releaseSpell } from '../../character/commands/spells'
 import { deliverAll } from '../../character/commands/deliver'
 
@@ -184,7 +185,14 @@ function applyOne(s: SceneState, action: Action, phase: Phase): SceneState {
   const fire = phase === 'resolve' ? getFireTouched({ ...rolled, board }, action) : null
   const next = mapCharacters(rolled, reduceCharacter(action, phase, isCombatStarted(rolled), fire))
   const placed = { ...next, board, floor: reduceFloor(rolled, action, phase)(rolled.floor), binds: reduceBinds(rolled, action, phase)(next.binds) }
-  return settleSevered(rolled, action.id)(settleBinds(phase === 'resolve' ? settleArcs(placed) : placed))
+  return settleSevered(rolled, action.id)(settleBinds(phase === 'resolve' ? settleLinks(settleArcs(placed), action) : placed))
+}
+
+// spells.tex "Telepathic Link": a link spell that leaves nobody linked ends
+// with the test that left it so.
+function settleLinks(state: SceneState, action: Action): SceneState {
+  const spent = action.kind === 'spellTest' ? getLinkSpent(state, action) : null
+  return spent ? mapCharacters(state, (c) => (c.id === spent.casterId ? releaseSpell(spent.key)(c) : c)) : state
 }
 
 // spells.tex "Sustained Lightning": an arc that breaks ends its spell, and a

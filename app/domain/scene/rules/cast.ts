@@ -3,7 +3,7 @@ import type { CampaignCharacter, Delivery, Item } from '../../types'
 import { findReadyItem } from '../../item/rules/containers'
 import type { ActionRoll, CastAction, SceneState, Deliveries, Link, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
-import { getAction } from './log'
+import { getAction, getSpawned } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
@@ -404,6 +404,18 @@ export function getLinkOutcome(state: SceneState, root: SpellTestAction): LinkOu
   const exists = getLinkedTargets(state, root.actorId, link).includes(root.targetId)
   const made: Link | null = link === root.key && !exists ? { kind: 'link', members: [root.actorId, root.targetId], holders: [root.actorId], anchors: {}, key: link } : null
   return { made, broken: null }
+}
+
+// spells.tex "Telepathic Link": a link spell with nobody left linked to it is
+// no link at all. Read once the cast's last test has landed, whatever order
+// the targets were tested in; the caster and spell to let go of, else null.
+export function getLinkSpent(state: SceneState, root: SpellTestAction): { casterId: string; key: SpellKey } | null {
+  const key = isSpellKey(root.key) ? getLinkSpell(root.key) : null
+  const caster = state.characters[root.actorId]
+  if (key === null || !caster || !isSpellActive(caster, key)) return null
+  if (getLinkedTargets(state, root.actorId, key).length > 0) return null
+  const waiting = root.spawnedBy ? getSpawned(state, root.spawnedBy).some((a) => a.kind === 'spellTest' && a.id !== root.id && a.step !== 'done') : false
+  return waiting ? null : { casterId: root.actorId, key }
 }
 
 // spells.tex "Telepathic Link": "or with anyone who allows the link" — a

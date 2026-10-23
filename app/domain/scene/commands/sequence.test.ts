@@ -1083,11 +1083,11 @@ describe('telepathic link', () => {
   const linkId = () => `link${++m}`
 
   // `c` casts it at `x`, `at` cells away; `x` fails the test its cast opens.
-  function linkedAt(at: number): SceneState {
+  function linkedAt(at: number, targetDie = 0): SceneState {
     const caster = { ...fighter('c'), spells: { 'telepathic-link': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
     let s = onBoard({ c: [0, 0], x: [at, 0] }, caster, fighter('x'))
     s = declareAction('c', { kind: 'cast', key: 'telepathic-link' }, linkId)(s)
-    return playOut(commitAction(() => 20, linkId)(setTarget('x')(s)), 0).state
+    return playOut(commitAction(() => 20, linkId)(setTarget('x')(s)), targetDie).state
   }
 
   it('holds one link per target, which raises the caster\'s casting DL', () => {
@@ -1098,6 +1098,18 @@ describe('telepathic link', () => {
 
   it('lets go of a target beyond its range', () => {
     expect(linkedAt(25).binds).toEqual([])
+  })
+
+  // A target who beat the first test left the caster holding a link spell with
+  // nobody linked.
+  it('is not held by a caster whose target beat the test', () => {
+    const s = linkedAt(5, 20)
+    expect(s.binds).toEqual([])
+    expect(s.characters.c.active.map((e) => e.key)).not.toContain('telepathic-link')
+  })
+
+  it('is held by a caster whose target did not', () => {
+    expect(linkedAt(5).characters.c.active.map((e) => e.key)).toContain('telepathic-link')
   })
 })
 
