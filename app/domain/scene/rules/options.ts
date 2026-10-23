@@ -72,15 +72,17 @@ function option(draft: ActionDraft, cost: ActionCost | null, reason: string | nu
 }
 
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or
-// block attacks, only intercept." combat.tex "Evasive Jump": "only ... if
-// there is space to jump"; "jumping": a jump "cannot be voluntarily
+// block attacks, only intercept." — between the partners; a grapple stops
+// movement, so a grappled defender cannot jump from anyone. combat.tex
+// "Evasive Jump": "only ... if there is space to jump"; "jumping": a jump "cannot be voluntarily
 // interrupted in the middle". combat.tex "Prone": "Can only crawl and stand
 // up"; "Lame": "Cannot ... jump".
 function defenseGate(state: SceneState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
   if (!canAfford(defender, cost, isCombatStarted(state))) return 'cannot afford'
   if (hasAffliction(defender, 'unconscious')) return 'unconscious'
   if (isImmobile(state, defender)) return 'immobile'
-  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasFightAffliction(state, defender, 'grappled')) return 'grappled'
+  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && getPartners(state, defender.id).includes(root.actorId)) return 'grappled'
+  if (kind === 'evasiveJump' && hasFightAffliction(state, defender, 'grappled')) return 'grappled'
   if (kind === 'evasiveJump' && isProne(state, defender.id)) return 'prone'
   if (kind === 'evasiveJump' && hasAffliction(defender, 'lame')) return 'lame'
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return 'mid-jump'
