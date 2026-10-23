@@ -168,7 +168,7 @@ export function RunScreen(){
 }
 
 // A panel docked to the left of the middle, over the mode's space, opaque. The
-// catalogs are a fixed width; the parties grow with their content across, up
+// catalogs are a fixed width; the parties grow across with their columns, up
 // to the width of the middle. It stays mounted while closed, so what was
 // half done in it is still there when it opens again.
 function Overlay({ title, wide = false, shown, close, children }: { title: string, wide?: boolean, shown: boolean, close: () => void, children: ReactNode }){

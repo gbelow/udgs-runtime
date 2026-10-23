@@ -54,13 +54,13 @@ export function PartyFrame({ target = false, adding = false, closed = null, plac
 
 // A party's name, renamed in place, and its menu: the catalog opened for it
 // first, then whatever else `children` offers.
-export function PartyHeader({ name, rename, adding, toggleAdding, addBar = null, locked = false, children }: { name: string, rename: (name: string) => void, adding: boolean, toggleAdding: () => void, addBar?: string | null, locked?: boolean, children?: ReactNode }){
+export function PartyHeader({ name, rename, adding, toggleAdding, locked = false, children }: { name: string, rename: (name: string) => void, adding: boolean, toggleAdding: () => void, locked?: boolean, children?: ReactNode }){
   const gmBar = useGmBar()
   return(
     <div className='flex flex-row gap-1 items-center'>
       <TextInput key={name} className='w-40 text-xs font-medium' aria-label={`${name} name`} disabled={gmBar !== null || locked} title={gmBar ?? "the party's name"} defaultValue={name} onBlur={(e) => rename(e.target.value.trim())} />
       <Menu label={`${name} options`}>
-        <MenuItem bar={locked ? 'pick the party to switch into first' : addBar} selected={adding} hint='open the catalog beside the party' onClick={toggleAdding}>{adding ? 'stop adding characters' : 'add characters'}</MenuItem>
+        <MenuItem bar={locked ? 'pick the party to switch into first' : null} selected={adding} hint='open the catalog beside the party' onClick={toggleAdding}>{adding ? 'stop adding characters' : 'add characters'}</MenuItem>
         {children}
       </Menu>
     </div>
