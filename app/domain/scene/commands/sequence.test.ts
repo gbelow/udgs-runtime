@@ -17,6 +17,7 @@ import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
+import { getItemArmor } from '../../item/rules/items'
 import { archer, board as onBoard } from '../../bot/fixtures'
 import { grantAbility } from '../../character/commands/abilities'
 import type { AbilityKey } from '../../abilities'
@@ -361,15 +362,21 @@ describe('an explosion', () => {
 
 // gear.tex "Equipment Breakage": "Objects can be destroyed by any kind of
 // damage" — armor is pitted by what reaches it from an explosion as by a blow.
-// A shock explosive (blunt 15, radius 3) goes off at the middle of the area on
-// a gambeson-wearer (RES 10), who takes a hit and makes no escape; every percentile digit is `digit`.
+// A shock explosive goes off at the middle of the area on a gambeson-wearer,
+// who takes a hit and makes no escape; every percentile digit is `digit`. Its
+// blunt is set from the gambeson's RES, reaching it but short of twice it, so
+// the break is left to the percentile whatever the catalog's numbers are.
 describe('an explosion on armor', () => {
   const gambeson = ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
+  const blunt = Math.floor(1.5 * (getItemArmor(gambeson)?.RES ?? 0))
+  const blast = SPELLS['shock-explosive'].effects.map((e) => e.type === 'damage'
+    ? { ...e, area: { shape: 'explosion' as const, radius: 3 }, effect: { ...e.effect, damage: [{ kind: 'blunt' as const, value: blunt }] } }
+    : e)
 
   function gone(digit: number, breakage = true): SceneState {
     const base = fighter('t')
     const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
-    const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
+    const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, blast) } }
     const thrower = { ...(holdItem(charged)(base)), usedSurge: 'focus' as const }
     let s = { ...onBoard({ t: [-5, 0], x: [1, 0] }, thrower, { ...fighter('x'), worn: gambeson }), breakage }
     s = commitAction(() => digit, newId)(declareAction('t', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 0 } }, newId)(s))
