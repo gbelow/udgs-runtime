@@ -28,6 +28,7 @@ export type CatalogSpec = {
   keyOf: (entry: Record<string, unknown>) => string // where a new entry is filed; an existing one keeps its key
   nameOf: (entry: Record<string, unknown>) => string
   groupOf?: (entry: Record<string, unknown>) => string // the category it is browsed under; none for a catalog without
+  comparable?: 'collection' | 'category' // its panel shows its entries side by side as a table: any collection of them, or one category at a time
 }
 
 const text = (entry: Record<string, unknown>, field: string) => String(entry[field] ?? '')
@@ -46,10 +47,11 @@ export const CATALOGS = {
     label: 'Weapons', file: 'weapons.json', schema: WeaponSchema, data: weapons,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
     groupOf: (e) => { const weapon = WeaponSchema.safeParse(e); return weapon.success ? getWeaponCategory(weapon.data) : '' },
+    comparable: 'category',
   },
   armors: {
     label: 'Armors', file: 'armors.json', schema: ArmorSchema, data: armors,
-    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
+    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), comparable: 'collection',
   },
   ammo: {
     label: 'Ammunition', file: 'ammo.json', schema: AmmoSchema, data: ammo,

@@ -10,7 +10,7 @@ import type { Collection } from "../domain/campaign/types";
 import type { SavedBoardMap } from "../domain/scene/types";
 import { without } from "../domain/utils";
 
-export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'boards' | 'collections' | 'compare' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog' | 'campaign'
+export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'boards' | 'collections' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog' | 'campaign'
 
 // The run screen's modes, one per sequence that moves time: each is a tab of
 // its own, so the store that owns the active character stays the tab's.
@@ -23,7 +23,7 @@ export function isRunTab(tab: GameTabs): tab is RunTab {
 
 // The catalog's editors that hold a sheet of their own are tabs of their own
 // too, for the same reason: the races, made as characters, and the maps.
-const CATALOG_TABS = ['catalog', 'race', 'map', 'boards', 'collections', 'compare'] as const
+const CATALOG_TABS = ['catalog', 'race', 'map', 'boards', 'collections'] as const
 
 // The character editor's parts, each a tab of its own within it.
 export const EDITOR_TABS = ['body', 'trainables', 'gear'] as const
@@ -45,7 +45,6 @@ export const TAB_OWNER: Record<GameTabs, TabOwner> = {
   map: null,
   boards: null,
   collections: null,
-  compare: null,
   scene: 'combat',
   exploration: 'campaign',
   downtime: 'campaign',

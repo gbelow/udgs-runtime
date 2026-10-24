@@ -37,6 +37,11 @@ export function getCollections(collections: readonly Collection[], catalogs: Cat
   ]
 }
 
+// Of the collections a picker offers, the categories of `kind`'s catalog.
+export function getCategoryCollections(views: CollectionView[], kind: CatalogKind): CollectionView[] {
+  return views.filter((v) => v.id.startsWith(`${kind}/`))
+}
+
 // A catalog's entries by category, or in one list without a header where
 // none has a category.
 export function getCatalogGroups(rows: CatalogRow[]): { label: string | null; rows: CatalogRow[] }[] {
