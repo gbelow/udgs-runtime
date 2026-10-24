@@ -766,7 +766,10 @@ async function writeCatalog(file: string, catalog: Record<string, JsonValue>): P
   await fs.writeFile(path.join(ASSET_DIR, file), JSON.stringify(catalog, null, 2) + "\n", "utf-8");
 }
 
-export async function saveCatalogEntry(catalog: string, key: string, raw: unknown): Promise<ActionResult> {
+// `opened` is the entry as the editor opened it (null for a new one): a draft
+// opened before the file changed would write its stale fields back over the
+// change, so it is refused instead.
+export async function saveCatalogEntry(catalog: string, key: string, raw: unknown, opened: unknown): Promise<ActionResult> {
   if (!isDevServer()) return DEV_ONLY;
   if (!isCatalogName(catalog)) return { ok: false, error: 'No such catalog.' };
   const spec = CATALOGS[catalog];
@@ -775,6 +778,8 @@ export async function saveCatalogEntry(catalog: string, key: string, raw: unknow
   if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') };
   try {
     const entries = await readCatalog(spec.file);
+    if (opened === null && key in entries) return { ok: false, error: `${spec.label} already have ${key}.` };
+    if (JSON.stringify(entries[key] ?? null) !== JSON.stringify(opened)) return { ok: false, error: `${spec.nameOf(raw as Record<string, unknown>)} changed on disk since it was opened. Reload and edit it again.` };
     entries[key] = raw as JsonValue;
     await writeCatalog(spec.file, entries);
     return { ok: true, data: undefined };

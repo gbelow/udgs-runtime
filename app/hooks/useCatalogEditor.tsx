@@ -5,7 +5,8 @@ import { CATALOGS, CatalogName, CatalogSpec, getCatalogRows } from '../forms/cat
 import { emptyValue } from '../forms/schemaFields'
 import { getCatalogGroups } from '../domain/campaign/projections/collections'
 
-export type CatalogDraft = { key: string; value: Record<string, unknown>; fresh: boolean }
+// `opened` is the entry as it stood on disk when the draft was taken from it.
+export type CatalogDraft = { key: string; value: Record<string, unknown>; fresh: boolean; opened: Record<string, unknown> | null }
 
 // A catalog as its editor sees it: the entries on disk, a draft being
 // edited, and the two writes. The catalog itself is a module constant
@@ -19,11 +20,11 @@ export function useCatalogEditor(catalog: CatalogName) {
 
   const open = (key: string) => {
     const entry = spec.data[key]
-    if (entry) setDraft({ key, value: structuredClone(entry) as Record<string, unknown>, fresh: false })
+    if (entry) setDraft({ key, value: structuredClone(entry) as Record<string, unknown>, fresh: false, opened: entry as Record<string, unknown> })
   }
 
   const create = () => {
-    setDraft({ key: '', value: emptyValue(spec.schema) as Record<string, unknown>, fresh: true })
+    setDraft({ key: '', value: emptyValue(spec.schema) as Record<string, unknown>, fresh: true, opened: null })
   }
 
   const edit = (value: Record<string, unknown>) => {
@@ -34,10 +35,10 @@ export function useCatalogEditor(catalog: CatalogName) {
 
   const save = async () => {
     if (!draft) return
-    const res = await saveCatalogEntry(catalog, draft.key, draft.value)
+    const res = await saveCatalogEntry(catalog, draft.key, draft.value, draft.opened)
     if (!res.ok) { toast.error(res.error); return }
     toast.success(`Saved ${spec.nameOf(draft.value)}.`)
-    setDraft({ ...draft, fresh: false })
+    setDraft({ ...draft, fresh: false, opened: draft.value })
   }
 
   const remove = async () => {
