@@ -65,7 +65,7 @@ function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
 // the blunt; the rest mark the damage for the target's side to read (the cut
 // against equal hardness, the switch to the hand), and assassinate adds HOP
 // rather than damage.
-type Buyer = { state: SceneState; root: AttackAction; attacker: Character; weapon: Weapon }
+type Buyer = { state: SceneState; root: AttackAction; attacker: Character; weapon: Weapon; properties: WeaponProperty[] }
 
 // A bonus that adds to the physical damage, blunt and cutting alike, as the
 // heavy one does (combat.tex "Heavy Attack").
@@ -75,7 +75,7 @@ function addPhysical(damage: Damage, value: number): Damage {
 
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
   bust: (d) => ({ ...d, bust: true }),
-  slice: (d, times, { attacker }) => addTo(d, 'cut', getSliceBonus(times, attacker)),
+  slice: (d, times, { attacker, properties }) => addTo(d, 'cut', getSliceBonus(times, attacker, hasProperty(properties, 'bladed'))),
   smash: (d, times, { attacker }) => addTo(d, 'blunt', getSmashBonus(times, attacker)),
   handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
   assassinate: (d) => d,
@@ -146,7 +146,8 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   const charge = link ? [] : (getRowCharge(attacker, row)?.charge?.effects ?? []).filter((e) => e.area === null)
   const chargeDamage = charge.flatMap((e) => (e.type === 'damage' ? e.effect.damage : []))
   const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), wall: getShotWall(state, root) }
-  const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
+  const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
+  const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
   const riders = root.kind === 'strike' ? getStrikeRiders(state, root) : []
@@ -336,8 +337,6 @@ export function getHOPOptions(state: SceneState, root: AttackAction): HOPOption[
     const closed = (reason: string): HOPOption => ({ purchase, cost, price, bought, available: false, reason, refundable })
     if ((purchase === 'assassinate' || purchase === 'braced' || purchase === 'hook') && root.kind !== 'strike') return closed('strikes only')
     if (property && !hasProperty(properties, property)) return closed(`needs ${property}`)
-    // gear.tex "Gear condition": "Dull - Bladed weapon cannot use Slice."
-    if (purchase === 'slice' && row.wielded.edge === 'dull') return closed('dull')
     if (!repeatable && bought > 0) return closed('bought')
     // combat.tex "Assassinate": "requires a short range ... weapon attack",
     // "Can only be done against SD, not against active defense".

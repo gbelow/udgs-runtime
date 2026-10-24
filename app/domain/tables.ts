@@ -224,7 +224,7 @@ export const MAX_TIER = 5
 // "Hook Attack" (the trip) are priced in AP and STA in ACTION_COSTS.
 export const HOP_EFFECTS = {
   bust:        { cost: 'deflection', property: 'penetrating', repeatable: false, gives: 0 },
-  slice:       { cost: 'deflection', property: 'bladed',      repeatable: true,  gives: 0 },
+  slice:       { cost: 'deflection', property: null,          repeatable: true,  gives: 0 },
   smash:       { cost: 1,            property: null,          repeatable: true,  gives: 0 },
   handSwitch:  { cost: 3,            property: null,          repeatable: false, gives: 0 },
   assassinate: { cost: 0,            property: 'precise',     repeatable: false, gives: 5 },
@@ -233,8 +233,10 @@ export const HOP_EFFECTS = {
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null; repeatable: boolean; gives: number }>
 
 // combat.tex "Slice": "increase cutting damage by 5xDM"; "Smash": "Increases
-// blunt damage by 1xDM per HOP".
+// blunt damage by 1xDM per HOP". "Slice": "Weapons with the bladed property
+// get the full bonus damage, while others get only half."
 export const SLICE_DM = 5
+export const SLICE_UNBLADED_SHARE = 0.5
 export const SMASH_DM = 1
 
 // HOP a hit gets or loses beyond its roll from what the attack meets, by what

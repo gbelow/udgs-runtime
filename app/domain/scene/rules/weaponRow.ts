@@ -51,10 +51,12 @@ export function getRowStack(c: Character, row: WeaponRow, ammoId: string): AmmoS
 
 // gear.tex "Bodkin: arrows are penetrating", "Broadhead: arrows are
 // bladed": a shot has its row's properties and those of what it is loaded
-// with.
+// with. gear.tex "Gear condition": "Dull - cannot use the bladed property",
+// the weapon's own; what it is loaded with keeps its edge.
 export function getRowProperties(c: Character, row: WeaponRow, ammoId: string): WeaponProperty[] {
   const ammo = row.atk.ammo ? getRowAmmo(c, row, ammoId) : null
-  return [...row.atk.properties, ...(ammo?.properties ?? []).filter((p) => !row.atk.properties.includes(p))]
+  const own = row.wielded.edge === 'dull' ? row.atk.properties.filter((p) => p !== 'bladed') : row.atk.properties
+  return [...own, ...(ammo?.properties ?? []).filter((p) => !own.includes(p))]
 }
 
 export function findRowVariant(c: Character, row: WeaponRow, variant: string): AttackVariant | null {
