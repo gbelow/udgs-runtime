@@ -18,6 +18,7 @@ import { getLinkSpell } from '../../character/rules/concentration'
 import { getReadyItems } from '../../item/rules/containers'
 import { getSpiritBlow } from '../../character/rules/spirit'
 import { resisted } from '../rules/test'
+import { isSweep, isSweepLink } from '../rules/sweep'
 
 // What the settled or resolved action's damage does to each character it
 // was delivered to, as they stand.
@@ -36,6 +37,14 @@ export function getActionNotes(state: SceneState, root: Action): { target: strin
   const named = (id: string) => getFightName(state, id)
   const broke = getBrokenItems(root).map(({ ownerId, itemId, name }) => ({ target: state.characters[ownerId] ? named(ownerId) : 'floor', text: breakNote(state.characters[ownerId]?.worn?.id === itemId, name) }))
   return [...getRootNotes(state, root, named), ...broke]
+}
+
+// combat.tex "Sweeping Attack": the way the sweep turned and who its arc
+// reached past the first target when it was swung, on a board.
+function getSweepNote(state: SceneState, root: Action, named: (id: string) => string): { target: string; text: string }[] {
+  if (root.kind !== 'strike' || !isSweep(root) || isSweepLink(root) || !state.board) return []
+  const reached = root.arc.filter((id) => state.characters[id]).map(named)
+  return [{ target: named(root.actorId), text: `swept ${root.sweepDirection}; the arc reached ${reached.length > 0 ? reached.join(', ') : 'nobody'} past the first target` }]
 }
 
 // gear.tex "Weapon Breakage", "Armor Breakage": a weapon breaks, armor is
@@ -138,7 +147,7 @@ export function getActionReport(state: SceneState, id: string): ActionReport | n
       if (delivery.effect.type === 'damage' && delivery.degree !== null) return []
       const waiting = delivery.test && delivery.degree === null ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
       return [{ target: named(id), text: `${delivery.effect.name}${lossLabel(delivery.effect, delivery.degree)}${waiting}` }]
-    }).concat(getTestedNotes(root, named), getChargeNote(state, root), getActionNotes(state, root)),
+    }).concat(getTestedNotes(root, named), getChargeNote(state, root), getSweepNote(state, root, named), getActionNotes(state, root)),
   }
 }
 

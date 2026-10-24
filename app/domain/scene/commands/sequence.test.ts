@@ -758,13 +758,13 @@ describe('a disarm an intercept opens', () => {
 // opportunity from any of its targets." The table's ruling: one roll per
 // target, the sweep paid once.
 describe('a sweeping attack', () => {
-  // A longsword (reach 2) swung clockwise from `t1`, east of the attacker:
+  // A longsword (reach 2) swung counterclockwise from `t1`, east of the attacker:
   // `t2` and `t3` a sixth and a third of a turn on, `hidden` behind `t2`,
   // `back` two thirds of a turn round, outside the semicircle.
   function sweepAt(t1: CampaignCharacter = fighter('t1')): SceneState {
     let s = onBoard({ atk: [0, 0], t1: [1, 0], t2: [1, -1], t3: [0, -1], hidden: [2, -2], back: [-1, 1] },
       wielder('atk', 'Longsword'), t1, fighter('t2'), fighter('t3'), fighter('hidden'), fighter('back'))
-    s = declareAction('atk', { kind: 'strike', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'clockwise' }, newId)(s)
+    s = declareAction('atk', { kind: 'strike', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'counterclockwise' }, newId)(s)
     return commitAction(() => 5, newId)(setTarget('t1')(s))
   }
 
@@ -795,7 +795,7 @@ describe('a sweeping attack', () => {
     let s = onBoard({ atk: [0, 0], t1: [1, 0], t2: [1, -1], far: [5, 0] }, wielder('atk', 'Longsword'), archer('t1'), fighter('t2'), fighter('far'))
     s = declareAction('t1', { kind: 'shoot', weaponKey: s.characters.t1.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
     s = commitAction(() => 5, newId)(setTarget('far')(s))
-    s = declareReaction('atk', { kind: 'opportunityAttack', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'clockwise' }, newId)(s)
+    s = declareReaction('atk', { kind: 'opportunityAttack', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'counterclockwise' }, newId)(s)
     const { landed } = playOut(s, MISS)
     expect(landed.filter((a) => a.kind === 'strike').map((a) => a.targetId)).toEqual(['t1', 't2'])
   })

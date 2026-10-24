@@ -6,7 +6,8 @@ import type { Coord, Direction } from '../../types'
 // counted in.
 
 // The six neighbours of a cell, in the order that is also the rotation
-// order: direction i + 1 is direction i turned one step clockwise.
+// order: direction i + 1 is direction i turned one step counterclockwise as
+// the board is drawn (the plane's y grows downward on screen).
 export const DIRECTIONS: readonly Coord[] = [
   { q: 1, r: 0 },
   { q: 1, r: -1 },
@@ -21,7 +22,7 @@ export const ROTATIONS = [0, 1, 2, 3, 4, 5] as const satisfies readonly Directio
 
 // A direction turned `steps` times clockwise.
 export function turn(d: Direction, steps = 1): Direction {
-  return ROTATIONS[(((d + steps) % 6) + 6) % 6]
+  return ROTATIONS[(((d - steps) % 6) + 6) % 6]
 }
 
 export function coordKey(c: Coord): string {
@@ -109,8 +110,9 @@ export function disk(center: Coord, radius: number): Coord[] {
   return cells
 }
 
-// An offset turned `steps` times clockwise about the origin. In cube
-// coordinates one clockwise step is (x, y, z) -> (-z, -x, -y).
+// An offset turned `steps` times about the origin in DIRECTIONS' order,
+// counterclockwise as drawn. In cube coordinates one step is
+// (x, y, z) -> (-z, -x, -y).
 export function rotate(offset: Coord, steps: number): Coord {
   let { q, r } = offset
   for (let i = 0; i < ((steps % 6) + 6) % 6; i++) {
@@ -203,10 +205,10 @@ export function angleBetween(from: { x: number; y: number }, to: { x: number; y:
 }
 
 // How far one turns from `from` to reach `to` going one way round, in
-// [0, 2π). Clockwise on the board is DIRECTIONS' order, a turn the plane's
-// angle falls through.
+// [0, 2π). Clockwise as the board is drawn is a turn the plane's angle
+// climbs through, its y growing downward on screen.
 export function directedTurn(from: number, to: number, clockwise: boolean): number {
-  const delta = clockwise ? from - to : to - from
+  const delta = clockwise ? to - from : from - to
   return ((delta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
 }
 
