@@ -124,6 +124,7 @@ export const WEAPON_PROPERTIES = [
   'bladed',
   'penetrating',
   'precise',
+  'basher',
   'slow',
   'fast',
   'UF',
@@ -140,8 +141,9 @@ export const HEAVY_MAX_DEGREE = 3
 // characteristics and conditions an armor can carry, in the book's order. Its
 // material is not among these: "Fiber" and "Metallic" are the armor's
 // `material`.
-// gear.tex "Gear condition": what a blade's edge can be, beyond the usual.
-export const EDGES = ['sharp', 'dull'] as const
+// gear.tex "Gear condition": what a blade's edge can be, beyond the usual;
+// "Sharpening": "sharp +1 on a hit and +2 on a crit".
+export const EDGES = ['sharp +1', 'sharp +2', 'dull'] as const
 
 export const ARMOR_PROPERTIES = [
   'rigid',
@@ -172,11 +174,10 @@ export const HUMANOID_LOCATIONS = ['chest', 'hand', 'leg', 'head'] as const
 export const HIT_LOCATIONS = [...HUMANOID_LOCATIONS, 'other'] as const
 
 // What a body part does beyond its wounds, a flag at a time.
-// combat.tex "Head": "Getting stunned in the head causes unconsciousness";
-// "Hand": "Hands have no armor unless the character is wearing gauntlets";
-// "Head": "Bypass at the head hits flesh, which ignores all armor" — unless a
-// closed visor is down (gear.tex "Closed helmet").
-export const PART_FLAGS = ['stunUnconscious', 'bareWithoutGauntlets', 'bypassToFlesh'] as const
+// combat.tex "Head": "Interrupts become stuns, and stuns become
+// unconsciousness"; "Hand": "Hands have no armor unless the character is
+// wearing gauntlets".
+export const PART_FLAGS = ['stunUnconscious', 'bareWithoutGauntlets'] as const
 
 // combat.tex "Wounds": what a wound does to the part it is on — puts it out
 // of use until healed, cuts it off, or kills.
@@ -184,7 +185,7 @@ export const WOUND_EFFECTS = ['disable', 'sever', 'kill'] as const
 
 // combat.tex "Success Overflow" and the hand switch of "Localized damage":
 // what HOP can buy, in the book's order; prices and gates are in `tables.ts`.
-export const HOP_PURCHASES = ['slice', 'bypass', 'bust', 'smash', 'handSwitch', 'assassinate', 'braced', 'hook'] as const
+export const HOP_PURCHASES = ['bust', 'slice', 'smash', 'handSwitch', 'assassinate', 'braced', 'hook'] as const
 
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const

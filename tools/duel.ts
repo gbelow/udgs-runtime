@@ -14,7 +14,7 @@ import { getStanding, type Evaluations } from '../app/domain/bot/evaluation'
 import { makeAftermathReader } from '../app/domain/bot/afterAttack'
 import { readGrabs, type Posture } from '../app/domain/bot/grapplePosture'
 import { isGrappleRowOf } from '../app/domain/scene/rules/grapple'
-import { canGrapple, getHOPOptions, getHOPRemaining } from '../app/domain/scene/rules/damage'
+import { canGrapple, getHOPOptions, getHitHOP } from '../app/domain/scene/rules/damage'
 import { chooseGrapple, refundHOP, spendHOP } from '../app/domain/scene/commands/choices'
 import { getAvailableActions } from '../app/domain/scene/rules/options'
 import { getTargetIds, isDeclarationComplete, needsTarget } from '../app/domain/scene/rules/action'
@@ -471,12 +471,11 @@ function previewOf(state: SceneState): string {
 // buy effects with it before the blow lands, each priced and gated by the rules.
 function hopPrompt(state: SceneState, open: RootAction): Prompt | null {
   if ((open.kind !== 'strike' && open.kind !== 'shoot') || !open.targetId || !state.characters[open.targetId] || !state.characters[open.actorId]) return null
-  const target = state.characters[open.targetId]
   const options = getHOPOptions(state, open)
   const bought = options.filter((o) => o.bought > 0)
   const grapple = open.kind === 'strike' && canGrapple(state, open) ? open : null
   if ((options.length === 0 || (!options.some((o) => o.available) && bought.length === 0)) && !grapple) return null
-  const remaining = getHOPRemaining(open, target)
+  const { remaining } = getHitHOP(state, open)
   const spend = options.map((o): Choice => {
     const next = spendHOP(o.purchase)(state)
     const price = o.price && (o.price.AP || o.price.STA) ? `, and ${o.price.AP} AP ${o.price.STA} STA` : ''

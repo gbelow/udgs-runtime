@@ -1,7 +1,7 @@
 import { Character, Container, Edge, Item, SlotGroup, SlotKind } from '../../types'
 import { canFitItem, getContainer, mapSlotGroups, stackInto } from '../rules/containers'
 import { getItemWeapon } from '../rules/items'
-import { canSharpen } from '../../weaponProperties'
+import { canSharpen, isSharpEdge } from '../../weaponProperties'
 
 export function duplicateItem(item: Item, overrides: Partial<Pick<Item, 'amount'>> = {}): Item {
   return { ...item, id: crypto.randomUUID(), ...overrides }
@@ -48,11 +48,10 @@ export const breakItem = (itemId: string) => setBroken(itemId, true)
 export const repairItem = (itemId: string) => setBroken(itemId, false)
 
 // gear.tex "Gear condition": Sharp, Dull or neither. "Bladed": only a bladed
-// weapon "can be sharpened", so one with no bladed row, or a piercing one, is
-// left as it is.
+// weapon "can be sharpened", so one with no bladed row is left as it is.
 export const setEdge = (itemId: string, edge: Edge | null) => <C extends Character>(character: C): C => mapEquippedItem(character, itemId, (item) => {
   const sharpenable = getItemWeapon(item)?.attacks.some((atk) => canSharpen(atk.properties))
-  return edge === 'sharp' && !sharpenable ? item : { ...item, edge }
+  return isSharpEdge(edge) && !sharpenable ? item : { ...item, edge }
 })
 
 // gear.tex "Slot size and stacking": an identical stack already in the group

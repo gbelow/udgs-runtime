@@ -308,7 +308,7 @@ export function ActionPanel(){
           {open.roll || view.compare ? <Test open={open} /> : null}
           {open.roll ? (
             <RollLine roll={open.roll} className='text-sm'>
-              {open.roll.HOP || view.hop.options.length > 0 ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
+              {view.hop.total || view.hop.options.length > 0 ? <TermLine label={`HOP ${view.hop.remaining} of`} terms={view.hop.terms} total={view.hop.total} /> : null}
             </RollLine>
           ) : null}
           {open.walked ? (
@@ -596,7 +596,7 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: 
         {bought ? <span className='ml-1 font-mono'>×{option.bought}</span> : null}
       </Button>
       </Closed>
-      {bought ? <Button size='xs' selected className='rounded-l-none border-l-0' aria-label={`refund ${option.label}`} onClick={onRefund}>−</Button> : null}
+      {bought ? <Button size='xs' selected className='rounded-l-none border-l-0' aria-label={`refund ${option.label}`} disabled={!option.refundable} onClick={onRefund}>−</Button> : null}
     </span>
   )
 }

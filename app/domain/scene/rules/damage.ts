@@ -1,21 +1,20 @@
 import { isCombatStarted } from './started'
-import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon, WeaponProperty, Edge } from '../../types'
+import type { Character, Damage, DamageComponent, DamageKind, Delivery, Edge, Item, Weapon, WeaponProperty } from '../../types'
 import type { AttackAction, SceneState, HOPPurchase, Interruption, MoveAction, StrikeAction, Trample } from '../types'
 import { getBlowTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
-import { HOP_EFFECTS } from '../../tables'
+import { HIT_HOP, HOP_EFFECTS } from '../../tables'
+import { sumTerms, type Term } from '../../character/rules/terms'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
-import { getAimedPlace } from '../../character/rules/body'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { getBlockValue, getBracedBonus, getHookBonus, getSliceBonus } from '../../character/rules/gear'
+import { getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { getDM } from '../../character/rules/size'
 import { getHardness } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
 import { hasChargeTrigger } from '../../character/rules/spells'
 import { produceSpellEffect } from '../../character/rules/production'
-import { hasProperty } from '../../weaponProperties'
+import { hasProperty, isSharpEdge } from '../../weaponProperties'
 import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, getRowProperties, type WeaponRow } from './weaponRow'
@@ -62,13 +61,11 @@ function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
 }
 
 // combat.tex "Success Overflow", "Hand": what each purchase does to the
-// damage on its way, bought `times` over. "Slice: Increases cutting damage by
-// 1xDM per HOP", 2xDM for a bladed and piercing weapon, 1.5xDM when sharp
-// (gear.tex "Gear condition"); "Smash: ... add 2 xDM extra damage and upgrades
-// an interrupt to a stun"; the rest mark the damage for the target's side
-// to read — the bypass against their armor, the cut against equal hardness,
-// the switch to the hand.
-type Buyer = { state: SceneState; root: AttackAction; attacker: Character; weapon: Weapon; properties: WeaponProperty[]; edge: Edge | null }
+// damage on its way, bought `times` over. Slice and smash add to the cut and
+// the blunt; the rest mark the damage for the target's side to read (the cut
+// against equal hardness, the switch to the hand), and assassinate adds HOP
+// rather than damage.
+type Buyer = { state: SceneState; root: AttackAction; attacker: Character; weapon: Weapon }
 
 // A bonus that adds to the physical damage, blunt and cutting alike, as the
 // heavy one does (combat.tex "Heavy Attack").
@@ -77,13 +74,11 @@ function addPhysical(damage: Damage, value: number): Damage {
 }
 
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
-  slice: (d, times, { attacker, properties, edge }) => addTo(d, 'cut', times * getSliceBonus(properties, edge, attacker)),
-  smash: (d, times, { attacker }) => ({ ...addTo(d, 'blunt', times * Math.floor(2 * getDM(attacker))), smash: true }),
-  bypass: (d) => ({ ...d, bypass: true }),
   bust: (d) => ({ ...d, bust: true }),
+  slice: (d, times, { attacker }) => addTo(d, 'cut', getSliceBonus(times, attacker)),
+  smash: (d, times, { attacker }) => addTo(d, 'blunt', getSmashBonus(times, attacker)),
   handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
-  // combat.tex "Assassinate": "It automatically applies bypass."
-  assassinate: (d) => ({ ...d, bypass: true }),
+  assassinate: (d) => d,
   braced: (d, _, { attacker, weapon }) => addPhysical(d, getBracedBonus(weapon, attacker)),
   hook: (d, _, { state, root, attacker, weapon }) => addPhysical(d, getHookBonus(weapon, attacker, getHookedMotion(state, root))),
 }
@@ -151,8 +146,7 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   const charge = link ? [] : (getRowCharge(attacker, row)?.charge?.effects ?? []).filter((e) => e.area === null)
   const chargeDamage = charge.flatMap((e) => (e.type === 'damage' ? e.effect.damage : []))
   const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), wall: getShotWall(state, root) }
-  const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
-  const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties, edge: row.wielded.edge }
+  const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
   const riders = root.kind === 'strike' ? getStrikeRiders(state, root) : []
@@ -216,7 +210,7 @@ const CATCH_HOP = 5
 // where the mover was stopped or the strike had HOP enough.
 export function canGrapple(state: SceneState, strike: StrikeAction): boolean {
   if (strike.roll?.degree !== 'hit' || !strike.targetId || !canGrab(state, strike, strike.targetId)) return false
-  return !strike.catch || getStrikeTrample(state, strike)?.result === 'blocked' || (strike.roll.HOP ?? 0) >= CATCH_HOP
+  return !strike.catch || getStrikeTrample(state, strike)?.result === 'blocked' || getHitHOP(state, strike).total >= CATCH_HOP
 }
 
 export function getStrikeLanding(state: SceneState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo'> {
@@ -244,6 +238,8 @@ export type HOPOption = {
   bought: number
   available: boolean
   reason: string | null
+  // whether one bought can be taken back
+  refundable: boolean
 }
 
 // combat.tex "Assassinate": "This costs 1 extra AP on the normal cost of the
@@ -268,8 +264,53 @@ function getHOPSpent(root: AttackAction, target: Character): number {
   return HOP_PURCHASES.reduce((sum, p) => sum + (root.spent[p] ?? 0) * priceOf(p, target), 0)
 }
 
-export function getHOPRemaining(root: AttackAction, target: Character): number {
-  return (root.roll?.HOP ?? 0) - getHOPSpent(root, target)
+// A hit's HOP: what they are made of, their total (never below none), and
+// what is left of it once the purchases are paid.
+export type HOPBudget = { terms: Term[]; total: number; remaining: number }
+const NO_HOP: HOPBudget = { terms: [], total: 0, remaining: 0 }
+
+// The roll's overflow, and what each source gives or takes once it is a
+// hit: the weapon (gear.tex "Ultra fast(UF)", "Sharp"), the target's closed
+// visor at the head (gear.tex "Closed helmet"), and the purchases that give
+// HOP (combat.tex "Assassinate").
+function getHitHOPTerms(root: AttackAction, target: Character, edge: Edge | null, properties: readonly WeaponProperty[]): Term[] {
+  const sharp = getEdgeHOP(properties, edge)
+  const terms: (Term | null)[] = [
+    { label: 'roll', value: root.roll?.HOP ?? 0 },
+    hasProperty(properties, 'UF') ? { label: 'UF', value: HIT_HOP.UF } : null,
+    isSharpEdge(edge) && sharp ? { label: edge, value: sharp } : null,
+    root.location === 'head' && isVisorClosed(target) ? { label: 'closed helmet', value: HIT_HOP['closed helmet'] } : null,
+    ...HOP_PURCHASES.map((p) => ((root.spent[p] ?? 0) > 0 && HOP_EFFECTS[p].gives ? { label: p, value: HOP_EFFECTS[p].gives } : null)),
+  ]
+  return terms.filter((t): t is Term => t !== null)
+}
+
+function budgetOf(root: AttackAction, target: Character, terms: Term[]): HOPBudget {
+  const total = Math.max(0, sumTerms(terms))
+  return { terms, total, remaining: total - getHOPSpent(root, target) }
+}
+
+// Nothing for anything short of a hit.
+export function getHitHOP(state: SceneState, root: AttackAction): HOPBudget {
+  const attacker = state.characters[root.actorId]
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  const row = attacker ? findWeaponRow(attacker, root.weaponKey, root.attack) : null
+  if (root.roll?.degree !== 'hit' || !attacker || !target || !row) return NO_HOP
+  const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
+  return budgetOf(root, target, getHitHOPTerms(root, target, row.wielded.edge, properties))
+}
+
+// A purchase may be taken back while what is left without it still pays for
+// the rest, the HOP it gives gone with it.
+function canRefund(purchase: HOPPurchase, root: AttackAction, target: Character, budget: HOPBudget): boolean {
+  if ((root.spent[purchase] ?? 0) === 0) return false
+  const spent = budget.total - budget.remaining - priceOf(purchase, target)
+  return Math.max(0, sumTerms(budget.terms) - HOP_EFFECTS[purchase].gives) - spent >= 0
+}
+
+export function canRefundHOP(state: SceneState, root: AttackAction, purchase: HOPPurchase): boolean {
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  return !!target && canRefund(purchase, root, target, getHitHOP(state, root))
 }
 
 // combat.tex "Success Overflow": what the hit's overflow can still buy, each
@@ -280,23 +321,24 @@ export function getHOPOptions(state: SceneState, root: AttackAction): HOPOption[
   const target = root.targetId ? state.characters[root.targetId] : undefined
   const row = attacker ? findWeaponRow(attacker, root.weaponKey, root.attack) : null
   if (!attacker || !target || !row || !root.roll || root.roll.degree !== 'hit') return []
-  const remaining = getHOPRemaining(root, target)
   const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
+  const budget = budgetOf(root, target, getHitHOPTerms(root, target, row.wielded.edge, properties))
+  const { remaining } = budget
   const armor = getArmor(target)
   const { defense, shield } = getDefense(state, root)
-  const aimed = getAimedPlace(target, root)
 
   return HOP_PURCHASES.map((purchase) => {
-    const { property } = HOP_EFFECTS[purchase]
+    const { property, repeatable } = HOP_EFFECTS[purchase]
     const cost = priceOf(purchase, target)
     const bought = root.spent[purchase] ?? 0
     const price = getHOPPrice(purchase, attacker)
-    const closed = (reason: string): HOPOption => ({ purchase, cost, price, bought, available: false, reason })
+    const refundable = canRefund(purchase, root, target, budget)
+    const closed = (reason: string): HOPOption => ({ purchase, cost, price, bought, available: false, reason, refundable })
     if ((purchase === 'assassinate' || purchase === 'braced' || purchase === 'hook') && root.kind !== 'strike') return closed('strikes only')
     if (property && !hasProperty(properties, property)) return closed(`needs ${property}`)
     // gear.tex "Gear condition": "Dull - Bladed weapon cannot use Slice."
     if (purchase === 'slice' && row.wielded.edge === 'dull') return closed('dull')
-    if (purchase !== 'slice' && bought > 0) return closed('bought')
+    if (!repeatable && bought > 0) return closed('bought')
     // combat.tex "Assassinate": "requires a short range ... weapon attack",
     // "Can only be done against SD, not against active defense".
     if (purchase === 'assassinate' && row.atk.range !== 'short') return closed('needs short range')
@@ -308,19 +350,13 @@ export function getHOPOptions(state: SceneState, root: AttackAction): HOPOption[
     if (purchase === 'assassinate' && (root.variant === 'braced' || root.variant === 'hook')) return closed(`${root.variant} attack`)
     if (purchase === 'braced' && !isBracedChance(state, root)) return closed('target not moving towards the weapon')
     if (purchase === 'hook' && !isHookChance(state, root)) return closed('not an action or a runner moving away')
-    if ((purchase === 'bypass' && (root.spent.assassinate ?? 0) > 0) || (purchase === 'assassinate' && (root.spent.bypass ?? 0) > 0)) return closed('already bypassing')
-    // gear.tex "Closed helmet": "armor bypass is impossible in the head",
-    // while the visor is down — the part a bypass would reach flesh at
-    if ((purchase === 'bypass' || purchase === 'assassinate') && aimed.flags.includes('bypassToFlesh') && isVisorClosed(target)) return closed('closed helmet')
-    // combat.tex "Armor Bypass": "can only be done against rigid armor".
-    if ((purchase === 'bypass' || purchase === 'assassinate') && !armor.properties.includes('rigid')) return closed('armor is not rigid')
     // combat.tex "Penetrating": cutting "against objects with the same hardness".
     if (purchase === 'bust' && getHardness(row.atk.material) !== getHardness(armor.material)) return closed('hardness differs')
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
     if (cost > remaining) return closed('not enough HOP')
     if (price && !canAfford(attacker, price, isCombatStarted(state))) return closed('cannot afford')
-    return { purchase, cost, price, bought, available: true, reason: null }
+    return { purchase, cost, price, bought, available: true, reason: null, refundable }
   })
 }
 

@@ -1,6 +1,6 @@
 import type { Action, Direction, HOPPurchase, Updater } from '../types'
 import { canSaveGraze, getGrazeSavedRoll, getImprovementOptions } from '../rules/cast'
-import { canGrapple, getHOPOptions } from '../rules/damage'
+import { canGrapple, canRefundHOP, getHOPOptions } from '../rules/damage'
 import { isSpray } from '../rules/explosion'
 import type { SpellModification } from '../../tables'
 import { appendActions, applyPhase, getRolledOpen, replaceActions } from './log'
@@ -25,11 +25,12 @@ export function spendHOP(purchase: HOPPurchase): Updater {
 }
 
 // Takes one purchase back. Nothing has landed on the target until the
-// action resolves, so the overflow is free to re-spend up to that point.
+// action resolves, so the overflow is free to re-spend up to that point,
+// while what is left still pays for the rest.
 export function refundHOP(purchase: HOPPurchase): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['strike', 'shoot'])
-    if (!open) return state
+    if (!open || !canRefundHOP(state, open, purchase)) return state
     const spent = takeOne(open.spent, purchase)
     return spent ? replaceActions(state, [{ ...open, spent }]) : state
   }

@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type Character, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, PartFlagSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type Character, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { getPresetFootprint, isSoundFootprint, settleParts } from './character/rules/footprint'
@@ -148,13 +148,15 @@ export function makeRaceHolder(raw: unknown = {}): BaseCharacter {
 
 // A part is read over the humanoid's row for its kind, so what it does not
 // say — its wounds, its penalty, its flags — is the book's; a cell that does
-// not parse spreads it over the whole body, a part that does not parse is dropped, and a body
-// left without a chest is given one.
+// not parse spreads it over the whole body, a flag no longer known is dropped,
+// a part that does not parse is dropped, and a body left without a chest is
+// given one.
 function readBody(raw: Record<string, unknown>[]): BodyPart[] {
   return BodySchema.parse(raw.flatMap((entry) => {
     const kind = HitLocationSchema.safeParse(entry.location)
     const cell = CoordSchema.safeParse(entry.cell)
-    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry, cell: cell.success ? cell.data : null })
+    const flags = Array.isArray(entry.flags) ? { flags: entry.flags.filter((f) => PartFlagSchema.safeParse(f).success) } : {}
+    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry, ...flags, cell: cell.success ? cell.data : null })
     return part.success ? [part.data] : []
   }))
 }

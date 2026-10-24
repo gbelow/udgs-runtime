@@ -1,9 +1,9 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDM } from "./size";
-import { BOWS, DISTANCE_FREE, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { BOWS, DISTANCE_FREE, SHARP_HOP, SLICE_DM, SMASH_DM, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
-import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen } from "../../weaponProperties";
+import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
 import { hasGrant } from "./effects"
 import { isCampaignCharacter } from "../../utils";
@@ -28,13 +28,21 @@ function getWieldSTR(weapon: Weapon, c: Character): number {
   return getSTR(c) - (isOversize(weapon, c) ? 5 : 0)
 }
 
-// combat.tex "Success Overflow", "Slice": "Increases cutting damage by 1xDM per
-// HOP ... Weapons that are bladed and piercing increase cutting damage by 2xDM
-// per HOP"; gear.tex "Gear condition": a sharp weapon deals "1.5 x DM extra
-// damage per HOP with Slice".
-export function getSliceBonus(properties: readonly WeaponProperty[], edge: Edge | null, c: Character): number {
-  const multiplier = hasProperty(properties, 'piercing') ? 2 : edge === 'sharp' && canSharpen(properties) ? 1.5 : 1
-  return Math.floor(multiplier * getDM(c))
+// combat.tex "Success Overflow", "Slice": "increase cutting damage by 5xDM",
+// for every slice bought.
+export function getSliceBonus(times: number, c: Character): number {
+  return times * Math.floor(SLICE_DM * getDM(c))
+}
+
+// combat.tex "Success Overflow", "Smash": "Increases blunt damage by 1xDM per
+// HOP".
+export function getSmashBonus(HOP: number, c: Character): number {
+  return Math.floor(HOP * SMASH_DM * getDM(c))
+}
+
+// gear.tex "Gear condition": "Sharp - Bladed weapon gets +x HOP on a hit".
+export function getEdgeHOP(properties: readonly WeaponProperty[], edge: Edge | null): number {
+  return isSharpEdge(edge) && canSharpen(properties) ? SHARP_HOP[edge] : 0
 }
 
 // combat.tex "Braced Attack": "damage bonus of +1.5x STR x DM on a hit".

@@ -99,7 +99,7 @@ function ArmorAddons (){
       </Button>
       {pieces.visor ?
         <Button size='xs' selected={!pieces.visor.open} aria-label={pieces.visor.open ? 'close visor' : 'open visor'}
-          title={pieces.visor.open ? 'visor up: no helmet penalties, the head can be bypassed' : 'visor down: -2 reflex and detection, no bypass at the head'}
+          title={pieces.visor.open ? 'visor up: no helmet penalties, hits to the head keep their HOP' : 'visor down: -2 reflex and detection, hits to the head lose 5 HOP'}
           onClick={visor}>
           {pieces.visor.open ? 'visor up' : 'visor down'}{pieces.visor.cost !== null ? <span className='ml-1 font-mono text-muted'>{pieces.visor.cost} AP</span> : null}
         </Button>

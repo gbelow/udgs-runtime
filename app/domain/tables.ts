@@ -1,4 +1,4 @@
-import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type ChaseTier, type FootprintPreset, type LivingLevel } from './lists'
+import { EDGES, HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type ChaseTier, type FootprintPreset, type LivingLevel } from './lists'
 import type { AfflictionKey, Coord, Degree, Fuel, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
@@ -217,27 +217,45 @@ export const MAX_TIER = 5
 // combat.tex "Success Overflow" and "Localized damage" (the hand switch): what
 // a hit's HOP can buy. `cost` is a number of HOP or the target's deflection;
 // `property` is the weapon property that allows the effect (gear.tex "Weapons
-// Properties"), null where any weapon may. Smash is open to any weapon and
-// has no gate but its price: its own extra damage may be what makes the
-// blow T1, so the stun it upgrades is read off the outcome, not asked for
-// up front. combat.tex "Assassinate", "Braced Attack" and "Hook Attack" (the
-// trip) cost no HOP but AP and STA, priced in ACTION_COSTS.
+// Properties"), null where any weapon may; `repeatable` whether it can be
+// bought more than once (combat.tex "Slice": "This can be bought multiple
+// times"; "Smash": "per HOP"); `gives` the HOP it adds to the hit (combat.tex
+// "Assassinate": "to increase HOPs by 5"). Assassinate, "Braced Attack" and
+// "Hook Attack" (the trip) are priced in AP and STA in ACTION_COSTS.
 export const HOP_EFFECTS = {
-  slice:       { cost: 1,            property: 'bladed' },
-  bypass:      { cost: 'deflection', property: 'precise' },
-  bust:        { cost: 'deflection', property: 'penetrating' },
-  smash:       { cost: 'deflection', property: null },
-  handSwitch:  { cost: 3,            property: null },
-  assassinate: { cost: 0,            property: 'precise' },
-  braced:      { cost: 0,            property: 'braced' },
-  hook:        { cost: 0,            property: 'hook' },
-} as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null }>
+  bust:        { cost: 'deflection', property: 'penetrating', repeatable: false, gives: 0 },
+  slice:       { cost: 'deflection', property: 'bladed',      repeatable: true,  gives: 0 },
+  smash:       { cost: 1,            property: null,          repeatable: true,  gives: 0 },
+  handSwitch:  { cost: 3,            property: null,          repeatable: false, gives: 0 },
+  assassinate: { cost: 0,            property: 'precise',     repeatable: false, gives: 5 },
+  braced:      { cost: 0,            property: 'braced',      repeatable: false, gives: 0 },
+  hook:        { cost: 0,            property: 'hook',        repeatable: false, gives: 0 },
+} as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null; repeatable: boolean; gives: number }>
+
+// combat.tex "Slice": "increase cutting damage by 5xDM"; "Smash": "Increases
+// blunt damage by 1xDM per HOP".
+export const SLICE_DM = 5
+export const SMASH_DM = 1
+
+// HOP a hit gets or loses beyond its roll from what the attack meets, by what
+// they come from (a purchase's own are its `gives`). gear.tex "Ultra
+// fast(UF)": "gets +2 HOPs on hit"; "Closed helmet": "hits to the head lose 5
+// HOPs"; "Sharp": a bladed weapon "gets +x HOP on a hit", the x its sharpening
+// came to ("Sharpening": "+1 on a hit and +2 on a crit").
+export const HIT_HOP = { UF: 2, 'closed helmet': -5 } as const
+export const SHARP_HOP = { 'sharp +1': 1, 'sharp +2': 2 } as const satisfies Partial<Record<(typeof EDGES)[number], number>>
 
 // combat.tex "Interruption", "Stun": an interruption costs nothing beyond
 // the action it cuts short; a stun is an interruption "in which the target
-// also loses 2 AP", and happens on its own at T3+ blunt.
+// also loses 2 AP". Each happens on its own at a tier of blunt or electric
+// damage: an interruption at T1, a stun at T3, or at T0 and T2 from a basher
+// (gear.tex "Basher": "interrupts at T0 blunt damage and stuns at T2 blunt
+// damage").
 export const STUN_AP = 2
-export const STUN_TIER = 3
+export const BLUNT_EFFECT_TIERS = {
+  normal: { interrupt: 1, stun: 3 },
+  basher: { interrupt: 0, stun: 2 },
+} as const
 
 // combat.tex "Standard Action": "throwing items with bulk smaller than
 // character size by up to 10m"
@@ -249,13 +267,13 @@ export const THROW_ITEM_RANGE = 10
 // wound is carried in the injuries and puts its part out of use (a hand's or
 // a leg's consequence is read off the body, body.ts); `affliction` is only
 // what reaches past the part. A `sever` wound ("no heal") is not carried: the
-// part it takes is lost. `smash` wounds are measured on the blunt tier and
-// need a smash (Shocked). combat.tex "Head": "Tier 4 damage causes instant
+// part it takes is lost. `blunt` wounds are measured on the blunt tier alone
+// (Shocked, "T4 blunt"). combat.tex "Head": "Tier 4 damage causes instant
 // death" is the head's `kill`.
-type PartWoundPreset = { name: string; tier: number; smash: boolean; effect: (typeof WOUND_EFFECTS)[number]; heal: number; affliction: AfflictionKey | null; consequence: string }
+type PartWoundPreset = { name: string; tier: number; blunt: boolean; effect: (typeof WOUND_EFFECTS)[number]; heal: number; affliction: AfflictionKey | null; consequence: string }
 
 const wound = (w: Partial<PartWoundPreset> & Pick<PartWoundPreset, 'name' | 'tier' | 'consequence'>): PartWoundPreset =>
-  ({ smash: false, effect: 'disable', heal: 0, affliction: null, ...w })
+  ({ blunt: false, effect: 'disable', heal: 0, affliction: null, ...w })
 
 // combat.tex "Localized damage", the humanoid's places: the penalty to the
 // attack test for aiming there, stored as a positive magnitude; the highest
@@ -265,7 +283,7 @@ const wound = (w: Partial<PartWoundPreset> & Pick<PartWoundPreset, 'name' | 'tie
 // not describe, starting from nothing.
 export const PART_PRESETS = {
   chest: { aimPenalty: 0, maxTier: null, flags: [], wounds: [
-    wound({ name: 'shocked', tier: 3, smash: true, heal: 5, affliction: 'immobile', consequence: 'immobile' }),
+    wound({ name: 'shocked', tier: 4, blunt: true, heal: 5, affliction: 'immobile', consequence: 'immobile' }),
   ] },
   hand: { aimPenalty: 10, maxTier: 2, flags: ['bareWithoutGauntlets'], wounds: [
     wound({ name: 'broken hand', tier: 2, heal: 10, consequence: 'useless hand' }),
@@ -275,7 +293,7 @@ export const PART_PRESETS = {
     wound({ name: 'broken leg', tier: 3, heal: 20, consequence: 'lame' }),
     wound({ name: 'amputated leg', tier: 5, effect: 'sever', consequence: 'loses leg' }),
   ] },
-  head: { aimPenalty: 5, maxTier: null, flags: ['stunUnconscious', 'bypassToFlesh'], wounds: [
+  head: { aimPenalty: 5, maxTier: null, flags: ['stunUnconscious'], wounds: [
     wound({ name: 'death', tier: 4, effect: 'kill', consequence: 'instant death' }),
   ] },
   other: { aimPenalty: 0, maxTier: null, flags: [], wounds: [] },

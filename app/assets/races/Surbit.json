@@ -142,8 +142,8 @@
       "wounds": [
         {
           "name": "shocked",
-          "tier": 3,
-          "smash": true,
+          "tier": 4,
+          "blunt": true,
           "effect": "disable",
           "heal": 5,
           "affliction": "immobile",
@@ -162,14 +162,13 @@
       "aimPenalty": 5,
       "maxTier": null,
       "flags": [
-        "stunUnconscious",
-        "bypassToFlesh"
+        "stunUnconscious"
       ],
       "wounds": [
         {
           "name": "death",
           "tier": 4,
-          "smash": false,
+          "blunt": false,
           "effect": "kill",
           "heal": 0,
           "affliction": null,
@@ -194,7 +193,7 @@
         {
           "name": "broken hand",
           "tier": 2,
-          "smash": false,
+          "blunt": false,
           "effect": "disable",
           "heal": 10,
           "affliction": null,
@@ -203,7 +202,7 @@
         {
           "name": "amputated hand",
           "tier": 4,
-          "smash": false,
+          "blunt": false,
           "effect": "sever",
           "heal": 0,
           "affliction": null,
@@ -228,7 +227,7 @@
         {
           "name": "broken hand",
           "tier": 2,
-          "smash": false,
+          "blunt": false,
           "effect": "disable",
           "heal": 10,
           "affliction": null,
@@ -237,7 +236,7 @@
         {
           "name": "amputated hand",
           "tier": 4,
-          "smash": false,
+          "blunt": false,
           "effect": "sever",
           "heal": 0,
           "affliction": null,
@@ -260,7 +259,7 @@
         {
           "name": "broken leg",
           "tier": 3,
-          "smash": false,
+          "blunt": false,
           "effect": "disable",
           "heal": 20,
           "affliction": null,
@@ -269,7 +268,7 @@
         {
           "name": "amputated leg",
           "tier": 5,
-          "smash": false,
+          "blunt": false,
           "effect": "sever",
           "heal": 0,
           "affliction": null,
@@ -292,7 +291,7 @@
         {
           "name": "broken leg",
           "tier": 3,
-          "smash": false,
+          "blunt": false,
           "effect": "disable",
           "heal": 20,
           "affliction": null,
@@ -301,7 +300,7 @@
         {
           "name": "amputated leg",
           "tier": 5,
-          "smash": false,
+          "blunt": false,
           "effect": "sever",
           "heal": 0,
           "affliction": null,
@@ -324,7 +323,7 @@
         {
           "name": "amputated tail",
           "tier": 4,
-          "smash": false,
+          "blunt": false,
           "effect": "sever",
           "heal": 0,
           "affliction": null,

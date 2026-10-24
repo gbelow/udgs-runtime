@@ -1,15 +1,19 @@
-import type { AttackKind, AttackType, HeavyRange, MeleeRange, Range, Weapon, WeaponAttack, WeaponProperty } from './types'
+import type { AttackKind, AttackType, Edge, HeavyRange, MeleeRange, Range, Weapon, WeaponAttack, WeaponProperty } from './types'
 import { MELEE_RANGES, SHOT_RANGES, WEAPON_PROPERTIES } from './lists'
-import { SHOT_RANGE_METRES } from './tables'
+import { SHARP_HOP, SHOT_RANGE_METRES } from './tables'
 
 export function hasProperty(properties: readonly WeaponProperty[], property: WeaponProperty): boolean {
   return properties.includes(property)
 }
 
-// gear.tex "Bladed": a bladed weapon "can be sharpened" — all but a piercing
-// one, which slices for double already (combat.tex "Success Overflow").
+// gear.tex "Bladed": a bladed weapon "can be sharpened".
 export function canSharpen(properties: readonly WeaponProperty[]): boolean {
-  return hasProperty(properties, 'bladed') && !hasProperty(properties, 'piercing')
+  return hasProperty(properties, 'bladed')
+}
+
+// gear.tex "Gear condition": an edge that is a sharpening, not a dull one.
+export function isSharpEdge(edge: Edge | null): edge is keyof typeof SHARP_HOP {
+  return edge !== null && edge in SHARP_HOP
 }
 
 // The heavy degrees an attack offers, or null when it has no heavy property.

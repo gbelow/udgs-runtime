@@ -100,7 +100,6 @@ export function getCancellableLabel(state: SceneState, root: Action, defenderId:
 
 export const HOP_LABELS: Record<HOPPurchase, string> = {
   slice: 'slice',
-  bypass: 'bypass',
   bust: 'bust',
   smash: 'smash',
   handSwitch: 'switch to hand',

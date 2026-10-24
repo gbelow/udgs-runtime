@@ -35,11 +35,11 @@ function proneDelivery(): Delivery {
 
 // What the landing does to the faller. combat.tex "Fall skill test": a graze
 // falls prone, a miss falls prone and "hits the head"; "Receiving a T1 injury
-// or higher always makes the character prone and stuns", so the blow
-// stuns and the prone is gated on its tier.
+// or higher always makes the character prone", so the prone is gated on the
+// blow's tier.
 export function getFallDeliveries(c: Character, height: number, soft: boolean, degree: Degree): Delivery[] {
   const value = getFallBlow(c, height, soft, degree)
-  const damage = DamageSchema.parse({ damage: [{ kind: 'blunt', value }], location: degree === 'miss' ? 'head' : 'chest', bare: true, stuns: true })
+  const damage = DamageSchema.parse({ damage: [{ kind: 'blunt', value }], location: degree === 'miss' ? 'head' : 'chest', bare: true })
   const blow: Delivery = { effect: { name: 'fall', trigger: 'instant', type: 'damage', effect: damage }, degree: 'hit', test: null, when: null, then: [{ ...proneDelivery(), when: { minTier: 1 } }], locks: null }
   const falls = degree === 'graze' || degree === 'miss' ? [proneDelivery()] : []
   return [...(value > 0 ? [blow] : []), ...falls]

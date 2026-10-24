@@ -196,7 +196,7 @@ function WoundEditor({ part, index }: { part: BodyPart, index: number }) {
         <NumberInput className='w-10 py-0.5' aria-label={`${label} tier`} min={0} value={wound.tier} onChange={(e) => editWound(part.id, index, { tier: Math.max(0, parseInt(e.target.value) || 0) })} />
       </label>
       <label className='flex flex-row items-center gap-1 text-muted'>
-        <input type='checkbox' className='accent-accent' checked={wound.smash} onChange={(e) => editWound(part.id, index, { smash: e.target.checked })} />smash
+        <input type='checkbox' className='accent-accent' checked={wound.blunt} onChange={(e) => editWound(part.id, index, { blunt: e.target.checked })} />blunt only
       </label>
       <select aria-label={`${label} effect`} className={selectClass} value={wound.effect} onChange={(e) => editWound(part.id, index, { effect: e.target.value as WoundEffect })}>
         {WOUND_EFFECTS.map((effect) => <option key={effect} value={effect}>{effect}</option>)}

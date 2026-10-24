@@ -496,7 +496,8 @@ export type WoundEffect = z.infer<typeof WoundEffectSchema>
 export const PartWoundSchema = z.object({
   name: str.default(''),
   tier: num.int().min(0).default(0),
-  smash: z.boolean().default(false),
+  // measured on the blunt tier alone (combat.tex "Wounds": Shocked, "T4 blunt")
+  blunt: z.boolean().default(false),
   effect: WoundEffectSchema.default('disable'),
   heal: num.default(0),
   affliction: z.lazy(() => AfflictionKeySchema).nullable().default(null),
@@ -796,18 +797,13 @@ export const DamageSchema = z.object({
   // based on RES of the cover" before anything else meets the blow; its RES,
   // null with no such wall in the way.
   wall: z.object({ RES: num }).strip().nullable().default(null),
-  bypass: z.boolean().default(false),
   bust: z.boolean().default(false),
-  smash: z.boolean().default(false),
   // combat.tex "Fall damage": "the damage ignores armor"
   bare: z.boolean().default(false),
   // burn dealt straight to the flesh, which neither adds the burning counter
   // nor leaves the character burning (the table's ruling for abilities.tex
   // "Cauterization")
   sear: z.boolean().default(false),
-  // combat.tex "Fall skill test": "Receiving a T1 injury or higher always
-  // makes the character prone and stuns" — an interruption is a stun
-  stuns: z.boolean().default(false),
 }).strip()
 export type Damage = z.infer<typeof DamageSchema>
 
@@ -1507,7 +1503,7 @@ const CharacterValues = {
   hasGauntlets: z.number().default(0),
   hasHelm: z.number().default(0),
   // gear.tex "Closed helmet": the visor raised; the helmet's penalties and its
-  // guard against a bypass at the head hold only while it is down
+  // HOP taken off hits to the head hold only while it is down
   visorOpen: z.boolean().default(false),
   
   // the armor item being worn over it, if any (gear.tex "Donning and Doffing armor")

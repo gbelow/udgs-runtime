@@ -14,7 +14,7 @@ import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTe
 import { EXTEND, PART_PRESETS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
-import { HOPOption, canGrapple, getHOPOptions, getHOPRemaining } from '../rules/damage'
+import { HOPOption, canGrapple, getHitHOP, getHOPOptions } from '../rules/damage'
 import { getActionNotes, getOutcomes } from './outcomes'
 import { EpisodeEntry, getEditsSince, getRoundEpisodes } from './episode'
 import { isVoided } from '../rules/opportunity'
@@ -352,7 +352,7 @@ export type ActionPanelView = {
   reachable: ReachableCell[]
   // once rolled: what the hit's overflow can buy, and what the action does
   // to everyone it lands on as they stand
-  hop: { remaining: number; options: HOPOptionView[] }
+  hop: { remaining: number; total: number; terms: Term[]; options: HOPOptionView[] }
   outcomes: { target: string; outcome: Outcome }[]
   // once a cast is rolled: what its overflow can buy, and what it will
   // deliver to whom
@@ -371,7 +371,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -539,8 +539,8 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     moves: move && actor ? getMovementOptions(state, actor, move) : [],
     reachable: move ? getReachableCells(state, move) : [],
     hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
-      ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) }
-      : { remaining: 0, options: [] },
+      ? { ...getHitHOP(state, attack), options: getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) }
+      : { remaining: 0, total: 0, terms: [], options: [] },
     outcomes: open.step === 'post' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
     castHOP: cast && cast.step === 'post' ? { remaining: getCastHOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
     grazeSave: cast && canSaveGraze(state, cast) ? GRAZE_SAVE_COST : null,

@@ -58,9 +58,9 @@ describe('additional effects', () => {
   // beyond the injury is the same whatever the cutting component is.
   it("are the blunt component's whichever type causes the injury", () => {
     for (const blunt of damages) {
-      const alone = blow({ blunt, smash: true }, target)
+      const alone = blow({ blunt }, target)
       for (const cut of damages) {
-        const both = blow({ blunt, cut, smash: true }, target)
+        const both = blow({ blunt, cut }, target)
         expect(both.interruption).toBe(alone.interruption)
         expect(both.apLoss).toBe(alone.apLoss)
       }
