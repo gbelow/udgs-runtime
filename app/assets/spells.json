@@ -190,7 +190,7 @@
           "damage": [
             {
               "kind": "blunt",
-              "value": 15
+              "value": 20
             }
           ],
           "hardness": 0,
