@@ -950,7 +950,7 @@
         "material": "metal",
         "RES": 10,
         "blunt": 8,
-        "cut": 22,
+        "cut": 30,
         "AP": 4,
         "reload": 4,
         "properties": [
@@ -975,7 +975,7 @@
         "material": "metal",
         "RES": 10,
         "blunt": 10,
-        "cut": 26,
+        "cut": 36,
         "AP": 4,
         "reload": 6,
         "properties": [

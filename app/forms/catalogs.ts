@@ -3,6 +3,7 @@ import { EventTemplateSchema, ScenePresetSchema, TerrainSchema, type CatalogKind
 import type { CatalogRow } from '../domain/campaign/projections/collections'
 import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerEntrySchema, ItemEntrySchema, SpecificKnowledgeEntrySchema, SpellSchema, WeaponSchema } from '../domain/types'
 import { slug } from '../domain/utils'
+import { getWeaponCategory } from '../domain/weaponProperties'
 import { isSpecificKnowledgeName, knowledgeName } from '../domain/character/rules/knowledge'
 import abilities from '../assets/abilities.json'
 import spells from '../assets/spells.json'
@@ -44,6 +45,7 @@ export const CATALOGS = {
   weapons: {
     label: 'Weapons', file: 'weapons.json', schema: WeaponSchema, data: weapons,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
+    groupOf: (e) => { const weapon = WeaponSchema.safeParse(e); return weapon.success ? getWeaponCategory(weapon.data) : '' },
   },
   armors: {
     label: 'Armors', file: 'armors.json', schema: ArmorSchema, data: armors,

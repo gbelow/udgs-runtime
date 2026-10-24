@@ -1,4 +1,4 @@
-import type { AttackKind, AttackType, HeavyRange, MeleeRange, Range, WeaponAttack, WeaponProperty } from './types'
+import type { AttackKind, AttackType, HeavyRange, MeleeRange, Range, Weapon, WeaponAttack, WeaponProperty } from './types'
 import { MELEE_RANGES, SHOT_RANGES, WEAPON_PROPERTIES } from './lists'
 import { SHOT_RANGE_METRES } from './tables'
 
@@ -72,6 +72,17 @@ export function getRangeMetres(range: Range): number | null {
 
 export function isMeleeRange(range: Range): range is MeleeRange {
   return (MELEE_RANGES as readonly string[]).includes(range)
+}
+
+export type WeaponCategory = 'melee' | 'ranged' | 'thrown' | 'shield'
+
+// gear.tex "Shields" is a table of its own; of the rest, a weapon with any
+// melee row is a melee weapon (a dagger that can be thrown), and one with
+// none is a shooter, or something only thrown (a net, a grenade).
+export function getWeaponCategory(weapon: Weapon): WeaponCategory {
+  if (weapon.shield) return 'shield'
+  const kinds = weapon.attacks.map((a) => getAttackKind(a.range))
+  return kinds.includes('melee') ? 'melee' : kinds.includes('shoot') ? 'ranged' : 'thrown'
 }
 
 // Which skill the attack is rolled with: strike for melee, accuracy for both

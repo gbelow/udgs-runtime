@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { CatalogPanel } from './CatalogPanel'
 import { CollectionsEditor } from './Collections'
 import { BoardMapsEditor } from './BoardMaps'
+import { CatalogCompare } from './Compare'
 import { RaceCreator } from '../RaceCreator'
 import { MapEditor } from '../MapEditor'
 import { CATALOGS, CATALOG_NAMES, CatalogName } from '../../forms/catalogs'
@@ -23,6 +24,7 @@ export function CatalogEditor() {
     <div className='flex flex-col gap-2 py-2'>
       <div className='flex flex-row gap-1 text-xs'>
         <Button selected={tab === 'collections'} onClick={() => setTab('collections')}>Collections</Button>
+        <Button selected={tab === 'compare'} onClick={() => setTab('compare')}>Compare</Button>
         <Button selected={tab === 'race'} onClick={() => setTab('race')}>Races</Button>
         <Button selected={tab === 'map'} onClick={() => setTab('map')}>Maps</Button>
         <Button selected={tab === 'boards'} onClick={() => setTab('boards')}>Battle maps</Button>
@@ -30,7 +32,7 @@ export function CatalogEditor() {
           <Button key={name} selected={tab === 'catalog' && catalog === name} onClick={() => openAsset(name)}>{CATALOGS[name].label}</Button>
         ))}
       </div>
-      {tab === 'race' ? <RaceCreator /> : tab === 'map' ? <MapEditor /> : tab === 'boards' ? <BoardMapsEditor /> : tab === 'collections' ? <CollectionsEditor /> : <CatalogPanel key={catalog} catalog={catalog} />}
+      {tab === 'race' ? <RaceCreator /> : tab === 'map' ? <MapEditor /> : tab === 'boards' ? <BoardMapsEditor /> : tab === 'collections' ? <CollectionsEditor /> : tab === 'compare' ? <CatalogCompare /> : <CatalogPanel key={catalog} catalog={catalog} />}
     </div>
   )
 }
