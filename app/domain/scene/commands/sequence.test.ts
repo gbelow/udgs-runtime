@@ -90,6 +90,17 @@ function playOut(start: SceneState, face: number): { state: SceneState; landed: 
   throw new Error('did not end')
 }
 
+// A grabs B and declares a basic block of circling around B along the way
+// given, committed for third parties to answer (combat.tex "Push and drag").
+function circleGrabbed(placements: Record<string, [number, number]>, third: CampaignCharacter, path: Coord[]): SceneState {
+  let s = onBoard(placements, fighter('a'), fighter('b'), third)
+  s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
+  s = resolveAction(newId, () => 5)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
+  s = declareAction('a', { kind: 'drag', movement: 'basic' }, newId)(s)
+  s = commitAction(() => 5, newId)(amendAction({ path })(setTarget('b')(s)))
+  return everyoneAttacks(s, [third.id])
+}
+
 // A shot at a target three cells away, from between two threateners
 // (combat.tex "Opportunity Attack": "ranged attacks" are triggering actions).
 function shotBetweenThreateners(): SceneState {
@@ -247,6 +258,18 @@ describe('an action broken by an opportunity attack', () => {
     const walked = playOut(alone, LAND).state.characters.m.resources
 
     expect([cut.AP, cut.STA]).toEqual([walked.AP, walked.STA])
+  })
+
+  // A push stunned before its first step kept the price of the whole block
+  // declared; the table's ruling is that it pays only what it used, so
+  // declaring it further costs nothing more.
+  it('charges a pusher stopped short the same however far the block was declared', () => {
+    const placements: Record<string, [number, number]> = { a: [0, 0], b: [1, 0], t: [-1, 2] }
+    const path = [{ q: 0, r: 1 }, { q: 1, r: 1 }]
+    const far = playOut(circleGrabbed(placements, wielder('t', 'Greatsword'), path), LAND).state
+    const near = playOut(circleGrabbed(placements, wielder('t', 'Greatsword'), path.slice(0, 1)), LAND).state
+    expect(far.board?.placements.a?.cell).toEqual({ q: 0, r: 0 })
+    expect([far.characters.a.resources.AP, far.characters.a.resources.STA]).toEqual([near.characters.a.resources.AP, near.characters.a.resources.STA])
   })
 })
 
@@ -1279,5 +1302,18 @@ describe('a move cut short while passing through someone', () => {
     s = declareReaction('f', getAvailableActions(s, 'f').find((o) => o.draft.kind === 'flee' && o.available)!.draft, newId)(s)
     const { state } = playOut(s, 5)
     expect(state.board?.placements.m?.cell).not.toEqual(state.board?.placements.x?.cell)
+  })
+
+  // A size 5 mover declared to end over a size 3 evader, which the path
+  // allowed, was pulled back to its first step at the resolve, logged "its
+  // end was taken": the resolve let nobody share a space whatever the sizes.
+  it('ends a mover two sizes larger over the one who evaded it, as declared', () => {
+    const base = makeCampaignCharacter({ name: 'o', size: 5 })
+    let s = onBoard({ o: [0, 0], x: [3, 0] }, { ...base, id: 'o', resources: { ...base.resources, AP: 12, STA: 6 } }, fighter('x'))
+    s = declareAction('o', { kind: 'move' }, newId)(s)
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [1, 2, 3].map((q) => ({ q, r: 0 })) })(s))
+    s = declareReaction('x', getAvailableActions(s, 'x').find((o) => o.draft.kind === 'evade' && o.available)!.draft, newId)(s)
+    const { state } = playOut(s, 5)
+    expect(state.board?.placements.o?.cell).toEqual({ q: 3, r: 0 })
   })
 })

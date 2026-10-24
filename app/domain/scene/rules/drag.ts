@@ -202,14 +202,35 @@ function walksBlock(root: DragAction, action: Pick<Action, 'kind' | 'actorId'>):
 // What the block costs whoever takes part in it: "2 AP to gain 5 force"
 // for one whose +5 counted, and the metres of the block for one who walks
 // them, once the comparison lets it move. `action` is the push itself or an
-// answer to it.
-export function getPushPrice(state: SceneState, root: DragAction, action: Pick<Action, 'kind' | 'actorId'>): ActionCost {
+// answer to it; `cells`, how far the block went, all of it until it stops.
+export function getPushPrice(state: SceneState, root: DragAction, action: Pick<Action, 'kind' | 'actorId'>, cells = getPushedCells(state, root)): ActionCost {
   const c = state.characters[action.actorId]
   if (!c) return FREE
   const sides = getDragSides(state, root)
   const boost = sides.boosted.includes(action.actorId) ? getActionCost(c, 'pushBoost') : FREE
-  const walk = sides.allowed && walksBlock(root, action) ? getMoveCost(c, root.movement, root.path.length) : FREE
+  const walk = sides.allowed && walksBlock(root, action) ? getMoveCost(c, root.movement, cells) : FREE
   return { AP: boost.AP + walk.AP, STA: boost.STA + walk.STA }
+}
+
+// combat.tex "Interruption": a block cut short has spent only the cells it
+// went, and one stopped before its first step its first cell.
+function getPushedCells(state: SceneState, root: DragAction): number {
+  const stop = getPushStop(state, root)
+  return stop === null ? root.path.length : Math.min(root.path.length, Math.max(1, stop))
+}
+
+// What each one who walked the block was paid beyond the cells it went, by
+// character id.
+export function getUnpushed(state: SceneState, root: DragAction): Record<string, ActionCost> {
+  const back: Record<string, ActionCost> = {}
+  for (const a of [root, ...getReactionsTo(state, root.id)]) {
+    if (!a.cost || !walksBlock(root, a)) continue
+    const used = getPushPrice(state, root, a)
+    const AP = Math.max(0, a.cost.AP - used.AP)
+    const STA = Math.max(0, a.cost.STA - used.STA)
+    if (AP > 0 || STA > 0) back[a.actorId] = { AP: (back[a.actorId]?.AP ?? 0) + AP, STA: (back[a.actorId]?.STA ?? 0) + STA }
+  }
+  return back
 }
 
 // What answering the block could cost at most, the +5 counted and the block

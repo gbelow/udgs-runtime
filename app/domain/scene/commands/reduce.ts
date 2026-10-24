@@ -109,6 +109,12 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
           if (action.movement === 'climb') return action.facts?.finish === 'prone' ? fallProne(trampled) : action.facts?.finish === 'standing' ? standUp(trampled) : trampled
           return action.facts?.fell ? fallProne(trampled) : trampled
         }
+        // combat.tex "Interruption": the cells of the block it did not go are
+        // given back to whoever walked it
+        if (action.kind === 'drag') {
+          const back = action.unwalked[c.id]
+          return back ? payCost({ AP: -back.AP, STA: -back.STA }, charged)(c) : c
+        }
         // combat.tex "Explosions": the object a charge went off in is
         // destroyed by it, in whoever's hand it was
         if (action.kind === 'explosion') return action.source !== 'cast' && !isHeldTying(c, action.itemId) ? consumeItem(action.itemId)(c) : c

@@ -49,12 +49,21 @@ export function isWet(footprint: Coord[], ground: Ground): boolean {
 }
 
 export function canRest(state: SceneState, c: Character, footprint: Coord[], ground: Ground): boolean {
-  return footprint.every((cell) =>
-    ground.sharedBy(cell).every((id) => {
+  return getCrowdedBy(state, c, footprint, ground) === null
+}
+
+// Whoever in the footprint is within a size of the character, so that they
+// may not both rest there (creating.tex "Size and Space Occupation"); null
+// for nobody.
+export function getCrowdedBy(state: SceneState, c: Character, footprint: Coord[], ground: Ground): string | null {
+  for (const cell of footprint) {
+    const crowding = ground.sharedBy(cell).find((id) => {
       const other = state.characters[id]
-      return other !== undefined && Math.abs(getSize(other) - getSize(c)) >= 2
-    }),
-  )
+      return other === undefined || Math.abs(getSize(other) - getSize(c)) < 2
+    })
+    if (crowding !== undefined) return crowding
+  }
+  return null
 }
 
 // Whether a footprint may be put down here outside of any move: off

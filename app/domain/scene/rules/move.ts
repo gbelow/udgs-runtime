@@ -15,8 +15,8 @@ import { getFootprint, getPlacedFootprint, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
-import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './board/ground'
-import { getMoveOrigin, getStepPlacements, touchesGround } from './board/waypoint'
+import { canRest, getCrowdedBy, isCrossable, isInLiquid, isWet, readGround, type Ground } from './board/ground'
+import { getMoveDestination, getMoveOrigin, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
 import { getDegree } from '../../play/test'
 import { isCampaignCharacter } from '../../utils'
@@ -459,16 +459,21 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
 // A mover stopped partway may have been let through someone (an evaded crash,
 // a prone body) whose space they now stand in, and one who walked the whole way
 // may find their end taken by someone a reaction moved there: no two characters
-// share a space, so they are left on the last space before it.
+// within a size of each other rest on one space (creating.tex "Size and Space
+// Occupation"), so they are left on the last space before it.
 function withoutOccupiedEnd(state: SceneState, action: MoveAction, path: Coord[]): Coord[] {
-  const mover = state.characters[action.actorId]
-  const from = state.board?.placements[action.actorId]
-  if (!mover || !from) return path
-  const others = Object.keys(state.characters).filter((id) => id !== action.actorId).flatMap((id) => getPlacedFootprint(state, id) ?? [])
-  const blocked = (cell: Coord) => getFootprint(mover, { ...from, cell }).some((f) => others.some((o) => sameCell(f, o)))
   let end = path.length
-  while (end > 0 && blocked(path[end - 1])) end--
+  while (end > 0 && getStandingIn(state, action, path[end - 1]) !== null) end--
   return path.slice(0, end)
+}
+
+// Whoever stands in the space the mover would come to rest in with their
+// anchor on `cell`, as the move would end there; null for nobody.
+export function getStandingIn(state: SceneState, action: MoveAction, cell: Coord): string | null {
+  const mover = state.characters[action.actorId]
+  const end = getMoveDestination(state, action, [cell])
+  const ground = readGround(state, action.actorId)
+  return mover && end && ground ? getCrowdedBy(state, mover, getFootprint(mover, end), ground) : null
 }
 
 // combat.tex "Climbing": a climb goes up the face it is on, as far as the metres

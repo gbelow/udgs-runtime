@@ -1032,6 +1032,10 @@ export const DragActionSchema = z.object({
     allowed: z.boolean().default(false),
   }).nullable().default(null),
   facts: DragFactsSchema.nullable().default(null),
+  // combat.tex "Interruption": what each one who walked the block was paid
+  // for the cells it did not go, by character id, given back as it lands;
+  // written with `facts`
+  unwalked: z.record(str, ActionCostSchema).default({}),
 }).strip()
 
 // A holder letting go of a partner who does not hold them back.

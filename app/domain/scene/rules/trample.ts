@@ -1,12 +1,12 @@
 import type { Character } from '../../types'
-import type { SceneState, Coord, MoveAction, Placement, StrikeAction, Trample } from '../types'
+import type { SceneState, Coord, MoveAction, StrikeAction, Trample } from '../types'
 import { getForce } from '../../character/rules/skills'
 import { getMovementSpeed } from '../../character/rules/movement'
 import { sameCell } from './board/geometry'
 import { getFootprint } from './board/board'
 import { getMoveOrigin } from './board/waypoint'
 import { getDrawnOpportunityAttacks, getReactionsTo } from './log'
-import { getMoveBlockCells } from './move'
+import { getMoveBlockCells, getStandingIn } from './move'
 import { isProne } from './board/ground'
 
 // combat.tex "Trample": "Happens when a character moves through a space
@@ -79,22 +79,12 @@ export function getMoveTramples(state: SceneState, action: MoveAction, path: Coo
       trampled.push(result)
       if (result.result === 'blocked') {
         let stop = i
-        while (stop > 0 && isStoodIn(state, mover, { ...from, cell: path[stop - 1] })) stop--
+        while (stop > 0 && getStandingIn(state, action, path[stop - 1]) !== null) stop--
         return { trampled, stop }
       }
     }
   }
   return { trampled, stop: null }
-}
-
-// Whether anyone but the mover stands where the mover would, so that coming to
-// rest there would put two on a space.
-function isStoodIn(state: SceneState, mover: Character, at: Placement): boolean {
-  const footprint = getFootprint(mover, at)
-  return Object.entries(state.board?.placements ?? {}).some(([id, placement]) => {
-    const other = state.characters[id]
-    return id !== mover.id && other !== undefined && getFootprint(other, placement).some((t) => footprint.some((f) => sameCell(f, t)))
-  })
 }
 
 // The crash a blow on a mover sets off — a braced one, or a catch: the mover

@@ -6,7 +6,7 @@ import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
 import { getThrownItem, getReachableFloor, takeOne } from './floor'
 import { getThrownUnit } from './throw'
 import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
-import { getDragFacts } from './drag'
+import { getDragFacts, getUnpushed } from './drag'
 import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explosion'
 import { getCastFacts, getSpellTestFacts, isFailedCast } from './cast'
 import { getMoraleSpellOutcome } from './moraleSpell'
@@ -89,7 +89,7 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
     case 'feint':
     case 'cut': return { ...open, step: 'done' }
     case 'holdBack': return { ...open, step: 'done', facts: getHoldBackFacts(state, open) }
-    case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }
+    case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open), unwalked: getUnpushed(state, open) }
     case 'explosion': return { ...open, step: 'done', effects: getExplosionPayload(state, open)?.effects ?? [] }
     case 'blast': return withBreaks(state, { ...open, step: 'done', facts: getExplosionFacts(state, open, open.spawnedBy), paint: getTerrainPaint(state, open) })
     case 'cast': return withBreaks(state, withDeliveredTests(state, { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) }))

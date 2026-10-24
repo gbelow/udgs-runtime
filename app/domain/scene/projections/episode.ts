@@ -8,9 +8,7 @@ import { getFightName } from '../rules/fighters'
 import { getAction, getHistory, getLanded, getOrigin, getReactionsTo } from '../rules/log'
 import { getGivenUpFor, isInterruptible, isVoided } from '../rules/opportunity'
 import { getInterruptions } from '../rules/interruption'
-import { getMoveOverride } from '../rules/move'
-import { getPlacedFootprint } from '../rules/board/board'
-import { sameCell } from '../rules/board/geometry'
+import { getMoveOverride, getStandingIn } from '../rules/move'
 import { describeOutcome } from '../../play/test'
 
 // What the table reads once an action has played out, whole: the action that
@@ -216,7 +214,7 @@ function getStopCause(state: SceneState, move: MoveAction, facts: MoveFacts): st
   const blocked = facts.stop === 'trample' ? facts.trampled.find((t) => t.result === 'blocked') : undefined
   if (blocked) return getFightName(state, blocked.id)
   const next = facts.stop === 'occupied' ? move.path[facts.path.length] : undefined
-  const standing = next && Object.keys(state.characters).find((id) => id !== move.actorId && getPlacedFootprint(state, id)?.some((c) => sameCell(c, next)))
+  const standing = next ? getStandingIn(state, move, next) : null
   if (standing) return getFightName(state, standing)
   const by = getMoveOverride(state, move)?.by
   return by ? describe(state, by) : null

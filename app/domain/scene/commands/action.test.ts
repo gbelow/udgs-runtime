@@ -168,7 +168,7 @@ describe('the reducer', () => {
   const kinds = Object.keys(ACTIONS) as ActionKind[]
   it.each(kinds)('%s leaves a character with no part in it untouched', (kind) => {
     const bystander = fighter('other')
-    const action = { kind, id: 'x', actorId: 'atk', targetId: 'def', reactionTo: null, step: 'post', cost: { AP: 3, STA: 1 }, roll: null, spent: {}, breaks: {}, weaponKey: '', attack: '', variant: '', location: 'chest' } as unknown as Action
+    const action = { kind, id: 'x', actorId: 'atk', targetId: 'def', reactionTo: null, step: 'post', cost: { AP: 3, STA: 1 }, roll: null, spent: {}, breaks: {}, unwalked: {}, weaponKey: '', attack: '', variant: '', location: 'chest' } as unknown as Action
     expect(reduceCharacter(action, 'roll', true)(bystander)).toEqual(bystander)
     expect(reduceCharacter(action, 'resolve', true)(bystander)).toEqual(bystander)
   })
