@@ -295,9 +295,10 @@ export type ItemType = z.infer<typeof ItemTypeSchema>
 
 // spells.tex "Charged": "The charge can be released when a trigger is
 // activated if there is one" — landing where it was thrown, touching fire,
-// the Detonate Explosive spell, or the blow of the weapon it is in landing
-// ("Taser": "discharges on the first object it comes into contact with").
-export const ChargeTriggerSchema = z.enum(['impact', 'fire', 'detonate', 'contact'])
+// or the blow of the weapon it is in landing ("Taser": "discharges on the
+// first object it comes into contact with"). Detonate Explosive sets off a
+// charge whatever its triggers.
+export const ChargeTriggerSchema = z.enum(['impact', 'fire', 'contact'])
 export type ChargeTrigger = z.infer<typeof ChargeTriggerSchema>
 
 export const ChargeSchema = z.object({

@@ -111,7 +111,7 @@ export function isAreaEffect(e: SpellEffect): boolean {
 }
 
 // Every charge in the fight a detonation can set off from where it lies:
-// one with an area to it and the detonate trigger, in the hands of someone
+// one with an area to it, whatever its triggers, in the hands of someone
 // standing on the board or the detonator's own quick slots, or lying on the
 // floor — `holderId` null for the latter. What others carry in their slots
 // is not known to the detonator. A detonation a cast opened (spells.tex "Detonate Explosive")
@@ -121,7 +121,7 @@ export type ChargeOption = { itemId: string; key: SpellKey; holderId: string | n
 
 function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['charge']> & { key: SpellKey } } {
   const charge = item.charge
-  return !!charge && isSpellKey(charge.key) && hasChargeTrigger(charge, 'detonate') && charge.effects.some(isAreaEffect)
+  return !!charge && isSpellKey(charge.key) && charge.effects.some(isAreaEffect)
 }
 
 export function getChargeOptions(state: SceneState, action: ExplosionAction): ChargeOption[] {

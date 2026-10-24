@@ -86,8 +86,7 @@
     "detonate": null,
     "triggers": [
       "impact",
-      "fire",
-      "detonate"
+      "fire"
     ],
     "chargeInto": "gear",
     "ammo": 0,
@@ -174,8 +173,7 @@
     "detonate": null,
     "triggers": [
       "impact",
-      "fire",
-      "detonate"
+      "fire"
     ],
     "chargeInto": "gear",
     "ammo": 0,
@@ -257,8 +255,7 @@
     "detonate": null,
     "triggers": [
       "impact",
-      "fire",
-      "detonate"
+      "fire"
     ],
     "chargeInto": "gear",
     "ammo": 0,
