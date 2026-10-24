@@ -55,7 +55,7 @@ export function newChase(state: SceneState, quarry: string[], tier: ChaseTier): 
     ...bySpeed.slice(0, -1).map((p, i) => [p, { chases: bySpeed[i + 1], tier: 'combat' as ChaseTier, run: null }]),
     ...(bySpeed.length ? pursuers.map((p) => [p, { chases: bySpeed[0], tier, run: null }]) : []),
   ])
-  return getChaseWithoutDead(state, { runaways, links, out: [], fighting: [], joining: {}, declarations: {}, resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
+  return getChaseWithoutDead(state, { runaways, links, out: [], fighting: [], joining: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
 }
 
 // The chain once a party leaves it: whoever chased it chases whoever it
@@ -282,17 +282,10 @@ function isSkirmishTier(tier: ChaseTier): boolean {
   return tier === 'shooting' || tier === 'far'
 }
 
-// Why the party cannot declare the move: the round is past deciding, it does
-// not run this round, the party it chases has not declared yet
-// (combat.tex "Chain order of running"), or the move is not open to it — a
-// skirmish at shooting or far range against an enemy, hiding only in a
-// hiding place the party scouted and reached ("Scouting": "a place to hide")
-// and past combat range from every enemy chasing it ("Hiding: can be done at
-// any distance greater than Combat"), scouting only while running away from
-// enemies ("Only the fugitives can do this").
-export function getDeclareBar(state: SceneState, partyId: string, declaration: ChaseDeclaration): string | null {
-  const chase = state.chase
-  if (!chase) return 'there is no chase'
+// Why the party has nothing to decide now: the round is past deciding, a
+// fight is played out first, it does not run this round, or it has
+// confirmed what it declared.
+function getDecidingBar(state: SceneState, chase: Chase, partyId: string): string | null {
   const dice = getDiceBar(state.calls)
   if (dice) return dice
   if (state.round === 0) return 'press start combat to begin the first round'
@@ -301,6 +294,22 @@ export function getDeclareBar(state: SceneState, partyId: string, declaration: C
   const first = getFightFirst(state)
   if (first) return first
   if (!getDeclarers(state).includes(partyId)) return 'they sit this round out'
+  return chase.confirmed.includes(partyId) ? 'confirmed' : null
+}
+
+// Why the party cannot declare the move: it has nothing to decide, the party
+// it chases has not declared yet (combat.tex "Chain order of running"), or
+// the move is not open to it: a skirmish at shooting or far range against an
+// enemy, hiding only in a hiding place the party scouted and reached
+// ("Scouting": "a place to hide") and past combat range from every enemy
+// chasing it ("Hiding: can be done at any distance greater than Combat"),
+// scouting only while running away from enemies ("Only the fugitives can do
+// this").
+export function getDeclareBar(state: SceneState, partyId: string, declaration: ChaseDeclaration): string | null {
+  const chase = state.chase
+  if (!chase) return 'there is no chase'
+  const deciding = getDecidingBar(state, chase, partyId)
+  if (deciding) return deciding
   const ahead = getLink(state, partyId)?.chases
   if (ahead && getDeclarers(state).includes(ahead) && !chase.declarations[ahead]) return `${partyName(state, ahead)} declares first`
   const { move, scout } = declaration
@@ -315,6 +324,22 @@ export function getDeclareBar(state: SceneState, partyId: string, declaration: C
   if (scout && move !== 'run' && move !== 'reverse') return 'they scout while running'
   if (scout && getEnemyChasers(state, partyId).length === 0) return 'only those being chased scout'
   return null
+}
+
+// combat.tex "Chain order of running": "Then everyone confirms their actions
+// from tail to head of the chain", once everyone has declared. A party
+// confirms once every party that chases it and declares has confirmed, and
+// may change what it declared until then.
+export function getConfirmBar(state: SceneState, partyId: string): string | null {
+  const chase = state.chase
+  if (!chase) return 'there is no chase'
+  const deciding = getDecidingBar(state, chase, partyId)
+  if (deciding) return deciding
+  const declarers = getDeclarers(state)
+  const waiting = declarers.filter((p) => !chase.declarations[p])
+  if (waiting.length) return `still to declare: ${waiting.map((p) => partyName(state, p)).join(', ')}`
+  const behind = getChasers(state, partyId).find((p) => declarers.includes(p) && !chase.confirmed.includes(p))
+  return behind ? `${partyName(state, behind)} confirms first` : null
 }
 
 // combat.tex "Running", "Inverting chase": the way each end of a link wants
@@ -350,7 +375,7 @@ export function isHidingLink(state: SceneState, from: string): boolean {
 }
 
 // Why the round's chase cannot be resolved: it has been, a fight is played
-// out first, someone is caught, or someone has not declared.
+// out first, someone is caught, or someone has not declared or confirmed.
 export function getResolveBar(state: SceneState): string | null {
   const chase = state.chase
   if (!chase) return 'there is no chase'
@@ -364,7 +389,9 @@ export function getResolveBar(state: SceneState): string | null {
   if (caught.length) return `caught: ${caught.map((c) => c.reason).join(', ')}`
   if (getActiveLinks(state).length === 0) return 'nobody is running this round'
   const waiting = getDeclarers(state).filter((p) => !chase.declarations[p])
-  return waiting.length ? `still to declare: ${waiting.map((p) => partyName(state, p)).join(', ')}` : null
+  if (waiting.length) return `still to declare: ${waiting.map((p) => partyName(state, p)).join(', ')}`
+  const unconfirmed = getDeclarers(state).filter((p) => !chase.confirmed.includes(p))
+  return unconfirmed.length ? `still to confirm: ${unconfirmed.map((p) => partyName(state, p)).join(', ')}` : null
 }
 
 // combat.tex "Outrunning": "If the distance is already far and the winner
@@ -422,10 +449,13 @@ export function getRoutingTerms(state: SceneState, id: string): Term[] {
 // combat.tex "Rest": nobody running in a chase rests (the table's ruling) —
 // only a party caught and fighting, or out of the chase.
 export function getChaseRestBar(state: SceneState, id: string): string | null {
-  const chase = state.chase
-  const partyId = state.partyOf[id]
-  if (!chase || partyId === undefined || chase.out.includes(partyId) || chase.fighting.includes(partyId)) return null
-  return 'running in a chase'
+  return isRunningInChase(state, id) ? 'running in a chase' : null
+}
+
+// Whether the character runs in the chase: their party is in it, neither
+// caught and fighting nor out of it. False with no chase.
+export function isRunningInChase(state: SceneState, id: string): boolean {
+  return getChaseStage(state, state.partyOf[id] ?? '') !== null
 }
 
 // combat.tex "Chain order of running": where the party stands in the chase

@@ -8,7 +8,7 @@ import type { Caller, Throw } from '../../play/calls'
 import { calling } from './calling'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
-import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getChaseWithoutDead, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getRechained, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
+import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getChaseWithoutDead, getConfirmBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getRechained, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
 import { getFightBusy } from '../rules/turn'
 import { updateCharacter } from './characters'
 import { dropEmptyFightParties } from './parties'
@@ -26,10 +26,16 @@ function withChase(state: SceneState, change: Partial<Chase>): SceneState {
 const without = (list: string[], id: string) => list.filter((x) => x !== id)
 
 // combat.tex "Chase actions": the party says what it does this round, in the
-// chain's order; it may change its mind until the round is resolved ("Then
-// quarry can choose to change their strategy").
+// chain's order; it may change its mind until it confirms ("Then quarry can
+// choose to change their strategy").
 export function declareChase(partyId: string, declaration: ChaseDeclaration): Updater {
   return (state) => getDeclareBar(state, partyId, declaration) ? state : withChase(state, { declarations: { ...state.chase!.declarations, [partyId]: declaration } })
+}
+
+// combat.tex "Chain order of running": "Then everyone confirms their actions
+// from tail to head of the chain", and what a party confirmed is final.
+export function confirmChase(partyId: string): Updater {
+  return (state) => getConfirmBar(state, partyId) ? state : withChase(state, { confirmed: [...state.chase!.confirmed, partyId] })
 }
 
 // combat.tex "Running": "Both sides use their movement surge to sprint" —
@@ -233,7 +239,7 @@ export function followParty(partyId: string, target: string): Updater {
   return (state) => {
     if (getFollowBar(state, partyId, target)) return state
     const tier = getPartyTierBetween(state, partyId, target) ?? 'combat'
-    return withChase(state, { links: { ...state.chase!.links, [partyId]: { chases: target, tier, run: null } }, declarations: dropKey(state.chase!.declarations, partyId) })
+    return withChase(state, { links: { ...state.chase!.links, [partyId]: { chases: target, tier, run: null } }, declarations: dropKey(state.chase!.declarations, partyId), confirmed: without(state.chase!.confirmed, partyId) })
   }
 }
 
@@ -296,6 +302,7 @@ function forget(chase: Chase, partyId: string): Chase {
     fighting: without(chase.fighting, partyId),
     joining: dropKey(chase.joining, partyId),
     declarations: dropKey(chase.declarations, partyId),
+    confirmed: without(chase.confirmed, partyId),
     features: dropKey(chase.features, partyId),
   }
 }
@@ -350,7 +357,7 @@ export function endChaseRound(state: SceneState): Chase | null {
   const links = Object.fromEntries(Object.entries(settled).map(([from, l]) => [from, { ...l, run: null }]))
   const features = ran ? approachFeatures(chase) : chase.features
   const arrived = Object.entries(chase.joining).reduce((s: SceneState, [p, to]) => arrive(s, p, to), withChase(state, { links, features }))
-  const cleared = withChase(arrived, { declarations: {}, resolved: false, seconds: null, rolls: [] })
+  const cleared = withChase(arrived, { declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [] })
   const out = getChaseParties(cleared).filter((p) => isDisconnected(cleared, p) && !isHeldOn(cleared.chase!, p))
   return { ...cleared.chase!, out: [...cleared.chase!.out, ...out] }
 }

@@ -10,7 +10,7 @@ import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { createBoard, importBoard, loadBoardMap, removeBoard, setLight } from './board'
-import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
+import { confirmChase, crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
 import { follow } from './follow'
@@ -147,6 +147,7 @@ export const sceneCommands = {
   // combat.tex "Chases"
   startChase: command((_, quarry: string[], tier: ChaseTier) => startChase(quarry, tier)).by(anyone),
   declareChase: command((_, partyId: string, declaration: ChaseDeclaration) => declareChase(partyId, declaration)).by(anyone),
+  confirmChase: command((_, partyId: string) => confirmChase(partyId)).by(anyone),
   resolveChase: command((ctx) => resolveChase(ctx.thrower)).by(anyone),
   followParty: command((_, partyId: string, target: string) => followParty(partyId, target)).by(anyone),
   putBack: command((_, partyId: string, target: string, tier: ChaseTier) => putBack(partyId, target, tier)).by(anyone),

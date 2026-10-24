@@ -907,6 +907,12 @@ describe('a crowd behind cover', () => {
   it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => playCrowd(seed, COVER))
 })
 
+// combat.tex "Chain order of running": every party declaring confirms, tail
+// to head.
+function confirmAll(h: Harness) {
+  for (const p of [...getDeclareOrder(h.state())].reverse()) h.send({ kind: 'confirmChase', args: [p] })
+}
+
 // The chase panel's buttons, each pressed as its hook dispatches it. Every
 // option the panel shows closed is refused, the state left as it was.
 function chasePlays(): Play[] {
@@ -941,6 +947,17 @@ function chasePlays(): Play[] {
         const scout = move === 'run' && bar === null && row.scoutBar === null && pick([true, false, false]) ? { what: 'a ditch', DL: pick([0, 3, 6]), obstacle: pick([true, false]) } : null
         refused(h, bar, () => h.send({ kind: 'declareChase', args: [row.id, { move, scout, hideModifier: pick([0, 2]) }] }), `${row.name}'s ${move}`)
         if (bar === null) expect(h.state().chase?.declarations[row.id]?.move, `${row.name}'s ${move} is open but was not declared`).toBe(move)
+      },
+    },
+    {
+      name: 'confirm a chase move',
+      weight: 6,
+      run: (h, pick) => {
+        const declaring = rows(h).filter((r) => r.declares)
+        if (!declaring.length) return
+        const row = pick(declaring)
+        refused(h, row.confirmBar, () => h.send({ kind: 'confirmChase', args: [row.id] }), `${row.name} confirming`)
+        if (row.confirmBar === null) expect(h.state().chase?.confirmed, `${row.name}'s confirming is open but was not taken`).toContain(row.id)
       },
     },
     { name: 'resolve the chase round', weight: 5, run: (h) => refused(h, panel(h).resolveBar, () => h.send({ kind: 'resolveChase', args: [] }), 'resolving the round') },
@@ -1001,6 +1018,7 @@ function chasePlays(): Play[] {
             hid ||= move === 'hide'
             h.send({ kind: 'declareChase', args: [p, { move, scout, hideModifier: 0 }] })
           }
+          confirmAll(h)
           refused(h, panel(h).resolveBar, () => h.send({ kind: 'resolveChase', args: [] }), 'resolving the round')
           if (hid || getNextRoundBar(h.state())) return
           passRoundChange(h, pick)
@@ -1066,6 +1084,7 @@ describe('a chase with no board', () => {
   it('ends a round of running without anyone agreeing, and starts no turn in it', () => {
     const { h } = openChase(1, 'shooting')
     for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
+    confirmAll(h)
     h.send({ kind: 'resolveChase', args: [] })
     const before = h.state()
     h.startTurn()
@@ -1091,8 +1110,23 @@ describe('a chase with no board', () => {
     h.send({ kind: 'startChase', args: [[h.state().partyOf[h.idOf('Ann')]], 'shooting'] })
     h.send({ kind: 'continueRound', args: [] })
     for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
+    confirmAll(h)
     h.send({ kind: 'resolveChase', args: [] })
     expect(h.state().chase?.resolved).toBe(true)
+  })
+
+  // A round of running was followed by the fight's whole round change, its
+  // rest, joining and morale steps each waiting on the table, before anyone
+  // could declare again. The table's ruling: runners have none of them.
+  it('runs one chase round into the next with no fight round change between', () => {
+    const { h } = openChase(1, 'shooting')
+    for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
+    confirmAll(h)
+    h.send({ kind: 'resolveChase', args: [] })
+    h.send({ kind: 'nextRound', args: [] })
+    expect(getRoundPhase(h.state())).toBeNull()
+    expect(h.state().morale).toEqual([])
+    expect(getChasePanel(h.state()).rows.find((r) => r.declares)?.moves.some((m) => m.bar === null)).toBe(true)
   })
 
   // A party whose members had all died stayed in the chain, and whoever
@@ -1108,6 +1142,7 @@ describe('a chase with no board', () => {
     for (let i = 0; i < 10 && getRoundPhase(h.state()); i++) h.send({ kind: 'continueRound', args: [] })
     expect(h.state().chase?.links[dee]?.chases).toBe(ann)
     for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
+    confirmAll(h)
     h.send({ kind: 'resolveChase', args: [] })
     h.send({ kind: 'edit', args: [h.idOf('Ann'), { kind: 'setInjury', args: ['injuryLevel', 999] }, true] })
     h.send({ kind: 'nextRound', args: [] })

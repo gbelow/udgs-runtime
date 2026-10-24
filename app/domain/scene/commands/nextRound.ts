@@ -21,9 +21,9 @@ import { isSuffocating } from '../rules/situational'
 import { getMoraleCalled } from '../rules/morale'
 import { getHeldCalled } from '../rules/heldTest'
 import { getHeldActions } from '../rules/hold'
-import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
+import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
 import { rollHeld } from './heldTest'
-import { getRoundSeconds } from '../rules/chase'
+import { getRoundSeconds, isRunningInChase } from '../rules/chase'
 import { endChaseRound, endChaseRoundChange } from './chase'
 import { carryOver, finishHeld } from './hold'
 import { updateCharacter } from './characters'
@@ -68,7 +68,7 @@ export function nextRound(thrown: Throw): Updater {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) ? c : receive(wake(state, c))]))
     const begun: SceneState = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], following: {}, stealthTurns: [], compulsions: [], concentration: [], roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
-    return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : called
+    return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })
 }
 
@@ -92,16 +92,28 @@ export function continueRound(thrown: Throw): Updater {
 }
 
 function continueWith(caller: Caller): Updater {
-  return (state) => {
-    if (getContinueBar(state)) return state
-    switch (state.roundStep) {
-      case 'rest': return openConcentration(passEnvironment(state), caller)
-      case 'concentration': return { ...state, roundStep: 'join' }
-      case 'join': return { ...state, roundStep: 'morale', morale: getMoraleCalled(state).map((id) => ({ id, roll: null })) }
-      case 'morale': return { ...state, roundStep: null, chase: endChaseRoundChange(state) }
-      default: return state
-    }
+  return (state) => (getContinueBar(state) ? state : passIdle(stepOn(state, caller), caller))
+}
+
+function stepOn(state: SceneState, caller: Caller): SceneState {
+  switch (state.roundStep) {
+    case 'rest': return openConcentration(passEnvironment(state), caller)
+    case 'concentration': return { ...state, roundStep: 'join' }
+    case 'join': return { ...state, roundStep: 'morale', morale: getMoraleCalled(state).map((id) => ({ id, roll: null })) }
+    case 'morale': return { ...state, roundStep: null, chase: endChaseRoundChange(state) }
+    default: return state
   }
+}
+
+// combat.tex "Chain order of running": a chase round runs into the next with
+// no fight's round change between them, so a step with nothing for anyone in
+// a chase passes on its own. With everyone running nobody may rest and nobody
+// joins a fight, and a chase under way has none to start.
+function passIdle(state: SceneState, caller: Caller): SceneState {
+  if (!state.chase) return state
+  const phase = getRoundPhase(state)
+  const running = Object.values(state.characters).filter((c) => !isDead(c)).every((c) => isRunningInChase(state, c.id))
+  return phase === 'chase' || ((phase === 'rest' || phase === 'join') && running) ? continueWith(caller)(state) : state
 }
 
 // combat.tex "Bleed": "+1 to their IL per bleed intensity at the end of

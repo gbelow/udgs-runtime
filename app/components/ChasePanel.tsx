@@ -85,7 +85,7 @@ export function ChasePanel(){
 }
 
 function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
-  const { declare, follow, putBack, giveUp, mergeBack, setFighting, join, cross, turnAround } = useChaseCommands()
+  const { declare, confirm, follow, putBack, giveUp, mergeBack, setFighting, join, cross, turnAround } = useChaseCommands()
   const [scouting, setScouting] = useState(false)
   const [what, setWhat] = useState('')
   const [scoutDL, setScoutDL] = useState(10)
@@ -141,6 +141,11 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
           </> : null}
           hide modifier <NumberInput className='w-10' aria-label={`${p.name} hide modifier`} value={hideModifier} onChange={(e) => setHideModifier(Number(e.target.value))} />
           {p.declaration ? <span className='text-fg'>— {MOVE_LABELS[p.declaration.move]}{p.declaration.scout ? `, scouting for ${p.declaration.scout.what || 'a place'}` : ''}</span> : null}
+          <Closed reason={p.confirmed ? null : p.confirmBar}>
+            <Button size='xs' selected={p.confirmed} aria-label={`${p.name} confirms`} disabled={p.confirmBar !== null} onClick={() => confirm(p.id)}>
+              {p.confirmed ? <span className='mr-1'>✓</span> : null}{p.confirmed ? 'confirmed' : 'confirm'}
+            </Button>
+          </Closed>
         </div>
         : null
       }

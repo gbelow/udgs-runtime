@@ -19,6 +19,7 @@ export function useChaseCommands() {
   return {
     startChase: (quarry: string[], tier: ChaseTier) => dispatch({ kind: "startChase", args: [quarry, tier] }),
     declare: (partyId: string, declaration: ChaseDeclaration) => dispatch({ kind: "declareChase", args: [partyId, declaration] }),
+    confirm: (partyId: string) => dispatch({ kind: "confirmChase", args: [partyId] }),
     resolve: () => dispatch({ kind: "resolveChase", args: [] }),
     follow: (partyId: string, target: string) => dispatch({ kind: "followParty", args: [partyId, target] }),
     putBack: (partyId: string, target: string, tier: ChaseTier) => dispatch({ kind: "putBack", args: [partyId, target, tier] }),
