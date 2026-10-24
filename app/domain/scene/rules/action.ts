@@ -15,7 +15,7 @@ import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, getStrikeReach, isInReach, isInShotRange } from './board/board'
 import { isSheltered } from './chase'
-import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
+import { getMoveFacts, getMovePrice, getWalkedCells, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
 import { getSurgeBarFor, getSurgeProbes } from './surge'
@@ -307,7 +307,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'cut':
       return getVariantCost(c, getCutStrike(action), isCombatStarted(state))
     case 'move':
-      return getMovePrice(state, c, action, action.movement === 'climb' ? action.path.length : getMoveFacts(state, action).path.length)
+      return getMovePrice(state, c, action, getWalkedCells(state, action, getMoveFacts(state, action)))
     case 'drag':
       return getPushPrice(state, action, action)
     case 'resist':

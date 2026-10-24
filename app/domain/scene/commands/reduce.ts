@@ -100,8 +100,9 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         // combat.tex "Movement": "Stand up: Removes the prone condition" —
         // unless an opportunity attack cancelled it ("Interruption")
         if (action.kind === 'move') {
-          const trampled = trampledBy(action.facts?.trampled ?? [], c, charged)
-          if (c.id !== action.actorId) return trampled
+          if (c.id !== action.actorId) return trampledBy(action.facts?.trampled ?? [], c, charged)
+          // combat.tex "Interruption": the blocks it did not walk are given back
+          const trampled = trampledBy(action.facts?.trampled ?? [], payCost({ AP: -action.unwalked.AP, STA: -action.unwalked.STA }, charged)(c), charged)
           if (action.movement === 'stand') return action.facts?.stop === 'end' ? standUp(c) : c
           if (action.movement === 'prone') return fallProne(c)
           if (action.movement === 'swim' && action.facts?.finish === 'prone') return fallProne(trampled)

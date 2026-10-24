@@ -204,7 +204,9 @@ const STOP_REASON: Record<MoveStop, (by: string | null) => string | null> = {
 function getMoveFate(state: SceneState, move: MoveAction): string | null {
   if (!move.facts) return null
   const reason = STOP_REASON[move.facts.stop](getStopCause(state, move, move.facts))
-  return reason ? `walked ${move.facts.path.length} of ${move.path.length} steps: ${reason}` : null
+  const { AP, STA } = move.unwalked
+  const back = AP > 0 || STA > 0 ? `; ${[AP > 0 ? `${AP}AP` : '', STA > 0 ? `${STA}STA` : ''].filter(Boolean).join(' ')} of the blocks not walked given back` : ''
+  return reason ? `walked ${move.facts.path.length} of ${move.path.length} steps: ${reason}${back}` : null
 }
 
 // Who or what stopped the move: the character whose passage was blocked or

@@ -84,9 +84,27 @@ export function getMovePrice(state: SceneState, c: Character, action: MoveAction
     return { AP: Math.max(0, price.AP - action.prepaid), STA: price.STA }
   }
   const climbed = action.movement === 'climb' ? getClimbDegree(state, action) : null
-  const moved = plan ? plan.metres : cells
+  const moved = plan ? Math.min(plan.metres, cells) : cells
   const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), getSwimDegrees(state, action, cells), getMoveBlock(state, c, action, climbed))
   return { AP: Math.max(0, cost.AP + leap.AP - action.prepaid), STA: (runsFree(c, action.movement) ? 0 : cost.STA) + leap.STA }
+}
+
+// combat.tex "Interruption": a move cut short has spent only the blocks it
+// walked, the last one included, and one stopped before its first step the
+// first block. A climb pays the metres it goes, or its first block when an
+// interrupting attack made it lose its hold before it began.
+export function getWalkedCells(state: SceneState, action: MoveAction, facts: MoveFacts): number {
+  const plan = action.movement === 'climb' ? getClimbPlan(state, action) : null
+  if (plan && !plan.trivial) return facts.stop === 'reaction' ? Math.min(1, plan.metres) : plan.metres
+  return facts.stop === 'end' ? facts.path.length : Math.min(action.path.length, Math.max(1, facts.path.length))
+}
+
+// What the move was paid beyond the price of the blocks it walked.
+export function getUnwalked(state: SceneState, action: MoveAction, facts: MoveFacts): ActionCost {
+  const c = state.characters[action.actorId]
+  if (!c || !action.cost) return NO_COST
+  const walked = getMovePrice(state, c, action, getWalkedCells(state, action, facts))
+  return { AP: Math.max(0, action.cost.AP - walked.AP), STA: Math.max(0, action.cost.STA - walked.STA) }
 }
 
 const NO_COST: ActionCost = { AP: 0, STA: 0 }

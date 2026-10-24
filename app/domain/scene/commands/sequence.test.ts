@@ -231,6 +231,23 @@ describe('an action broken by an opportunity attack', () => {
     const { state } = playOut(walkPastSpearmen(), LAND)
     expect(state.board?.placements.m?.cell).toEqual({ q: 2, r: 0 })
   })
+
+  // A move cut short by an attack after it was paid kept the price of every
+  // block declared; the table's ruling is that it pays only the blocks walked.
+  it('charges a mover cut short only what the walk as far as they got costs', () => {
+    const far = [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }, { q: 3, r: 1 }, { q: 2, r: 1 }, { q: 1, r: 1 }, { q: 0, r: 1 }, { q: -1, r: 1 }]
+    let s = onBoard({ m: [0, 0], r1: [4, 0], r2: [4, -1] }, fighter('m'), spearman('r1'), spearman('r2'))
+    s = declareAction('m', { kind: 'move' }, newId)(s)
+    s = everyoneAttacks(commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: far })(s)), ['r1', 'r2'])
+    const cut = playOut(s, LAND).state.characters.m.resources
+
+    let alone = onBoard({ m: [0, 0] }, fighter('m'))
+    alone = declareAction('m', { kind: 'move' }, newId)(alone)
+    alone = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: far.slice(0, 2) })(alone))
+    const walked = playOut(alone, LAND).state.characters.m.resources
+
+    expect([cut.AP, cut.STA]).toEqual([walked.AP, walked.STA])
+  })
 })
 
 // The report after a strike its flanker interrupted showed the flanker's

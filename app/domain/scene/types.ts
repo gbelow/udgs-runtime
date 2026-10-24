@@ -844,6 +844,9 @@ export const MoveActionSchema = z.object({
   // of the way along it
   from: PlacementSchema.nullable().default(null),
   facts: MoveFactsSchema.nullable().default(null),
+  // combat.tex "Interruption": what was paid for the blocks the move, as it
+  // came to stop, did not walk, given back as it lands; written with `facts`
+  unwalked: ActionCostSchema.default({ AP: 0, STA: 0 }),
 }).strip()
 
 // combat.tex "Opportunity Attack" and "Flanking": declared as a reaction to
