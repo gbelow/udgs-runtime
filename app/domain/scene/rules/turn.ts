@@ -128,13 +128,13 @@ export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind):
 // combat.tex "End of the round": "A round ends when no one has AP left and
 // the remaining agree to end the round." Someone agrees by saying so, or
 // without saying anything once they have no AP left and no surge that
-// would give them more, or nothing to do in a chase round; the dead have
-// nothing left to agree to, and neither has the immobile held by no one: only
+// would give them more, or nothing to do in a chase round; the dead and the
+// unconscious have nothing left to agree to, and neither has the immobile held by no one: only
 // escape is theirs to use (combat.tex "Immobile").
 export function hasAgreedToEnd(state: SceneState, id: string): boolean {
   const c = state.characters[id]
   if (!c) return true
-  return state.agreedToEnd.includes(id) || isDead(c) || (isImmobile(state, c) && getPartners(state, id).length === 0) || !hasAPLeft(c) || isIdleInChase(state, id)
+  return state.agreedToEnd.includes(id) || isDead(c) || hasAffliction(c, 'unconscious') || (isImmobile(state, c) && getPartners(state, id).length === 0) || !hasAPLeft(c) || isIdleInChase(state, id)
 }
 
 // Why the round cannot be passed now, or null: a turn under way has to be
