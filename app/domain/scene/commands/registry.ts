@@ -9,7 +9,7 @@ import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
-import { createBoard, importBoard, loadBoardMap, removeBoard, setLight } from './board'
+import { backSegment, createBoard, importBoard, loadBoardMap, removeBoard, setLight } from './board'
 import { confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
@@ -88,6 +88,7 @@ export const sceneCommands = {
   cast: command((_, key: string, quicken: boolean) => chooseSpell(key, quicken)).by(panel('open')),
   choose: command((_, fields: { along?: boolean; item?: string }) => chooseManeuver(fields)).by(panel('open')),
   boostPush: command((_, boost: boolean) => boostPush(boost)).by(panel('open')),
+  backSegment: command(() => backSegment()).by(panel('open')),
 
   // the board
   click: command((ctx, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null): Updater =>

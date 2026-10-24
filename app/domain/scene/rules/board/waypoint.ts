@@ -20,6 +20,18 @@ export function getMoveOrigin(state: SceneState, action: MoveAction): Placement 
   return action.from ?? state.board?.placements[action.actorId]
 }
 
+// Where the drawn path turns: the lengths it had at the end of each segment
+// but the last, those that still fall inside it.
+export function getPathTurns(action: MoveAction): number[] {
+  return action.turns.filter((t) => t > 0 && t < action.path.length)
+}
+
+// The path with its last segment taken back, and the turns left on it.
+export function withoutLastSegment(action: MoveAction): { path: Coord[]; turns: number[] } {
+  const turns = getPathTurns(action)
+  return { path: action.path.slice(0, turns.at(-1) ?? 0), turns: turns.slice(0, -1) }
+}
+
 // Where the mover stands part of the way along the move: the anchor at that
 // step, as oriented when they set out, and on the last step turned the way
 // the move names. Null at step 0, where they have not left the origin.

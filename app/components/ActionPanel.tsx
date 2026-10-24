@@ -33,7 +33,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -216,6 +216,7 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-x-3 items-center text-xs text-muted'>
           <span>cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></span>
+          {open.path.length > 0 && !locked ? <Button size='xs' variant='ghost' onClick={backSegment}>back a segment</Button> : null}
           {open.walked && open.walked.stop !== 'end' ? <span className='text-bad'>stops after {open.walked.cells} ({open.walked.stop})</span> : null}
           {open.path.length === 0 && open.dive === 0 && open.movement !== 'stand' && open.movement !== 'prone' ? <span>pick a path on the board</span> : null}
         </div>

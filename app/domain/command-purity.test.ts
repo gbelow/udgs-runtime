@@ -300,6 +300,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   setLight: (s) => combatCommands.setLight('dark')(deepFreeze(cleared(s))),
   pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 }, newId)(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
+  backSegment: (s) => combatCommands.backSegment()(deepFreeze(combatCommands.pickCell({ q: 1, r: 0 }, newId)(declaredMove(s)))),
   boostPush: (s) => combatCommands.boostPush(true)(deepFreeze(declaredPush(s))),
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
   settleBinds: (s) => combatCommands.settleBinds(deepFreeze(grappling(s))),

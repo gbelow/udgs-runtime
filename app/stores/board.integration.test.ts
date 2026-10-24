@@ -4,6 +4,9 @@ import { fighter, spearman } from '../domain/bot/fixtures'
 import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getAvailableActions } from '../domain/scene/rules/options'
 import { getOpenAction } from '../domain/scene/rules/log'
+import { coordKey, directionTo, sidesBetween } from '../domain/scene/rules/board/geometry'
+import { getReachableCells } from '../domain/scene/rules/board/reach'
+import { isPathLegal } from '../domain/scene/rules/move'
 
 // Click to effect, over the real combat store: what a player does on the
 // board and the panels, and what stands afterwards. Expected values are what
@@ -69,7 +72,7 @@ function scene(walls: [number, number][] = []): Harness {
   return h
 }
 
-const pathOf = (h: Harness) => h.view().cells.filter((c) => c.pathStep !== null).sort((a, b) => a.pathStep! - b.pathStep!).map((c) => c.key)
+const pathOf = (h: Harness) => { const open = getOpenAction(h.state()); return open?.kind === 'move' ? open.path.map(coordKey) : [] }
 
 describe('walking a move across the board', () => {
   it('opens the board to path edits', () => {
@@ -121,6 +124,85 @@ describe('walking a move across the board', () => {
       const offered = h.view().cells.find((c) => c.key === key)!.reachable !== null
       h.cell(q, r)
       expect(pathOf(h).at(-1) ?? null, `clicking ${key}`).toBe(offered ? key : null)
+    }
+  })
+})
+
+describe('drawing a move in segments', () => {
+  it('keeps the path drawn and walks on from its end to a cell further off', () => {
+    const h = scene()
+    h.cell(2, 0)
+    h.cell(2, 2)
+    const path = pathOf(h)
+    expect(path.slice(0, 2)).toEqual(['1,0', '2,0'])
+    expect(path.at(-1)).toBe('2,2')
+  })
+
+  it('takes the whole last segment back when the end is clicked, and again from the segment before', () => {
+    const h = scene()
+    h.cell(2, 0)
+    h.cell(2, 2)
+    h.cell(2, 2)
+    expect(pathOf(h)).toEqual(['1,0', '2,0'])
+    h.cell(2, 0)
+    expect(pathOf(h)).toEqual([])
+  })
+
+  it('takes the last segment back from the panel', () => {
+    const h = scene()
+    h.cell(2, 0)
+    h.cell(2, 2)
+    h.send({ kind: 'backSegment', args: [] })
+    expect(pathOf(h)).toEqual(['1,0', '2,0'])
+  })
+
+  it('cuts the path back to a cell on it that is clicked', () => {
+    const h = scene()
+    h.cell(2, 0)
+    h.cell(2, 2)
+    h.cell(1, 0)
+    expect(pathOf(h)).toEqual(['1,0'])
+  })
+
+  // From a segment already drawn, a click on a cell the view offers ends the
+  // path there with the segment kept, and a click on any other off the path
+  // leaves the path as it was.
+  it('walks on to every cell the view offers from the end of the path, and nowhere else', () => {
+    const walls: [number, number][] = [[1, 1], [2, -1]]
+    const h = scene(walls)
+    h.cell(2, 0)
+    const before = pathOf(h)
+    for (const { key, reachable } of h.view().cells) {
+      const [q, r] = key.split(',').map(Number)
+      h.amend({ path: [] })
+      h.cell(2, 0)
+      h.cell(q, r)
+      const path = pathOf(h)
+      if (reachable !== null) {
+        expect(path.slice(0, before.length), `clicking ${key}`).toEqual(before)
+        expect(path.at(-1), `clicking ${key}`).toBe(key)
+      } else if (key !== '0,0' && !before.includes(key)) {
+        expect(path, `clicking ${key}`).toEqual(before)
+      }
+    }
+  })
+
+  // combat.tex "Movement": "The maximum turn rate during running is 60
+  // degrees", one side of a hex a step; and every way offered is one the
+  // move accepts.
+  it('never offers a run that turns more than a side a step', () => {
+    const h = scene()
+    h.amend({ movement: 'run' })
+    h.cell(2, 0)
+    const move = getOpenAction(h.state())
+    if (move?.kind !== 'move') throw new Error('no move open')
+    const offered = getReachableCells(h.state(), move)
+    expect(offered.length).toBeGreaterThan(0)
+    for (const { cell, path } of offered) {
+      const cells = [{ q: 0, r: 0 }, ...path]
+      const ways = path.map((p, i) => directionTo(cells[i], p))
+      ways.slice(1).forEach((way, i) => expect(sidesBetween(ways[i], way), `running to ${cell.q},${cell.r}`).toBeLessThanOrEqual(1))
+      expect(isPathLegal(h.state(), { ...move, path }), `running to ${cell.q},${cell.r}`).toBe(true)
     }
   })
 })

@@ -1,6 +1,6 @@
 import { isCombatStarted } from './started'
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
-import type { Action, SceneState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
+import type { Action, SceneState, Coord, Degree, Direction, MoveAction, MoveFacts, Placement } from '../types'
 import { getMoveHeld } from './heldRoll'
 import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, ROUND_AP, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_AP, type MovementBlock } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
@@ -10,7 +10,7 @@ import { hasAffliction } from '../../character/rules/afflictions'
 import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
-import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from './board/geometry'
+import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './board/cliff'
@@ -237,12 +237,19 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
   if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
   if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c, isCombatStarted(state)).includes(action.mode))) return false
 
+  if (action.movement === 'jump' && !isStraight(from.cell, action.path)) return false
+
   const ceiling = getJumpCeiling(c, from)
   const sweep = getMoveSweep(state, action)
   let cursor = from.cell
+  const rate = getTurnRate(action.movement)
+  let heading: Direction | null = null
   let wet = isWet(getFootprint(c, from), ground)
   for (const [i, cell] of action.path.entries()) {
     if (distance(cursor, cell) !== 1) return false
+    const way = directionTo(cursor, cell)
+    if (heading !== null && rate !== null && sidesBetween(heading, way) > rate) return false
+    heading = way
     const last = i === action.path.length - 1
     const footprint = sweep[i]
     if (!canPass(action.movement, footprint, ground, last, ceiling, wet)) return false
@@ -579,7 +586,10 @@ export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path
 // and pay for as they stand, with the shortest path there: a breadth-first
 // walk over cells its footprint (as oriented now) may cross, stopping where
 // the price outruns what it has or the move's cap. Cells it may cross but
-// not rest on are walked through and left out.
+// not rest on are walked through and left out. A move drawn in segments
+// (`drawsSegments`) walks on from the end of the path drawn so far, and each
+// path found is that path and the walk after it; a run keeps to its turn
+// rate across the join. A jump goes only in a straight line.
 export function getWalkableCells(state: SceneState, action: MoveAction): ReachableCell[] {
   const { actorId, movement: kind } = action
   const c = state.characters[actorId]
@@ -593,20 +603,82 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   // move is free, but goes no further than a round's AP would carry it.
   const best = { ...action, dive: 0, path: [] }
   const payable = (cost: ActionCost) => (isCombatStarted(state) ? canAfford(c, cost, true) : cost.AP <= ROUND_AP)
+  const drawn = drawsSegments(kind) ? action.path : []
   const affordable = (steps: number) => {
-    if (kind === 'jump' && steps > getMovementSpeed(c, 'jump')) return false
-    return payable(getMovePrice(state, c, best, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
+    const total = drawn.length + steps
+    if (kind === 'jump' && total > getMovementSpeed(c, 'jump')) return false
+    return payable(getMovePrice(state, c, best, total)) && withinBudget(getMoveCost(c, kind, total), action.budget)
   }
   const ceiling = getJumpCeiling(c, from)
-  const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : from.cell)
-  const wetBefore = (path: Coord[]) => isWet(getFootprint(c, { ...from, cell: stepFrom(path) }), ground)
-  const enter = (cell: Coord, path: Coord[]) => canPass(kind, getFootprint(c, { ...from, cell }), ground, false, ceiling, wetBefore(path))
-    && canStepOver(kind, ground.elevation(stepFrom(path)), ground.elevation(cell))
-  return walkOut(from.cell, affordable, enter)
+  const start = drawn.at(-1) ?? from.cell
+  const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : path.length === 1 ? start : (drawn.at(-2) ?? from.cell))
+  const wetAt = (cell: Coord) => isWet(getFootprint(c, { ...from, cell }), ground)
+  // a step is entered the same way whatever heading it is come at from
+  const entered = new Map<string, boolean>()
+  const enter = (cell: Coord, path: Coord[]) => {
+    const before = stepFrom(path)
+    const key = `${coordKey(before)}>${coordKey(cell)}`
+    const known = entered.get(key)
+    if (known !== undefined) return known
+    const ok = canPass(kind, getFootprint(c, { ...from, cell }), ground, false, ceiling, wetAt(before)) && canStepOver(kind, ground.elevation(before), ground.elevation(cell))
+    entered.set(key, ok)
+    return ok
+  }
+  const heading = drawn.length > 0 ? directionTo(stepFrom([]), start) : null
+  const turnRate = getTurnRate(kind)
+  // the cells drawn on already, and where the move sets out, take the path
+  // back to them when picked (`pickPathCell`), so they are not offered
+  const onPath = new Set([from.cell, ...drawn].map(coordKey))
+  const walked = kind === 'jump'
+    ? getJumps(from.cell, affordable, enter)
+    : walkOut(start, affordable, enter, turnRate === null ? undefined : { heading, turn: turnRate })
+  return walked
     .filter(({ cell, path }) => {
       const footprint = getFootprint(c, { ...from, cell })
-      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
+      return !onPath.has(coordKey(cell)) && isCrossable(footprint, ground, kind, wetAt(stepFrom(path))) && canRest(state, c, footprint, ground) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
     })
-    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres }, steps), path }))
+    .map(({ cell, path }) => ({ cell, path: [...drawn, ...path] }))
+    .map(({ cell, path }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres }, path.length), path }))
     .filter(({ cost }) => payable(cost))
+}
+
+// Whether a kind of movement is drawn in segments, each walked on from the
+// end of the last: all but a jump, which goes in a straight line, and a
+// climb, which is one face.
+export function drawsSegments(kind: MoveKind): boolean {
+  return kind !== 'jump' && kind !== 'climb' && !isPosture(kind)
+}
+
+// How many sides of a hex a step of the movement may turn off the step
+// before it, null for any. combat.tex "Movement": "The maximum turn rate
+// during running is 60 degrees", one side a step; a run may set out any way.
+function getTurnRate(kind: MoveKind): number | null {
+  return kind === 'run' ? 1 : null
+}
+
+// combat.tex "Movement": a jump cannot be "turned in the middle", so its
+// path is the straight line from where it sets out.
+function isStraight(from: Coord, path: Coord[]): boolean {
+  const end = path.at(-1)
+  if (!end) return true
+  const straight = getJumpPath(from, end)
+  return straight.length === path.length && straight.every((cell, i) => sameCell(cell, path[i]))
+}
+
+// The way a jump goes from where it sets out to where it lands.
+function getJumpPath(from: Coord, to: Coord): Coord[] {
+  return line(from, to).slice(1)
+}
+
+// Every cell a jump may go to in a straight line, as far as `further`
+// allows, whose cells on the way `enter` all admitted.
+function getJumps(from: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean): { cell: Coord; path: Coord[] }[] {
+  const jumps: { cell: Coord; path: Coord[] }[] = []
+  for (let steps = 1; further(steps); steps++) {
+    for (const cell of ring(from, steps)) {
+      const path = getJumpPath(from, cell)
+      if (path.every((p, i) => enter(p, i === 0 ? [p] : [path[i - 1], p]))) jumps.push({ cell, path })
+    }
+  }
+  return jumps
 }

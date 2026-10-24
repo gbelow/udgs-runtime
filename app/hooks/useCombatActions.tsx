@@ -41,6 +41,7 @@ export function useCombatActions() {
   const cast = (key: string, quicken: boolean) => dispatch({ kind: "cast", args: [key, quicken] });
   const choose = (fields: { along?: boolean; item?: string }) => dispatch({ kind: "choose", args: [fields] });
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
+  const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } as const;
+  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

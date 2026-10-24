@@ -60,27 +60,37 @@ export function setDistance(a: readonly Coord[], b: readonly Coord[]): number {
   return best
 }
 
-function neighbors(c: Coord): Coord[] {
-  return DIRECTIONS.map((d) => add(c, d))
+// How many sides apart two directions are, either way round: 0 to 3.
+export function sidesBetween(a: Direction, b: Direction): number {
+  const d = (((a - b) % 6) + 6) % 6
+  return Math.min(d, 6 - d)
 }
 
 // Breadth-first from `start`, one ring of cells per step for as long as
 // `further` allows that many steps: every cell first come to along a path
-// whose cells `enter` all admitted, with that path.
-export function walkOut(start: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean): { cell: Coord; path: Coord[]; steps: number }[] {
+// whose cells `enter` all admitted, with that path. A `steer` keeps the
+// walk to a heading: no step turns more than `turn` sides off the step
+// before it, nor the first off `heading` unless that is null.
+export function walkOut(start: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean, steer?: { heading: Direction | null; turn: number }): { cell: Coord; path: Coord[]; steps: number }[] {
   const seen = new Set([coordKey(start)])
+  const reached = steer ? new Set([coordKey(start)]) : seen
   const found: { cell: Coord; path: Coord[]; steps: number }[] = []
-  let frontier: { cell: Coord; path: Coord[] }[] = [{ cell: start, path: [] }]
+  let frontier: { cell: Coord; path: Coord[]; heading: Direction | null }[] = [{ cell: start, path: [], heading: steer?.heading ?? null }]
   for (let steps = 1; frontier.length > 0 && further(steps); steps++) {
     const next: typeof frontier = []
-    for (const { cell, path } of frontier) {
-      for (const n of neighbors(cell)) {
-        const key = coordKey(n)
+    for (const { cell, path, heading } of frontier) {
+      for (const d of ROTATIONS) {
+        if (steer && heading !== null && sidesBetween(heading, d) > steer.turn) continue
+        const n = add(cell, DIRECTIONS[d])
+        const at = coordKey(n)
+        const key = steer ? `${at}:${d}` : at
         if (seen.has(key)) continue
         seen.add(key)
         const walked = [...path, n]
         if (!enter(n, walked)) continue
-        next.push({ cell: n, path: walked })
+        next.push({ cell: n, path: walked, heading: d })
+        if (steer && reached.has(at)) continue
+        reached.add(at)
         found.push({ cell: n, path: walked, steps })
       }
     }

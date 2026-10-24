@@ -28,6 +28,14 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
 - `rules/move.ts`, `rules/board/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
   runs, Balance tests, reachable cells, where the mover stands along a path, where a move
   was cut short, tramples.
+- **Drawing a path.** A move is drawn in segments (`drawsSegments`): the reach is walked on
+  from the end of the path drawn so far, and a click on a cell it offers adds the shortest way
+  there as a segment, the path's length at the turn kept in `turns`. A click on the path's end
+  takes the last segment back whole (so does the panel's `backSegment`), a click elsewhere on
+  the path cuts it back to that cell, and the board does not offer the path's cells as
+  somewhere to go. A run turns at most one side of a hex a step (combat.tex "Movement": "60
+  degrees"), across a turn too, so its reach is walked with a heading; it may set out any way.
+  A jump is one straight line (`line`) and a climb one face: a new cell replaces either.
 - **Cliffs and falls.** Ground a metre or more above or below the cell beside it is a cliff
   (`rules/board/cliff.ts`): a walk may not step over it, a jump goes up as far as its vertical reach
   clears and comes down as a fall, and a climb (the way over, always a test) is the only

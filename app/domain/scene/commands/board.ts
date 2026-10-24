@@ -9,10 +9,10 @@ import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
 import { CLIMB_EASY_DL, COVER_START_RES, SWIM_DEFAULT_DL } from '../../tables'
 import { placeAt, withPlacements } from '../rules/board/board'
-import { getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
+import { drawsSegments, getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
 import { canStandAt } from '../rules/board/ground'
-import { getMoveOrigin } from '../rules/board/waypoint'
+import { getMoveOrigin, getPathTurns, withoutLastSegment } from '../rules/board/waypoint'
 import { aimAtCell, amendAction, amendReaction, declareReaction } from './action'
 import { aimExplosion } from './choices'
 import { getDragReach, getWalkerPlacement } from '../rules/drag'
@@ -158,8 +158,8 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string): {
   if (!open) return null
   const own = (apply: Updater) => ({ actor: open.actorId, apply })
   if (open.kind === 'move' && open.step === 'define') {
-    const path = pickPathCell(state, open, cell)
-    return own(path ? amendAction({ path }) : unchanged)
+    const drawn = pickPathCell(state, open, cell)
+    return own(drawn ? amendAction(drawn) : unchanged)
   }
   const aim = getAim(state, open)
   if (aim) {
@@ -185,11 +185,31 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string): {
   return own(unchanged)
 }
 
-// The path a click on a cell turns the declared one into: the cell taken
-// back if it is the path's end, one more step if it is next to the end,
-// the shortest way there if it is reachable at all, and nothing otherwise.
-function pickPathCell(state: SceneState, action: MoveAction, cell: Coord): Coord[] | null {
-  return pickWayCell(getMoveOrigin(state, action)?.cell ?? null, action.path, getReachableCells(state, action), cell)
+// The path a click on a cell turns the declared one into: the last segment
+// taken back if it is the path's end, the path cut back to the cell if it
+// is on the way (all of it at the origin), and otherwise, if the move can
+// reach it, the path with a segment more, the shortest way there from the
+// end. A jump or a climb is one segment, which a new cell replaces.
+function pickPathCell(state: SceneState, action: MoveAction, cell: Coord): { path: Coord[]; turns: number[] } | null {
+  const from = getMoveOrigin(state, action)?.cell
+  if (!from) return null
+  const { path } = action
+  const turns = getPathTurns(action)
+  if (path.length > 0 && sameCell(path[path.length - 1], cell)) return withoutLastSegment(action)
+  const at = [from, ...path].findLastIndex((p) => sameCell(p, cell))
+  if (path.length > 0 && at >= 0) return { path: path.slice(0, at), turns }
+  const there = getReachableCells(state, action).find((r) => sameCell(r.cell, cell))
+  if (!there) return null
+  return { path: there.path, turns: drawsSegments(action.movement) && path.length > 0 ? [...turns, path.length] : [] }
+}
+
+// Takes back the last segment of the open move's path.
+export function backSegment(): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'move' || open.step !== 'define' || open.path.length === 0) return state
+    return amendAction(withoutLastSegment(open))(state)
+  }
 }
 
 function pickWayCell(from: Coord | null, path: Coord[], reachable: Pick<ReachableCell, 'cell' | 'steps' | 'path'>[], cell: Coord): Coord[] | null {

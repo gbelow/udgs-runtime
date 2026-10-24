@@ -799,6 +799,9 @@ export const MoveActionSchema = z.object({
   kind: z.literal('move'),
   movement: MoveKindSchema.default('basic'),
   path: z.array(CoordSchema).default([]),
+  // where the path was drawn to turn: the length of the path at the end of
+  // every segment but the last, so a segment can be taken back whole
+  turns: z.array(num).default([]),
   orientation: DirectionSchema.nullable().default(null),
   // combat.tex "Swimming": metres a swimmer goes deeper by the move's end,
   // below zero towards the surface, swum like a metre of the path

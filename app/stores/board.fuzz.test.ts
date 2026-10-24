@@ -284,6 +284,7 @@ function plays(): Play[] {
     { name: 'save a graze', run: (h) => h.send({ kind: 'grazeSave', args: [] }) },
     { name: 'move while resting', run: (h) => h.send({ kind: 'restMove', args: [] }) },
     { name: 'boost a push', run: (h, pick) => h.send({ kind: 'boostPush', args: [pick([true, false])] }) },
+    { name: 'take a segment back', run: (h) => h.send({ kind: 'backSegment', args: [] }) },
     { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.send({ kind: 'choose', args: [open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) }] }) } },
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.send({ kind: 'back', args: [] }) },
@@ -706,6 +707,7 @@ function travel(h: Harness, pick: Picker) {
   for (let i = pick([1, 2, 3, 4]); i > 0; i--) {
     const cells = h.view().cells.filter((c) => c.reachable !== null)
     if (cells.length) h.click({ on: 'cell', cell: pick(cells).cell })
+    if (pick([true, false, false, false])) h.send({ kind: 'backSegment', args: [] })
   }
   if (pick([true, false])) h.send({ kind: 'amend', args: [{ dive: pick([-1, 1, 2]) }] })
   const climb = getActionPanel(h.state()).open?.climbSteps
