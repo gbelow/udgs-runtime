@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { fighter, spearman } from '../domain/bot/fixtures'
+import { brawler, fighter, spearman, warden } from '../domain/bot/fixtures'
 import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getAvailableActions } from '../domain/scene/rules/options'
 import { getOpenAction } from '../domain/scene/rules/log'
@@ -203,6 +203,38 @@ describe('drawing a move in segments', () => {
       const ways = path.map((p, i) => directionTo(cells[i], p))
       ways.slice(1).forEach((way, i) => expect(sidesBetween(ways[i], way), `running to ${cell.q},${cell.r}`).toBeLessThanOrEqual(1))
       expect(isPathLegal(h.state(), { ...move, path }), `running to ${cell.q},${cell.r}`).toBe(true)
+    }
+  })
+})
+
+// The fuzzer found a runner who passed through someone's space and was hooked
+// by them there: while the attack was fought the runner stood in the hooker's
+// space, and two characters stood on one.
+describe('a run hooked in the space of the one who hooked it', () => {
+  it('never leaves the runner on a space someone else stands on', () => {
+    const h = openHarness(() => 9)
+    h.bring(brawler('Ann'), warden('Bob'))
+    h.createBoard(4)
+    h.select('Ann')
+    h.cell(0, 0)
+    h.select('Bob')
+    h.cell(4, -1)
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    h.amend({ movement: 'run', path: [{ q: 4, r: -2 }, { q: 4, r: -3 }, { q: 3, r: -3 }, { q: 2, r: -2 }, { q: 1, r: -1 }, { q: 0, r: 0 }, { q: 0, r: 1 }, { q: 0, r: 2 }, { q: 0, r: 3 }] })
+    h.commit()
+    const ann = h.idOf('Ann')
+    const gauntlet = h.state().characters[ann].body.find((part) => part.itemId !== '')?.itemId ?? ''
+    h.send({ kind: 'react', args: [ann, { kind: 'opportunityAttack', at: 7 }] })
+    h.send({ kind: 'amendReaction', args: [ann, { weaponKey: gauntlet, attack: 'grapple', variant: 'hook', catch: true }] })
+    const stands: string[][] = []
+    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) {
+      h.press(step)
+      stands.push(Object.values(h.state().board!.placements).map((p) => coordKey(p.cell)))
+    }
+    for (const cells of stands) {
+      expect(cells).toHaveLength(2)
+      expect(new Set(cells).size).toBe(2)
     }
   })
 })

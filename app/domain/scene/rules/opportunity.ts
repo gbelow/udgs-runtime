@@ -4,7 +4,7 @@ import { getActionDef, isRootAction } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange, withPlacements } from './board/board'
 import { getDrawnOpportunityAttacks, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { isBroken } from './interruption'
-import { getMoveFacts, getMoveOverride } from './move'
+import { getFreeStep, getMoveFacts, getMoveOverride } from './move'
 import { getMoveWaypoint } from './board/waypoint'
 import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
 import { isGivingUpHeld } from './hold'
@@ -18,7 +18,8 @@ export function isInterruptible(action: Action): action is InterruptibleAction {
 
 // The fight as it will stand when the opportunity attack is fought: against
 // a move, with the mover walked one space short of the stretch that fired
-// it; against a push, with everyone it moves one space short too. Reach is
+// it, or short of whoever's space they were passing through (`getFreeStep`);
+// against a push, with everyone it moves one space short too. Reach is
 // judged from there.
 export function getOpportunityState(state: SceneState, reaction: ActionOf<'opportunityAttack' | 'retarget'>): SceneState {
   const root = getRootOf(state, reaction)
@@ -27,7 +28,7 @@ export function getOpportunityState(state: SceneState, reaction: ActionOf<'oppor
     return before ? withPlacements(state, before) : state
   }
   if (root?.kind !== 'move' || reaction.at === null) return state
-  const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
+  const waypoint = getMoveWaypoint(state, root, getFreeStep(state, root, reaction.at - 1))
   return waypoint ? withPlacements(state, { [root.actorId]: waypoint }) : state
 }
 

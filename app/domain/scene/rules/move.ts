@@ -448,7 +448,7 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
     path = path.slice(0, tramples.stop)
     stop = 'trample'
   }
-  const free = withoutOccupiedEnd(state, action, path)
+  const free = path.slice(0, getFreeStep(state, action, path.length))
   if (stop === 'end' && free.length < path.length) stop = 'occupied'
   path = free
   const fallAt = getFallStep(state, action)
@@ -461,15 +461,17 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
   return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall) ?? getSwimFinish(state, action, path), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
 }
 
-// A mover stopped partway may have been let through someone (an evaded crash,
-// a prone body) whose space they now stand in, and one who walked the whole way
-// may find their end taken by someone a reaction moved there: no two characters
-// within a size of each other rest on one space (creating.tex "Size and Space
-// Occupation"), so they are left on the last space before it.
-function withoutOccupiedEnd(state: SceneState, action: MoveAction, path: Coord[]): Coord[] {
-  let end = path.length
-  while (end > 0 && getStandingIn(state, action, path[end - 1]) !== null) end--
-  return path.slice(0, end)
+// The step of the move, at or before `steps`, the mover may stand at; 0 is
+// where it set out. A mover stopped partway may have been let through someone
+// (an evaded crash, a prone body, anyone they pass while an attack is fought)
+// whose space they would stand in, and one who walked the whole way may find
+// their end taken by someone a reaction moved there: no two characters within
+// a size of each other rest on one space (creating.tex "Size and Space
+// Occupation"), so they stand on the last space before it.
+export function getFreeStep(state: SceneState, action: MoveAction, steps: number): number {
+  let at = steps
+  while (at > 0 && getStandingIn(state, action, action.path[at - 1]) !== null) at--
+  return at
 }
 
 // Whoever stands in the space the mover would come to rest in with their

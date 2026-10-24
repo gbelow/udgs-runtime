@@ -14,7 +14,7 @@ import { line, setDistance } from './board/geometry'
 import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, seesAcross, withPlacements } from './board/board'
 import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
-import { getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
+import { getFreeStep, getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
 import { getMovePlacements, getMoveWaypoint } from './board/waypoint'
 import { getAction, getAncestry, getLiveReactionsTo, getPassedUp, getRootOf, getSpawned } from './log'
 import { getHeldOf } from './hold'
@@ -313,11 +313,12 @@ export function isPreparedDefense(action: Action): action is PreparedDefense {
 }
 
 // Where the mover stands while the prepared action is fought: on the cell that
-// brought them into its trigger.
+// brought them into its trigger, or short of whoever's space they were passing
+// through (`getFreeStep`).
 export function getPreparedState(state: SceneState, reaction: ActionOf<'prepared'>): SceneState {
   const root = getRootOf(state, reaction)
   if (root?.kind !== 'move' || reaction.at === null) return state
-  const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
+  const waypoint = getMoveWaypoint(state, root, getFreeStep(state, root, reaction.at - 1))
   return waypoint ? withPlacements(state, { [root.actorId]: waypoint }) : state
 }
 
