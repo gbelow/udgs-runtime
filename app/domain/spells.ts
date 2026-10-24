@@ -28,7 +28,7 @@ export type LoadedSpell = Omit<Spell, 'effects'> & { effects: SpellEffect[]; mor
 
 // What the target suffers at each degree of the spell's test.
 export function getSpellOutcomes(spell: LoadedSpell): SpellOutcomes | null {
-  return spell.forced?.effect.outcomes ?? spell.outcomes
+  return spell.forced?.effect.outcomes ?? null
 }
 
 export const SPELLS: Record<SpellKey, LoadedSpell> = Object.fromEntries(

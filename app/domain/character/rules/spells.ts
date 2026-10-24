@@ -367,19 +367,16 @@ export function resolveTest(c: Character, key: SpellKey): ResolvedTest | null {
   return test ? resolveDL(c, test.dl, test.roll) : null
 }
 
-// What the spell leaves its target to test, as the book words it: the spell's
-// own test, or the one the morale effect it carries forces. `roll` is the
-// target's skill and `plus` what the book adds to it; `enhance` is what one
-// "Enhance Spell" adds to the DL.
+// What the spell leaves its target to test, as the book words it: the test
+// its morale or test effect forces. `roll` is the target's skill and `plus`
+// what the book adds to it; `enhance` is what one "Enhance Spell" adds to
+// the DL.
 type TargetTest = { dl: string; roll: string; plus: string[]; enhance: number }
 
 export function getSpellTest(key: SpellKey): TargetTest | null {
-  const { test, morale, forced } = SPELLS[key]
+  const { morale, forced } = SPELLS[key]
   const resist = (morale ?? forced)?.resist
-  if (resist) return { dl: resist.dl, roll: resist.roll, plus: resist.plus ? [resist.plus] : [], enhance: resist.enhance }
-  if (!test) return null
-  const [roll, ...plus] = test.roll.split('+').map((t) => t.trim())
-  return { dl: test.dl, roll, plus: plus.filter(Boolean), enhance: 0 }
+  return resist ? { dl: resist.dl, roll: resist.roll, plus: resist.plus ? [resist.plus] : [], enhance: resist.enhance } : null
 }
 
 // The skill the spell's targets test with ("Charisma vs will"); null when it

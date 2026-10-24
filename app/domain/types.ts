@@ -1199,15 +1199,6 @@ export type Ability = z.infer<typeof AbilitySchema>
 export const SpellTypeSchema = z.enum(['instant', 'sustained', 'charged', 'curse'])
 export type SpellType = z.infer<typeof SpellTypeSchema>
 
-// `dl` is the side the caster sets (Charisma, Accuracy, a literal) and `roll`
-// is what the defender tests against it. Both are kept as the book's words;
-// resolving the DL side to a number for a given caster is a lens's job.
-export const SpellTestSchema = z.object({
-  dl: str.default(''),
-  roll: str.default(''),
-}).strip()
-export type SpellTest = z.infer<typeof SpellTestSchema>
-
 // spells.tex "Amplify Spell": which of an effect's numbers the book marks
 // to scale with the spell's size — "The damage is increased by DM, the
 // effect reach and area by RM". The multiplier each reads is the book's;
@@ -1381,11 +1372,9 @@ export const SpellSchema = z.object({
   duration: z.enum(['none', 'permanent', 'ET']).default('none'),
   durationETs: num.default(0),
   description: str.default(''),
-  enhance: str.default(''), // what one "Enhance Spell" buys, in the book's words
-  // the spell's target test as the book words it, whose degree picks the
-  // outcome; an effect the target dodges carries its own `resist` instead
-  test: SpellTestSchema.nullable().default(null),
-  outcomes: SpellOutcomesSchema.nullable().default(null),
+  // what one "Enhance Spell" buys, in the book's words, for the sheet only:
+  // what it does is each effect's `enhance` and its test's `resist.enhance`
+  enhance: str.default(''),
   effects: z.array(CatalogEffectSchema).default([]),
 }).strip()
 export type SpellInput = z.input<typeof SpellSchema>
