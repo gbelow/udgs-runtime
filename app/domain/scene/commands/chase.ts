@@ -8,7 +8,7 @@ import type { Caller, Throw } from '../../play/calls'
 import { calling } from './calling'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
-import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
+import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getChaseWithoutDead, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getRechained, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
 import { getFightBusy } from '../rules/turn'
 import { updateCharacter } from './characters'
 import { dropEmptyFightParties } from './parties'
@@ -308,8 +308,7 @@ export function mergeBack(partyId: string): Updater {
     const into = getLink(state, partyId)!.chases
     const chase = state.chase!
     const partyOf = Object.fromEntries(Object.entries(state.partyOf).map(([id, p]) => [id, p === partyId ? into : p]))
-    const links = Object.fromEntries(Object.entries(chase.links).map(([from, l]): [string, ChaseLink] => [from, l.chases === partyId ? { ...l, chases: into } : l]))
-    return dropEmptyFightParties({ ...state, partyOf, chase: forget({ ...chase, links }, partyId) }, [partyId])
+    return dropEmptyFightParties({ ...state, partyOf, chase: forget({ ...chase, links: getRechained(chase.links, partyId) }, partyId) }, [partyId])
   }
 }
 
@@ -354,6 +353,12 @@ export function endChaseRound(state: SceneState): Chase | null {
   const cleared = withChase(arrived, { declarations: {}, resolved: false, seconds: null, rolls: [] })
   const out = getChaseParties(cleared).filter((p) => isDisconnected(cleared, p) && !isHeldOn(cleared.chase!, p))
   return { ...cleared.chase!, out: [...cleared.chase!.out, ...out] }
+}
+
+// The chase as the round change ends, once bleeding and burning have done
+// their work: a party with nobody left alive leaves it.
+export function endChaseRoundChange(state: SceneState): Chase | null {
+  return state.chase && getChaseWithoutDead(state, state.chase)
 }
 
 function isHeldOn(chase: Chase, partyId: string): boolean {

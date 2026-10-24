@@ -16,7 +16,7 @@ import { declareAction, declareReaction, payAnswered, rollAnswered } from '../do
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
 import { getChasePanel } from '../domain/scene/projections/chase'
-import { getChaseStartBar, getDeclareOrder } from '../domain/scene/rules/chase'
+import { getChaseStartBar, getDeclareBar, getDeclareOrder } from '../domain/scene/rules/chase'
 import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
@@ -1071,5 +1071,49 @@ describe('a chase with no board', () => {
     h.startTurn()
     expect(h.state()).toEqual(before)
     expect(getNextRoundBar(h.state())).toBeNull()
+  })
+
+  // A rest at the round change was counted as a turn of the round, and a
+  // chase started from the fight at that round change could then never be
+  // declared or resolved.
+  it('declares and resolves a chase started at the round change after a rest in it', () => {
+    const h = openHarness(() => 5)
+    h.bring(warden('Ann'), brawler('Cy'), towerWarden('Dee'))
+    h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
+    h.send({ kind: 'nextRound', args: [] })
+    for (let i = 0; i < 10 && getRoundPhase(h.state()); i++) h.send({ kind: 'continueRound', args: [] })
+    for (const name of ['Ann', 'Cy', 'Dee']) h.send({ kind: 'toggleAgreeToEnd', args: [h.idOf(name)] })
+    h.send({ kind: 'nextRound', args: [] })
+    h.select('Ann')
+    h.declare({ kind: 'rest' } as ActionDraft)
+    h.commit()
+    for (let i = 0; i < 10 && getRoundPhase(h.state()) !== 'chase'; i++) h.send({ kind: 'continueRound', args: [] })
+    h.send({ kind: 'startChase', args: [[h.state().partyOf[h.idOf('Ann')]], 'shooting'] })
+    h.send({ kind: 'continueRound', args: [] })
+    for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
+    h.send({ kind: 'resolveChase', args: [] })
+    expect(h.state().chase?.resolved).toBe(true)
+  })
+
+  // A party whose members had all died stayed in the chain, and whoever
+  // chased it waited on it to declare for good. The table's ruling: it is out
+  // of the chase and its pursuers take over its link.
+  it('hands the link of a party that dies out to its pursuers', () => {
+    const h = openHarness(() => 5)
+    h.bring(warden('Ann'), brawler('Cy'), towerWarden('Dee'))
+    h.send({ kind: 'splitOff', args: [h.idOf('Cy')] })
+    h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
+    const [ann, cy, dee] = ['Ann', 'Cy', 'Dee'].map((name) => h.state().partyOf[h.idOf(name)])
+    h.send({ kind: 'startChase', args: [[ann, cy], 'shooting'] })
+    for (let i = 0; i < 10 && getRoundPhase(h.state()); i++) h.send({ kind: 'continueRound', args: [] })
+    expect(h.state().chase?.links[dee]?.chases).toBe(ann)
+    for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
+    h.send({ kind: 'resolveChase', args: [] })
+    h.send({ kind: 'edit', args: [h.idOf('Ann'), { kind: 'setInjury', args: ['injuryLevel', 999] }, true] })
+    h.send({ kind: 'nextRound', args: [] })
+    for (let i = 0; i < 10 && getRoundPhase(h.state()); i++) h.send({ kind: 'continueRound', args: [] })
+    expect(h.state().chase?.out).toContain(ann)
+    expect(h.state().chase?.links[dee]?.chases).toBe(cy)
+    expect(getDeclareBar(h.state(), dee, { move: 'run', scout: null, hideModifier: 0 })).toBe(`${h.state().parties[cy].name} declares first`)
   })
 })

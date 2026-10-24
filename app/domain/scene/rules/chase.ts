@@ -3,7 +3,7 @@ import type { CampaignCharacter } from '../../types'
 import type { Chase, ChaseDeclaration, ChaseLink, SceneState } from '../types'
 import type { Term } from '../../character/rules/terms'
 import { AFFLICTIONS, CHASE_PARTIAL_COVER_REFLEX, CHASE_ROUND_SECONDS, CHASE_TIER_METRES, ROUND_AP, ROUND_SECONDS, SKIRMISH_APPROACH_AP, SKIRMISH_SECONDS, SKIRMISH_SHOOT_AP, SURGES } from '../../tables'
-import { CHASE_TIERS, SHOT_RANGES, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseTier, type ChaseWay, type CrossingSkill } from '../../lists'
+import { CHASE_TIERS, SHOT_RANGES, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseStage, type ChaseTier, type ChaseWay, type CrossingSkill } from '../../lists'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { getAGI, getSTA } from '../../character/rules/characteristics'
 import { getRunMovement } from '../../character/rules/movement'
@@ -55,7 +55,33 @@ export function newChase(state: SceneState, quarry: string[], tier: ChaseTier): 
     ...bySpeed.slice(0, -1).map((p, i) => [p, { chases: bySpeed[i + 1], tier: 'combat' as ChaseTier, run: null }]),
     ...(bySpeed.length ? pursuers.map((p) => [p, { chases: bySpeed[0], tier, run: null }]) : []),
   ])
-  return { runaways, links, out: [], fighting: [], joining: {}, declarations: {}, resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} }
+  return getChaseWithoutDead(state, { runaways, links, out: [], fighting: [], joining: {}, declarations: {}, resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
+}
+
+// The chain once a party leaves it: whoever chased it chases whoever it
+// chased, at the farther of the two tiers (the table's ruling for parties
+// apart in the chain), or nobody if it chased nobody.
+export function getRechained(links: Record<string, ChaseLink>, partyId: string): Record<string, ChaseLink> {
+  const onward = links[partyId]
+  return Object.fromEntries(Object.entries(links).filter(([from]) => from !== partyId).flatMap(([from, l]): [string, ChaseLink][] => {
+    if (l.chases !== partyId) return [[from, l]]
+    if (!onward || onward.chases === from) return []
+    return [[from, { ...l, chases: onward.chases, tier: CHASE_TIERS[Math.max(CHASE_TIERS.indexOf(l.tier), CHASE_TIERS.indexOf(onward.tier))] }]]
+  }))
+}
+
+// The table's ruling: a party with nobody left alive is out of the chase,
+// and whoever chased it takes over its link.
+export function getChaseWithoutDead(state: SceneState, chase: Chase): Chase {
+  const dead = Object.keys(state.parties).filter((p) => !chase.out.includes(p) && getMembers(state, p).length === 0)
+  if (dead.length === 0) return chase
+  return {
+    ...chase,
+    links: dead.reduce(getRechained, chase.links),
+    out: [...chase.out, ...dead],
+    fighting: chase.fighting.filter((p) => !dead.includes(p)),
+    joining: Object.fromEntries(Object.entries(chase.joining).filter(([p]) => !dead.includes(p))),
+  }
 }
 
 // The parties still in the chase.
@@ -256,8 +282,8 @@ function isSkirmishTier(tier: ChaseTier): boolean {
   return tier === 'shooting' || tier === 'far'
 }
 
-// Why the party cannot declare the move: the round is under way or resolved,
-// it does not run this round, the party it chases has not declared yet
+// Why the party cannot declare the move: the round is past deciding, it does
+// not run this round, the party it chases has not declared yet
 // (combat.tex "Chain order of running"), or the move is not open to it — a
 // skirmish at shooting or far range against an enemy, hiding only in a
 // hiding place the party scouted and reached ("Scouting": "a place to hide")
@@ -270,10 +296,10 @@ export function getDeclareBar(state: SceneState, partyId: string, declaration: C
   const dice = getDiceBar(state.calls)
   if (dice) return dice
   if (state.round === 0) return 'press start combat to begin the first round'
-  if (chase.resolved) return 'the round has been resolved'
+  const stage = getChaseStage(state, partyId)
+  if (stage && stage !== 'deciding') return STAGE_BARS[stage]
   const first = getFightFirst(state)
   if (first) return first
-  if (state.turnsTaken.length > 0) return 'the round is under way'
   if (!getDeclarers(state).includes(partyId)) return 'they sit this round out'
   const ahead = getLink(state, partyId)?.chases
   if (ahead && getDeclarers(state).includes(ahead) && !chase.declarations[ahead]) return `${partyName(state, ahead)} declares first`
@@ -324,8 +350,7 @@ export function isHidingLink(state: SceneState, from: string): boolean {
 }
 
 // Why the round's chase cannot be resolved: it has been, a fight is played
-// out first, someone is caught, the round is under way, or someone has not
-// declared.
+// out first, someone is caught, or someone has not declared.
 export function getResolveBar(state: SceneState): string | null {
   const chase = state.chase
   if (!chase) return 'there is no chase'
@@ -335,7 +360,6 @@ export function getResolveBar(state: SceneState): string | null {
   if (first) return first
   const busy = getFightBusy(state)
   if (busy) return busy
-  if (state.turnsTaken.length > 0) return 'the round is under way'
   const caught = getChaseParties(state).flatMap((p) => getCaught(state, p))
   if (caught.length) return `caught: ${caught.map((c) => c.reason).join(', ')}`
   if (getActiveLinks(state).length === 0) return 'nobody is running this round'
@@ -404,27 +428,39 @@ export function getChaseRestBar(state: SceneState, id: string): string | null {
   return 'running in a chase'
 }
 
-// combat.tex "Chain order of running": a chase round is declared and run
-// before anyone acts in it, and then only those it set routing or skirmishing
-// act ("Routing", "Skirmish") — a party only running has nothing to do. A
-// party caught and fighting, or out of the chase, takes turns as in a fight.
-export function getChaseTurnBar(state: SceneState, id: string): string | null {
+// combat.tex "Chain order of running": where the party stands in the chase
+// round. It decides until the round is resolved; then it routes or
+// skirmishes at either end of a link the run set so ("Routing", "Skirmish"),
+// and otherwise only runs. Null for a party caught and fighting, or out of
+// the chase, which takes turns as in a fight.
+export function getChaseStage(state: SceneState, partyId: string): ChaseStage | null {
   const chase = state.chase
-  const partyId = state.partyOf[id]
-  if (!chase || partyId === undefined || chase.out.includes(partyId) || chase.fighting.includes(partyId)) return null
-  if (!chase.resolved) return 'the chase round is resolved first'
-  return isActingInChase(state, partyId) ? null : 'running this round'
+  if (!chase || !state.parties[partyId] || chase.out.includes(partyId) || chase.fighting.includes(partyId)) return null
+  if (!chase.resolved) return 'deciding'
+  const ends = [partyId, ...getChasers(state, partyId)]
+  if (ends.some((from) => isRoutingLink(state, from))) return 'routing'
+  if (ends.some((from) => getLink(state, from)?.run?.skirmish)) return 'skirmish'
+  return 'running'
 }
 
-// Whether the character's party has nothing to do in the resolved chase
-// round, so it agrees to end the round without saying so.
+const STAGE_BARS: Record<Exclude<ChaseStage, 'deciding'>, string> = {
+  running: 'running this round',
+  skirmish: 'skirmishing this round',
+  routing: 'routing this round',
+}
+
+// A chase round is declared and run before anyone acts in it, and then only
+// a party routing or skirmishing acts: one only running has nothing to do.
+export function getChaseTurnBar(state: SceneState, id: string): string | null {
+  const stage = getChaseStage(state, state.partyOf[id] ?? '')
+  if (stage === 'deciding') return 'the chase round is resolved first'
+  return stage === 'running' ? STAGE_BARS.running : null
+}
+
+// Whether the character's party only runs this round, so it agrees to end
+// the round without saying so.
 export function isIdleInChase(state: SceneState, id: string): boolean {
-  return !!state.chase?.resolved && getChaseTurnBar(state, id) !== null
-}
-
-// The party is at one end of a link the round set routing or skirmishing.
-function isActingInChase(state: SceneState, partyId: string): boolean {
-  return [partyId, ...getChasers(state, partyId)].some((from) => isRoutingLink(state, from) || !!getLink(state, from)?.run?.skirmish)
+  return getChaseStage(state, state.partyOf[id] ?? '') === 'running'
 }
 
 // In a chase, with no board under them, a party's members stand together:
@@ -552,6 +588,7 @@ export function getPutBackBar(state: SceneState, partyId: string, target: string
   const chase = state.chase
   if (!chase) return 'there is no chase'
   if (!chase.out.includes(partyId)) return 'they are in the chase'
+  if (getMembers(state, partyId).length === 0) return 'nobody in the party is alive'
   if (partyId === target || !state.parties[target] || chase.out.includes(target)) return 'that party is out of the chase'
   return getFightBusy(state)
 }

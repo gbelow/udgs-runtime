@@ -9,7 +9,7 @@ import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
-import { Button, Panel, SectionLabel, Tooltip } from './ui'
+import { Button, Closed, Panel, SectionLabel, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
@@ -561,13 +561,6 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
       {option.kind} <Cost cost={option.block} />
     </Button>
   )
-}
-
-// Why a closed button is closed, on hover. A disabled button takes no mouse
-// events, so the hover lands on the wrapper and the button lets it through.
-function Closed({ reason, children }: { reason: string | null | undefined, children: React.ReactNode }){
-  if (!reason) return <>{children}</>
-  return <Tooltip text={reason} className='cursor-help [&>button]:pointer-events-none'>{children}</Tooltip>
 }
 
 function OptionButton({ option, active = false, onClick }: { option: ActionOptionView, active?: boolean, onClick: () => void }){

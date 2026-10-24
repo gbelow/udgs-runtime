@@ -4,7 +4,7 @@ import { perState } from '../../perState'
 import { getFightName } from '../rules/fighters'
 import { getFightBusy } from '../rules/turn'
 import { getNextRoundNote } from './turn'
-import { canTurnAround, getCaught, getChasers, getChaseParties, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen, isRoutingLink } from '../rules/chase'
+import { canTurnAround, getCaught, getChasers, getChaseParties, getChaseStage, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
 
 type Option = { id: string; name: string; bar: string | null }
 
@@ -101,7 +101,9 @@ function getStatus(state: SceneState, id: string): string {
   if (chase.joining[id]) return `on the way to the fight of ${partyName(state, chase.joining[id])}`
   if (isDisconnected(state, id)) return 'disconnected: out when the round ends'
   if (isFrozen(state, id)) return 'keeping the distance at far range'
-  return getDeclarers(state).includes(id) ? 'running' : 'waiting on others'
+  const stage = getChaseStage(state, id)
+  if (stage && stage !== 'deciding') return stage
+  return getDeclarers(state).includes(id) ? 'deciding' : 'waiting on others'
 }
 
 function buildRun(state: SceneState, id: string): ChaseRunRow | null {
@@ -171,8 +173,9 @@ function getNext(state: SceneState): string | null {
   if (first) return `${first}: fight it out, then have them run again or end the chase`
   const endRound = 'everyone ends their turn and agrees to end the round, then next round'
   if (chase.resolved) {
-    const routing = getChaseParties(state).some((p) => isRoutingLink(state, p))
-    const skirmish = getChaseParties(state).some((p) => getLink(state, p)?.run?.skirmish)
+    const stages = getChaseParties(state).map((p) => getChaseStage(state, p))
+    const routing = stages.includes('routing')
+    const skirmish = stages.includes('skirmish')
     if (routing) return `routing: everyone takes turns with their AP, the chasers at +2; ${endRound}`
     if (skirmish) return `skirmish: everyone takes turns with the AP shown; ${endRound}`
     return endRound

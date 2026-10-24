@@ -270,6 +270,11 @@ export type ChaseRole = (typeof CHASE_ROLES)[number]
 // in the direction of the pursuer or away from them").
 export const CHASE_MOVES = ['run', 'reverse', 'shoot', 'hide'] as const
 export type ChaseMove = (typeof CHASE_MOVES)[number]
+// combat.tex "Chain order of running", "Routing", "Skirmish": where a party
+// stands in the chase round. It decides until the round is resolved, then
+// runs, skirmishes or routes as its link was run.
+export const CHASE_STAGES = ['deciding', 'running', 'skirmish', 'routing'] as const
+export type ChaseStage = (typeof CHASE_STAGES)[number]
 // combat.tex "Running": "the fastest decides to close the distance or move
 // away".
 export const CHASE_WAYS = ['close', 'open'] as const

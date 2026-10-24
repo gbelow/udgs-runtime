@@ -384,6 +384,13 @@ export function Tooltip({ text, children, className = '' }: { text: ReactNode, c
   return <Popover content={<span className='block max-w-64 whitespace-normal'>{text}</span>} className={`inline-flex ${className}`}>{children}</Popover>
 }
 
+// Why a closed button is closed, on hover. A disabled button takes no mouse
+// events, so the hover lands on the wrapper and the button lets it through.
+export function Closed({ reason, children }: { reason: string | null | undefined, children: ReactNode }){
+  if (!reason) return <>{children}</>
+  return <Tooltip text={reason} className='cursor-help [&>button]:pointer-events-none'>{children}</Tooltip>
+}
+
 // One count with its label, against its budget when it has one: green once
 // spent in full, red when over.
 export function BudgetChip({ label, spent, budget, over = false }: { label: string; spent: number | string; budget?: number | string; over?: boolean }) {

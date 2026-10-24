@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
+import { Button, Closed, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
 import { useChase, useChaseCommands } from '../hooks/useChase'
 import type { ChaseCover, ChaseMove, ChaseTier, CrossingSkill } from '../domain/lists'
 import type { ChasePanel as Panel, ChasePartyRow } from '../domain/scene/projections/chase'
@@ -32,7 +32,7 @@ export function ChaseSetup(){
         <select className={selectClass} aria-label='starting tier' value={startTier} onChange={(e) => setStartTier(e.target.value as ChaseTier)}>
           {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <Button size='xs' aria-label='startChase' disabled={chase.startBar !== null} title={chase.startBar ?? undefined} onClick={() => startChase(quarry, startTier)}>start chase</Button>
+        <Closed reason={chase.startBar}><Button size='xs' aria-label='startChase' disabled={chase.startBar !== null} onClick={() => startChase(quarry, startTier)}>start chase</Button></Closed>
         {chase.startBar ? <span>{chase.startBar}</span> : null}
       </div>
     </div>
@@ -56,8 +56,8 @@ export function ChasePanel(){
         {chase.fightFirst ? <span className='text-xs text-bad'>{chase.fightFirst}</span> : null}
         {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
         {chase.roundBar ? <span className='text-xs text-muted'>next round: {chase.roundBar}</span> : null}
-        <Button size='xs' aria-label='resolveChase' disabled={chase.resolveBar !== null} title={chase.resolveBar ?? undefined} onClick={resolve}>resolve the round</Button>
-        <Button size='xs' aria-label='endChase' disabled={chase.endBar !== null} title={chase.endBar ?? undefined} onClick={endChase}>end chase</Button>
+        <Closed reason={chase.resolveBar}><Button size='xs' aria-label='resolveChase' disabled={chase.resolveBar !== null} onClick={resolve}>resolve the round</Button></Closed>
+        <Closed reason={chase.endBar}><Button size='xs' aria-label='endChase' disabled={chase.endBar !== null} onClick={endChase}>end chase</Button></Closed>
       </div>
       {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
       {chase.order.length && !chase.resolved ? <span className='text-xs text-muted'>declaring order: <span className='text-fg'>{chase.order.join(' → ')}</span></span> : null}
@@ -117,21 +117,23 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
         }
         {p.chasedBy.length ? <span className='text-muted'>chased by <span className='text-fg'>{p.chasedBy.join(', ')}</span></span> : null}
         {p.AP !== null ? <span className='text-muted'>skirmish <span className='font-mono text-fg'>{p.AP}</span> AP</span> : null}
-        <Button size='xs' variant='ghost' aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} title={p.fightBar ?? undefined} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</Button>
-        {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Button size='xs' variant='ghost' aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} title={p.mergeBar ?? undefined} onClick={() => mergeBack(p.id)}>merge back</Button> : null}
-        {p.chases ? <Button size='xs' variant='ghost' aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} title={p.giveUpBar ?? undefined} onClick={() => giveUp(p.id)}>give up</Button> : null}
+        <Closed reason={p.fightBar}><Button size='xs' variant='ghost' aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</Button></Closed>
+        {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Closed reason={p.mergeBar}><Button size='xs' variant='ghost' aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</Button></Closed> : null}
+        {p.chases ? <Closed reason={p.giveUpBar}><Button size='xs' variant='ghost' aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</Button></Closed> : null}
       </div>
       {
         p.declares ?
         <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
           <span>declares</span>
           {p.moves.map(({ move, bar }) => (
-            <Button key={move} size='xs' selected={p.declaration?.move === move} aria-label={`${p.name} ${move}`} disabled={bar !== null} title={bar ?? undefined} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</Button>
+            <Closed key={move} reason={bar}><Button size='xs' selected={p.declaration?.move === move} aria-label={`${p.name} ${move}`} disabled={bar !== null} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</Button></Closed>
           ))}
-          <label className='flex gap-1 items-center' title={p.scoutBar ?? undefined}>
-            <input type='checkbox' aria-label={`${p.name} scouts`} disabled={p.scoutBar !== null} checked={scouting} onChange={() => setScouting(!scouting)} />
-            scout for
-          </label>
+          <Closed reason={p.scoutBar}>
+            <label className='flex gap-1 items-center'>
+              <input type='checkbox' aria-label={`${p.name} scouts`} disabled={p.scoutBar !== null} checked={scouting} onChange={() => setScouting(!scouting)} />
+              scout for
+            </label>
+          </Closed>
           {scouting ? <>
             <TextInput className='w-32' aria-label={`${p.name} scouts for`} value={what} onChange={(e) => setWhat(e.target.value)} />
             DL <NumberInput className='w-10' aria-label={`${p.name} scout DL`} value={scoutDL} onChange={(e) => setScoutDL(Number(e.target.value))} />
@@ -188,17 +190,17 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
             {chase.crossingSkills.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           DL <NumberInput className='w-10' aria-label={`${p.name} crossing DL`} value={crossDL} onChange={(e) => setCrossDL(Number(e.target.value))} />
-          <Button size='xs' aria-label={`${p.name} crosses`} disabled={p.crossBar !== null} title={p.crossBar ?? undefined} onClick={() => cross(p.id, skill, crossDL)}>cross</Button>
+          <Closed reason={p.crossBar}><Button size='xs' aria-label={`${p.name} crosses`} disabled={p.crossBar !== null} onClick={() => cross(p.id, skill, crossDL)}>cross</Button></Closed>
         </div>
         : null
       }
       <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
         {p.followOptions.map((o) => (
-          <Button key={o.id} size='xs' variant='ghost' aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} title={o.bar ?? undefined} onClick={() => follow(p.id, o.id)}>chase {o.name}</Button>
+          <Closed key={o.id} reason={o.bar}><Button size='xs' variant='ghost' aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</Button></Closed>
         ))}
         {p.joining ? <span>joining the fight of {p.joining} at the end of the round</span> : null}
         {p.joinOptions.map((o) => (
-          <Button key={o.id} size='xs' variant='ghost' aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} title={o.bar ?? undefined} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</Button>
+          <Closed key={o.id} reason={o.bar}><Button size='xs' variant='ghost' aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</Button></Closed>
         ))}
         {p.putBackOptions.length ? <>
           put back at
@@ -206,7 +208,7 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
             {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           {p.putBackOptions.map((o) => (
-            <Button key={o.id} size='xs' variant='ghost' aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} title={o.bar ?? undefined} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</Button>
+            <Closed key={o.id} reason={o.bar}><Button size='xs' variant='ghost' aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</Button></Closed>
           ))}
         </> : null}
       </div>

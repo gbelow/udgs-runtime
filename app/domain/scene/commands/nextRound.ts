@@ -24,7 +24,7 @@ import { getHeldActions } from '../rules/hold'
 import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
 import { rollHeld } from './heldTest'
 import { getRoundSeconds } from '../rules/chase'
-import { endChaseRound } from './chase'
+import { endChaseRound, endChaseRoundChange } from './chase'
 import { carryOver, finishHeld } from './hold'
 import { updateCharacter } from './characters'
 
@@ -98,7 +98,7 @@ function continueWith(caller: Caller): Updater {
       case 'rest': return openConcentration(passEnvironment(state), caller)
       case 'concentration': return { ...state, roundStep: 'join' }
       case 'join': return { ...state, roundStep: 'morale', morale: getMoraleCalled(state).map((id) => ({ id, roll: null })) }
-      case 'morale': return { ...state, roundStep: null }
+      case 'morale': return { ...state, roundStep: null, chase: endChaseRoundChange(state) }
       default: return state
     }
   }
