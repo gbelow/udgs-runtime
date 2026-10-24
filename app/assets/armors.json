@@ -5,7 +5,7 @@
     "RES": 0,
     "INS": 0,
     "protection": 0,
-    "deflection": 4,
+    "deflection": 2,
     "burdenPenalty": 0,
     "properties": [],
     "notes": ""
@@ -16,7 +16,7 @@
     "RES": 3,
     "INS": 2,
     "protection": 0,
-    "deflection": 4,
+    "deflection": 2,
     "burdenPenalty": 0,
     "properties": [],
     "notes": ""
@@ -27,7 +27,7 @@
     "RES": 7,
     "INS": 6,
     "protection": 2,
-    "deflection": 5,
+    "deflection": 3,
     "burdenPenalty": 0,
     "properties": [],
     "notes": ""
@@ -38,7 +38,7 @@
     "RES": 8,
     "INS": 7,
     "protection": 4,
-    "deflection": 5,
+    "deflection": 3,
     "burdenPenalty": 0,
     "properties": [],
     "notes": ""
@@ -49,7 +49,7 @@
     "RES": 10,
     "INS": 6,
     "protection": 3,
-    "deflection": 5,
+    "deflection": 3,
     "burdenPenalty": 0,
     "properties": [],
     "notes": ""
@@ -60,7 +60,7 @@
     "RES": 12,
     "INS": 8,
     "protection": 6,
-    "deflection": 5,
+    "deflection": 3,
     "burdenPenalty": 1,
     "properties": [],
     "notes": ""
@@ -71,7 +71,7 @@
     "RES": 8,
     "INS": 5,
     "protection": 3,
-    "deflection": 5,
+    "deflection": 3,
     "burdenPenalty": 0,
     "properties": [],
     "notes": ""
@@ -82,7 +82,7 @@
     "RES": 10,
     "INS": 6,
     "protection": 5,
-    "deflection": 5,
+    "deflection": 3,
     "burdenPenalty": 1,
     "properties": [],
     "notes": ""
@@ -93,7 +93,7 @@
     "RES": 12,
     "INS": 8,
     "protection": 8,
-    "deflection": 6,
+    "deflection": 4,
     "burdenPenalty": 2,
     "properties": [
       "rigid"
@@ -106,7 +106,7 @@
     "RES": 16,
     "INS": 7,
     "protection": 10,
-    "deflection": 5,
+    "deflection": 3,
     "burdenPenalty": 2,
     "properties": [
       "rigid"
@@ -119,7 +119,7 @@
     "RES": 16,
     "INS": 8,
     "protection": 10,
-    "deflection": 7,
+    "deflection": 5,
     "burdenPenalty": 3,
     "properties": [
       "rigid"
@@ -132,7 +132,7 @@
     "RES": 18,
     "INS": 8,
     "protection": 12,
-    "deflection": 8,
+    "deflection": 6,
     "burdenPenalty": 4,
     "properties": [
       "rigid"

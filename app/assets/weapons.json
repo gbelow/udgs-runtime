@@ -635,7 +635,7 @@
         "range": "long I",
         "material": "metal",
         "RES": 30,
-        "blunt": 8,
+        "blunt": 6,
         "cut": 16,
         "AP": 3,
         "heavy": {
@@ -731,7 +731,7 @@
         "range": "long I",
         "material": "metal",
         "RES": 30,
-        "blunt": 8,
+        "blunt": 6,
         "cut": 16,
         "AP": 3,
         "heavy": {
