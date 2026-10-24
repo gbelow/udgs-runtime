@@ -2,9 +2,9 @@
 import { useState } from 'react'
 import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
-import { ChasePanel } from './ChasePanel';
+import { ChasePanel, FollowPanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
-import { Button, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
 import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useFollowControls, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
@@ -58,7 +58,7 @@ function FightEnd(){
   return(
     <div className='ml-auto flex flex-row gap-2 items-center'>
       {round > 0
-        ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? 'the rounds end; everyone stays'} onClick={endCombat}>end combat</Button>
+        ? <Closed reason={endCombatBar}><Tooltip text={endCombatBar ? null : 'the rounds end; everyone stays'}><Button aria-label='endCombat' disabled={endCombatBar !== null} onClick={endCombat}>end combat</Button></Tooltip></Closed>
         : null}
       <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       <Dropdown label='fight settings' variant='ghost' title='how the table plays this fight' text='⚙'>
@@ -86,13 +86,20 @@ function FightSettings(){
 }
 
 // What the scene is played on: the round change while it runs, the chase's
-// chain while there is a chase, the board otherwise.
+// chain while there is a chase, with the board under it while a fight a catch
+// started is played out, the board otherwise; and whom the scene follows once
+// a chase is over.
 export function SceneSpace(){
   const chase = useChase([], 'combat')
   const { view } = useRoundChange()
   if (view) return <RoundChangePanel />
-  if (chase.chasing) return <ChasePanel />
-  return <BoardPanel />
+  return(
+    <>
+      <FollowPanel />
+      {chase.chasing ? <ChasePanel /> : null}
+      {chase.boardInPlay ? <BoardPanel /> : null}
+    </>
+  )
 }
 
 // The GM's button for killing the active character outright.

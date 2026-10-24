@@ -10,9 +10,10 @@ import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { createBoard, importBoard, loadBoardMap, removeBoard, setLight } from './board'
-import { confirmChase, crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
+import { confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
+import { followScene } from './parked'
 import { follow } from './follow'
 import { dropToFloor, throwOffShieldToFloor } from './floor'
 import { impose, updateCharacter, updateInventory } from './characters'
@@ -130,6 +131,7 @@ export const sceneCommands = {
   nextRound: command((ctx) => nextRound(ctx.thrower)).by(gm),
   continueRound: command((ctx) => continueRound(ctx.thrower)).by(gm),
   endCombat: command((ctx) => endCombat(ctx.thrower)).by(gm),
+  followScene: command((ctx, partyId: string) => followScene(partyId, ctx.thrower)).by(gm),
   holdOn: command((ctx, id: string) => holdOn(id, ctx.thrower)).by(own),
   letGo: command((ctx, id: string) => letGo(id, ctx.thrower)).by(own),
   rollMorale: command((ctx, id: string, mode: RollMode, enemyNear: boolean, die?: number) => rollMorale(id, mode, enemyNear, typed(ctx, die))).by(own),
@@ -156,7 +158,6 @@ export const sceneCommands = {
   setPartyFighting: command((_, partyId: string, fighting: boolean) => setPartyFighting(partyId, fighting)).by(anyone),
   joinChaseFight: command((_, partyId: string, to: string) => joinFight(partyId, to)).by(anyone),
   crossObstacle: command((ctx, partyId: string, skill: CrossingSkill, DL: number) => crossObstacle(partyId, skill, DL, ctx.thrower)).by(anyone),
-  endChase: command(() => endChase).by(anyone),
   turnAround: command((_, id: string) => turnAround(id)).by(anyone),
   setChaseCover: command((_, id: string, cover: ChaseCover | null) => setChaseCover(id, cover)).by(anyone),
 }

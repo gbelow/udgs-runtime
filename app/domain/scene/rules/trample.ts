@@ -4,7 +4,7 @@ import { getForce } from '../../character/rules/skills'
 import { getMovementSpeed } from '../../character/rules/movement'
 import { sameCell } from './board/geometry'
 import { getFootprint } from './board/board'
-import { getMoveOrigin } from './board/waypoint'
+import { getMoveOrigin, getMoveSweep } from './board/waypoint'
 import { getDrawnOpportunityAttacks, getReactionsTo } from './log'
 import { getMoveBlockCells, getStandingIn } from './move'
 import { isProne } from './board/ground'
@@ -67,8 +67,7 @@ export function getMoveTramples(state: SceneState, action: MoveAction, path: Coo
 
   const met = new Set<string>()
   const trampled: Trample[] = []
-  for (const [i, cell] of path.entries()) {
-    const footprint = getFootprint(mover, { ...from, cell })
+  for (const [i, footprint] of getMoveSweep(state, action).slice(0, path.length).entries()) {
     for (const id of standing) {
       const other = state.characters[id]
       if (!other || met.has(id)) continue

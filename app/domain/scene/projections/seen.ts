@@ -37,6 +37,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   round: keep,
   elapsed: keep,
   chase: keep,
+  followed: keep,
   inTurnCharacter: nobody,
   turn: keep,
   turnsBegun: keep,

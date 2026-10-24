@@ -14,6 +14,7 @@ import type { Dice } from '../../play/dice'
 import { getCunning } from '../../character/rules/skills'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
+import { isParked } from './parked'
 import { getPartners } from './partners'
 import { isImmobile } from './situational'
 import { sumTerms } from '../../character/rules/terms'
@@ -47,6 +48,7 @@ function getTurnlessReason(state: SceneState, id: string): string | null {
   if (!c) return 'not in the fight'
   if (isDead(c)) return 'dead'
   if (hasAffliction(c, 'unconscious')) return 'unconscious'
+  if (isParked(state, id)) return 'parked: the scene follows another party'
   if (c.usedSurge === 'reaction') return 'reaction surge used this round'
   return null
 }
@@ -128,13 +130,13 @@ export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind):
 // combat.tex "End of the round": "A round ends when no one has AP left and
 // the remaining agree to end the round." Someone agrees by saying so, or
 // without saying anything once they have no AP left and no surge that
-// would give them more, or nothing to do in a chase round; the dead and the
-// unconscious have nothing left to agree to, and neither has the immobile held by no one: only
+// would give them more, or nothing to do in a chase round; the dead, the
+// unconscious and the parked have nothing left to agree to, and neither has the immobile held by no one: only
 // escape is theirs to use (combat.tex "Immobile").
 export function hasAgreedToEnd(state: SceneState, id: string): boolean {
   const c = state.characters[id]
   if (!c) return true
-  return state.agreedToEnd.includes(id) || isDead(c) || hasAffliction(c, 'unconscious') || (isImmobile(state, c) && getPartners(state, id).length === 0) || !hasAPLeft(c) || isIdleInChase(state, id)
+  return state.agreedToEnd.includes(id) || isDead(c) || hasAffliction(c, 'unconscious') || isParked(state, id) || (isImmobile(state, c) && getPartners(state, id).length === 0) || !hasAPLeft(c) || isIdleInChase(state, id)
 }
 
 // Why the round cannot be passed now, or null: a turn under way has to be

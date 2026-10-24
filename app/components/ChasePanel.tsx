@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Button, Closed, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
-import { useChase, useChaseCommands } from '../hooks/useChase'
+import { useChase, useChaseCommands, useFollowScene } from '../hooks/useChase'
 import type { ChaseCover, ChaseMove, ChaseTier, CrossingSkill } from '../domain/lists'
 import type { ChasePanel as Panel, ChasePartyRow } from '../domain/scene/projections/chase'
 
@@ -44,7 +44,7 @@ export function ChaseSetup(){
 // off to join a fight.
 export function ChasePanel(){
   const chase = useChase([], 'combat')
-  const { endChase, resolve, setCover } = useChaseCommands()
+  const { resolve, setCover } = useChaseCommands()
   if (!chase.chasing) return null
 
   return(
@@ -57,7 +57,6 @@ export function ChasePanel(){
         {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
         {chase.roundBar ? <span className='text-xs text-muted'>next round: {chase.roundBar}</span> : null}
         <Closed reason={chase.resolveBar}><Button size='xs' aria-label='resolveChase' disabled={chase.resolveBar !== null} onClick={resolve}>resolve the round</Button></Closed>
-        <Closed reason={chase.endBar}><Button size='xs' aria-label='endChase' disabled={chase.endBar !== null} onClick={endChase}>end chase</Button></Closed>
       </div>
       {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
       {chase.order.length && !chase.resolved ? <span className='text-xs text-muted'>declaring order: <span className='text-fg'>{chase.order.join(' → ')}</span></span> : null}
@@ -217,6 +216,22 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
           ))}
         </> : null}
       </div>
+    </div>
+  )
+}
+
+// Once a chase is over, the party the scene follows; the others are parked
+// off the grid until the table follows them instead.
+export function FollowPanel(){
+  const { panel, follow } = useFollowScene()
+  if (!panel) return null
+
+  return(
+    <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+      {panel.following ? <span>following <span className='text-fg'>{panel.following}</span>; the others are parked off the grid</span> : <span className='text-accent'>the chase is over: follow</span>}
+      {panel.options.map((o) => (
+        <Closed key={o.id} reason={o.bar}><Button size='xs' aria-label={`follow ${o.name}`} disabled={o.bar !== null} onClick={() => follow(o.id)}>{panel.following ? 'follow ' : ''}{o.name}</Button></Closed>
+      ))}
     </div>
   )
 }

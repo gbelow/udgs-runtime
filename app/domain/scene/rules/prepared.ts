@@ -15,7 +15,7 @@ import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, seesA
 import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
 import { getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
-import { getMoveWaypoint } from './board/waypoint'
+import { getMovePlacements, getMoveWaypoint } from './board/waypoint'
 import { getAction, getAncestry, getLiveReactionsTo, getPassedUp, getRootOf, getSpawned } from './log'
 import { getHeldOf } from './hold'
 import { ACTIONS, isReaction } from './actionCatalog'
@@ -182,9 +182,8 @@ function getMoveTriggers(state: SceneState, root: RootAction): Trigger[] {
   if (root.kind !== 'move' || !state.board || root.path.length === 0) return []
   if (root.movement === 'prone' || root.movement === 'stand' || isFromPrepared(state, root)) return []
   const mover = state.characters[root.actorId]
-  const from = state.board.placements[root.actorId]
-  if (!mover || !from) return []
-  const placements = [from, ...root.path.map((cell) => ({ ...from, cell }))]
+  if (!mover || !state.board.placements[root.actorId]) return []
+  const placements = getMovePlacements(state, root)
   return getPrepared(state).flatMap((p): Trigger[] => {
     const owner = state.characters[p.actorId]
     const other = getPlacedFootprint(state, p.actorId)

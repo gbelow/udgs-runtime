@@ -246,6 +246,7 @@ function sameCellDrawing(a: { cell: BoardCellView, hex: string }, b: { cell: Boa
 export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex: string }){
   const fill = cell.isJumpTo ? 'fill-good/40'
     : cell.pathStep !== null ? 'fill-accent/40'
+    : cell.swept ? 'fill-accent/20'
     : cell.zone ? ZONE_FILL[cell.zone]
     : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/15'
     : cell.unseen ? 'fill-fg/50'
@@ -271,6 +272,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     cell.light === 'dark' ? 'dark' : cell.light === 'dim' ? 'dim light' : cell.lit ? 'lit' : null,
     cell.noise > 0 ? `noise ${cell.noise}` : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
+    cell.swept ? 'on the way of the move' : null,
     cell.jump ? 'evasive jump' : null,
     cell.step ? 'step here' : null,
     cell.center ? 'aim here' : null,

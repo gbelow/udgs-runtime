@@ -3,6 +3,7 @@ import type { SceneState } from '../types'
 import { findReadyItem } from '../../item/rules/containers'
 import { getCarriedItems } from '../../item/rules/items'
 import { findFloorItem } from './floor'
+import { isDead } from '../../character/rules/afflictions'
 
 // Who in the fight is who: the active character, the name each goes by,
 // who holds an item.
@@ -16,6 +17,16 @@ export function getActiveCharacter(state: Pick<SceneState, 'characters'> & Selec
 
 // The name a character goes by in the fight, which tells copies of one sheet
 // apart, kept once they have left it; empty for anyone never in it.
+// Everyone in the party still alive.
+export function getMembers(state: SceneState, partyId: string): CampaignCharacter[] {
+  return Object.values(state.characters).filter((c) => !isDead(c) && state.partyOf[c.id] === partyId)
+}
+
+// A fight party's name as the table reads it.
+export function getPartyName(state: SceneState, id: string): string {
+  return state.parties[id]?.name || 'no name'
+}
+
 export function getFightName(state: Pick<SceneState, 'names'>, id: string): string {
   return state.names[id] ?? ''
 }

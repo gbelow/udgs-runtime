@@ -2,7 +2,7 @@ import { isCombatStarted } from './started'
 import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
-import { getFlankers, isGuardingCells, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
+import { getFlankers, isGuardingCells, isGuardingShot, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { isTrampleable } from './trample'
 import { requiresConcentration } from './hold'
@@ -12,6 +12,7 @@ import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getRetargetOptions } from './fireAgain'
 import { sameCell } from './board/geometry'
+import { getMovePlacements, getMoveSweep } from './board/waypoint'
 import { firstStep, getApproachStep, getPathDistances } from './approach'
 import { getPreparedTriggers } from './prepared'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
@@ -117,11 +118,9 @@ function detectAnswerer(state: SceneState, root: RootAction, trigger: Trigger): 
 // The step of the move's path (counted from 1) that first comes into the
 // character's space, null for one it never does.
 function getEnteringStep(state: SceneState, root: MoveAction, id: string): number | null {
-  const mover = state.characters[root.actorId]
-  const from = state.board?.placements[root.actorId]
   const other = getPlacedFootprint(state, id)
-  if (!mover || !from || !other) return null
-  const step = root.path.findIndex((cell) => getFootprint(mover, { ...from, cell }).some((f) => other.some((o) => sameCell(f, o))))
+  if (!other) return null
+  const step = getMoveSweep(state, root).findIndex((footprint) => footprint.some((f) => other.some((o) => sameCell(f, o))))
   return step === -1 ? null : step + 1
 }
 
@@ -358,9 +357,7 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
   if (root.movement === 'prone') return []
   if (root.movement === 'stand') return opportunityTriggers(state, root.actorId).map((t) => ({ ...t, at: 0 }))
   const mover = state.characters[root.actorId]
-  const from = state.board?.placements[root.actorId]
-  if (!mover || !from || !state.board) return []
-  const path = root.path
+  if (!mover || !state.board?.placements[root.actorId]) return []
   // the table's ruling: a move a reaction or a follow-up opened, or one
   // made in a flee turn, cannot be followed
   const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
@@ -377,7 +374,7 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     if (isTrampleable(state, id) && getEnteringStep(state, root, id) !== null) {
       triggers.push({ characterId: id, kind: 'evade', at: null }, { characterId: id, kind: 'brace', at: null })
     }
-    const distances = getPathDistances(mover, [from, ...path.map((cell) => ({ ...from, cell }))], other)
+    const distances = getPathDistances(mover, getMovePlacements(state, root), other)
     // combat.tex "Flee": "to prevent them from entering a 4m perimeter from
     // the character" — the step that first brings the mover within it. The
     // flee "interrupts the opponents turn", so it is never open to the one

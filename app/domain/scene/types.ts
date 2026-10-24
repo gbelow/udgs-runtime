@@ -1524,7 +1524,7 @@ export type Chase = z.infer<typeof ChaseSchema>
 // The command a scene's dice were called for by, carried on once the last of
 // them is in: the exchange's roll or payment, the turn contest, the round
 // change and its steps, a concentrating character's choice, the combat's end,
-// the chase's round.
+// the party followed once a chase is over, the chase's round.
 export const SceneResumeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('roll') }),
   z.object({ kind: z.literal('pay') }),
@@ -1537,6 +1537,7 @@ export const SceneResumeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('holdOn'), id: str }),
   z.object({ kind: z.literal('letGo'), id: str }),
   z.object({ kind: z.literal('endCombat') }),
+  z.object({ kind: z.literal('followScene'), partyId: str }),
   z.object({ kind: z.literal('resolveChase') }),
   z.object({ kind: z.literal('cross'), partyId: str, skill: z.enum(CROSSING_SKILLS), DL: num }),
 ])
@@ -1559,6 +1560,9 @@ export const SceneStateSchema = z.object({
   // Null is a fight; otherwise the scene is a chase (combat.tex "Chases"),
   // played without a board
   chase: ChaseSchema.nullable().default(null),
+  // The fight party the scene follows once a chase is over; everyone in any
+  // other party is parked, in the scene and off the grid. Null parks nobody
+  followed: str.nullable().default(null),
   // play.tex "Combat": whose turn it is, '' for nobody's, and which turn that
   // is (the number the actions declared in it carry) — the turn can be
   // contested until something is declared in it. `turnsBegun` numbers the

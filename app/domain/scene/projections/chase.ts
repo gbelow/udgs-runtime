@@ -1,10 +1,10 @@
 import type { ChaseDeclaration, SceneState } from '../types'
 import { CHASE_COVERS, CHASE_MOVES, CHASE_TIERS, CROSSING_SKILLS, type ChaseCover, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseTier, type ChaseWay } from '../../lists'
 import { perState } from '../../perState'
-import { getFightName } from '../rules/fighters'
+import { getFightName, getMembers, getPartyName } from '../rules/fighters'
 import { getFightBusy } from '../rules/turn'
 import { getNextRoundNote } from './turn'
-import { canTurnAround, getCaught, getChasers, getChaseParties, getChaseStage, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
+import { canTurnAround, getCaught, getChasers, getChaseParties, getChaseStage, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
 
 type Option = { id: string; name: string; bar: string | null }
 
@@ -70,8 +70,9 @@ export type ChasePanel = {
   rolls: ChaseRollRow[]
   // combat.tex "Escape": the fight played out before anyone runs
   fightFirst: string | null
-  // why the chase cannot be ended now
-  endBar: string | null
+  // whether the board is played on: with no chase, or while a fight a catch
+  // started is played out first
+  boardInPlay: boolean
   // what the table does next
   next: string | null
   // where the tokens go when a fight starts or someone arrives at one
@@ -94,13 +95,12 @@ function clock(seconds: number): string {
   return m === 0 ? `${s} s` : s === 0 ? `${m} min` : `${m} min ${s} s`
 }
 
-const partyName = (state: SceneState, id: string) => state.parties[id]?.name || 'no name'
 
 function getStatus(state: SceneState, id: string): string {
   const chase = state.chase!
   if (chase.out.includes(id)) return 'out of the chase'
   if (chase.fighting.includes(id)) return 'caught, fighting'
-  if (chase.joining[id]) return `on the way to the fight of ${partyName(state, chase.joining[id])}`
+  if (chase.joining[id]) return `on the way to the fight of ${getPartyName(state, chase.joining[id])}`
   if (isDisconnected(state, id)) return 'disconnected: out when the round ends'
   if (isFrozen(state, id)) return 'keeping the distance at far range'
   const stage = getChaseStage(state, id)
@@ -137,13 +137,13 @@ function buildRow(state: SceneState, id: string): ChasePartyRow {
   const feature = chase.features[id]
   return {
     id,
-    name: partyName(state, id),
+    name: getPartyName(state, id),
     team: getTeam(chase, id),
     status: getStatus(state, id),
     out: chase.out.includes(id),
     fighting: chase.fighting.includes(id),
-    chases: link && { name: partyName(state, link.chases), tier: link.tier, enemy: isEnemyLink(state, id), frozen: isFrozen(state, id) },
-    chasedBy: getChasers(state, id).map((p) => partyName(state, p)),
+    chases: link && { name: getPartyName(state, link.chases), tier: link.tier, enemy: isEnemyLink(state, id), frozen: isFrozen(state, id) },
+    chasedBy: getChasers(state, id).map((p) => getPartyName(state, p)),
     members: getMembers(state, id).map((c) => ({ id: c.id, name: getFightName(state, c.id), turned: chase.turned.includes(c.id) })),
     turnable: getMembers(state, id).some((c) => canTurnAround(state, c.id)),
     caught: getCaught(state, id).map((c) => c.reason),
@@ -157,10 +157,10 @@ function buildRow(state: SceneState, id: string): ChasePartyRow {
     AP: getSkirmishAP(state, id),
     feature: feature ? { what: feature.what, tier: feature.tier, obstacle: feature.obstacle, reached: feature.reached } : null,
     crossBar: getObstacleOwner(state, id) ? getCrossBar(state, id) : null,
-    followOptions: chase.out.includes(id) ? [] : others.filter((p) => !chase.out.includes(p) && link?.chases !== p).map((p) => ({ id: p, name: partyName(state, p), bar: getFollowBar(state, id, p) })),
-    putBackOptions: chase.out.includes(id) ? others.filter((p) => !chase.out.includes(p)).map((p) => ({ id: p, name: partyName(state, p), bar: getPutBackBar(state, id, p) })) : [],
-    joinOptions: chase.joining[id] || chase.fighting.includes(id) ? [] : chase.fighting.filter((p) => p !== id && state.parties[p]).map((p) => ({ id: p, name: partyName(state, p), bar: getJoinBar(state, id, p) })),
-    joining: chase.joining[id] ? partyName(state, chase.joining[id]) : null,
+    followOptions: chase.out.includes(id) ? [] : others.filter((p) => !chase.out.includes(p) && link?.chases !== p).map((p) => ({ id: p, name: getPartyName(state, p), bar: getFollowBar(state, id, p) })),
+    putBackOptions: chase.out.includes(id) ? others.filter((p) => !chase.out.includes(p)).map((p) => ({ id: p, name: getPartyName(state, p), bar: getPutBackBar(state, id, p) })) : [],
+    joinOptions: chase.joining[id] || chase.fighting.includes(id) ? [] : chase.fighting.filter((p) => p !== id && state.parties[p]).map((p) => ({ id: p, name: getPartyName(state, p), bar: getJoinBar(state, id, p) })),
+    joining: chase.joining[id] ? getPartyName(state, chase.joining[id]) : null,
     mergeBar: link && !isEnemyLink(state, id) ? getMergeBar(state, id) : null,
     giveUpBar: link ? getFightBusy(state) : null,
     fightBar: getFightBar(state, id, !chase.fighting.includes(id)),
@@ -174,7 +174,7 @@ function getNext(state: SceneState): string | null {
   if (!chase) return 'tick the parties running away, pick how far apart they start, and start the chase'
   if (state.round === 0) return 'press start combat to begin the first round'
   const first = getFightFirst(state)
-  if (first) return `${first}: fight it out, then have them run again or end the chase`
+  if (first) return `${first}: fight it out, then have them run again`
   const endRound = 'everyone ends their turn and agrees to end the round, then next round'
   if (chase.resolved) {
     const stages = getChaseParties(state).map((p) => getChaseStage(state, p))
@@ -185,7 +185,7 @@ function getNext(state: SceneState): string | null {
     return endRound
   }
   const caught = getChaseParties(state).filter((p) => getCaught(state, p).length > 0)
-  if (caught.length) return `${caught.map((p) => partyName(state, p)).join(', ')} caught: start the fight, or untick whoever turned around`
+  if (caught.length) return `${caught.map((p) => getPartyName(state, p)).join(', ')} caught: start the fight, or untick whoever turned around`
   const bar = getResolveBar(state)
   if (bar?.startsWith('still to declare')) return 'declare head to tail: the chased first, then whoever chases them'
   if (bar?.startsWith('still to confirm')) return 'confirm tail to head, changing what was declared if you must: the last chaser first, the head of the chain last; then resolve'
@@ -206,18 +206,18 @@ function getPlacement(state: SceneState): string | null {
 function buildChasePanel(state: SceneState): ChasePanel {
   const chase = state.chase
   const parties = chase ? Object.keys(state.parties) : []
-  const named = (ids: string[]) => ids.map((p) => partyName(state, p)).join(', ')
+  const named = (ids: string[]) => ids.map((p) => getPartyName(state, p)).join(', ')
   return {
     tiers: CHASE_TIERS,
     parties: Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name || 'no name', quarry: !!chase?.runaways.includes(id) })),
     chasing: chase !== null,
     rows: parties.map((p) => buildRow(state, p)),
-    order: chase ? getDeclareOrder(state).map((p) => partyName(state, p)) : [],
+    order: chase ? getDeclareOrder(state).map((p) => getPartyName(state, p)) : [],
     resolveBar: chase ? getResolveBar(state) : null,
     resolved: !!chase?.resolved,
-    rolls: chase?.rolls.map((r) => ({ kind: r.kind, parties: named(r.parties), found: r.found && partyName(state, r.found), ...r.roll })) ?? [],
+    rolls: chase?.rolls.map((r) => ({ kind: r.kind, parties: named(r.parties), found: r.found && getPartyName(state, r.found), ...r.roll })) ?? [],
     fightFirst: chase ? getFightFirst(state) : null,
-    endBar: getFightBusy(state),
+    boardInPlay: !chase || getFightFirst(state) !== null,
     next: getNext(state),
     placement: getPlacement(state),
     roundBar: chase && state.round > 0 ? getNextRoundNote(state) : null,

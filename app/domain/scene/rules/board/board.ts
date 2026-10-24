@@ -6,6 +6,7 @@ import { getWieldedWeapons } from '../../../item/rules/hands'
 import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
+import { without } from '../../../utils'
 
 // The board rules read the spatial facts of a fight off `state.board`.
 // Every rule that answers for a fight answers null, or "passes", when the
@@ -48,6 +49,12 @@ export function placeAt(board: Board | null, placement: Placement, cell: Coord):
 // would hold there; unchanged on a fight without a board.
 export function withPlacements(state: SceneState, placements: Board['placements']): SceneState {
   return state.board ? { ...state, board: { ...state.board, placements: { ...state.board.placements, ...placements } } } : state
+}
+
+// The fight with these characters' tokens taken off the board, the board
+// left as it is.
+export function withoutPlacements(state: SceneState, ids: string[]): SceneState {
+  return state.board ? { ...state, board: { ...state.board, placements: ids.reduce(without, state.board.placements) } } : state
 }
 
 export function getPlacedFootprint(state: SceneState, id: string): Coord[] | null {

@@ -21,13 +21,31 @@ export function getMoveOrigin(state: SceneState, action: MoveAction): Placement 
 }
 
 // Where the mover stands part of the way along the move: the anchor at that
-// step, as oriented when they set out. Null at step 0, where they have not
-// left the origin.
+// step, as oriented when they set out, and on the last step turned the way
+// the move names. Null at step 0, where they have not left the origin.
 export function getMoveWaypoint(state: SceneState, action: MoveAction, steps: number): Placement | null {
   const from = getMoveOrigin(state, action)
   const cell = action.path[steps - 1]
   if (!from || !cell || steps <= 0) return null
-  return placeAt(state.board, from, cell)
+  const orientation = steps === action.path.length ? action.orientation ?? from.orientation : from.orientation
+  return { ...placeAt(state.board, from, cell), orientation }
+}
+
+// Where the mover stands at every step of the move: where it sets out, then
+// each step of the path.
+export function getMovePlacements(state: SceneState, action: MoveAction): Placement[] {
+  const from = getMoveOrigin(state, action)
+  if (!from) return []
+  return [from, ...action.path.flatMap((_, i) => getMoveWaypoint(state, action, i + 1) ?? [])]
+}
+
+// The cells the mover's token covers at each step of the path, the first
+// entry for the first step: every space the move passes over, for a token
+// of any size.
+export function getMoveSweep(state: SceneState, action: MoveAction): Coord[][] {
+  const c = state.characters[action.actorId]
+  if (!c) return []
+  return getMovePlacements(state, action).slice(1).map((p) => getFootprint(c, p))
 }
 
 // Where the mover stands either side of the step into the `at`th cell of

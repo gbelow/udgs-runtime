@@ -1,4 +1,5 @@
 import { getChaseDigest, getChasePanel, type ChasePanel } from "../domain/scene/projections/chase";
+import { getFollowDigest, getFollowPanel, type FollowPanel } from "../domain/scene/projections/parked";
 import { getChaseStartBar } from "../domain/scene/rules/chase";
 import type { ChaseDeclaration } from "../domain/scene/types";
 import type { ChaseCover, ChaseTier, CrossingSkill } from "../domain/lists";
@@ -28,8 +29,14 @@ export function useChaseCommands() {
     setFighting: (partyId: string, fighting: boolean) => dispatch({ kind: "setPartyFighting", args: [partyId, fighting] }),
     join: (partyId: string, to: string) => dispatch({ kind: "joinChaseFight", args: [partyId, to] }),
     cross: (partyId: string, skill: CrossingSkill, DL: number) => dispatch({ kind: "crossObstacle", args: [partyId, skill, DL] }),
-    endChase: () => dispatch({ kind: "endChase", args: [] }),
     turnAround: (id: string) => dispatch({ kind: "turnAround", args: [id] }),
     setCover: (id: string, cover: ChaseCover | null) => dispatch({ kind: "setChaseCover", args: [id, cover] }),
   };
+}
+
+// Whom the scene follows once a chase is over, and the press that picks.
+export function useFollowScene(): { panel: FollowPanel | null; follow: (partyId: string) => void } {
+  useCombatStore(getFollowDigest);
+  const dispatch = useSceneDispatch();
+  return { panel: getFollowPanel(useCombatStore.getState()), follow: (partyId) => dispatch({ kind: "followScene", args: [partyId] }) };
 }

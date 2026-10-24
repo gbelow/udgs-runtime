@@ -5,6 +5,7 @@ import { acceptSpellTest, payAction, resolveAction, rollAction, withdrawSpawnedA
 import { rollContest } from './turn'
 import { continueRound, holdOn, letGo, nextRound } from './nextRound'
 import { endCombat } from './endCombat'
+import { followScene } from './parked'
 import { resumeChase } from './chase'
 
 function resumeWith(resume: SceneResume, thrown: Throw, newId: () => string): Updater {
@@ -22,6 +23,7 @@ function resumeWith(resume: SceneResume, thrown: Throw, newId: () => string): Up
     case 'holdOn': return holdOn(resume.id, thrown)
     case 'letGo': return letGo(resume.id, thrown)
     case 'endCombat': return endCombat(thrown)
+    case 'followScene': return followScene(resume.partyId, thrown)
     case 'resolveChase':
     case 'cross':
       return (state) => state

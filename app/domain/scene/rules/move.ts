@@ -16,7 +16,7 @@ import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
 import { canRest, getCrowdedBy, isCrossable, isInLiquid, isWet, readGround, type Ground } from './board/ground'
-import { getMoveDestination, getMoveOrigin, getStepPlacements, touchesGround } from './board/waypoint'
+import { getMoveDestination, getMoveOrigin, getMoveSweep, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
 import { getDegree } from '../../play/test'
 import { isCampaignCharacter } from '../../utils'
@@ -238,13 +238,13 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
   if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c, isCombatStarted(state)).includes(action.mode))) return false
 
   const ceiling = getJumpCeiling(c, from)
+  const sweep = getMoveSweep(state, action)
   let cursor = from.cell
   let wet = isWet(getFootprint(c, from), ground)
   for (const [i, cell] of action.path.entries()) {
     if (distance(cursor, cell) !== 1) return false
     const last = i === action.path.length - 1
-    const orientation = last && action.orientation !== null ? action.orientation : from.orientation
-    const footprint = getFootprint(c, { ...from, cell, orientation })
+    const footprint = sweep[i]
     if (!canPass(action.movement, footprint, ground, last, ceiling, wet)) return false
     if (!canStepOver(action.movement, ground.elevation(cursor), ground.elevation(cell))) return false
     if (!isTetherKept(state, c.id, footprint)) return false
@@ -322,13 +322,11 @@ export function getMoveTest(state: SceneState, action: MoveAction): NonNullable<
 // the worst difficult cell the mover's footprint covers there. combat.tex
 // "Balance": each is held against the one stored score.
 function getDifficultSteps(state: SceneState, action: MoveAction): { step: number; DL: number }[] {
-  const c = state.characters[action.actorId]
-  const from = getMoveOrigin(state, action)
   const board = state.board
-  if (!c || !from || !board) return []
-  return action.path.flatMap((cell, at) => {
+  if (!board) return []
+  return getMoveSweep(state, action).flatMap((footprint, at) => {
     if (!touchesGround(action.movement, at === action.path.length - 1)) return []
-    const DLs = getFootprint(c, { ...from, cell }).map((f) => board.terrain[coordKey(f)]).filter((t) => t?.difficult).map((t) => t.DL)
+    const DLs = footprint.map((f) => board.terrain[coordKey(f)]).filter((t) => t?.difficult).map((t) => t.DL)
     return DLs.length > 0 ? [{ step: at + 1, DL: Math.max(...DLs) }] : []
   })
 }

@@ -16,6 +16,7 @@ import { declareAction, declareReaction, payAnswered, rollAnswered } from '../do
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
 import { getChasePanel } from '../domain/scene/projections/chase'
+import { getFollowPanel } from '../domain/scene/projections/parked'
 import { getChaseStartBar, getDeclareBar, getDeclareOrder } from '../domain/scene/rules/chase'
 import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
@@ -1001,7 +1002,17 @@ function chasePlays(): Play[] {
         refused(h, row.crossBar, () => h.send({ kind: 'crossObstacle', args: [row.id, pick(CROSSING_SKILLS), pick([0, 3, 6])] }), `${row.name} crossing`)
       },
     },
-    { name: 'end the chase', run: (h) => refused(h, panel(h).endBar, () => h.send({ kind: 'endChase', args: [] }), 'ending the chase') },
+    {
+      name: 'follow a party',
+      weight: 2,
+      run: (h, pick) => {
+        const options = getFollowPanel(h.state())?.options ?? []
+        if (!options.length) return
+        const o = pick(options)
+        refused(h, o.bar, () => h.send({ kind: 'followScene', args: [o.id] }), `following ${o.name}`)
+        if (o.bar === null) expect(h.state().followed, `following ${o.name} is open but was not taken`).toBe(o.id)
+      },
+    },
     {
       name: 'scout a hiding place, run to it and hide',
       weight: 2,
@@ -1127,6 +1138,36 @@ describe('a chase with no board', () => {
     expect(getRoundPhase(h.state())).toBeNull()
     expect(h.state().morale).toEqual([])
     expect(getChasePanel(h.state()).rows.find((r) => r.declares)?.moves.some((m) => m.bar === null)).toBe(true)
+  })
+
+  // A chase left everyone standing on the grid, and once it was over the
+  // scene went back to the board as if it had never run. The table's ruling:
+  // runners are off the grid, and once the chase is over the table picks the
+  // party the scene follows, the combat ending and the others parked.
+  it('takes runners off the grid and follows the party picked once the chase is over', () => {
+    const h = openHarness(() => 5)
+    h.bring(warden('Ann'), towerWarden('Dee'))
+    h.createBoard(6)
+    h.select('Ann')
+    h.cell(0, 0)
+    h.select('Dee')
+    h.cell(3, 0)
+    h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
+    const [ann, dee] = ['Ann', 'Dee'].map((name) => h.state().partyOf[h.idOf(name)])
+    expect(Object.keys(h.state().board!.placements)).toHaveLength(2)
+    h.send({ kind: 'startChase', args: [[ann], 'far'] })
+    expect(h.state().board!.placements).toEqual({})
+    h.send({ kind: 'giveUp', args: [dee] })
+    h.send({ kind: 'followScene', args: [ann] })
+    expect(h.state().chase).toBeNull()
+    expect(h.state().round).toBe(0)
+    expect(h.state().followed).toBe(ann)
+    h.select('Dee')
+    h.cell(3, 0)
+    expect(h.state().board!.placements[h.idOf('Dee')]).toBeUndefined()
+    h.select('Ann')
+    h.cell(0, 0)
+    expect(h.state().board!.placements[h.idOf('Ann')]).toBeDefined()
   })
 
   // A party whose members had all died stayed in the chain, and whoever

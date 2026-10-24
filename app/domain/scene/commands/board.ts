@@ -4,6 +4,7 @@ import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type 
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
+import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
 import { CLIMB_EASY_DL, COVER_START_RES, SWIM_DEFAULT_DL } from '../../tables'
@@ -64,10 +65,11 @@ export function placeCharacter(id: string, cell: Coord): Updater {
 }
 
 // The GM's hand: puts a character down anywhere, as they are oriented,
-// placed before or not.
+// placed before or not; never one running in a chase or parked, who are off
+// the grid.
 export function repositionCharacter(id: string, cell: Coord): Updater {
   return (state) => {
-    if (!state.board || !state.characters[id] || getOpenAction(state)) return state
+    if (!state.board || !state.characters[id] || getOpenAction(state) || isOffGrid(state, id)) return state
     const placement = placeAt(state.board, state.board.placements[id] ?? PlacementSchema.parse({}), cell)
     if (!canStandAt(state, id, placement)) return state
     return withPlacements(state, { [id]: placement })

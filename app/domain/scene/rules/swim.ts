@@ -8,7 +8,7 @@ import { coordKey } from './board/geometry'
 import { getFootprint } from './board/board'
 import { getMoveHeld } from './heldRoll'
 import { getDegree } from '../../play/test'
-import { getMoveOrigin, touchesGround } from './board/waypoint'
+import { getMoveSweep, touchesGround } from './board/waypoint'
 
 // combat.tex "Swimming": the body of water a footprint stands in, read off the
 // cells of it that are liquid. The surface is the cells' elevation and the
@@ -62,11 +62,9 @@ export function getSwimTestTerms(c: Character): Term[] {
 // The water each cell of the move's path is in, null where it is dry or, for a
 // jump, only passed over.
 export function getSwimWaters(state: SceneState, action: MoveAction): (Water | null)[] {
-  const c = state.characters[action.actorId]
-  const from = getMoveOrigin(state, action)
   const board = state.board
-  if (!c || !from || !board) return []
-  return action.path.map((cell, i) => (touchesGround(action.movement, i === action.path.length - 1) ? readWater(board, getFootprint(c, { ...from, cell })) : null))
+  if (!board) return []
+  return getMoveSweep(state, action).map((footprint, i) => (touchesGround(action.movement, i === action.path.length - 1) ? readWater(board, footprint) : null))
 }
 
 function isSwim(action: MoveAction): boolean {

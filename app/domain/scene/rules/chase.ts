@@ -4,19 +4,15 @@ import type { Chase, ChaseDeclaration, ChaseLink, SceneState } from '../types'
 import type { Term } from '../../character/rules/terms'
 import { AFFLICTIONS, CHASE_PARTIAL_COVER_REFLEX, CHASE_ROUND_SECONDS, CHASE_TIER_METRES, ROUND_AP, ROUND_SECONDS, SKIRMISH_APPROACH_AP, SKIRMISH_SECONDS, SKIRMISH_SHOOT_AP, SURGES } from '../../tables'
 import { CHASE_TIERS, SHOT_RANGES, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseStage, type ChaseTier, type ChaseWay, type CrossingSkill } from '../../lists'
-import { getAfflictions, isDead } from '../../character/rules/afflictions'
+import { getAfflictions } from '../../character/rules/afflictions'
 import { getAGI, getSTA } from '../../character/rules/characteristics'
 import { getRunMovement } from '../../character/rules/movement'
 import { getBalance, getClimb, getDetection, getStealth, getSwim } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
-import { getFightName } from './fighters'
+import { getFightName, getMembers } from './fighters'
 import { getFightBusy } from './turn'
 import { getRoundPhase } from './roundChange'
-
-// Everyone in the party still alive.
-export function getMembers(state: SceneState, partyId: string): CampaignCharacter[] {
-  return Object.values(state.characters).filter((c) => !isDead(c) && state.partyOf[c.id] === partyId)
-}
+import { isParkedParty } from './parked'
 
 // combat.tex "Running": at combat range a dash, "Whoever has the highest AGI
 // x running speed wins"; at longer ranges a sustained pace, "The running
@@ -48,14 +44,15 @@ export function getTeam(chase: Chase, partyId: string): ChaseSide {
 // tier the table sets ("Approach": "The weapon range will decide at what
 // distance both teams start").
 export function newChase(state: SceneState, quarry: string[], tier: ChaseTier): Chase {
-  const runaways = quarry.filter((p) => state.parties[p])
+  const inPlay = Object.keys(state.parties).filter((p) => !isParkedParty(state, p))
+  const runaways = quarry.filter((p) => inPlay.includes(p))
   const bySpeed = [...runaways].sort((a, b) => getPartySpeed(state, a, tier) - getPartySpeed(state, b, tier))
-  const pursuers = Object.keys(state.parties).filter((p) => !runaways.includes(p))
+  const pursuers = inPlay.filter((p) => !runaways.includes(p))
   const links: Record<string, ChaseLink> = Object.fromEntries([
     ...bySpeed.slice(0, -1).map((p, i) => [p, { chases: bySpeed[i + 1], tier: 'combat' as ChaseTier, run: null }]),
     ...(bySpeed.length ? pursuers.map((p) => [p, { chases: bySpeed[0], tier, run: null }]) : []),
   ])
-  return getChaseWithoutDead(state, { runaways, links, out: [], fighting: [], joining: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
+  return getChaseWithoutDead(state, { runaways, links, out: Object.keys(state.parties).filter((p) => !inPlay.includes(p)), fighting: [], joining: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
 }
 
 // The chain once a party leaves it: whoever chased it chases whoever it
@@ -255,7 +252,7 @@ export function getChaseStartBar(state: SceneState, quarry: string[], tier: Chas
   if (busy) return busy
   if (state.round > 0 && getRoundPhase(state) !== 'chase') return 'a chase starts at the round change, after the morale tests'
   const started = { ...state, chase: newChase(state, quarry, tier) }
-  const sides = Object.keys(state.parties).map((p) => getMembers(state, p).length > 0 ? getTeam(started.chase, p) : null)
+  const sides = getChaseParties(started).map((p) => getMembers(state, p).length > 0 ? getTeam(started.chase, p) : null)
   if (!sides.includes('quarry') || !sides.includes('pursuers')) return 'a chase needs someone on each side'
   const caught = quarry.flatMap((g) => getCaught(started, g))
   return caught.length ? `cannot run: ${caught.map((c) => c.reason).join(', ')}` : null
@@ -268,6 +265,18 @@ const partyName = (state: SceneState, id: string) => state.parties[id]?.name || 
 export function getFightFirst(state: SceneState): string | null {
   const fighting = state.chase?.fighting.filter((p) => state.parties[p] && getMembers(state, p).length > 0) ?? []
   return fighting.length ? `${fighting.map((p) => partyName(state, p)).join(', ')} fighting first` : null
+}
+
+// combat.tex "Escaping": the chase is over once outrunning, hiding or an
+// obstacle has broken every link between enemies still in it, or one end of
+// every such link has nobody left alive. A fight a catch started is played
+// out first, and whoever is on the way to one arrives first. False with no
+// chase.
+export function isChaseOver(state: SceneState): boolean {
+  const chase = state.chase
+  if (!chase || getFightFirst(state) || Object.keys(chase.joining).length > 0) return false
+  const alive = (p: string) => getMembers(state, p).length > 0
+  return !getChaseParties(state).some((p) => isEnemyLink(state, p) && alive(p) && alive(getLink(state, p)!.chases))
 }
 
 // The party's enemy links that run this round: the one it chases and the

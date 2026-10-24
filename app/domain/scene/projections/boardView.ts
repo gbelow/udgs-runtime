@@ -14,6 +14,7 @@ import { getBoardMode, getEvasiveJumper, getFloorPicker, type BoardMode } from '
 import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
+import { getMoveSweep } from '../rules/board/waypoint'
 import { getDepth } from '../rules/swim'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
@@ -23,6 +24,7 @@ import { getCellLight } from '../rules/board/light'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
+import { isOffGrid } from '../rules/parked'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -64,6 +66,9 @@ export type BoardCellView = {
   // this cell's place on the path of the move in play, counted from 1; null
   // off it
   pathStep: number | null
+  // the mover's token covers the cell at some step of that move, so a token
+  // bigger than a cell shows every space it passes over
+  swept: boolean
   isDestination: boolean
   // where the target of the open strike could land an evasive jump, and the
   // landing it has picked
@@ -174,7 +179,7 @@ const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
-  if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }
+  if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).filter((c) => !isOffGrid(state, c.id)).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }
 
   const open = getOpenAction(state)
   // the move in play, whatever its phase: its path stays drawn throughout;
@@ -191,6 +196,7 @@ function buildBoardView(state: SeenScene): BoardView {
     : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))
   const pathByKey = new Map((pending?.path ?? []).map((cell, i) => [coordKey(cell), i + 1]))
+  const swept = new Set(pending?.kind === 'move' ? getMoveSweep(state, pending).flat().map(coordKey) : [])
   const destination = pending?.path[pending.path.length - 1] ?? null
 
   // the landings open to the target of a committed strike, while the jump
@@ -261,6 +267,7 @@ function buildBoardView(state: SeenScene): BoardView {
       occupants: occupancy[key] ?? [],
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,
+      swept: swept.has(key),
       isDestination: destination !== null && sameCell(destination, cell),
       jump: landings.has(key),
       isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
@@ -334,7 +341,7 @@ function buildBoardView(state: SeenScene): BoardView {
     binds,
     ghosts,
     picker: floorPicker?.picker ?? null,
-    unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
+    unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id] && !isOffGrid(state, c.id)).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
     mode: getBoardMode(state),
     move: move && mover
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }

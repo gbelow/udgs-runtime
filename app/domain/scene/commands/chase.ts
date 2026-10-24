@@ -8,15 +8,21 @@ import type { Caller, Throw } from '../../play/calls'
 import { calling } from './calling'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
-import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getChaseWithoutDead, getConfirmBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getRechained, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
+import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getChaseWithoutDead, getConfirmBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getRechained, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isRunningInChase, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
 import { getFightBusy } from '../rules/turn'
+import { getMembers } from '../rules/fighters'
 import { updateCharacter } from './characters'
 import { dropEmptyFightParties } from './parties'
+import { withoutPlacements } from '../rules/board/board'
 
 // combat.tex "Chases": these fight parties run away from everyone else, at
-// the tier the table sets.
+// the tier the table sets, and everyone running leaves the grid.
 export function startChase(quarry: string[], tier: ChaseTier): Updater {
-  return (state) => getChaseStartBar(state, quarry, tier) ? state : { ...state, chase: newChase(state, quarry, tier) }
+  return (state) => {
+    if (getChaseStartBar(state, quarry, tier)) return state
+    const started = { ...state, chase: newChase(state, quarry, tier) }
+    return withoutPlacements(started, Object.keys(state.characters).filter((id) => isRunningInChase(started, id)))
+  }
 }
 
 function withChase(state: SceneState, change: Partial<Chase>): SceneState {
@@ -261,11 +267,13 @@ export function putBack(partyId: string, target: string, tier: ChaseTier): Updat
 }
 
 // combat.tex "Catching": "a combat or social situation starts" — the party
-// is caught and fights it out, or the table lets it run again.
+// is caught and fights it out, or the table lets it run again, off the
+// grid.
 export function setPartyFighting(partyId: string, fighting: boolean): Updater {
   return (state) => {
     if (getFightBar(state, partyId, fighting)) return state
-    return fighting ? catchParty(state, partyId) : withChase(state, { fighting: without(state.chase!.fighting, partyId) })
+    if (fighting) return catchParty(state, partyId)
+    return withoutPlacements(withChase(state, { fighting: without(state.chase!.fighting, partyId) }), Object.keys(state.characters).filter((id) => state.partyOf[id] === partyId))
   }
 }
 
@@ -371,10 +379,6 @@ export function endChaseRoundChange(state: SceneState): Chase | null {
 function isHeldOn(chase: Chase, partyId: string): boolean {
   return chase.fighting.includes(partyId) || !!chase.joining[partyId]
 }
-
-// The chase is over and the scene goes on as a fight (combat.tex "Catching":
-// "a combat or social situation starts").
-export const endChase: Updater = (state) => (!state.chase || getFightBusy(state) ? state : { ...state, chase: null })
 
 // combat.tex "Catching": one of a chased party turns around to face the
 // chasers, or thinks better of it before the table ends the chase.
