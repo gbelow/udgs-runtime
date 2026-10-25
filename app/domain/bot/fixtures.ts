@@ -90,9 +90,9 @@ export function trained(c: CampaignCharacter): CampaignCharacter {
 
 // The melee abilities that change what the fighter declares or pays: a
 // gentle grapple test, the disarm after an intercept, a strike out of the
-// movement surge, a cheaper braced blow and a sturdier blade.
+// movement surge, a cheaper braced blow, a sturdier blade and a lunge.
 export function meleeTrained(c: CampaignCharacter): CampaignCharacter {
-  return (['gentle-art', 'clinch', 'charge', 'pikeman', 'blade-alignment'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
+  return (['gentle-art', 'clinch', 'charge', 'pikeman', 'blade-alignment', 'lunge'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
 // A brawler with a short sword in the other hand, which intercepts and is

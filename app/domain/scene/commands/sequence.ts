@@ -33,6 +33,7 @@ import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 import { getInterruptedClimb } from '../rules/move'
 import { getNextDisplacement } from '../rules/displace'
+import { getLungeStrike, isLunge } from '../rules/lunge'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
 
@@ -261,7 +262,14 @@ function generateFollowUps(state: SceneState, root: RootAction, newId: () => str
     ...openSweepLink(state, root, newId),
     ...openSwimTest(state, root, newId),
     ...openFall(root, newId),
+    ...openLungeStrike(state, root, newId),
   ]
+}
+
+// abilities.tex "Lunge": the strike from where the jump landed, once the
+// fall it may have ended in is played out.
+function openLungeStrike(state: SceneState, root: RootAction, newId: () => string): Action[] {
+  return root.kind === 'move' && isLunge(state, root) ? [getLungeStrike(root, newId())] : []
 }
 
 // combat.tex "Balance": a move that ended in a fall — down a jump, off a

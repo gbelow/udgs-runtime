@@ -182,7 +182,7 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>movement</SectionLabel>
-          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, metres: null })} />)}
+          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, lunge: false, metres: null })} />)}
         </div>
       ) : null}
       {open.climbModes.length > 1 ? (
@@ -205,6 +205,12 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>gentle art</SectionLabel>
           <Button size='xs' selected={open.gentle} title='-2 to the grapple test for 1 STA less' onClick={() => amend({ gentle: !open.gentle })}>gently</Button>
+        </div>
+      ) : null}
+      {open.canLunge ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>lunge</SectionLabel>
+          <Button size='xs' selected={open.lunge} title='jump for 1 STA and strike from where you land' onClick={() => amend({ lunge: !open.lunge, path: [] })}>lunge</Button>
         </div>
       ) : null}
       {open.canLeap ? (

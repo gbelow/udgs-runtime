@@ -833,6 +833,9 @@ export const MoveActionSchema = z.object({
   // abilities.tex "Jumper II": the climber spends a jump to start the climb
   // higher
   leap: z.boolean().default(false),
+  // abilities.tex "Lunge": a jump made for 1 STA that opens a strike from
+  // where it lands (rules/lunge.ts)
+  lunge: z.boolean().default(false),
   // combat.tex "Climbing": how many metres of the face the climb goes, null
   // for all that is left of it
   metres: num.nullable().default(null),

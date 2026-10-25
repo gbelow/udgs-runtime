@@ -37,6 +37,7 @@ import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rul
 import { getFloorObject } from '../rules/floorAttack'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple, getGrapples } from '../rules/partners'
+import { canLunge } from '../rules/lunge'
 import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
@@ -218,6 +219,9 @@ export type OpenActionView = {
   // the face allows no fewer or no more)
   climbSteps: { metres: number; remaining: number; less: number | null; more: number | null } | null
   leap: boolean
+  // abilities.tex "Lunge": whether the jump may be declared as one, and is
+  canLunge: boolean
+  lunge: boolean
   // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
   // swim ends, and the dive a metre nearer the surface or the floor would be
   // (null where the water allows no more); null off a swim
@@ -458,6 +462,8 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
       canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),
       leap: open.kind === 'move' && open.leap,
+      canLunge: open.kind === 'move' && open.step === 'define' && canLunge(state, open),
+      lunge: open.kind === 'move' && open.lunge,
       dive: open.kind === 'move' ? open.dive : 0,
       diveSteps: open.kind === 'move' ? getDiveSteps(state, open) : null,
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,

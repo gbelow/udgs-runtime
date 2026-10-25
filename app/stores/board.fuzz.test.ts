@@ -819,6 +819,30 @@ function shelterPlay(h: Harness): Play[] {
   return Object.values(h.state().characters).some(holdsBodyShield) ? [{ name: 'shelter', weight: 4, run: shelter }] : []
 }
 
+// abilities.tex "Lunge": a jump of one's own declared as a lunge, landed
+// where the board offers. Played only where someone has the ability, for the
+// same reason as the shelter.
+function lungePlay(h: Harness): Play[] {
+  if (!Object.values(h.state().characters).some((c) => hasGrant(c, 'lunge'))) return []
+  return [{
+    name: 'lunge',
+    weight: 3,
+    run: (h, pick) => {
+      h.select(pick(Object.values(h.state().characters).filter((c) => hasGrant(c, 'lunge')).map((c) => c.name)))
+      h.startTurn()
+      const jump = ownOptions(h, h.active()!).find((o) => o.draft.kind === 'move')
+      if (!jump) return
+      h.declare({ kind: 'move', movement: 'jump' })
+      if (!getActionPanel(h.state()).open?.canLunge) return
+      h.send({ kind: 'amend', args: [{ lunge: true }] })
+      const there = highlighted(h)
+      if (there.length) h.click({ on: 'cell', cell: pick(there).cell })
+      h.commit()
+      playOut(h, pick)
+    },
+  }]
+}
+
 // abilities.tex "Gentle Art": the grapple test being declared, or answered
 // with, made gently or not. Played only where someone has the ability, for
 // the same reason as the shelter.
@@ -874,7 +898,7 @@ function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   h.select('Bob')
   h.cell(duel.apart, 0)
   h.select('Ann')
-  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...gentlePlay(h)], pick)
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h)], pick)
 }
 
 describe('two characters grappling, pushing, shooting and defending', () => {
@@ -924,7 +948,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...gentlePlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h)], pick)
 }
 
 describe('a crowd on rough ground', () => {
@@ -1083,7 +1107,7 @@ function chasePlays(): Play[] {
 // reach or cover from but the chase.
 function playChase(seed: number, table = false) {
   const { h, pick } = openChase(seed, undefined, table)
-  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...gentlePlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h)], pick)
 }
 
 function openChase(seed: number, tier?: ChaseTier, table = false) {

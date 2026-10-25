@@ -57,6 +57,7 @@ import { getFireAgainBar, getRepeatCost } from './fireAgain'
 import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
+import { isLungeLanding, isLungeStrike } from './lunge'
 import { getStrikeContext, getStrikePrice, isStrikeDeclarationOpen, type StrikeHolder } from './strikeDeclaration'
 
 // An action's life in the fight: whether its declaration is complete and
@@ -121,7 +122,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'releaseSpell':
       return isSpellKey(action.key) && isSpellActive(c, action.key)
     case 'move':
-      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1))
+      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1)) && isLungeLanding(state, action, action.path.at(-1))
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
@@ -255,6 +256,8 @@ function getStrikePriceOf(state: SceneState, action: Action): ReturnType<typeof 
 // to be done to cannot be performed, and is passed up.
 export function isPreparedRequired(state: SceneState, action: Action): boolean {
   if (action.kind === 'move' && action.forced && action.step === 'define') return true
+  // abilities.tex "Lunge": the jump was made "while using an attack"
+  if (action.kind === 'strike' && action.step === 'define' && isLungeStrike(state, action)) return isPerformable(state, action)
   if (action.preparedPart === null || action.step !== 'define') return false
   if (action.preparedPart === 'main') return isRoot(action) && isPerformable(state, action)
   const reaction = action.spawnedBy ? getAction(state, action.spawnedBy) : null

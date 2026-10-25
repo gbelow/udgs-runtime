@@ -15,6 +15,7 @@ import { getFootprint, getPlacedFootprint, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
+import { LUNGE_COST } from './lunge'
 import { canRest, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Ground } from './board/ground'
 import { getMoveDestination, getMoveOrigin, getMoveSweep, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
@@ -78,6 +79,8 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 export function getMovePrice(state: SceneState, c: Character, action: MoveAction, cells: number): ActionCost {
   // a movement the rules force on its mover is not theirs to pay for
   if (action.forced) return NO_COST
+  // abilities.tex "Lunge": "jump for 1 STA"
+  if (action.lunge && action.movement === 'jump' && hasGrant(c, 'lunge')) return cells > 0 ? LUNGE_COST : NO_COST
   const plan = action.movement === 'climb' && cells > 0 ? getClimbPlan(state, action) : null
   const leap = plan?.first && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
   // combat.tex "Climbing": a climb no taller than the climber costs the
