@@ -11,8 +11,7 @@ import { isGrappleRow } from './grapple'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getRetargetOptions } from './fireAgain'
-import { sameCell } from './board/geometry'
-import { getMovePlacements, getMoveSweep } from './board/waypoint'
+import { getEnteringStep, getMovePlacements } from './board/waypoint'
 import { firstStep, getApproachStep, getPathDistances } from './approach'
 import { getPreparedTriggers } from './prepared'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
@@ -113,15 +112,6 @@ function canReactTo(state: SceneState, root: RootAction, trigger: Trigger): bool
 function detectAnswerer(state: SceneState, root: RootAction, trigger: Trigger): Detected {
   const at = trigger.at ?? (root.kind === 'move' ? getEnteringStep(state, root, trigger.characterId) : null)
   return detect(state, trigger.characterId, root.actorId, root, at)
-}
-
-// The step of the move's path (counted from 1) that first comes into the
-// character's space, null for one it never does.
-function getEnteringStep(state: SceneState, root: MoveAction, id: string): number | null {
-  const other = getPlacedFootprint(state, id)
-  if (!other) return null
-  const step = getMoveSweep(state, root).findIndex((footprint) => footprint.some((f) => other.some((o) => sameCell(f, o))))
-  return step === -1 ? null : step + 1
 }
 
 function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {

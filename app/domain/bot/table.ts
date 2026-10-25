@@ -9,6 +9,7 @@ import { getConcentrationOwed, getContinueBar, getHoldOnBar, getRoundPhase } fro
 import { findParty, type Party } from './party'
 import { ifChanged, play, type Played } from './move'
 import type { SceneCommand } from '../scene/commands/registry'
+import { getAim } from '../scene/rules/aim'
 
 // What a bot finds still declared and not committed that it will not take:
 // a follow-up an action opened for it is passed up, anything else abandoned.
@@ -69,7 +70,11 @@ export function passRound(dice: Dice): (state: SceneState) => SceneState {
 
 function moveOpen(state: SceneState, open: RootAction, dice: Dice, newId: () => string): Played {
   if (open.step === 'react') return play(state, [{ kind: 'rollOrPay', args: [] }], dice, newId)
-  if (open.step === 'post') return play(state, [{ kind: 'resolve', args: [] }], dice, newId)
+  if (open.step === 'post') {
+    const aim = getAim(state, open)
+    const cell = aim?.field === 'displace' ? aim.cells[0] : undefined
+    return play(state, [cell ? { kind: 'click', args: [{ on: 'cell', cell }, null, false, null] } : { kind: 'resolve', args: [] }], dice, newId)
+  }
   return open.step === 'define' ? passUp(state, open, dice, newId) : { move: [], state }
 }
 

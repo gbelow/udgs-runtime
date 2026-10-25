@@ -32,6 +32,7 @@ import { getHiddenFrom } from '../rules/stealth'
 import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 import { getInterruptedClimb } from '../rules/move'
+import { getNextDisplacement } from '../rules/displace'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
 
@@ -73,6 +74,9 @@ export function advance(state: SceneState, newId: () => string, caller: Caller):
 // leaves a test throws its die now, and a climber it interrupts tests again;
 // it lands once those dice are in.
 export function land(state: SceneState, open: RootAction, newId: () => string, caller: Caller): SceneState {
+  // combat.tex "Crash": whoever the mover won the space of is displaced first
+  const displacement = open.kind === 'move' ? getNextDisplacement(state, open, newId) : null
+  if (displacement) return advance(appendActions(state, [displacement]), newId, caller)
   const thrown = throwTargetDice(state, open, caller)
   if (caller.waiting()) return state
   const settled = getSettled(state, thrown)

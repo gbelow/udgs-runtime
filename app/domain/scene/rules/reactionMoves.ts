@@ -1,10 +1,12 @@
+import type { Character } from '../../types'
 import type { Action, ActionOf, MoveAction } from '../types'
 import { MOVEMENT_KINDS } from '../../lists'
+import { getMovementBlock } from '../../character/rules/movement'
 
 // The moves a reaction opens for its reactor, as the fields of the move it
 // opens: `budget` the most AP it may cost, `prepaid` what the reaction
 // already paid towards it, and whatever kinds of movement it grants.
-export type ReactionMove = Partial<Pick<MoveAction, 'movement' | 'movements' | 'budget' | 'prepaid'>>
+export type ReactionMove = Partial<Pick<MoveAction, 'movement' | 'movements' | 'budget' | 'prepaid' | 'forced'>>
 
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
 // once. On a hit, they can jump once in any direction before the explosion
@@ -43,6 +45,12 @@ export function getEvasionMove(root: Action, reaction: ActionOf<'evasion'>): Rea
   if (root.kind !== 'shoot' || reaction.stay) return null
   const AP = reaction.cost?.AP ?? 0
   return { budget: AP, prepaid: AP }
+}
+
+// combat.tex "Trample": an evade "allows 1 basic movement", bought with the AP
+// it paid (rules/sidestep.ts); forced on an evader whose space the mover ends in.
+export function getSidestepMove(c: Character, paid: number, forced: boolean): ReactionMove {
+  return { movement: 'basic', movements: ['basic'], budget: getMovementBlock(c, 'basic').AP, prepaid: paid, forced }
 }
 
 // combat.tex "Avoiding an Explosion": "On a miss, they can move 2 AP after

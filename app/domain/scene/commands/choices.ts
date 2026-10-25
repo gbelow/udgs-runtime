@@ -6,6 +6,8 @@ import type { SpellModification } from '../../tables'
 import { appendActions, applyPhase, getRolledOpen, replaceActions } from './log'
 import { canMoveWhileResting, getRestMove, hasRestMove } from '../rules/rest'
 import { makeAction } from '../factories'
+import { getDisplacementCells, getPendingDisplacement } from '../rules/displace'
+import type { Coord } from '../types'
 
 // The choices made once the die is known and before the action lands: what
 // a hit's overflow buys, where a spray is pointed, what a
@@ -69,6 +71,18 @@ export function aimExplosion(direction: Direction): Updater {
     const open = getRolledOpen(state, ['blast'])
     if (!open || !isSpray(open)) return state
     return replaceActions(state, [{ ...open, direction }])
+  }
+}
+
+// combat.tex "Crash": the space the attacker puts the next defender their
+// crash won the space of in, among those offered.
+export function displaceTrampled(cell: Coord): Updater {
+  return (state) => {
+    const open = getRolledOpen(state, ['move'])
+    const id = open ? getPendingDisplacement(state, open) : null
+    const from = id ? state.board?.placements[id] : undefined
+    if (!open || !id || !from || !getDisplacementCells(state, open, id).some((c) => c.q === cell.q && c.r === cell.r)) return state
+    return replaceActions(state, [{ ...open, displaced: [...open.displaced, { id, from, to: cell }] }])
   }
 }
 

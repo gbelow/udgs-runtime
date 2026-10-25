@@ -720,6 +720,7 @@ export const SpellTestActionSchema = z.object({
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
+// An evade of a trample opens a step of the evader's (rules/sidestep.ts).
 export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
 // combat.tex "Crash": the target of a trample standing firm — "The target
 // can spend 2AP+1STA to get +3 in this comparison"
@@ -842,6 +843,17 @@ export const MoveActionSchema = z.object({
   // so the mover is never forced into the privileged one; null is the
   // mover's usual choice
   movements: z.array(MovementKindSchema).nullable().default(null),
+  // a movement the rules force on its mover (combat.tex "Trample": an evader
+  // whose space the mover ends in, a crash's loser displaced), which may not be
+  // passed up and which an interruption does not cancel, as a run's
+  forced: z.boolean().default(false),
+  // combat.tex "Crash": where the attacker puts each defender whose space it
+  // won, picked once the crash is known (rules/displace.ts), with where the
+  // defender stood when the crash was fought
+  displaced: z.array(z.object({ id: str, from: PlacementSchema, to: CoordSchema }).strip()).default([]),
+  // for an evader's step, where the mover whose way it goes out of stood,
+  // taken off the board while it is taken (rules/sidestep.ts)
+  passing: PlacementSchema.nullable().default(null),
   // where the mover set out from, written at the commit: the path is read
   // from here even once an opportunity attack has the mover standing part
   // of the way along it

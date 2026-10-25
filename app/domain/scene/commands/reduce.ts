@@ -45,6 +45,7 @@ import { getAction, getReactionsTo } from '../rules/log'
 import { extinguishCell } from '../rules/extinguish'
 import { coatCell, filterLayers, igniteCell, getHolderOf, isSupersededBy, type FireTouched } from '../rules/board/hazard'
 import { actionSurge } from '../../character/commands/actionSurge'
+import { getPassingPlacement } from '../rules/sidestep'
 
 // The moments an action touches a character: `roll`, when the die is thrown
 // and the price leaves the actor in the same step; `save`, when a graze is
@@ -383,7 +384,10 @@ function landOnBoard(state: SceneState, action: Action, phase: Phase): (board: B
     if (phase !== 'resolve') return board
     const lit = isAttackAction(action) ? lightBurned(state, action, board) : board
     if (action.kind === 'move') {
-      const placements = board.placements
+      // a mover off the board while an evader stepped out of their way is put
+      // back where they stood, for the move to take them on from there
+      const passing = board.placements[action.actorId] ? null : getPassingPlacement(state, action)
+      const placements = passing ? { ...board.placements, [action.actorId]: passing } : board.placements
       // a jump away from an opportunity attack put the mover where it landed
       const destination = action.facts && action.facts.stop !== 'jump' ? getMoveDestination(state, action, action.facts.path) : null
       const hang = action.movement === 'climb' ? action.facts?.hang : null

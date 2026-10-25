@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { brawler, fighter, spearman, warden } from '../domain/bot/fixtures'
+import type { CampaignCharacter } from '../domain/types'
 import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getAvailableActions } from '../domain/scene/rules/options'
 import { getOpenAction } from '../domain/scene/rules/log'
@@ -322,5 +323,85 @@ describe('a move past someone whose attacks cannot reach it', () => {
 
   it('does not wait on one that cannot', () => {
     expect(stillWaiting([[3, 1]])).toBe(false)
+  })
+})
+
+// What the board offers an evader and a crash's winner when a move comes
+// into someone's space (combat.tex "Trample", "Crash").
+describe('a move into someone standing', () => {
+  const strong = (id: string) => {
+    const c = fighter(id)
+    return { ...c, trainables: { ...c.trainables, STR: { ...c.trainables.STR, value: 20 } } }
+  }
+  const walk = (mover: CampaignCharacter, path: [number, number][]) => {
+    const h = openHarness()
+    h.bring(mover, fighter('Bob'))
+    h.createBoard(4)
+    for (const [name, q, r] of [['Cy', 0, 1], ['Bob', 1, 0]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.select('Cy')
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    for (const [q, r] of path) h.cell(q, r)
+    h.commit()
+    return h
+  }
+  const evade = (h: Harness) => {
+    h.send({ kind: 'react', args: [h.idOf('Bob'), { kind: 'evade' }] })
+    h.press(payAction(h.newId, h.dice))
+    h.select('Bob')
+  }
+
+  it('lets the evader step where the mover stood as the mover walks through', () => {
+    const h = walk(fighter('Cy'), [[1, 0], [2, -1]])
+    evade(h)
+    h.cell(0, 1)
+    h.commit()
+    expect(standsAt(h, 'Cy')).toEqual(['2,-1'])
+    expect(standsAt(h, 'Bob')).toEqual(['0,1'])
+  })
+
+  it("swaps the two when the mover ends in the evader's space", () => {
+    const h = walk(fighter('Cy'), [[1, 0]])
+    evade(h)
+    h.cell(0, 1)
+    h.commit()
+    expect(standsAt(h, 'Cy')).toEqual(['1,0'])
+    expect(standsAt(h, 'Bob')).toEqual(['0,1'])
+  })
+
+  it('does not let an evader the mover ends on stay put', () => {
+    const h = walk(fighter('Cy'), [[1, 0]])
+    evade(h)
+    const before = h.state()
+    h.press(withdrawSpawnedAction(h.dice, h.newId))
+    expect(h.state()).toBe(before)
+  })
+
+  it("refuses the evader a step ahead along the mover's way", () => {
+    const h = walk(fighter('Cy'), [[1, 0], [2, -1]])
+    evade(h)
+    const before = h.state()
+    h.cell(2, -1)
+    expect(h.state().actions).toEqual(before.actions)
+  })
+
+  it('puts the one a crash displaces where the winner clicks, and the winner where they were going', () => {
+    const offered = (() => {
+      const h = walk(strong('Cy'), [[1, 0]])
+      h.press(payAction(h.newId, h.dice))
+      return h.view().cells.filter((c) => c.center).map((c) => c.cell)
+    })()
+    expect(offered.length).toBeGreaterThan(0)
+    for (const cell of offered) {
+      const h = walk(strong('Cy'), [[1, 0]])
+      h.press(payAction(h.newId, h.dice))
+      h.cell(cell.q, cell.r)
+      for (let i = 0; i < 3 && getOpenAction(h.state()); i++) for (const step of [payAction(h.newId, h.dice), resolveAction(h.newId, h.dice)]) h.press(step)
+      expect(standsAt(h, 'Cy')).toEqual(['1,0'])
+      expect(standsAt(h, 'Bob')).toEqual([coordKey(cell)])
+    }
   })
 })

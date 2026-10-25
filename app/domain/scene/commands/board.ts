@@ -14,7 +14,7 @@ import { getReachableCells } from '../rules/board/reach'
 import { canStandAt } from '../rules/board/ground'
 import { getMoveOrigin, getPathTurns, withoutLastSegment } from '../rules/board/waypoint'
 import { aimAtCell, amendAction, amendReaction, declareReaction } from './action'
-import { aimExplosion } from './choices'
+import { aimExplosion, displaceTrampled } from './choices'
 import { getDragReach, getWalkerPlacement } from '../rules/drag'
 
 // The simulation tool's own commands: what the table does to the board by
@@ -143,7 +143,8 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
 // towards it (combat.tex "Explosions", "Sprays"); or, against a committed
 // strike, names where the target's evasive jump lands (combat.tex "Evasive
 // Jump") — declaring the jump if it has not been; or edits the way a
-// grapple group is being moved (combat.tex "Push and drag").
+// grapple group is being moved (combat.tex "Push and drag"); or puts a
+// defender a won crash displaces (combat.tex "Crash").
 export function pickCell(cell: Coord, newId: () => string): Updater {
   return (state) => readPick(state, cell, newId)?.apply(state) ?? state
 }
@@ -163,7 +164,8 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string): {
   }
   const aim = getAim(state, open)
   if (aim) {
-    return own(aim.cells.some((c) => sameCell(c, cell)) ? (aim.field === 'center' ? amendAction({ center: cell }) : aim.field === 'cell' ? aimAtCell(cell) : amendAction({ to: cell })) : unchanged)
+    if (!aim.cells.some((c) => sameCell(c, cell))) return own(unchanged)
+    return own(aim.field === 'center' ? amendAction({ center: cell }) : aim.field === 'cell' ? aimAtCell(cell) : aim.field === 'displace' ? displaceTrampled(cell) : amendAction({ to: cell }))
   }
   if (open.kind === 'blast' && open.step === 'post') {
     const from = state.board?.placements[open.actorId]

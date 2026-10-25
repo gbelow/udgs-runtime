@@ -63,7 +63,9 @@ export function getMoveTramples(state: SceneState, action: MoveAction, path: Coo
   const evaded = new Set(reactions.filter((a) => a.kind === 'evade').map((a) => a.actorId))
   const braced = new Set(reactions.filter((a) => a.kind === 'brace').map((a) => a.actorId))
   const struck = new Set(getDrawnOpportunityAttacks(state, action).flatMap(({ spawned }) => (spawned?.kind === 'strike' && spawned.trample ? [spawned.actorId] : [])))
-  const standing = Object.keys(state.characters).filter((id) => id !== action.actorId && !evaded.has(id) && !struck.has(id) && isTrampleable(state, id) && board.placements[id])
+  // one the crash displaced is met where they stood when it was fought
+  const placements = { ...board.placements, ...Object.fromEntries(action.displaced.map((d) => [d.id, d.from])) }
+  const standing = Object.keys(state.characters).filter((id) => id !== action.actorId && !evaded.has(id) && !struck.has(id) && isTrampleable(state, id) && placements[id])
 
   const met = new Set<string>()
   const trampled: Trample[] = []
@@ -71,7 +73,7 @@ export function getMoveTramples(state: SceneState, action: MoveAction, path: Coo
     for (const id of standing) {
       const other = state.characters[id]
       if (!other || met.has(id)) continue
-      const theirs = getFootprint(other, board.placements[id])
+      const theirs = getFootprint(other, placements[id])
       if (!footprint.some((f) => theirs.some((t) => sameCell(f, t)))) continue
       met.add(id)
       const result = crash(mover.id, id, i + 1, getMoverForce(mover, action, i + 1), getForce(other) + (braced.has(id) ? BRACED : 0))

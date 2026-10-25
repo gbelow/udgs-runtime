@@ -48,6 +48,7 @@ import { canAffordRest } from '../../character/rules/rest'
 import { getIncomingAP, getRoundChangeActBar, getRoundPhase } from './roundChange'
 import { getChaseRestBar } from './chase'
 import { hasFightAffliction, isImmobile, isSuffocating } from './situational'
+import { getSidestepBar } from './sidestep'
 
 // What can be declared: every action and reaction open to a character right
 // now, each available or closed with the reason, so a command can refuse
@@ -294,9 +295,12 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
           answer({ kind }),
           answer({ kind, stay: true }, getEvasionCost(c, true)),
         ]
+      // an evade of a trample opens a step, picked on the board once the
+      // trample is paid; closed to one the mover ends on with nowhere to go
+      case 'evade':
+        return [answer({ kind }, cost, gate ?? getSidestepBar(state, open, c.id, cost.AP))]
       // nothing to pick among; where an evasive jump lands is picked on the
       // board, not here
-      case 'evade':
       case 'brace':
       case 'evasiveJump':
       case 'avoidExplosion':

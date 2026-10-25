@@ -1,7 +1,8 @@
 import type { Action, ActionOf, SceneState, MoveAction, ReactionAction, ReactionKind, RootAction } from '../types'
 import { makeAction } from '../factories'
 import { isReactionAction } from './actionCatalog'
-import { getDrawnOpportunityAttacks, getOpenedBy, getOpenedMain, getReactionsTo } from './log'
+import { getDrawnOpportunityAttacks, getOpenedBy, getOpenedMain, getPassedUp, getReactionsTo } from './log'
+import { isSidestepReached, openSidestep } from './sidestep'
 import { findPrepared, getPreparedMain, getPreparedMoveBudget, getPreparedParts, getPreparedState, isPreparedCancelled, isPreparedReached } from './prepared'
 import { getMoveFacts } from './move'
 import { getOpportunityAction } from './attack'
@@ -32,7 +33,14 @@ export type Opener<K extends ReactionKind> = {
 }
 
 export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
-  evade: {},
+  // combat.tex "Trample": the step an evade allows is taken before the
+  // trample lands, with the mover passing through (rules/sidestep.ts)
+  evade: {
+    before: (state, root, reaction, newId) => {
+      if (root.kind !== 'move' || getOpenedBy(state, reaction) || getPassedUp(state, reaction.id).length > 0) return null
+      return isSidestepReached(state, root, reaction.actorId) ? openSidestep(state, root, reaction, newId()) : null
+    },
+  },
   brace: {},
   evasiveJump: {},
   block: {},

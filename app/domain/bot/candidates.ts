@@ -56,7 +56,8 @@ export function getAttackCandidates(state: SceneState, party: Party, id: string,
 }
 
 // For each kind of movement, the walk to the reachable cell nearest a foe, if
-// it is nearer than where the character stands.
+// it is nearer than where the character stands, and not into a foe's space,
+// which would be a crash and no approach.
 export function getApproachCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const origin = state.board?.placements[id]?.cell
   const foes: Coord[] = getLiveFoes(state, party).flatMap((f) => state.board?.placements[f]?.cell ?? [])
@@ -72,7 +73,7 @@ export function getApproachCandidates(state: SceneState, party: Party, id: strin
     if (aimed?.kind !== 'move') return []
     const best = getReachableCells(moving, aimed)
       .map((to) => ({ to, gap: setDistance([to.cell], foes) }))
-      .filter((w) => w.gap < here)
+      .filter((w) => w.gap < here && w.gap > 0)
       .reduce<{ to: ReachableCell; gap: number } | null>((a, b) => (!a || b.gap < a.gap || (b.gap === a.gap && b.to.steps < a.to.steps) ? b : a), null)
     if (!best) return []
     return [{

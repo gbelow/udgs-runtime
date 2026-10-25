@@ -42,6 +42,8 @@ import { getAttackVariant, getFreeAttackOptions, getOpportunityAction, explosion
 import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
 import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
+import { isSidestepPlaced } from './sidestep'
+import { getPendingDisplacement } from './displace'
 import { canOverdraw } from '../../character/rules/rest'
 import { getIncomingAP } from './roundChange'
 import { getCounterStrike } from './counter'
@@ -117,7 +119,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'fireAgain':
       return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(state, c, action.key) === null
     case 'move':
-      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1))
+      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1))
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
@@ -250,6 +252,7 @@ function getStrikePriceOf(state: SceneState, action: Action): ReturnType<typeof 
 // it up would leave the action with nobody in reach; an action with nobody
 // to be done to cannot be performed, and is passed up.
 export function isPreparedRequired(state: SceneState, action: Action): boolean {
+  if (action.kind === 'move' && action.forced && action.step === 'define') return true
   if (action.preparedPart === null || action.step !== 'define') return false
   if (action.preparedPart === 'main') return isRoot(action) && isPerformable(state, action)
   const reaction = action.spawnedBy ? getAction(state, action.spawnedBy) : null
@@ -636,7 +639,7 @@ export function getNextStep(state: SceneState): ActionStep | null {
 
 // What the root still waits on once its die is thrown or its cost paid,
 // before it lands: HOP to spend on a hit, a grapple to take, a way to point, a
-// pick to make.
+// pick to make, a defender to put somewhere.
 function getPostStep(state: SceneState, open: RootAction): ActionStep {
   switch (open.kind) {
     case 'strike':
@@ -650,8 +653,10 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
       return isSpray(open) && open.direction === null ? 'aim' : 'confirm'
     case 'grapple':
       return needsDisarmPick(state, open) ? 'choose' : 'confirm'
-    case 'explosion':
+    // combat.tex "Crash": the space a won crash puts its defender in
     case 'move':
+      return getPendingDisplacement(state, open) ? 'aim' : 'confirm'
+    case 'explosion':
     case 'drag':
     case 'release':
     case 'slip':

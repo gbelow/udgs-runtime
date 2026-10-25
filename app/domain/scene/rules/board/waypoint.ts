@@ -1,6 +1,6 @@
 import type { MoveKind } from '../../../types'
 import type { SceneState, Coord, MoveAction, Placement } from '../../types'
-import { setDistance } from './geometry'
+import { sameCell, setDistance } from './geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
 
 // Where the mover stands along a move: where it sets out from, each step of
@@ -58,6 +58,15 @@ export function getMoveSweep(state: SceneState, action: MoveAction): Coord[][] {
   const c = state.characters[action.actorId]
   if (!c) return []
   return getMovePlacements(state, action).slice(1).map((p) => getFootprint(c, p))
+}
+
+// The step of the move's path (counted from 1) that first comes into the
+// character's space, null for one it never does.
+export function getEnteringStep(state: SceneState, root: MoveAction, id: string): number | null {
+  const other = getPlacedFootprint(state, id)
+  if (!other) return null
+  const step = getMoveSweep(state, root).findIndex((footprint) => footprint.some((f) => other.some((o) => sameCell(f, o))))
+  return step === -1 ? null : step + 1
 }
 
 // Where the mover stands either side of the step into the `at`th cell of

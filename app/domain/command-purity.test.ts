@@ -283,6 +283,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   rollOrPay: (s) => combatCommands.rollOrPay(() => 5, newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId, () => 5)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
+  displaceTrampled: (s) => combatCommands.displaceTrampled({ q: 1, r: 1 })(deepFreeze(crashedMove(s))),
   improveSpell: (s) => combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))),
   refundImprovement: (s) => combatCommands.refundImprovement('enhance')(deepFreeze(combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))))),
   saveGraze: (s) => combatCommands.saveGraze()(deepFreeze(grazedCast(s))),
@@ -493,6 +494,16 @@ function declaredStrike(s: SceneState): SceneState {
 function declaredMove(s: SceneState): SceneState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.amendAction({ movement: 'crawl', path: [{ q: 1, r: 0 }] })(declared)
+}
+
+// `a`, stood up and strong, walked into `b`'s space and paid for, which leaves
+// the crash's winner a space to put `b` in, on a frozen state each step along.
+function crashedMove(s: SceneState): SceneState {
+  const a = s.characters.a
+  const strong = { ...a, afflictions: [], trainables: { ...a.trainables, STR: { ...a.trainables.STR, value: 30 } } }
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: strong } })))
+  const drawn = deepFreeze(combatCommands.amendAction({ movement: 'basic', path: [{ q: 0, r: 1 }] })(declared))
+  return combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(drawn)))
 }
 
 // A push by `a`, grappling `b`, declared and aimed at them — `a` stood up,

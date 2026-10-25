@@ -26,6 +26,7 @@ import { getInterruptionOf } from './interruption'
 import { isKnockedDownByHook } from './grapple'
 import { findOpenRoot, getAction, getAncestry, getDrawnOpportunityAttacks, getReactionsTo } from './log'
 import { getFleeStep } from './flee'
+import { withDisplaced } from './displace'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -75,6 +76,8 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
 // move and does not need to be spent again, but any STA cost must be paid").
 export function getMovePrice(state: SceneState, c: Character, action: MoveAction, cells: number): ActionCost {
+  // a movement the rules force on its mover is not theirs to pay for
+  if (action.forced) return NO_COST
   const plan = action.movement === 'climb' && cells > 0 ? getClimbPlan(state, action) : null
   const leap = plan?.first && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
   // combat.tex "Climbing": a climb no taller than the climber costs the
@@ -255,7 +258,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
     if (!canPass(action.movement, footprint, ground, last, ceiling, wet)) return false
     if (!canStepOver(action.movement, ground.elevation(cursor), ground.elevation(cell))) return false
     if (!isTetherKept(state, c.id, footprint)) return false
-    if (last && !canRest(state, c, footprint, ground, endsLying(c, action.movement))) return false
+    if (last && !canEndAt(state, c, action, footprint, ground)) return false
     cursor = cell
     wet = isWet(footprint, ground)
   }
@@ -382,13 +385,14 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
 // combat.tex "Hook Attack": a mover the hook's knockdown put down goes no
 // further, running or not. combat.tex "Crash": the higher force of the
 // target blocks passage, and "A draw blocks passage" — a braced blow's or a
-// catch's crash too.
+// catch's crash too. A movement the rules force goes on through an
+// interruption, as a run does.
 export function getMoveOverride(state: SceneState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample'; by: Action } | null {
   const mover = state.characters[action.actorId]
   const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', RUN_START_AP) : 0
   for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.step !== 'done') continue
-    const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
+    const stoppable = !action.forced && ((action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting)
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump', by: strike }
     const interrupted = stoppable && (action.movement !== 'climb' || isTrivialClimb(state, action)) && getInterruptionOf(strike, action.actorId) !== 'none'
@@ -431,6 +435,26 @@ export function getInterruptedClimb(state: SceneState, landed: Action): { move: 
 // down or a climb that failed ends in (`getMoveFall`).
 export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
   if (action.movement === 'climb' && !isTrivialClimb(state, action)) return getClimbFacts(state, action)
+  const walked = getWalkedPath(state, action)
+  const { tramples } = walked
+  let { path, stop } = walked
+  const free = path.slice(0, getFreeStep(state, action, path.length))
+  if (stop === 'end' && free.length < path.length) stop = 'occupied'
+  path = free
+  const fallAt = getFallStep(state, action)
+  const fell = fallAt !== null && fallAt <= path.length
+  if (fell) {
+    path = path.slice(0, fallAt)
+    stop = 'fall'
+  }
+  const fall = getMoveFall(state, action, path, false)
+  return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall) ?? getSwimFinish(state, action, path), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+}
+
+// The path as far as the move is walked before the mover is stood short of
+// anyone in the space it would end in: cut short by a flee, an opportunity
+// attack, or a crash that blocked it.
+export function getWalkedPath(state: SceneState, action: MoveAction): { path: Coord[]; stop: MoveFacts['stop']; tramples: ReturnType<typeof getMoveTramples> } {
   let path = action.path
   let stop: MoveFacts['stop'] = 'end'
   const flee = getFleeStep(state, action)
@@ -448,17 +472,7 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
     path = path.slice(0, tramples.stop)
     stop = 'trample'
   }
-  const free = path.slice(0, getFreeStep(state, action, path.length))
-  if (stop === 'end' && free.length < path.length) stop = 'occupied'
-  path = free
-  const fallAt = getFallStep(state, action)
-  const fell = fallAt !== null && fallAt <= path.length
-  if (fell) {
-    path = path.slice(0, fallAt)
-    stop = 'fall'
-  }
-  const fall = getMoveFall(state, action, path, false)
-  return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall) ?? getSwimFinish(state, action, path), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+  return { path, stop, tramples }
 }
 
 // The step of the move, at or before `steps`, the mover may stand at; 0 is
@@ -467,7 +481,8 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
 // whose space they would stand in, and one who walked the whole way may find
 // their end taken by someone a reaction moved there: two characters rest on
 // one space only when one of them is prone (`getCrowdedBy`), so they stand on
-// the last space before it.
+// the last space before it. One the mover's crash displaces is read where the
+// attacker puts them (rules/displace.ts).
 export function getFreeStep(state: SceneState, action: MoveAction, steps: number): number {
   let at = steps
   while (at > 0 && getStandingIn(state, action, action.path[at - 1]) !== null) at--
@@ -479,8 +494,17 @@ export function getFreeStep(state: SceneState, action: MoveAction, steps: number
 export function getStandingIn(state: SceneState, action: MoveAction, cell: Coord): string | null {
   const mover = state.characters[action.actorId]
   const end = getMoveDestination(state, action, [cell])
-  const ground = readGround(state, action.actorId)
-  return mover && end && ground ? getCrowdedBy(state, mover, getFootprint(mover, end), ground, endsLying(mover, action.movement)) : null
+  const placed = withDisplaced(state, action)
+  const ground = readGround(placed, action.actorId)
+  return mover && end && ground ? getCrowdedBy(placed, mover, getFootprint(mover, end), ground, endsLying(mover, action.movement)) : null
+}
+
+// Whether the move may be declared to end on the footprint: where the mover
+// may rest, or, for a move of the mover's own, in the space of anyone standing
+// there (combat.tex "Crash": the trample decides who stands there once it
+// lands). Never where someone hangs over it.
+function canEndAt(state: SceneState, c: Character, action: MoveAction, footprint: Coord[], ground: Ground): boolean {
+  return canRest(state, c, footprint, ground, endsLying(c, action.movement)) || (action.spawnedBy === null && footprint.every((cell) => ground.heldFor(cell).length === 0))
 }
 
 // combat.tex "Movement": crawling "is the only usable movement speed while
@@ -644,7 +668,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   return walked
     .filter(({ cell, path }) => {
       const footprint = getFootprint(c, { ...from, cell })
-      return !onPath.has(coordKey(cell)) && isCrossable(footprint, ground, kind, wetAt(stepFrom(path))) && canRest(state, c, footprint, ground, endsLying(c, kind)) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
+      return !onPath.has(coordKey(cell)) && isCrossable(footprint, ground, kind, wetAt(stepFrom(path))) && canEndAt(state, c, action, footprint, ground) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
     })
     .map(({ cell, path }) => ({ cell, path: [...drawn, ...path] }))
     .map(({ cell, path }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres }, path.length), path }))
