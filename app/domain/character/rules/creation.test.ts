@@ -4,7 +4,7 @@ import { FOCI, PRIORITIES, RaceSchema, TrainablesSchema, type CreationDraft, typ
 import { CREATION_ATTRIBUTE, CREATION_PRIORITIES } from '../../tables'
 import { buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from '../commands/creation'
 import { getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationBuild, getCreationCharges, getCreationPool, getCreationProblems, getCreationSpellRaises } from './creation'
-import { ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, type FamilyKey } from '../../abilities'
+import { ABILITIES, ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, type FamilyKey } from '../../abilities'
 import { SPELL_LEARN_XP, getTrainableRaisePrice } from './learning'
 import { getKnowledge } from './knowledge'
 import { SPELLS, SPELL_KEYS, type SpellKey } from '../../spells'
@@ -118,7 +118,7 @@ describe('the spells Magic Theory teaches', () => {
     return buyCreationStage('magic-theory', 1)(buyCreationStage('literacy', 1)(d))
   }
 
-  it('are two, cost nothing and need their knowledge', () => {
+  it('are as many as the stage grants, cost nothing and need their knowledge', () => {
     let d = theorist()
     const charges = getCreationCharges(d)
     const claimed: SpellKey[] = []
@@ -128,7 +128,7 @@ describe('the spells Magic Theory teaches', () => {
       claimed.push(key)
       d = next
     }
-    expect(claimed).toHaveLength(2)
+    expect(claimed).toHaveLength(ABILITIES['magic-theory'].freeSpells)
     expect(getCreationCharges(d)).toEqual(charges)
     for (const key of claimed) {
       expect(getCreatedCharacter(d).spells[key]?.method).toBe('wizard')

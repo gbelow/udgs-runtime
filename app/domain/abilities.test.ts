@@ -176,9 +176,10 @@ describe('used abilities', () => {
   const actives = ABILITY_KEYS.filter((key) => ABILITIES[key].activation === 'active')
 
   it.each(actives)('"%s" pays its price and instant drain at the use and its round-change drain once, at the next round', (key) => {
-    const learned = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), makeCampaignCharacter({ ...ready(key), resources: { STA: 20, AP: 8 } })) as CampaignCharacter
     const { cost, effect } = ABILITIES[key]
     const drain = getDrain(effect, 'instant')
+    const resources = { STA: cost.STA + drain.STA + 20, AP: cost.AP + drain.AP + 8 }
+    const learned = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), makeCampaignCharacter({ ...ready(key), resources })) as CampaignCharacter
     const upkeep = getDrain(effect, 'end_round')
 
     const used = useAbility(key)(learned, true) as CampaignCharacter

@@ -11,11 +11,15 @@ import { passRound } from '../../bot/table'
 import { breakHeld, finishHeld } from './hold'
 import { makeCaller } from '../../play/calls'
 import { ROUND_AP } from '../../tables'
+import { ABILITIES } from '../../abilities'
 
 let n = 0
 const newId = () => `h${++n}`
 const HIT = 9
 const MISS = 1
+// Short of First Aid's price, so the action is held over.
+const FIRST_AID_AP = ABILITIES['first-aid'].cost.AP
+const SHORT = FIRST_AID_AP - 2
 
 // A medic with the focus surge made and `AP` left, bleeding (the fixture's
 // own bleed is what First Aid tends).
@@ -55,7 +59,7 @@ const find = (state: SceneState, kind: string, actorId: string) => Object.values
 // does not have enough AP for it, and maintains concentration after their turn.
 describe('an action held over to the next round', () => {
   it('takes the AP the actor has, waits off the stack, and shuts everything else', () => {
-    const held = medicHolding(5)
+    const held = medicHolding(SHORT)
     expect(getHeldOf(held, 'm')?.kind).toBe('firstAid')
     expect(held.characters.m.resources.AP).toBe(0)
     expect(getOpenAction(held)).toBeNull()
@@ -63,7 +67,7 @@ describe('an action held over to the next round', () => {
   })
 
   it('finishes before anyone acts, the two rounds paying its price between them', () => {
-    const held = medicHolding(5)
+    const held = medicHolding(SHORT)
     const carried = getHeldOf(held, 'm')!.carried.AP
     const round = passRound(() => HIT)(held)
     const open = getOpenAction(round)!
@@ -71,12 +75,12 @@ describe('an action held over to the next round', () => {
     expect(open.step).toBe('react')
     const paid = rollAction(() => HIT, newId)(round)
     const price = find(paid, 'firstAid', 'm')!.cost!.AP
-    expect(carried + price).toBe(8)
+    expect(carried + price).toBe(FIRST_AID_AP)
     expect(paid.characters.m.resources.AP).toBe(ROUND_AP - price)
   })
 
   it('is given up by its actor\'s defense, which gets the AP back less one', () => {
-    const held = withEnemyNext(medicHolding(5))
+    const held = withEnemyNext(medicHolding(SHORT))
     const carried = getHeldOf(held, 'm')!.carried.AP
     const defended = declareReaction('m', { kind: 'evade' }, newId)(thrustAtMedic(held))
     expect(getHeldOf(defended, 'm')).not.toBeNull()
@@ -88,16 +92,16 @@ describe('an action held over to the next round', () => {
   // combat.tex "Opportunity Attack": "any actions that require concentration"
   // trigger one, before the effect; held over, it is as it is declared
   it('draws its opportunity attacks as it is declared, and none when it finishes', () => {
-    const declared = medicHolding(5, [1, 0])
+    const declared = medicHolding(SHORT, [1, 0])
     expect(getHeldOf(declared, 'm')).toBeNull()
     expect(getAvailableActions(declared, 'e').some((o) => o.draft.kind === 'opportunityAttack' && o.available)).toBe(true)
-    const round = passRound(() => HIT)(withEnemyNext(medicHolding(5)))
+    const round = passRound(() => HIT)(withEnemyNext(medicHolding(SHORT)))
     expect(getOpenAction(round)?.kind).toBe('firstAid')
     expect(getAvailableActions(round, 'e').some((o) => o.draft.kind === 'opportunityAttack')).toBe(false)
   })
 
   it('fails when what it needs is gone by the time it finishes, and spends none of the new round', () => {
-    const held = medicHolding(5)
+    const held = medicHolding(SHORT)
     const healed = { ...held, characters: { ...held.characters, m: { ...held.characters.m, injuries: { ...held.characters.m.injuries, bleed: 0 } } } }
     const round = passRound(() => HIT)(healed)
     expect(getOpenAction(round)).toBeNull()
@@ -108,11 +112,11 @@ describe('an action held over to the next round', () => {
 
   // combat.tex "End of the round": the AP "reset to 8 AP minus any negative AP"
   it('goes on while the new round does not cover what is left, the focus surge made again', () => {
-    const held = medicHolding(5)
-    const overdrawn = { ...held, characters: { ...held.characters, m: { ...held.characters.m, resources: { ...held.characters.m.resources, AP: -6 } } } }
+    const held = medicHolding(SHORT)
+    const overdrawn = { ...held, characters: { ...held.characters, m: { ...held.characters.m, resources: { ...held.characters.m.resources, AP: FIRST_AID_AP - SHORT - 1 - ROUND_AP } } } }
     const once = passRound(() => HIT)(overdrawn)
     expect(getOpenAction(once)).toBeNull()
-    expect(getHeldOf(once, 'm')?.carried.AP).toBeGreaterThan(5)
+    expect(getHeldOf(once, 'm')?.carried.AP).toBeGreaterThan(SHORT)
     expect(once.characters.m.usedSurge).toBe('focus')
     expect(once.characters.m.resources.AP).toBe(0)
     const twice = passRound(() => HIT)(once)
@@ -122,7 +126,7 @@ describe('an action held over to the next round', () => {
   // combat.tex "Interruption": "All AP and STA costs of the action or movement
   // that have already been spent are lost."
   it('comes to nothing, and gives nothing back, when an interruption lands on its actor', () => {
-    const held = medicHolding(5)
+    const held = medicHolding(SHORT)
     const blow = ActionSchema.parse({ id: 'blow', kind: 'strike', actorId: 'e', targetId: 'm', step: 'done', interruption: 'interrupted' })
     const broken = breakHeld(held, blow)
     expect(getHeldOf(broken, 'm')).toBeNull()
@@ -136,7 +140,7 @@ describe('an action held over to the next round', () => {
 // highest to lowest."
 describe('several actions finishing in the same round', () => {
   function twoMedics(): SceneState {
-    const start = board({ a: [0, 0], b: [3, 0], e: [8, 0] }, leftWith(medic('a'), 5), leftWith(medic('b'), 5), spearman('e'))
+    const start = board({ a: [0, 0], b: [3, 0], e: [8, 0] }, leftWith(medic('a'), SHORT), leftWith(medic('b'), SHORT), spearman('e'))
     return tendSelf(tendSelf(start, 'a'), 'b')
   }
   const fresh = (state: SceneState): SceneState => ({ ...state, characters: Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, { ...c, usedSurge: null, resources: { ...c.resources, AP: ROUND_AP } }])) })

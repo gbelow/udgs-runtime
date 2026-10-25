@@ -197,3 +197,14 @@ click to what stands afterwards. It is admitted, under these terms.
 - No test needs a comment arguing that it deserves to exist. If one is being written, that is
   evidence the test does not pass the gate — the honest move is to delete the test, not to
   improve the argument.
+- **A test that reads the catalog must hold for any value in it.** The catalogs (spells,
+  abilities, items, weapons, armors) are authored in the app and edited freely, so a number in
+  one is not a fact a test may stand on. Never copy a catalog number into a test: take it from
+  the entry the test names (`SPELLS[key]`, `ABILITIES[key]`, the item's own fields), and build
+  the scenario from it: distances from the area's radius or length, the dice from the DL, the
+  caster's AP and STA from the cost. A test that passes only while the catalog says 8 fails the
+  gate however correct it looks, because it fails the next time someone edits the catalog.
+  When the scenario needs a fact the rule does not (a held action needs a price above what is
+  left of the round), state it as the scenario's own premise beside the derived numbers.
+  To check a test, perturb the catalog (double or halve its numbers) and run the suite: a red
+  test names a literal that should have been derived.

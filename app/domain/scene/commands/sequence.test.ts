@@ -16,11 +16,12 @@ import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
 import { produceEffects } from '../../character/rules/production'
-import { SPELLS } from '../../spells'
+import { SPELLS, type SpellKey } from '../../spells'
+import { ROUND_AP } from '../../tables'
 import { getItemArmor } from '../../item/rules/items'
 import { archer, board as onBoard } from '../../bot/fixtures'
 import { grantAbility } from '../../character/commands/abilities'
-import type { AbilityKey } from '../../abilities'
+import { ABILITIES, type AbilityKey } from '../../abilities'
 import { getTethers } from '../rules/partners'
 import { getSpellOptions } from '../rules/cast'
 
@@ -197,6 +198,15 @@ describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, rea
   })
 })
 
+// A die that casts the spell however the catalog sets its DL.
+const sure = (key: SpellKey) => () => (SPELLS[key].DL ?? 0) + 20
+
+// The caster has the AP and STA to pay for the spell however the catalog prices it.
+function funded<C extends CampaignCharacter>(c: C, key: SpellKey): C {
+  const { AP, STA } = SPELLS[key].cost
+  return { ...c, resources: { ...c.resources, AP: AP + ROUND_AP, STA: STA + c.resources.STA } }
+}
+
 // combat.tex "Interruption": "interrupts any action from its victim". The
 // table's ruling: every declared opportunity attack is still fought after
 // one has broken the action, and the broken action lands nothing.
@@ -330,27 +340,31 @@ describe('giving up the action an opportunity attack answers', () => {
 // reactions have moved, never before (combat.tex "Explosions": "People react
 // with reflexes to leave the area").
 describe('an explosion', () => {
-  // A grenade charged with a shock explosive (radius 3) thrown between two
+  const area = SPELLS['shock-explosive'].effects[0].area
+  if (area?.shape !== 'explosion') throw new Error('shock-explosive is not an explosion')
+  const { radius } = area
+
+  // A grenade charged with a shock explosive thrown between two
   // who stand beside where it lands, both clearing the reflex.
   function grenadeAtTwo(): SceneState {
     const base = fighter('t')
     const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
     const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
     const thrower = { ...(holdItem(charged)(base)), usedSurge: 'focus' as const }
-    let s = onBoard({ t: [-5, 0], x: [0, -1], y: [0, 1] }, thrower, fighter('x'), fighter('y'))
+    let s = onBoard({ t: [-(radius + 2), 0], x: [0, -radius], y: [0, radius] }, thrower, fighter('x'), fighter('y'))
     s = declareAction('t', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 0 } }, newId)(s)
     s = commitAction(() => 5, newId)(s)
     for (const id of ['x', 'y']) s = declareReaction(id, { kind: 'avoidExplosion' }, newId)(s)
     return rollAction(() => 50, newId)(s)
   }
 
-  // One walks 3m out of it, the other skips the escape.
+  // Both stand on the edge of the area: one steps out of it, the other skips the escape.
   it('reaches only who is still in the area once the escapes are walked', () => {
     let s = grenadeAtTwo()
     const escaping = () => getOpenAction(s)!.actorId
     for (let i = 0; i < 5 && getOpenAction(s)?.kind === 'move'; i++) {
       s = escaping() === 'x'
-        ? commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 0, r: -2 }, { q: 0, r: -3 }, { q: 0, r: -4 }] })(s))
+        ? commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 0, r: -(radius + 1) }] })(s))
         : withdrawSpawnedAction(() => 5, newId)(s)
     }
     const blast = getLog(s).find((a) => a.kind === 'blast')
@@ -723,7 +737,8 @@ describe('a disarm an intercept opens', () => {
     const s = resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(declared))
     const opened = getOpenAction(s)
     expect(opened).toMatchObject({ kind: 'grapple', maneuver: 'disarm', actorId: 'def', targetId: 'atk' })
-    expect(getOwnCost(s, opened!)).toEqual({ AP: 1, STA: 1 })
+    const { AP, STA } = ABILITIES.clinch.recipes.find((r) => r.type === 'followUp')!.cost!
+    expect(getOwnCost(s, opened!)).toEqual({ AP, STA })
   })
 
   // a defender with no STA was offered the disarm, could not commit it, and
@@ -823,13 +838,18 @@ describe('a sweeping attack', () => {
 // the cone after the movement." The table's ruling: nothing is aimed before
 // the reflexes; the range around the attacker is only shown.
 describe('a spray', () => {
-  // A flamethrower (4m) cast from between two in range, one east and one
+  const area = SPELLS.flamethrower.effects[0].area
+  if (area?.shape !== 'spray') throw new Error('flamethrower is not a spray')
+  const { length } = area
+  const half = Math.max(2, Math.floor(length / 2))
+
+  // A flamethrower cast from between two in range, one east and one
   // west of the caster, with a third out of range.
   function flamesCast(): SceneState {
     const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
-    const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
-    const s = onBoard({ c: [0, 0], x: [2, 0], y: [-2, 0], z: [6, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
-    return resolveAction(newId, () => 5)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
+    const caster = funded({ ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }, 'flamethrower')
+    const s = onBoard({ c: [0, 0], x: [half, 0], y: [-half, 0], z: [length + 2, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
+    return resolveAction(newId, () => 5)(commitAction(sure('flamethrower'), newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
   }
 
   it('asks everyone in its range for their reflexes, with nothing to aim first', () => {
@@ -850,20 +870,26 @@ describe('a spray', () => {
 // answers, within the spray's reach: fought before the action it answers, and
 // it lays the ground without harming anyone.
 describe('a held spray retargeted as a reaction', () => {
+  const sprayArea = SPELLS.flamethrower.effects[0].area
+  if (sprayArea?.shape !== 'spray') throw new Error('flamethrower is not a spray')
+  const { length } = sprayArea
+
+  const walk = [length + 1, length, length - 1].map((q) => ({ q, r: 0 }))
+
   function heldSprayAgainstWalker(): SceneState {
     const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
-    const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
-    let s = onBoard({ c: [0, 0], z: [6, 0] }, caster, fighter('z'))
-    s = resolveAction(newId, () => 5)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
+    const caster = funded({ ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }, 'flamethrower')
+    let s = onBoard({ c: [0, 0], z: [length + 2, 0] }, caster, fighter('z'))
+    s = resolveAction(newId, () => 5)(commitAction(sure('flamethrower'), newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
     s = resolveAction(newId, () => 5)(aimExplosion(0)(payAction(newId, () => 5)(s)))
     s = declareAction('z', { kind: 'move' }, newId)(s)
-    return commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [5, 4, 3].map((q) => ({ q, r: 0 })) })(s))
+    return commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: walk })(s))
   }
 
   it('is offered to the holder once the mover steps closer within the spray', () => {
     const s = heldSprayAgainstWalker()
     const offered = getAvailableActions(s, 'c').filter((o) => o.draft.kind === 'retarget')
-    expect(offered).toMatchObject([{ available: true, draft: { kind: 'retarget', key: 'flamethrower', at: 3 } }])
+    expect(offered).toMatchObject([{ available: true, draft: { kind: 'retarget', key: 'flamethrower', at: walk.length } }])
   })
 
   it('lands before the move it answers, and harms nobody', () => {
@@ -1097,20 +1123,21 @@ describe('a net', () => {
 // while it is within range; it "ends if the target ... touches the caster,
 // in which case the arc short-circuits, causing damage to both".
 describe('sustained lightning', () => {
+  const inRange = Math.max(2, Math.floor(SPELLS['sustained-lightning'].effects[0].range! / 2))
   let m = 0
   const arcId = () => `arc${++m}`
 
   // `c` casts it at `x`, `at` cells away, with a die that hits.
   function lightningAt(at: number): SceneState {
     const electrite = ItemSchema.parse({ name: 'Electrite', type: 'magical', bulk: 1, source: { damage: [{ kind: 'electric', value: 10 }], ammo: 20 } })
-    const caster = { ...(holdItem(electrite)(fighter('c'))), spells: { 'sustained-lightning': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    const caster = funded({ ...(holdItem(electrite)(fighter('c'))), spells: { 'sustained-lightning': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }, 'sustained-lightning')
     let s = onBoard({ c: [0, 0], x: [at, 0] }, caster, fighter('x'))
     s = declareAction('c', { kind: 'cast', key: 'sustained-lightning' }, arcId)(s)
-    return playOut(commitAction(() => 20, arcId)(setTarget('x')(s)), 20).state
+    return playOut(commitAction(sure('sustained-lightning'), arcId)(setTarget('x')(s)), sure('sustained-lightning')()).state
   }
 
   it('is held to a target in range, which the caster keeps', () => {
-    const s = lightningAt(5)
+    const s = lightningAt(inRange)
     expect(s.binds.map((b) => b.kind)).toEqual(['arc'])
     expect(s.characters.c.active.map((e) => e.key)).toContain('sustained-lightning')
   })
@@ -1132,20 +1159,25 @@ describe('telepathic link', () => {
 
   // `c` casts it at `x`, `at` cells away; `x` fails the test its cast opens.
   function linkedAt(at: number, targetDie = 0): SceneState {
-    const caster = { ...fighter('c'), spells: { 'telepathic-link': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    const caster = funded({ ...fighter('c'), spells: { 'telepathic-link': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }, 'telepathic-link')
     let s = onBoard({ c: [0, 0], x: [at, 0] }, caster, fighter('x'))
     s = declareAction('c', { kind: 'cast', key: 'telepathic-link' }, linkId)(s)
-    return playOut(commitAction(() => 20, linkId)(setTarget('x')(s)), targetDie).state
+    return playOut(commitAction(sure('telepathic-link'), linkId)(setTarget('x')(s)), targetDie).state
   }
 
+  const { linkRange, linkDL } = SPELLS['telepathic-link']
+  const castingDL = (s: SceneState) => getSpellOptions(s, s.characters.c).find((o) => o.key === 'telepathic-link')?.DL
+
   it('holds one link per target, which raises the caster\'s casting DL', () => {
+    const before = castingDL(onBoard({ c: [0, 0], x: [5, 0] }, { ...fighter('c'), spells: { 'telepathic-link': { method: 'intuitive' as const, practice: 0 } } }, fighter('x')))
     const s = linkedAt(5)
     expect(s.binds.map((b) => b.kind)).toEqual(['link'])
-    expect(getSpellOptions(s, s.characters.c).find((o) => o.key === 'telepathic-link')?.DL).toBe(3)
+    expect(castingDL(s)).toBe(before! + linkDL!)
   })
 
-  it('lets go of a target beyond its range', () => {
-    expect(linkedAt(25).binds).toEqual([])
+  it('holds a target at the edge of its range and lets go one cell past', () => {
+    expect(linkedAt(linkRange!).binds).toHaveLength(1)
+    expect(linkedAt(linkRange! + 1).binds).toEqual([])
   })
 
   // A target who beat the first test left the caster holding a link spell with
