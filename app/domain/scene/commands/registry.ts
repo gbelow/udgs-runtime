@@ -9,7 +9,7 @@ import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ChaseDeclaration, Coord, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
-import { backSegment, createBoard, importBoard, loadBoardMap, removeBoard, resizeBoard, setLight } from './board'
+import { backSegment, createBoard, loadBoardMap, removeBoard, resizeBoard, setLight } from './board'
 import { confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
@@ -98,8 +98,6 @@ export const sceneCommands = {
   removeBoard: command(() => removeBoard).by(gm),
   resizeBoard: command((_, radius: number) => resizeBoard(radius)).by(gm),
   light: command((_, level: LightLevel) => setLight(level)).by(gm),
-  // a board from a VTT, read best-effort
-  importBoard: command((_, raw: unknown) => importBoard(raw)).by(anyone),
   // a kept board, with everyone off it
   loadBoardMap: command((_, raw: unknown) => loadBoardMap(raw)).by(gm),
 

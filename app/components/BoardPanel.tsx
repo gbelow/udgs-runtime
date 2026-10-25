@@ -1,7 +1,6 @@
 'use client'
 import { memo, useState, type MouseEvent } from 'react'
 import { useBoard } from '../hooks/useBoard'
-import { useVttLink } from '../hooks/useVttLink'
 import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
@@ -112,7 +111,6 @@ export function BoardPanel(){
       </div>
       <SizeRow key={view.radius} radius={view.radius} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
-      <LinkRow />
       {gmTools ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>GM</SectionLabel>
@@ -197,25 +195,6 @@ function MapsRow({ canSave }: { canSave: boolean }){
         <Button size='xs' disabled={!name.trim()} onClick={() => save(name.trim(), false)}>save mine</Button>
         {devServer ? <Button size='xs' disabled={!name.trim()} onClick={() => save(name.trim(), true)}>save for all</Button> : null}
       </>) : null}
-    </div>
-  )
-}
-
-// The board's way in and out: a fight id names a mailbox a VTT module reads
-// and writes; the clipboard carries the same snapshot by hand.
-function LinkRow(){
-  const { fight, setFight, auto, setAuto, push, pull, copy, paste } = useVttLink()
-  const linked = fight.length > 0
-  return (
-    <div className='flex flex-row flex-wrap gap-1 items-center'>
-      <SectionLabel>link</SectionLabel>
-      <TextInput aria-label='fight id' placeholder='fight id' value={fight} onChange={(e) => setFight(e.target.value.trim())} className='w-28' />
-      <Button size='xs' disabled={!linked} onClick={push}>push</Button>
-      <Button size='xs' disabled={!linked} onClick={pull}>pull</Button>
-      <Button size='xs' disabled={!linked} selected={auto} onClick={() => setAuto(!auto)}>auto</Button>
-      <span className='mx-1 text-line'>|</span>
-      <Button size='xs' onClick={copy}>copy</Button>
-      <Button size='xs' onClick={paste}>paste</Button>
     </div>
   )
 }

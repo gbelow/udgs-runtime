@@ -57,13 +57,6 @@ export function setLight(light: LightLevel): Updater {
   return (state) => (!state.board || getOpenAction(state) ? state : { ...state, board: { ...state.board, light } })
 }
 
-// Takes a board in from outside — a VTT's snapshot, a saved one — through the
-// same best-effort reading every board gets, replacing whatever was there.
-// Refused while an action is open, for the same reason painting is.
-export function importBoard(raw: unknown): Updater {
-  return (state) => (getOpenAction(state) ? state : { ...state, board: makeBoard(raw) })
-}
-
 // Plays the fight on a kept board: its ground and light, everyone off it and
 // what lay on the floor lying nowhere in particular. Refused while an action
 // is open, as painting is.

@@ -16,8 +16,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   its own burn deals in that zone, whether the gas suffocates, and the visibility it leaves.
   A layer from a sustained spell names its holder and the explosion that cast it; it is
   read as gone while they do not hold the spell (`isLayerLive`), and a new cast of the
-  spell paints over it (`isSupersededBy`). What leaves the fight takes only the live layers
-  (`getLiveBoard`). A footprint takes the worst of its cells (`getHazardAt`). Suffocation
+  spell paints over it (`isSupersededBy`). A footprint takes the worst of its cells (`getHazardAt`). Suffocation
   from gas is never stored: `rules/situational.ts` reads it off where the character
   stands, so no command has to settle it. `getFireTouched` reads, off
   the board an action landed, the worst fire the turn holder stands in or walked through (a
@@ -90,9 +89,9 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   the round; they do not scan the log for it. Swim moves
   are priced per metre by the degree that metre's water gives the score, and a dive is swum
   like a metre of path.
-- Board edits outside any action (`createBoard`, `importBoard`, `placeCharacter`,
+- Board edits outside any action (`createBoard`, `placeCharacter`,
   `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
-  action is open. `makeBoard` (`factories.ts`) ingests a VTT snapshot best-effort.
+  action is open. `makeBoard` (`factories.ts`) ingests a kept board best-effort.
 - What a click on the board means is `readClick` (`commands/click.ts`), read off the state
   at the click and whom the screen has picked through `getBoardMode` and `getFloorPicker`
   (`rules/board/boardMode.ts`): a change to the fight and whom it acts for, or a character picked

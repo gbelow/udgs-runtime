@@ -95,8 +95,8 @@ export function isHookedRunner(state: SceneState, action: MoveAction, at: number
 
 // Where the move ends: the last cell of the path as walked, the orientation
 // it named, the elevation of the ground there — the board's terrain says how
-// high a cell is, so a placement carried in from a VTT is re-read off it on
-// the first move.
+// high a cell is, so a placement whose stored elevation is stale is re-read off
+// it on the first move.
 export function getMoveDestination(state: SceneState, action: MoveAction, path: Coord[]): Placement | null {
   const from = getMoveOrigin(state, action)
   const cell = path[path.length - 1]

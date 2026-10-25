@@ -205,9 +205,8 @@ export type TerrainCell = z.infer<typeof TerrainCellSchema>
 export const LightLevelSchema = z.enum(LIGHT_LEVELS)
 export type LightLevel = z.infer<typeof LightLevelSchema>
 
-// The spatial facts of a fight, in game units. The real grid is a VTT's; this
-// is what the domain needs of it to judge distance, reach, cover and where a
-// move may end. `placements` is keyed by character id, `terrain` by the cell
+// The spatial facts of a fight, in game units: what the domain
+// needs of the grid to judge distance, reach, cover and where a move may end. `placements` is keyed by character id, `terrain` by the cell
 // key `geometry.ts` makes of a Coord, and a cell absent from `terrain` is
 // open ground.
 export const BoardSchema = z.object({
@@ -217,7 +216,7 @@ export const BoardSchema = z.object({
   // reaches and no darkness is painted
   light: LightLevelSchema.default('bright'),
   // where and how far the board is drawn; the rules do not care, the
-  // simulation tool does. A VTT puts the origin at its scene's centre.
+  // simulation tool does.
   origin: CoordSchema.default({ q: 0, r: 0 }),
   radius: num.int().min(1).default(6),
 }).strip()

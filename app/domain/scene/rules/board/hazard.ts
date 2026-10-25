@@ -65,11 +65,6 @@ export function filterLayers(terrain: Board['terrain'], keep: (layer: HazardLaye
   return Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, cell.layers.every(keep) ? cell : { ...cell, layers: cell.layers.filter(keep) }]))
 }
 
-// The board with only the layers still there, for whatever reads it without
-// the fight to tell which are: a VTT, a clipboard.
-export function getLiveBoard(state: SceneState): Board | null {
-  return state.board ? { ...state.board, terrain: filterLayers(state.board.terrain, (l) => isLayerLive(state, l)) } : null
-}
 
 // combat.tex "Fire": fuel in a space where something burns catches at once,
 // as hot as the hottest fire there — `fresh` is a fire laid in the space as

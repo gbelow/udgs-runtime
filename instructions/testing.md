@@ -169,7 +169,7 @@ click to what stands afterwards. It is admitted, under these terms.
 - **The harness is the contract.** A new button or click goes into the harness as the command
   its hook dispatches. If a hook decides anything beyond which command to dispatch, move the
   decision into the domain first and have the harness call that.
-- **Other seams stay undecided.** Panels, persistence and the VTT link are not covered by this
+- **Other seams stay undecided.** Panels and persistence are not covered by this
   rule; decide each against the first case that demands it.
 
 ## Conventions

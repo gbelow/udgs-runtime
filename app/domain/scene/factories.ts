@@ -7,7 +7,7 @@ export function makeAction<K extends ActionKind>(kind: K, fields: Partial<Omit<A
   return ActionSchema.parse({ ...fields, kind }) as ActionOf<K>
 }
 
-// A board arrives from outside — a VTT snapshot, a saved fight — and is read
+// A board arrives from outside — a kept map, a saved fight — and is read
 // the way a character is: best effort, entry by entry. A placement or a cell
 // that cannot be read is dropped, and the rest of the board survives; a
 // snapshot that is not an object at all is an empty board.

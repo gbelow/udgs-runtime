@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { makeBoard } from './factories'
 import { BoardSchema } from './types'
 
-// A board is the domain's door to a VTT — a snapshot it did not write, keyed
-// and shaped by someone else — so what matters is that reading one is total,
+// A board is read from storage — a kept map or a saved fight it did not just
+// write — so what matters is that reading one is total,
 // keeps nothing it cannot vouch for, and survives the trip through JSON.
 
 const HOSTILE: { label: string; raw: unknown }[] = [
