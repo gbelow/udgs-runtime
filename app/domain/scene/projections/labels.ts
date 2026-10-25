@@ -19,6 +19,7 @@ export function getActionName(action: ActionDraft): string {
   if (action.kind === 'drag' && action.pull) return 'pull'
   if (action.kind === 'social' && action.say) return action.say
   if (action.kind === 'fireAgain' && action.key !== undefined && isSpellKey(action.key)) return `${SPELLS[action.key].name} again`
+  if (action.kind === 'releaseSpell' && action.key !== undefined && isSpellKey(action.key)) return `let go of ${SPELLS[action.key].name}`
   return ACTIONS[action.kind].label
 }
 

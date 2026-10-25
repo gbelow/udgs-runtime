@@ -439,6 +439,7 @@ export function getDLTerms(state: SceneState, root: RootAction): Term[] {
     case 'rest':
     case 'prepare':
     case 'fireAgain':
+    case 'releaseSpell':
     case 'fleeFollowUp':
       return []
   }
@@ -553,6 +554,7 @@ export function getRootTestTerms(state: SceneState, root: RootAction): RootTestT
     case 'rest':
     case 'prepare':
     case 'fireAgain':
+    case 'releaseSpell':
     case 'fleeFollowUp':
       return null
   }

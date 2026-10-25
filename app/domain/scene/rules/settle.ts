@@ -85,6 +85,7 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
       return { ...open, step: 'done', loaded: actor ? getReloaded(actor, open) : null }
     }
     case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
+    case 'releaseSpell':
     case 'slip':
     case 'feint':
     case 'cut': return { ...open, step: 'done' }

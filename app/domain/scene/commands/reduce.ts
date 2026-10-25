@@ -40,7 +40,7 @@ import { getFireAgainCharges } from '../rules/fireAgain'
 import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { takeDose } from '../../character/commands/consume'
 import { getInterruptionOf } from '../rules/interruption'
-import { loseConcentration } from '../../character/commands/spells'
+import { loseConcentration, releaseSpell } from '../../character/commands/spells'
 import { getAction, getReactionsTo } from '../rules/log'
 import { extinguishCell } from '../rules/extinguish'
 import { coatCell, filterLayers, igniteCell, getHolderOf, isSupersededBy, type FireTouched } from '../rules/board/hazard'
@@ -157,6 +157,8 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         // combat.tex "Balance": what the landing did to the one who fell
         if (action.kind === 'fall') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)
+        // spells.tex "Sustained Spells": let go of at will, for nothing
+        if (action.kind === 'releaseSpell') return c.id === action.actorId && isSpellKey(action.key) ? releaseSpell(action.key)(c) : c
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
         // combat.tex "Social actions": each "counts as a Rest action";
         // unflagging a surrender is free and no rest

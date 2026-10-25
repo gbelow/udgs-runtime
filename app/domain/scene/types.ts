@@ -1064,6 +1064,13 @@ export const ReleaseActionSchema = z.object({
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
+// spells.tex "Sustained Spells": a held spell let go of at will, for nothing.
+export const ReleaseSpellActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('releaseSpell'),
+  key: str.default(''),
+}).strip()
+
 // gear.tex "Net": the tethered slipping the net they were caught in, a
 // Prestidigitation test against the DL of the tether.
 export const SlipActionSchema = z.object({
@@ -1257,6 +1264,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   GrappleActionSchema,
   DragActionSchema,
   ReleaseActionSchema,
+  ReleaseSpellActionSchema,
   SlipActionSchema,
   FeintActionSchema,
   CutActionSchema,
@@ -1295,6 +1303,7 @@ export type MoveAction = z.infer<typeof MoveActionSchema>
 export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
+export type ReleaseSpellAction = z.infer<typeof ReleaseSpellActionSchema>
 export type SlipAction = z.infer<typeof SlipActionSchema>
 export type FeintAction = z.infer<typeof FeintActionSchema>
 export type CutAction = z.infer<typeof CutActionSchema>

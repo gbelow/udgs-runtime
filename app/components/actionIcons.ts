@@ -39,6 +39,7 @@ export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
   drag: MoveRight,
   release: Unlink,
   slip: Unlink,
+  releaseSpell: Unlink,
   feint: Drama,
   cut: Scissors,
   holdBack: Grab,

@@ -20,7 +20,7 @@ import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
 import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
-import { hasGrant } from '../../character/rules/effects'
+import { hasGrant, isSpellActive } from '../../character/rules/effects'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
@@ -118,6 +118,8 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken, isCombatStarted(state)) && getSpellBoardBar(state, c, action.key) === null && isSuggestionComplete(state, action)
     case 'fireAgain':
       return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(state, c, action.key) === null
+    case 'releaseSpell':
+      return isSpellKey(action.key) && isSpellActive(c, action.key)
     case 'move':
       return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1))
     case 'block':
@@ -349,6 +351,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'swimTest':
     case 'blast':
     case 'release':
+    case 'releaseSpell':
     case 'feint':
     case 'holdBack':
     case 'pickUp':
@@ -660,6 +663,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'explosion':
     case 'drag':
     case 'release':
+    case 'releaseSpell':
     case 'slip':
     case 'feint':
     case 'cut':
@@ -813,6 +817,7 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
     case 'rest':
     case 'prepare':
     case 'fireAgain':
+    case 'releaseSpell':
     case 'fleeFollowUp':
     case 'spellTest':
     case 'fall':

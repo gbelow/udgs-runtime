@@ -147,8 +147,10 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     case 'swimTest': return []
     // letting go and grappling back draw nothing; nor does resting, which
     // is no standard action (combat.tex "Opportunity Attack"), nor firing a
-    // held spell again (step 6 makes it a reaction of its own)
+    // held spell again (step 6 makes it a reaction of its own); nor does
+    // letting go of a held spell
     case 'release':
+    case 'releaseSpell':
     case 'slip':
     case 'feint':
     case 'cut':

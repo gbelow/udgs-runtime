@@ -153,6 +153,7 @@ function withCommitFacts(state: SceneState, actor: CampaignCharacter, open: Root
     case 'grapple':
     case 'drag':
     case 'release':
+    case 'releaseSpell':
     case 'slip':
     case 'feint':
     case 'cut':
@@ -423,6 +424,7 @@ function withPercentileRolls(state: SceneState, root: RootAction, dice: Dice): R
     case 'grapple':
     case 'drag':
     case 'release':
+    case 'releaseSpell':
     case 'slip':
     case 'feint':
     case 'holdBack':

@@ -118,6 +118,8 @@ export const ACTIONS = {
   drag:        { label: 'push or drag', rule: 'combat.tex "Push and drag"', noun: 'push',  type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, movement: true, identity: { pull: false } },
   // letting go of a partner who does not hold back costs nothing
   release:     { label: 'let go', rule: "the table's ruling",       type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
+  // spells.tex "Sustained Spells": a held spell is let go of at will, for nothing
+  releaseSpell: { label: 'let go of a spell', rule: 'spells.tex "Sustained Spells"', type: 'action', price: null, reactsTo: [], die: false, identity: { key: '' } },
   // gear.tex "Net": a Prestidigitation test against the tether's DL, priced
   // as two standard actions (rules/tether.ts `getSlipCost`)
   slip:        { label: 'slip the net', rule: 'gear.tex "Net"', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },

@@ -11,6 +11,10 @@ import { getSurgeTurnBar, isInTurn } from './turn'
 // an action within a grapple, not as movement (the table's ruling)
 const GRAPPLE_MOVEMENT: readonly ActionKind[] = ['drag', 'assist', 'carry']
 
+// spells.tex "Sustained Spells": a held spell is let go of for nothing, so no
+// surge's AP stands in its way
+const FREE_KINDS: readonly ActionKind[] = ['releaseSpell']
+
 // The actions each allowance in SURGES names. "grapple" is not a list: it
 // is every action, for one in a grapple.
 const ALLOWANCE_KINDS: Record<Exclude<SurgeAllowance, 'grapple'>, readonly ActionKind[]> = {
@@ -30,14 +34,14 @@ function allows(state: SceneState, c: CampaignCharacter, surge: EarmarkedSurge, 
 // Why the kind cannot be declared while a surge's AP is left, or null.
 export function getSurgeBarFor(state: SceneState, c: CampaignCharacter, kind: ActionKind): string | null {
   const surge = getBindingSurge(c)
-  return !surge || allows(state, c, surge, kind) ? null : `${surge} surge AP left`
+  return !surge || FREE_KINDS.includes(kind) || allows(state, c, surge, kind) ? null : `${surge} surge AP left`
 }
 
 // combat.tex "Flee": "The flee action can only use actions allowed by
 // movement surge" — in a flee turn, only those, and only out of the surge's
 // AP: once it is spent, the flee is over but for ending the turn.
 export function getFleeBarFor(state: SceneState, c: CampaignCharacter, kind: ActionKind): string | null {
-  if (!state.fleeing || !isInTurn(state, c.id)) return null
+  if (!state.fleeing || !isInTurn(state, c.id) || FREE_KINDS.includes(kind)) return null
   if (!allows(state, c, 'movement', kind)) return 'fleeing'
   return getSurgeAPLeft(c) > 0 ? null : 'flee surge spent'
 }

@@ -11,7 +11,7 @@ import { GRAPPLE_MANEUVERS } from '../../lists'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { hasGrant } from '../../character/rules/effects'
+import { getActiveSpellKeys, hasGrant } from '../../character/rules/effects'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { getHangingFall } from './board/cliff'
 import { isProne } from './board/ground'
@@ -398,6 +398,8 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   },
   // a held spell fired again without the casting test (the table's ruling)
   fireAgain: (state, c) => getFireAgainOptions(state, c).map(({ key, reason }) => option({ kind: 'fireAgain', key }, getRepeatCost(key), reason)),
+  // spells.tex "Sustained Spells": each held spell is let go of at will, for nothing
+  releaseSpell: (_, c) => getActiveSpellKeys(c).map((key) => option({ kind: 'releaseSpell', key }, { AP: 0, STA: 0 }, null)),
   cast: (state, c) => {
     const spells = getSpellOptions(state, c)
     const castable = spells.some((s) => s.castable || s.quickenable)
@@ -532,7 +534,7 @@ function afford(state: SceneState, c: CampaignCharacter, cost: ActionCost): stri
 // skills other than escape."
 function closeIfImmobile(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
   if (!isImmobile(state, c)) return options
-  return options.map((o) => (o.draft.kind === 'grapple' && o.draft.maneuver === 'escape') ? o : { ...o, available: false, reason: 'immobile' })
+  return options.map((o) => (o.draft.kind === 'releaseSpell' || (o.draft.kind === 'grapple' && o.draft.maneuver === 'escape')) ? o : { ...o, available: false, reason: 'immobile' })
 }
 
 // The unconscious do nothing but rest.
@@ -555,7 +557,7 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 // moving, no answering (abilities.tex "Battle Mage" is what would allow
 // either).
 function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' || o.draft.kind === 'fireAgain' || o.draft.kind === 'retarget' ? null : 'concentrating')) : options
+  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' || o.draft.kind === 'fireAgain' || o.draft.kind === 'retarget' || o.draft.kind === 'releaseSpell' ? null : 'concentrating')) : options
 }
 
 function closeBySurge(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
