@@ -135,7 +135,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
         ? {
             options: declared.kind === 'joinShot'
               ? getFreeAttackOptions(state, c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
-              : getFreeAttackOptions(state, c, 'strike').filter((o) => declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, { ...declared, mode: 'strike', weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }) === null : isVariantOpen(state, declared, o.variant)),
+              : getFreeAttackOptions(state, c, 'strike').filter((o) => declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, { ...declared, mode: 'strike', weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }) === null : isVariantOpen(state, declared, o)),
             shot: declared.kind === 'joinShot',
             ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
             ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
@@ -513,7 +513,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
-          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
+          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
           .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
     ammo: (open.kind === 'shoot' || open.kind === 'reload') && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],

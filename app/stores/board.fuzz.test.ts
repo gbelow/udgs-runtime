@@ -26,7 +26,8 @@ import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MAN
 import { CampaignCharacterSchema, SurgeKindSchema, type Character } from '../domain/types'
 import { getAim } from '../domain/scene/rules/aim'
 import { hasGrant } from '../domain/character/rules/effects'
-import { archer, bomber, crossbowman, brawler, mage, medic, meleeTrained, netter, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
+import { JUMP_ATTACKS, type JumpAttackKey } from '../domain/scene/rules/jumpAttack'
+import { archer, bomber, crossbowman, brawler, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
@@ -863,29 +864,33 @@ function grapplingPlay(h: Harness): Play[] {
   }]
 }
 
-// abilities.tex "Lunge": a jump of one's own declared as a lunge, landed
-// where the board offers. Played only where someone has the ability, for the
-// same reason as the shelter.
-function lungePlay(h: Harness): Play[] {
-  if (!Object.values(h.state().characters).some((c) => hasGrant(c, 'lunge'))) return []
-  return [{
-    name: 'lunge',
-    weight: 3,
-    run: (h, pick) => {
-      h.select(pick(Object.values(h.state().characters).filter((c) => hasGrant(c, 'lunge')).map((c) => c.name)))
-      h.startTurn()
-      const jump = ownOptions(h, h.active()!).find((o) => o.draft.kind === 'move')
-      if (!jump) return
-      h.declare({ kind: 'move', movement: 'jump' })
-      const lunge = getActionPanel(h.state()).open?.modifiers.find((m) => m.key === 'lunge')
-      if (!lunge?.allowed) return
-      h.send({ kind: 'amend', args: [lunge.press] })
-      const there = highlighted(h)
-      if (there.length) h.click({ on: 'cell', cell: pick(there).cell })
-      h.commit()
-      playOut(h, pick)
-    },
-  }]
+// abilities.tex "Lunge", "Jump Shot": a jump of one's own declared as a jump
+// attack, landed where the board offers, and the attack it opens played out.
+// Played only where someone has the ability, for the same reason as the
+// shelter.
+function jumpAttackPlay(h: Harness): Play[] {
+  return (Object.keys(JUMP_ATTACKS) as JumpAttackKey[]).flatMap((key): Play[] => {
+    const able = () => Object.values(h.state().characters).filter((c) => hasGrant(c, JUMP_ATTACKS[key].grant))
+    if (!able().length) return []
+    return [{
+      name: key,
+      weight: 3,
+      run: (h, pick) => {
+        h.select(pick(able().map((c) => c.name)))
+        h.startTurn()
+        const jump = ownOptions(h, h.active()!).find((o) => o.draft.kind === 'move')
+        if (!jump) return
+        h.declare({ kind: 'move', movement: 'jump' })
+        const toggle = getActionPanel(h.state()).open?.modifiers.find((m) => m.key === key)
+        if (!toggle?.allowed) return
+        h.send({ kind: 'amend', args: [toggle.press] })
+        const there = highlighted(h)
+        if (there.length) h.click({ on: 'cell', cell: pick(there).cell })
+        h.commit()
+        playOut(h, pick)
+      },
+    }]
+  })
 }
 
 // abilities.tex "Gentle Art": the grapple test being declared, or answered
@@ -926,6 +931,7 @@ const DUELS = [
   { name: 'a brawler and a warden', a: brawler, b: warden, apart: 2 },
   { name: 'a brawler and a spearman', a: brawler, b: spearman, apart: 2 },
   { name: 'a melee-trained sword brawler and spearman', a: (id: string) => meleeTrained(swordBrawler(id)), b: (id: string) => meleeTrained(spearman(id)), apart: 2 },
+  { name: 'a brawler and a ranged-trained archer', a: brawler, b: (id: string) => rangedTrained(archer(id)), apart: 1 },
 ]
 
 const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'resize the board', 'drop a held item', 'take a whole action'].includes(p.name))
@@ -945,7 +951,7 @@ function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   h.select('Bob')
   h.cell(duel.apart, 0)
   h.select('Ann')
-  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...lungePlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('two characters grappling, pushing, shooting and defending', () => {
@@ -995,7 +1001,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...lungePlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('a crowd on rough ground', () => {
@@ -1154,14 +1160,14 @@ function chasePlays(): Play[] {
 // reach or cover from but the chase.
 function playChase(seed: number, table = false) {
   const { h, pick } = openChase(seed, undefined, table)
-  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...lungePlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...grapplingPlay(h)], pick)
 }
 
 function openChase(seed: number, tier?: ChaseTier, table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(warden('Ann'), trained(archer('Bob')), brawler('Cy'), towerWarden('Dee'), crossbowman('Eve'), mage('Fay'))
+  h.bring(warden('Ann'), rangedTrained(trained(archer('Bob'))), brawler('Cy'), towerWarden('Dee'), crossbowman('Eve'), mage('Fay'))
   h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
   const theirs = h.state().partyOf[h.idOf('Dee')]
   for (const name of ['Eve', 'Fay']) h.send({ kind: 'moveToParty', args: [h.idOf(name), theirs] })

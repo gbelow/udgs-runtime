@@ -11,7 +11,7 @@ import { getRootOf } from './log'
 import { isInLiquid } from './board/ground'
 import { canGrab, isGrappleRowOf } from './grapple'
 import { isSweepLink } from './sweep'
-import { LUNGE_COST, canLunge } from './jumpAttack'
+import { JUMP_ATTACKS, canJumpAttack } from './jumpAttack'
 import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
 
 // Every yes-or-no an action is declared with besides what it is (types.ts,
@@ -161,14 +161,22 @@ const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modif
       price: ({ actor }) => ({ add: getActionCost(actor, 'defensiveAdvance') }),
     },
   },
-  // abilities.tex "Lunge": "jump for 1 STA" (rules/lunge.ts)
+  // abilities.tex "Lunge": "jump for 1 STA"; "Jump Shot": "Spends 1 extra
+  // AP and 1 STA to jump backward" (rules/jumpAttack.ts)
   move: {
     lunge: {
       label: 'lunge',
       offer: 'toggle',
       requires: 'lunge',
-      allowed: ({ state, action }) => action.kind === 'move' && canLunge(state, action),
-      price: () => ({ set: LUNGE_COST }),
+      allowed: ({ state, action }) => action.kind === 'move' && canJumpAttack(state, action, 'lunge'),
+      price: () => ({ set: JUMP_ATTACKS.lunge.price }),
+    },
+    jumpShot: {
+      label: 'jump shot',
+      offer: 'toggle',
+      requires: 'jumpShot',
+      allowed: ({ state, action }) => action.kind === 'move' && canJumpAttack(state, action, 'jumpShot'),
+      price: () => ({ set: JUMP_ATTACKS.jumpShot.price }),
     },
   },
 }

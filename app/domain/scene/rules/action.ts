@@ -58,8 +58,8 @@ import { getFireAgainBar, getRepeatCost } from './fireAgain'
 import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
-import { isLungeLanding, isLungeStrike } from './jumpAttack'
-import { getStrikeContext, isStrikeDeclarationOpen, type StrikeHolder } from './strikeDeclaration'
+import { getOpeningJumpAttack, isJumpAttackLanding } from './jumpAttack'
+import { getStrikeContext, isStrikeDeclarationOpen, isVariantOpen, type StrikeHolder } from './strikeDeclaration'
 import { addModifierLines, areModifiersOpen, getModifiedPrice, type ModifiedPrice } from './modifiers'
 
 // An action's life in the fight: whether its declaration is complete and
@@ -112,7 +112,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'strike':
       return getAttackVariant(c, action, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
     case 'shoot':
-      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isVariantOpen(state, action, action) && isShotLoaded(c, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
     case 'explosion':
       return (action.source !== 'cast' || isSpellKey(action.key))
@@ -125,7 +125,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'releaseSpell':
       return isSpellKey(action.key) && isSpellActive(c, action.key)
     case 'move':
-      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1)) && isLungeLanding(state, action, action.path.at(-1))
+      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1)) && isJumpAttackLanding(state, action, action.path.at(-1))
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
@@ -264,8 +264,9 @@ function getStrikeVariantCost(state: SceneState, c: CampaignCharacter, action: A
 // to be done to cannot be performed, and is passed up.
 export function isPreparedRequired(state: SceneState, action: Action): boolean {
   if (action.kind === 'move' && action.forced && action.step === 'define') return true
-  // abilities.tex "Lunge": the jump was made "while using an attack"
-  if (action.kind === 'strike' && action.step === 'define' && isLungeStrike(state, action)) return isPerformable(state, action)
+  // abilities.tex "Lunge": the jump was made "while using an attack";
+  // "Jump Shot": to "perform a quick shot or throw"
+  if ((action.kind === 'strike' || action.kind === 'shoot') && action.step === 'define' && getOpeningJumpAttack(state, action) !== null) return isPerformable(state, action)
   if (action.preparedPart === null || action.step !== 'define') return false
   if (action.preparedPart === 'main') return isRoot(action) && isPerformable(state, action)
   const reaction = action.spawnedBy ? getAction(state, action.spawnedBy) : null

@@ -235,7 +235,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
   const diving = action.movement === 'swim' && action.dive !== 0
   if (!from || !ground || (action.path.length === 0 && !diving)) return false
   const cells = action.movement === 'climb' ? getClimbCells(state, action) : action.path.length
-  if (action.movement === 'jump' && cells > getMovementSpeed(c, 'jump')) return false
+  if (action.movement === 'jump' && cells > getJumpSpeed(c, action)) return false
   if (!withinBudget(getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
   if (action.movement === 'climb' && !(isClimbable(state, action) && (isTrivialClimb(state, action) || cells >= 1))) return false
@@ -266,6 +266,13 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
   }
   const end = getFootprint(c, { ...from, cell: cursor, orientation: action.orientation ?? from.orientation })
   return isDiveLegal(state, action, state.board ? readWater(state.board, end) : null)
+}
+
+// combat.tex "Movement": "If performed backwards, the horizontal distance is
+// halved", and abilities.tex "Jump Shot" jumps backward (rules/jumpAttack.ts).
+function getJumpSpeed(c: Character, action: MoveAction): number {
+  const speed = getMovementSpeed(c, 'jump')
+  return action.modifiers.jumpShot ? Math.floor(speed / 2) : speed
 }
 
 // combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
@@ -641,7 +648,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   const drawn = drawsSegments(kind) ? action.path : []
   const affordable = (steps: number) => {
     const total = drawn.length + steps
-    if (kind === 'jump' && total > getMovementSpeed(c, 'jump')) return false
+    if (kind === 'jump' && total > getJumpSpeed(c, action)) return false
     return payable(getMovePrice(state, c, best, total)) && withinBudget(getMoveCost(c, kind, total), action.budget)
   }
   const ceiling = getJumpCeiling(c, from)

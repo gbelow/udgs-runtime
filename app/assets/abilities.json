@@ -1297,10 +1297,12 @@
           }
         ],
         "requirements": [],
-        "description": "Spends 1 extra STA to jump backward and perform a quick shot or throw, avoiding opportunity attacks if the jump takes them out of range.",
+        "description": "Spends 1 extra AP and 1 STA to jump backward and perform a quick shot or throw, avoiding opportunity attacks if the jump takes them out of range.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "jumpShot"
+        ],
         "freeSpells": 0
       }
     ]

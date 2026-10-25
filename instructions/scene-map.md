@@ -356,7 +356,7 @@ app/domain/scene/
 │   ├── tested.ts       the tests a landing action's instant deliveries leave their targets (and what follows a strike's blow), rolled with the dice they threw with it
 │   ├── declaration.ts  the declarations an attack is made with (`StrikeDeclaration`, `ShotDeclaration` in types.ts), copied whole by picks read off the schema
 │   ├── strikeDeclaration.ts one strike declaration, whatever declares it (a turn, an opportunity attack, a counterattack, a preparation, a recipe, a sweep): its context (what it answers, the step that drew it) and the variations open there
-│   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion, Technical Lift, Defensive Advance, Lunge), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
+│   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion, Technical Lift, Defensive Advance, Lunge, Jump Shot), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike
@@ -382,6 +382,7 @@ app/domain/scene/
 │   ├── displace.ts     a won crash in the space the move ends in: who is displaced, the spaces the attacker may put them in (`getAim` 'displace', picked by `displaceTrampled`), the forced movement each is made into before the move lands (`land`), and where the move reads them meanwhile (`withDisplaced`)
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
+│   ├── jumpAttack.ts   a jump declared as Lunge or Jump Shot (abilities.tex): what each costs and opens, where it may land (a jump shot backward, at half the jump), and the attack it opens from there
 │   ├── plant.ts        a body shield planted (abilities.tex "Crossbow and Shield"): the shields one may plant, the cells it may face
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes (of whoever a landed action stunned), grapple facts
 │   ├── partners.ts     who is grappled with whom
