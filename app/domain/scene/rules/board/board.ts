@@ -344,7 +344,7 @@ export function getMeleeRange(c: Character, fits: (atk: WeaponAttack) => boolean
 // others who get that attack: everyone with the attacker in their own melee
 // range, standing more than a quarter turn off the attacker's line to the
 // target. Nobody, on a fight without a board.
-export function getFlankers(state: SceneState, attackerId: string, targetId: string, reachOf: (c: Character) => number = getMeleeRange): string[] {
+export function getFlankers(state: SceneState, attackerId: string, targetId: string): string[] {
   const attacker = getPlacedFootprint(state, attackerId)
   const target = getPlacedFootprint(state, targetId)
   if (!attacker || !target) return []
@@ -354,7 +354,7 @@ export function getFlankers(state: SceneState, attackerId: string, targetId: str
     if (id === attackerId || id === targetId) return false
     const other = state.characters[id]
     const footprint = getPlacedFootprint(state, id)
-    if (!footprint || setDistance(footprint, attacker) > reachOf(other)) return false
+    if (!footprint || setDistance(footprint, attacker) > getMeleeRange(other)) return false
     return angularGap(toTarget, angleBetween(center, centroid(footprint))) > Math.PI / 2 + 1e-9
   })
 }

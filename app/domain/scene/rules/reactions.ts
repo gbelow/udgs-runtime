@@ -203,8 +203,7 @@ function strikeTriggers(state: SceneState, root: StrikeAction): Trigger[] {
     ...getInterceptors(state, root, defRows).map((id): Trigger => ({ characterId: id, kind: 'intercept', at: null })),
   ]
   const counters: Trigger[] = contest ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
-  const retargets = getFlankers(state, root.actorId, root.targetId, sprayReach).flatMap((id) => retargetsOf(state.characters[id], null))
-  return [...defenses, ...counters, ...protectors, ...flankers, ...retargets]
+  return [...defenses, ...counters, ...protectors, ...flankers]
 }
 
 // combat.tex "Opportunity Attack": a triggering action is answered by
