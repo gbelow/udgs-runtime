@@ -64,6 +64,12 @@ export function produceEffects(c: Character, effects: SpellEffect[], size: numbe
   }) as SpellEffect)
 }
 
+// The test each effect asks of its target, worked out as a number: what a
+// charge carries too, so nobody who releases it needs its maker.
+export function settleTests(c: Character, effects: SpellEffect[]): SpellEffect[] {
+  return effects.map((e): SpellEffect => (e.resist ? { ...e, resist: { ...e.resist, dl: String(resolveDL(c, e.resist.dl, e.resist.roll).value ?? 0) } } : e))
+}
+
 // "xDM": the damage at the spell's size.
 function scaleDamage(damage: DamageComponent[], scaled: boolean, size: number): { damage: DamageComponent[] } {
   const scale = scaled ? getDMAt(size) : 1

@@ -8,7 +8,7 @@ import { updateSTA } from '../../character/commands/bleed'
 import { getSurgeBar } from '../../character/rules/surge'
 import { getCastSize, getChargeTargets, getSpellGear, pickSpellGear } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
-import { Improvements, drawOnFood, drawOnGear, produceEffects } from '../../character/rules/production'
+import { Improvements, drawOnFood, drawOnGear, produceEffects, settleTests } from '../../character/rules/production'
 import { getConsume, getDosesLeft, getUnitDoses } from '../rules/consumables'
 
 // What changes the hands keeps whichever kind of character it was given.
@@ -203,9 +203,15 @@ export function chargeItem(key: string, improved: Improvements = {}, gearId = ''
     const gear = getSpellGear(c, key, gearId)
     const target = pickSpellGear(getChargeTargets(c, key, gear), chargeItemId)
     if (!target) return c
-    const charge = { key, effects: produceEffects(c, drawOnFood(drawOnGear(SPELLS[key].effects, gear), target), getCastSize(c, key, improved.amplify ?? 0, gear?.id)) }
+    const charge = { key, effects: settleTests(c, produceEffects(c, drawOnFood(drawOnGear(SPELLS[key].effects, gear), target), getCastSize(c, key, improved.amplify ?? 0, gear?.id))) }
     return changeReadyUnit(target.id, (i) => ({ ...i, charge }))(c)
   }
+}
+
+// A charge written whole, with nobody's modifications to add: whatever sits at
+// hand, or nothing when no such item is.
+export function setCharge(itemId: string, charge: Item['charge']): HeldUpdater {
+  return changeReadyUnit(itemId, (i) => ({ ...i, charge }))
 }
 
 // gear.tex "Electrite": "20 charges" — a cast draws its uses from the

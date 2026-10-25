@@ -57,6 +57,16 @@ export function breakOne(floor: FloorItem[], itemId: string, actionId: string): 
   })
 }
 
+// One of a floor stack charged: the item itself when it is the last, or one
+// split off under an id of its own.
+export function chargeOne(floor: FloorItem[], itemId: string, charge: Item['charge'], newId: string): FloorItem[] {
+  return floor.flatMap((f) => {
+    if (f.item.id !== itemId) return [f]
+    if (f.item.amount <= 1) return [{ ...f, item: { ...f.item, charge } }]
+    return [{ ...f, item: { ...f.item, amount: f.item.amount - 1 } }, { ...f, item: { ...takeOne(f.item, newId), charge } }]
+  })
+}
+
 // One of a floor stack gone — thrown away, or destroyed by the charge it
 // went off with; what is left of the stack carries no charge (spells.tex
 // "Charged": the spell activates one object).

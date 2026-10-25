@@ -120,7 +120,7 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         }
         // combat.tex "Explosions": the object a charge went off in is
         // destroyed by it, in whoever's hand it was
-        if (action.kind === 'explosion') return action.source !== 'cast' && action.source !== 'gm' && !isHeldTying(c, action.itemId) ? consumeItem(action.itemId)(c) : c
+        if (action.kind === 'explosion') return action.itemId && !isHeldTying(c, action.itemId) ? consumeItem(action.itemId)(c) : c
         // everyone in the area takes it, the attacker as much as anyone
         if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
         // gear.tex "Electrite": a cast draws its charges from its gear
@@ -323,7 +323,7 @@ export function reduceFloor(state: SceneState, action: Action, phase: Phase): (f
     // lands where it was thrown, gone from wherever it lay before — a hand
     // leaves nothing behind on the floor
     if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), ...(action.thrown.fuel ? [] : [onFloor(action.thrown, action.to)])] : floor
-    if (action.kind === 'explosion' && action.source !== 'cast' && action.source !== 'gm') return withoutOne(floor, action.itemId)
+    if (action.kind === 'explosion' && action.itemId) return withoutOne(floor, action.itemId)
     if (action.kind === 'strike' && isFloorAttack(action)) return withBroken(floor, action)
     return floor
   }

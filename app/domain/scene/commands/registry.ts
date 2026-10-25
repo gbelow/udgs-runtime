@@ -18,6 +18,7 @@ import { followScene } from './parked'
 import { follow } from './follow'
 import { dropToFloor, placeItem, removeFloorItem, throwOffShieldToFloor } from './floor'
 import { setOffExplosion } from './gmExplosion'
+import { chargeByGM, setOffItem } from './gmCharge'
 import { impose, updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
@@ -109,6 +110,8 @@ export const sceneCommands = {
   placeItem: command((ctx, item: Item, cell: Coord) => placeItem(item, cell, ctx.newId)).by(gm),
   removeFloorItem: command((_, itemId: string) => removeFloorItem(itemId)).by(gm),
   setOffExplosion: command((ctx, draft: ExplosionDraft, cell: Coord) => setOffExplosion(draft, cell, ctx.newId)).by(gm),
+  chargeByGM: command((ctx, itemId: string, draft: ExplosionDraft) => chargeByGM(itemId, draft, ctx.newId)).by(gm),
+  setOffItem: command((ctx, itemId: string) => setOffItem(itemId, ctx.newId)).by(gm),
   throwOffShield: command((_, id: string, gm: boolean) => throwOffShieldToFloor(id, gm)).by((_, id, gm) => (gm ? 'gm' : { id })),
 
   // an edit to a character's sheet, and a move with their gear, which the

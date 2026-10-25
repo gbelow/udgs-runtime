@@ -1,3 +1,4 @@
+import type { ExplosionDraft } from "../domain/scene/rules/impose";
 import { isChargedIn } from "../domain/scene/rules/started";
 import { useActingAsGm } from "./useRole";
 import { getCatalogItem } from "../domain/item/rules/items";
@@ -77,5 +78,11 @@ export function useHandsLens() {
     letGo((id) => ({ kind: 'throwOffShield', args: [id, gm] }), { kind: 'throwOffShield', args: [] });
   };
 
-  return { panel, hold, regrip, drop, wear, putOn, sling, unsling, throwOff } as const;
+  // the GM's hand on what is carried, in a fight: write a charge into it, or
+  // set the one it has off
+  const gmHands = gm && isFightTab(tab);
+  const chargeByGM = (itemId: string, draft: ExplosionDraft) => dispatch({ kind: 'chargeByGM', args: [itemId, draft] });
+  const setOffItem = (itemId: string) => dispatch({ kind: 'setOffItem', args: [itemId] });
+
+  return { panel, gmHands, hold, regrip, drop, wear, putOn, sling, unsling, throwOff, chargeByGM, setOffItem } as const;
 }

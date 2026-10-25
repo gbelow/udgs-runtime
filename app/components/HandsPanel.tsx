@@ -2,13 +2,18 @@
 import { useHandsLens } from '../hooks/useHandsLens'
 import { useItemLens } from '../hooks/useItemLens'
 import { Shirt } from 'lucide-react'
+import { useState } from 'react'
+import { useExplosionDraft } from '../hooks/useBoard'
+import { ExplosionFields } from './ExplosionFields'
 import { Button, Panel, Row } from './ui'
 
 const withCost = (label: string, cost: number | null) => (cost === null ? label : `${label} (${cost} AP)`)
 
 export function HandsPanel(){
-  const { panel, hold, regrip, drop, wear, putOn, sling, unsling, throwOff } = useHandsLens()
+  const { panel, gmHands, hold, regrip, drop, wear, putOn, sling, unsling, throwOff, chargeByGM, setOffItem } = useHandsLens()
   const { pending, selectHeld, clear } = useItemLens()
+  const draft = useExplosionDraft()
+  const [charging, setCharging] = useState<string | null>(null)
 
   return(
     <Panel title='Hands' meta={`${panel.freeHolding} free`} pending={!!panel.canHold}>
@@ -43,6 +48,8 @@ export function HandsPanel(){
               {item.sling ? <Button size='xs' aria-label={`sling ${item.name} to the back`} disabled={!item.sling.able} title={item.sling.why} onClick={() => sling(item.id)}>{withCost('to back', item.sling.cost)}</Button> : null}
               {item.putOn ? <Button size='xs' weight='subtle' tone='good' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.why} onClick={() => putOn(item.id)}>{withCost('put on', item.putOn.cost)}</Button> : null}
               <span className='ml-auto flex flex-row gap-1'>
+                {gmHands ? <Button size='xs' weight='subtle' tone='accent' aria-label={`gm charge ${item.name}`} selected={charging === item.id} onClick={() => setCharging(charging === item.id ? null : item.id)}>charge</Button> : null}
+                {gmHands && item.charge ? <Button size='xs' weight='subtle' tone='bad' aria-label={`gm set off ${item.name}`} onClick={() => setOffItem(item.id)}>set off</Button> : null}
                 {
                   putting ?
                   <Button size='xs' aria-label={`cancel storing ${item.name}`} onClick={clear}>cancel</Button> :
@@ -53,6 +60,12 @@ export function HandsPanel(){
             </Row>
           )
         })}
+        {gmHands && charging ? (
+          <div className='flex flex-row flex-wrap gap-2 items-center'>
+            <ExplosionFields draft={draft} />
+            <Button size='xs' tone='accent' aria-label='gm write charge' onClick={() => { chargeByGM(charging, draft.explosion); setCharging(null) }}>write charge</Button>
+          </div>
+        ) : null}
       </div> : null}
       {panel.back ?
       <Row>

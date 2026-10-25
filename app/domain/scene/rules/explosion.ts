@@ -90,6 +90,20 @@ export function findObject(state: SceneState, itemId: string): Item | null {
   return findReadyObject(state, itemId)?.item ?? findFloorItem(state, itemId)?.item ?? null
 }
 
+// What the GM sets off by activating a charged object, wherever it is: the
+// area effects it carries as they are, the worst test among them as the DL
+// (a charge holds every number it needs), and the cell it is in, its holder's
+// or the one it lies on. Null when it has nothing to go off with or the board
+// has no cell for it.
+export function getItemDetonation(state: SceneState, itemId: string): { effects: SpellEffect[]; dl: number; center: Coord } | null {
+  const held = findReadyObject(state, itemId)
+  const floored = held ? null : findFloorItem(state, itemId)
+  const effects = (held?.item ?? floored?.item)?.charge?.effects.filter(isAreaEffect) ?? []
+  const center = held ? state.board?.placements[held.holder.id]?.cell : floored?.cell
+  if (effects.length === 0 || !center) return null
+  return { effects, dl: Math.max(0, ...effects.map((e) => Number(e.resist?.dl) || 0)), center }
+}
+
 // What an object goes off with: its charge, or else what its exploding rows
 // carry of their own.
 function getObjectEffects(producer: CampaignCharacter, item: Item): SpellEffect[] {

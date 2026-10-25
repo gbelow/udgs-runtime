@@ -203,6 +203,7 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   storeItem: itemCommands.storeItem(daggerItem.id, 'belt', 'quick'),
   dropItem: itemCommands.dropItem(daggerItem.id),
   chargeItem: (c) => itemCommands.chargeItem('shock-explosive')(itemCommands.holdItem(ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 }))(c)),
+  setCharge: (c) => itemCommands.setCharge(daggerItem.id, { key: '', effects: [] })(itemCommands.holdItem(daggerItem)(c)),
   consumeItem: itemCommands.consumeItem(daggerItem.id),
   spendDoses: (c) => itemCommands.spendDoses('roll', 3)(itemCommands.holdItem(ItemSchema.parse({ id: 'roll', name: 'Bandages', type: 'medicine' }))(c)),
   dischargeItem: itemCommands.dischargeItem(daggerItem.id),

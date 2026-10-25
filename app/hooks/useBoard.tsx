@@ -41,12 +41,22 @@ export function useBoard(fromActive = false) {
   const placeItem = (cell: Coord) => { if (item) dispatch({ kind: "placeItem", args: [item, cell] }); };
   const removeFloorItem = (itemId: string) => dispatch({ kind: "removeFloorItem", args: [itemId] });
   const setOffExplosion = (draft: ExplosionDraft, cell: Coord) => dispatch({ kind: "setOffExplosion", args: [draft, cell] });
-  const [explosion, setExplosion] = useState<ExplosionDraft>(EXPLOSION_DRAFT);
-  const explosionOptions = { effects: EXPLOSION_EFFECTS, damageKinds: IMPOSE_DAMAGE_KINDS, afflictions: IMPOSE_AFFLICTIONS } as const;
+  const { explosion, setExplosion, explosionOptions } = useExplosionDraft();
+  const chargeByGM = (itemId: string) => dispatch({ kind: "chargeByGM", args: [itemId, explosion] });
+  const setOffItem = (itemId: string) => dispatch({ kind: "setOffItem", args: [itemId] });
   const turn = (reposition: boolean) => click({ on: 'turn' }, null, reposition);
   const light = (level: LightLevel) => dispatch({ kind: "light", args: [level] });
   const resize = (radius: number) => dispatch({ kind: "resizeBoard", args: [radius] });
   const resizeWarning = (radius: number) => getResizeWarning(useCombatStore.getState(), radius);
 
-  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, explosion, setExplosion, explosionOptions, turn, light, resize, resizeWarning } as const;
+  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, explosion, setExplosion, explosionOptions, turn, light, resize, resizeWarning } as const;
 }
+
+// What the GM has described of an explosion, for the form that writes it.
+export function useExplosionDraft() {
+  const [explosion, setExplosion] = useState<ExplosionDraft>(EXPLOSION_DRAFT);
+  const explosionOptions = { effects: EXPLOSION_EFFECTS, damageKinds: IMPOSE_DAMAGE_KINDS, afflictions: IMPOSE_AFFLICTIONS } as const;
+  return { explosion, setExplosion, explosionOptions } as const;
+}
+
+export type ExplosionDraftState = ReturnType<typeof useExplosionDraft>;

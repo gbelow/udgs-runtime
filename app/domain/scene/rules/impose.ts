@@ -1,4 +1,4 @@
-import { AfflictionKeySchema, DamageKindSchema, DamageSchema, SkillKeySchema, SpellEffectSchema, type AfflictionKey, type DamageKind, type Delivery, type SpellEffect, type Skills } from '../../types'
+import { AfflictionKeySchema, ChargeSchema, DamageKindSchema, DamageSchema, SkillKeySchema, SpellEffectSchema, type AfflictionKey, type Charge, type DamageKind, type Delivery, type SpellEffect, type Skills } from '../../types'
 import type { SceneState } from '../types'
 import { getOpenAction } from './log'
 import { getFallDL } from './fall'
@@ -66,6 +66,14 @@ export const EXPLOSION_DRAFT: ExplosionDraft = { ...IMPOSE_DRAFT, DL: 10, radius
 export function getExplosionEffect(d: ExplosionDraft): SpellEffect | null {
   if (d.effect === 'fall') return null
   return SpellEffectSchema.parse({ ...getImposedEffect(d), target: 'area', area: { shape: 'explosion', radius: Math.max(0, Math.floor(d.radius)) } })
+}
+
+// spells.tex "Charged": the charge the GM writes into an object, the explosion
+// the draft describes with its DL as the test everyone it reaches rolls. It
+// belongs to no spell and no one, so it carries all of it.
+export function getGmCharge(d: ExplosionDraft): Charge | null {
+  const effect = getExplosionEffect(d)
+  return effect ? ChargeSchema.parse({ key: '', effects: [{ ...effect, resist: { dl: String(d.DL), roll: 'reflex' } }] }) : null
 }
 
 // Why nothing can be laid on `ids` now, or null.
