@@ -11,7 +11,7 @@ import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, 
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
-import { Button, IconButton, Panel, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
+import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, Tooltip, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
 
 const MODE_LABEL = {
@@ -103,9 +103,10 @@ export function BoardPanel(){
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>light</SectionLabel>
-        {LIGHT_LEVELS.map((l) =>
-          <Button key={l} size='xs' selected={view.light === l}
-            onClick={() => light(l)}>{l}</Button>)}
+        <Segmented label='light'>
+          {LIGHT_LEVELS.map((l) =>
+            <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
+        </Segmented>
       </div>
       <MapsRow canSave />
       <LinkRow />

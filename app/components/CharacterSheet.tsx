@@ -339,8 +339,8 @@ export function WoundPanel(){
           <span className='text-muted'>{r.part} · {r.consequence}</span>
           <span className='flex flex-row items-center gap-1 ml-auto'>
             <span className='font-mono text-fg'>{r.IL}</span><span className='text-muted'>IL to heal</span>
-            <Button size='xs' aria-label={`heal ${r.name}`} onClick={() => heal(r.index, 1)}>−</Button>
-            <Button size='xs' aria-label={`reopen ${r.name}`} onClick={() => heal(r.index, -1)}>+</Button>
+            <IconButton icon={Minus} aria-label={`heal ${r.name}`} onClick={() => heal(r.index, 1)} />
+            <IconButton icon={Plus} aria-label={`reopen ${r.name}`} onClick={() => heal(r.index, -1)} />
           </span>
         </div>
       ))}

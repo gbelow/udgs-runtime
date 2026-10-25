@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import { Button, CollectionSelect, IconButton, NumberInput, Tooltip, barred, selectClass } from './ui';
+import { Button, CollectionSelect, IconButton, NumberInput, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
 import { useDowntime, useDowntimeAnswer, useDowntimeCalls, useDowntimeCommands, useDowntimeDiceBar, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
@@ -146,9 +146,11 @@ function ActivityPicker({ character: c, commands }: { character: DowntimeCharact
   return(
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-        {ACTIVITIES.map((activity) => (
-          <Button key={activity} size='xs' selected={selected === activity} title={ACTIVITY_HINTS[activity]} onClick={() => choose(activity)}>{activity}</Button>
-        ))}
+        <Segmented label='activity'>
+          {ACTIVITIES.map((activity) => (
+            <Segment key={activity} selected={selected === activity} title={ACTIVITY_HINTS[activity]} onClick={() => choose(activity)}>{activity}</Segment>
+          ))}
+        </Segmented>
         {c.activity && c.block && c.block.elapsed > 0 && selected !== c.activity ? <span className='text-xs text-bad'>choosing another drops {c.block.elapsed} days spent</span> : null}
       </div>
       {selected === 'training' ? <TrainingChooser character={c} commands={commands} onChosen={() => setPicked(null)} /> : null}
@@ -247,10 +249,12 @@ function TrainingChooser({ character: c, commands, onChosen }: { character: Down
         <option value=''>train…</option>
         {training.map((o) => <option key={o.id} value={o.id}>{o.label} → {o.level} ({o.toNext} XP to go)</option>)}
       </select>
-      <Button size='xs' disabled={!chosen} selected={c.training?.withTrainer} onClick={() => take(true)}>with a trainer</Button>
-      <Button size='xs' disabled={!chosen?.alone} selected={c.training?.withTrainer === false} title={chosen && !chosen.alone ? 'no talent to train it alone' : undefined} onClick={() => take(false)}>
-        alone{chosen?.alone ? ` (${chosen.alone.skill} vs ${chosen.alone.DL})` : ''}
-      </Button>
+      <Segmented label='train how'>
+        <Segment disabled={!chosen} selected={c.training?.withTrainer} onClick={() => take(true)}>with a trainer</Segment>
+        <Segment disabled={!chosen?.alone} selected={c.training?.withTrainer === false} title={chosen && !chosen.alone ? 'no talent to train it alone' : undefined} onClick={() => take(false)}>
+          alone{chosen?.alone ? ` (${chosen.alone.skill} vs ${chosen.alone.DL})` : ''}
+        </Segment>
+      </Segmented>
     </div>
   )
 }

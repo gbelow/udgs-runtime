@@ -1,7 +1,8 @@
 'use client'
 import type { PrepareView } from '../domain/scene/projections/prepare'
 import type { ActionDraft } from '../domain/scene/types'
-import { Button, SectionLabel } from './ui'
+import { Minus, Plus } from 'lucide-react'
+import { Button, IconButton, SectionLabel, Segment, Segmented } from './ui'
 import { StrikeModifiers } from './StrikeModifiers'
 
 
@@ -20,9 +21,11 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>prepare</SectionLabel>
-        {view.mains.map((m) =>
-          <Button key={m.kind} size='xs' selected={m.selected} disabled={!m.available} title={m.reason ?? undefined}
-            onClick={() => onAmend({ main: m.kind, ...NO_MAIN, trigger: null })}>{m.kind}</Button>)}
+        <Segmented label='prepare'>
+          {view.mains.map((m) =>
+            <Segment key={m.kind} selected={m.selected} disabled={!m.available} title={m.reason ?? undefined}
+              onClick={() => onAmend({ main: m.kind, ...NO_MAIN, trigger: null })}>{m.kind}</Segment>)}
+        </Segmented>
       </div>
 
       {view.attacks.length > 0 ? (
@@ -59,8 +62,8 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
               {s.quickenable ? <Button size='xs' className='rounded-l-none border-l-0' onClick={() => onSpell(s.key, true)}>quicken</Button> : null}
             </span>
           ))}
-          <Button size='xs' aria-label='extend less' onClick={() => onExtend(-1)}>−</Button>
-          <Button size='xs' aria-label='extend more' onClick={() => onExtend(1)}>+</Button>
+          <IconButton icon={Minus} aria-label='extend less' onClick={() => onExtend(-1)} />
+          <IconButton icon={Plus} aria-label='extend more' onClick={() => onExtend(1)} />
         </div>
       ) : null}
       {view.movements.length > 0 ? (

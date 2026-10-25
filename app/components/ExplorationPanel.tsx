@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import { Button, IconButton, NumberInput, SectionLabel, Tooltip, barred, selectClass } from './ui';
+import { Button, IconButton, NumberInput, SectionLabel, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog } from './RunParts';
 import { useETAnswer, useETCalls, useETDiceBar, useExploration, useExplorationMaps, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { MapDrawing, type MapSelection } from './MapCanvas';
@@ -94,9 +94,9 @@ function PlayMaps(){
   return(
     <div className='flex flex-col gap-1 w-full lg:flex-1 min-w-0'>
       {maps.length > 1 ?
-        <div className='flex flex-row flex-wrap gap-1'>
-          {maps.map((m) => <Button key={m.id} size='xs' aria-label={`map ${m.name}`} selected={m.id === map.id} onClick={() => show(m.id)}>{m.name}</Button>)}
-        </div>
+        <Segmented label='map' className='self-start'>
+          {maps.map((m) => <Segment key={m.id} aria-label={`map ${m.name}`} selected={m.id === map.id} onClick={() => show(m.id)}>{m.name}</Segment>)}
+        </Segmented>
         : <SectionLabel>{map.name}</SectionLabel>}
       <PlayMap key={map.id} map={map} />
     </div>
@@ -138,9 +138,11 @@ function DecisionRow({ decision: d }: { decision: PartiesView['decisions'][numbe
     <div className='flex flex-row gap-1.5 items-center'>
       <span className='text-xs'>{d.name}</span>
       <LockedFor id={d.id} className='contents'>
-        {DECISIONS.map((option) => (
-          <Button key={option} aria-label={`${d.name} ${option}`} selected={d.decision === option} onClick={() => decide(d.id, option)}>{option === 'leave' ? 'leave behind' : option}</Button>
-        ))}
+        <Segmented label={`${d.name} decision`} size='sm'>
+          {DECISIONS.map((option) => (
+            <Segment key={option} aria-label={`${d.name} ${option}`} selected={d.decision === option} onClick={() => decide(d.id, option)}>{option === 'leave' ? 'leave behind' : option}</Segment>
+          ))}
+        </Segmented>
       </LockedFor>
     </div>
   )

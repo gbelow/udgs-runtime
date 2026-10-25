@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, TextInput } from '../ui'
+import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput } from '../ui'
 import { BRUSH_LABEL, Cell, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardMapEditor } from '../../hooks/useBoardMaps'
@@ -45,7 +45,9 @@ export function BoardMapsEditor() {
         </div>
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>light</SectionLabel>
-          {LIGHT_LEVELS.map((l) => <Button key={l} size='xs' selected={view.light === l} onClick={() => light(l)}>{l}</Button>)}
+          <Segmented label='light'>
+            {LIGHT_LEVELS.map((l) => <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
+          </Segmented>
           <span className='grow' />
           <ZoomButtons zoomPan={zoomPan} />
         </div>

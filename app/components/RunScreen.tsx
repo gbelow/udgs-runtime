@@ -21,7 +21,7 @@ import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './E
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { RecentJournal } from './Journal';
 import { X } from 'lucide-react'
-import { Button, IconButton, SectionLabel } from './ui';
+import { IconButton, SectionLabel, Segment, Segmented } from './ui';
 import { ControlLocked, GearLocked, GmLocked } from './Locks';
 import { useGameTab } from '../hooks/useGameTab';
 import { useFighterCount } from '../hooks/useCombatState';
@@ -132,10 +132,10 @@ export function RunScreen(){
       {waiting ? <TableWait /> : <>
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
         <section className='relative flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
-          <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <Segmented label='open beside' className='self-start'>
             {OVERLAYS.filter((v) => !isCatalog(v) || hasGmTools).map((v) =>
-              <Button key={v} size='xs' aria-label={isCatalog(v) ? `open ${v}` : v} aria-pressed={over === v} selected={over === v} onClick={() => toggle(v)}>{v}</Button>)}
-          </div>
+              <Segment key={v} aria-label={isCatalog(v) ? `open ${v}` : v} selected={over === v} onClick={() => toggle(v)}>{v}</Segment>)}
+          </Segmented>
           <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>{space}</div>
           <Overlay title='parties' shown={over === 'parties'} close={() => setOver(null)}>{parties}</Overlay>
           {opened.map((v) => <Overlay key={v} title={v} wide shown={over === v} close={() => setOver(null)}>{v === 'items' || hasActiveCharacter ? CATALOGS[v] : PICK}</Overlay>)}
@@ -201,13 +201,13 @@ function ModeSwitch(){
   const fighters = useFighterCount()
 
   return(
-    <div className='flex flex-row gap-1 items-center shrink-0'>
+    <Segmented label='mode' className='shrink-0'>
       {runTabs.map((t) => (
-        <Button key={t} size='xs' aria-label={`mode ${t}`} aria-pressed={tab === t} selected={tab === t} onClick={() => setTab(t)}>
+        <Segment key={t} aria-label={`mode ${t}`} selected={tab === t} onClick={() => setTab(t)}>
           {t}{t === 'scene' && fighters > 0 ? <span className='ml-1.5 text-[10px] text-muted'>{fighters}</span> : null}
-        </Button>
+        </Segment>
       ))}
-    </div>
+    </Segmented>
   )
 }
 
@@ -229,10 +229,10 @@ function SheetTabs({ own }: { own: boolean }){
   return(
     <div className='flex flex-col gap-2'>
       <span className='text-base font-medium'>{tableName}</span>
-      <div className='flex flex-row flex-wrap gap-1'>
+      <Segmented label='sheet' className='self-start'>
         {tabs.map((t) =>
-          <Button key={t} size='xs' aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Button>)}
-      </div>
+          <Segment key={t} aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Segment>)}
+      </Segmented>
       <ControlLocked>
         {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
         {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
@@ -271,10 +271,12 @@ function ActionColumn({ gmTools, children }: { gmTools: ReactNode, children: Rea
   return(
     <>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
-        {hasGmTools ? <>
-          <Button size='xs' aria-label='act as character' aria-pressed={!gm} selected={!gm} onClick={() => setGmMode(false)}>character</Button>
-          <Button size='xs' aria-label='act as GM' aria-pressed={gm} selected={gm} onClick={() => setGmMode(true)}>GM</Button>
-        </> : null}
+        {hasGmTools ? (
+          <Segmented label='act as'>
+            <Segment aria-label='act as character' selected={!gm} onClick={() => setGmMode(false)}>character</Segment>
+            <Segment aria-label='act as GM' selected={gm} onClick={() => setGmMode(true)}>GM</Segment>
+          </Segmented>
+        ) : null}
       </div>
       {gm ? (
         <div className='flex flex-col gap-1'>

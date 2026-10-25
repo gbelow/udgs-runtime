@@ -75,6 +75,34 @@ export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', acti
   )
 }
 
+const SEGMENT_SIZE = {
+  xs: 'text-xs px-2 py-0.5',
+  sm: 'text-xs px-2.5 py-1',
+} as const
+
+const SegmentSize = createContext<keyof typeof SEGMENT_SIZE>('xs')
+
+// One option picked from a few, drawn as joined segments with the picked one
+// lit in the accent. A long or open-ended list stays a row of buttons.
+export function Segmented({ label, size = 'xs', className = '', children }: { label: string, size?: keyof typeof SEGMENT_SIZE, className?: string, children: ReactNode }){
+  return (
+    <div role='group' aria-label={label} className={`inline-flex flex-wrap rounded border border-line bg-surface overflow-hidden ${className}`}>
+      <SegmentSize.Provider value={size}>{children}</SegmentSize.Provider>
+    </div>
+  )
+}
+
+export function Segment({ selected = false, className = '', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }){
+  const size = useContext(SegmentSize)
+  return (
+    <button type='button' aria-pressed={selected}
+      className={`whitespace-nowrap border-l border-line first:border-l-0 cursor-pointer transition-colors ${FOCUS} focus-visible:-outline-offset-2
+        disabled:pointer-events-none disabled:text-muted disabled:bg-[repeating-linear-gradient(135deg,transparent_0_4px,var(--color-line)_4px_5px)]
+        ${selected ? 'bg-accent/15 text-accent shadow-[inset_0_-2px_0_0_var(--color-accent)]' : 'text-fg hover:bg-raised'} ${SEGMENT_SIZE[size]} ${className}`}
+      {...rest} />
+  )
+}
+
 const KEY_LOOK = {
   plain: 'border-line from-raised to-surface text-fg hover:border-muted',
   picked: 'border-accent from-accent/25 to-accent/10 text-accent',

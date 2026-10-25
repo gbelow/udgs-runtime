@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { BudgetChip, Button, CatalogList,CollectionSelect, NumberInput, SectionLabel, TextInput, Tooltip, inputClass, selectClass } from './ui'
+import { BudgetChip, Button, CatalogList,CollectionSelect, NumberInput, SectionLabel, Segment, Segmented, TextInput, Tooltip, inputClass, selectClass } from './ui'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { useCreation } from '../hooks/useCreation'
 import { AbilityFamilyRow, LockedLabel } from './AbilitySelector'
@@ -205,9 +205,11 @@ function Priorities() {
           <div key={focus} className='flex flex-col'>
             <div className='flex flex-row items-center gap-1'>
               <span className='w-14 text-xs'>{focus}</span>
-              {PRIORITIES.map((p) => (
-                <Button key={p} size='xs' selected={p === priority} onClick={() => setPriority(focus, p)}>{p}</Button>
-              ))}
+              <Segmented label={`${focus} priority`}>
+                {PRIORITIES.map((p) => (
+                  <Segment key={p} selected={p === priority} onClick={() => setPriority(focus, p)}>{p}</Segment>
+                ))}
+              </Segmented>
               {pool ? <span className={`ml-auto text-xs font-mono ${pool.over ? 'text-bad' : ''}`}>{pool.spent} / {pool.budget} XP</span> : null}
             </div>
             {talent ? (

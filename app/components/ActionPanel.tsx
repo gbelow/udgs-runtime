@@ -9,8 +9,8 @@ import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
-import { X } from 'lucide-react'
-import { ActionKey, Button, Closed, IconButton, Panel, SectionLabel, Tooltip } from './ui'
+import { Minus, Plus, X } from 'lucide-react'
+import { ActionKey, Button, Closed, IconButton, Panel, SectionLabel, Segment, Segmented, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
@@ -72,10 +72,10 @@ export function ActionPanel(){
       {view.prepare ? <Preparation view={view.prepare} onAmend={amend} onSpell={cast} onExtend={extend} /> : null}
 
       {open.flee !== null ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <Button size='xs' selected={open.flee} onClick={() => amend({ flee: true })}>flee</Button>
-          <Button size='xs' selected={!open.flee} onClick={() => amend({ flee: false })}>end</Button>
-        </div>
+        <Segmented label='flee or end' className='self-start'>
+          <Segment selected={open.flee} onClick={() => amend({ flee: true })}>flee</Segment>
+          <Segment selected={!open.flee} onClick={() => amend({ flee: false })}>end</Segment>
+        </Segmented>
       ) : null}
 
       <Declaration open={open} attacks={view.attacks}
@@ -152,9 +152,9 @@ export function ActionPanel(){
       {open.spell && open.extend && !locked ? (
         <div className='flex flex-row gap-1 items-center text-xs'>
           <SectionLabel>extend</SectionLabel>
-          <Button size='xs' aria-label='extend less' disabled={open.extend.times === 0} onClick={() => extend(-1)}>−</Button>
+          <IconButton icon={Minus} aria-label='extend less' disabled={open.extend.times === 0} onClick={() => extend(-1)} />
           <span className='font-mono'>×{open.extend.times}</span>
-          <Button size='xs' aria-label='extend more' onClick={() => extend(1)}>+</Button>
+          <IconButton icon={Plus} aria-label='extend more' onClick={() => extend(1)} />
           {open.extend.times > 0 ? <span className='text-muted'>+{open.extend.DL} DL</span> : null}
         </div>
       ) : null}
@@ -187,15 +187,17 @@ export function ActionPanel(){
       {open.climbModes.length > 1 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>climb</SectionLabel>
-          {open.climbModes.map((mode) => <Button key={mode} size='xs' selected={mode === open.mode} onClick={() => amend({ mode })}>{mode}</Button>)}
+          <Segmented label='climb mode'>
+            {open.climbModes.map((mode) => <Segment key={mode} selected={mode === open.mode} onClick={() => amend({ mode })}>{mode}</Segment>)}
+          </Segmented>
         </div>
       ) : null}
       {open.climbSteps ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>metres</SectionLabel>
-          <Button size='xs' aria-label='climb less' disabled={open.climbSteps.metres <= 1} onClick={() => amend({ metres: open.climbSteps ? open.climbSteps.metres - 1 : null })}>−</Button>
+          <IconButton icon={Minus} aria-label='climb less' disabled={open.climbSteps.metres <= 1} onClick={() => amend({ metres: open.climbSteps ? open.climbSteps.metres - 1 : null })} />
           <span className='font-mono text-xs'>{open.climbSteps.metres} / {open.climbSteps.remaining}</span>
-          <Button size='xs' aria-label='climb more' disabled={open.climbSteps.metres >= open.climbSteps.remaining} onClick={() => amend({ metres: open.climbSteps ? open.climbSteps.metres + 1 : null })}>+</Button>
+          <IconButton icon={Plus} aria-label='climb more' disabled={open.climbSteps.metres >= open.climbSteps.remaining} onClick={() => amend({ metres: open.climbSteps ? open.climbSteps.metres + 1 : null })} />
         </div>
       ) : null}
       {open.canLeap ? (
@@ -414,8 +416,12 @@ type SweepDirection = StrikeAction['sweepDirection']
 // combat.tex "Sweeping Attack": "Decide whether to attack from right to left
 // or vice versa".
 function SweepDirections({ direction, onTurn }: { direction: SweepDirection, onTurn: (direction: SweepDirection) => void }){
-  return <>{(['clockwise', 'counterclockwise'] as const).map((d) =>
-    <Button key={d} size='xs' selected={direction === d} onClick={() => onTurn(d)}>{d}</Button>)}</>
+  return (
+    <Segmented label='sweep direction'>
+      {(['clockwise', 'counterclockwise'] as const).map((d) =>
+        <Segment key={d} selected={direction === d} onClick={() => onTurn(d)}>{d}</Segment>)}
+    </Segmented>
+  )
 }
 
 // A reactor who has chosen an opportunity attack declares the strike it
@@ -430,13 +436,19 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
         <SectionLabel>{reactor.name}</SectionLabel>
         <Button size='xs' title='take the declared reaction back and answer with nothing' onClick={onPass}>nothing</Button>
         <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'join shot' : 'opportunity attack')}</span>
-        {strike.partner ? (['strike', 'grapple'] as const).map((m) =>
-          <Button key={m} size='xs' selected={strike.mode === m} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Button>) : null}
+        {strike.partner ? (
+          <Segmented label='strike or maneuver'>
+            {(['strike', 'grapple'] as const).map((m) =>
+              <Segment key={m} selected={strike.mode === m} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Segment>)}
+          </Segmented>
+        ) : null}
       </div>
       {strike.mode === 'grapple' ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>maneuver</SectionLabel>
-          {strike.maneuvers.map((m) => <Button key={m} size='xs' selected={strike.maneuver === m} onClick={() => onAmend({ maneuver: m })}>{m}</Button>)}
+          <Segmented label='maneuver'>
+            {strike.maneuvers.map((m) => <Segment key={m} selected={strike.maneuver === m} onClick={() => onAmend({ maneuver: m })}>{m}</Segment>)}
+          </Segmented>
         </div>
       ) : null}
       {strike.mode === 'strike' ? <>
@@ -765,8 +777,10 @@ function Push({ push, cost, onMovement, onBoost }: { push: PushView, cost: Actio
       {push.movements.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>block</SectionLabel>
-          {push.movements.map((m) =>
-            <Button key={m.kind} size='xs' selected={m.kind === push.movement} disabled={!m.available} title={m.reason ?? undefined} onClick={() => onMovement(m.kind)}>{PUSH_LABEL[m.kind]}</Button>)}
+          <Segmented label='push block'>
+            {push.movements.map((m) =>
+              <Segment key={m.kind} selected={m.kind === push.movement} disabled={!m.available} title={m.reason ?? undefined} onClick={() => onMovement(m.kind)}>{PUSH_LABEL[m.kind]}</Segment>)}
+          </Segmented>
         </div>
       ) : null}
       <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
