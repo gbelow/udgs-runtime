@@ -204,7 +204,8 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
           return action.trample ? trampledBy([action.trample], paid, charged) : paid
         }
         if (c.id !== action.targetId || !action.facts) return c
-        const struck = deliver(action.facts)(c)
+        // abilities.tex "Technical Lift": the jump stood its jumper up
+        const struck = deliver(action.facts)(action.kind === 'strike' && action.lifted ? standUp(c) : c)
         return action.kind === 'strike' && action.trample ? trampledBy([action.trample], struck, charged) : struck
     }
   }

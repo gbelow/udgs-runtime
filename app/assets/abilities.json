@@ -1787,7 +1787,9 @@
         "description": "The character can spend 1 STA to perform an evasive jump and stand up in the same action, but takes -3 to defend while doing so.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "technicalLift"
+        ],
         "freeSpells": 0
       }
     ]

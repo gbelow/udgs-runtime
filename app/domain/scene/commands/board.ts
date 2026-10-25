@@ -11,6 +11,7 @@ import { CLIMB_EASY_DL, COVER_START_RES, SWIM_DEFAULT_DL } from '../../tables'
 import { getBeyondEdge, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
 import { without } from '../../utils'
 import { drawsSegments, getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
+import { getAvailableActions } from '../rules/options'
 import { getReachableCells } from '../rules/board/reach'
 import { canStandAt } from '../rules/board/ground'
 import { getMoveOrigin, getPathTurns, withoutLastSegment } from '../rules/board/waypoint'
@@ -194,7 +195,8 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string): {
   }
   if (open.kind === 'strike' && open.step === 'react' && open.targetId) {
     const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))
-    return { actor: open.targetId, apply: to ? declareReaction(open.targetId, { kind: 'evasiveJump', to }, newId) : unchanged }
+    const offered = getAvailableActions(state, open.targetId).find((o) => o.draft.kind === 'evasiveJump')?.draft
+    return { actor: open.targetId, apply: to ? declareReaction(open.targetId, { ...offered, kind: 'evasiveJump', to }, newId) : unchanged }
   }
   return own(unchanged)
 }

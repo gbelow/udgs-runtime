@@ -14,7 +14,7 @@ import { canAfford } from '../../character/rules/cost'
 import { getActiveSpellKeys, hasGrant } from '../../character/rules/effects'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { getHangingFall } from './board/cliff'
-import { isProne } from './board/ground'
+import { isInLiquid, isProne } from './board/ground'
 import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverTargets, getReleaseTargets } from './grapple'
@@ -24,7 +24,7 @@ import { getFeintBar } from './feint'
 import { getExtinguishCells } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvadeCost, getEvasionCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
+import { getEvadeCost, getEvasionCost, getEvasiveJumpCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { perState } from '../../perState'
@@ -78,13 +78,19 @@ function option(draft: ActionDraft, cost: ActionCost | null, reason: string | nu
 // "Evasive Jump": "only ... if there is space to jump"; "jumping": a jump "cannot be voluntarily
 // interrupted in the middle". combat.tex "Prone": "Can only crawl and stand
 // up"; "Lame": "Cannot ... jump".
+// abilities.tex "Technical Lift": an evasive jump from the ground, which
+// stands its jumper up; the water's surface is no ground to stand up from.
+function canTechnicalLift(state: SceneState, c: CampaignCharacter): boolean {
+  return hasGrant(c, 'technicalLift') && hasAffliction(c, 'prone') && !isInLiquid(state, c)
+}
+
 function defenseGate(state: SceneState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
   if (!canAfford(defender, cost, isCombatStarted(state))) return 'cannot afford'
   if (hasAffliction(defender, 'unconscious')) return 'unconscious'
   if (isImmobile(state, defender)) return 'immobile'
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && getPartners(state, defender.id).includes(root.actorId)) return 'grappled'
   if (kind === 'evasiveJump' && hasFightAffliction(state, defender, 'grappled')) return 'grappled'
-  if (kind === 'evasiveJump' && isProne(state, defender.id)) return 'prone'
+  if (kind === 'evasiveJump' && isProne(state, defender.id) && !canTechnicalLift(state, defender)) return 'prone'
   if (kind === 'evasiveJump' && hasAffliction(defender, 'lame')) return 'lame'
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return 'mid-jump'
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return 'no space to jump'
@@ -308,8 +314,12 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       }
       // nothing to pick among; where an evasive jump lands is picked on the
       // board, not here
+      case 'evasiveJump': {
+        if (!canTechnicalLift(state, c)) return [answer({ kind })]
+        const lift = getEvasiveJumpCost(c, true)
+        return [answer({ kind, lift: true }, lift, defenseGate(state, c, open, kind, lift))]
+      }
       case 'brace':
-      case 'evasiveJump':
       case 'avoidExplosion':
       case 'resist':
         return [answer({ kind })]

@@ -549,8 +549,10 @@ export const StrikeActionSchema = z.object({
   grapples: z.boolean().default(false),
   grabbed: GrappleFactsSchema.nullable().default(null),
   // combat.tex "Evasive Jump": where the target's jump landed them, written
-  // at the resolve
+  // at the resolve, and whether it stood them up (abilities.tex "Technical
+  // Lift")
   jumpedTo: PlacementSchema.nullable().default(null),
+  lifted: z.boolean().default(false),
   // combat.tex "Sweeping Attack": who the sweep still reaches after this
   // target, in order, written on a board when it is committed or opened;
   // and what is left of the blow when it comes to this target (combat.tex
@@ -734,8 +736,10 @@ export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evad
 // can spend 2AP+1STA to get +3 in this comparison"
 export const BraceActionSchema = z.object({ ...ActionBase, kind: z.literal('brace') }).strip()
 // An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
-// away from the attack"); null on a fight without a board.
-export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null) }).strip()
+// away from the attack"); null on a fight without a board. One made from
+// the ground as a `lift` stands its jumper up (abilities.tex "Technical
+// Lift").
+export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null), lift: z.boolean().default(false) }).strip()
 // A block or an intercept names where its defender steps before they make
 // it, if they do (abilities.tex "Defender", "Defensive Advance"); an
 // intercept made as a Defensive Advance is `advance`.
