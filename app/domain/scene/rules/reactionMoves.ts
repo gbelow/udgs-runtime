@@ -38,11 +38,10 @@ export function getFollowMove(root: Action): ReactionMove {
 // cover"; on a miss, "spend their movement surge immediately to escape or do
 // the same as in the graze". The move is bought with the AP the reflex
 // already paid; the escape on a miss is a flee (rules/flee.ts
-// `getFleersOf`). One who declared they stay put gives the move up; one any
-// of the shots interrupted is offered none (commands/sequence.ts
-// `getFollowUps`).
+// `getFleersOf`). One any of the shots interrupted is offered none
+// (commands/sequence.ts `getFollowUps`).
 export function getEvasionMove(root: Action, reaction: ActionOf<'evasion'>): ReactionMove | null {
-  if (root.kind !== 'shoot' || reaction.stay) return null
+  if (root.kind !== 'shoot') return null
   const AP = reaction.cost?.AP ?? 0
   return { budget: AP, prepaid: AP }
 }

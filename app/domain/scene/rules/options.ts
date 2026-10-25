@@ -23,7 +23,7 @@ import { getFeintBar } from './feint'
 import { getExtinguishCells } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvadeCost, getEvasionCost, getEvasiveJumpCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
+import { getEvadeCost, getEvasiveJumpCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { perState } from '../../perState'
@@ -293,13 +293,6 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
           const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
           return answer(draft, cost, gate ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id })))
         })
-      // combat.tex "Evasion" lets the evader move after the shot; one who
-      // stays put gives that up, for Precise Reflexes' price if they have it
-      case 'evasion':
-        return [
-          answer({ kind }),
-          answer({ kind, stay: true }, getEvasionCost(c, true)),
-        ]
       // an evade of a trample opens a step, picked on the board once the
       // trample is paid; closed to one the mover ends on with nowhere to go
       // abilities.tex "Precise Evasion": an evade of a strike for 1 AP at -3;
@@ -319,6 +312,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         return [answer({ kind, lift: true }, lift, defenseGate(state, c, open, kind, lift))]
       }
       case 'brace':
+      case 'evasion':
       case 'avoidExplosion':
       case 'resist':
         return [answer({ kind })]

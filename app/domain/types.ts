@@ -699,8 +699,10 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // getter behind each group is what actually reads the bonus (skills add it as
 // a term, movement and senses add it to the stored value, surges to AP,
 // `ap:`/`sta:` move the price of an action in ACTION_COSTS, `distance:` the
-// penalty a way of shooting takes per 10m and `hit:` its test, `attribute:`
-// the attribute on top of its training and `body:size` the creature's size).
+// penalty a way of shooting takes per step of distance and `hit:` its test,
+// `attribute:` the attribute on top of its training, `body:size` the
+// creature's size, `bow:STR` the STR a bow is drawn with and `reach:throw` a
+// throw's reach, in percent).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -716,6 +718,8 @@ export const BUFF_TARGETS = [
   ...prefixed('hit', Object.keys(SHOTS) as ShotKind[]),
   ...prefixed('attribute', Object.keys(AttributesSchema.shape) as (keyof Attributes)[]),
   ...prefixed('body', ['size'] as const),
+  ...prefixed('bow', ['STR'] as const),
+  ...prefixed('reach', ['throw'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
@@ -1142,7 +1146,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'lunge', 'technicalLift', 'grapplingCombat', 'tackle', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'lunge', 'technicalLift', 'grapplingCombat', 'tackle', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks

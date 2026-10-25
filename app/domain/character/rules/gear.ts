@@ -119,8 +119,19 @@ export function getReloadCost(atk: WeaponAttack, c: Character): ActionCost {
 // abilities.tex "Archer": "Bows require training to be used effectively.
 // Characters without proper training spend an extra 3 AP for each shot and
 // cannot snipe or quick shot."
+function isBow(weapon: Weapon): boolean {
+  return (BOWS as readonly string[]).includes(weapon.name)
+}
+
 function isUntrainedBow(weapon: Weapon, c: Character): boolean {
-  return (BOWS as readonly string[]).includes(weapon.name) && !hasGrant(c, 'bowTraining')
+  return isBow(weapon) && !hasGrant(c, 'bowTraining')
+}
+
+// The STR the weapon is drawn with: abilities.tex "Archer's Muscles":
+// "Provides a strength bonus of +1|2 to meet the strength requirement of
+// bows."
+function getDrawSTR(weapon: Weapon, c: Character): number {
+  return getSTR(c) + (isBow(weapon) ? getBuffBonus(c, 'bow:STR') : 0)
 }
 
 export type AttackVariant = {
@@ -145,9 +156,11 @@ export function getShotKind(variant: string): ShotKind | null {
 }
 
 // creating.tex "Reach Multiplier (RM): multiplies the range of all weapons":
-// the metres a shooting row carries, at its weapon's scale.
-export function getShotReach(atk: WeaponAttack, weapon: Weapon): number {
-  return (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1]
+// the metres a shooting row carries, at its weapon's scale; abilities.tex
+// "Thrower": "The range of thrown weapons is increased by 50|100%."
+export function getShotReach(atk: WeaponAttack, weapon: Weapon, c: Character): number {
+  const metres = (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1]
+  return getAttackKind(atk.range) === 'throw' ? Math.floor(metres * (1 + getBuffBonus(c, 'reach:throw') / 100)) : metres
 }
 
 // combat.tex "Shoot", "Quick Shot", "Snipe": the penalty a way of shooting
@@ -222,7 +235,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     // formula, so none is applied), and "Accuracy" charges it the distance
     // penalty a shot is charged.
     const shooting = kind === 'shoot' || kind === 'throw'
-    const reach = shooting ? getShotReach(atk, weapon) : null
+    const reach = shooting ? getShotReach(atk, weapon, c) : null
     const distance = (shot: ShotKind) => (shooting ? getShotDistanceRate(shot, c) : null)
     const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach, distance: distance('shoot') }
     // combat.tex "Braced Attack", "Hook Attack": declared at the normal
@@ -255,7 +268,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
     // use quick shot unless STR is +3 points higher than the requirement."
     if (kind === 'shoot' && !untrained) {
-      if (atk.STRreq === undefined || getSTR(c) >= atk.STRreq + 3) attacks.push(quickShot)
+      if (atk.STRreq === undefined || getDrawSTR(weapon, c) >= atk.STRreq + 3) attacks.push(quickShot)
       attacks.push(snipe)
     }
 

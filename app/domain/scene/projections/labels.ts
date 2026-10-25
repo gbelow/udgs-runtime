@@ -51,8 +51,6 @@ function getDraftLabel(state: SceneState, actorId: string, option: ActionOption)
     }
     case 'intercept':
       return withWeapon(state, actorId, draft, draft.advance ? 'defensive advance' : draft.preparedId ? 'prepared intercept' : ACTIONS.intercept.label)
-    case 'evasion':
-      return draft.stay ? `${ACTIONS.evasion.label}, staying put` : ACTIONS.evasion.label
     case 'assist':
       return draft.boost ? `${ACTIONS.assist.label} +5` : ACTIONS.assist.label
     case 'explosion':

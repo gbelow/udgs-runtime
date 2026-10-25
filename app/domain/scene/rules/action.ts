@@ -332,8 +332,6 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
       return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null
     case 'fireAgain':
       return isSpellKey(action.key) ? getRepeatCost(action.key) : null
-    case 'evasion':
-      return getEvasionCost(c, action.stay)
     case 'block':
     case 'intercept':
       return withGuardStep(c, action, getActionCost(c, action.kind))
@@ -366,6 +364,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'taunt':
     case 'rest':
     case 'prepare':
+    case 'evasion':
       return getCatalogCost(c, action.kind)
     case 'grapple':
       return getManeuverCost(c, action.maneuver)
@@ -586,13 +585,6 @@ export function withRefund(state: SceneState, c: CampaignCharacter, rootId: stri
 export function withGuardStep(c: CampaignCharacter, action: ActionOf<'block'> | ActionOf<'intercept'>, cost: ActionCost): ActionCost {
   const step = action.kind === 'intercept' && action.advance ? getActionCost(c, 'defensiveAdvance') : action.to ? getActionCost(c, 'defenderStep') : null
   return step ? { AP: cost.AP + step.AP, STA: cost.STA + step.STA } : cost
-}
-
-// combat.tex "Evasion": "spend 3 AP to react"; abilities.tex "Precise
-// Reflexes": "If the character uses reflexes without moving, reflexes only
-// cost 1 AP."
-export function getEvasionCost(c: CampaignCharacter, stay: boolean): ActionCost {
-  return stay && hasGrant(c, 'stillReflex') ? { AP: 1, STA: 0 } : getActionCost(c, 'reflex')
 }
 
 // abilities.tex "Precise Evasion": "Learns to use evade with 1 AP".

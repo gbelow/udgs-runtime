@@ -652,7 +652,18 @@
           ]
         ],
         "description": "The range of thrown weapons is increased by 50%.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "reach:throw",
+              "operation": "+",
+              "value": 50
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "freeSpells": 0
@@ -678,7 +689,18 @@
           ]
         ],
         "description": "The range of thrown weapons is increased by 100%.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "reach:throw",
+              "operation": "+",
+              "value": 50
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "freeSpells": 0
@@ -1082,7 +1104,18 @@
           ]
         ],
         "description": "Provides a strength bonus of +1 to meet the strength requirement of bows.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "bow:STR",
+              "operation": "+",
+              "value": 1
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "freeSpells": 0
@@ -1108,7 +1141,18 @@
           ]
         ],
         "description": "Provides a strength bonus of +2 to meet the strength requirement of bows.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "bow:STR",
+              "operation": "+",
+              "value": 1
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "freeSpells": 0
@@ -1153,40 +1197,6 @@
         "effect": [],
         "recipes": [],
         "grants": [],
-        "freeSpells": 0
-      }
-    ]
-  },
-  "precise-reflexes": {
-    "family": "Precise Reflexes",
-    "section": "Ranged Combat",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 6,
-        "karma": 0,
-        "talent": [
-          {
-            "property": "DEX",
-            "level": 4
-          }
-        ],
-        "requirements": [],
-        "description": "If the character uses reflexes without moving, reflexes only cost 1 AP.",
-        "effect": [],
-        "recipes": [],
-        "grants": [
-          "stillReflex"
-        ],
         "freeSpells": 0
       }
     ]

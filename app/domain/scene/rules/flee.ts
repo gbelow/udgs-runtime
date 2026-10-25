@@ -56,7 +56,7 @@ export function getFleeStep(state: SceneState, move: MoveAction): number | null 
 export function getFleeFollowUps(state: SceneState, root: RootAction): string[] {
   const offered = root.kind === 'strike' && root.targetId ? [root.targetId]
     : root.kind === 'shoot' && root.roll?.degree === 'miss'
-      ? getReactionsTo(state, root.id).flatMap((r) => (r.kind === 'evasion' && !r.stay ? [r.actorId] : []))
+      ? getReactionsTo(state, root.id).flatMap((r) => (r.kind === 'evasion' ? [r.actorId] : []))
       : []
   return offered.filter((id) => {
     const c = state.characters[id]
