@@ -604,6 +604,14 @@ export const ShootActionSchema = z.object({
   // combat.tex "Throw": what left the hand, one of it, to land where the
   // throw was aimed; written at the resolve, null for a shot
   thrown: ItemSchema.nullable().default(null),
+  // abilities.tex "Steady Arms": a shot made on a careful move, declared whole
+  // (rules/steadyArms.ts)
+  modifiers: z.object({ steadyArms: z.boolean().default(false) }).prefault({}),
+  // the careful path walked while shooting, as a move draws one
+  path: z.array(CoordSchema).default([]),
+  turns: z.array(num).default([]),
+  // how many steps of the path are walked before the shot is fired; null is all of it
+  firedAt: num.nullable().default(null),
 }).strip()
 
 // combat.tex "Explosions", "Sprays"; gear.tex "Explosion": an area going

@@ -30,6 +30,7 @@ import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
+import { getFiringSteps, isSteadyShot } from '../rules/steadyArms'
 import { isRootAction } from '../rules/actionCatalog'
 import { getBreakableLimbs, getDisarmOptions, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
@@ -227,6 +228,9 @@ export type OpenActionView = {
   // the declaration a move has made so far
   movement: MoveKind
   path: Coord[]
+  // abilities.tex "Steady Arms": the steps of the path the shot may be fired from
+  // (counted from the shooter's start), and the one it is
+  steady: { steps: { at: number; selected: boolean }[] } | null
   // play.tex "Safe and risky tests": how a climb is thrown, and the ways its
   // climber may throw it (just the normal one without Climber)
   mode: RollMode
@@ -474,6 +478,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       suggestion: cast && getMoraleSpell(cast.key)?.effect.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
+      steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(open) ? { steps: getFiringSteps(open) } : null,
       mode: open.kind === 'move' ? open.mode : 'normal',
       climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor, isCombatStarted(state)) : [],
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,

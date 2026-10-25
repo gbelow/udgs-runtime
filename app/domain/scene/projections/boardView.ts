@@ -13,6 +13,7 @@ import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells } fro
 import { getBoardMode, getEvasiveJumper, getFloorPicker, type BoardMode } from '../rules/board/boardMode'
 import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost } from '../rules/move'
+import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
 import { getReachableCells } from '../rules/board/reach'
 import { getMoveSweep } from '../rules/board/waypoint'
 import { getDepth } from '../rules/swim'
@@ -188,13 +189,16 @@ function buildBoardView(state: SeenScene): BoardView {
   // the move in play, whatever its phase: its path stays drawn throughout;
   // so does the way a push takes its block (combat.tex "Push and drag")
   const walking = findOpenRoot(state, 'drag')
-  const pending = findOpenRoot(state, 'move') ?? walking
+  // abilities.tex "Steady Arms": the careful path drawn with a shot being declared
+  const steady = open?.kind === 'shoot' && open.step === 'define' && isSteadyShot(open) ? getSteadyPath(state, open) : null
+  const pending = findOpenRoot(state, 'move') ?? walking ?? steady
   const move = open?.kind === 'move' && open.step === 'define' ? open : null
   const group = open?.kind === 'drag' && open.step === 'define' ? open : null
   const pusher = group ? state.characters[group.actorId] : undefined
   const targets = new Set(getDeclaredTargets(state, open))
   const occupancy = getOccupancy(board, state.characters)
   const reachable = move ? getReachableCells(state, move)
+    : steady ? getReachableCells(state, steady)
     : group && pusher ? getDragReach(state, group).map((r) => ({ ...r, cost: getMoveCost(pusher, group.movement, r.steps) }))
     : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))

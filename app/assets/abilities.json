@@ -1066,7 +1066,9 @@
         "description": "Can move at careful movement speed while performing ranged attacks (except snipe), reutilizing the AP cost. It is considered that the attack came from any position that the attacker has been. Opportunity attacks are triggered at all positions along the path.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "steadyArms"
+        ],
         "freeSpells": 0
       }
     ]

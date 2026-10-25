@@ -151,6 +151,7 @@ click to what stands afterwards. It is admitted, under these terms.
   guard taking cover behind it, so that the shots after have a covered character to meet, and
   one who has learned to plant it plants it facing a cell the board offers. One who has learned a
   jump attack (Lunge, Jump Shot) jumps as one to a cell the board offers and attacks from there,
+  one who has learned Steady Arms declares a shot on a careful path drawn on the board and fired from one of its steps,
   and one who has learned Archer's Reflexes makes the focus surge and answers what draws an
   opportunity attack in the turn after with a quick shot.
   A chase is played with no board: three running from three, every button of the chase panel

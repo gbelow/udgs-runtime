@@ -910,6 +910,36 @@ function jumpAttackPlay(h: Harness): Play[] {
   })
 }
 
+// abilities.tex "Steady Arms": a shot declared on a careful path drawn on the
+// board, fired from a step along it, and played out with the steps after it.
+// Played only where someone has the ability, for the same reason as the
+// shelter.
+function steadyShotPlay(h: Harness): Play[] {
+  const able = () => Object.values(h.state().characters).filter((c) => hasGrant(c, 'steadyArms'))
+  if (!able().length) return []
+  return [{
+    name: 'steady shot',
+    weight: 3,
+    run: (h, pick) => {
+      startTurnOf(h, pick, able().map((c) => c.id))
+      h.send({ kind: 'surge', args: [h.active()!, 'focus'] })
+      const shot = ownOptions(h, h.active()!).find((o) => o.draft.kind === 'shoot')
+      if (!shot) return
+      h.declare(shot.draft as ActionDraft)
+      const panel = () => getActionPanel(h.state())
+      const row = panel().attacks.length ? pick(panel().attacks) : null
+      if (row) h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
+      const toggle = panel().open?.modifiers.find((m) => m.key === 'steadyArms')
+      if (!toggle?.allowed) return
+      h.send({ kind: 'amend', args: [toggle.press] })
+      for (let i = pick([1, 2, 3]); i > 0 && highlighted(h).length; i--) h.click({ on: 'cell', cell: pick(highlighted(h)).cell })
+      const steps = panel().open?.steady?.steps ?? []
+      if (steps.length) h.send({ kind: 'amend', args: [{ firedAt: pick(steps).at }] })
+      playOut(h, pick)
+    },
+  }]
+}
+
 // abilities.tex "Archer's Reflexes": one who has learned it makes the focus
 // surge in a turn of their own, and in the same round, in the turn of someone
 // a melee weapon threatens where there is anyone, answers whatever draws an
@@ -1011,7 +1041,7 @@ function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
     h.cell(...third.at)
   }
   h.select('Ann')
-  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...steadyShotPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('two characters grappling, pushing, shooting and defending', () => {
@@ -1061,7 +1091,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...steadyShotPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('a crowd on rough ground', () => {
@@ -1220,7 +1250,7 @@ function chasePlays(): Play[] {
 // reach or cover from but the chase.
 function playChase(seed: number, table = false) {
   const { h, pick } = openChase(seed, undefined, table)
-  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...steadyShotPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
 }
 
 function openChase(seed: number, tier?: ChaseTier, table = false) {

@@ -45,6 +45,7 @@ import { getChaseCoverTerms, getRoutingTerms } from './chase'
 import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
 import { pickAim, pickShotDeclaration, pickStrikeDeclaration } from './declaration'
+import { getFiringState } from './steadyArms'
 
 // What an action is rolled with and against: the weapon rows and
 // variations an attack can be made with, the opportunity attack a reaction
@@ -255,7 +256,8 @@ function getShotDistance(state: SceneState, shot: ShootAction): number | null {
 // own (abilities.tex "Elite Sniper": "Snipe gets +1|2|3 to hit").
 // combat.tex "Attack and Defend": a grapple row "can use the grapple skill
 // instead of strike to attack during a grapple".
-function getAttackTerms(state: SceneState, action: AttackAction): Term[] {
+function getAttackTerms(placed: SceneState, action: AttackAction): Term[] {
+  const state = action.kind === 'shoot' ? getFiringState(placed, action) : placed
   const c = state.characters[action.actorId]
   if (!c) return []
   const variant = getAttackVariant(c, action, isCombatStarted(state))

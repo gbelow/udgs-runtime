@@ -95,6 +95,15 @@ export function ActionPanel(){
 
       <Modifiers modifiers={open.modifiers} onPress={amend} />
 
+      {open.steady ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>fire from</SectionLabel>
+          {open.steady.steps.map((s) =>
+            <Button key={s.at} size='xs' selected={s.selected} onClick={() => amend({ firedAt: s.at })}>{s.at === 0 ? 'start' : s.at}</Button>)}
+          {open.steady.steps.length > 1 && !locked ? <Button size='xs' weight='subtle' onClick={backSegment}>back a segment</Button> : <span className='text-xs text-muted'>pick a careful path on the board</span>}
+        </div>
+      ) : null}
+
       {view.ammo.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>ammo</SectionLabel>

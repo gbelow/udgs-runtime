@@ -60,6 +60,7 @@ import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
 import { getOpeningJumpAttack, isJumpAttackLanding } from './jumpAttack'
+import { getFiringState, isSteadyPathLegal } from './steadyArms'
 import { getStrikeContext, isStrikeDeclarationOpen, isVariantOpen, type StrikeHolder } from './strikeDeclaration'
 import { addModifierLines, areModifiersOpen, getModifiedPrice, type ModifiedPrice } from './modifiers'
 
@@ -126,7 +127,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'strike':
       return getAttackVariant(c, action, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
     case 'shoot':
-      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isVariantOpen(state, action, action) && isShotLoaded(c, action) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isVariantOpen(state, action, action) && isShotLoaded(c, action) && isSteadyPathLegal(state, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
     case 'explosion':
       return (action.source !== 'cast' || isSpellKey(action.key))
@@ -806,7 +807,8 @@ export function needsTarget(action: Action): boolean {
 // not detected (combat.tex "Stealth in combat"). One compelled to attack
 // a caster aims at nobody else (rules/stress.ts).
 export function getTargetIds(state: SceneState, root: RootAction): string[] {
-  return getAimableIds(state, root).filter((id) => notices(state, root.actorId, id) && !isSheltered(state, root.actorId, id) && isCompelledTarget(state, root.actorId, id))
+  const at = root.kind === 'shoot' ? getFiringState(state, root) : state
+  return getAimableIds(at, root).filter((id) => notices(at, root.actorId, id) && !isSheltered(at, root.actorId, id) && isCompelledTarget(at, root.actorId, id))
 }
 
 function getAimableIds(state: SceneState, root: RootAction): string[] {

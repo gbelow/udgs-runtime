@@ -34,6 +34,7 @@ import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 import { getInterruptedClimb } from '../rules/move'
 import { getNextDisplacement } from '../rules/displace'
 import { getJumpAttack, getJumpAttackOpened } from '../rules/jumpAttack'
+import { openSteadyLeg } from '../rules/steadyArms'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
 
@@ -263,7 +264,15 @@ function generateFollowUps(state: SceneState, root: RootAction, newId: () => str
     ...openSwimTest(state, root, newId),
     ...openFall(root, newId),
     ...openJumpAttack(state, root, newId),
+    ...openSteadyAfter(state, root, newId),
   ]
+}
+
+// abilities.tex "Steady Arms": the steps of the path after the one the shot
+// was fired from, for its shooter to walk or pass up.
+function openSteadyAfter(state: SceneState, root: RootAction, newId: () => string): Action[] {
+  const walk = root.kind === 'shoot' ? openSteadyLeg(state, root, 'after', newId()) : null
+  return walk ? [walk] : []
 }
 
 // abilities.tex "Lunge", "Jump Shot": the attack from where the jump

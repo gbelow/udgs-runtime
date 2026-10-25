@@ -384,6 +384,7 @@ app/domain/scene/
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
 │   ├── jumpAttack.ts   a jump declared as Lunge or Jump Shot (abilities.tex): what each costs and opens, where it may land (a jump shot backward, at half the jump), and the attack it opens from there
 │   ├── plant.ts        a body shield planted (abilities.tex "Crossbow and Shield"): the shields one may plant, the cells it may face
+│   ├── steadyArms.ts   a shot declared on a careful path (abilities.tex "Steady Arms"): the path and the step it is fired from are part of the shoot declaration; the steps before it are walked first as a move of their own (opened committed by `commitAction`), the shot is made from where they end, the steps after it are offered as a move once it has landed; the declaration reads the shooter as standing at the firing step (`getFiringState`). Both moves are bought with the shot's AP (`getCarriedMove`, shared with the move a rest allows)
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes (of whoever a landed action stunned), grapple facts
 │   ├── partners.ts     who is grappled with whom
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with

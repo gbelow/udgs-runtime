@@ -1,7 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { SceneState, RootAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
-import type { ReactionMove } from './reactionMoves'
+import { getCarriedMove, type ReactionMove } from './reactionMoves'
 import { getPassedUp, getSpawned } from './log'
 import { isInTurn } from './turn'
 
@@ -23,6 +23,5 @@ export function hasRestMove(state: SceneState, rootId: string): boolean {
 // The move a rest allows: careful only, as far as the rest's AP reaches,
 // which has already paid for it.
 export function getRestMove(c: CampaignCharacter): ReactionMove {
-  const AP = getActionCost(c, 'rest').AP
-  return { movement: 'careful', movements: ['careful'], budget: AP, prepaid: AP }
+  return getCarriedMove(getActionCost(c, 'rest').AP)
 }

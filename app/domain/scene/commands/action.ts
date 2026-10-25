@@ -28,6 +28,7 @@ import { giveUpHeld } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { isChargeStrike } from '../rules/surge'
+import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -108,7 +109,11 @@ export function commitAction(thrown: Throw, newId: () => string): Updater {
     if (!cost && !hold) return state
     // combat.tex "Concentration": what it cannot be paid for, it is held over
     const committed: RootAction = { ...withCommitFacts(state, actor, open, toThrower(thrown).dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, step: 'react' }
-    const locked = replaceActions(state, [withStealthFacts(state, withMatesPassed(state, committed))])
+    const locked = replaceActions(state, [withStealthFacts(open.kind === 'shoot' ? getFiringState(state, open) : state, withMatesPassed(state, committed))])
+    // abilities.tex "Steady Arms": the steps walked before the shot is fired
+    // are played out first, and the shot goes on once they have landed
+    const walking = committed.kind === 'shoot' ? openSteadyLeg(state, committed, 'before', newId()) : null
+    if (walking) return commitAction(thrown, newId)(appendActions(locked, [walking]))
     return hasOpenAnswer(locked) ? locked : rollOrPay(thrown, newId)(locked)
   }
 }

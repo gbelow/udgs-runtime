@@ -12,6 +12,7 @@ import { isInLiquid } from './board/ground'
 import { canGrab, isGrappleRowOf } from './grapple'
 import { isSweepLink } from './sweep'
 import { JUMP_ATTACKS, canJumpAttack } from './jumpAttack'
+import { canSteadyShot } from './steadyArms'
 import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
 
 // Every yes-or-no an action is declared with besides what it is (types.ts,
@@ -159,6 +160,17 @@ const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modif
       requires: 'advancingIntercept',
       allowed: ({ action }) => action.kind === 'intercept' && action.preparedId === '',
       price: ({ actor }) => ({ add: getActionCost(actor, 'defensiveAdvance') }),
+    },
+  },
+  // abilities.tex "Steady Arms": a careful move bought with the shot's own AP
+  // (rules/steadyArms.ts)
+  shoot: {
+    steadyArms: {
+      label: 'steady arms',
+      offer: 'toggle',
+      requires: 'steadyArms',
+      allowed: ({ state, action }) => action.kind === 'shoot' && canSteadyShot(state, action),
+      price: () => ({ add: { AP: 0, STA: 0 } }),
     },
   },
   // abilities.tex "Lunge": "jump for 1 STA"; "Jump Shot": "Spends 1 extra

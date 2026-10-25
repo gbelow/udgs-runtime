@@ -6,6 +6,7 @@ import { getAim } from '../aim'
 import { isAimable } from '../explosion'
 import { getEvasiveJumpPlacements } from '../move'
 import { canPickUp, getReachableFloor } from '../floor'
+import { isSteadyShot } from '../steadyArms'
 
 // What a click on the board means depends on what the open action is waiting
 // for: a path, the landing of an evasive jump, the aim of an explosion, or
@@ -23,6 +24,8 @@ export function getBoardMode(state: SceneState): BoardMode {
   if (getDiceBar(state.calls)) return 'locked'
   const open = getOpenAction(state)
   if ((open?.kind === 'move' || open?.kind === 'drag') && open.step === 'define') return 'path'
+  // abilities.tex "Steady Arms": the careful path is drawn with the shot
+  if (open?.kind === 'shoot' && open.step === 'define' && isSteadyShot(open)) return 'path'
   const jumper = getEvasiveJumper(state)
   if (open && jumper && getEvasiveJumpPlacements(state, jumper, open.actorId).length > 0) return 'jump'
   const blast = findOpenRoot(state, 'blast')

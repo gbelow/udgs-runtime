@@ -92,7 +92,7 @@ export function trained(c: CampaignCharacter): CampaignCharacter {
 // stand: a trained bow drawn strongly enough for a quick shot, the defence
 // after a movement surge and the jump that opens a shot.
 export function rangedTrained(c: CampaignCharacter): CampaignCharacter {
-  return (['archer', 'archer-s-muscles-1', 'tactical-movement', 'jump-shot'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
+  return (['archer', 'archer-s-muscles-1', 'tactical-movement', 'steady-arms', 'jump-shot'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
 // The melee abilities that change what the fighter declares or pays: a

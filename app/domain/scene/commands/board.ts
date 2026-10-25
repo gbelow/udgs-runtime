@@ -18,6 +18,7 @@ import { getMoveOrigin, getPathTurns, withoutLastSegment } from '../rules/board/
 import { aimAtCell, amendAction, amendReaction, declareReaction } from './action'
 import { aimExplosion, displaceTrampled } from './choices'
 import { getDragReach, getWalkerPlacement } from '../rules/drag'
+import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
@@ -181,6 +182,10 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string): {
     const drawn = pickPathCell(state, open, cell)
     return own(drawn ? amendAction(drawn) : unchanged)
   }
+  if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(open)) {
+    const drawn = pickPathCell(state, getSteadyPath(state, open), cell)
+    return own(drawn ? amendAction({ ...drawn, firedAt: null }) : unchanged)
+  }
   const aim = getAim(state, open)
   if (aim) {
     if (!aim.cells.some((c) => sameCell(c, cell))) return own(unchanged)
@@ -230,7 +235,9 @@ function pickPathCell(state: SceneState, action: MoveAction, cell: Coord): { pat
 export function backSegment(): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.kind !== 'move' || open.step !== 'define' || open.path.length === 0) return state
+    if (!open || open.step !== 'define') return state
+    if (open.kind === 'shoot' && isSteadyShot(open) && open.path.length > 0) return amendAction({ ...withoutLastSegment(getSteadyPath(state, open)), firedAt: null })(state)
+    if (open.kind !== 'move' || open.path.length === 0) return state
     return amendAction(withoutLastSegment(open))(state)
   }
 }

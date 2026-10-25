@@ -8,6 +8,12 @@ import { getMovementBlock } from '../../character/rules/movement'
 // already paid towards it, and whatever kinds of movement it grants.
 export type ReactionMove = Partial<Pick<MoveAction, 'movement' | 'movements' | 'budget' | 'prepaid' | 'forced'>>
 
+// A careful move an action carries, bought with the AP the action itself
+// costs (combat.tex "Rest"; abilities.tex "Steady Arms").
+export function getCarriedMove(AP: number): ReactionMove {
+  return { movement: 'careful', movements: ['careful'], budget: AP, prepaid: AP }
+}
+
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
 // once. On a hit, they can jump once in any direction before the explosion
 // occurs. On a graze, they can move 1 AP before the explosion ... It is
