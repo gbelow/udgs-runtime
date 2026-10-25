@@ -91,6 +91,8 @@ export function useTableLink() {
   const nameOf = (id: string) => profileList.find((p) => p.id === id)?.name ?? id;
   return {
     mode, status, why, attempt, roomName,
+    // the campaign the screen runs: the table's once joined, else the one open
+    campaign: mode === 'guest' ? { name: roomName, locked: false } : { name: file.name, locked: file.locked },
     guests: guests.map((g) => ({ id: g.id, name: nameOf(g.profile) })),
     canHost: gmTools,
     played,
