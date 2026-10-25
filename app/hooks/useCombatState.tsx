@@ -10,9 +10,12 @@ import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowContr
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useGmPickStore } from "../stores/useGmPickStore";
 import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 import { useSceneDispatch } from "./useSceneDispatch";
+
+const NONE: string[] = [];
 
 // Fight-level primitives. Both go through the store selector, so a change to a
 // combatant's sheet does not re-render the round counter.
@@ -36,6 +39,7 @@ export function useFighterCount(): number {
 export function useCombatRoster(): {
   parties: RosterParty[];
   pick: (entry: CombatRosterEntry) => void;
+  picked: string[];
 } {
   // Gate on a digest of the roster, then build it — the entries are freshly
   // allocated, so they cannot gate themselves by identity.
@@ -43,15 +47,17 @@ export function useCombatRoster(): {
   const parties = getRosterParties(useCombatStore.getState());
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
+  const picked = useGmPickStore((s) => (s.picking ? s.picked : NONE));
 
   // A click on the roster aims the open action while it is waiting for a
   // target, and switches the active character otherwise.
   const pick = (entry: CombatRosterEntry) => {
-    if (entry.targetable) dispatch({ kind: "target", args: [entry.id] });
+    if (useGmPickStore.getState().picking) useGmPickStore.getState().toggle(entry.id);
+    else if (entry.targetable) dispatch({ kind: "target", args: [entry.id] });
     else setActiveCharacter(entry.id);
   };
 
-  return { parties, pick };
+  return { parties, pick, picked };
 }
 
 // The fight with no board, one card per character by party; a click does what
@@ -59,11 +65,12 @@ export function useCombatRoster(): {
 export function useSceneCards(): {
   parties: SceneCardParty[];
   pick: (entry: CombatRosterEntry) => void;
+  picked: string[];
 } {
   useCombatStore(getSceneCardsDigest);
   const parties = getSceneCards(useCombatStore.getState());
-  const { pick } = useCombatRoster();
-  return { parties, pick };
+  const { pick, picked } = useCombatRoster();
+  return { parties, pick, picked };
 }
 
 // The round change for the middle of the run screen, null while the round is

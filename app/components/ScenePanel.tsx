@@ -10,6 +10,8 @@ import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
 import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useFollowControls, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
+import { useGmFloorTools } from '../hooks/useBoard';
+import { ExplosionFields } from './ExplosionFields';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
@@ -155,12 +157,9 @@ function SceneCalls(){
 
 // What the GM does to the scene that no character does, each starting a
 // declaration aimed on the board or the roster like a character's action.
-const GM_TOOLS = [
-  { label: 'triggers', title: "fire one of the scene's triggers" },
-] as const
-
 export function GmSceneTools(){
   const [testOpen, setTestOpen] = useState(false)
+  const [triggersOpen, setTriggersOpen] = useState(false)
   const cowardBar = useCowardBar()
   const { defaultToCoward } = useCombatCommands()
 
@@ -171,16 +170,46 @@ export function GmSceneTools(){
         <Tooltip text='a test the GM asks of the characters picked, with what rides on it'>
           <Button size='xs' aria-label='gm test' selected={testOpen} onClick={() => setTestOpen(!testOpen)}>test</Button>
         </Tooltip>
-        {GM_TOOLS.map((t) => (
-          <Tooltip key={t.label} text={`${t.title} — not built yet`}>
-            <Button size='xs' aria-label={`gm ${t.label}`} disabled>{t.label}</Button>
-          </Tooltip>
-        ))}
+        <Tooltip text="explosions and the items on the floor: pick one, then click the board">
+          <Button size='xs' aria-label='gm triggers' selected={triggersOpen} onClick={() => setTriggersOpen(!triggersOpen)}>triggers</Button>
+        </Tooltip>
         <Tooltip text={cowardBar ?? 'nobody for the active character to insult or negotiate with: they default to coward'}>
           <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} onClick={defaultToCoward}>default to coward</Button>
         </Tooltip>
       </div>
       {testOpen ? <ImposePanel /> : null}
+      {triggersOpen ? <FloorTriggers /> : null}
+    </div>
+  )
+}
+
+// The GM's tools for the floor of the board: an explosion set off at a cell,
+// items laid on the floor, charged with an explosion, set off or taken away,
+// each used by clicking the board once picked.
+function FloorTriggers(){
+  const { boardInPlay } = useChase([], 'combat')
+  const { floorTool, setFloorTool, explosion, setExplosion, explosionOptions, item } = useGmFloorTools()
+  const bar = boardInPlay ? null : 'no board: simulate a grid first'
+  const tools = [
+    { tool: 'put', label: 'item to ground', aria: 'gm item to ground', text: item ? 'put the item picked in the item catalog on each clicked cell' : 'pick an item in the item catalog first', off: !item },
+    { tool: 'explode', label: 'explosion', aria: 'gm explosion', text: 'describe an explosion, then click the cell it goes off at; everyone it reaches may avoid it against the DL', off: false },
+    { tool: 'charge', label: 'charge item', aria: 'gm charge item', text: 'describe an explosion, then click an item lying on the floor to charge it with it', off: false },
+    { tool: 'setoff', label: 'set item off', aria: 'gm set item off', text: 'click a charged item lying on the floor to set its charge off where it lies', off: false },
+    { tool: 'remove', label: 'item off ground', aria: 'gm item off ground', text: 'click an item lying on the floor to take it off the board', off: false },
+  ] as const
+
+  return(
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>floor</SectionLabel>
+        {tools.map((t) => (
+          <Tooltip key={t.tool} text={bar ?? t.text}>
+            <Button size='xs' aria-label={t.aria} selected={floorTool === t.tool} disabled={bar !== null || t.off}
+              onClick={() => setFloorTool(floorTool === t.tool ? null : t.tool)}>{t.label}</Button>
+          </Tooltip>
+        ))}
+      </div>
+      {floorTool === 'explode' || floorTool === 'charge' ? <ExplosionFields draft={{ explosion, setExplosion, explosionOptions }} /> : null}
     </div>
   )
 }
@@ -188,22 +217,16 @@ export function GmSceneTools(){
 // The GM asks the characters picked for a test and says what rides on it
 // first; each rolls their own die, and the degree decides how hard it lands.
 function ImposePanel(){
-  const { options, parties, picked, toggle, toggleParty, draft, set, DL, bar, impose } = useImpose()
+  const { options, parties, picked, toggleParty, draft, set, DL, bar, impose } = useImpose()
+  const names = parties.flatMap((p) => p.entries).filter((e) => picked.includes(e.id)).map((e) => e.name)
   const fall = draft.effect === 'fall'
 
   return(
     <div className='flex flex-col gap-1 text-xs'>
       <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
-        {parties.map((p) => (
-          <div key={p.id} className='flex flex-row flex-wrap gap-x-2 items-center'>
-            {p.name ? <Button size='xs' aria-label={`pick party ${p.name}`} onClick={() => toggleParty(p)}>{p.name}</Button> : null}
-            {p.entries.map((e) => (
-              <label key={e.id} className='flex gap-1 items-center'>
-                <input type='checkbox' aria-label={`pick ${e.name}`} checked={picked.includes(e.id)} onChange={() => toggle(e.id)} />
-                {e.name}
-              </label>
-            ))}
-          </div>
+        <span className='text-muted'>{names.length === 0 ? 'click who it falls on, in the top bar or on the board' : `falls on ${names.join(', ')}`}</span>
+        {parties.filter((p) => p.name).map((p) => (
+          <Button key={p.id} size='xs' aria-label={`pick party ${p.name}`} onClick={() => toggleParty(p)}>{p.name}</Button>
         ))}
       </div>
       <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center'>
@@ -398,7 +421,7 @@ function SurgeControl(){
 // Everyone in the fight as a strip of chips by party: a click picks the
 // active character, or aims the open action at a target.
 function CharacterList(){
-  const { parties, pick } = useCombatRoster()
+  const { parties, pick, picked } = useCombatRoster()
 
   return(
     <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
@@ -408,7 +431,7 @@ function CharacterList(){
             {party.name ? <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span> : null}
             {party.entries.map((entry) =>
               <Button key={entry.id} size='xs' aria-label={entry.name}
-                tone={entry.targetable ? 'bad' : 'neutral'} selected={!entry.targetable && entry.isActive}
+                tone={entry.targetable ? 'bad' : 'neutral'} selected={picked.includes(entry.id) || (!entry.targetable && entry.isActive && picked.length === 0)}
                 className={entry.targetable ? 'animate-pulse' : ''}
                 onClick={() => pick(entry)}>
                 {entry.name}

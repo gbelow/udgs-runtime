@@ -7,7 +7,7 @@ import type { SceneCard } from '../domain/scene/projections/cards'
 // character as a card, by party. A click aims the open action at a target,
 // and selects the character otherwise.
 export function SceneCards(){
-  const { parties, pick } = useSceneCards()
+  const { parties, pick, picked } = useSceneCards()
   if (parties.length === 0) return <span className='text-xs text-muted'>nobody in the fight</span>
 
   return (
@@ -16,7 +16,7 @@ export function SceneCards(){
         <div key={party.id} className='flex flex-col gap-1.5'>
           {party.name ? <span className='text-[10px] uppercase tracking-wide text-muted'>{party.name}</span> : null}
           <div className='flex flex-row flex-wrap gap-2'>
-            {party.cards.map((card) => <Card key={card.id} card={card} onClick={() => pick(card)} />)}
+            {party.cards.map((card) => <Card key={card.id} card={card} picked={picked.includes(card.id)} onClick={() => pick(card)} />)}
           </div>
         </div>
       ))}
@@ -26,8 +26,8 @@ export function SceneCards(){
 
 // One character's card; a click picks them, and what is passed in sits under
 // it.
-export function Card({ card, onClick, children }: { card: SceneCard, onClick: () => void, children?: ReactNode }){
-  const frame = card.targetable ? 'border-bad animate-pulse' : card.isActive ? 'border-accent bg-accent/10' : 'border-line hover:border-muted'
+export function Card({ card, picked = false, onClick, children }: { card: SceneCard, picked?: boolean, onClick: () => void, children?: ReactNode }){
+  const frame = picked ? 'border-accent bg-accent/20' : card.targetable ? 'border-bad animate-pulse' : card.isActive ? 'border-accent bg-accent/10' : 'border-line hover:border-muted'
   return (
     <div
       className={`w-52 rounded border flex flex-col bg-surface cursor-pointer ${frame} ${card.dead ? 'opacity-50' : ''}`}

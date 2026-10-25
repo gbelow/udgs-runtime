@@ -54,6 +54,7 @@ catalog - all GM editable content
 - Fidelity to the book. The book and the app need to be in sync and terms should not be changed.
 - Deviation. What a GM may override, and how loudly the UI notes it.
 - Tabletop compatibility: offer Manual versions of board interactions. Understand that movement and positions and all triggers wont be tracked by the app, but manual inserts for those things should be provided.
+- Picking characters. Whenever a command needs characters chosen (a GM test, a target, a party member), they are picked by clicking them where they already are: the roster in the top bar, a card when there is no board, or the token on the board. Never a checkbox or a list inside the tool's form. The form says who is picked; the chosen ones are marked in the top bar and on the board.
 - Permissions:
   1. player creates character and plays the game modes
   2. GM does everything player does, but has access to GM tools in combat, free character editor, the catalog and free map builder. GM also controls the clocks. Saves personal data.

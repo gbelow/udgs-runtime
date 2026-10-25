@@ -10,9 +10,8 @@ import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, 
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
-import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, Tooltip, selectClass } from './ui'
+import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
-import { ExplosionFields } from './ExplosionFields'
 
 const MODE_LABEL = {
   idle: 'click a cell to place the active character (to move them again only until the fight starts), or an item to pick it up',
@@ -53,9 +52,8 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
-  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, explosion, setExplosion, explosionOptions, turn, light, resize, resizeWarning } = useBoard(fromActive)
+  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, resize, resizeWarning } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
-  const [floorTool, setFloorTool] = useState<'put' | 'remove' | 'explode' | 'charge' | 'setoff' | null>(null)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
   const { gmTools } = useRole()
@@ -73,13 +71,14 @@ export function BoardPanel(){
     )
   }
 
-  const painting = open && brush !== null
-  const repositioning = open && reposition
-  const grounding = open && floorTool === 'put' && item !== null
-  const clearing = open && floorTool === 'remove'
-  const exploding = open && floorTool === 'explode'
-  const charging = open && floorTool === 'charge'
-  const settingOff = open && floorTool === 'setoff'
+  const floor = gmTools ? floorTool : null
+  const painting = open && floor === null && brush !== null
+  const repositioning = open && floor === null && reposition
+  const grounding = floor === 'put' && item !== null
+  const clearing = floor === 'remove'
+  const exploding = floor === 'explode'
+  const charging = floor === 'charge'
+  const settingOff = floor === 'setoff'
   return (
     <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : grounding ? `click a cell to lay ${item.name || item.refId} on it` : exploding ? 'click a cell to set the explosion off there' : charging ? 'click an item on the floor to charge it with the explosion described' : settingOff ? 'click an item on the floor to set its charge off' : clearing ? 'click an item on the floor to take it away' : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
@@ -116,32 +115,6 @@ export function BoardPanel(){
       </div>
       <SizeRow key={view.radius} radius={view.radius} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
-      {gmTools ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>GM</SectionLabel>
-          <Tooltip text={item ? 'put the item picked in the item catalog on each clicked cell' : 'pick an item in the item catalog first'}>
-            <Button size='xs' aria-label='gm item to ground' selected={grounding} disabled={!item}
-              onClick={() => { setFloorTool(grounding ? null : 'put'); setBrush(null); setReposition(false) }}>item to ground</Button>
-          </Tooltip>
-          <Tooltip text='describe an explosion, then click the cell it goes off at; everyone it reaches may avoid it against the DL'>
-            <Button size='xs' aria-label='gm explosion' selected={exploding}
-              onClick={() => { setFloorTool(exploding ? null : 'explode'); setBrush(null); setReposition(false) }}>explosion</Button>
-          </Tooltip>
-          <Tooltip text='describe an explosion, then click an item lying on the floor to charge it with it'>
-            <Button size='xs' aria-label='gm charge item' selected={charging}
-              onClick={() => { setFloorTool(charging ? null : 'charge'); setBrush(null); setReposition(false) }}>charge item</Button>
-          </Tooltip>
-          <Tooltip text='click a charged item lying on the floor to set its charge off where it lies'>
-            <Button size='xs' aria-label='gm set item off' selected={settingOff}
-              onClick={() => { setFloorTool(settingOff ? null : 'setoff'); setBrush(null); setReposition(false) }}>set item off</Button>
-          </Tooltip>
-          <Tooltip text='click an item lying on the floor to take it off the board'>
-            <Button size='xs' aria-label='gm item off ground' selected={clearing}
-              onClick={() => { setFloorTool(clearing ? null : 'remove'); setBrush(null); setReposition(false) }}>item off ground</Button>
-          </Tooltip>
-        </div>
-      ) : null}
-      {gmTools && (exploding || charging) ? <ExplosionFields draft={{ explosion, setExplosion, explosionOptions }} /> : null}
       </>) : null}
 
       {view.unplaced.length > 0 ? (
@@ -159,7 +132,7 @@ export function BoardPanel(){
           </marker>
         </defs>
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
-        {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id)} />)}
+        {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
         {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clearing ? removeFloorItem(f.itemId) : charging ? chargeByGM(f.itemId) : settingOff ? setOffItem(f.itemId) : clickFloorItem(f.itemId)} />)}
@@ -319,15 +292,15 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
   )
 }, sameCellDrawing)
 
-function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, onClick: () => void }){
-  const ring = token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
+function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: string, picked: boolean, onClick: () => void }){
+  const ring = picked ? 'stroke-accent' : token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
   return (
     <g className='cursor-pointer' onClick={onClick}>
       <title>{`${token.name}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
       {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
       <g transform={`translate(${token.x} ${token.y})`}>
         {token.awaited ? <circle r={0.82} className='fill-none stroke-accent animate-pulse pointer-events-none' strokeWidth={0.08} strokeDasharray='0.25 0.15' /> : null}
-        <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
+        <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
         <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>
         <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>
         {token.shieldAngle !== null ? <rect x={0.72} y={-0.45} width={0.16} height={0.9} rx={0.05} transform={`rotate(${token.shieldAngle})`} className='fill-accent pointer-events-none' /> : null}
