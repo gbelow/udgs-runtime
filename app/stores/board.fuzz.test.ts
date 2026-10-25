@@ -23,6 +23,7 @@ import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { CampaignCharacterSchema, SurgeKindSchema, type Character } from '../domain/types'
+import { getAim } from '../domain/scene/rules/aim'
 import { hasGrant } from '../domain/character/rules/effects'
 import { archer, bomber, crossbowman, brawler, mage, medic, meleeTrained, netter, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
@@ -614,6 +615,15 @@ function assertSettled(h: Harness, pick: Picker) {
           if (now && 'center' in now && now.center !== null) break
         }
       }
+      // combat.tex "Crash": a move that won a crash waits on its mover to
+      // pick where the defender is put
+      if (aiming?.kind === 'move' && getAim(h.state(), aiming)?.field === 'displace') {
+        for (const c of aimable(h, aiming)) {
+          const before = h.state()
+          h.click({ on: 'cell', cell: c.cell })
+          if (h.state() !== before) break
+        }
+      }
       throwAllCalled(h, pick)
       carryOn(h)
     }
@@ -879,6 +889,10 @@ describe('two characters grappling, pushing, shooting and defending', () => {
   // A prepared run stepped onto the last space of the move it answered, and the
   // mover, let through by the crash, walked on and ended on it too.
   it('never ends a move on a space a reaction took during it (a tower warden and a trained archer, seed 29)', () => playDuel(DUELS[7], 29))
+
+  // A jump that won a crash waited on its mover to pick where the defender
+  // went, and the settling never picked it, so the move was taken for stuck.
+  it('settles a move waiting on where a won crash puts its defender (a brawler and an archer at a table, seed 7)', () => playDuel(DUELS[3], 7, true))
 })
 
 // Seven of them crowded onto ground with a pond and a cliff painted on it,
