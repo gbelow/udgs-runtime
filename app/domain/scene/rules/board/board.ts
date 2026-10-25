@@ -3,7 +3,7 @@ import type { Board, SceneState, Coord, Placement, ShootAction, StrikeAction, Te
 import { REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from './geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, disk, distance, line, parseCoordKey, rotate, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 import { without } from '../../../utils'
@@ -22,6 +22,20 @@ import { without } from '../../../utils'
 // and moved to its anchor.
 export function getFootprint(c: Character, placement: Placement): Coord[] {
   return c.footprint.map((offset) => add(placement.cell, rotate(offset, placement.orientation)))
+}
+
+// What lies beyond the edge of the board were it `radius` cells from its
+// origin: whoever has a cell of their footprint out there, the items on the
+// floor out there, by id, and the painted cells, by key.
+export function getBeyondEdge(state: SceneState, radius: number): { characters: string[]; floor: string[]; terrain: string[] } {
+  const board = state.board
+  if (!board) return { characters: [], floor: [], terrain: [] }
+  const beyond = (cell: Coord) => distance(board.origin, cell) > radius
+  return {
+    characters: Object.entries(board.placements).filter(([id, p]) => state.characters[id] && getFootprint(state.characters[id], p).some(beyond)).map(([id]) => id),
+    floor: state.floor.filter((f) => f.cell !== null && beyond(f.cell)).map((f) => f.item.id),
+    terrain: Object.keys(board.terrain).filter((key) => { const cell = parseCoordKey(key); return cell === null || beyond(cell) }),
+  }
 }
 
 // Who stands on each cell, keyed like the terrain. A cell shared by two

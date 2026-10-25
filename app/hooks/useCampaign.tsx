@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { answerRequest, deleteCampaign, loadCampaign, lockCampaign, requestToJoin, saveCampaign, unlockCampaign, withdrawRequest } from "../actions";
-import { asCopy, CampaignSaveSchema, fromCampaignSave, getCampaignSaveBar, getDeleteBar, hasPlay, isResumable, newCampaign, newFile, toFileInfo, toStoredCampaign, type CampaignFileInfo, type CampaignSave, type StoredCampaign } from "../domain/saves";
+import { asCopy, CampaignSaveSchema, fromCampaignSave, getCampaignSaveBar, getDeleteBar, hasPlay, newCampaign, newFile, toFileInfo, toStoredCampaign, type CampaignFileInfo, type CampaignSave, type StoredCampaign } from "../domain/saves";
 import { dropAutosave, readAutosave, readLastAutosaveId, useAutosaveStore, writeAutosave } from "../stores/autosave";
 import { useTableStore } from "../stores/useTableStore";
 import { getMoveBars, getRosterIn, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
@@ -146,26 +146,26 @@ function stored(file = useCampaignStore.getState().file): StoredCampaign {
 // changed to is not in storage until it is done.
 let writing: Promise<void> | null = null;
 
-// Opens campaign `id` where this screen left it, from its autosave, unless
-// the campaign was saved since or `fresh` asks for what is saved; one that
-// cannot be loaded plays on from its autosave, if there is one. What is being
-// written is waited for first, so the autosave read is the campaign's latest.
+// Opens campaign `id` where this screen left it, from its autosave; what is
+// saved is opened only when there is no autosave or `fresh` asks for it. What
+// is being written is waited for first, so the autosave read is the
+// campaign's latest.
 async function resume(profile: string, id: string, fresh: boolean) {
   await writing;
-  const [res, kept] = await Promise.all([loadCampaign(id), fresh ? undefined : readAutosave(profile, id).catch(() => undefined)]);
+  const kept = fresh ? undefined : await readAutosave(profile, id).catch(() => undefined);
   const parsed = kept ? CampaignSaveSchema.safeParse(kept.save) : null;
-  const autosaved = parsed?.success ? parsed.data : null;
-  if (kept && isResumable(res.ok ? res.data.save : null, autosaved)) {
-    play(autosaved, kept.characters);
+  if (kept && parsed?.success) {
+    play(parsed.data, kept.characters);
     useAutosaveStore.getState().set(kept.at);
-    toast.success(`Campaign ${autosaved.name || 'unnamed'} resumed from its autosave.`);
+    toast.success(`Campaign ${parsed.data.name || 'unnamed'} resumed from its autosave.`);
     return;
   }
+  const res = await loadCampaign(id);
   if (!res.ok) { toast.error(res.error); return; }
   dropAutosave(profile, id).catch(() => undefined);
   play(res.data.save, res.data.characters);
   useAutosaveStore.getState().set(null);
-  toast.success(`Campaign ${res.data.save.name} opened${kept ? ' from its save, which is newer than its autosave' : ''}.`);
+  toast.success(`Campaign ${res.data.save.name} opened from its save.`);
 }
 
 // Whether anything but whom the screen has picked changed.

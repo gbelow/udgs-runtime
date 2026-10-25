@@ -1,6 +1,6 @@
 import type { Coord, LightLevel } from "../domain/scene/types";
 import type { TerrainBrush } from "../domain/types";
-import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest } from "../domain/scene/projections/boardView";
+import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
 import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSceneDispatch } from "./useSceneDispatch";
@@ -32,6 +32,8 @@ export function useBoard(fromActive = false) {
   const place = (id: string) => setActiveCharacter(id);
   const turn = (reposition: boolean) => click({ on: 'turn' }, null, reposition);
   const light = (level: LightLevel) => dispatch({ kind: "light", args: [level] });
+  const resize = (radius: number) => dispatch({ kind: "resizeBoard", args: [radius] });
+  const resizeWarning = (radius: number) => getResizeWarning(useCombatStore.getState(), radius);
 
-  return { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light } as const;
+  return { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light, resize, resizeWarning } as const;
 }

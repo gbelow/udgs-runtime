@@ -207,6 +207,7 @@ function plays(): Play[] {
     },
     { name: 'paint a cell', run: (h, pick) => { const cells = h.view().cells; if (!cells.length) return; h.holdBrush(pick(TERRAIN_BRUSHES)); h.click({ on: 'cell', cell: pick(cells).cell }); h.holdBrush(null) } },
     { name: 'set the light', run: (h, pick) => h.light(pick(LIGHT_LEVELS)) },
+    { name: 'resize the board', run: (h, pick) => h.resizeBoard(pick([1, 3, 6, 10])) },
     {
       name: 'ask for a test',
       run: (h, pick) => {
@@ -827,7 +828,7 @@ const DUELS = [
   { name: 'a brawler and a spearman', a: brawler, b: spearman, apart: 2 },
 ]
 
-const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'drop a held item', 'take a whole action'].includes(p.name))
+const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'resize the board', 'drop a held item', 'take a whole action'].includes(p.name))
 
 function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   const rng = seededRng(seed)

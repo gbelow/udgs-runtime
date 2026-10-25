@@ -123,12 +123,6 @@ export function fromCampaignSave(save: CampaignSave, characters: readonly Campai
   }
 }
 
-// Whether the campaign plays on from what the screen autosaved: not once
-// the campaign was saved after it.
-export function isResumable(saved: CampaignSave | null, autosaved: CampaignSave | null): autosaved is CampaignSave {
-  return autosaved !== null && (saved === null || autosaved.savedAt === saved.savedAt)
-}
-
 // Whether there is anything to keep of a campaign never saved: anyone in it,
 // a party, a map or a journal entry.
 export function hasPlay(t: CampaignInPlay): boolean {

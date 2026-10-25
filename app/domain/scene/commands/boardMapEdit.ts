@@ -1,8 +1,7 @@
 import type { TerrainBrush } from '../../types'
 import { BoardMapSchema, type BoardMap, type Coord, type LightLevel } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
-import { distance, parseCoordKey } from '../rules/board/geometry'
-import { paintTerrain } from './board'
+import { paintTerrain, resizeBoard } from './board'
 
 // A kept board edited as the fight's board is, with the same brushes: the map
 // stands in a fight of nobody and the fight's own commands change it.
@@ -33,13 +32,5 @@ export function lightBoardMap(light: LightLevel): BoardMapUpdater {
 
 // Widens or narrows the field; what lay beyond the new edge is dropped.
 export function resizeBoardMap(radius: number): BoardMapUpdater {
-  return (map) => {
-    const resized = BoardMapSchema.shape.radius.safeParse(radius)
-    if (!resized.success) return map
-    const terrain = Object.fromEntries(Object.entries(map.terrain).filter(([key]) => {
-      const cell = parseCoordKey(key)
-      return cell !== null && distance(map.origin, cell) <= resized.data
-    }))
-    return { ...map, radius: resized.data, terrain }
-  }
+  return (map) => viaScene(map, resizeBoard(radius))
 }

@@ -8,7 +8,8 @@ import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
 import { CLIMB_EASY_DL, COVER_START_RES, SWIM_DEFAULT_DL } from '../../tables'
-import { placeAt, withPlacements } from '../rules/board/board'
+import { getBeyondEdge, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
+import { without } from '../../utils'
 import { drawsSegments, getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
 import { canStandAt } from '../rules/board/ground'
@@ -31,6 +32,24 @@ export function createBoard(radius: number): Updater {
 // action is open, as painting is.
 export const removeBoard: Updater = (state) =>
   !state.board || getOpenAction(state) ? state : { ...state, board: null, floor: state.floor.map((f) => ({ ...f, cell: null })) }
+
+// Widens or narrows the board around its origin: whoever stands partly
+// beyond the new edge comes off it, what lay on the floor out there lies
+// nowhere in particular, and the ground painted there is dropped. Refused
+// while an action is open, as painting is.
+export function resizeBoard(radius: number): Updater {
+  return (state) => {
+    const resized = BoardSchema.shape.radius.safeParse(radius)
+    if (!state.board || getOpenAction(state) || !resized.success) return state
+    const beyond = getBeyondEdge(state, resized.data)
+    const off = withoutPlacements(state, beyond.characters).board ?? state.board
+    return {
+      ...state,
+      board: { ...off, radius: resized.data, terrain: beyond.terrain.reduce(without, off.terrain) },
+      floor: state.floor.map((f) => (beyond.floor.includes(f.item.id) ? { ...f, cell: null } : f)),
+    }
+  }
+}
 
 // combat.tex "Darkness and light": sets the light everywhere no light
 // source reaches. Refused while an action is open, as painting is.

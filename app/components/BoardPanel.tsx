@@ -53,7 +53,7 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
-  const { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard(fromActive)
+  const { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light, resize, resizeWarning } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
@@ -108,6 +108,7 @@ export function BoardPanel(){
             <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
         </Segmented>
       </div>
+      <SizeRow key={view.radius} radius={view.radius} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
       <LinkRow />
       {gmTools ? (
@@ -150,6 +151,26 @@ export function ZoomButtons({ zoomPan }: { zoomPan: ReturnType<typeof useZoomPan
     <IconButton icon={ZoomOut} aria-label='zoom out' title='zoom out (or the wheel)' onClick={zoomPan.zoomOut} />
     <IconButton icon={Scan} aria-label='fit board' disabled={!zoomPan.zoomed} title='show the whole board' onClick={zoomPan.reset} />
   </>)
+}
+
+// The board widened or narrowed around its centre. A shrink waits for the GM
+// to confirm what it takes off the board.
+function SizeRow({ radius, bar, resize, warningFor }: { radius: number, bar: string | null, resize: (radius: number) => void, warningFor: (radius: number) => string | null }){
+  const [size, setSize] = useState(radius)
+  const [warning, setWarning] = useState<string | null>(null)
+  const apply = () => { const w = warningFor(size); if (w) setWarning(w); else resize(size) }
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>size</SectionLabel>
+      <TextInput className='w-16' type='number' min={1} max={30} aria-label='board radius' value={size} onChange={(e) => { setSize(Number(e.target.value)); setWarning(null) }} />
+      <Button size='xs' disabled={bar !== null || size === radius} title={bar ?? 'widen or narrow the board around its centre'} onClick={apply}>resize</Button>
+      {warning ? (<>
+        <span className='text-xs'>{warning}</span>
+        <Button size='xs' weight='solid' tone='bad' aria-label='confirm shrink' disabled={bar !== null} onClick={() => { resize(size); setWarning(null) }}>shrink</Button>
+        <Button size='xs' weight='ghost' aria-label='cancel shrink' onClick={() => setWarning(null)}>cancel</Button>
+      </>) : null}
+    </div>
+  )
 }
 
 // The battle maps kept: one is played on with everyone off it, and the ground

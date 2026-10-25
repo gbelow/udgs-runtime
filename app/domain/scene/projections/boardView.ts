@@ -1,9 +1,9 @@
-import type { Bind, SeenScene, Coord, Degree, LightLevel, Placement } from '../types'
+import type { Bind, SceneState, SeenScene, Coord, Degree, LightLevel, Placement } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { HEX_POINTS, angleBetween, coordKey, disk, frameHexes, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
-import { getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
+import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
@@ -350,6 +350,20 @@ function buildBoardView(state: SeenScene): BoardView {
 }
 
 export const getBoardView = perState(buildBoardView)
+
+// What the table is told before the board shrinks to `radius`: who comes off
+// it, and how many items on the floor and painted cells are lost beyond the
+// new edge. Null when the board does not shrink.
+export function getResizeWarning(state: SceneState, radius: number): string | null {
+  if (!state.board || radius >= state.board.radius) return null
+  const beyond = getBeyondEdge(state, radius)
+  const lost = [
+    beyond.characters.length ? `${beyond.characters.map((id) => getFightName(state, id)).join(', ')} off the board` : null,
+    beyond.floor.length ? `${beyond.floor.length} item${beyond.floor.length === 1 ? '' : 's'} off the floor` : null,
+    beyond.terrain.length ? `${beyond.terrain.length} painted cell${beyond.terrain.length === 1 ? '' : 's'} dropped` : null,
+  ].filter((s) => s !== null)
+  return `shrink the board to ${radius}: ${lost.length ? lost.join('; ') : 'nothing lies beyond the new edge'}`
+}
 
 // The board as the active character's eyes take it in: the cells none of
 // their active senses reach are marked unseen, and only they and the

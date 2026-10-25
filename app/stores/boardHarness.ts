@@ -92,6 +92,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     },
     createBoard: (radius: number) => send({ kind: 'createBoard', args: [radius] }),
     removeBoard: () => send({ kind: 'removeBoard', args: [] }),
+    resizeBoard: (radius: number) => send({ kind: 'resizeBoard', args: [radius] }),
     light: (level: LightLevel) => send({ kind: 'light', args: [level] }),
 
     // the board
