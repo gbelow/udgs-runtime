@@ -89,7 +89,7 @@ function CampaignFileBar() {
         <span className='grow' />
         {file.locked ? null : (
           <Tooltip text={saveBar ?? 'save the campaign and its characters, fight and all'}>
-            <Button weight='solid' tone='accent' icon={Save} disabled={saveBar !== null} onClick={save}>save</Button>
+            <Button weight='solid' tone='accent' icon={Save} disabled={saveBar !== null} title={saveBar ?? undefined} onClick={save}>save</Button>
           </Tooltip>
         )}
         {saved ? <Button weight={file.locked ? 'solid' : 'outline'} tone={file.locked ? 'accent' : 'neutral'} onClick={() => { setCopyName(`${file.name} (copy)`); setPending('copy') }}>save as copy…</Button> : null}
@@ -97,7 +97,7 @@ function CampaignFileBar() {
         {gmTools && file.locked ? <Button onClick={unlock}>unlock</Button> : null}
         {gmTools && !file.locked ? (
           <Tooltip text={saveBar ?? 'save the campaign and lock it: whatever is saved after is saved as a copy'}>
-            <Button disabled={saveBar !== null} onClick={() => fighting ? setPending('lock') : lock()}>lock</Button>
+            <Button disabled={saveBar !== null} title={saveBar ?? undefined} onClick={() => fighting ? setPending('lock') : lock()}>lock</Button>
           </Tooltip>
         ) : null}
         {saved && gmTools ? (deleteBar ? <Tooltip text={deleteBar}><Button tone='bad' icon={Trash2} disabled>delete</Button></Tooltip> : <ConfirmDelete remove={() => remove(file.id)} />) : null}
@@ -149,10 +149,10 @@ function CampaignMembers() {
             <Button size='xs' selected={m.role === 'gm'} disabled={!!locked} onClick={() => set(m.id, 'gm')}>GM</Button>
           </Tooltip>
           <Tooltip text={locked ?? m.playerBar}>
-            <Button size='xs' selected={m.role === 'player'} disabled={!!locked || !!m.playerBar} onClick={() => set(m.id, 'player')}>player</Button>
+            <Button size='xs' selected={m.role === 'player'} disabled={!!locked || !!m.playerBar} title={locked || m.playerBar || undefined} onClick={() => set(m.id, 'player')}>player</Button>
           </Tooltip>
           <Tooltip text={locked ?? m.removeBar}>
-            <IconButton icon={X} tone='bad' aria-label={`remove ${m.name}`} disabled={!!locked || !!m.removeBar} onClick={() => set(m.id, null)} />
+            <IconButton icon={X} tone='bad' aria-label={`remove ${m.name}`} disabled={!!locked || !!m.removeBar} title={locked || m.removeBar || undefined} onClick={() => set(m.id, null)} />
           </Tooltip>
         </div>
       ))}

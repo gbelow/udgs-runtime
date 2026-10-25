@@ -63,18 +63,20 @@ const FOCUS = 'focus-visible:outline-2 focus-visible:outline-accent focus-visibl
 // dashed and empty, so it still reads as an option, only one not open now; a
 // closed one held down keeps showing the state it is held in, faded. An
 // `icon` leads the label.
-export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', active = false, selected = false, icon: Icon, className = '', children, ...rest }:
+export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', active = false, selected = false, icon: Icon, className = '', children, title, ...rest }:
   ButtonHTMLAttributes<HTMLButtonElement> & { weight?: ButtonWeight, tone?: Tone, size?: keyof typeof SIZE, active?: boolean, selected?: boolean, icon?: LucideIcon }
 ){
   const look = selected ? PRESSED.accent : active ? PRESSED[tone] : LOOK[weight][tone]
   const closed = selected || active ? 'disabled:opacity-60' : 'disabled:border-dashed disabled:border-line disabled:bg-transparent disabled:text-muted disabled:font-normal'
   return (
-    <button type='button'
-      className={`rounded border whitespace-nowrap cursor-pointer transition-colors ${FOCUS} disabled:pointer-events-none ${closed}
-        ${look} ${SIZE[size]} ${className}`}
-      {...rest}>
-      {Icon ? <span className='inline-flex items-center gap-1'><Icon size={size === 'md' ? 14 : 12} aria-hidden />{children}</span> : children}
-    </button>
+    <WhyClosed disabled={rest.disabled} title={title}>
+      <button type='button'
+        className={`rounded border whitespace-nowrap cursor-pointer transition-colors ${FOCUS} disabled:pointer-events-none ${closed}
+          ${look} ${SIZE[size]} ${className}`}
+        {...rest}>
+        {Icon ? <span className='inline-flex items-center gap-1'><Icon size={size === 'md' ? 14 : 12} aria-hidden />{children}</span> : children}
+      </button>
+    </WhyClosed>
   )
 }
 
@@ -95,14 +97,16 @@ export function Segmented({ label, size = 'xs', className = '', children }: { la
   )
 }
 
-export function Segment({ selected = false, className = '', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }){
+export function Segment({ selected = false, className = '', title, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }){
   const size = useContext(SegmentSize)
   return (
-    <button type='button' aria-pressed={selected}
-      className={`whitespace-nowrap border-l border-line first:border-l-0 cursor-pointer transition-colors ${FOCUS} focus-visible:-outline-offset-2
-        disabled:pointer-events-none disabled:text-muted disabled:bg-[repeating-linear-gradient(135deg,transparent_0_4px,var(--color-line)_4px_5px)]
-        ${selected ? 'bg-accent/15 text-accent shadow-[inset_0_-2px_0_0_var(--color-accent)]' : 'text-fg hover:bg-raised'} ${SEGMENT_SIZE[size]} ${className}`}
-      {...rest} />
+    <WhyClosed disabled={rest.disabled} title={title}>
+      <button type='button' aria-pressed={selected}
+        className={`whitespace-nowrap border-l border-line first:border-l-0 cursor-pointer transition-colors ${FOCUS} focus-visible:-outline-offset-2
+          disabled:pointer-events-none disabled:text-muted disabled:bg-[repeating-linear-gradient(135deg,transparent_0_4px,var(--color-line)_4px_5px)]
+          ${selected ? 'bg-accent/15 text-accent shadow-[inset_0_-2px_0_0_var(--color-accent)]' : 'text-fg hover:bg-raised'} ${SEGMENT_SIZE[size]} ${className}`}
+        {...rest} />
+    </WhyClosed>
   )
 }
 
@@ -116,20 +120,22 @@ const KEY_LOOK = {
 // set apart from the controls that edit and arrange. `cost` sits inside it in
 // a chip; `go` is the press that moves play on, at most one to a panel. A
 // closed key lies flat and dashed. An `icon` leads the label.
-export function ActionKey({ cost, look = 'plain', icon: Icon, className = '', children, ...rest }:
+export function ActionKey({ cost, look = 'plain', icon: Icon, className = '', children, title, ...rest }:
   ButtonHTMLAttributes<HTMLButtonElement> & { cost?: ReactNode, look?: keyof typeof KEY_LOOK, icon?: LucideIcon }
 ){
   return (
-    <button type='button'
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border bg-linear-to-b px-2.5 py-1 text-xs font-medium cursor-pointer
-        shadow-[0_2px_0_0_rgb(0_0_0/0.45),inset_0_1px_0_0_rgb(255_255_255/0.06)] transition-[transform,box-shadow,border-color] active:translate-y-[2px] active:shadow-none ${FOCUS}
-        disabled:pointer-events-none disabled:bg-none disabled:border-dashed disabled:border-line disabled:shadow-none disabled:text-muted disabled:font-normal
-        ${KEY_LOOK[look]} ${className}`}
-      {...rest}>
-      {Icon ? <Icon size={13} aria-hidden /> : null}
-      {children}
-      {cost ? <span className='rounded px-1 py-px font-mono text-[10px] leading-none bg-current/15'>{cost}</span> : null}
-    </button>
+    <WhyClosed disabled={rest.disabled} title={title}>
+      <button type='button'
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border bg-linear-to-b px-2.5 py-1 text-xs font-medium cursor-pointer
+          shadow-[0_2px_0_0_rgb(0_0_0/0.45),inset_0_1px_0_0_rgb(255_255_255/0.06)] transition-[transform,box-shadow,border-color] active:translate-y-[2px] active:shadow-none ${FOCUS}
+          disabled:pointer-events-none disabled:bg-none disabled:border-dashed disabled:border-line disabled:shadow-none disabled:text-muted disabled:font-normal
+          ${KEY_LOOK[look]} ${className}`}
+        {...rest}>
+        {Icon ? <Icon size={13} aria-hidden /> : null}
+        {children}
+        {cost ? <span className='rounded px-1 py-px font-mono text-[10px] leading-none bg-current/15'>{cost}</span> : null}
+      </button>
+    </WhyClosed>
   )
 }
 
@@ -153,12 +159,14 @@ export function IconButton({ icon: Icon, tone = 'neutral', size = 'xs', active =
 ){
   const look = selected ? 'bg-accent/15 text-accent' : active ? 'bg-raised text-fg' : ICON_TONE[tone]
   return (
-    <button type='button' title={title ?? rest['aria-label']}
-      className={`inline-grid shrink-0 place-items-center rounded cursor-pointer transition-colors ${FOCUS} disabled:opacity-40 disabled:pointer-events-none
-        ${ICON_SIZE[size].box} ${look} ${className}`}
-      {...rest}>
-      <Icon size={ICON_SIZE[size].icon} aria-hidden />
-    </button>
+    <WhyClosed disabled={rest.disabled} title={title ?? rest['aria-label']}>
+      <button type='button'
+        className={`inline-grid shrink-0 place-items-center rounded cursor-pointer transition-colors ${FOCUS} disabled:opacity-40 disabled:pointer-events-none
+          ${ICON_SIZE[size].box} ${look} ${className}`}
+        {...rest}>
+        <Icon size={ICON_SIZE[size].icon} aria-hidden />
+      </button>
+    </WhyClosed>
   )
 }
 
@@ -529,6 +537,13 @@ export function Tooltip({ text, children, className = '' }: { text: ReactNode, c
 export function Closed({ reason, children }: { reason: string | null | undefined, children: ReactNode }){
   if (!reason) return <>{children}</>
   return <Tooltip text={reason} className='cursor-help [&>button]:pointer-events-none'>{children}</Tooltip>
+}
+
+// A control with its hint in the themed popover rather than the browser's
+// bubble: open, it says what it does; closed, why it is not open (a closed
+// button takes no hover, so the wrapper catches it).
+function WhyClosed({ disabled, title, children }: { disabled?: boolean, title?: string, children: ReactNode }){
+  return disabled ? <Closed reason={title}>{children}</Closed> : <Tooltip text={title}>{children}</Tooltip>
 }
 
 // One count with its label, against its budget when it has one: green once
