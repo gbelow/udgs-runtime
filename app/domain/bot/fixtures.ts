@@ -85,7 +85,7 @@ export function torchbearer(id: string): CampaignCharacter {
 // The abilities that open a defence the bare fighter has no answer with: the
 // counterattack, the reflexes, the jump and the defender's guard.
 export function trained(c: CampaignCharacter): CampaignCharacter {
-  return (['counterattack', 'precise-evasion', 'archer-s-reflexes', 'jumper-1', 'defender'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
+  return (['counterattack', 'precise-evasion', 'archer-s-reflexes', 'jumper-1', 'defender', 'tactical-movement'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
 // The melee abilities that change what the fighter declares or pays: a

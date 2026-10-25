@@ -1332,7 +1332,9 @@
         "description": "Gains +2 to SD or reflex for the rest of the turn after using movement surge. Also works for approaching in skirmishes.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "tacticalMovement"
+        ],
         "freeSpells": 0
       }
     ]
