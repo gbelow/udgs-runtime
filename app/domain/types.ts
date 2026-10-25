@@ -1107,6 +1107,8 @@ export const RecipeOpensSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('strike') }).strip(),
   // `along`: whether its actor may throw themselves along on a hit
   z.object({ kind: z.literal('grapple'), maneuver: z.enum(GRAPPLE_MANEUVERS), along: z.boolean().default(false) }).strip(),
+  // taking hold of them with a free grapple row, without a test
+  z.object({ kind: z.literal('grab') }).strip(),
 ])
 
 // `followUp`: what a landed strike offers. `opens` is what the follow-up

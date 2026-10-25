@@ -81,7 +81,7 @@ function playOut(start: SceneState, face: number): { state: SceneState; landed: 
     const open = getOpenAction(s)
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
-    const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'move' && open.spawnedBy !== null) || (open.kind === 'grapple' && (open.maneuver === 'escape' || (open.maneuver === 'disarm' && open.recipe !== null))))
+    const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'move' && open.spawnedBy !== null) || (open.kind === 'grapple' && (open.maneuver === 'escape' || (open.maneuver === 'disarm' && open.recipe !== null))) || (open.kind === 'holdBack' && open.recipe !== null))
     const steps = passedUp ? [withdrawSpawnedAction(() => 5, newId)] : [rollAction(() => face, newId), payAction(newId, () => 5), resolveAction(newId, () => 5)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)

@@ -150,15 +150,28 @@ function facts(state: SceneState, pair: [string, string], next: Grapple | null, 
 // grappled". "It is possible to grapple back automatically just by having a
 // weapon with grappling property equipped."
 export function getGrabFacts(state: SceneState, strike: StrikeAction): GrappleFacts | null {
-  if (!strike.targetId) return null
-  const target = state.characters[strike.targetId]
+  return strike.targetId ? takeHold(state, strike.actorId, strike.targetId, strike.weaponKey) : null
+}
+
+// The holder takes hold of the target with the weapon, and the target, held
+// by nothing of theirs yet, grapples back with a grapple row free in hand.
+function takeHold(state: SceneState, actorId: string, targetId: string, weaponKey: string): GrappleFacts | null {
+  const target = state.characters[targetId]
   if (!target) return null
-  const pair: [string, string] = [strike.actorId, strike.targetId]
+  const pair: [string, string] = [actorId, targetId]
   const was = findGrapple(getGrapples(state), ...pair)
   const back = was && holds(was, target.id) ? null : getFreeGrappleRows(state, target)[0]
-  const holders = [...new Set([...(was?.holders ?? []), strike.actorId, ...(back ? [target.id] : [])])]
-  const anchors = { ...was?.anchors, [strike.actorId]: strike.weaponKey, ...(back ? { [target.id]: back.wielded.key } : {}) }
+  const holders = [...new Set([...(was?.holders ?? []), actorId, ...(back ? [target.id] : [])])]
+  const anchors = { ...was?.anchors, [actorId]: weaponKey, ...(back ? { [target.id]: back.wielded.key } : {}) }
   return facts(state, pair, { kind: 'grapple', members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], anchors })
+}
+
+// Whether the character can take hold of the target with a grapple row no
+// grapple has seized, holding nothing of them yet.
+export function canTakeHold(state: SceneState, actorId: string, targetId: string): boolean {
+  const c = state.characters[actorId]
+  const g = findGrapple(getGrapples(state), actorId, targetId)
+  return !!c && getFreeGrappleRows(state, c).length > 0 && !(g && holds(g, actorId))
 }
 
 // Whether the strike may grapple the target: made with a grapple row no
@@ -401,10 +414,11 @@ export function getHoldBackTargets(state: SceneState, actorId: string): string[]
   return getGrapplesOf(state, actorId).filter((g) => !holds(g, actorId)).map((g) => getPartner(g, actorId))
 }
 
+// Taking hold of a partner, or, for a grab an intercept opens (rules/recipes.ts),
+// of whoever it was opened at.
 export function getHoldBackFacts(state: SceneState, root: HoldBackAction): GrappleFacts | null {
-  const g = root.targetId ? findGrapple(getGrapples(state), root.actorId, root.targetId) : null
   const c = state.characters[root.actorId]
   const row = c ? getFreeGrappleRows(state, c)[0] : undefined
-  if (!g || !root.targetId || !row) return null
-  return facts(state, [root.actorId, root.targetId], { ...g, holders: [...new Set([...g.holders, root.actorId])], anchors: { ...g.anchors, [root.actorId]: row.wielded.key } })
+  if (!root.targetId || !row || !canTakeHold(state, root.actorId, root.targetId)) return null
+  return takeHold(state, root.actorId, root.targetId, row.wielded.key)
 }

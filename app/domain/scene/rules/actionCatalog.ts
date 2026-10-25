@@ -132,7 +132,7 @@ export const ACTIONS = {
   // combat.tex "Initiate the Grab": "It is possible to grapple back
   // automatically just by having a weapon with grappling property
   // equipped" — one who takes one up mid-grapple does so as a free action
-  holdBack:    { label: 'grapple back', rule: 'combat.tex "Initiate the Grapple"', type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
+  holdBack:    { label: 'take hold', rule: 'combat.tex "Initiate the Grapple", "Intercept"', type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
   // combat.tex "Grapple Maneuvers": the defender's 2 AP + 1 STA that spares
   // them the -5; "Push and drag": the defender's 2 AP for +5
   resist:      { label: 'resist', rule: 'combat.tex "Grapple Maneuvers"',       type: 'reaction', price: 'grappleDefense', reactsTo: ['grapple', 'drag'], die: false },

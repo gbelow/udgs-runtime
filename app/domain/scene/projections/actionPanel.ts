@@ -157,11 +157,10 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
     .filter((r) => r.options.length > 0)
 }
 
-// What the open action is called: a strike made under a recipe goes by its
-// name (rules/recipes.ts).
+// What the open action is called: one made under a recipe goes by its name
+// (rules/recipes.ts).
 function getOpenLabel(state: SceneState, open: Action): string {
-  if (open.kind === 'strike') return getRecipeOf(state, open)?.label ?? getActionName(open)
-  return getActionName(open)
+  return getRecipeOf(state, open)?.label ?? getActionName(open)
 }
 
 // The deliveries a cast will make as it stands, for the panel: who takes

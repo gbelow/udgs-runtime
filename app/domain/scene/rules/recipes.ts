@@ -9,7 +9,7 @@ import { getAction, getReactionsTo, getRootOf } from './log'
 import { getDefaultAim, getFreeAttackOptions } from './attack'
 import { isInReach } from './board/board'
 import { getHookedMotion } from './damage'
-import { getDisarmOptions } from './grapple'
+import { canTakeHold, getDisarmOptions } from './grapple'
 import { findGrapple, getGrapples } from './partners'
 
 // Actions as data. A recipe (RecipeSchema) says when a fighter may make an
@@ -62,6 +62,17 @@ const RULE_RECIPES = {
       opens: { kind: 'grapple', maneuver: 'disarm' },
       cost: { operation: 'set', AP: 1, STA: 1 },
       openWhen: 'inGrapple',
+    }),
+  },
+  // combat.tex "Intercept": "An intercept that stops the attack can start a
+  // grapple if the defender chooses and has an attack with grapple property
+  // available", at whoever was intercepted
+  interceptGrab: {
+    label: 'grab',
+    recipe: RecipeSchema.parse({
+      type: 'followUp',
+      on: { event: 'defended', defenses: ['intercept'], degrees: ['miss', 'graze'], defender: 'any' },
+      opens: { kind: 'grab' },
     }),
   },
 } satisfies Record<string, Omit<RecipeEntry, 'id'>>
@@ -127,7 +138,7 @@ function getOpening(state: SceneState, root: StrikeAction, actorId: string, on: 
 // The follow-up the recipe opens for the actor, when its event offers them
 // one and they can make it: a strike some attack they hold reaches the
 // target with, aimed at the target's chest; a disarm with something to
-// take.
+// take; a grab with a grapple row free to take hold with.
 function openRecipe(state: SceneState, root: StrikeAction, actorId: string, entry: RecipeEntry<FollowUpRecipe>, newId: () => string): Action | null {
   const opening = getOpening(state, root, actorId, entry.recipe.on)
   const c = state.characters[actorId]
@@ -145,6 +156,8 @@ function openRecipe(state: SceneState, root: StrikeAction, actorId: string, entr
       const grapple = { ...draft, unresisted: unresistedWhen !== null && CONDITIONS[unresistedWhen]({ state, root, opener: opening.opener, opened: draft }) }
       return opens.maneuver !== 'disarm' || getDisarmOptions(state, grapple).length > 0 ? grapple : null
     }
+    case 'grab':
+      return canTakeHold(state, actorId, opening.targetId) ? makeAction('holdBack', base) : null
   }
 }
 

@@ -806,6 +806,7 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
     case 'cut':
       return getCutTargets(state, root)
     case 'holdBack':
+      if (root.recipe !== null) return root.targetId ? [root.targetId] : []
       return getHoldBackTargets(state, root.actorId)
     case 'firstAid':
     case 'cauterize':

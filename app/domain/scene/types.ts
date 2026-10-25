@@ -1103,7 +1103,8 @@ export const CutActionSchema = z.object({
 }).strip()
 
 // Grappling back a partner one holds nothing of, once a grapple row is in
-// hand.
+// hand; or, opened by an intercept that stopped a strike, taking hold of
+// its attacker (combat.tex "Intercept").
 export const HoldBackActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('holdBack'),
