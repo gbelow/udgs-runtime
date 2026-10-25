@@ -6,8 +6,8 @@ import { findWeaponRow } from './weaponRow'
 import { distance } from './board/geometry'
 import { getPlacedFootprint } from './board/board'
 
-export function onFloor(item: Item, cell: Coord | null): FloorItem {
-  return { item, cell }
+export function onFloor(item: Item, cell: Coord | null, planted: FloorItem['planted'] = null): FloorItem {
+  return { item, cell, planted }
 }
 
 // What can be picked up: what lies on the character's own cells or next

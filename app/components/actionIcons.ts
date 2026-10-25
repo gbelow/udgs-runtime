@@ -54,6 +54,7 @@ export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
   cauterize: Flame,
   reload: RefreshCcw,
   extinguish: Droplets,
+  plant: ShieldCheck,
   rest: Pause,
   social: MessageCircle,
   taunt: Megaphone,

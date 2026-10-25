@@ -112,7 +112,8 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   shield may take `cover`: when it lands, `setActions` writes `state.bodyCover` (the shield, and the shooter's cell it faces), kept across
   rounds until its owner lands any action or reaction but a careful move. `isBehindBodyShield` reads it, while
   the shield is still in hand, against anything on the shooter's side of them: they can be neither
-  seen nor shot from there.
+  seen nor shot from there. A shield planted (`plant`) is the same cover, read off the floor item's
+  `planted` while its planter stands in its space and it is not broken; no action of theirs ends it.
 - **Sweeps** (`rules/sweep.ts`) — a sweeping variation (`isSweepVariant`, the normal or any
   heavy attack plus the sweep's AP) is a chain of strikes, one per target, each rolled and
   defended on its own. The first is declared with a `sweepDirection` — on a strike, or on the

@@ -3,7 +3,7 @@ import type { Board, SceneState, Coord, Placement, ShootAction, StrikeAction, Te
 import { REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, disk, distance, line, parseCoordKey, rotate, setDistance, toPlane } from './geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, disk, distance, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 import { without } from '../../../utils'
@@ -227,9 +227,9 @@ export function getAimableCells(state: SceneState, actorId: string, reach: numbe
 
 // combat.tex "Cover": "When using a body shield, it is possible to take total
 // cover behind the shield after using guard." The shield faces the shot
-// that was guarded, so it covers its bearer from whatever lies on that side
-// of them, for as long as they hold it. A footprint level with them, or
-// behind, is not covered from.
+// that was guarded, or the cell it was planted facing, so it covers its
+// bearer from whatever lies on that side of them (`getBodyCoverToward`). A
+// footprint level with them, or behind, is not covered from.
 export function isBehindBodyShield(state: SceneState, id: string, from: readonly Coord[]): boolean {
   const toward = getBodyCoverToward(state, id)
   const footprint = getPlacedFootprint(state, id)
@@ -241,12 +241,17 @@ export function isBehindBodyShield(state: SceneState, id: string, from: readonly
 }
 
 // The cell the body shield the character has taken cover behind faces, while
-// they still hold it; null when they are in no such cover.
+// they still hold it, or while they stand where they planted one that is not
+// broken (abilities.tex "Crossbow and Shield": "planted like a cover against
+// everything in a 180 degree arc"); null when they are in no such cover.
 export function getBodyCoverToward(state: SceneState, id: string): Coord | null {
   const cover = state.bodyCover[id]
   const c = state.characters[id]
-  if (!cover || !c) return null
-  return getWieldedWeapons(c).some((w) => w.key === cover.weaponKey && !w.broken && w.weapon.shield?.body) ? cover.toward : null
+  if (!c) return null
+  if (cover && getWieldedWeapons(c).some((w) => w.key === cover.weaponKey && !w.broken && w.weapon.shield?.body)) return cover.toward
+  const footprint = getPlacedFootprint(state, id)
+  const planted = footprint && state.floor.find((f) => f.planted?.by === id && !f.item.broken && f.cell !== null && footprint.some((cell) => sameCell(cell, f.cell!)))
+  return planted ? planted.planted!.toward : null
 }
 
 // What stands between the cells something is shot or blown from and the

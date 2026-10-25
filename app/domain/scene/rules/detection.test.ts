@@ -99,7 +99,7 @@ describe('what an observer senses of a target', () => {
     })
 
     it('sees a target by a torch lying on the floor near them', () => {
-      expect(visionOf({ ...unlit, floor: [{ item: torch, cell: { q: 4, r: 0 } }] })).toBe('none')
+      expect(visionOf({ ...unlit, floor: [{ item: torch, cell: { q: 4, r: 0 }, planted: null }] })).toBe('none')
     })
 
     it('does not see a target on a dark board but by a light', () => {

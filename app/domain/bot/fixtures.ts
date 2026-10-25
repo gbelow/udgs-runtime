@@ -111,11 +111,12 @@ export function warden(id: string): CampaignCharacter {
 }
 
 // The warden with a body shield instead, which a guard may take total cover
-// behind (gear.tex "Shields", combat.tex "Cover").
+// behind (gear.tex "Shields", combat.tex "Cover") and which they have learned
+// to plant (abilities.tex "Crossbow and Shield").
 export function towerWarden(id: string): CampaignCharacter {
   const spear = shortSpear()
   const shield = ItemSchema.parse({ name: 'Wooden Tower', type: 'weapon', refId: 'Wooden Tower', bulk: 2 })
-  return trained(regripItem(shield.id, 1)(holdItem(shield)(regripItem(spear.id, 1)(holdItem(spear)(fighter(id))))))
+  return grantAbility('crossbow-and-shield')(trained(regripItem(shield.id, 1)(holdItem(shield)(regripItem(spear.id, 1)(holdItem(spear)(fighter(id)))))))
 }
 
 // A thrower with a grenade in one hand and a potion in the other (gear.tex

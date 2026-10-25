@@ -159,6 +159,7 @@ export const ACTIONS = {
   reload:      { label: 'reload', rule: 'gear.tex "Reload"',          type: 'action',   price: null,          reactsTo: [],         die: false, identity: { weaponKey: '', attack: '' } },
   // combat.tex "Fire": muffling a burning space, the actor's own or next to it
   extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false },
+  plant:       { label: 'plant shield', rule: 'abilities.tex "Crossbow and Shield"', type: 'action', price: 'standardAction', reactsTo: [], die: false },
   // combat.tex "Rest"
   rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false, rest: true },
   // combat.tex "Social actions": each "counts as a Rest action"; priced by

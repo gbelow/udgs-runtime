@@ -1029,10 +1029,12 @@
           }
         ],
         "requirements": [],
-        "description": "Allows the character to be in cover with a body shield while reloading a crossbow or arbalest.",
+        "description": "Allows the character to be in cover with a body shield while reloading a crossbow or arbalest. The shield is planted like a cover against everything in a 180 degree arc. Taking the shield back costs 1 standard action too.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "plantShield"
+        ],
         "freeSpells": 0
       }
     ]

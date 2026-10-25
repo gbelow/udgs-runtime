@@ -162,6 +162,7 @@ function withCommitFacts(state: SceneState, actor: CampaignCharacter, open: Root
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'plant':
     case 'drink':
     case 'firstAid':
     case 'cauterize':
@@ -432,6 +433,7 @@ function withPercentileRolls(state: SceneState, root: RootAction, dice: Dice): R
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'plant':
     case 'drink':
     case 'firstAid':
     case 'cauterize':

@@ -177,6 +177,9 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
           return isWon(action) && c.id === action.targetId ? { ...treated, injuries: { ...treated.injuries, staunched: true } } : treated
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
+        // abilities.tex "Crossbow and Shield": the shield leaves the hand it
+        // was planted from
+        if (action.kind === 'plant') return c.id === action.actorId ? dropItem(action.itemId)(c) : c
         // gear.tex "Reload": one arrow or bolt leaves its stack and waits in
         // the weapon
         if (action.kind === 'reload') return c.id === action.actorId && action.loaded ? loadItem(action.weaponKey, action.loaded)(spendAmmo(c, action.ammoId)) : c
@@ -323,6 +326,13 @@ export function reduceFloor(state: SceneState, action: Action, phase: Phase): (f
       return action.thrown ? [...hit, onFloor(action.thrown, getGroundCell(state, action) ?? cellOf(action.targetId))] : hit
     }
     if (action.kind === 'pickUp') return withoutOne(floor, action.itemId)
+    // abilities.tex "Crossbow and Shield": planted where its planter stands,
+    // facing where they set it
+    if (action.kind === 'plant') {
+      const planter = state.characters[action.actorId]
+      const item = planter ? getHeldItem(planter, action.itemId) : undefined
+      return item && action.to ? [...floor, onFloor(item, cellOf(action.actorId), { by: action.actorId, toward: action.to })] : floor
+    }
     // lands where it was thrown, gone from wherever it lay before — a hand
     // leaves nothing behind on the floor
     if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), ...(action.thrown.fuel ? [] : [onFloor(action.thrown, action.to)])] : floor

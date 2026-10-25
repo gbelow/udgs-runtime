@@ -148,7 +148,8 @@ click to what stands afterwards. It is admitted, under these terms.
   or jump is its own play, and so is an ambush: someone prepares a reaction and someone else is sent
   walking at them, and a rescue: a shielded character prepares a defense of whoever is attacked and
   someone attacks. Where someone holds a body shield, a shelter is played too: they are shot at and
-  guard taking cover behind it, so that the shots after have a covered character to meet.
+  guard taking cover behind it, so that the shots after have a covered character to meet, and
+  one who has learned to plant it plants it facing a cell the board offers.
   A chase is played with no board: three running from three, every button of the chase panel
   pressed in any order between exchanges (each closed one must be refused with the state left
   as it was), targets picked from the action panel's list since there are no tokens to click.

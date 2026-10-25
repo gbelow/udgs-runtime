@@ -34,7 +34,7 @@ export function playScene(sceneId: string, board: unknown | null, opponents: Rec
     const played = met.reduce<Table>((t, raw) => loadIntoFight(makeCampaignCharacter(raw as object), newId, side)(t), sent)
     const floor: FloorItem[] = preset.treasure.flatMap(({ key, amount }) => {
       const item = getCatalogItem(key, amount)
-      return item ? [{ item: { ...item, id: newId() }, cell: null }] : []
+      return item ? [{ item: { ...item, id: newId() }, cell: null, planted: null }] : []
     })
     return { ...played, fight: { ...played.fight, floor: [...played.fight.floor, ...floor], foundAt: waiting.at ? getPlaceKey(waiting.at) : null } }
   }

@@ -34,6 +34,7 @@ import { getEnemies, getSocialCost } from './social'
 import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { isExtinguishCell } from './extinguish'
+import { isPlantDeclared } from './plant'
 import { canPickUp, getReachableFloor } from './floor'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
@@ -170,6 +171,10 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // combat.tex "Fire": a burning space within its reach
     case 'extinguish':
       return isExtinguishCell(state, action)
+    // abilities.tex "Crossbow and Shield": a body shield in hand, facing a
+    // cell next to the planter
+    case 'plant':
+      return isPlantDeclared(state, c, action)
     // abilities.tex "Medicine": someone bleeding within reach
     case 'firstAid':
     case 'cauterize':
@@ -360,6 +365,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'holdBack':
     case 'pickUp':
     case 'extinguish':
+    case 'plant':
     case 'drink':
     case 'taunt':
     case 'rest':
@@ -684,6 +690,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'plant':
     case 'drink':
     case 'firstAid':
     case 'cauterize':
@@ -834,6 +841,7 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'plant':
     case 'drink':
     case 'reload':
     case 'social':

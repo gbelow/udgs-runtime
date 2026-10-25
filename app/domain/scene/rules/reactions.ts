@@ -125,6 +125,8 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     // combat.tex "Opportunity Attack": a standard action, as drinking is
     // (gear.tex "Potions and Medicine")
     case 'drink': return opportunityTriggers(state, root.actorId)
+    // abilities.tex "Crossbow and Shield": "1 Standard action"
+    case 'plant': return opportunityTriggers(state, root.actorId)
     // combat.tex "Opportunity Attack": an action that requires concentration
     case 'firstAid':
     case 'cauterize': return requiresConcentration(root) ? opportunityTriggers(state, root.actorId) : []

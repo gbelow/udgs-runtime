@@ -21,6 +21,7 @@ import { getPartners, getGrapples, isHeld, isTether } from './partners'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getFeintBar } from './feint'
 import { getExtinguishCells } from './extinguish'
+import { getPlantableShields } from './plant'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvadeCost, getEvasiveJumpCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
@@ -504,6 +505,15 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : getExtinguishCells(state, c.id).length === 0 ? 'nothing burning within reach'
       : afford(state, c, cost)
     return [option({ kind: 'extinguish' }, cost, reason)]
+  },
+  // abilities.tex "Crossbow and Shield": each body shield in hand, for a
+  // standard action, by one who has learned to plant it
+  plant: (state, c) => {
+    if (!hasGrant(c, 'plantShield')) return []
+    const cost = getActionCost(c, 'standardAction')
+    const shields = getPlantableShields(c)
+    if (shields.length === 0) return [option({ kind: 'plant' }, cost, 'no body shield in hand')]
+    return shields.map((shield) => option({ kind: 'plant', itemId: shield.id }, cost, !isPlaced(state, c) ? 'not on the board' : afford(state, c, cost)))
   },
   // combat.tex "Preparing a reaction": 1 AP, whatever is prepared; it needs a
   // board to be triggered on

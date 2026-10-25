@@ -313,10 +313,10 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
   throwOffShieldToFloor: (s) => combatCommands.throwOffShieldToFloor('a')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, onBack: shieldItem } } })),
   placeItem: (s) => combatCommands.placeItem(daggerItem, { q: 0, r: 0 }, newId)(deepFreeze(cleared(s))),
-  removeFloorItem: (s) => combatCommands.removeFloorItem(daggerItem.id)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
+  removeFloorItem: (s) => combatCommands.removeFloorItem(daggerItem.id)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null, planted: null }] })),
   setOffExplosion: (s) => combatCommands.setOffExplosion({ ...EXPLOSION_DRAFT, radius: 2 }, { q: 0, r: 0 }, newId)(deepFreeze(cleared(s))),
-  pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
-  pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
+  pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null, planted: null }] })),
+  pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null, planted: null }] })),
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
   impose: (s) => combatCommands.impose(['a', 'b'], { effect: { name: 'fall', trigger: 'instant', type: 'fall', effect: { height: 6 } }, degree: null, test: { roll: 'balance', DL: 6, direct: true }, when: null, then: [], locks: null })(deepFreeze(cleared(s))),
   updateCharacter: (s) => combatCommands.updateCharacter('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
@@ -390,7 +390,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   toggleBreakage: (t) => campaignCommands.toggleBreakage(deepFreeze(away(t))),
   passBy: ({ campaign }) => campaignCommands.passBy('s')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null } } }),
   playScene: (t) => campaignCommands.playScene('s', null, {}, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [], scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: true, event: 'E', at: { map: 'm', node: 'n1' } } } }, fight: resetCombatModule.resetCombat(t.fight) })),
-  leaveBehind: ({ campaign, fight }) => campaignCommands.leaveBehind({ ...fight, foundAt: 'm/n1', floor: [{ item: ItemSchema.parse({ id: 'i' }), cell: null }] }, campaign),
+  leaveBehind: ({ campaign, fight }) => campaignCommands.leaveBehind({ ...fight, foundAt: 'm/n1', floor: [{ item: ItemSchema.parse({ id: 'i' }), cell: null, planted: null }] }, campaign),
 }
 
 // Exploration's subject is the campaign's beside what exploration keeps:

@@ -519,10 +519,13 @@ export type GrappleFacts = z.infer<typeof GrappleFactsSchema>
 
 // Something lying on the ground: dropped, knocked out of a hand, or thrown
 // and landed. `cell` is where; null on a fight without a board, where the
-// floor is one pile.
+// floor is one pile. A body shield `planted` (abilities.tex "Crossbow and
+// Shield") names who planted it and the cell it faces.
+export const PlantedSchema = z.object({ by: str, toward: CoordSchema }).strip()
 export const FloorItemSchema = z.object({
   item: ItemSchema,
   cell: CoordSchema.nullable().default(null),
+  planted: PlantedSchema.nullable().default(null),
 }).strip()
 export type FloorItem = z.infer<typeof FloorItemSchema>
 
@@ -1197,6 +1200,16 @@ export const ExtinguishActionSchema = z.object({
   to: CoordSchema.nullable().default(null),
 }).strip()
 
+// abilities.tex "Crossbow and Shield": "The shield is planted like a cover
+// against everything in a 180 degree arc", for a standard action: a body
+// shield in hand, set down in the planter's space facing a cell.
+export const PlantActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('plant'),
+  itemId: str.default(''),
+  to: CoordSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Rest": "an action that costs 4 AP and recovers STA by an
 // amount equal to STA/4".
 export const RestActionSchema = z.object({
@@ -1300,6 +1313,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   CauterizeActionSchema,
   ReloadActionSchema,
   ExtinguishActionSchema,
+  PlantActionSchema,
   RestActionSchema,
   SocialActionSchema,
   TauntActionSchema,
@@ -1339,6 +1353,7 @@ export type OpportunityAction = StrikeAction | GrappleAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
+export type PlantAction = z.infer<typeof PlantActionSchema>
 export type DrinkAction = z.infer<typeof DrinkActionSchema>
 export type FirstAidAction = z.infer<typeof FirstAidActionSchema>
 export type CauterizeAction = z.infer<typeof CauterizeActionSchema>
