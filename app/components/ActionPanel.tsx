@@ -15,6 +15,7 @@ import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
 import { StrikeModifiers } from './StrikeModifiers'
+import { ACTION_ICONS } from './actionIcons'
 
 const STEP_LABEL = {
   declare: 'declare',
@@ -578,7 +579,7 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
 function OptionButton({ option, active = false, onClick }: { option: ActionOptionView, active?: boolean, onClick: () => void }){
   return (
     <Closed reason={option.available ? null : option.reason}>
-      <ActionKey look={active ? 'picked' : 'plain'} cost={costLabel(option.cost)}
+      <ActionKey look={active ? 'picked' : 'plain'} icon={ACTION_ICONS[option.draft.kind]} cost={costLabel(option.cost)}
         disabled={!option.available} onClick={onClick}>
         {option.label}
         {option.surge ? <span className='text-accent'>surge</span> : null}
