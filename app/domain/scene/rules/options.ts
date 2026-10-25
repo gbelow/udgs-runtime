@@ -31,7 +31,7 @@ import { makeAction } from '../factories'
 import { perState } from '../../perState'
 import { getFightName } from './fighters'
 import { canAnswer, getLiveActions, getLiveReactionsTo, getOpenAction, getReactionsTo, withLiveActions } from './log'
-import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, getRowBar } from './attack'
+import { defRows, explosionBlockRows, getAmmoOptions, getFreeAttackOptions, getOpportunityShot, guardRows, getRowBar } from './attack'
 import { getReloadBar, getReloadRows } from './reload'
 import { getHeldOf } from './hold'
 import { getReloadCost } from '../../character/rules/gear'
@@ -42,7 +42,7 @@ import { getFleeBarFor, getSurgeBarFor, getSurgeProbes } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
 import { findPrepared, getPreparedBar } from './prepared'
-import { SURGES } from '../../tables'
+import { SHOTS, SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
 import { canAffordRest } from '../../character/rules/rest'
@@ -325,7 +325,13 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         const catching = { catch: trigger.catchOnly === true, martialSpirit: false, tackle: false, gentle: false }
         const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant, modifiers: catching }))
         const maneuvers = getPartners(state, c.id).includes(open.actorId) ? getManeuversOf(c).map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
-        const checks = [...strikes, ...maneuvers].map((a) => getOpportunityCheck(state, c, a))
+        // abilities.tex "Archer's Reflexes": a quick shot, loaded from the
+        // first stack it can be
+        const shots = hasGrant(c, 'reflexShot') ? getFreeAttackOptions(state, c, 'shoot').filter((s) => s.variant === SHOTS.quickShot.variant).map((s) => {
+          const shot = probe({ mode: 'shoot', weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })
+          return { ...shot, ammoId: getAmmoOptions(c, getOpportunityShot(shot, ''))[0]?.itemId ?? '' }
+        }) : []
+        const checks = [...strikes, ...maneuvers, ...shots].map((a) => getOpportunityCheck(state, c, a))
         const reason = checks.length === 0 ? 'no melee weapon in hand' : checks.some((k) => k.bar === null) ? null : checks.reduce((best, k) => (k.stage > best.stage ? k : best)).bar
         return [answer({ kind, at: trigger.at }, null, reason)]
       }

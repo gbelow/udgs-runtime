@@ -909,9 +909,11 @@ export const OpportunityAttackActionSchema = z.object({
   ...AttackAim,
   // combat.tex "Grapple Maneuvers": "can be used like opportunity attacks"
   // — against a grapple partner, what is opened is a maneuver instead of a
-  // strike
-  mode: z.enum(['strike', 'grapple']).default('strike'),
+  // strike; abilities.tex "Archer's Reflexes": a quick shot instead, loaded
+  // from `ammoId`
+  mode: z.enum(['strike', 'grapple', 'shoot']).default('strike'),
   maneuver: GrappleManeuverSchema.default('immobilize'),
+  ammoId: str.default(''),
   modifiers: StrikeModifiersSchema.extend({ gentle: z.boolean().default(false) }).prefault({}),
 }).strip()
 
@@ -1354,7 +1356,7 @@ export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // What an opportunity attack opens: a strike, or against a grapple partner a
 // maneuver (combat.tex "Grapple Maneuvers").
-export type OpportunityAction = StrikeAction | GrappleAction
+export type OpportunityAction = StrikeAction | GrappleAction | ShootAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>

@@ -4,7 +4,7 @@ import { rollD10, seededRng } from '../domain/play/dice'
 import { SceneStateSchema, type ActionDraft, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import type { ModifierView } from '../domain/scene/projections/modifiers'
-import { getFootprint } from '../domain/scene/rules/board/board'
+import { getFootprint, getMeleeThreateners } from '../domain/scene/rules/board/board'
 import { isProne } from '../domain/scene/rules/board/ground'
 import { defRows } from '../domain/scene/rules/attack'
 import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
@@ -169,6 +169,23 @@ function answerWithAStrike(h: Harness, id: string, pick: Picker) {
   for (const m of reactor?.modifiers ?? []) if (pick([true, false])) h.send({ kind: 'amendReaction', args: [id, m.press] })
   const grapple = refreshed?.modes.find((m) => m.mode === 'grapple')
   if (grapple && refreshed?.maneuvers.length && pick([true, false])) h.send({ kind: 'amendReaction', args: [id, { ...grapple.press, maneuver: pick(refreshed.maneuvers) }] })
+  if (pick([true, false])) answerWithAQuickShot(h, id, pick)
+}
+
+// abilities.tex "Archer's Reflexes": an opportunity attack made as a quick
+// shot instead, its row, what it is loaded with and its aim picked from the
+// offers as they follow.
+function answerWithAQuickShot(h: Harness, id: string, pick: Picker) {
+  const shooting = () => getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
+  const shot = shooting()?.modes.find((m) => m.mode === 'shoot')
+  if (!shot) return
+  h.send({ kind: 'amendReaction', args: [id, shot.press] })
+  const rows = shooting()?.options ?? []
+  if (rows.length) { const { weaponKey, attack, variant } = pick(rows); h.send({ kind: 'amendReaction', args: [id, { weaponKey, attack, variant }] }) }
+  const ammo = shooting()?.ammo ?? []
+  if (ammo.length) h.send({ kind: 'amendReaction', args: [id, { ammoId: pick(ammo).itemId }] })
+  const locations = shooting()?.locations ?? []
+  if (locations.length) { const { location, part } = pick(locations); h.send({ kind: 'amendReaction', args: [id, { location, part }] }) }
 }
 
 function plays(): Play[] {
@@ -461,7 +478,7 @@ function record(session: string) {
   const counted = new Set<string>()
   return useCombatStore.subscribe((state) => {
     for (const a of Object.values(state.actions)) {
-      const key = `${a.kind}${a.reactionTo ? ' (reaction)' : ''}${'maneuver' in a && a.kind === 'grapple' ? ` ${a.maneuver}` : ''}`
+      const key = `${a.kind}${a.reactionTo ? ' (reaction)' : ''}${'maneuver' in a && a.kind === 'grapple' ? ` ${a.maneuver}` : ''}${a.kind === 'opportunityAttack' && a.mode !== 'strike' ? ` ${a.mode}` : ''}`
       const seen = reached.get(key) ?? { sessions: new Set<string>(), steps: { define: 0, react: 0, post: 0, done: 0, held: 0 } }
       seen.sessions.add(session)
       if (!counted.has(`${a.id}/${a.step}`)) { seen.steps[a.step]++; counted.add(`${a.id}/${a.step}`) }
@@ -893,6 +910,42 @@ function jumpAttackPlay(h: Harness): Play[] {
   })
 }
 
+// abilities.tex "Archer's Reflexes": one who has learned it makes the focus
+// surge in a turn of their own, and in the same round, in the turn of someone
+// a melee weapon threatens where there is anyone, answers whatever draws an
+// opportunity attack with a quick shot, where one is offered. Played only
+// where someone has the ability, for the same reason as the shelter.
+function reflexShotPlay(h: Harness): Play[] {
+  const able = () => Object.values(h.state().characters).filter((c) => hasGrant(c, 'reflexShot'))
+  if (!able().length) return []
+  return [{
+    name: 'cover with a quick shot',
+    weight: 3,
+    run: (h, pick) => {
+      startTurnOf(h, pick, able().map((c) => c.id))
+      const shooter = h.active()!
+      h.send({ kind: 'surge', args: [shooter, 'focus'] })
+      h.send({ kind: 'endTurn', args: [] })
+      const others = Object.keys(h.state().characters).filter((id) => id !== shooter)
+      const threatened = others.filter((id) => getMeleeThreateners(h.state(), id).some((t) => t !== shooter))
+      h.select(h.state().characters[pick(threatened.length ? threatened : others)].name)
+      h.startTurn()
+      const every = ownOptions(h, h.active()!)
+      if (!every.length) return
+      const leaning = every.filter((o) => LEANING.includes(o.draft.kind))
+      h.declare(pick(leaning.length && pick([true, true, false]) ? leaning : every).draft as ActionDraft)
+      finishDeclaration(h, pick)
+      const offered = getAvailableActions(h.state(), shooter).filter((o) => o.available && o.draft.kind === 'opportunityAttack')
+      if (offered.length) {
+        h.send({ kind: 'react', args: [shooter, pick(offered).draft] })
+        answerWithAQuickShot(h, shooter, pick)
+      }
+      answerOpen(h, pick, pick([0, 1, 2, 3, 4]))
+      playOut(h, pick)
+    },
+  }]
+}
+
 // abilities.tex "Gentle Art": the grapple test being declared, or answered
 // with, made gently or not. Played only where someone has the ability, for
 // the same reason as the shelter.
@@ -931,7 +984,9 @@ const DUELS = [
   { name: 'a brawler and a warden', a: brawler, b: warden, apart: 2 },
   { name: 'a brawler and a spearman', a: brawler, b: spearman, apart: 2 },
   { name: 'a melee-trained sword brawler and spearman', a: (id: string) => meleeTrained(swordBrawler(id)), b: (id: string) => meleeTrained(spearman(id)), apart: 2 },
-  { name: 'a brawler and a ranged-trained archer', a: brawler, b: (id: string) => rangedTrained(archer(id)), apart: 1 },
+  // a third, the warden, threatens the brawler from the other side, so that what the brawler does draws
+  // opportunity attacks the archer may answer too (abilities.tex "Archer's Reflexes")
+  { name: 'a brawler between a warden and a ranged-trained archer', a: brawler, b: (id: string) => rangedTrained(trained(archer(id))), apart: 1, third: { make: warden, at: [-1, 0] as [number, number] } },
 ]
 
 const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'resize the board', 'drop a held item', 'take a whole action'].includes(p.name))
@@ -940,7 +995,8 @@ function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(duel.a('Ann'), duel.b('Bob'))
+  const third = 'third' in duel ? duel.third : null
+  h.bring(duel.a('Ann'), duel.b('Bob'), ...(third ? [third.make('Cy')] : []))
   h.createBoard(4)
   if (duel.pane) {
     h.paint('glass', [duel.pane])
@@ -950,8 +1006,12 @@ function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   h.cell(0, 0)
   h.select('Bob')
   h.cell(duel.apart, 0)
+  if (third) {
+    h.select('Cy')
+    h.cell(...third.at)
+  }
   h.select('Ann')
-  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('two characters grappling, pushing, shooting and defending', () => {
@@ -1001,7 +1061,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('a crowd on rough ground', () => {
@@ -1160,7 +1220,7 @@ function chasePlays(): Play[] {
 // reach or cover from but the chase.
 function playChase(seed: number, table = false) {
   const { h, pick } = openChase(seed, undefined, table)
-  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...plantPlay(h), ...gentlePlay(h), ...jumpAttackPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
 }
 
 function openChase(seed: number, tier?: ChaseTier, table = false) {

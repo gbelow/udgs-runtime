@@ -219,9 +219,9 @@ export function getOpeningReaction(state: SceneState, action: Action): ActionOf<
 }
 
 // What an opportunity attack opens: a strike, or against a grapple partner a
-// maneuver.
+// maneuver, or a quick shot (abilities.tex "Archer's Reflexes").
 function isOpportunityAction(action: Action | null): action is OpportunityAction {
-  return action?.kind === 'strike' || action?.kind === 'grapple'
+  return action?.kind === 'strike' || action?.kind === 'grapple' || action?.kind === 'shoot'
 }
 
 // The action a prepared reaction opened for the preparation itself, once it

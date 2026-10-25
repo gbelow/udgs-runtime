@@ -44,7 +44,7 @@ import { getRecipeHitTerms } from './recipes'
 import { getChaseCoverTerms, getRoutingTerms } from './chase'
 import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
-import { pickAim, pickStrikeDeclaration } from './declaration'
+import { pickAim, pickShotDeclaration, pickStrikeDeclaration } from './declaration'
 
 // What an action is rolled with and against: the weapon rows and
 // variations an attack can be made with, the opportunity attack a reaction
@@ -112,12 +112,20 @@ export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id
   return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickStrikeDeclaration(reaction), ...pickAim(reaction), opportunity: true, spawnedBy: reaction.id, step: 'react' })
 }
 
+// abilities.tex "Archer's Reflexes": the quick shot an opportunity attack
+// declared as one opens, a shot of the shooter's own.
+export function getOpportunityShot(reaction: ActionOf<'opportunityAttack'>, id: string): ShootAction {
+  return makeAction('shoot', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickShotDeclaration(reaction), ...pickAim(reaction), spawnedBy: reaction.id, step: 'react' })
+}
+
 // What the opportunity attack opens, as declared on the reaction: a strike,
 // or against a grapple partner the maneuver it was declared as (combat.tex
-// "Grapple Maneuvers": "can be used like opportunity attacks").
+// "Grapple Maneuvers": "can be used like opportunity attacks"), or a quick
+// shot (abilities.tex "Archer's Reflexes").
 export function getOpportunityAction(state: SceneState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
   if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver, modifiers: { gentle: reaction.modifiers.gentle } })
+  if (reaction.mode === 'shoot') return getOpportunityShot(reaction, id)
   return getOpportunityStrike(reaction, id)
 }
 

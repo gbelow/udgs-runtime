@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import type { Action, ActionDraft, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
+import type { Action, ActionDraft, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
@@ -10,8 +10,8 @@ import { ActionOption, getAvailableActions, getAwaited, getGoBar } from '../rule
 import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
-import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
-import { EXTEND, PART_PRESETS } from '../../tables'
+import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getOpportunityShot, getDLTerms, getRootTestTerms } from '../rules/attack'
+import { EXTEND, PART_PRESETS, SHOTS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, canGrapple, getHitHOP, getHOPOptions } from '../rules/damage'
@@ -96,11 +96,11 @@ export type ReactorOptions = {
     // why an opportunity attack cannot be fought as declared, when it cannot
     bar: string | null
     // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
-    // instead of the strike, and what picking either declares (none of what
-    // the other was declared with goes with it)
-    mode: 'strike' | 'grapple'
-    partner: boolean
-    modes: { mode: 'strike' | 'grapple'; press: Partial<ActionDraft> }[]
+    // instead of the strike; abilities.tex "Archer's Reflexes": a quick shot;
+    // and what picking each declares (none of what another was declared with
+    // goes with it)
+    mode: OpportunityMode
+    modes: { mode: OpportunityMode; press: Partial<ActionDraft> }[]
     maneuvers: GrappleManeuver[]
     maneuver: GrappleManeuver
     // combat.tex "Coordinated Shots": a joined shot is picked among shooting
@@ -125,20 +125,34 @@ export type ReactorOptions = {
   passed: boolean
 }
 
+type OpportunityMode = ActionOf<'opportunityAttack'>['mode']
+
+// The modes an opportunity attack may be declared in by its attacker: a
+// strike, a maneuver against a grapple partner, a quick shot by one who has
+// learned Archer's Reflexes and has one in hand.
+function getOpportunityModes(state: SceneState, c: Character, targetId: string): OpportunityMode[] {
+  const partner = findGrapple(getGrapples(state), c.id, targetId) !== null
+  const shooter = hasGrant(c, 'reflexShot') && getFreeAttackOptions(state, c, 'shoot').some((o) => o.variant === SHOTS.quickShot.variant)
+  return ['strike', ...(partner ? ['grapple' as const] : []), ...(shooter ? ['shoot' as const] : [])]
+}
+
 function getReactors(state: SceneState, open: Action): ReactorOptions[] {
   const awaited = getAwaited(state)
   return Object.values(state.characters)
     .filter((c) => canAnswer(open, c.id))
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
+      const reflexShot = declared?.kind === 'opportunityAttack' && declared.mode === 'shoot'
       const strike = declared?.kind === 'opportunityAttack' || declared?.kind === 'counterattack' || declared?.kind === 'joinShot'
         ? {
             options: declared.kind === 'joinShot'
               ? getFreeAttackOptions(state, c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
-              : getFreeAttackOptions(state, c, 'strike').filter((o) => declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, { ...declared, mode: 'strike', weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }) === null : isVariantOpen(state, declared, o)),
-            shot: declared.kind === 'joinShot',
-            ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
-            ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
+              : reflexShot
+                ? getFreeAttackOptions(state, c, 'shoot').filter((o) => o.variant === SHOTS.quickShot.variant)
+                : getFreeAttackOptions(state, c, 'strike').filter((o) => declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, { ...declared, mode: 'strike', weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }) === null : isVariantOpen(state, declared, o)),
+            shot: declared.kind === 'joinShot' || reflexShot,
+            ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : reflexShot ? getAmmoOptions(c, getOpportunityShot(declared, '')) : [],
+            ammoId: declared.kind === 'joinShot' || reflexShot ? declared.ammoId : '',
             locations: getLocationOptions(declared.targetId ? state.characters[declared.targetId] : undefined, declared),
             attack: declared.attack,
             variant: declared.variant,
@@ -146,8 +160,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             complete: isDeclarationComplete(state, c, declared),
             bar: declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, declared) : null,
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
-            partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
-            modes: (['strike', 'grapple'] as const).map((mode) => ({ mode, press: { mode, modifiers: getModifiersOff(declared) } as Partial<ActionDraft> })),
+            modes: declared.kind === 'opportunityAttack' ? getOpportunityModes(state, c, declared.targetId ?? '').map((mode) => ({ mode, press: { mode, weaponKey: '', attack: '', variant: '', ammoId: '', modifiers: getModifiersOff(declared) } as Partial<ActionDraft> })) : [],
             maneuvers: getManeuversOf(c).filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,

@@ -451,10 +451,10 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
         <SectionLabel>{reactor.name}</SectionLabel>
         <Button size='xs' title='take the declared reaction back and answer with nothing' onClick={onPass}>nothing</Button>
         <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'join shot' : 'opportunity attack')}</span>
-        {strike.partner ? (
-          <Segmented label='strike or maneuver'>
+        {strike.modes.length > 1 ? (
+          <Segmented label='what the opportunity attack is made as'>
             {strike.modes.map((m) =>
-              <Segment key={m.mode} selected={strike.mode === m.mode} onClick={() => onAmend(m.press)}>{m.mode === 'grapple' ? 'maneuver' : 'strike'}</Segment>)}
+              <Segment key={m.mode} selected={strike.mode === m.mode} onClick={() => onAmend(m.press)}>{m.mode === 'grapple' ? 'maneuver' : m.mode === 'shoot' ? 'quick shot' : 'strike'}</Segment>)}
           </Segmented>
         ) : null}
       </div>
@@ -466,7 +466,7 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
           </Segmented>
         </div>
       ) : null}
-      {strike.mode === 'strike' ? <>
+      {strike.mode !== 'grapple' ? <>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>attack</SectionLabel>
         {strike.options.map((s) => {

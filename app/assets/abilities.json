@@ -1195,10 +1195,12 @@
             }
           ]
         ],
-        "description": "Allows for a quick shot at any visible target in range as a reaction to any action of the target that triggers an opportunity attack and the shooter has perceived.",
+        "description": "Allows for a quick shot at any visible target in range as a reaction to any action of the target that triggers an opportunity attack and the shooter has perceived, as long as the shooter has used focus surge that round.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "reflexShot"
+        ],
         "freeSpells": 0
       }
     ]

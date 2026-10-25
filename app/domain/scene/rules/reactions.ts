@@ -10,6 +10,7 @@ import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
+import { hasGrant } from '../../character/rules/effects'
 import { getRetargetOptions } from './fireAgain'
 import { getEnteringStep, getMovePlacements } from './board/waypoint'
 import { firstStep, getApproachStep, getPathDistances } from './approach'
@@ -87,8 +88,24 @@ export function getReactorDetections(state: SceneState, root: RootAction): Detec
   })
 }
 
+// abilities.tex "Archer's Reflexes": "a quick shot at any visible target in
+// range as a reaction to any action of the target that triggers an
+// opportunity attack", "as long as the shooter has used focus surge that
+// round": where the action draws an opportunity attack from anyone, whoever
+// else has learned it and made the focus surge may answer it with one too,
+// at the first step it was drawn on, made as a quick shot.
+function reflexShotTriggers(state: SceneState, root: RootAction, triggers: Trigger[]): Trigger[] {
+  const drawn = triggers.find((t) => t.kind === 'opportunityAttack' && !t.catchOnly)
+  if (!drawn) return []
+  return Object.values(state.characters)
+    .filter((c) => c.id !== root.actorId && hasGrant(c, 'reflexShot') && isCampaignCharacter(c) && c.usedSurge === 'focus')
+    .filter((c) => !triggers.some((t) => t.characterId === c.id && t.kind === 'opportunityAttack'))
+    .map((c): Trigger => ({ characterId: c.id, kind: 'opportunityAttack', at: drawn.at, against: drawn.against }))
+}
+
 function getDrawnTriggers(state: SceneState, root: RootAction): Trigger[] {
-  const triggers = getKindTriggers(state, root)
+  const own = getKindTriggers(state, root)
+  const triggers = [...own, ...reflexShotTriggers(state, root, own)]
   const opportunity = getOpeningReaction(state, root) !== null
   const isOpportunity = (t: Trigger) => t.kind === 'opportunityAttack' || t.kind === 'retarget'
   // combat.tex "Concentration", "Opportunity Attack": the attacks an action
@@ -245,8 +262,10 @@ function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
     .filter((id) => id !== root.targetId && shooters.some((shooter) => isGuardingShot(state, shooter, root.targetId!, id)))
     .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
   // combat.tex "Coordinated Shots": anyone with a shooting weapon may join,
-  // whether or not they are in range of the target — that is declared
-  const joins = Object.values(state.characters)
+  // whether or not they are in range of the target: that is declared. A
+  // quick shot an opportunity attack opens (abilities.tex "Archer's
+  // Reflexes") is answered by its target alone, as a strike one opens is.
+  const joins = getOpeningReaction(state, root) !== null ? [] : Object.values(state.characters)
     .filter((c) => c.id !== root.actorId && c.id !== root.targetId && hasShootingRow(c, isCombatStarted(state)))
     .map((c): Trigger => ({ characterId: c.id, kind: 'joinShot', at: null, against: root.targetId! }))
   // combat.tex "Opportunity Attack": "Triggering actions include ... ranged

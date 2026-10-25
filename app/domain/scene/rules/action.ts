@@ -20,7 +20,8 @@ import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
 import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
-import { isSpellActive } from '../../character/rules/effects'
+import { hasGrant, isSpellActive } from '../../character/rules/effects'
+import { SHOTS } from '../../tables'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
@@ -39,7 +40,7 @@ import { canPickUp, getReachableFloor } from './floor'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
-import { getAttackVariant, getFreeAttackOptions, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
+import { getAttackVariant, getFreeAttackOptions, getOpportunityAction, explosionBlockRows, getOpportunityShot, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
 import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
@@ -79,6 +80,19 @@ export function getOpportunityCheck(state: SceneState, c: Character, action: Act
     if (!isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
     if (!getManeuversOf(c).includes(action.maneuver)) return fail(`${action.maneuver} not learned`, 1)
     return canAfford(c, getManeuverCost(c, action.maneuver), isCombatStarted(state)) ? { bar: null, stage: 3 } : fail('cannot afford a maneuver', 2)
+  }
+  // abilities.tex "Archer's Reflexes": "a quick shot at any visible target
+  // in range", from where the shooter stands when it is fought
+  if (action.mode === 'shoot') {
+    const shot = getOpportunityShot(action, '')
+    if (!hasGrant(c, 'reflexShot')) return fail("Archer's Reflexes not learned", 0)
+    if (shot.variant !== SHOTS.quickShot.variant || getAttackVariant(c, shot, isCombatStarted(state)) === null) return fail('that quick shot is not one they have in hand', 1)
+    const cost = getOwnCost(state, shot)
+    if (!cost || !isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
+    if (!canAfford(c, cost, isCombatStarted(state))) return fail(`cannot afford ${cost.AP} AP${cost.STA ? ` and ${cost.STA} STA` : ''}`, 3)
+    if (!isShotLoaded(c, shot)) return fail('nothing to load it with', 4)
+    if (!getTargetIds(getOpportunityState(state, action), shot).includes(target)) return fail('out of sight or range from where it is shot', 5)
+    return isAimOnTarget(state, shot) ? { bar: null, stage: 7 } : fail('the aim is not on the target', 6)
   }
   const strike = getOpportunityStrike(action, '')
   const fought = getOpportunityState(state, action)
