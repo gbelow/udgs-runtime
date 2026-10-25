@@ -1,3 +1,4 @@
+import type { Outcome } from '../../types'
 import type { Action, ActionRoll, Change, SceneState, CostTerm, Detection, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import type { Term } from '../../character/rules/terms'
@@ -9,22 +10,36 @@ import { getAction, getHistory, getLanded, getOrigin, getReactionsTo } from '../
 import { getGivenUpFor, isInterruptible, isVoided } from '../rules/opportunity'
 import { getInterruptions } from '../rules/interruption'
 import { getMoveOverride, getStandingIn } from '../rules/move'
-import { describeOutcome } from '../../play/test'
+import { describeOutcome, describeSource } from '../../play/test'
+import { findWeaponRow } from '../rules/weaponRow'
 
 // What the table reads once an action has played out, whole: the action that
 // started it and everything it drew — the answers given to it, what those
 // opened, the follow-ups it left — each as it landed, with what it cost and,
 // where it came to less than it was declared as, why.
 
+// A test read as arithmetic: the die and each term of the skill added up to
+// the score, the DL and what it is made of, the degree and by how much the
+// score cleared the DL, signed.
+export type TestLine = {
+  sum: string
+  against: string
+  degree: ActionRoll['degree']
+  margin: string
+  source: string
+}
+
 export type ReactionLine = {
   actor: string
   label: string
   rule: string
+  declared: string[]
   cost: ActionCost | null
   costTerms: CostTerm[]
   refunded: number
   surged: Action['surged']
   roll: ActionRoll | null
+  test: TestLine | null
   changes: string[]
 }
 
@@ -42,6 +57,12 @@ export type WithdrawnLine = {
 export type EpisodeEntry = ActionReport & {
   // where the book says it
   rule: string
+  // what was chosen when it was committed: its target, what it was made with,
+  // where it was aimed
+  declared: string[]
+  test: TestLine | null
+  // the damage outcomes in a line each, for the folded report
+  headline: string[]
   cost: ActionCost | null
   costTerms: CostTerm[]
   refunded: number
@@ -99,7 +120,7 @@ function getEpisode(state: SceneState, origin: string, since = 0): EpisodeEntry[
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
-    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, refunded: a.refunded, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, declared: getDeclared(state, a), test: getTestLine(a.roll), headline: report.outcomes.map((o) => describeHeadline(o.target, o.outcome)), cost: a.cost, costTerms: a.costTerms, refunded: a.refunded, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
   })
   return entries.length > 0 ? entries : null
 }
@@ -164,7 +185,42 @@ function describeDetection(state: SceneState, { observerId, hiderId, found, test
 function getReactionLines(state: SceneState, root: Action): ReactionLine[] {
   return getReactionsTo(state, root.id)
     .filter((r) => r.step === 'done')
-    .map((r) => ({ actor: getFightName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, cost: r.cost, costTerms: r.costTerms, refunded: r.refunded, surged: r.surged, roll: r.roll, changes: r.changes.map((c) => describeChange(state, c)) }))
+    .map((r) => ({ actor: getFightName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, declared: getDeclared(state, r), cost: r.cost, costTerms: r.costTerms, refunded: r.refunded, surged: r.surged, roll: r.roll, test: getTestLine(r.roll), changes: r.changes.map((c) => describeChange(state, c)) }))
+}
+
+// The options and targets the action was committed with, a phrase each.
+function getDeclared(state: SceneState, action: Action): string[] {
+  const declared: string[] = []
+  if (action.targetId) declared.push(`at ${getFightName(state, action.targetId)}`)
+  if ('attack' in action && action.attack) {
+    const actor = state.characters[action.actorId]
+    const row = actor && 'weaponKey' in action ? findWeaponRow(actor, action.weaponKey, action.attack) : null
+    declared.push(row ? `${row.weapon.name}: ${action.attack}` : action.attack)
+    if ('variant' in action && action.variant) declared.push(action.variant)
+    if ('location' in action) declared.push(`aimed at ${action.part ?? action.location}`)
+  }
+  if ('sweepDirection' in action && 'variant' in action && /sweep/i.test(action.variant)) declared.push(action.sweepDirection)
+  return declared
+}
+
+function getTestLine(roll: ActionRoll | null): TestLine | null {
+  if (!roll) return null
+  return {
+    sum: `${roll.die} (d10)${addUp(roll.skillTerms)} = ${roll.score}`,
+    against: `DL ${roll.DL}${roll.DLTerms.length > 0 ? ` = ${addUp(roll.DLTerms).slice(3)}` : ''}`,
+    degree: roll.degree,
+    margin: roll.score >= roll.DL ? `+${roll.score - roll.DL}` : `−${roll.DL - roll.score}`,
+    source: roll.source ? describeSource(roll.source).trim() : '',
+  }
+}
+
+// Terms as the rest of a sum, each led by its sign: " + 5 Strike − 2 dark".
+const addUp = (terms: Term[]): string => terms.map((t) => ` ${t.value < 0 ? '−' : '+'} ${Math.abs(t.value)} ${t.label}`).join('')
+
+function describeHeadline(target: string, outcome: Outcome): string {
+  if (outcome.stopped) return `${target} intercepted`
+  if (outcome.tier === null) return `${target} no injury`
+  return `${target} T${outcome.tier}${outcome.dead ? ' dead' : ''}`
 }
 
 function describe(state: SceneState, action: Action): string {

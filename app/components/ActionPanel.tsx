@@ -201,6 +201,12 @@ export function ActionPanel(){
           <IconButton icon={Plus} aria-label='climb more' disabled={open.climbSteps.more === null} onClick={() => amend({ metres: open.climbSteps?.more ?? null })} />
         </div>
       ) : null}
+      {open.gentle !== null ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>gentle art</SectionLabel>
+          <Button size='xs' selected={open.gentle} title='-2 to the grapple test for 1 STA less' onClick={() => amend({ gentle: !open.gentle })}>gently</Button>
+        </div>
+      ) : null}
       {open.canLeap ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>start</SectionLabel>
@@ -282,6 +288,7 @@ export function ActionPanel(){
                   <ActionKey look={r.passed ? 'picked' : 'plain'} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</ActionKey>
                   {r.options.map((o) =>
                     <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
+                  {r.gentle !== null ? <Button size='xs' selected={r.gentle} title='-2 to the grapple test for 1 STA less' onClick={() => amendReacted(r.id, { gentle: !r.gentle })}>gently</Button> : null}
                   {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
                 </div>
               </LockedFor>
@@ -450,6 +457,7 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
           <Segmented label='maneuver'>
             {strike.maneuvers.map((m) => <Segment key={m} selected={strike.maneuver === m} onClick={() => onAmend({ maneuver: m })}>{m}</Segment>)}
           </Segmented>
+          {reactor.gentle !== null ? <Button size='xs' selected={reactor.gentle} title='-2 to the grapple test for 1 STA less' onClick={() => onAmend({ gentle: !reactor.gentle })}>gently</Button> : null}
         </div>
       ) : null}
       {strike.mode === 'strike' ? <>
@@ -640,75 +648,99 @@ function Report({ episode, open }: { episode: EpisodeEntry[], open: boolean }){
     <details open={open} className='border-b border-line/50 pb-1.5'>
       <summary className='cursor-pointer select-none text-sm'>
         {head.actor} · {head.label}
-        {head.roll ? <span className={`ml-2 text-xs ${head.roll.degree === 'miss' ? 'text-bad' : head.roll.degree === 'hit' || head.roll.degree === 'critical' ? 'text-good' : 'text-muted'}`}>{head.roll.degree}</span> : null}
-        {head.outcomes.map((o) => <span key={o.target} className='ml-2 text-xs text-muted'>{o.target}{o.outcome.tier !== null ? ` T${o.outcome.tier}` : ''}{o.outcome.dead ? ' dead' : ''}</span>)}
+        {head.test ? <span className={`ml-2 text-xs font-medium ${degreeClass(head.test.degree)}`}>{head.test.degree}</span> : null}
+        {head.headline.map((h) => <span key={h} className='ml-2 text-xs font-medium'>{h}</span>)}
       </summary>
-      <div className='flex flex-col gap-2 pt-1'>
-        {episode.map((entry, i) => <ReportEntry key={i} entry={entry} />)}
+      <div className='flex flex-col gap-3 pt-1'>
+        {episode.map((entry, i) => <ReportEntry key={i} entry={entry} open={open} />)}
       </div>
     </details>
   )
 }
 
-function ReportEntry({ entry }: { entry: EpisodeEntry }){
+const degreeClass = (degree: string) => degree === 'miss' ? 'text-bad' : degree === 'hit' || degree === 'critical' ? 'text-good' : 'text-muted'
+
+// One action as it was played: what was declared, what it cost, the test as
+// arithmetic, what came of it; whatever else explains it is folded away.
+function ReportEntry({ entry, open }: { entry: EpisodeEntry, open: boolean }){
   return (
     <div className='flex flex-col gap-1'>
-      {entry.hiddenFrom ? <span className='text-xs text-muted'>{entry.hiddenFrom}</span> : null}
-      {entry.detections.map((d, i) => (
-        <span key={i} className='text-xs text-muted'>
-          {d.text}{d.terms.length > 0 ? ` (${d.terms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')})` : ''}
-        </span>
-      ))}
       <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
-        <span className='text-sm'>{entry.actor} · {entry.label}</span>
-        <span className='text-xs text-muted opacity-60'>{entry.rule}</span>
-        <Cost cost={entry.cost} />
-        <RollSummary roll={entry.roll} />
-        {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}      </div>
-      <Breakdown terms={entry.costTerms} refunded={entry.refunded} roll={entry.roll} surged={entry.surged} changes={entry.changes} />
-      {entry.reactions.map((r, i) => (
-        <div key={i} className='flex flex-col pl-3'>
-          <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
-            <span>{r.actor} answered: {r.label}</span>
-            <span className='opacity-60'>{r.rule}</span>
-            <Cost cost={r.cost} />
-            <RollSummary roll={r.roll} />
-          </div>
-          <Breakdown terms={r.costTerms} refunded={r.refunded} roll={r.roll} surged={r.surged} changes={r.changes} />
-        </div>
-      ))}
-      {entry.withdrawn.map((w, i) => (
-        <div key={i} className='pl-3 text-xs text-muted'>
-          {w.text}{w.surged ? ` (its ${w.surged.kind} surge was paid: −${w.surged.STA} STA, +${w.surged.AP} AP)` : ''}
-        </div>
-      ))}
-      {entry.fate ? <div className='text-sm text-bad'>{entry.fate}</div> : null}
+        <span className='text-sm font-medium'>{entry.actor} · {entry.label}</span>
+        <Cost cost={entry.cost} strong />
+        {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}
+      </div>
+      <Declared declared={entry.declared} />
+      <TestRow test={entry.test} />
+      {entry.fate ? <div className='text-sm font-medium text-bad'>{entry.fate}</div> : null}
       {entry.outcomes.map((o, i) => (
         <div key={i} className='flex flex-col'>
           <OutcomeLine outcome={o.outcome} target={o.target} />
-          {o.steps.map((step, j) => (
-            <span key={j} className='pl-3 text-xs text-muted'>{step.text} <span className='opacity-60'>· {step.rule}</span></span>
-          ))}
+          {o.steps.length > 0 ? (
+            <details className='pl-3'>
+              <summary className='cursor-pointer select-none text-xs text-muted'>why</summary>
+              {o.steps.map((step, j) => (
+                <span key={j} className='block text-xs text-muted'>{step.text} <span className='opacity-60'>· {step.rule}</span></span>
+              ))}
+            </details>
+          ) : null}
         </div>
       ))}
       {entry.notes.map((n, i) => <div key={i} className='text-sm'>{n.target}: <span className='text-muted'>{n.text}</span></div>)}
-      {entry.outcomes.length === 0 && entry.notes.length === 0 && !entry.fate ? <span className='text-xs text-muted'>nothing landed</span> : null}
+      {entry.reactions.map((r, i) => (
+        <div key={i} className='flex flex-col gap-0.5 border-l border-line/50 pl-3'>
+          <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
+            <span className='text-sm'>answered by {r.actor} · {r.label}</span>
+            <Cost cost={r.cost} strong />
+          </div>
+          <Declared declared={r.declared} />
+          <TestRow test={r.test} />
+          <Details open={open} extra={[`rule: ${r.rule}`]} terms={r.costTerms} refunded={r.refunded} surged={r.surged} changes={r.changes} />
+        </div>
+      ))}
+      <Details open={open} extra={[`rule: ${entry.rule}`, ...(entry.hiddenFrom ? [entry.hiddenFrom] : []), ...entry.detections.map((d) => `${d.text}${d.terms.length > 0 ? ` (${d.terms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')})` : ''}`), ...entry.withdrawn.map((w) => `${w.text}${w.surged ? ` (its ${w.surged.kind} surge was paid: −${w.surged.STA} STA, +${w.surged.AP} AP)` : ''}`)]} terms={entry.costTerms} refunded={entry.refunded} surged={entry.surged} changes={entry.changes} />
     </div>
   )
 }
 
-// Where the numbers came from: the surge made to take the action, what its
-// price adds up from, and what the test's skill and DL add up from.
-function Breakdown({ terms, refunded, roll, surged, changes }: { terms: CostTerm[], refunded: number, roll: ActionRoll | null, surged: Action['surged'], changes: string[] }){
+// What was chosen when the action was committed.
+function Declared({ declared }: { declared: string[] }){
+  if (declared.length === 0) return null
+  return <span className='text-xs'><span className='text-muted'>declared</span> {declared.join(' · ')}</span>
+}
+
+// The test as arithmetic, the degree after it.
+function TestRow({ test }: { test: EpisodeEntry['test'] }){
+  if (!test) return null
   return (
-    <div className='flex flex-col text-xs text-muted'>
-      {surged ? <span>{surged.kind} surge first: −{surged.STA} STA, +{surged.AP} AP</span> : null}
-      {terms.length > 0 ? <span>price: {terms.map((t) => `${t.label} ${t.AP}AP${t.STA ? ` ${t.STA}STA` : ''}`).join(' · ')}</span> : null}
-      {refunded > 0 ? <span>refunded: {refunded} AP from the action given up (1 AP lost)</span> : null}
-      {roll && roll.skillTerms.length > 0 ? <span>skill: {roll.skillTerms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')}</span> : null}
-      {roll && roll.DLTerms.length > 0 ? <span>DL: {roll.DLTerms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')}</span> : null}
-      {changes.map((c, i) => <span key={i}>changed: {c}</span>)}
+    <div className='flex flex-row flex-wrap gap-x-2 items-baseline text-sm'>
+      <span className='font-mono'>{test.sum}</span>
+      <span className='text-muted'>vs</span>
+      <span className='font-mono'>{test.against}</span>
+      <span className={`font-medium ${degreeClass(test.degree)}`}>{test.degree} ({test.margin})</span>
+      {test.source ? <span className='text-xs text-muted'>{test.source}</span> : null}
     </div>
+  )
+}
+
+// What the rest of an entry came to and where it came from: the surge, the
+// price it adds up from, the book's rule, the stealth tests, what was taken
+// back, what it changed.
+function Details({ open, extra, terms, refunded, surged, changes }: { open: boolean, extra: string[], terms: CostTerm[], refunded: number, surged: Action['surged'], changes: string[] }){
+  const lines = [
+    ...(surged ? [`${surged.kind} surge first: −${surged.STA} STA, +${surged.AP} AP`] : []),
+    ...(terms.length > 0 ? [`price: ${terms.map((t) => `${t.label} ${t.AP}AP${t.STA ? ` ${t.STA}STA` : ''}`).join(' · ')}`] : []),
+    ...(refunded > 0 ? [`refunded: ${refunded} AP from the action given up (1 AP lost)`] : []),
+    ...changes.map((c) => `changed: ${c}`),
+    ...extra,
+  ]
+  return (
+    <details open={open}>
+      <summary className='cursor-pointer select-none text-xs text-muted'>details</summary>
+      <div className='flex flex-col text-xs text-muted'>
+        {lines.map((l, i) => <span key={i}>{l}</span>)}
+      </div>
+    </details>
   )
 }
 
@@ -716,10 +748,6 @@ function signed(value: number): string {
   return value > 0 ? `+${value}` : `${value}`
 }
 
-function RollSummary({ roll }: { roll: ActionRoll | null }){
-  if (!roll) return null
-  return <span className='text-xs text-muted'>d10 <span className='font-mono text-fg'>{roll.die}</span> · <span className='font-mono text-fg'>{roll.score}</span> vs <span className='font-mono text-fg'>{roll.DL}</span> · {roll.degree}</span>
-}
 
 // What the strike does to the target as it stands, one line.
 function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
@@ -757,9 +785,9 @@ function RollLine({ roll, label, className, children }: { roll: ActionRoll | nul
   )
 }
 
-function Cost({ cost }: { cost: ActionCost | null }){
+function Cost({ cost, strong }: { cost: ActionCost | null, strong?: boolean }){
   if (!cost) return null
-  return <span className='font-mono text-muted'>{cost.AP}AP{cost.STA ? ` ${cost.STA}STA` : ''}</span>
+  return <span className={strong ? 'font-mono text-sm' : 'font-mono text-muted'}>{cost.AP}AP{cost.STA ? ` ${cost.STA}STA` : ''}</span>
 }
 
 // A cost as the chip inside an action key reads it.
