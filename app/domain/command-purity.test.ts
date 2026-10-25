@@ -12,6 +12,8 @@ import * as bindModule from './scene/commands/bind'
 import * as floorModule from './scene/commands/floor'
 import * as charactersModule from './scene/commands/characters'
 import * as fightPartiesModule from './scene/commands/parties'
+import * as gmExplosionModule from './scene/commands/gmExplosion'
+import { EXPLOSION_DRAFT } from './scene/rules/impose'
 import * as moraleModule from './scene/commands/morale'
 import * as socialModule from './scene/commands/social'
 import * as answerModule from './scene/commands/answer'
@@ -48,7 +50,7 @@ import armorsCatalog from '../assets/armors.json'
 // A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule, ...answerModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...gmExplosionModule, ...moraleModule, ...socialModule, ...answerModule }
 const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...journalModule, ...namesModule, ...scenesModule, ...episodeModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
@@ -310,6 +312,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   throwOffShieldToFloor: (s) => combatCommands.throwOffShieldToFloor('a')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, onBack: shieldItem } } })),
   placeItem: (s) => combatCommands.placeItem(daggerItem, { q: 0, r: 0 }, newId)(deepFreeze(cleared(s))),
   removeFloorItem: (s) => combatCommands.removeFloorItem(daggerItem.id)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
+  setOffExplosion: (s) => combatCommands.setOffExplosion({ ...EXPLOSION_DRAFT, radius: 2 }, { q: 0, r: 0 }, newId)(deepFreeze(cleared(s))),
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),

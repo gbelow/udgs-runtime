@@ -387,6 +387,7 @@ function getCatalogCost(c: CampaignCharacter, kind: ActionKind): ActionCost {
 // move pays for the path as it will be walked, cut wherever it will stop;
 // a defense, with what the action given up for it refunds.
 export function getPayableCost(state: SceneState, action: Action): ActionCost | null {
+  if (action.kind === 'explosion' && action.source === 'gm') return { AP: 0, STA: 0 }
   const cost = getOwnCost(state, action)
   const actor = state.characters[action.actorId]
   if (!actor || !cost) return null

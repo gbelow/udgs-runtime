@@ -599,7 +599,10 @@ export const ShootActionSchema = z.object({
 export const ExplosionActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('explosion'),
-  source: z.enum(['thrown', 'cast', 'detonate']).default('cast'),
+  source: z.enum(['thrown', 'cast', 'detonate', 'gm']).default('cast'),
+  // the DL the reactors roll against when the GM set it off: it has no
+  // producer to take one from, and its one effect is in `effects` from the start
+  dl: num.default(0),
   key: str.default(''),
   itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
@@ -625,6 +628,8 @@ export const BlastActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('blast'),
   key: str.default(''),
+  // set off by the GM: nobody produced it, so its effects land as written
+  gm: z.boolean().default(false),
   effects: z.array(SpellEffectSchema).default([]),
   center: CoordSchema.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),

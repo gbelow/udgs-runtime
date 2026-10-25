@@ -71,7 +71,7 @@ function scaleDamage(damage: DamageComponent[], scaled: boolean, size: number): 
 }
 
 // The effect stripped of its reach: what is delivered.
-function bare(c: Character, effect: OutcomeEffect, size: number, onArea: boolean): Effect {
+function bare(c: Character | null, effect: OutcomeEffect, size: number, onArea: boolean): Effect {
   const { name, trigger, type } = effect
   switch (type) {
     case 'damage': {
@@ -81,7 +81,7 @@ function bare(c: Character, effect: OutcomeEffect, size: number, onArea: boolean
       return { name, trigger, type, effect: DamageSchema.parse({
         ...effect.effect,
         ...scaleDamage(effect.effect.damage, effect.scales.damage, size),
-        force: onArea ? effect.effect.force : getForce(c),
+        force: onArea || c === null ? effect.effect.force : getForce(c),
       }) }
     }
     case 'affliction': return { name, trigger, type, effect: effect.effect }
@@ -110,6 +110,12 @@ export function produceSpellEffect(c: Character, effect: SpellEffect, size: numb
   if (effect.type === 'spirit') return produceSpiritAttack(c)
   const test = effect.resist ? { roll: effect.resist.roll, DL: (resolveDL(c, effect.resist.dl, effect.resist.roll).value ?? 0) + effect.resist.enhance * enhanced } : null
   return { effect: bare(c, enhanceEffect(effect, enhanced), size, effect.target === 'area'), degree: test ? null : 'hit', test, when: null, then: [], locks: effect.duration === 'locked' ? key : null }
+}
+
+// An area effect nobody produced (the GM's), delivered as written: no size
+// scales it and no test rides on it.
+export function produceUnownedEffect(effect: Exclude<SpellEffect, { type: 'spirit' }>): Delivery {
+  return { effect: bare(null, effect, 0, true), degree: 'hit', test: null, when: null, then: [], locks: null }
 }
 
 // An effect landing as it is, with no test to make and nothing following.

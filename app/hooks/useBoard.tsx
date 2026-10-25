@@ -1,4 +1,5 @@
 import type { Coord, LightLevel } from "../domain/scene/types";
+import { EXPLOSION_DRAFT, EXPLOSION_EFFECTS, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_KINDS, type ExplosionDraft } from "../domain/scene/rules/impose";
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
 import { readClick, type Click } from "../domain/scene/commands/click";
@@ -6,6 +7,7 @@ import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useSceneDispatch } from "./useSceneDispatch";
 import { usePendingItem } from "./useItemLens";
+import { useState } from "react";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,
 // like the action panel. What a click means, and whom it acts for, is the
@@ -38,10 +40,13 @@ export function useBoard(fromActive = false) {
   const item = pending?.source === "catalog" ? pendingItem : null;
   const placeItem = (cell: Coord) => { if (item) dispatch({ kind: "placeItem", args: [item, cell] }); };
   const removeFloorItem = (itemId: string) => dispatch({ kind: "removeFloorItem", args: [itemId] });
+  const setOffExplosion = (draft: ExplosionDraft, cell: Coord) => dispatch({ kind: "setOffExplosion", args: [draft, cell] });
+  const [explosion, setExplosion] = useState<ExplosionDraft>(EXPLOSION_DRAFT);
+  const explosionOptions = { effects: EXPLOSION_EFFECTS, damageKinds: IMPOSE_DAMAGE_KINDS, afflictions: IMPOSE_AFFLICTIONS } as const;
   const turn = (reposition: boolean) => click({ on: 'turn' }, null, reposition);
   const light = (level: LightLevel) => dispatch({ kind: "light", args: [level] });
   const resize = (radius: number) => dispatch({ kind: "resizeBoard", args: [radius] });
   const resizeWarning = (radius: number) => getResizeWarning(useCombatStore.getState(), radius);
 
-  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, turn, light, resize, resizeWarning } as const;
+  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, explosion, setExplosion, explosionOptions, turn, light, resize, resizeWarning } as const;
 }

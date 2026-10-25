@@ -2,7 +2,7 @@ import type { Area, CampaignCharacter, Damage, Delivery, Item, SpellEffect } fro
 import { DEGREES, type BlastAction, type SceneState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard, type ThrowAction } from '../types'
 import { makeAction } from '../factories'
 import { getUndefendedDamage } from '../../character/rules/damage'
-import { getSpellEffects, produceEffects, produceSpellEffect } from '../../character/rules/production'
+import { getSpellEffects, produceEffects, produceSpellEffect, produceUnownedEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
 import { getCastSize, hasChargeTrigger, resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
@@ -32,17 +32,17 @@ export type ZoneCell = { cell: Coord; degree: Degree }
 // An area laid out on the board: who set it off, where it was aimed, and
 // the effects that cover it — an explosion as declared, before it goes off,
 // or the blast it goes off as. A spray is pointed only on the blast.
-export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects' | 'paintOnly' | 'armorRolls'>
+export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects' | 'paintOnly' | 'armorRolls' | 'gm'>
 
 export function getBlastOf(state: SceneState, action: ExplosionAction): BlastShape {
   return toBlast(action, getExplosionPayload(state, action))
 }
 
 function toBlast(action: ExplosionAction, payload: Payload | null): BlastShape {
-  return { actorId: action.actorId, center: action.center, direction: null, effects: payload?.effects ?? [], paintOnly: action.paintOnly, armorRolls: action.armorRolls }
+  return { actorId: action.actorId, center: action.center, direction: null, effects: payload?.effects ?? [], paintOnly: action.paintOnly, armorRolls: action.armorRolls, gm: action.source === 'gm' }
 }
 
-type Payload = { effects: SpellEffect[]; producer: CampaignCharacter }
+type Payload = { effects: SpellEffect[]; producer: CampaignCharacter | null }
 
 // spells.tex "Charged": the explosion a thrown item opens where it lands,
 // as the fields given open it; null when it would not go off there.
@@ -64,6 +64,7 @@ export function getImpactBlast(state: SceneState, action: ThrowAction): BlastSha
 // (gear.tex "Explosion") — or of the spell for a cast; and who made them,
 // whose size scales them. Empty while there is nothing to go off with.
 export function getExplosionPayload(state: SceneState, action: ExplosionAction): Payload | null {
+  if (action.source === 'gm') return action.effects.length > 0 ? { effects: action.effects, producer: null } : null
   const producer = state.characters[action.actorId]
   if (!producer) return null
   const effects = (() => {
@@ -283,15 +284,15 @@ export function getAffected(state: SceneState, action: BlastShape): { id: string
 // carries the wall that breaks in its way (combat.tex "Cover").
 export function getExplosionFacts(state: SceneState, action: BlastShape, explosionId: string | null = null): Deliveries {
   const producer = state.characters[action.actorId]
-  if (!producer || action.paintOnly) return {}
+  if ((!producer && !action.gm) || action.paintOnly) return {}
   const facts: Deliveries = {}
   for (const id of Object.keys(state.characters)) {
     const blocked = explosionId ? getExplosionBlock(state, explosionId, id) : null
     const deliveries = action.effects.flatMap((e): Delivery[] => {
-      if (!e.area || e.type === 'terrain') return []
+      if (!e.area || e.type === 'terrain' || (!producer && e.type === 'spirit')) return []
       const zone = getZoneOf(state, action, id, e.area)
       if (!zone) return []
-      const delivery = { ...produceSpellEffect(producer, e), degree: zone.degree, test: null }
+      const delivery = { ...(producer ? produceSpellEffect(producer, e) : produceUnownedEffect(e as Exclude<typeof e, { type: 'spirit' }>)), degree: zone.degree, test: null }
       if (delivery.effect.type !== 'damage') return [delivery]
       return [{ ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked, wall: zone.wall } } }]
     })
@@ -355,14 +356,17 @@ function getBurns(state: SceneState, action: BlastShape): Map<string, number> {
 export function getExplosionDLTerms(state: SceneState, action: ExplosionAction): Term[] {
   const payload = getExplosionPayload(state, action)
   if (!payload) return []
-  const producer = payload.producer.id
+  if (action.source === 'gm') return [{ label: 'GM', value: action.dl }]
+  const caster = payload.producer
+  if (!caster) return []
+  const producer = caster.id
   const at = action.center && !isSpray(getBlastOf(state, action)) ? [action.center] : null
   if (action.source === 'thrown') {
     const aimed = action.spawnedBy ? getAction(state, action.spawnedBy)?.kind === 'throw' : false
-    return [{ label: 'accuracy', value: getAccuracy(payload.producer) }, ...(aimed && at ? getSensoryTerms(state, producer, 'accuracy', at, 'active') : [])]
+    return [{ label: 'accuracy', value: getAccuracy(caster) }, ...(aimed && at ? getSensoryTerms(state, producer, 'accuracy', at, 'active') : [])]
   }
   if (action.source === 'detonate') return []
-  const DLs = payload.effects.flatMap((e) => (e.resist ? [{ dl: e.resist.dl, value: resolveDL(payload.producer, e.resist.dl, e.resist.roll).value ?? 0 }] : []))
+  const DLs = payload.effects.flatMap((e) => (e.resist ? [{ dl: e.resist.dl, value: resolveDL(caster, e.resist.dl, e.resist.roll).value ?? 0 }] : []))
   const worst = DLs.reduce<(typeof DLs)[number] | null>((w, d) => (w === null || d.value > w.value ? d : w), null)
   return worst ? [{ label: 'spell', value: worst.value }, ...(at ? getSensoryTermsOfDL(state, producer, worst.dl, at, 'active') : [])] : []
 }
@@ -386,6 +390,7 @@ export function getExplosionCenters(state: SceneState, action: ExplosionAction):
 
 function getCentersOf(state: SceneState, action: ExplosionAction, payload: Payload | null): Coord[] {
   if (!state.board || !payload || isSpray(toBlast(action, payload))) return []
+  if (action.source === 'gm') return action.center ? [action.center] : []
   if (action.source !== 'cast') {
     const held = findReadyObject(state, action.itemId)
     if (held) return getPlacedFootprint(state, held.holder.id) ?? []

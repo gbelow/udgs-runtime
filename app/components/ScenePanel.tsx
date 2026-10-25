@@ -156,7 +156,6 @@ function SceneCalls(){
 // What the GM does to the scene that no character does, each starting a
 // declaration aimed on the board or the roster like a character's action.
 const GM_TOOLS = [
-  { label: 'explosion', title: 'an explosion where the GM aims it' },
   { label: 'triggers', title: "fire one of the scene's triggers" },
 ] as const
 

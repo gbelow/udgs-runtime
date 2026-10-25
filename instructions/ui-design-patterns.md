@@ -62,17 +62,6 @@ catalog - all GM editable content
 
 # Stance of unfinished state
 
-only dev mod exists
-
-- Character creation: Nearly done. Cosmetic changes are welcome.
-- Character edition: too dense, especially on right sidebar. Needs to show deviation from regularly created character. Needs a power level tracker (XP/Karma per domain). should catalog stay the way it is?  
-- Body editing is very dense.
-- Catalog: too much stretching to cover screen, bad component identification and separation. Some nonsense options. Some unexplainable ones (detonate).
-- Map: desired shape is of an actual node maps, where nodes and events can be connected and expanded to be edited. Fine by now.
-- Party: Actually means exploration. Lacks things that are not yet implemented
-- Downtime: inexistant 
-- Run: lacks Gm tools. too much information. actions, the board and the log should be the focus of the page. catalog should be probably transformed into GM actions.
-
 
 
 

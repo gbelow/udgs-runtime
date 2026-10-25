@@ -217,7 +217,7 @@ function openBefore(state: SceneState, root: RootAction, newId: () => string): S
 // once the escapes the reflexes that cleared it open have been walked — so
 // it goes beneath them.
 function goOff(root: ExplosionAction, newId: () => string): Action {
-  return makeAction('blast', { id: newId(), actorId: root.actorId, spawnedBy: root.id, key: root.key, effects: root.effects, center: root.center, paintOnly: root.paintOnly, armorRolls: root.armorRolls, step: 'post' })
+  return makeAction('blast', { id: newId(), actorId: root.actorId, spawnedBy: root.id, key: root.key, gm: root.source === 'gm', effects: root.effects, center: root.center, paintOnly: root.paintOnly, armorRolls: root.armorRolls, step: 'post' })
 }
 
 // The follow-ups the landed action generates, the last played out first:

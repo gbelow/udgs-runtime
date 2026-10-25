@@ -10,7 +10,7 @@ import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, 
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
-import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, Tooltip, selectClass } from './ui'
+import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, Tooltip, NumberInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
 
 const MODE_LABEL = {
@@ -52,9 +52,9 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
-  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, turn, light, resize, resizeWarning } = useBoard(fromActive)
+  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, explosion, setExplosion, explosionOptions, turn, light, resize, resizeWarning } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
-  const [floorTool, setFloorTool] = useState<'put' | 'remove' | null>(null)
+  const [floorTool, setFloorTool] = useState<'put' | 'remove' | 'explode' | null>(null)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
   const { gmTools } = useRole()
@@ -76,8 +76,9 @@ export function BoardPanel(){
   const repositioning = open && reposition
   const grounding = open && floorTool === 'put' && item !== null
   const clearing = open && floorTool === 'remove'
+  const exploding = open && floorTool === 'explode'
   return (
-    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : grounding ? `click a cell to lay ${item.name || item.refId} on it` : clearing ? 'click an item on the floor to take it away' : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
+    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : grounding ? `click a cell to lay ${item.name || item.refId} on it` : exploding ? 'click a cell to set the explosion off there' : clearing ? 'click an item on the floor to take it away' : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
         <ZoomButtons zoomPan={zoomPan} />
@@ -119,10 +120,39 @@ export function BoardPanel(){
             <Button size='xs' aria-label='gm item to ground' selected={grounding} disabled={!item}
               onClick={() => { setFloorTool(grounding ? null : 'put'); setBrush(null); setReposition(false) }}>item to ground</Button>
           </Tooltip>
+          <Tooltip text='describe an explosion, then click the cell it goes off at; everyone it reaches may avoid it against the DL'>
+            <Button size='xs' aria-label='gm explosion' selected={exploding}
+              onClick={() => { setFloorTool(exploding ? null : 'explode'); setBrush(null); setReposition(false) }}>explosion</Button>
+          </Tooltip>
           <Tooltip text='click an item lying on the floor to take it off the board'>
             <Button size='xs' aria-label='gm item off ground' selected={clearing}
               onClick={() => { setFloorTool(clearing ? null : 'remove'); setBrush(null); setReposition(false) }}>item off ground</Button>
           </Tooltip>
+        </div>
+      ) : null}
+      {gmTools && exploding ? (
+        <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-xs'>
+          <SectionLabel>explosion</SectionLabel>
+          <select className={selectClass} aria-label='explosion effect' value={explosion.effect} onChange={(e) => setExplosion({ ...explosion, effect: e.target.value as typeof explosion.effect })}>
+            {explosionOptions.effects.map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+          {explosion.effect === 'damage' ? (<>
+            <NumberInput className='w-10' aria-label='explosion damage' value={explosion.amount} onChange={(e) => setExplosion({ ...explosion, amount: Number(e.target.value) })} />
+            <select className={selectClass} aria-label='explosion damage kind' value={explosion.damageKind} onChange={(e) => setExplosion({ ...explosion, damageKind: e.target.value as typeof explosion.damageKind })}>
+              {explosionOptions.damageKinds.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </>) : null}
+          {explosion.effect === 'affliction' ? (
+            <select className={selectClass} aria-label='explosion affliction' value={explosion.affliction} onChange={(e) => setExplosion({ ...explosion, affliction: e.target.value as typeof explosion.affliction })}>
+              {explosionOptions.afflictions.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          ) : null}
+          {explosion.effect === 'cost' ? (<>
+            AP <NumberInput className='w-10' aria-label='explosion AP lost' value={explosion.AP} onChange={(e) => setExplosion({ ...explosion, AP: Number(e.target.value) })} />
+            STA <NumberInput className='w-10' aria-label='explosion STA lost' value={explosion.STA} onChange={(e) => setExplosion({ ...explosion, STA: Number(e.target.value) })} />
+          </>) : null}
+          DL <NumberInput className='w-10' aria-label='explosion DL' value={explosion.DL} onChange={(e) => setExplosion({ ...explosion, DL: Number(e.target.value) })} />
+          radius <NumberInput className='w-10' aria-label='explosion radius' min={0} value={explosion.radius} onChange={(e) => setExplosion({ ...explosion, radius: Number(e.target.value) })} /> m
         </div>
       ) : null}
       </>) : null}
@@ -135,7 +165,7 @@ export function BoardPanel(){
       ) : null}
 
       <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
-        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
+        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
         <defs>
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />

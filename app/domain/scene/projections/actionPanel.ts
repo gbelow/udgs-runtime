@@ -187,7 +187,7 @@ export type OpenActionView = {
   // whether it can still be pointed somewhere else
   area: { shape: Area['shape']; aimed: boolean; aimable: boolean } | null
   // where the explosion comes from, and the object it goes off in
-  source: 'thrown' | 'cast' | 'detonate' | null
+  source: 'thrown' | 'cast' | 'detonate' | 'gm' | null
   itemId: string
   // the declaration a cast has made so far
   spell: string

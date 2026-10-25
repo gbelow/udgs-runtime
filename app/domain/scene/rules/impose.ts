@@ -1,4 +1,4 @@
-import { AfflictionKeySchema, DamageKindSchema, DamageSchema, SkillKeySchema, type AfflictionKey, type DamageKind, type Delivery, type Skills } from '../../types'
+import { AfflictionKeySchema, DamageKindSchema, DamageSchema, SkillKeySchema, SpellEffectSchema, type AfflictionKey, type DamageKind, type Delivery, type SpellEffect, type Skills } from '../../types'
 import type { SceneState } from '../types'
 import { getOpenAction } from './log'
 import { getFallDL } from './fall'
@@ -52,6 +52,20 @@ export function getImposed(d: ImposeDraft): Delivery {
 // the form shows that DL rather than asking for one.
 export function getImposedDL(d: ImposeDraft): number | null {
   return d.effect === 'fall' ? getFallDL(d.height) : d.skill ? d.DL : null
+}
+
+// combat.tex "Explosions": what the GM sets off where they choose. It is
+// described like a laid effect, with the DL the reflexes are rolled against
+// in place of a test, and the radius of the disk it covers (the centre is the
+// critical zone). A fall is not an area effect.
+export const EXPLOSION_EFFECTS = ['damage', 'affliction', 'cost'] as const
+export type ExplosionDraft = ImposeDraft & { radius: number }
+export const EXPLOSION_DRAFT: ExplosionDraft = { ...IMPOSE_DRAFT, DL: 10, radius: 2 }
+
+// The one effect of the explosion the draft describes, covering its disk.
+export function getExplosionEffect(d: ExplosionDraft): SpellEffect | null {
+  if (d.effect === 'fall') return null
+  return SpellEffectSchema.parse({ ...getImposedEffect(d), target: 'area', area: { shape: 'explosion', radius: Math.max(0, Math.floor(d.radius)) } })
 }
 
 // Why nothing can be laid on `ids` now, or null.
