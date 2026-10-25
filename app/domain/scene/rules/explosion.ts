@@ -1,5 +1,5 @@
 import type { Area, CampaignCharacter, Damage, Delivery, Item, SpellEffect } from '../../types'
-import { DEGREES, type BlastAction, type SceneState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard, type ThrowAction } from '../types'
+import { DEGREES, type Action, type BlastAction, type SceneState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard, type ThrowAction } from '../types'
 import { makeAction } from '../factories'
 import { getUndefendedDamage } from '../../character/rules/damage'
 import { getSpellEffects, produceEffects, produceSpellEffect, produceUnownedEffect } from '../../character/rules/production'
@@ -14,7 +14,7 @@ import { getItemWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { findReadyObject } from './fighters'
 import { findFloorItem } from './floor'
-import { getAction, getReactionsTo } from './log'
+import { getAction, getReactionsTo, getRootOf } from './log'
 import { getSensoryTerms, getSensoryTermsOfDL } from './detection'
 import { findWeaponRow } from './weaponRow'
 import type { Defense } from './delivery'
@@ -322,7 +322,8 @@ export function getExplosionFacts(state: SceneState, action: BlastShape, explosi
 function getExplosionBlock(state: SceneState, explosionId: string, id: string): Defense | null {
   const block = getReactionsTo(state, explosionId).find((r) => r.actorId === id && r.kind === 'blockExplosion')
   const reactor = state.characters[id]
-  if (block?.kind !== 'blockExplosion' || !reactor || (block.roll?.degree !== 'hit' && block.roll?.degree !== 'critical')) return null
+  const degree = block ? getReactionDegree(state, block) : null
+  if (block?.kind !== 'blockExplosion' || !reactor || (degree !== 'hit' && degree !== 'critical')) return null
   const row = findWeaponRow(reactor, block.weaponKey, block.attack)
   if (!row) return null
   return { defense: 'blockExplosion', defenseAP: block.cost?.AP ?? 0, defenseWeaponKey: block.weaponKey, block: getBlockValue(row.atk, row.weapon, reactor) ?? 0, blockCap: getWeaponRES(row.atk, reactor), shield: true }
@@ -385,12 +386,23 @@ export function getExplosionDLTerms(state: SceneState, action: ExplosionAction):
   return worst ? [{ label: 'spell', value: worst.value }, ...(at ? getSensoryTermsOfDL(state, producer, worst.dl, at, 'active') : [])] : []
 }
 
-// Whether anyone can react to it: a thrown or cast explosion is defended
-// with a reflex test (combat.tex "Explosions"); one set off from hiding is
-// not — "If the explosion occurs before being perceived, no test can be
-// made."
-export function isAvoidable(action: ExplosionAction): boolean {
-  return action.source !== 'detonate'
+// Whether the reaction answers a detonation, which has no test to roll
+// against: combat.tex "Actions in stealth" already leaves it to whoever
+// noticed its caster, and their detection test stands in for the reflex.
+export function answersByDetection(state: SceneState, reaction: Action): boolean {
+  if (reaction.kind !== 'avoidExplosion' && reaction.kind !== 'blockExplosion') return false
+  const root = getRootOf(state, reaction)
+  return root?.kind === 'explosion' && root.source === 'detonate'
+}
+
+// The degree a reaction to an explosion came to: its roll, or for a
+// detonation the test the reactor made of its caster, a critical when none
+// was needed to sense them.
+export function getReactionDegree(state: SceneState, reaction: Action): Degree | null {
+  if (!answersByDetection(state, reaction)) return reaction.roll?.degree ?? null
+  const root = getRootOf(state, reaction)
+  const detection = root?.detections.find((d) => d.observerId === reaction.actorId)
+  return detection?.test?.degree ?? 'critical'
 }
 
 // Where a disk explosion may be aimed. Cast: within the effects' range of

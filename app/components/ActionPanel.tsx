@@ -180,7 +180,7 @@ export function ActionPanel(){
           ))}
         </div>
       ) : null}
-      {open.source && open.source !== 'thrown' ? <div className='text-xs text-muted'>{open.source === 'cast' ? 'from the spell' : open.source === 'gm' ? 'set off by the GM' : 'set off — no test'}</div> : null}
+      {open.source && open.source !== 'thrown' ? <div className='text-xs text-muted'>{open.source === 'cast' ? 'from the spell' : open.source === 'gm' ? 'set off by the GM' : 'set off, answered by who noticed the caster'}</div> : null}
 
       {open.openedBy ? (
         <RollLine roll={open.openedBy.roll} label={open.openedBy.label} className='text-xs text-muted'>

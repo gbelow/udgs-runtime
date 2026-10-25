@@ -3,11 +3,14 @@
 Detail for `instructions/scene-map.md`: the rules-bearing features layered on the pipeline. When this and the code disagree, the code wins.
 
 - **Charges and throws** — what releases a charge (`Item.charge`) is read off its spell's
-  catalog `triggers`: `impact`, `fire`, `detonate`. A `throw` lands the item on the floor,
+  catalog `triggers`: `impact`, `fire`, `contact`. A `throw` lands the item on the floor,
   one of a stack, charge and all; if it goes off on impact (`goesOffOnImpact`: an `impact`
   charge, or a mundane explosive's row `payload`) the throw opens an `explosion` at the
   landing cell, committed and waiting on the reflexes, DL the thrower's Accuracy. A
-  detonation sets off only `detonate` charges. Nothing reads the `fire` trigger yet; a blow on an object on the floor sets off its `impact` charge (see Attack against an object on the floor).
+  detonation (Detonate Explosive, catalog `detonate`) sets off any charge with an area in
+  range, and has no DL: whoever noticed its caster answers with the degree of the detection
+  test that noticed them, a critical when none was needed (`getReactionDegree`), so no
+  reflex or cover die is rolled for it. Nothing reads the `fire` trigger yet; a blow on an object on the floor sets off its `impact` charge (see Attack against an object on the floor).
   Whatever the charge went off in is destroyed as the explosion lands, held or on the floor.
 - **Links and concentration** (`character/rules/concentration.ts`) — a caster holding a
   sustained spell is concentrating: every option but a cast is closed (`options.ts`), and

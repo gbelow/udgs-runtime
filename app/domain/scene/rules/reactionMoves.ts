@@ -1,5 +1,5 @@
 import type { Character } from '../../types'
-import type { Action, ActionOf, MoveAction } from '../types'
+import type { Action, ActionOf, Degree, MoveAction } from '../types'
 import { MOVEMENT_KINDS } from '../../lists'
 import { getMovementBlock } from '../../character/rules/movement'
 
@@ -22,10 +22,10 @@ export function getCarriedMove(AP: number): ReactionMove {
 // an evasion's does, so a run or a jump (2 AP a block) fits once; its STA
 // is paid as usual. A miss moves after the blast instead
 // (`getEscapeAfterBlast`).
-export function getEscapeBeforeBlast(reaction: ActionOf<'avoidExplosion'>): ReactionMove | null {
-  if (!reaction.roll) return null
+export function getEscapeBeforeBlast(reaction: ActionOf<'avoidExplosion'>, degree: Degree | null): ReactionMove | null {
+  if (!degree) return null
   const AP = reaction.cost?.AP ?? 0
-  switch (reaction.roll.degree) {
+  switch (degree) {
     case 'critical': return { budget: AP, prepaid: AP, movement: 'run', movements: [...MOVEMENT_KINDS] }
     case 'hit': return { budget: AP, prepaid: AP, movement: 'jump', movements: MOVEMENT_KINDS.filter((k) => k !== 'run') }
     case 'graze': return { budget: 1, prepaid: AP }
@@ -62,7 +62,7 @@ export function getSidestepMove(c: Character, paid: number, forced: boolean): Re
 // the explosion" — bought with the AP the reflex paid, and not at all by one
 // the blast interrupted (combat.tex "Interruption": "Movement is
 // cancelled"; commands/sequence.ts `getFollowUps`).
-export function getEscapeAfterBlast(reaction: ActionOf<'avoidExplosion'>): ReactionMove | null {
-  if (reaction.roll?.degree !== 'miss') return null
+export function getEscapeAfterBlast(reaction: ActionOf<'avoidExplosion'>, degree: Degree | null): ReactionMove | null {
+  if (degree !== 'miss') return null
   return { budget: 2, prepaid: reaction.cost?.AP ?? 0 }
 }

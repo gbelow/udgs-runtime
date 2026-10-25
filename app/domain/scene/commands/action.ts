@@ -9,6 +9,7 @@ import { detect, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
 import { findOption, getAwaited, hasOpenAnswer } from '../rules/options'
 import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
+import { answersByDetection } from '../rules/explosion'
 import { needsBreakRolls } from '../rules/breakage'
 import { resolveTest, type Test } from '../../play/test'
 import { findTrigger } from '../rules/reactions'
@@ -396,7 +397,7 @@ function rollWith(caller: Caller, newId: () => string): Updater {
     if (!test && own && ACTIONS[open.kind].die) return state
     const thrown = withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice)
     const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, { ...thrown, test: test ? getMoveTest(state, open) : null }) : thrown
-    return payAll(state, rolled, newId, caller, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? { ...a, roll: testFor(caller, a, getReactionTest(state, open, a), a.kind) } : a))
+    return payAll(state, rolled, newId, caller, (a) => (a.id !== open.id && ACTIONS[a.kind].die && !answersByDetection(state, a) ? { ...a, roll: testFor(caller, a, getReactionTest(state, open, a), a.kind) } : a))
   }
 }
 

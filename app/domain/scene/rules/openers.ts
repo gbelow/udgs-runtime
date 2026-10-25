@@ -14,6 +14,7 @@ import { getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot 
 import { getInterruptionOf } from './interruption'
 import { withSweepArc } from './sweep'
 import { getEscapeAfterBlast, getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
+import { getReactionDegree } from './explosion'
 
 // What each reaction opens, and when. `before` is played out between the
 // root's roll and its effect (combat.tex "Opportunity Attack": "The attack
@@ -63,8 +64,10 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   // the escape the reflex clears the way for goes before the blast, the one
   // a miss leaves after it (combat.tex "Avoiding an Explosion")
   avoidExplosion: {
-    after: (state, root, reaction, newId) => openMove(reaction, newId,
-      root.kind === 'explosion' ? getEscapeBeforeBlast(reaction) : root.kind === 'blast' ? getEscapeAfterBlast(reaction) : null),
+    after: (state, root, reaction, newId) => {
+      const degree = getReactionDegree(state, reaction)
+      return openMove(reaction, newId, root.kind === 'explosion' ? getEscapeBeforeBlast(reaction, degree) : root.kind === 'blast' ? getEscapeAfterBlast(reaction, degree) : null)
+    },
   },
   // combat.tex "Opportunity Attack": each attack the root drew is opened in
   // the order it comes to them; a move or a push has everyone it carries

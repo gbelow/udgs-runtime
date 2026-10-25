@@ -3,7 +3,7 @@ import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getFlankers, isGuardingCells, isGuardingShot, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
-import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
+import { getBlastOf, getThreatenedIds } from './explosion'
 import { isTrampleable } from './trample'
 import { requiresConcentration } from './hold'
 import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
@@ -336,7 +336,6 @@ function dragApproaches(state: SceneState, root: DragAction, reachOf: (c: Charac
 // as anyone: a bomb is no respecter of the hand that threw it, and whoever
 // stands in the area is a target of it.
 function explosionTriggers(state: SceneState, root: ExplosionAction): Trigger[] {
-  if (!isAvoidable(root)) return []
   return getThreatenedIds(state, getBlastOf(state, root)).flatMap((id): Trigger[] => [
     { characterId: id, kind: 'avoidExplosion', at: null },
     { characterId: id, kind: 'blockExplosion', at: null },

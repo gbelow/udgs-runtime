@@ -22,7 +22,7 @@ import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
 import { hasGrant, isSpellActive } from '../../character/rules/effects'
 import { SHOTS } from '../../tables'
-import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
+import { answersByDetection, getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
 import { GRAPPLING_HOP, getGrapplingHOP, getHoldBackTargets, getManeuverCost, getManeuversOf, getManeuverTargets, getReleaseTargets, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
@@ -652,7 +652,7 @@ export function needsDie(state: SceneState, action: Action): boolean {
   if (action.holding) return false
   if (action.kind === 'move') return needsOwnDie(state, action)
   if (action.kind === 'spellTest' && action.accepted) return false
-  return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
+  return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die && !answersByDetection(state, r))
 }
 
 export function getNextStep(state: SceneState): ActionStep | null {

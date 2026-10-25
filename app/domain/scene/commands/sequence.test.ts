@@ -9,7 +9,8 @@ import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
 import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
-import { getOwnCost, isDeclarationComplete } from '../rules/action'
+import { getOwnCost, isDeclarationComplete, needsDie } from '../rules/action'
+import { getChargeOptions } from '../rules/explosion'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 import { aimExplosion, chooseGrapple, spendHOP } from './choices'
 import { pickCell } from './board'
@@ -371,6 +372,40 @@ describe('an explosion', () => {
     const facts = blast?.kind === 'blast' ? blast.facts ?? {} : {}
     expect(facts.x).toBeUndefined()
     expect(facts.y?.length).toBeGreaterThan(0)
+  })
+})
+
+// The table's ruling: a detonation has no DL, so its reactors roll no die; each
+// answers with the degree of the test that noticed its caster, a critical when
+// none was needed (combat.tex "Actions in stealth").
+describe('a detonation', () => {
+  function detonating(): SceneState {
+    const base = fighter('c')
+    const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
+    const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
+    const caster = funded({ ...(holdItem(charged)(base)), spells: { 'detonate-explosive': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }, 'detonate-explosive')
+    // two cells off, out of reach of the opportunity attacks a cast draws
+    let s = onBoard({ c: [0, 0], x: [2, 0], y: [0, 2] }, caster, fighter('x'), fighter('y'))
+    s = resolveAction(newId, () => 5)(commitAction(sure('detonate-explosive'), newId)(declareAction('c', { kind: 'cast', key: 'detonate-explosive' }, newId)(s)))
+    const open = getOpenAction(s)
+    if (open?.kind !== 'explosion') throw new Error('the cast did not open its explosion')
+    const [charge] = getChargeOptions(s, open)
+    s = commitAction(() => 5, newId)(amendAction({ itemId: charge.itemId, key: charge.key, center: charge.cell })(s))
+    for (const id of ['x', 'y']) s = declareReaction(id, { kind: 'avoidExplosion' }, newId)(s)
+    return s
+  }
+
+  it('calls for no die from the ones who answer it', () => {
+    const s = detonating()
+    expect(needsDie(s, getOpenAction(s)!)).toBe(false)
+    expect(rollAction(() => 50, newId)(s)).toBe(s)
+  })
+
+  it('gives each reactor the escape their detection earned', () => {
+    const s = payAction(newId, () => 5)(detonating())
+    const reactions = getLog(s).filter((a) => a.kind === 'avoidExplosion')
+    expect(reactions.map((r) => r.roll)).toEqual([null, null])
+    expect(getOpenAction(s)).toMatchObject({ kind: 'move', movement: 'run' })
   })
 })
 

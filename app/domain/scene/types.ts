@@ -625,8 +625,8 @@ export const ShootActionSchema = z.object({
 
 // Where an explosion comes from decides its test: thrown, the reflex is
 // against the thrower's Accuracy; cast, against what the spell's effects
-// say; detonated, there is none (the table's ruling: the test was spotting
-// it). `key` is the spell whose effects go off for a cast; a thrown or
+// say; detonated, there is none, and each reactor answers with the degree of
+// the test that noticed the caster. `key` is the spell whose effects go off for a cast; a thrown or
 // detonated one goes off with what the object `itemId` names carries,
 // wherever that object is.
 export const ExplosionActionSchema = z.object({
