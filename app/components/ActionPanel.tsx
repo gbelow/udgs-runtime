@@ -14,7 +14,7 @@ import { ActionKey, Button, Closed, IconButton, Panel, SectionLabel, Segment, Se
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
-import { StrikeModifiers } from './StrikeModifiers'
+import { Modifiers } from './Modifiers'
 import { ACTION_ICONS } from './actionIcons'
 
 const STEP_LABEL = {
@@ -93,7 +93,7 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      <StrikeModifiers modifiers={open.modifiers} onPress={amend} />
+      <Modifiers modifiers={open.modifiers} onPress={amend} />
 
       {view.ammo.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -182,7 +182,7 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>movement</SectionLabel>
-          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, lunge: false, metres: null })} />)}
+          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, modifiers: { lunge: false }, metres: null })} />)}
         </div>
       ) : null}
       {open.climbModes.length > 1 ? (
@@ -199,18 +199,6 @@ export function ActionPanel(){
           <IconButton icon={Minus} aria-label='climb less' disabled={open.climbSteps.less === null} onClick={() => amend({ metres: open.climbSteps?.less ?? null })} />
           <span className='font-mono text-xs'>{open.climbSteps.metres} / {open.climbSteps.remaining}</span>
           <IconButton icon={Plus} aria-label='climb more' disabled={open.climbSteps.more === null} onClick={() => amend({ metres: open.climbSteps?.more ?? null })} />
-        </div>
-      ) : null}
-      {open.gentle !== null ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>gentle art</SectionLabel>
-          <Button size='xs' selected={open.gentle} title='-2 to the grapple test for 1 STA less' onClick={() => amend({ gentle: !open.gentle })}>gently</Button>
-        </div>
-      ) : null}
-      {open.canLunge ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>lunge</SectionLabel>
-          <Button size='xs' selected={open.lunge} title='jump for 1 STA and strike from where you land' onClick={() => amend({ lunge: !open.lunge, path: [] })}>lunge</Button>
         </div>
       ) : null}
       {open.canLeap ? (
@@ -294,7 +282,7 @@ export function ActionPanel(){
                   <ActionKey look={r.passed ? 'picked' : 'plain'} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</ActionKey>
                   {r.options.map((o) =>
                     <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
-                  {r.gentle !== null ? <Button size='xs' selected={r.gentle} title='-2 to the grapple test for 1 STA less' onClick={() => amendReacted(r.id, { gentle: !r.gentle })}>gently</Button> : null}
+                  <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
                   {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
                 </div>
               </LockedFor>
@@ -465,8 +453,8 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
         <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'join shot' : 'opportunity attack')}</span>
         {strike.partner ? (
           <Segmented label='strike or maneuver'>
-            {(['strike', 'grapple'] as const).map((m) =>
-              <Segment key={m} selected={strike.mode === m} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Segment>)}
+            {strike.modes.map((m) =>
+              <Segment key={m.mode} selected={strike.mode === m.mode} onClick={() => onAmend(m.press)}>{m.mode === 'grapple' ? 'maneuver' : 'strike'}</Segment>)}
           </Segmented>
         ) : null}
       </div>
@@ -476,7 +464,6 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
           <Segmented label='maneuver'>
             {strike.maneuvers.map((m) => <Segment key={m} selected={strike.maneuver === m} onClick={() => onAmend({ maneuver: m })}>{m}</Segment>)}
           </Segmented>
-          {reactor.gentle !== null ? <Button size='xs' selected={reactor.gentle} title='-2 to the grapple test for 1 STA less' onClick={() => onAmend({ gentle: !reactor.gentle })}>gently</Button> : null}
         </div>
       ) : null}
       {strike.mode === 'strike' ? <>
@@ -516,9 +503,9 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
             {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
           </Button>)}
       </div>
-      <StrikeModifiers modifiers={strike.modifiers} onPress={onAmend} />
       {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : strike.bar ?? 'that attack cannot be made from there as declared') : 'pick the attack'}</span> : null}
       </> : null}
+      <Modifiers modifiers={reactor.modifiers} onPress={onAmend} />
     </div>
   )
 }

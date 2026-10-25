@@ -23,7 +23,7 @@ import { getCover, getPlacedFootprint, toDamageWall } from './board/board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 import { getSpiritBlow } from '../../character/rules/spirit'
-import { getStrikeRiders } from './strikeDeclaration'
+import { getModifierRiders } from './modifiers'
 import { passesCondition, strongerInterruption } from '../../character/rules/damage'
 
 // ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ export function getHookedMotion(state: SceneState, root: AttackAction): 'running
 // "Evades": against a directed strike "a hit in the strike causes a crash",
 // so does a catch that lands.
 function getStrikeTrample(state: SceneState, root: AttackAction): Trample | null {
-  if (root.kind !== 'strike' || (!root.catch && (root.spent.braced ?? 0) === 0) || root.roll?.degree !== 'hit') return null
+  if (root.kind !== 'strike' || (!root.modifiers.catch && (root.spent.braced ?? 0) === 0) || root.roll?.degree !== 'hit') return null
   const step = getOpportunityStep(state, root)
   return step ? getBlowTrample(state, root, step.move, step.at) : null
 }
@@ -150,7 +150,7 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
-  const riders = root.kind === 'strike' ? getStrikeRiders(state, root) : []
+  const riders = root.kind === 'strike' ? getModifierRiders(state, root) : []
   return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: [...followUps, ...riders] }
 }
 
@@ -211,20 +211,20 @@ const CATCH_HOP = 5
 // where the mover was stopped or the strike had HOP enough.
 export function canGrapple(state: SceneState, strike: StrikeAction): boolean {
   if (strike.roll?.degree !== 'hit' || !strike.targetId || !canGrab(state, strike, strike.targetId)) return false
-  return !strike.catch || getStrikeTrample(state, strike)?.result === 'blocked' || getHitHOP(state, strike).total >= CATCH_HOP
+  return !strike.modifiers.catch || getStrikeTrample(state, strike)?.result === 'blocked' || getHitHOP(state, strike).total >= CATCH_HOP
 }
 
 export function getStrikeLanding(state: SceneState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo' | 'lifted'> {
   const interruption = getInterruption(state, strike, facts)
   const trample = getStrikeTrample(state, strike)
-  const grabbed = (strike.grapples || strike.tackle) && canGrapple(state, strike) ? getGrabFacts(state, strike) : null
+  const grabbed = (strike.grapples || strike.modifiers.tackle) && canGrapple(state, strike) ? getGrabFacts(state, strike) : null
   const jump = getReactionsTo(state, strike.id).find((r) => r.kind === 'evasiveJump' && r.actorId === strike.targetId)
   return {
     interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption,
     trample,
     grabbed,
     jumpedTo: jump?.kind === 'evasiveJump' ? jump.to : null,
-    lifted: jump?.kind === 'evasiveJump' && jump.lift,
+    lifted: jump?.kind === 'evasiveJump' && jump.modifiers.lift,
   }
 }
 

@@ -7,6 +7,7 @@ import { getCancellableRoot } from '../rules/opportunity'
 import { findWeaponRow } from '../rules/weaponRow'
 import { findPrepared } from '../rules/prepared'
 import { getHeldOf, isGivingUpHeld } from '../rules/hold'
+import { getAnswerLabel } from '../rules/modifiers'
 import { SPELLS, isSpellKey } from '../../spells'
 
 // What the panel calls things: actions, the options to declare them, and
@@ -28,8 +29,9 @@ export function getActionNoun(action: ActionDraft): string {
   return getActionDef(action.kind).noun ?? getActionName(action)
 }
 
-// The button an option is shown as: what its draft declares, and for a
-// defense made with something, what it is made with.
+// The button an option is shown as: what its draft declares, named for the
+// modifier it is offered as if any, and for a defense made with something,
+// what it is made with.
 export function getOptionLabel(state: SceneState, actorId: string, option: ActionOption): string {
   const label = getDraftLabel(state, actorId, option)
   return option.surge ? `${label} (surge first)` : label
@@ -50,7 +52,7 @@ function getDraftLabel(state: SceneState, actorId: string, option: ActionOption)
       return weapon ? `${ACTIONS.reload.label} ${weapon}` : ACTIONS.reload.label
     }
     case 'intercept':
-      return withWeapon(state, actorId, draft, draft.advance ? 'defensive advance' : draft.preparedId ? 'prepared intercept' : ACTIONS.intercept.label)
+      return withWeapon(state, actorId, draft, getAnswerLabel(draft) ?? (draft.preparedId ? 'prepared intercept' : ACTIONS.intercept.label))
     case 'assist':
       return draft.boost ? `${ACTIONS.assist.label} +5` : ACTIONS.assist.label
     case 'explosion':
@@ -64,7 +66,7 @@ function getDraftLabel(state: SceneState, actorId: string, option: ActionOption)
       return prepared?.main ? `prepared ${prepared.main}` : ACTIONS.prepared.label
     }
     default:
-      return getActionName(draft)
+      return getAnswerLabel(draft) ?? getActionName(draft)
   }
 }
 

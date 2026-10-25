@@ -227,7 +227,7 @@ describe('a run hooked in the space of the one who hooked it', () => {
     const ann = h.idOf('Ann')
     const gauntlet = h.state().characters[ann].body.find((part) => part.itemId !== '')?.itemId ?? ''
     h.send({ kind: 'react', args: [ann, { kind: 'opportunityAttack', at: 7 }] })
-    h.send({ kind: 'amendReaction', args: [ann, { weaponKey: gauntlet, attack: 'grapple', variant: 'hook', catch: true }] })
+    h.send({ kind: 'amendReaction', args: [ann, { weaponKey: gauntlet, attack: 'grapple', variant: 'hook', modifiers: { catch: true, martialSpirit: false, tackle: false, gentle: false } }] })
     const stands: string[][] = []
     for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId, h.dice), withdrawSpawnedAction(h.dice, h.newId)]) {
       h.press(step)

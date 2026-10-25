@@ -6,8 +6,9 @@ import { getStrikeDamage } from '../../character/rules/gear'
 import { getGrapple } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
 import { hasProperty } from '../../weaponProperties'
-import { getAction, getReactionsTo, getSpawned } from './log'
+import { getReactionsTo, getSpawned } from './log'
 import { hasGrant } from '../../character/rules/effects'
+import { getModifierTerms } from './modifiers'
 import { getPartWound } from '../../character/rules/wounds'
 import { getItemName } from './fighters'
 import { allowsAlong, type RuleRecipeId } from './recipes'
@@ -222,34 +223,12 @@ function getResist(state: SceneState, root: Action): Action | null {
   return getReactionsTo(state, root.id).find((r) => r.kind === 'resist' && r.actorId === root.targetId) ?? null
 }
 
-// abilities.tex "Gentle Art": "You can take a -2 penalty on grapple tests in
-// exchange for reducing the STA cost by 1." A grapple test is a maneuver
-// and the resist against one; what a push is resisted with is Force.
-export const GENTLE_TERM = -2
-
-export function canBeGentle(state: SceneState, action: Action): boolean {
-  const c = state.characters[action.actorId]
-  if (!c || !hasGrant(c, 'gentleArt')) return false
-  if (action.kind === 'grapple') return true
-  if (action.kind === 'opportunityAttack') return action.mode === 'grapple'
-  return action.kind === 'resist' && action.reactionTo !== null && getAction(state, action.reactionTo)?.kind === 'grapple'
-}
-
-// Whether the grapple test is made gently, or null where it cannot be.
-export function getGentle(state: SceneState, action: Action): boolean | null {
-  if (action.kind !== 'grapple' && action.kind !== 'resist' && action.kind !== 'opportunityAttack') return null
-  return canBeGentle(state, action) ? action.gentle : null
-}
-
-export function isGentle(state: SceneState, action: Action): boolean {
-  return getGentle(state, action) === true
-}
-
-// The maneuver's own test: its maker's grapple, and Gentle Art's penalty.
+// The maneuver's own test: its maker's grapple, and what it is declared
+// with (rules/modifiers.ts).
 export function getManeuverTerms(state: SceneState, root: GrappleAction): Term[] {
   const c = state.characters[root.actorId]
   if (!c) return []
-  return [{ label: 'grapple', value: getGrapple(c) }, ...(isGentle(state, root) ? [{ label: 'gentle art', value: GENTLE_TERM }] : [])]
+  return [{ label: 'grapple', value: getGrapple(c) }, ...getModifierTerms(state, root)]
 }
 
 // combat.tex "Grapple Maneuvers": "must be defended with the grapple skill,
@@ -264,7 +243,7 @@ export function getManeuverDLTerms(state: SceneState, root: GrappleAction): Term
   const terms: Term[] = [
     { label: 'grapple', value: getGrapple(defender) },
     ...(resisted ? [] : [{ label: 'no resistance', value: -5 }]),
-    ...(resist && isGentle(state, resist) ? [{ label: 'gentle art', value: GENTLE_TERM }] : []),
+    ...(resist ? getModifierTerms(state, resist) : []),
   ]
   const midAction = resisted ? getMidActionTerm(state, root, defender.id) : null
   return midAction ? [...terms, midAction] : terms

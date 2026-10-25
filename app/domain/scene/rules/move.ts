@@ -15,7 +15,7 @@ import { getFootprint, getPlacedFootprint, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
-import { LUNGE_COST } from './lunge'
+import { getModifiedTotal } from './modifiers'
 import { canRest, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Ground } from './board/ground'
 import { getMoveDestination, getMoveOrigin, getMoveSweep, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
@@ -79,8 +79,6 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 export function getMovePrice(state: SceneState, c: Character, action: MoveAction, cells: number): ActionCost {
   // a movement the rules force on its mover is not theirs to pay for
   if (action.forced) return NO_COST
-  // abilities.tex "Lunge": "jump for 1 STA"
-  if (action.lunge && action.movement === 'jump' && hasGrant(c, 'lunge')) return cells > 0 ? LUNGE_COST : NO_COST
   const plan = action.movement === 'climb' && cells > 0 ? getClimbPlan(state, action) : null
   const leap = plan?.first && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
   // combat.tex "Climbing": a climb no taller than the climber costs the
@@ -105,11 +103,12 @@ export function getWalkedCells(state: SceneState, action: MoveAction, facts: Mov
   return facts.stop === 'end' ? facts.path.length : Math.min(action.path.length, Math.max(1, facts.path.length))
 }
 
-// What the move was paid beyond the price of the blocks it walked.
+// What the move was paid beyond the price of the blocks it walked, as it
+// was declared (rules/modifiers.ts).
 export function getUnwalked(state: SceneState, action: MoveAction, facts: MoveFacts): ActionCost {
   const c = state.characters[action.actorId]
   if (!c || !action.cost) return NO_COST
-  const walked = getMovePrice(state, c, action, getWalkedCells(state, action, facts))
+  const walked = getModifiedTotal(state, action, getMovePrice(state, c, action, getWalkedCells(state, action, facts)))
   return { AP: Math.max(0, action.cost.AP - walked.AP), STA: Math.max(0, action.cost.STA - walked.STA) }
 }
 

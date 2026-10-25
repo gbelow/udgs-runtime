@@ -1,7 +1,7 @@
 import { getDiceBar } from '../../../play/calls'
 import type { SceneState } from '../../types'
 import { getOpenAction, findOpenRoot } from '../log'
-import { findOption } from '../options'
+import { findOpenJump, findOption } from '../options'
 import { getAim } from '../aim'
 import { isAimable } from '../explosion'
 import { getEvasiveJumpPlacements } from '../move'
@@ -16,7 +16,7 @@ export type BoardMode = 'idle' | 'path' | 'jump' | 'aim' | 'locked'
 // declare (combat.tex "Evasive Jump").
 export function getEvasiveJumper(state: SceneState): string | null {
   const open = getOpenAction(state)
-  return open?.kind === 'strike' && open.step === 'react' && open.targetId && findOption(state, open.targetId, { kind: 'evasiveJump' })?.available ? open.targetId : null
+  return open?.kind === 'strike' && open.step === 'react' && open.targetId && findOpenJump(state, open.targetId) ? open.targetId : null
 }
 
 export function getBoardMode(state: SceneState): BoardMode {

@@ -355,7 +355,8 @@ app/domain/scene/
 │   ├── interruption.ts getInterruptions, isBroken; getInterruptionBy: the strongest of what a landed action did to someone's own action (its blow, a shot group's, a crash, its deliveries), read by isInterruptedBy and the stun escapes
 │   ├── tested.ts       the tests a landing action's instant deliveries leave their targets (and what follows a strike's blow), rolled with the dice they threw with it
 │   ├── declaration.ts  the declarations an attack is made with (`StrikeDeclaration`, `ShotDeclaration` in types.ts), copied whole by picks read off the schema
-│   ├── strikeDeclaration.ts one strike declaration, whatever declares it (a turn, an opportunity attack, a counterattack, a preparation, a recipe, a sweep): its context (what it answers, the step that drew it), the variations open there, and `STRIKE_MODIFIERS` — catch, Martial Spirit — each with when it is allowed, its price and what it delivers with the blow
+│   ├── strikeDeclaration.ts one strike declaration, whatever declares it (a turn, an opportunity attack, a counterattack, a preparation, a recipe, a sweep): its context (what it answers, the step that drew it) and the variations open there
+│   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion, Technical Lift, Defensive Advance, Lunge), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike
@@ -412,7 +413,7 @@ app/domain/scene/
 │   └── fighters.ts     active character, fight names, a party's living members and its name, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    └── actionPanel.ts, boardView.ts, cards.ts, roundChange.ts, chase.ts, parked.ts (whom the scene may follow once a chase is over), roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts, strikeDeclaration.ts (the modifier buttons every panel that declares a strike shows)
+    └── actionPanel.ts, boardView.ts, cards.ts, roundChange.ts, chase.ts, parked.ts (whom the scene may follow once a chase is over), roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts, modifiers.ts (the modifier toggles every panel that declares an action shows)
 ```
 
 The combat domain calls into `character/` (costs, afflictions, deliveries, skill terms,
@@ -435,9 +436,10 @@ processor (`character/commands/deliver.ts`) rolls a delivery's test there and re
   `pickStrikeDeclaration`; add it to `StrikeHolder` (`rules/strikeDeclaration.ts`). What it
   may be declared as is read off its context, so a rule that depends on how the strike came
   about asks the context (what it answers, the step that drew it), not the kind.
-- **A new strike modifier.** A boolean in `StrikeDeclaration`; `STRIKE_MODIFIERS` will not
-  compile until it has an entry. Every panel, the price, the completeness check and the blow
-  read the registry.
+- **A new modifier.** A boolean in the kind's `modifiers` object (types.ts);
+  `DECLARATION_MODIFIERS` (`rules/modifiers.ts`) will not compile until it has an entry.
+  The price, the completeness check, the test, the blow, the answers offered and every
+  panel read the table.
 - **A new follow-up no reaction opens.** Add it to `getFollowUps`, minding the push order
   (last pushed plays first).
 - **A new choice after the die.** A command in `commands/choices.ts` guarded by

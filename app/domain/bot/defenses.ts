@@ -1,6 +1,6 @@
 import type { ActionKind, SceneState, Placement, RootAction } from '../scene/types'
 import { declareReaction } from '../scene/commands/action'
-import { findOption, getAvailableActions } from '../scene/rules/options'
+import { findOpenJump, getAvailableActions } from '../scene/rules/options'
 import { getEvasiveJumpPlacements } from '../scene/rules/move'
 import { getLiveReactionsTo, getOpenAction } from '../scene/rules/log'
 import { getOptionLabel } from '../scene/projections/labels'
@@ -36,8 +36,8 @@ export function getStrikeDefenses(state: SceneState, targetId: string, attackerI
       declare: (s, open, newId) => declareDefense(s, targetId, open, option, newId),
     }))
 
-  const jump = findOption(state, targetId, { kind: 'evasiveJump' })
-  if (!jump?.available) return answers
+  const jump = findOpenJump(state, targetId)
+  if (!jump) return answers
   return [
     ...answers,
     ...getEvasiveJumpPlacements(state, targetId, attackerId).map((to): StrikeDefense => ({
@@ -46,7 +46,7 @@ export function getStrikeDefenses(state: SceneState, targetId: string, attackerI
       cost: { AP: jump.cost?.AP ?? 0, STA: jump.cost?.STA ?? 0 },
       landing: to,
       declare: (s, open, newId) => {
-        const declared = declareReaction(targetId, { kind: 'evasiveJump', to }, newId)(s)
+        const declared = declareReaction(targetId, { kind: 'evasiveJump', modifiers: jump.draft.kind === 'evasiveJump' ? jump.draft.modifiers : undefined, to }, newId)(s)
         return getLiveReactionsTo(declared, open.id).some((r) => r.actorId === targetId) ? declared : null
       },
     })),

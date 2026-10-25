@@ -24,6 +24,7 @@ import { isInInterceptRange, isOnProtectLine } from './protect'
 import type { Trigger } from './reactions'
 import { pickShotDeclaration, pickStrikeDeclaration } from './declaration'
 import { getStrikeContext, getStrikePrice, isStrikeDeclarationOpen } from './strikeDeclaration'
+import { addModifierLines } from './modifiers'
 
 // combat.tex "Preparing a reaction": "Any action can be prepared on a player's
 // turn, but doing so costs 1 AP. This allows the player to create any trigger
@@ -99,7 +100,7 @@ export function getMainCost(state: SceneState, c: CampaignCharacter, p: PrepareA
     case 'strike': {
       const ctx = getStrikeContext(state, p)
       const price = ctx && isStrikeDeclarationOpen(ctx) ? getStrikePrice(ctx) : null
-      return price && [price.declared, ...price.added].reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
+      return price && [price.declared, ...addModifierLines(price.declared, price.added)].reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
     }
     case 'shoot': {
       const variant = getAttackVariant(c, main, isCombatStarted(state))

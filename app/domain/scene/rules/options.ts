@@ -13,7 +13,7 @@ import { canAfford } from '../../character/rules/cost'
 import { getActiveSpellKeys, hasGrant } from '../../character/rules/effects'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { getHangingFall } from './board/cliff'
-import { isInLiquid, isProne } from './board/ground'
+import { isProne } from './board/ground'
 import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverCost, getManeuversOf, getManeuverTargets, getReleaseTargets } from './grapple'
@@ -24,7 +24,8 @@ import { getExtinguishCells } from './extinguish'
 import { getPlantableShields } from './plant'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvadeCost, getEvasiveJumpCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
+import { getOpportunityBar, getOpportunityCheck, getOwnCost, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withoutReserve, withRefund } from './action'
+import { getAnswerDrafts } from './modifiers'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { perState } from '../../perState'
@@ -77,20 +78,15 @@ function option(draft: ActionDraft, cost: ActionCost | null, reason: string | nu
 // movement, so a grappled defender cannot jump from anyone. combat.tex
 // "Evasive Jump": "only ... if there is space to jump"; "jumping": a jump "cannot be voluntarily
 // interrupted in the middle". combat.tex "Prone": "Can only crawl and stand
-// up"; "Lame": "Cannot ... jump".
-// abilities.tex "Technical Lift": an evasive jump from the ground, which
-// stands its jumper up; the water's surface is no ground to stand up from.
-function canTechnicalLift(state: SceneState, c: CampaignCharacter): boolean {
-  return hasGrant(c, 'technicalLift') && hasAffliction(c, 'prone') && !isInLiquid(state, c)
-}
-
-function defenseGate(state: SceneState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
+// up"; "Lame": "Cannot ... jump". abilities.tex "Technical Lift": an
+// evasive jump made from the ground as one (`lifting`).
+function defenseGate(state: SceneState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost, lifting = false): string | null {
   if (!canAfford(defender, cost, isCombatStarted(state))) return 'cannot afford'
   if (hasAffliction(defender, 'unconscious')) return 'unconscious'
   if (isImmobile(state, defender)) return 'immobile'
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && getPartners(state, defender.id).includes(root.actorId)) return 'grappled'
   if (kind === 'evasiveJump' && hasFightAffliction(state, defender, 'grappled')) return 'grappled'
-  if (kind === 'evasiveJump' && isProne(state, defender.id) && !canTechnicalLift(state, defender)) return 'prone'
+  if (kind === 'evasiveJump' && isProne(state, defender.id) && !lifting) return 'prone'
   if (kind === 'evasiveJump' && hasAffliction(defender, 'lame')) return 'lame'
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return 'mid-jump'
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return 'no space to jump'
@@ -102,11 +98,11 @@ function defenseGate(state: SceneState, defender: CampaignCharacter, root: Actio
 // still take (`needsGuardStep`), and its price with that step. Against
 // anything else, as it stands.
 function guardOption(state: SceneState, c: CampaignCharacter, root: Action, guard: ActionOf<'block'> | ActionOf<'intercept'>, gate: string | null): { cost: ActionCost; reason: string | null } {
-  const cost = withGuardStep(c, guard, getActionCost(c, guard.kind))
+  const cost = getOwnCost(state, guard) ?? getActionCost(c, guard.kind)
   if (root.kind !== 'strike') return { cost, reason: gate }
   const stepping = needsGuardStep(state, root, guard)
   const placed = stepping || isGuardPlaced(state, root, guard)
-  const priced = stepping && !(guard.kind === 'intercept' && guard.advance) ? withGuardStep(c, { ...guard, to: getGuardSteps(state, root, guard)[0] }, getActionCost(c, guard.kind)) : cost
+  const priced = stepping ? getOwnCost(state, { ...guard, to: getGuardSteps(state, root, guard)[0] ?? null }) ?? cost : cost
   const reason = gate ?? (!canAfford(c, priced, isCombatStarted(state)) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
   return { cost: priced, reason }
 }
@@ -259,6 +255,12 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
     const gate = defenseGate(state, c, open, kind, cost)
     const answer = (draft: ActionDraft, own: ActionCost | null = cost, reason: string | null = gate): ActionOption =>
       option(draft, own, reason, open.id, chosen(draft))
+    // the answer as each modifier offered as an answer of its own makes it
+    // (rules/modifiers.ts)
+    const modified = (plain: ActionDraft): ActionOption[] => getAnswerDrafts(state, c.id, open.id, plain).map((draft) => {
+      const own = getOwnCost(state, makeAction(draft.kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id } as Parameters<typeof makeAction>[1])) ?? cost
+      return answer(draft, own, defenseGate(state, c, open, kind, own, draft.kind === 'evasiveJump' && !!draft.modifiers?.lift))
+    })
     // combat.tex "Protect", "Guard": a defense prepared for an ally, made with
     // the row it was prepared with, from where the movement it carries has put
     // its preparer — which is walked before the die, not now
@@ -272,11 +274,10 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       case 'block':
       case 'intercept':
         return defRows(c).flatMap((row) => {
-          const base = { id: '', actorId: c.id, reactionTo: open.id, weaponKey: row.wielded.key, attack: row.atk.name }
-          const guards = [makeAction(kind, base), ...(kind === 'intercept' && hasGrant(c, 'advancingIntercept') ? [makeAction('intercept', { ...base, advance: true })] : [])]
-          return guards.map((guard) => {
+          const plain: ActionDraft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
+          return [plain, ...getAnswerDrafts(state, c.id, open.id, plain)].map((draft) => {
+            const guard = makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id } as Parameters<typeof makeAction>[1])
             const { cost: own, reason } = guardOption(state, c, open, guard, gate)
-            const draft: ActionDraft = guard.kind === 'intercept' && guard.advance ? { kind: 'intercept', weaponKey: base.weaponKey, attack: base.attack, advance: true } : { kind, weaponKey: base.weaponKey, attack: base.attack }
             return answer(draft, own, reason ?? seizedReason(state, guard))
           })
         })
@@ -296,22 +297,12 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         })
       // an evade of a trample opens a step, picked on the board once the
       // trample is paid; closed to one the mover ends on with nowhere to go
-      // abilities.tex "Precise Evasion": an evade of a strike for 1 AP at -3;
-      // a trample's evade is not tested, and its AP is the step it opens
-      case 'evade': {
-        const precise = getEvadeCost(c, true)
-        return [
-          answer({ kind }, cost, gate ?? getSidestepBar(state, open, c.id, cost.AP)),
-          ...(open.kind === 'strike' && hasGrant(c, 'preciseEvade') ? [answer({ kind, precise: true }, precise, defenseGate(state, c, open, kind, precise))] : []),
-        ]
-      }
+      case 'evade':
+        return [answer({ kind }, cost, gate ?? getSidestepBar(state, open, c.id, cost.AP)), ...modified({ kind })]
       // nothing to pick among; where an evasive jump lands is picked on the
       // board, not here
-      case 'evasiveJump': {
-        if (!canTechnicalLift(state, c)) return [answer({ kind })]
-        const lift = getEvasiveJumpCost(c, true)
-        return [answer({ kind, lift: true }, lift, defenseGate(state, c, open, kind, lift))]
-      }
+      case 'evasiveJump':
+        return [answer({ kind }), ...modified({ kind })]
       case 'brace':
       case 'evasion':
       case 'avoidExplosion':
@@ -330,8 +321,9 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       // be: each is tried as the reaction it would be declared as, and when
       // none passes the one that came nearest says why
       case 'opportunityAttack': {
-        const probe = (fields: Partial<ActionOf<'opportunityAttack'>>) => makeAction('opportunityAttack', { id: '', actorId: c.id, targetId: trigger.against ?? open.actorId, reactionTo: open.id, at: trigger.at, catch: trigger.catchOnly === true, ...fields })
-        const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant }))
+        const probe = (fields: Partial<ActionOf<'opportunityAttack'>>) => makeAction('opportunityAttack', { id: '', actorId: c.id, targetId: trigger.against ?? open.actorId, reactionTo: open.id, at: trigger.at, ...fields })
+        const catching = { catch: trigger.catchOnly === true, martialSpirit: false, tackle: false, gentle: false }
+        const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant, modifiers: catching }))
         const maneuvers = getPartners(state, c.id).includes(open.actorId) ? getManeuversOf(c).map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
         const checks = [...strikes, ...maneuvers].map((a) => getOpportunityCheck(state, c, a))
         const reason = checks.length === 0 ? 'no melee weapon in hand' : checks.some((k) => k.bar === null) ? null : checks.reduce((best, k) => (k.stage > best.stage ? k : best)).bar
@@ -609,6 +601,12 @@ function closeByRoundChange(state: SceneState, options: ActionOption[]): ActionO
 
 // The option a draft would take, so a command can refuse exactly what the
 // list shows as closed.
+// The evasive jump open to the character, made as whatever it may be made
+// as (abilities.tex "Technical Lift"), if any.
+export function findOpenJump(state: SceneState, characterId: string): ActionOption | null {
+  return getAvailableActions(state, characterId).find((o) => o.draft.kind === 'evasiveJump' && o.available) ?? null
+}
+
 export function findOption(state: SceneState, characterId: string, draft: ActionDraft): ActionOption | null {
   const c = state.characters[characterId]
   if (c && !getOpenAction(state) && draft.kind in OWN_OPTIONS) {
@@ -621,8 +619,14 @@ export function findOption(state: SceneState, characterId: string, draft: Action
 // every field the catalog names as telling that kind's options apart.
 function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
   if (option.kind !== draft.kind) return false
-  const identity: Record<string, unknown> = getActionDef(option.kind).identity ?? {}
-  const a: Record<string, unknown> = option
-  const b: Record<string, unknown> = draft
-  return Object.entries(identity).every(([field, unset]) => (a[field] ?? unset) === (b[field] ?? unset))
+  return sameFields(option, draft, getActionDef(option.kind).identity ?? {})
+}
+
+// An identity field holding fields of its own (`modifiers`) is the same
+// where each of those is.
+function sameFields(a: unknown, b: unknown, identity: object): boolean {
+  const field = (from: unknown, key: string): unknown => (from && typeof from === 'object' ? (from as Record<string, unknown>)[key] : undefined)
+  return Object.entries(identity).every(([key, unset]) => unset && typeof unset === 'object'
+    ? sameFields(field(a, key), field(b, key), unset)
+    : (field(a, key) ?? unset) === (field(b, key) ?? unset))
 }

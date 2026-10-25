@@ -50,7 +50,7 @@ export function getOpportunityStop(state: SceneState, root: Action): number | nu
 // on the last step still comes (combat.tex "Catch").
 export function isOpportunityReached(state: SceneState, root: Action, reaction: ActionOf<'opportunityAttack' | 'retarget'>): boolean {
   if (root.kind !== 'move' || reaction.at === null) return true
-  const catching = reaction.kind === 'opportunityAttack' && reaction.catch && root.movement === 'run' ? 1 : 0
+  const catching = reaction.kind === 'opportunityAttack' && reaction.modifiers.catch && root.movement === 'run' ? 1 : 0
   return reaction.at - catching <= getMoveFacts(state, root).path.length
 }
 

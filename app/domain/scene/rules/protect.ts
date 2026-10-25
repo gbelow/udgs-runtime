@@ -109,7 +109,7 @@ export function getAdvanceSteps(state: SceneState, root: StrikeAction, id: strin
 // Where the step the block or intercept is declared with may go: a
 // Defensive Advance's, or a Defender's.
 export function getGuardSteps(state: SceneState, root: StrikeAction, reaction: GuardingReaction): Placement[] {
-  if (reaction.kind === 'intercept' && reaction.advance) return getAdvanceSteps(state, root, reaction.actorId, reaction.weaponKey, reaction.attack)
+  if (reaction.kind === 'intercept' && reaction.modifiers.advance) return getAdvanceSteps(state, root, reaction.actorId, reaction.weaponKey, reaction.attack)
   if (reaction.actorId === root.targetId) return []
   return reaction.kind === 'intercept'
     ? getDefenderSteps(state, root, reaction.actorId, (p) => isInInterceptRange(state, root, reaction.actorId, p, reaction.weaponKey, reaction.attack))
@@ -125,7 +125,7 @@ export function isGuardPlaced(state: SceneState, root: StrikeAction, reaction: G
   const here = state.board?.placements[reaction.actorId]
   if (!here) return true
   if (reaction.to && !getGuardSteps(state, root, reaction).some((p) => sameCell(p.cell, reaction.to!.cell))) return false
-  if (!reaction.to && reaction.kind === 'intercept' && reaction.advance) return false
+  if (!reaction.to && reaction.kind === 'intercept' && reaction.modifiers.advance) return false
   const at = reaction.to ?? here
   if (reaction.kind === 'block' && reaction.actorId !== root.targetId && !isOnProtectLine(state, root, reaction.actorId, at)) return false
   return reaction.kind !== 'intercept' || isInInterceptRange(state, root, reaction.actorId, at, reaction.weaponKey, reaction.attack)

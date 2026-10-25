@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import type { Action, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
+import type { Action, ActionDraft, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
@@ -31,13 +31,12 @@ import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
-import { getBreakableLimbs, getDisarmOptions, getGentle, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
+import { getBreakableLimbs, getDisarmOptions, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
 import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rules/equipment'
 import { getFloorObject } from '../rules/floorAttack'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple, getGrapples } from '../rules/partners'
-import { canLunge } from '../rules/lunge'
 import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
@@ -50,7 +49,8 @@ import { perState } from '../../perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
 import { isVariantOpen } from '../rules/strikeDeclaration'
-import { getStrikeModifierViews, type StrikeModifierView } from './strikeDeclaration'
+import { getModifierViews, type ModifierView } from './modifiers'
+import { getModifiersOff } from '../rules/modifiers'
 
 export type LocationOption = { location: HitLocation; part: string | null; name: string; penalty: number; selected: boolean }
 
@@ -95,12 +95,12 @@ export type ReactorOptions = {
     complete: boolean
     // why an opportunity attack cannot be fought as declared, when it cannot
     bar: string | null
-    // what the strike is declared as besides (rules/strikeDeclaration.ts)
-    modifiers: StrikeModifierView[]
     // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
-    // instead of the strike
+    // instead of the strike, and what picking either declares (none of what
+    // the other was declared with goes with it)
     mode: 'strike' | 'grapple'
     partner: boolean
+    modes: { mode: 'strike' | 'grapple'; press: Partial<ActionDraft> }[]
     maneuvers: GrappleManeuver[]
     maneuver: GrappleManeuver
     // combat.tex "Coordinated Shots": a joined shot is picked among shooting
@@ -116,9 +116,9 @@ export type ReactorOptions = {
   // which answering with anything but the SD gives up (`getGivenUpFor`);
   // null when there is none
   cancellable: string | null
-  // abilities.tex "Gentle Art": whether the grapple test they answer with is
-  // made gently (null where it cannot be)
-  gentle: boolean | null
+  // what the answer they declared is declared as besides
+  // (rules/modifiers.ts)
+  modifiers: ModifierView[]
   // the action still waits on them (`getAwaited`), and they answered it
   // with nothing
   awaited: boolean
@@ -145,15 +145,15 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             location: declared.location,
             complete: isDeclarationComplete(state, c, declared),
             bar: declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, declared) : null,
-            modifiers: declared.kind === 'joinShot' ? [] : getStrikeModifierViews(state, declared),
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
             partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
+            modes: (['strike', 'grapple'] as const).map((mode) => ({ mode, press: { mode, modifiers: getModifiersOff(declared) } as Partial<ActionDraft> })),
             maneuvers: getManeuversOf(c).filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
           }
         : null
-      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id), gentle: declared ? getGentle(state, declared) : null, awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -226,9 +226,6 @@ export type OpenActionView = {
   // the face allows no fewer or no more)
   climbSteps: { metres: number; remaining: number; less: number | null; more: number | null } | null
   leap: boolean
-  // abilities.tex "Lunge": whether the jump may be declared as one, and is
-  canLunge: boolean
-  lunge: boolean
   // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
   // swim ends, and the dive a metre nearer the surface or the floor would be
   // (null where the water allows no more); null off a swim
@@ -251,9 +248,6 @@ export type OpenActionView = {
   // none); what a push comes to
   grapples: boolean | null
   maneuver: GrappleManeuver | null
-  // abilities.tex "Gentle Art": whether the maneuver being declared is made
-  // gently (null where it cannot be)
-  gentle: boolean | null
   // once a knockdown or an immobilization has hit: whether the attacker
   // commits themselves along (null: nothing to choose)
   along: boolean | null
@@ -288,9 +282,9 @@ export type OpenActionView = {
   // the percentage of the blow left by the time it reaches this one (null
   // at full)
   sweep: { direction: StrikeAction['sweepDirection']; turnable: boolean; next: string[]; left: number | null } | null
-  // while a strike is declared: what it may be declared as besides
-  // (rules/strikeDeclaration.ts)
-  modifiers: StrikeModifierView[]
+  // while it is declared: what it may be declared as besides
+  // (rules/modifiers.ts)
+  modifiers: ModifierView[]
 }
 
 // combat.tex "Push and drag": the speed the block moves at, and while it is
@@ -472,8 +466,6 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
       canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),
       leap: open.kind === 'move' && open.leap,
-      canLunge: open.kind === 'move' && open.step === 'define' && canLunge(state, open),
-      lunge: open.kind === 'move' && open.lunge,
       dive: open.kind === 'move' ? open.dive : 0,
       diveSteps: open.kind === 'move' ? getDiveSteps(state, open) : null,
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
@@ -481,9 +473,8 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       required: isPreparedRequired(state, open),
       flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,
       opportunity: open.kind === 'strike' && open.opportunity,
-      grapples: open.kind === 'strike' && open.step === 'post' && !open.tackle && canGrapple(state, open) ? open.grapples : null,
+      grapples: open.kind === 'strike' && open.step === 'post' && !open.modifiers.tackle && canGrapple(state, open) ? open.grapples : null,
       maneuver: grapple?.maneuver ?? null,
-      gentle: open.step === 'define' ? getGentle(state, open) : null,
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       grappling: grapple && grapple.targetId && isGrapplingEffectOffered(grapple) ? getGrapplingView(state, grapple, grapple.targetId) : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
@@ -509,7 +500,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
       roll: open.roll,
       sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
-      modifiers: open.kind === 'strike' && open.step === 'define' ? getStrikeModifierViews(state, open) : [],
+      modifiers: open.step === 'define' ? getModifierViews(state, open) : [],
     },
     episodes,
     edits,

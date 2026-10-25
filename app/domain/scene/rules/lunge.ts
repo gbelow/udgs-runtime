@@ -27,14 +27,14 @@ export function canLunge(state: SceneState, move: MoveAction): boolean {
 }
 
 export function isLunge(state: SceneState, move: MoveAction): boolean {
-  return move.lunge && canLunge(state, move)
+  return move.modifiers.lunge && canLunge(state, move)
 }
 
 // Whether a lunge may land on the cell: from there some strike its actor can
 // pay for, the jump's STA besides, and that their surge lets them make,
 // reaches someone they may attack. Any other move may land anywhere.
 export function isLungeLanding(state: SceneState, move: MoveAction, cell: Coord | undefined): boolean {
-  if (!move.lunge) return true
+  if (!move.modifiers.lunge) return true
   if (!canLunge(state, move) || !cell) return false
   const c = state.characters[move.actorId]
   const from = state.board?.placements[move.actorId]
@@ -55,5 +55,5 @@ export function getLungeStrike(move: MoveAction, id: string): StrikeAction {
 // Whether the strike was opened by a lunge.
 export function isLungeStrike(state: SceneState, action: Action): boolean {
   const opener = action.kind === 'strike' && action.spawnedBy ? getAction(state, action.spawnedBy) : null
-  return opener?.kind === 'move' && opener.lunge
+  return opener?.kind === 'move' && opener.modifiers.lunge
 }

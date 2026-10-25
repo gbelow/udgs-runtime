@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { rollD10, seededRng } from '../domain/play/dice'
 import { SceneStateSchema, type ActionDraft, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
+import type { ModifierView } from '../domain/scene/projections/modifiers'
 import { getFootprint } from '../domain/scene/rules/board/board'
 import { isProne } from '../domain/scene/rules/board/ground'
 import { defRows } from '../domain/scene/rules/attack'
@@ -161,10 +162,12 @@ function answerWithAStrike(h: Harness, id: string, pick: Picker) {
   const strike = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
   if (!strike) return
   if (strike.options.length) { const { weaponKey, attack, variant } = pick(strike.options); h.send({ kind: 'amendReaction', args: [id, { weaponKey, attack, variant }] }) }
-  const refreshed = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
+  const reactor = getActionPanel(h.state()).reactors.find((r) => r.id === id)
+  const refreshed = reactor?.strike
   if (refreshed?.locations.length) { const { location, part } = pick(refreshed.locations); h.send({ kind: 'amendReaction', args: [id, { location, part }] }) }
-  for (const m of refreshed?.modifiers ?? []) if (pick([true, false])) h.send({ kind: 'amendReaction', args: [id, m.press] })
-  if (refreshed?.maneuvers.length && pick([true, false])) h.send({ kind: 'amendReaction', args: [id, { mode: 'grapple', maneuver: pick(refreshed.maneuvers) }] })
+  for (const m of reactor?.modifiers ?? []) if (pick([true, false])) h.send({ kind: 'amendReaction', args: [id, m.press] })
+  const grapple = refreshed?.modes.find((m) => m.mode === 'grapple')
+  if (grapple && refreshed?.maneuvers.length && pick([true, false])) h.send({ kind: 'amendReaction', args: [id, { ...grapple.press, maneuver: pick(refreshed.maneuvers) }] })
 }
 
 function plays(): Play[] {
@@ -874,8 +877,9 @@ function lungePlay(h: Harness): Play[] {
       const jump = ownOptions(h, h.active()!).find((o) => o.draft.kind === 'move')
       if (!jump) return
       h.declare({ kind: 'move', movement: 'jump' })
-      if (!getActionPanel(h.state()).open?.canLunge) return
-      h.send({ kind: 'amend', args: [{ lunge: true }] })
+      const lunge = getActionPanel(h.state()).open?.modifiers.find((m) => m.key === 'lunge')
+      if (!lunge?.allowed) return
+      h.send({ kind: 'amend', args: [lunge.press] })
       const there = highlighted(h)
       if (there.length) h.click({ on: 'cell', cell: pick(there).cell })
       h.commit()
@@ -894,9 +898,11 @@ function gentlePlay(h: Harness): Play[] {
     weight: 2,
     run: (h, pick) => {
       const panel = getActionPanel(h.state())
-      const reactors = panel.reactors.filter((r) => r.gentle !== null)
-      if (panel.open?.gentle != null && (reactors.length === 0 || pick([true, false]))) h.send({ kind: 'amend', args: [{ gentle: pick([true, false]) }] })
-      else if (reactors.length) h.send({ kind: 'amendReaction', args: [pick(reactors).id, { gentle: pick([true, false]) }] })
+      const gentle = (modifiers: ModifierView[]) => modifiers.find((m) => m.key === 'gentle')
+      const reactors = panel.reactors.filter((r) => gentle(r.modifiers))
+      const own = gentle(panel.open?.modifiers ?? [])
+      if (own && (reactors.length === 0 || pick([true, false]))) { if (pick([true, false])) h.send({ kind: 'amend', args: [own.press] }) }
+      else if (reactors.length) { const r = pick(reactors); if (pick([true, false])) h.send({ kind: 'amendReaction', args: [r.id, gentle(r.modifiers)!.press] }) }
     },
   }]
 }

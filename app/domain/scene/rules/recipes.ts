@@ -112,7 +112,7 @@ const CONDITIONS: Record<RecipeCondition, (ctx: RecipeContext) => boolean> = {
   targetInMotion: ({ state, root }) => getHookedMotion(state, root) !== null,
   inGrapple: ({ state, opened }) => opened.targetId !== null && findGrapple(getGrapples(state), opened.actorId, opened.targetId) !== null,
   // abilities.tex "Tackle"
-  tackled: ({ root }) => root.tackle,
+  tackled: ({ root }) => root.modifiers.tackle,
 }
 
 // Who the event offers its follow-up to on the landed strike, at whom, and

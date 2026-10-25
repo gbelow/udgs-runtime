@@ -20,11 +20,11 @@ import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
 import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
-import { hasGrant, isSpellActive } from '../../character/rules/effects'
+import { isSpellActive } from '../../character/rules/effects'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { GRAPPLING_HOP, getGrapplingHOP, getHoldBackTargets, getManeuverCost, getManeuversOf, getManeuverTargets, getReleaseTargets, isGentle, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
+import { GRAPPLING_HOP, getGrapplingHOP, getHoldBackTargets, getManeuverCost, getManeuversOf, getManeuverTargets, getReleaseTargets, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
 import { canGrapple, getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
@@ -59,7 +59,8 @@ import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
 import { isLungeLanding, isLungeStrike } from './lunge'
-import { getStrikeContext, getStrikePrice, isStrikeDeclarationOpen, type StrikeHolder } from './strikeDeclaration'
+import { getStrikeContext, isStrikeDeclarationOpen, type StrikeHolder } from './strikeDeclaration'
+import { addModifierLines, areModifiersOpen, getModifiedPrice, type ModifiedPrice } from './modifiers'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -83,7 +84,7 @@ export function getOpportunityCheck(state: SceneState, c: Character, action: Act
   const fought = getOpportunityState(state, action)
   // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
   const root = getRootOf(state, action)
-  if (root && !action.catch && findTrigger(state, root, action)?.catchOnly) return fail('a runner only in grabbing reach: a grab, not an attack', 0)
+  if (root && !action.modifiers.catch && findTrigger(state, root, action)?.catchOnly) return fail('a runner only in grabbing reach: a grab, not an attack', 0)
   if (getAttackVariant(c, strike, isCombatStarted(state)) === null) return fail('that attack is not one they have in hand', 1)
   const cost = getOwnCost(state, strike)
   if (!cost || !isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
@@ -106,7 +107,7 @@ export const getOpportunityBar = (state: SceneState, c: Character, action: Actio
 // shield"), an opportunity attack a strike that reaches its target from
 // where it will be fought.
 export function isDeclarationComplete(state: SceneState, c: Character, action: Action): boolean {
-  if (isUsedOutsideGrapple(state, action)) return false
+  if (isUsedOutsideGrapple(state, action) || !areModifiersOpen(state, action)) return false
   switch (action.kind) {
     case 'strike':
       return getAttackVariant(c, action, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
@@ -247,11 +248,12 @@ function isStrikeOpen(state: SceneState, holder: StrikeHolder): boolean {
   return ctx !== null && isStrikeDeclarationOpen(ctx)
 }
 
-// What a strike's declaration costs, for the strike or the counterattack
+// What a strike's variation costs, for the strike or the counterattack
 // that pays for it (an opportunity attack's strike pays for itself).
-function getStrikePriceOf(state: SceneState, action: Action): ReturnType<typeof getStrikePrice> {
-  const ctx = action.kind === 'strike' || action.kind === 'counterattack' ? getStrikeContext(state, action) : null
-  return ctx && getStrikePrice(ctx)
+function getStrikeVariantCost(state: SceneState, c: CampaignCharacter, action: ActionOf<'strike' | 'counterattack'>): ActionCost | null {
+  const ctx = getStrikeContext(state, action)
+  const variant = ctx && getAttackVariant(c, ctx.strike, isCombatStarted(state))
+  return variant ? { AP: variant.AP, STA: variant.STA } : null
 }
 
 // combat.tex "Preparing a reaction": "The movement part of the action can be
@@ -303,7 +305,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
   switch (action.kind) {
     case 'strike':
     case 'counterattack':
-      return getStrikePriceOf(state, action)?.declared ?? null
+      return getStrikeVariantCost(state, c, action)
     case 'shoot':
       return getVariantCost(c, action, isCombatStarted(state))
     // paid for by the throw, the cast or the detonation that opened it
@@ -341,9 +343,8 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'intercept':
       return withGuardStep(c, action, getActionCost(c, action.kind))
     case 'evade':
-      return getEvadeCost(c, action.precise)
     case 'evasiveJump':
-      return getEvasiveJumpCost(c, action.lift)
+      return getActionCost(c, action.kind)
     case 'brace':
     case 'guard':
     case 'avoidExplosion':
@@ -504,19 +505,26 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
     const full = getOwnCost(state, { ...action, holding: false })
     return full && [{ label: 'held over to the next round', AP: Math.max(0, c.resources.AP), STA: full.STA }]
   }
-  const declared = getDeclaredCost(state, c, action)
-  if (!declared) return null
+  const own = getDeclaredCost(state, c, action)
+  if (!own) return null
+  const { declared, label, added } = getOwnModifiedPrice(state, action, own)
   const recipe = getRecipeCost(state, action, declared)
-  const gentle = isGentle(state, action) ? { AP: recipe.AP, STA: Math.max(0, recipe.STA - 1) } : recipe
-  const remaining = { AP: Math.max(0, gentle.AP - action.carried.AP), STA: Math.max(0, gentle.STA - action.carried.STA) }
-  const strike = getStrikePriceOf(state, action)
+  const modified = addModifierLines(recipe, added)
+  const priced = modified.reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), recipe)
+  const remaining = { AP: Math.max(0, priced.AP - action.carried.AP), STA: Math.max(0, priced.STA - action.carried.STA) }
   return [
-    { label: strike?.label ?? getPriceLabel(action), ...declared },
+    { label: label ?? getPriceLabel(action), ...declared },
     ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
-    ...costChange('gentle art', gentle, recipe),
-    ...costChange('paid in the round before', remaining, gentle),
-    ...(strike?.added ?? []),
+    ...modified,
+    ...costChange('paid in the round before', remaining, priced),
   ]
+}
+
+// What a modifier does to the action's own price. An opportunity attack and a
+// preparation are declared with the modifiers of what they open, which is
+// what pays for them.
+function getOwnModifiedPrice(state: SceneState, action: Action, own: ActionCost): ModifiedPrice {
+  return action.kind === 'opportunityAttack' || action.kind === 'prepare' ? { declared: own, label: null, added: [] } : getModifiedPrice(state, action, own)
 }
 
 function costChange(label: string, after: ActionCost, before: ActionCost): CostTerm[] {
@@ -587,22 +595,11 @@ export function withRefund(state: SceneState, c: CampaignCharacter, rootId: stri
 }
 
 // A block's or an intercept's price, and the STA of the step it is made
-// with: a Defensive Advance's, or a Defender's.
+// with: a Defender's. A Defensive Advance's step is priced as the modifier
+// it is declared as (rules/modifiers.ts), in place of this one.
 export function withGuardStep(c: CampaignCharacter, action: ActionOf<'block'> | ActionOf<'intercept'>, cost: ActionCost): ActionCost {
-  const step = action.kind === 'intercept' && action.advance ? getActionCost(c, 'defensiveAdvance') : action.to ? getActionCost(c, 'defenderStep') : null
+  const step = action.to && !(action.kind === 'intercept' && action.modifiers.advance) ? getActionCost(c, 'defenderStep') : null
   return step ? { AP: cost.AP + step.AP, STA: cost.STA + step.STA } : cost
-}
-
-// abilities.tex "Precise Evasion": "Learns to use evade with 1 AP".
-export function getEvadeCost(c: CampaignCharacter, precise: boolean): ActionCost {
-  return precise && hasGrant(c, 'preciseEvade') ? { AP: 1, STA: 0 } : getActionCost(c, 'evade')
-}
-
-// abilities.tex "Technical Lift": "spend 1 STA to perform an evasive jump and
-// stand up in the same action".
-export function getEvasiveJumpCost(c: CampaignCharacter, lift: boolean): ActionCost {
-  const cost = getActionCost(c, 'evasiveJump')
-  return lift && hasGrant(c, 'technicalLift') ? { AP: cost.AP, STA: cost.STA + 1 } : cost
 }
 
 // ---------------------------------------------------------------------------

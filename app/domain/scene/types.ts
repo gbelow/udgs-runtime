@@ -416,12 +416,17 @@ const SweepDeclaration = {
 // "Catch": a strike with a grapple row at a running target, whose hit is a
 // crash the catcher gets +3 in. abilities.tex "Martial Spirit": a spiritual
 // attack launched with the strike, its price added to the strike's.
-export const StrikeDeclaration = {
-  ...AttackMade,
-  ...SweepDeclaration,
+// "Tackle": a grab and a knockdown in the same strike. Each is a modifier
+// (rules/modifiers.ts).
+export const StrikeModifiersSchema = z.object({
   catch: z.boolean().default(false),
   martialSpirit: z.boolean().default(false),
   tackle: z.boolean().default(false),
+})
+export const StrikeDeclaration = {
+  ...AttackMade,
+  ...SweepDeclaration,
+  modifiers: StrikeModifiersSchema.prefault({}),
 }
 
 // A shot as declared before the die, whatever declares it: what it is made
@@ -741,7 +746,7 @@ export const SpellTestActionSchema = z.object({
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
 // An evade of a trample opens a step of the evader's (rules/sidestep.ts). A
 // `precise` one is made for 1 AP at -3 (abilities.tex "Precise Evasion").
-export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade'), precise: z.boolean().default(false) }).strip()
+export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade'), modifiers: z.object({ precise: z.boolean().default(false) }).prefault({}) }).strip()
 // combat.tex "Crash": the target of a trample standing firm — "The target
 // can spend 2AP+1STA to get +3 in this comparison"
 export const BraceActionSchema = z.object({ ...ActionBase, kind: z.literal('brace') }).strip()
@@ -749,7 +754,7 @@ export const BraceActionSchema = z.object({ ...ActionBase, kind: z.literal('brac
 // away from the attack"); null on a fight without a board. One made from
 // the ground as a `lift` stands its jumper up (abilities.tex "Technical
 // Lift").
-export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null), lift: z.boolean().default(false) }).strip()
+export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null), modifiers: z.object({ lift: z.boolean().default(false) }).prefault({}) }).strip()
 // A block or an intercept names where its defender steps before they make
 // it, if they do (abilities.tex "Defender", "Defensive Advance"); an
 // intercept made as a Defensive Advance is `advance`.
@@ -758,7 +763,7 @@ const GuardStep = { to: PlacementSchema.nullable().default(null) }
 // by id; '' for one made on the spot. Its reposition is walked before the die.
 const PreparedGuard = { preparedId: str.default('') }
 export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef, ...GuardStep, ...PreparedGuard }).strip()
-export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef, ...GuardStep, ...PreparedGuard, advance: z.boolean().default(false) }).strip()
+export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef, ...GuardStep, ...PreparedGuard, modifiers: z.object({ advance: z.boolean().default(false) }).prefault({}) }).strip()
 
 // combat.tex "Reflex": the two reactions to a shot. Evasion is the reflex
 // test; where it lets the evader move, the move is opened after the shot. A
@@ -847,7 +852,7 @@ export const MoveActionSchema = z.object({
   leap: z.boolean().default(false),
   // abilities.tex "Lunge": a jump made for 1 STA that opens a strike from
   // where it lands (rules/lunge.ts)
-  lunge: z.boolean().default(false),
+  modifiers: z.object({ lunge: z.boolean().default(false) }).prefault({}),
   // combat.tex "Climbing": how many metres of the face the climb goes, null
   // for all that is left of it
   metres: num.nullable().default(null),
@@ -907,7 +912,7 @@ export const OpportunityAttackActionSchema = z.object({
   // strike
   mode: z.enum(['strike', 'grapple']).default('strike'),
   maneuver: GrappleManeuverSchema.default('immobilize'),
-  gentle: z.boolean().default(false),
+  modifiers: StrikeModifiersSchema.extend({ gentle: z.boolean().default(false) }).prefault({}),
 }).strip()
 
 // The holder of a sustained spray aiming it anew as a reaction, on the same
@@ -1019,8 +1024,8 @@ export const FleeFollowUpActionSchema = z.object({ ...ActionBase, kind: z.litera
 // "throw oneself along" for a knockdown, "stay immobilized yourself" for an
 // immobilization — and `item` what a disarm goes for. `unresisted` is the escape "Being stunned allows for", "without the
 // possibility of active resistance". `opportunity` is one made as an
-// opportunity attack. `gentle` is made under abilities.tex "Gentle Art",
-// as is a resist with it (rules/grapple.ts `isGentle`).
+// opportunity attack. One `gentle` is made under abilities.tex "Gentle Art",
+// as is a resist with it (rules/modifiers.ts).
 export const GrappleActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('grapple'),
@@ -1029,7 +1034,7 @@ export const GrappleActionSchema = z.object({
   item: str.default(''),
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
-  gentle: z.boolean().default(false),
+  modifiers: z.object({ gentle: z.boolean().default(false) }).prefault({}),
   // abilities.tex "Grappling Combat": the special effect an attack's 5 HOP
   // bought, and the part it breaks
   effect: z.enum(GRAPPLING_EFFECTS).nullable().default(null),
@@ -1267,7 +1272,7 @@ export const SwimTestActionSchema = z.object({
 // rules for multiple characters as grapple"), boosting it or not; to "tag
 // along, spending movement AP to stay in the grapple, but not contributing
 // to either side"; or — held by nobody — to "let go and leave the grapple".
-export const ResistActionSchema = z.object({ ...ActionBase, kind: z.literal('resist'), gentle: z.boolean().default(false) }).strip()
+export const ResistActionSchema = z.object({ ...ActionBase, kind: z.literal('resist'), modifiers: z.object({ gentle: z.boolean().default(false) }).prefault({}) }).strip()
 export const AssistActionSchema = z.object({ ...ActionBase, kind: z.literal('assist'), boost: z.boolean().default(false) }).strip()
 export const CarryActionSchema = z.object({ ...ActionBase, kind: z.literal('carry') }).strip()
 export const LetGoActionSchema = z.object({ ...ActionBase, kind: z.literal('letGo') }).strip()

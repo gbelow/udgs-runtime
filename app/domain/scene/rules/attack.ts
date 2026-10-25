@@ -34,6 +34,7 @@ import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRow
 import { getAction, getReactionsTo, getRootOf } from './log'
 import { getSensoryTerms, getSensoryTermsHere } from './detection'
 import { isDefense } from './actionCatalog'
+import { getModifierTerms } from './modifiers'
 import { isGuardPlaced } from './protect'
 import { isDefensePlaced, isPreparedCancelled } from './prepared'
 import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
@@ -116,7 +117,7 @@ export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id
 // "Grapple Maneuvers": "can be used like opportunity attacks").
 export function getOpportunityAction(state: SceneState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
-  if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver, gentle: reaction.gentle })
+  if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver, modifiers: { gentle: reaction.modifiers.gentle } })
   return getOpportunityStrike(reaction, id)
 }
 
@@ -322,7 +323,7 @@ function shotDefenseTerms(state: SceneState, reaction: Action): Term[] {
 // "Defensive Advance": an intercept made with one, "adding shield cover to
 // the defense".
 function coverTerms(reactor: Character, reaction: Action): Term[] {
-  if (reaction.kind !== 'block' && reaction.kind !== 'guard' && reaction.kind !== 'blockExplosion' && !(reaction.kind === 'intercept' && reaction.advance)) return []
+  if (reaction.kind !== 'block' && reaction.kind !== 'guard' && reaction.kind !== 'blockExplosion' && !(reaction.kind === 'intercept' && reaction.modifiers.advance)) return []
   const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
   return row?.weapon.shield ? [{ label: 'cover', value: row.weapon.shield.cover }] : []
 }
@@ -354,15 +355,13 @@ function getStrikeDefense(state: SceneState, root: StrikeAction): Action | null 
 // combat.tex "Defend": what one reaction to a strike puts up — the
 // reactor's Defend, with a shield's cover, an evasive jump's "+AGI/2 on the
 // skill test"; "High Ground": "+2 bonus to their melee defense";
-// abilities.tex "Precise Evasion": "takes -3 to defend"; "Technical Lift":
-// "takes -3 to defend while doing so".
+// and what the reaction is declared with (rules/modifiers.ts).
 function strikeDefenseTerms(state: SceneState, root: StrikeAction, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
   const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction), ...reactionSensoryTerms(state, reaction, 'defend')]
   if (reaction.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(reactor) / 2) })
-  if (reaction.kind === 'evasiveJump' && reaction.lift) terms.push({ label: 'technical lift', value: -3 })
-  if (reaction.kind === 'evade' && reaction.precise) terms.push({ label: 'precise evasion', value: -3 })
+  terms.push(...getModifierTerms(state, reaction))
   if (isHighGround(state, root.actorId, reactor.id)) terms.push({ label: 'high ground', value: 2 })
   return terms
 }

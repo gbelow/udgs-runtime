@@ -3,10 +3,10 @@ import type { PrepareView } from '../domain/scene/projections/prepare'
 import type { ActionDraft } from '../domain/scene/types'
 import { Minus, Plus } from 'lucide-react'
 import { Button, IconButton, SectionLabel, Segment, Segmented } from './ui'
-import { StrikeModifiers } from './StrikeModifiers'
+import { Modifiers } from './Modifiers'
 
 
-const NO_MAIN = { weaponKey: '', attack: '', variant: '', ammoId: '', catch: false, martialSpirit: false, key: '', quicken: false, extend: 0, movement: 'basic' } as const
+const NO_MAIN = { weaponKey: '', attack: '', variant: '', ammoId: '', modifiers: { catch: false, martialSpirit: false, tackle: false }, key: '', quicken: false, extend: 0, movement: 'basic' } as const
 
 // combat.tex "Preparing a reaction": what is prepared is declared first, then
 // what it waits for is picked from what that action can wait for.
@@ -38,7 +38,7 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
             </Button>)}
         </div>
       ) : null}
-      <StrikeModifiers modifiers={view.modifiers} onPress={onAmend} />
+      <Modifiers modifiers={view.modifiers} onPress={onAmend} />
       {view.defenses.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>defending with</SectionLabel>
