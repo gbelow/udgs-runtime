@@ -1,5 +1,5 @@
 import type { TerrainBrush } from '../../types'
-import { BoardMapSchema, type BoardMap, type Coord, type LightLevel } from '../types'
+import { BoardMapSchema, type BoardMap, type Coord, type GroundKey, type LightLevel } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
 import { paintTerrain, resizeBoard } from './board'
 
@@ -24,6 +24,10 @@ export function renameBoardMap(name: string): BoardMapUpdater {
 
 export function paintBoardMap(cell: Coord, brush: TerrainBrush): BoardMapUpdater {
   return (map) => viaScene(map, paintTerrain(cell, brush))
+}
+
+export function groundBoardMap(ground: GroundKey | null): BoardMapUpdater {
+  return (map) => ({ ...map, ground })
 }
 
 export function lightBoardMap(light: LightLevel): BoardMapUpdater {

@@ -191,14 +191,17 @@ export const HEX_POINTS = Array.from({ length: 6 }, (_, i) => {
 }).join(' ')
 
 // The SVG viewBox that frames hexes centred on the points, with a margin.
-export function frameHexes(points: readonly { x: number; y: number }[]): string {
+export function hexBounds(points: readonly { x: number; y: number }[]): { x: number; y: number; width: number; height: number } {
   const xs = points.map((p) => p.x)
   const ys = points.map((p) => p.y)
-  const minX = Math.min(...xs) - 1
-  const minY = Math.min(...ys) - 1
-  const width = Math.max(...xs) + 1 - minX
-  const height = Math.max(...ys) + 1 - minY
-  return `${minX.toFixed(3)} ${minY.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`
+  const x = Math.min(...xs) - 1
+  const y = Math.min(...ys) - 1
+  return { x, y, width: Math.max(...xs) + 1 - x, height: Math.max(...ys) + 1 - y }
+}
+
+export function frameHexes(points: readonly { x: number; y: number }[]): string {
+  const { x, y, width, height } = hexBounds(points)
+  return `${x.toFixed(3)} ${y.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`
 }
 
 export function centroid(cells: readonly Coord[]): { x: number; y: number } {

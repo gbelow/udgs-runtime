@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput } from '../ui'
-import { BRUSH_LABEL, Cell, ZoomButtons, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, Cell, Ground, GroundRow, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardMapEditor } from '../../hooks/useBoardMaps'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../../domain/lists'
@@ -12,7 +12,7 @@ import type { TerrainBrush } from '../../domain/types'
 // profile's own. One is opened or begun anew, painted with the brushes the
 // scene's board has, and kept under its name.
 export function BoardMapsEditor() {
-  const { rows, view, map, openId, devServer, open, create, remove, save, setName, paint, light, resize } = useBoardMapEditor()
+  const { rows, view, map, openId, devServer, open, create, remove, save, setName, paint, light, ground, resize } = useBoardMapEditor()
   const [brush, setBrush] = useState<TerrainBrush>('wall')
   const zoomPan = useZoomPan(view.viewBox)
   const opened = rows.find((r) => r.id === openId)
@@ -52,9 +52,11 @@ export function BoardMapsEditor() {
           <span className='grow' />
           <ZoomButtons zoomPan={zoomPan} />
         </div>
+        <GroundRow ground={view.ground?.key ?? null} set={ground} />
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label='battle map'
           onClick={(e) => { const cell = cellAt(e); if (cell) paint(cell, brush) }}>
-          {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
+          <Ground ground={view.ground} />
+          {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} bare={view.ground !== null} />)}
         </svg>
       </div>
     </div>

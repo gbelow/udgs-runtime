@@ -1,8 +1,8 @@
-import type { Bind, SceneState, SeenScene, Coord, Degree, LightLevel, Placement } from '../types'
+import type { Bind, SceneState, SeenScene, Coord, Degree, GroundKey, LightLevel, Placement } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { HEX_POINTS, angleBetween, coordKey, disk, frameHexes, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { HEX_POINTS, angleBetween, coordKey, disk, frameHexes, hexBounds, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -159,6 +159,9 @@ export type BoardView = {
   hex: string
   // combat.tex "Darkness and light": the light where no source reaches
   light: LightLevel
+  // the picture laid under the cells over the frame, in the units the
+  // tokens are placed in; null on a bare board
+  ground: { key: GroundKey; x: number; y: number; width: number; height: number } | null
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
@@ -175,7 +178,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', ground: null, cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -333,6 +336,7 @@ function buildBoardView(state: SeenScene): BoardView {
     present: true,
     radius: board.radius,
     light: board.light,
+    ground: board.ground ? { key: board.ground, ...hexBounds(cells) } : null,
     viewBox: frameHexes(cells),
     hex: HEX_POINTS,
     cells,

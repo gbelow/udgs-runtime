@@ -17,6 +17,7 @@ const BoardIngestSchema = z.object({
   terrain: z.record(z.string(), z.unknown()).optional(),
   origin: z.unknown().optional(),
   radius: z.unknown().optional(),
+  ground: z.unknown().optional(),
 }).strip()
 
 function readEntries<T>(record: Record<string, unknown> | undefined, schema: z.ZodType<T>, keepKey: (key: string) => boolean): Record<string, T> {
@@ -52,10 +53,12 @@ export function makeBoard(raw: unknown): Board {
   if (!parsed.success) return BoardSchema.parse({})
   const origin = CoordSchema.safeParse(parsed.data.origin)
   const radius = BoardSchema.shape.radius.safeParse(parsed.data.radius)
+  const ground = BoardSchema.shape.ground.safeParse(parsed.data.ground)
   return BoardSchema.parse({
     placements: readEntries(parsed.data.placements, PlacementSchema, () => true),
     terrain: readEntries(parsed.data.terrain, TerrainCellSchema, (key) => parseCoordKey(key) !== null),
     ...(origin.success ? { origin: origin.data } : {}),
     ...(radius.success ? { radius: radius.data } : {}),
+    ...(ground.success ? { ground: ground.data } : {}),
   })
 }

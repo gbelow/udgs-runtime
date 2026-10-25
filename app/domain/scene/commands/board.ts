@@ -1,6 +1,6 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
+import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type Coord, type GroundKey, type LightLevel, type MoveAction, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
@@ -56,6 +56,12 @@ export function resizeBoard(radius: number): Updater {
 // source reaches. Refused while an action is open, as painting is.
 export function setLight(light: LightLevel): Updater {
   return (state) => (!state.board || getOpenAction(state) ? state : { ...state, board: { ...state.board, light } })
+}
+
+// Lays the board over a picture, or bare. Refused while an action is open, as
+// painting is.
+export function setGround(ground: GroundKey | null): Updater {
+  return (state) => (!state.board || getOpenAction(state) ? state : { ...state, board: { ...state.board, ground } })
 }
 
 // Plays the fight on a kept board: its ground and light, everyone off it and

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, GROUND_KEYS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { DIE_SOURCES, ROLL_MODES } from '../play/dice'
@@ -205,6 +205,9 @@ export type TerrainCell = z.infer<typeof TerrainCellSchema>
 export const LightLevelSchema = z.enum(LIGHT_LEVELS)
 export type LightLevel = z.infer<typeof LightLevelSchema>
 
+export const GroundKeySchema = z.enum(GROUND_KEYS)
+export type GroundKey = z.infer<typeof GroundKeySchema>
+
 // The spatial facts of a fight, in game units: what the domain
 // needs of the grid to judge distance, reach, cover and where a move may end. `placements` is keyed by character id, `terrain` by the cell
 // key `geometry.ts` makes of a Coord, and a cell absent from `terrain` is
@@ -215,6 +218,8 @@ export const BoardSchema = z.object({
   // combat.tex "Darkness and light": the light everywhere no light source
   // reaches and no darkness is painted
   light: LightLevelSchema.default('bright'),
+  // the picture the board is drawn over; the rules do not read it
+  ground: GroundKeySchema.nullable().default(null),
   // where and how far the board is drawn; the rules do not care, the
   // simulation tool does.
   origin: CoordSchema.default({ q: 0, r: 0 }),
