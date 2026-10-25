@@ -15,7 +15,7 @@ import { getFootprint, getPlacedFootprint, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
-import { canRest, getCrowdedBy, isCrossable, isInLiquid, isWet, readGround, type Ground } from './board/ground'
+import { canRest, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Ground } from './board/ground'
 import { getMoveDestination, getMoveOrigin, getMoveSweep, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
 import { getDegree } from '../../play/test'
@@ -172,7 +172,7 @@ export function getMovementOptions(state: SceneState, c: CampaignCharacter, acti
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
   const postures = POSTURES.map((kind): MovementOption => {
-    const reason = immobile ? 'immobile' : hanging ? 'hanging on a face' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : canStand(c) ? null : 'no legs to stand on') : prone ? 'already prone' : null
+    const reason = immobile ? 'immobile' : hanging ? 'hanging on a face' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : !canStand(c) ? 'no legs to stand on' : isStoodOver(state, c) ? 'someone stands over them' : null) : prone ? 'already prone' : null
     return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
   })
   return [...moves, ...postures]
@@ -255,7 +255,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
     if (!canPass(action.movement, footprint, ground, last, ceiling, wet)) return false
     if (!canStepOver(action.movement, ground.elevation(cursor), ground.elevation(cell))) return false
     if (!isTetherKept(state, c.id, footprint)) return false
-    if (last && !canRest(state, c, footprint, ground)) return false
+    if (last && !canRest(state, c, footprint, ground, endsLying(c, action.movement))) return false
     cursor = cell
     wet = isWet(footprint, ground)
   }
@@ -465,9 +465,9 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
 // where it set out. A mover stopped partway may have been let through someone
 // (an evaded crash, a prone body, anyone they pass while an attack is fought)
 // whose space they would stand in, and one who walked the whole way may find
-// their end taken by someone a reaction moved there: no two characters within
-// a size of each other rest on one space (creating.tex "Size and Space
-// Occupation"), so they stand on the last space before it.
+// their end taken by someone a reaction moved there: two characters rest on
+// one space only when one of them is prone (`getCrowdedBy`), so they stand on
+// the last space before it.
 export function getFreeStep(state: SceneState, action: MoveAction, steps: number): number {
   let at = steps
   while (at > 0 && getStandingIn(state, action, action.path[at - 1]) !== null) at--
@@ -480,7 +480,14 @@ export function getStandingIn(state: SceneState, action: MoveAction, cell: Coord
   const mover = state.characters[action.actorId]
   const end = getMoveDestination(state, action, [cell])
   const ground = readGround(state, action.actorId)
-  return mover && end && ground ? getCrowdedBy(state, mover, getFootprint(mover, end), ground) : null
+  return mover && end && ground ? getCrowdedBy(state, mover, getFootprint(mover, end), ground, endsLying(mover, action.movement)) : null
+}
+
+// combat.tex "Movement": crawling "is the only usable movement speed while
+// prone", so a prone character's crawl comes to rest lying down. A climb may
+// end standing.
+function endsLying(c: Character, kind: MoveKind): boolean {
+  return kind === 'crawl' && hasAffliction(c, 'prone')
 }
 
 // combat.tex "Climbing": a climb goes up the face it is on, as far as the metres
@@ -559,7 +566,7 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
     for (const orientation of ROTATIONS) {
       const to = { ...placeAt(state.board, from, cell), orientation }
       const footprint = getFootprint(defender, to)
-      if (!footprint.some(ground.blocked) && clears(footprint, ground, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, ground) && setDistance(footprint, attacker) > before) placements.push(to)
+      if (!footprint.some(ground.blocked) && clears(footprint, ground, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, ground, false) && setDistance(footprint, attacker) > before) placements.push(to)
     }
   }
   return placements
@@ -637,7 +644,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   return walked
     .filter(({ cell, path }) => {
       const footprint = getFootprint(c, { ...from, cell })
-      return !onPath.has(coordKey(cell)) && isCrossable(footprint, ground, kind, wetAt(stepFrom(path))) && canRest(state, c, footprint, ground) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
+      return !onPath.has(coordKey(cell)) && isCrossable(footprint, ground, kind, wetAt(stepFrom(path))) && canRest(state, c, footprint, ground, endsLying(c, kind)) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
     })
     .map(({ cell, path }) => ({ cell, path: [...drawn, ...path] }))
     .map(({ cell, path }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres }, path.length), path }))

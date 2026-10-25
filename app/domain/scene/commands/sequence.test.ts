@@ -1311,15 +1311,13 @@ describe('a move cut short while passing through someone', () => {
     expect(state.board?.placements.m?.cell).not.toEqual(state.board?.placements.x?.cell)
   })
 
-  // A size 5 mover declared to end over a size 3 evader, which the path
-  // allowed, was pulled back to its first step at the resolve, logged "its
-  // end was taken": the resolve let nobody share a space whatever the sizes.
-  it('ends a mover two sizes larger over the one who evaded it, as declared', () => {
-    const base = makeCampaignCharacter({ name: 'o', size: 5 })
-    let s = onBoard({ o: [0, 0], x: [3, 0] }, { ...base, id: 'o', resources: { ...base.resources, AP: 12, STA: 6 } }, fighter('x'))
+  // A mover declared to end over someone the path let it share a space with
+  // was pulled back to its first step at the resolve, logged "its end was
+  // taken": the resolve let nobody share a space, whatever the path allowed.
+  it('ends a mover over a prone character, as declared', () => {
+    let s = onBoard({ o: [0, 0], x: [3, 0] }, fighter('o'), { ...fighter('x'), afflictions: ['prone' as const] })
     s = declareAction('o', { kind: 'move' }, newId)(s)
     s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [1, 2, 3].map((q) => ({ q, r: 0 })) })(s))
-    s = declareReaction('x', getAvailableActions(s, 'x').find((o) => o.draft.kind === 'evade' && o.available)!.draft, newId)(s)
     const { state } = playOut(s, 5)
     expect(state.board?.placements.o?.cell).toEqual({ q: 3, r: 0 })
   })

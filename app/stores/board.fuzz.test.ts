@@ -4,6 +4,7 @@ import { rollD10, seededRng } from '../domain/play/dice'
 import { SceneStateSchema, type ActionDraft, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { getFootprint } from '../domain/scene/rules/board/board'
+import { isProne } from '../domain/scene/rules/board/ground'
 import { defRows } from '../domain/scene/rules/attack'
 import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
@@ -368,6 +369,7 @@ function assertSound(h: Harness, storage: boolean) {
   const held = new Map<string, string>()
   for (const [id, placement] of Object.entries(placements)) {
     expect(s.characters[id], `${id} is placed but not in the fight`).toBeDefined()
+    if (isProne(s, id)) continue
     for (const cell of getFootprint(s.characters[id], placement)) {
       const key = coordKey(cell)
       expect(held.get(key), `${id} and ${held.get(key)} both stand on ${key}`).toBeUndefined()

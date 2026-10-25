@@ -8,7 +8,7 @@ import type { RollMode } from '../../../play/dice'
 import { coordKey, sameCell } from './geometry'
 import { getDegree } from '../../../play/test'
 import { isCampaignCharacter } from '../../../utils'
-import { readGround } from './ground'
+import { getHangingLanding, readGround } from './ground'
 import { getMoveOrigin } from './waypoint'
 import { getMoveHeld } from '../heldRoll'
 
@@ -213,9 +213,9 @@ function getClimbFall(state: SceneState, action: MoveAction, redoFell: boolean):
 export function getHangingFall(state: SceneState, id: string): MoveFall | null {
   const placement = state.board?.placements[id]
   const ground = readGround(state, id)
-  if (!placement?.climb || !ground) return null
-  const [here, there] = [ground.elevation(placement.cell), ground.elevation(placement.climb.to)]
-  return { height: Math.max(0, placement.elevation - Math.min(here, there)), to: there > here ? placement.cell : placement.climb.to }
+  const to = placement && ground ? getHangingLanding(placement, ground.elevation) : null
+  if (!placement || !ground || !to) return null
+  return { height: Math.max(0, placement.elevation - ground.elevation(to)), to }
 }
 
 // combat.tex "Fall skill test": a jump that comes down on lower ground lands

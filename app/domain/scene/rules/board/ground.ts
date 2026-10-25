@@ -1,20 +1,20 @@
 import type { Character } from '../../../types'
 import type { SceneState, Coord, MoveAction, Placement } from '../../types'
-import { getSize } from '../../../character/rules/size'
 import { hasAffliction } from '../../../character/rules/afflictions'
 import { coordKey } from './geometry'
 import { getFootprint, getOccupancy } from './board'
 
-// creating.tex "Size and Space Occupation": "Two creatures of size 3 can
-// occupy the same space, but cannot end a turn like that. A creature can
-// occupy the same space as another of two sizes higher than itself." A
-// footprint may be walked through anyone's cells but may only come to rest
-// on cells free of everyone within a size of it.
+// The table's ruling on creating.tex "Size and Space Occupation": a footprint
+// may be walked through anyone's cells, but two characters rest on one cell
+// only when one of them is prone, whatever their sizes. The foot of a face
+// someone hangs on is kept free for their fall.
 export type Ground = {
   blocked: (cell: Coord) => boolean
   liquid: (cell: Coord) => boolean
   elevation: (cell: Coord) => number
   sharedBy: (cell: Coord) => string[]
+  // whoever hangs on a face over the cell, whose fall would land on it
+  heldFor: (cell: Coord) => string[]
 }
 
 // `landing` holds where others are bound to come to rest as well as where they
@@ -24,12 +24,27 @@ export function readGround(state: SceneState, mover: string, landing: Record<str
   if (!board) return null
   const occupancy = getOccupancy(board, state.characters)
   const bound = getOccupancy({ ...board, placements: landing }, state.characters)
+  const elevation = (cell: Coord) => board.terrain[coordKey(cell)]?.elevation ?? 0
+  const feet: Record<string, Placement> = {}
+  for (const [id, placement] of Object.entries(board.placements)) {
+    const foot = getHangingLanding(placement, elevation)
+    if (foot) feet[id] = { ...placement, cell: foot }
+  }
+  const held = getOccupancy({ ...board, placements: feet }, state.characters)
   return {
     blocked: (cell) => !!board.terrain[coordKey(cell)]?.blocking,
     liquid: (cell) => !!board.terrain[coordKey(cell)]?.liquid,
-    elevation: (cell) => board.terrain[coordKey(cell)]?.elevation ?? 0,
+    elevation,
     sharedBy: (cell) => [...new Set([...(occupancy[coordKey(cell)] ?? []), ...(bound[coordKey(cell)] ?? [])])].filter((id) => id !== mover),
+    heldFor: (cell) => (held[coordKey(cell)] ?? []).filter((id) => id !== mover),
   }
+}
+
+// combat.tex "Balance": the cell a climber hanging on a face falls into, the
+// foot of the face; null for one not hanging.
+export function getHangingLanding(placement: Placement, elevation: (cell: Coord) => number): Coord | null {
+  if (!placement.climb) return null
+  return elevation(placement.climb.to) > elevation(placement.cell) ? placement.cell : placement.climb.to
 }
 
 // Off blocking cells. A swim is in the water except for its step out onto dry
@@ -48,33 +63,39 @@ export function isWet(footprint: Coord[], ground: Ground): boolean {
   return footprint.some(ground.liquid)
 }
 
-export function canRest(state: SceneState, c: Character, footprint: Coord[], ground: Ground): boolean {
-  return getCrowdedBy(state, c, footprint, ground) === null
+// `lying`: the character comes to rest there prone.
+export function canRest(state: SceneState, c: Character, footprint: Coord[], ground: Ground, lying: boolean): boolean {
+  return getCrowdedBy(state, c, footprint, ground, lying) === null
 }
 
-// Whoever in the footprint is within a size of the character, so that they
-// may not both rest there (creating.tex "Size and Space Occupation"); null
-// for nobody.
-export function getCrowdedBy(state: SceneState, c: Character, footprint: Coord[], ground: Ground): string | null {
+// Whoever keeps the character from resting on the footprint: one hanging over
+// it, or one standing in it while the character does not lie there either;
+// null for nobody.
+export function getCrowdedBy(state: SceneState, c: Character, footprint: Coord[], ground: Ground, lying: boolean): string | null {
   for (const cell of footprint) {
-    const crowding = ground.sharedBy(cell).find((id) => {
-      const other = state.characters[id]
-      return other === undefined || Math.abs(getSize(other) - getSize(c)) < 2
-    })
+    const crowding = ground.heldFor(cell)[0] ?? ground.sharedBy(cell).find((id) => !lying && !isProne(state, id))
     if (crowding !== undefined) return crowding
   }
   return null
 }
 
-// Whether a footprint may be put down here outside of any move: off
-// blocking cells and free of everyone within a size. What a placement by
+// Whether a footprint may be put down here outside of any move, the character
+// as they are: off blocking cells and free to rest on. What a placement by
 // hand has to respect.
 export function canStandAt(state: SceneState, id: string, placement: Placement, landing: Record<string, Placement> = {}): boolean {
   const c = state.characters[id]
   const ground = readGround(state, id, landing)
   if (!c || !ground) return false
   const footprint = getFootprint(c, placement)
-  return !footprint.some(ground.blocked) && canRest(state, c, footprint, ground)
+  return !footprint.some(ground.blocked) && canRest(state, c, footprint, ground, isProne(state, id))
+}
+
+// Someone stands in the space the character lies in, so they may not stand up
+// there: they crawl out first, or bring the other down.
+export function isStoodOver(state: SceneState, c: Character): boolean {
+  const placement = state.board?.placements[c.id]
+  const ground = readGround(state, c.id)
+  return !!placement && !!ground && getFootprint(c, placement).some((cell) => ground.sharedBy(cell).some((id) => !isProne(state, id)))
 }
 
 export function isInLiquid(state: SceneState, c: Character): boolean {
