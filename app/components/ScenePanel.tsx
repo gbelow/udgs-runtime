@@ -5,7 +5,7 @@ import { BoardPanel } from './BoardPanel';
 import { ChasePanel, FollowPanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
 import { Settings } from 'lucide-react'
-import { Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { ActionKey, Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
 import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useFollowControls, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
@@ -286,28 +286,28 @@ function TurnControl(){
         {
           inTurn ?
           <Tooltip text={end ?? 'end the turn; movement and combat surge AP left is lost'}>
-            <Button weight='solid' tone='accent' aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</Button>
+            <ActionKey look='go' aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</ActionKey>
           </Tooltip> :
           <Tooltip text={start ?? 'start this turn for the active character'}>
-            <Button weight='solid' tone='accent' aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</Button>
+            <ActionKey look='go' aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</ActionKey>
           </Tooltip>
         }
         {
           holder && !inTurn ?
           <Tooltip text={contesting ? 'stop contesting the turn' : contest ?? `contest ${holder}'s turn`}>
-            <Button aria-label='contestTurn' aria-pressed={contesting} active={contesting} disabled={!contesting && contest !== null} onClick={toggleContest}>contest</Button>
+            <ActionKey look={contesting ? 'picked' : 'plain'} aria-label='contestTurn' aria-pressed={contesting} disabled={!contesting && contest !== null} onClick={toggleContest}>contest</ActionKey>
           </Tooltip> : null
         }
         {
           contenders ?
           <Tooltip text={roll ?? 'everyone contesting and the holder roll cunning; the highest takes the turn'}>
-            <Button aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</Button>
+            <ActionKey aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</ActionKey>
           </Tooltip> : null
         }
         <Tooltip text={agreed ? 'agreed to end the round' : 'agree to end the round'}>
-          <Button aria-label='agreeToEnd' aria-pressed={agreed} selected={agreed} onClick={toggleAgreeToEnd}>
-            {agreed ? <span className='mr-1'>✓</span> : null}end round ok
-          </Button>
+          <ActionKey look={agreed ? 'picked' : 'plain'} aria-label='agreeToEnd' aria-pressed={agreed} onClick={toggleAgreeToEnd}>
+            {agreed ? <span>✓</span> : null}end round ok
+          </ActionKey>
         </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
@@ -355,8 +355,8 @@ function FollowControl(){
       <SectionLabel>follow</SectionLabel>
       {options.map((o) => (
         <Tooltip key={o.id} text={o.bar ?? (marked === o.id ? `stop following ${o.name}` : `follow ${o.name} when they move`)}>
-          <Button size='xs' aria-label={`follow ${o.name}`} aria-pressed={marked === o.id} active={marked === o.id}
-            disabled={marked !== o.id && o.bar !== null} onClick={() => follow(marked === o.id ? null : o.id)}>{o.name}</Button>
+          <ActionKey look={marked === o.id ? 'picked' : 'plain'} aria-label={`follow ${o.name}`} aria-pressed={marked === o.id}
+            disabled={marked !== o.id && o.bar !== null} onClick={() => follow(marked === o.id ? null : o.id)}>{o.name}</ActionKey>
         </Tooltip>
       ))}
     </div>
@@ -378,11 +378,11 @@ function SurgeControl(){
           <Tooltip key={option.kind} text={option.used ? `${option.kind} surge used this round` : option.title}>
             {
               option.used ?
-              <Button aria-label={option.kind + ' surge'} aria-pressed selected className='pointer-events-none'>
-                <span className='mr-1'>✓</span>{option.kind} surge
-              </Button> :
-              <Button aria-label={option.kind + ' surge'} disabled={!option.available}
-                onClick={() => actionSurge(option.kind)}>{option.kind} surge</Button>
+              <ActionKey look='picked' aria-label={option.kind + ' surge'} aria-pressed className='pointer-events-none'>
+                <span>✓</span>{option.kind} surge
+              </ActionKey> :
+              <ActionKey aria-label={option.kind + ' surge'} disabled={!option.available}
+                onClick={() => actionSurge(option.kind)}>{option.kind} surge</ActionKey>
             }
           </Tooltip>
         )
@@ -390,7 +390,7 @@ function SurgeControl(){
       {
         binding ?
         <Tooltip text={`give up the ${binding} surge AP left, to do something it does not allow`}>
-          <Button aria-label='endSurge' tone='bad' onClick={endSurge}>end surge</Button>
+          <ActionKey aria-label='endSurge' onClick={endSurge}>end surge</ActionKey>
         </Tooltip> : null
       }
     </div>

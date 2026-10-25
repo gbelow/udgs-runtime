@@ -10,13 +10,11 @@ import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
 import { X } from 'lucide-react'
-import { Button, Closed, IconButton, Panel, SectionLabel, Tooltip } from './ui'
+import { ActionKey, Button, Closed, IconButton, Panel, SectionLabel, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
 import { StrikeModifiers } from './StrikeModifiers'
-
-// A button's look while it is the one picked.
 
 const STEP_LABEL = {
   declare: 'declare',
@@ -260,9 +258,9 @@ export function ActionPanel(){
 
       {declared ? (
         <div className='flex flex-row flex-wrap gap-1'>
-          <Button weight='solid' tone='accent' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</Button>
+          <ActionKey look='go' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</ActionKey>
           {open.spawned && open.flee === null && !open.required ? (
-            <Button aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</Button>
+            <ActionKey aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</ActionKey>
           ) : null}
         </div>
       ) : null}
@@ -278,7 +276,7 @@ export function ActionPanel(){
               <LockedFor key={r.id} id={r.id}>
                 <div className='flex flex-row flex-wrap gap-1 items-center'>
                   <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
-                  <Button size='xs' selected={r.passed} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</Button>
+                  <ActionKey look={r.passed ? 'picked' : 'plain'} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</ActionKey>
                   {r.options.map((o) =>
                     <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
                   {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
@@ -295,10 +293,10 @@ export function ActionPanel(){
           <div className='flex flex-row gap-1'>
             <LockedFor id={open.actorId}>
               {view.die
-                ? <Tooltip text={view.goBar}><Button weight='solid' tone='accent' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button></Tooltip>
-                : <Tooltip text={view.goBar}><Button weight='solid' tone='accent' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button></Tooltip>}
+                ? <Tooltip text={view.goBar}><ActionKey look='go' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</ActionKey></Tooltip>
+                : <Tooltip text={view.goBar}><ActionKey look='go' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</ActionKey></Tooltip>}
             </LockedFor>
-            {view.canAccept ? <LockedFor id={open.targetId}><Button aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</Button></LockedFor> : null}
+            {view.canAccept ? <LockedFor id={open.targetId}><ActionKey aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</ActionKey></LockedFor> : null}
             <Button weight='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
           </div>
         </div>
@@ -338,7 +336,7 @@ export function ActionPanel(){
             <div key={i} className='text-sm'>{d.target}: {d.name || d.kind} {d.test ? <span className='text-muted'>· rolls {d.test}</span> : null}</div>
           ))}
           {view.grazeSave ? (
-            <div><Button size='xs' aria-label='save graze' title='turn the graze into a hit' onClick={grazeSave}>save graze <Cost cost={view.grazeSave} /></Button></div>
+            <div><ActionKey aria-label='save graze' title='turn the graze into a hit' cost={costLabel(view.grazeSave)} onClick={grazeSave}>save graze</ActionKey></div>
           ) : null}
           {open.spell && open.roll?.degree !== 'hit' ? <div className='text-sm text-muted'>the spell fails</div> : null}
           {open.reactions.filter((r) => r.roll).map((r) => (
@@ -366,8 +364,8 @@ export function ActionPanel(){
           {open.grapple.map((n, i) => <div key={i} className='text-sm'>{n.target ? `${n.target}: ` : ''}<span className='text-muted'>{n.text}</span></div>)}
           {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
           <div className='flex flex-row gap-1.5'>
-            {view.restMove ? <Button aria-label='move while resting' onClick={restMove}>move while resting</Button> : null}
-            <Button weight='solid' tone='accent' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</Button>
+            {view.restMove ? <ActionKey aria-label='move while resting' onClick={restMove}>move while resting</ActionKey> : null}
+            <ActionKey look='go' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</ActionKey>
           </div>
         </div>
         </LockedFor>
@@ -529,12 +527,12 @@ function GearPicker({ label, options, selected, onPick }: { label: string, optio
 
 function SpellButton({ option, onCast, onQuicken }: { option: SpellOptionView, onCast: () => void, onQuicken: () => void }){
   return (
-    <span className='inline-flex items-stretch'>
-      <Button size='xs' className={option.quickenable ? 'rounded-r-none' : ''} disabled={!option.castable} title={option.reason ?? undefined} onClick={onCast}>
-        {option.name} <span className='font-mono text-muted'>DL {option.DL ?? '?'}</span> <Cost cost={option.cost} />
-        {option.conditions ? <span className='text-muted'> · if {option.conditions}</span> : null}
-      </Button>
-      {option.quickenable ? <Button size='xs' className='rounded-l-none border-l-0' title={`quicken: DL ${option.quickenedDL ?? ''}, no surge`} onClick={onQuicken}>quicken</Button> : null}
+    <span className='inline-flex items-center gap-1'>
+      <ActionKey disabled={!option.castable} title={option.reason ?? undefined} cost={costLabel(option.cost)} onClick={onCast}>
+        {option.name} <span className='font-mono font-normal opacity-70'>DL {option.DL ?? '?'}</span>
+        {option.conditions ? <span className='font-normal opacity-70'>if {option.conditions}</span> : null}
+      </ActionKey>
+      {option.quickenable ? <ActionKey title={`quicken: DL ${option.quickenedDL ?? ''}, no surge`} onClick={onQuicken}>quicken</ActionKey> : null}
     </span>
   )
 }
@@ -558,21 +556,21 @@ function ImprovementButton({ option, onBuy, onRefund }: { option: ImprovementOpt
 
 function MovementButton({ option, active, onClick }: { option: MovementOption, active: boolean, onClick: () => void }){
   return (
-    <Button size='xs' selected={active}
+    <ActionKey look={active ? 'picked' : 'plain'} cost={costLabel(option.block)}
       disabled={!option.available} title={option.reason ?? `${option.speed} m per block`} onClick={onClick}>
-      {option.kind} <Cost cost={option.block} />
-    </Button>
+      {option.kind}
+    </ActionKey>
   )
 }
 
 function OptionButton({ option, active = false, onClick }: { option: ActionOptionView, active?: boolean, onClick: () => void }){
   return (
     <Closed reason={option.available ? null : option.reason}>
-      <Button size='xs' selected={active}
+      <ActionKey look={active ? 'picked' : 'plain'} cost={costLabel(option.cost)}
         disabled={!option.available} onClick={onClick}>
-        {option.label} <Cost cost={option.cost} />
-        {option.surge ? <span className='ml-1 text-accent'>surge</span> : null}
-      </Button>
+        {option.label}
+        {option.surge ? <span className='text-accent'>surge</span> : null}
+      </ActionKey>
     </Closed>
   )
 }
@@ -749,6 +747,11 @@ function RollLine({ roll, label, className, children }: { roll: ActionRoll | nul
 function Cost({ cost }: { cost: ActionCost | null }){
   if (!cost) return null
   return <span className='font-mono text-muted'>{cost.AP}AP{cost.STA ? ` ${cost.STA}STA` : ''}</span>
+}
+
+// A cost as the chip inside an action key reads it.
+function costLabel(cost: ActionCost | null){
+  return cost ? `${cost.AP} AP${cost.STA ? ` · ${cost.STA} STA` : ''}` : null
 }
 
 const PUSH_LABEL = { careful: 'push or drag', basic: 'circle', run: 'run' } as const

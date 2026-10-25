@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Button, Closed, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
+import { ActionKey, Button, Closed, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
 import { useChase, useChaseCommands, useFollowScene } from '../hooks/useChase'
 import type { ChaseCover, ChaseMove, ChaseTier, CrossingSkill } from '../domain/lists'
 import type { ChasePanel as Panel, ChasePartyRow } from '../domain/scene/projections/chase'
@@ -32,7 +32,7 @@ export function ChaseSetup(){
         <select className={selectClass} aria-label='starting tier' value={startTier} onChange={(e) => setStartTier(e.target.value as ChaseTier)}>
           {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <Closed reason={chase.startBar}><Button size='xs' aria-label='startChase' disabled={chase.startBar !== null} onClick={() => startChase(quarry, startTier)}>start chase</Button></Closed>
+        <Closed reason={chase.startBar}><ActionKey look='go' aria-label='startChase' disabled={chase.startBar !== null} onClick={() => startChase(quarry, startTier)}>start chase</ActionKey></Closed>
         {chase.startBar ? <span>{chase.startBar}</span> : null}
       </div>
     </div>
@@ -56,7 +56,7 @@ export function ChasePanel(){
         {chase.fightFirst ? <span className='text-xs text-bad'>{chase.fightFirst}</span> : null}
         {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
         {chase.roundBar ? <span className='text-xs text-muted'>next round: {chase.roundBar}</span> : null}
-        <Closed reason={chase.resolveBar}><Button size='xs' aria-label='resolveChase' disabled={chase.resolveBar !== null} onClick={resolve}>resolve the round</Button></Closed>
+        <Closed reason={chase.resolveBar}><ActionKey look='go' aria-label='resolveChase' disabled={chase.resolveBar !== null} onClick={resolve}>resolve the round</ActionKey></Closed>
       </div>
       {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
       {chase.order.length && !chase.resolved ? <span className='text-xs text-muted'>declaring order: <span className='text-fg'>{chase.order.join(' → ')}</span></span> : null}
@@ -116,16 +116,16 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
         }
         {p.chasedBy.length ? <span className='text-muted'>chased by <span className='text-fg'>{p.chasedBy.join(', ')}</span></span> : null}
         {p.AP !== null ? <span className='text-muted'>skirmish <span className='font-mono text-fg'>{p.AP}</span> AP</span> : null}
-        <Closed reason={p.fightBar}><Button size='xs' weight='subtle' aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</Button></Closed>
-        {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Closed reason={p.mergeBar}><Button size='xs' weight='subtle' aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</Button></Closed> : null}
-        {p.chases ? <Closed reason={p.giveUpBar}><Button size='xs' weight='subtle' aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</Button></Closed> : null}
+        <Closed reason={p.fightBar}><ActionKey aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</ActionKey></Closed>
+        {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Closed reason={p.mergeBar}><ActionKey aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</ActionKey></Closed> : null}
+        {p.chases ? <Closed reason={p.giveUpBar}><ActionKey aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</ActionKey></Closed> : null}
       </div>
       {
         p.declares ?
         <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
           <span>declares</span>
           {p.moves.map(({ move, bar }) => (
-            <Closed key={move} reason={bar}><Button size='xs' selected={p.declaration?.move === move} aria-label={`${p.name} ${move}`} disabled={bar !== null} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</Button></Closed>
+            <Closed key={move} reason={bar}><ActionKey look={p.declaration?.move === move ? 'picked' : 'plain'} aria-label={`${p.name} ${move}`} disabled={bar !== null} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</ActionKey></Closed>
           ))}
           <Closed reason={p.scoutBar}>
             <label className='flex gap-1 items-center'>
@@ -141,9 +141,9 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
           hide modifier <NumberInput className='w-10' aria-label={`${p.name} hide modifier`} value={hideModifier} onChange={(e) => setHideModifier(Number(e.target.value))} />
           {p.declaration ? <span className='text-fg'>— {MOVE_LABELS[p.declaration.move]}{p.declaration.scout ? `, scouting for ${p.declaration.scout.what || 'a place'}` : ''}</span> : null}
           <Closed reason={p.confirmed ? null : p.confirmBar}>
-            <Button size='xs' selected={p.confirmed} aria-label={`${p.name} confirms`} disabled={p.confirmBar !== null} onClick={() => confirm(p.id)}>
-              {p.confirmed ? <span className='mr-1'>✓</span> : null}{p.confirmed ? 'confirmed' : 'confirm'}
-            </Button>
+            <ActionKey look={p.confirmed ? 'picked' : 'plain'} aria-label={`${p.name} confirms`} disabled={p.confirmBar !== null} onClick={() => confirm(p.id)}>
+              {p.confirmed ? <span>✓</span> : null}{p.confirmed ? 'confirmed' : 'confirm'}
+            </ActionKey>
           </Closed>
         </div>
         : null
@@ -194,17 +194,17 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
             {chase.crossingSkills.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           DL <NumberInput className='w-10' aria-label={`${p.name} crossing DL`} value={crossDL} onChange={(e) => setCrossDL(Number(e.target.value))} />
-          <Closed reason={p.crossBar}><Button size='xs' aria-label={`${p.name} crosses`} disabled={p.crossBar !== null} onClick={() => cross(p.id, skill, crossDL)}>cross</Button></Closed>
+          <Closed reason={p.crossBar}><ActionKey aria-label={`${p.name} crosses`} disabled={p.crossBar !== null} onClick={() => cross(p.id, skill, crossDL)}>cross</ActionKey></Closed>
         </div>
         : null
       }
       <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
         {p.followOptions.map((o) => (
-          <Closed key={o.id} reason={o.bar}><Button size='xs' weight='subtle' aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</Button></Closed>
+          <Closed key={o.id} reason={o.bar}><ActionKey aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</ActionKey></Closed>
         ))}
         {p.joining ? <span>joining the fight of {p.joining} at the end of the round</span> : null}
         {p.joinOptions.map((o) => (
-          <Closed key={o.id} reason={o.bar}><Button size='xs' weight='subtle' aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</Button></Closed>
+          <Closed key={o.id} reason={o.bar}><ActionKey aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</ActionKey></Closed>
         ))}
         {p.putBackOptions.length ? <>
           put back at
@@ -212,7 +212,7 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
             {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           {p.putBackOptions.map((o) => (
-            <Closed key={o.id} reason={o.bar}><Button size='xs' weight='subtle' aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</Button></Closed>
+            <Closed key={o.id} reason={o.bar}><ActionKey aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</ActionKey></Closed>
           ))}
         </> : null}
       </div>

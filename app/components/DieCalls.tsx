@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, SectionLabel } from './ui'
+import { ActionKey, Button, NumberInput, SectionLabel } from './ui'
 import { LockedFor } from './Locks'
 import type { CallRow } from '../domain/play/calls'
 import { useDicePlace } from '../hooks/useProfile'
@@ -63,8 +63,8 @@ export function RollButtons<K extends string>({ options, name, onRoll }: { optio
     <>
       {manual ? <NumberInput className='w-12' aria-label={`die rolled ${name}`} placeholder='die' value={die} onChange={(e) => setDie(e.target.value)} /> : null}
       {options.map((o) => (
-        <Button key={o.key} size='xs' tone='accent' aria-label={`${o.label} ${name}`} disabled={bar !== null} title={bar ?? undefined}
-          onClick={() => { onRoll(o.key, manual && typed !== null ? typed : undefined); setDie('') }}>{o.label}</Button>
+        <ActionKey key={o.key} aria-label={`${o.label} ${name}`} disabled={bar !== null} title={bar ?? undefined}
+          onClick={() => { onRoll(o.key, manual && typed !== null ? typed : undefined); setDie('') }}>{o.label}</ActionKey>
       ))}
     </>
   )

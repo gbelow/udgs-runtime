@@ -75,6 +75,32 @@ export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', acti
   )
 }
 
+const KEY_LOOK = {
+  plain: 'border-line from-raised to-surface text-fg hover:border-muted',
+  picked: 'border-accent from-accent/25 to-accent/10 text-accent',
+  go: 'border-accent from-accent to-accent text-bg font-semibold hover:brightness-110',
+} as const
+
+// A thing a character does in play, drawn as a key that sinks when pressed,
+// set apart from the controls that edit and arrange. `cost` sits inside it in
+// a chip; `go` is the press that moves play on, at most one to a panel. A
+// closed key lies flat and dashed.
+export function ActionKey({ cost, look = 'plain', className = '', children, ...rest }:
+  ButtonHTMLAttributes<HTMLButtonElement> & { cost?: ReactNode, look?: keyof typeof KEY_LOOK }
+){
+  return (
+    <button type='button'
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border bg-linear-to-b px-2.5 py-1 text-xs font-medium cursor-pointer
+        shadow-[0_2px_0_0_rgb(0_0_0/0.45),inset_0_1px_0_0_rgb(255_255_255/0.06)] transition-[transform,box-shadow,border-color] active:translate-y-[2px] active:shadow-none ${FOCUS}
+        disabled:pointer-events-none disabled:bg-none disabled:border-dashed disabled:border-line disabled:shadow-none disabled:text-muted disabled:font-normal
+        ${KEY_LOOK[look]} ${className}`}
+      {...rest}>
+      {children}
+      {cost ? <span className='rounded px-1 py-px font-mono text-[10px] leading-none bg-current/15'>{cost}</span> : null}
+    </button>
+  )
+}
+
 const ICON_SIZE = {
   xs: { box: 'size-5', icon: 14 },
   sm: { box: 'size-6', icon: 16 },

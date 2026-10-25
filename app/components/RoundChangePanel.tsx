@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Card } from './SceneCards'
 import { ChaseSetup } from './ChasePanel'
-import { Button, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
+import { ActionKey, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
 import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../hooks/useCombatState'
 import { GmLocked } from './Locks'
 import { useCombatCommands } from '../hooks/useCombatCommands'
@@ -38,7 +38,7 @@ export function RoundChangePanel(){
           ))}
           <span className='ml-auto'>
             <Tooltip text={view.continueBar}>
-              <Button size='sm' weight='solid' tone='accent' aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</Button>
+              <ActionKey look='go' aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</ActionKey>
             </Tooltip>
           </span>
         </div>
@@ -72,10 +72,10 @@ function RoundLines({ card }: { card: RoundCard }){
           {held.chose ? <span className='text-accent'>{held.chose}</span> : (
             <div className='flex flex-row gap-1'>
               <Tooltip text={held.holdBar}>
-                <Button size='xs' aria-label={`hold on ${card.name}`} disabled={held.holdBar !== null} onClick={() => holdOn(card.id)}>hold on{held.focus ? ' (focus surge)' : ''}</Button>
+                <ActionKey aria-label={`hold on ${card.name}`} disabled={held.holdBar !== null} onClick={() => holdOn(card.id)}>hold on{held.focus ? ' (focus surge)' : ''}</ActionKey>
               </Tooltip>
               <Tooltip text={held.letGoBar}>
-                <Button size='xs' aria-label={`let go ${card.name}`} disabled={held.letGoBar !== null} onClick={() => letGo(card.id)}>let go</Button>
+                <ActionKey aria-label={`let go ${card.name}`} disabled={held.letGoBar !== null} onClick={() => letGo(card.id)}>let go</ActionKey>
               </Tooltip>
             </div>
           )}
