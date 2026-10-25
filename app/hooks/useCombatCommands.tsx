@@ -6,6 +6,8 @@ import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
 import { readActiveCharacter } from "./useActiveCharacterSelector"
 import { useSceneDispatch, useTableDispatch } from "./useSceneDispatch"
+import { useViewerCheck } from "./useControl"
+import { getControlledIds } from "../domain/profiles"
 
 // The turn, the round and the fight's parties, each press sent as a scene
 // command; whom it acts for is the registry's to say. Taking a character out
@@ -16,6 +18,7 @@ export function useCombatCommands() {
   const tab = useAppStore((s) => s.selectedGameTab)
   const sendTable = useTableDispatch()
   const dispatch = useSceneDispatch()
+  const viewer = useViewerCheck()
 
   // the turn buttons act for the character this screen has picked
   const asPicked = (send: (id: string) => void) => () => {
@@ -31,6 +34,10 @@ export function useCombatCommands() {
   const startTurn = asPicked((id) => dispatch({ kind: "startTurn", args: [id] }))
   const toggleContest = asPicked((id) => dispatch({ kind: "toggleContest", args: [id] }))
   const toggleAgreeToEnd = asPicked((id) => dispatch({ kind: "toggleAgreeToEnd", args: [id] }))
+  const agreeAllToEnd = () => {
+    const ids = getControlledIds(Object.keys(useCombatStore.getState().characters), viewer())
+    if (ids.length > 0) dispatch({ kind: "agreeAllToEnd", args: [ids] })
+  }
   const actionSurge = (kind: SurgeKind) => asPicked((id) => dispatch({ kind: "surge", args: [id, kind] }))()
   const follow = (targetId: string | null) => asPicked((id) => dispatch({ kind: "follow", args: [id, targetId] }))()
   const defaultToCoward =asPicked((id) => dispatch({ kind: "defaultToCoward", args: [id] }))
@@ -54,5 +61,5 @@ export function useCombatCommands() {
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
   const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
 }

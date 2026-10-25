@@ -37,6 +37,14 @@ export function toggleAgreeToEnd(id: string): Updater {
   }
 }
 
+// Each of the characters says they agree to end the round.
+export function agreeAllToEnd(ids: string[]): Updater {
+  return (state) => {
+    const agreeing = ids.filter((id) => state.characters[id] && !state.agreedToEnd.includes(id))
+    return agreeing.length === 0 ? state : { ...state, agreedToEnd: [...state.agreedToEnd, ...agreeing] }
+  }
+}
+
 // The contest is rolled: the holder and everyone who asked roll cunning
 // (the die does not explode: play.tex "Exploding die" — only where it says),
 // and the winner takes the turn.

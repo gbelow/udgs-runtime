@@ -25,7 +25,7 @@ import { rollMorale, setTablePressure } from './morale'
 import { continueRound, holdOn, letGo, nextRound } from './nextRound'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
-import { endTurn, rollContest, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
+import { agreeAllToEnd, endTurn, rollContest, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
 import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
   passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
@@ -129,6 +129,7 @@ export const sceneCommands = {
   startTurn: command((_, id: string) => startTurn(id)).by(own),
   toggleContest: command((_, id: string) => toggleContest(id)).by(own),
   toggleAgreeToEnd: command((_, id: string) => toggleAgreeToEnd(id)).by(own),
+  agreeAllToEnd: command((_, ids: string[]) => agreeAllToEnd(ids)).by((_, ids) => ({ anyOf: ids })),
   surge: command((_, id: string, kind: SurgeKind) => surge(id, kind)).by(own),
   follow: command((_, id: string, targetId: string | null) => follow(id, targetId)).by(own),
   endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),

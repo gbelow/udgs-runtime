@@ -182,6 +182,11 @@ export function canControl(owner: string | undefined, profile: string | null, ro
   return hasGmTools(role) || (profile !== null && owner === profile)
 }
 
+// The characters among `ids` the viewer plays.
+export function getControlledIds(ids: readonly string[], v: Viewer): string[] {
+  return ids.filter((id) => canControl(v.ownerOf(id), v.profile, v.role))
+}
+
 // Whether the dice of a character `owner` owns are `profile`'s to throw on
 // their own screen, as `role`: a player's own characters' dice, the GM's
 // every character no player plays. The GM answers a player's die only by

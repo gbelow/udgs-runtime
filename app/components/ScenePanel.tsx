@@ -276,7 +276,7 @@ export function SustainedPanel(){
 // contested before its holder declares anything — by as many as ask, all
 // rolling cunning at once.
 function TurnControl(){
-  const { startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
+  const { startTurn, toggleContest, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn } = useCombatCommands()
   const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed, stealth } = useTurnControls()
 
   return(
@@ -305,6 +305,9 @@ function TurnControl(){
         }
         <Tooltip text={agreed ? 'agreed to end the round' : 'agree to end the round'}>
           <ActionKey look={agreed ? 'picked' : 'plain'} icon={agreed ? Check : undefined} aria-label='agreeToEnd' aria-pressed={agreed} onClick={toggleAgreeToEnd}>end round ok</ActionKey>
+        </Tooltip>
+        <Tooltip text='agree to end the round for every character you play'>
+          <ActionKey aria-label='agreeAllToEnd' onClick={agreeAllToEnd}>all ok</ActionKey>
         </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
