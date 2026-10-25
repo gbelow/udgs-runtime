@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Save, Trash2, X } from 'lucide-react'
 import { Button, IconButton, ListButton, Row, SectionLabel, StatTile, TextInput, Tiles, inputClass, selectClass } from './ui'
 import { MovementPanel } from './MovementPanel'
 import { SensesPanel } from './SensesPanel'
@@ -65,13 +65,13 @@ function RaceHeader() {
           <input type='checkbox' className='accent-accent' checked={view.playable} onChange={(e) => edit({ playable: e.target.checked })} />
           playable
         </label>
-        <Button weight='solid' tone='accent' onClick={save} disabled={!view.name.trim()}>save race</Button>
+        <Button weight='solid' tone='accent' icon={Save} onClick={save} disabled={!view.name.trim()}>save race</Button>
         {races.includes(view.name) ? (confirm ?
           <>
-            <Button weight='solid' tone='bad' onClick={async () => { await remove(view.name); setConfirm(false) }}>confirm delete</Button>
+            <Button weight='solid' tone='bad' icon={Trash2} onClick={async () => { await remove(view.name); setConfirm(false) }}>confirm delete</Button>
             <Button weight='ghost' onClick={() => setConfirm(false)}>cancel</Button>
           </> :
-          <Button tone='bad' onClick={() => setConfirm(true)}>delete race</Button>) : null}
+          <Button tone='bad' icon={Trash2} onClick={() => setConfirm(true)}>delete race</Button>) : null}
       </div>
       <textarea aria-label='race description' placeholder='description' className={`${inputClass} p-1 min-h-12 w-full text-sm bg-surface`}
         value={view.description} onChange={(e) => edit({ description: e.target.value })} />

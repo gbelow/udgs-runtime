@@ -1,5 +1,6 @@
 'use client'
 import { useMemo } from 'react'
+import { Save } from 'lucide-react'
 import { SchemaForm } from './SchemaForm'
 import { OVERRIDES } from './overrides'
 import { describeSchema } from '../../forms/schemaFields'
@@ -62,7 +63,7 @@ function DraftForm({ catalog, editor }: { catalog: CatalogName, editor: Editor }
         <span className='text-xs text-muted'>key</span>
         <span className='text-sm font-mono'>{draft.key || '—'}</span>
         <span className='grow' />
-        <Button weight='solid' tone='accent' onClick={save}>save</Button>
+        <Button weight='solid' tone='accent' icon={Save} onClick={save}>save</Button>
         {!draft.fresh && <ConfirmDelete remove={remove} />}
       </div>
       {catalog === 'events'

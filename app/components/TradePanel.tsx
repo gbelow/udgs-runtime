@@ -1,6 +1,6 @@
 'use client'
 import { useTradeLens } from '../hooks/useTradeLens'
-import { X } from 'lucide-react'
+import { ArrowLeftRight, X } from 'lucide-react'
 import { Button, IconButton, Panel } from './ui'
 
 // Trading with a merchant: put stacks down from the container panel, pick what
@@ -19,7 +19,7 @@ export function TradePanel(){
   return (
     <Panel title='Trade' meta={<>put down {view.offeredTotal} · cart {view.cost} · change {view.change}</>} pending
       actions={<>
-        <Button size='xs' weight='solid' tone='good' disabled={!view.able} title={view.able ? 'make the trade' : view.why} onClick={confirm}>trade</Button>
+        <Button size='xs' weight='solid' tone='good' icon={ArrowLeftRight} disabled={!view.able} title={view.able ? 'make the trade' : view.why} onClick={confirm}>trade</Button>
         <Button size='xs' weight='ghost' onClick={cancel}>cancel</Button>
       </>}>
       <div className='flex flex-col gap-1 text-xs'>

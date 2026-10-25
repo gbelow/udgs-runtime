@@ -3,7 +3,7 @@ import { useContainerLens } from '../hooks/useContainerLens'
 import { useItemLens } from '../hooks/useItemLens'
 import { useTradeLens } from '../hooks/useTradeLens'
 import type { ContainerSlotView } from '../domain/item/projections/containers'
-import { Minus, X } from 'lucide-react'
+import { ArrowLeftRight, Hand, Minus, Shirt, X } from 'lucide-react'
 import { Button, IconButton, Panel } from './ui'
 
 export function ContainerPanel(){
@@ -73,10 +73,10 @@ function SlotGroupRow({ containerKey, group }: { containerKey: string, group: Co
         {group.items.map((item) => (
           <span key={item.id} className='border border-line rounded pl-1.5 pr-0.5 py-0.5 flex flex-row gap-1 items-center' title={`${item.bulkName} · ${item.slots} slot${item.slots === 1 ? '' : 's'}`}>
             <span>{item.name}{item.amount > 1 ? ` ×${item.amount}` : ''}</span>
-            {item.drawable ? <Button size='xs' weight='subtle' aria-label={`draw ${item.name}`} title={item.drawCost === null ? 'take in hand' : `take in hand for ${item.drawCost} AP`} onClick={() => draw(containerKey, item.id)}>{item.drawCost === null ? 'draw' : `draw ${item.drawCost}AP`}</Button> : null}
-            {item.wear ? <Button size='xs' weight='subtle' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? 'put on' : item.wear.why} onClick={() => wear(containerKey, item.id)}>wear</Button> : null}
+            {item.drawable ? <Button size='xs' weight='subtle' icon={Hand} aria-label={`draw ${item.name}`} title={item.drawCost === null ? 'take in hand' : `take in hand for ${item.drawCost} AP`} onClick={() => draw(containerKey, item.id)}>{item.drawCost === null ? 'draw' : `draw ${item.drawCost}AP`}</Button> : null}
+            {item.wear ? <Button size='xs' weight='subtle' icon={Shirt} aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? 'put on' : item.wear.why} onClick={() => wear(containerKey, item.id)}>wear</Button> : null}
             {item.putOn ? <Button size='xs' weight='subtle' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.able ? (item.putOn.cost === null ? 'put on' : `put on for ${item.putOn.cost} AP`) : item.putOn.why} onClick={() => putOn(containerKey, item.id)}>{item.putOn.cost === null ? 'put on' : `put on ${item.putOn.cost}AP`}</Button> : null}
-            {trading && item.offerable ? <Button size='xs' weight='subtle' tone='good' active={isOffered(item.id)} aria-label={`offer ${item.name}`} onClick={() => toggleOffer(item.id)}>{isOffered(item.id) ? 'offered' : 'offer'}</Button> : null}
+            {trading && item.offerable ? <Button size='xs' weight='subtle' tone='good' icon={ArrowLeftRight} active={isOffered(item.id)} aria-label={`offer ${item.name}`} onClick={() => toggleOffer(item.id)}>{isOffered(item.id) ? 'offered' : 'offer'}</Button> : null}
             {item.amount > 1 ? <IconButton icon={Minus} aria-label={`remove one ${item.name}`} onClick={() => remove(containerKey, item.id, 1)} /> : null}
             <IconButton icon={X} tone='bad' aria-label={`remove ${item.name}`} onClick={() => remove(containerKey, item.id)} />
           </span>

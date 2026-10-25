@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Save, Trash2, X } from 'lucide-react'
 import { Button, CollectionSelect, IconButton, ListButton, NumberInput, Panel, ResetLink, SectionLabel, TextInput, selectClass } from './ui'
 import { MapCanvas, type MapSelection } from './MapCanvas'
 import { useCollectionFilter } from '../hooks/useCollections'
@@ -82,14 +82,14 @@ function MapHeader() {
   return (
     <div className='flex flex-row flex-wrap gap-2 items-center'>
       <TextInput aria-label='map name' placeholder='map name' value={view.name} onChange={(e) => setName(e.target.value)} />
-      <Button weight='solid' tone='accent' disabled={!view.name.trim()} title={view.name.trim() ? undefined : 'Maps need a name'} onClick={save}>save</Button>
+      <Button weight='solid' tone='accent' icon={Save} disabled={!view.name.trim()} title={view.name.trim() ? undefined : 'Maps need a name'} onClick={save}>save</Button>
       {maps.includes(view.name) ?
         confirm ?
           <>
-            <Button weight='solid' tone='bad' onClick={() => { setConfirm(false); remove(view.name) }}>delete {view.name}</Button>
+            <Button weight='solid' tone='bad' icon={Trash2} onClick={() => { setConfirm(false); remove(view.name) }}>delete {view.name}</Button>
             <Button weight='ghost' onClick={() => setConfirm(false)}>keep</Button>
           </>
-          : <Button tone='bad' onClick={() => setConfirm(true)}>delete…</Button>
+          : <Button tone='bad' icon={Trash2} onClick={() => setConfirm(true)}>delete…</Button>
         : null}
     </div>
   )

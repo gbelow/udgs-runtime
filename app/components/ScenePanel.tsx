@@ -4,7 +4,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel, FollowPanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
-import { Settings } from 'lucide-react'
+import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
 import { ActionKey, Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
@@ -108,7 +108,7 @@ export function KillButton(){
   const { killCharacter } = useCombatCommands()
   const { isCharacterDead } = useInjuryLens()
   const { hasOpenAction } = useCombatState()
-  return <Button tone='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
+  return <Button tone='bad' icon={Skull} active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
 }
 
 // The turn, the surges and the actions; the tests held for the round wait
@@ -286,10 +286,10 @@ function TurnControl(){
         {
           inTurn ?
           <Tooltip text={end ?? 'end the turn; movement and combat surge AP left is lost'}>
-            <ActionKey look='go' aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</ActionKey>
+            <ActionKey look='go' icon={SkipForward} aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</ActionKey>
           </Tooltip> :
           <Tooltip text={start ?? 'start this turn for the active character'}>
-            <ActionKey look='go' aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</ActionKey>
+            <ActionKey look='go' icon={Play} aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</ActionKey>
           </Tooltip>
         }
         {
@@ -301,13 +301,11 @@ function TurnControl(){
         {
           contenders ?
           <Tooltip text={roll ?? 'everyone contesting and the holder roll cunning; the highest takes the turn'}>
-            <ActionKey aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</ActionKey>
+            <ActionKey icon={Dices} aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</ActionKey>
           </Tooltip> : null
         }
         <Tooltip text={agreed ? 'agreed to end the round' : 'agree to end the round'}>
-          <ActionKey look={agreed ? 'picked' : 'plain'} aria-label='agreeToEnd' aria-pressed={agreed} onClick={toggleAgreeToEnd}>
-            {agreed ? <span>✓</span> : null}end round ok
-          </ActionKey>
+          <ActionKey look={agreed ? 'picked' : 'plain'} icon={agreed ? Check : undefined} aria-label='agreeToEnd' aria-pressed={agreed} onClick={toggleAgreeToEnd}>end round ok</ActionKey>
         </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
@@ -378,9 +376,7 @@ function SurgeControl(){
           <Tooltip key={option.kind} text={option.used ? `${option.kind} surge used this round` : option.title}>
             {
               option.used ?
-              <ActionKey look='picked' aria-label={option.kind + ' surge'} aria-pressed className='pointer-events-none'>
-                <span>✓</span>{option.kind} surge
-              </ActionKey> :
+              <ActionKey look='picked' icon={Check} aria-label={option.kind + ' surge'} aria-pressed className='pointer-events-none'>{option.kind} surge</ActionKey> :
               <ActionKey aria-label={option.kind + ' surge'} disabled={!option.available}
                 onClick={() => actionSurge(option.kind)}>{option.kind} surge</ActionKey>
             }

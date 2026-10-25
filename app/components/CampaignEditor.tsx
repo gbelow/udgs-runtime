@@ -1,6 +1,6 @@
 'use client'
 import { useState, type ReactNode } from 'react'
-import { Pencil, RefreshCw, X } from 'lucide-react'
+import { LogOut, Pencil, RefreshCw, Save, Trash2, UserCheck, UserPlus, X } from 'lucide-react'
 import { Button, CatalogList, CollectionSelect, ConfirmDelete, IconButton, ListButton, SectionLabel, Tabs, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
@@ -89,7 +89,7 @@ function CampaignFileBar() {
         <span className='grow' />
         {file.locked ? null : (
           <Tooltip text={saveBar ?? 'save the campaign and its characters, fight and all'}>
-            <Button weight='solid' tone='accent' disabled={saveBar !== null} onClick={save}>save</Button>
+            <Button weight='solid' tone='accent' icon={Save} disabled={saveBar !== null} onClick={save}>save</Button>
           </Tooltip>
         )}
         {saved ? <Button weight={file.locked ? 'solid' : 'outline'} tone={file.locked ? 'accent' : 'neutral'} onClick={() => { setCopyName(`${file.name} (copy)`); setPending('copy') }}>save as copy…</Button> : null}
@@ -100,7 +100,7 @@ function CampaignFileBar() {
             <Button disabled={saveBar !== null} onClick={() => fighting ? setPending('lock') : lock()}>lock</Button>
           </Tooltip>
         ) : null}
-        {saved && gmTools ? (deleteBar ? <Tooltip text={deleteBar}><Button tone='bad' disabled>delete</Button></Tooltip> : <ConfirmDelete remove={() => remove(file.id)} />) : null}
+        {saved && gmTools ? (deleteBar ? <Tooltip text={deleteBar}><Button tone='bad' icon={Trash2} disabled>delete</Button></Tooltip> : <ConfirmDelete remove={() => remove(file.id)} />) : null}
       </div>
       {pending === 'copy' ? (
         <ConfirmRow text={`save what is in play as a new campaign, now in play; ${file.name || 'this one'} stays as it was saved`} confirm='save copy' tone='accent'
@@ -183,13 +183,13 @@ function JoinCampaign() {
         {characters.map((c) => <option key={c.id} value={c.id}>{c.name || '—'}</option>)}
       </select>
       <div className='flex flex-row gap-1'>
-        <Button size='xs' weight='solid' tone='accent' disabled={!campaign || !character} onClick={() => { request(campaign, character); setCharacter('') }}>ask to join</Button>
+        <Button size='xs' weight='solid' tone='accent' icon={UserPlus} disabled={!campaign || !character} onClick={() => { request(campaign, character); setCharacter('') }}>ask to join</Button>
         <IconButton icon={RefreshCw} aria-label='refresh answers' title='look again for answers' onClick={refresh} />
       </div>
       {pending.map((q) => (
         <div key={`${q.campaign}:${q.character}`} className='flex flex-row gap-1 items-center'>
           <span className='flex-1 truncate'>{q.name || '—'} → {q.campaignName || '—'}</span>
-          <Button size='xs' weight='subtle' tone='bad' aria-label={`withdraw ${q.name}`} onClick={() => withdraw(q.campaign, q.character)}>withdraw</Button>
+          <Button size='xs' weight='subtle' tone='bad' icon={LogOut} aria-label={`withdraw ${q.name}`} onClick={() => withdraw(q.campaign, q.character)}>withdraw</Button>
         </div>
       ))}
     </div>
@@ -211,7 +211,7 @@ function CampaignRequests() {
       {requests.map((q) => (
         <div key={q.character} className='flex flex-row gap-1 items-center'>
           <span className='w-40 truncate'>{q.name || '—'} <span className='text-muted'>by {q.profileName}</span></span>
-          <Button size='xs' weight='subtle' tone='good' aria-label={`accept ${q.name}`} title='onto the roster, in no party' onClick={() => accept(q.character)}>accept</Button>
+          <Button size='xs' weight='subtle' tone='good' icon={UserCheck} aria-label={`accept ${q.name}`} title='onto the roster, in no party' onClick={() => accept(q.character)}>accept</Button>
           <Button size='xs' weight='subtle' tone='bad' aria-label={`decline ${q.name}`} onClick={() => decline(q.character)}>decline</Button>
         </div>
       ))}

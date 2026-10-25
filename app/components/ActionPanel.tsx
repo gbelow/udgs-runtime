@@ -9,7 +9,7 @@ import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
-import { Minus, Plus, X } from 'lucide-react'
+import { Check, CheckCheck, Dices, Footprints, Hourglass, Minus, Play, Plus, X } from 'lucide-react'
 import { ActionKey, Button, Closed, IconButton, Panel, SectionLabel, Segment, Segmented, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
@@ -260,7 +260,7 @@ export function ActionPanel(){
 
       {declared ? (
         <div className='flex flex-row flex-wrap gap-1'>
-          <ActionKey look='go' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</ActionKey>
+          <ActionKey look='go' icon={view.holds ? Hourglass : Check} aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</ActionKey>
           {open.spawned && open.flee === null && !open.required ? (
             <ActionKey aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</ActionKey>
           ) : null}
@@ -295,8 +295,8 @@ export function ActionPanel(){
           <div className='flex flex-row gap-1'>
             <LockedFor id={open.actorId}>
               {view.die
-                ? <Tooltip text={view.goBar}><ActionKey look='go' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</ActionKey></Tooltip>
-                : <Tooltip text={view.goBar}><ActionKey look='go' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</ActionKey></Tooltip>}
+                ? <Tooltip text={view.goBar}><ActionKey look='go' icon={Dices} aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</ActionKey></Tooltip>
+                : <Tooltip text={view.goBar}><ActionKey look='go' icon={Play} aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</ActionKey></Tooltip>}
             </LockedFor>
             {view.canAccept ? <LockedFor id={open.targetId}><ActionKey aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</ActionKey></LockedFor> : null}
             <Button weight='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
@@ -366,8 +366,8 @@ export function ActionPanel(){
           {open.grapple.map((n, i) => <div key={i} className='text-sm'>{n.target ? `${n.target}: ` : ''}<span className='text-muted'>{n.text}</span></div>)}
           {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
           <div className='flex flex-row gap-1.5'>
-            {view.restMove ? <ActionKey aria-label='move while resting' onClick={restMove}>move while resting</ActionKey> : null}
-            <ActionKey look='go' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</ActionKey>
+            {view.restMove ? <ActionKey icon={Footprints} aria-label='move while resting' onClick={restMove}>move while resting</ActionKey> : null}
+            <ActionKey look='go' icon={CheckCheck} aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</ActionKey>
           </div>
         </div>
         </LockedFor>

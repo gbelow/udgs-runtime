@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput } from '../ui'
 import { BRUSH_LABEL, Cell, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
@@ -35,7 +36,7 @@ export function BoardMapsEditor() {
             <TextInput className='w-16' type='number' min={1} max={30} aria-label='radius' value={map.radius} onChange={(e) => resize(Number(e.target.value))} />
           </label>
           <span className='grow' />
-          <Button size='xs' weight='solid' tone='accent' disabled={!map.name.trim() || !mine} onClick={() => save(opened ? opened.shared : false)}>{opened?.shared ? 'save for all' : 'save mine'}</Button>
+          <Button size='xs' weight='solid' tone='accent' icon={Save} disabled={!map.name.trim() || !mine} onClick={() => save(opened ? opened.shared : false)}>{opened?.shared ? 'save for all' : 'save mine'}</Button>
           {!opened && devServer ? <Button size='xs' disabled={!map.name.trim()} onClick={() => save(true)}>save for all</Button> : null}
           {opened && mine ? <ConfirmDelete remove={() => remove(opened.id)} /> : null}
         </div>

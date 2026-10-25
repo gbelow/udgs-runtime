@@ -1,7 +1,7 @@
 'use client'
 import { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode, RefObject, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Ellipsis, RotateCcw, type LucideIcon } from 'lucide-react'
+import { Ellipsis, RotateCcw, Trash2, type LucideIcon } from 'lucide-react'
 import type { CollectionFilter } from '../hooks/useCollections'
 
 // The shared visual vocabulary. Colour is by meaning (see globals.css): accent
@@ -61,9 +61,10 @@ const FOCUS = 'focus-visible:outline-2 focus-visible:outline-accent focus-visibl
 // `selected` marks the one chosen among its siblings (a tab, a mode, a picked
 // option) in the accent, whatever its tone otherwise. A closed button is drawn
 // dashed and empty, so it still reads as an option, only one not open now; a
-// closed one held down keeps showing the state it is held in, faded.
-export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', active = false, selected = false, className = '', ...rest }:
-  ButtonHTMLAttributes<HTMLButtonElement> & { weight?: ButtonWeight, tone?: Tone, size?: keyof typeof SIZE, active?: boolean, selected?: boolean }
+// closed one held down keeps showing the state it is held in, faded. An
+// `icon` leads the label.
+export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', active = false, selected = false, icon: Icon, className = '', children, ...rest }:
+  ButtonHTMLAttributes<HTMLButtonElement> & { weight?: ButtonWeight, tone?: Tone, size?: keyof typeof SIZE, active?: boolean, selected?: boolean, icon?: LucideIcon }
 ){
   const look = selected ? PRESSED.accent : active ? PRESSED[tone] : LOOK[weight][tone]
   const closed = selected || active ? 'disabled:opacity-60' : 'disabled:border-dashed disabled:border-line disabled:bg-transparent disabled:text-muted disabled:font-normal'
@@ -71,7 +72,9 @@ export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', acti
     <button type='button'
       className={`rounded border whitespace-nowrap cursor-pointer transition-colors ${FOCUS} disabled:pointer-events-none ${closed}
         ${look} ${SIZE[size]} ${className}`}
-      {...rest} />
+      {...rest}>
+      {Icon ? <span className='inline-flex items-center gap-1'><Icon size={size === 'md' ? 14 : 12} aria-hidden />{children}</span> : children}
+    </button>
   )
 }
 
@@ -112,9 +115,9 @@ const KEY_LOOK = {
 // A thing a character does in play, drawn as a key that sinks when pressed,
 // set apart from the controls that edit and arrange. `cost` sits inside it in
 // a chip; `go` is the press that moves play on, at most one to a panel. A
-// closed key lies flat and dashed.
-export function ActionKey({ cost, look = 'plain', className = '', children, ...rest }:
-  ButtonHTMLAttributes<HTMLButtonElement> & { cost?: ReactNode, look?: keyof typeof KEY_LOOK }
+// closed key lies flat and dashed. An `icon` leads the label.
+export function ActionKey({ cost, look = 'plain', icon: Icon, className = '', children, ...rest }:
+  ButtonHTMLAttributes<HTMLButtonElement> & { cost?: ReactNode, look?: keyof typeof KEY_LOOK, icon?: LucideIcon }
 ){
   return (
     <button type='button'
@@ -123,6 +126,7 @@ export function ActionKey({ cost, look = 'plain', className = '', children, ...r
         disabled:pointer-events-none disabled:bg-none disabled:border-dashed disabled:border-line disabled:shadow-none disabled:text-muted disabled:font-normal
         ${KEY_LOOK[look]} ${className}`}
       {...rest}>
+      {Icon ? <Icon size={13} aria-hidden /> : null}
       {children}
       {cost ? <span className='rounded px-1 py-px font-mono text-[10px] leading-none bg-current/15'>{cost}</span> : null}
     </button>
@@ -549,10 +553,10 @@ export function ConfirmDelete({ remove }: { remove: () => Promise<void> | void }
   const [confirm, setConfirm] = useState(false)
   return confirm
     ? <>
-        <Button weight='solid' tone='bad' onClick={async () => { await remove(); setConfirm(false) }}>confirm delete</Button>
+        <Button weight='solid' tone='bad' icon={Trash2} onClick={async () => { await remove(); setConfirm(false) }}>confirm delete</Button>
         <Button weight='ghost' onClick={() => setConfirm(false)}>cancel</Button>
       </>
-    : <Button tone='bad' onClick={() => setConfirm(true)}>delete</Button>
+    : <Button tone='bad' icon={Trash2} onClick={() => setConfirm(true)}>delete</Button>
 }
 
 const MenuClose = createContext<() => void>(() => {})

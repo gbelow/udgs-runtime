@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Hourglass, X } from 'lucide-react'
 import { Button, CollectionSelect, IconButton, NumberInput, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
 import { useDowntime, useDowntimeAnswer, useDowntimeCalls, useDowntimeCommands, useDowntimeDiceBar, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
@@ -37,7 +37,7 @@ export function DowntimeStrip(){
         <span className='text-xs text-muted'>days</span>
         <NumberInput className='w-12' aria-label='days' placeholder={`${defaultSpan}`} value={span ?? ''} onChange={(e) => setSpan(e.target.value === '' ? null : num(e.target.value))} />
         <Tooltip text={bar ?? 'every running party spends the days on its activities'}>
-          <Button aria-label='passDays' weight='solid' tone='accent' disabled={bar !== null} onClick={() => { passDays(days); setSpan(null) }}>pass {days} days</Button>
+          <Button aria-label='passDays' weight='solid' tone='accent' icon={Hourglass} disabled={bar !== null} onClick={() => { passDays(days); setSpan(null) }}>pass {days} days</Button>
         </Tooltip>
       </div>
       <div className='flex flex-row flex-wrap gap-1 items-center'>

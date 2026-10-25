@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { FileText, Save, Trash2 } from 'lucide-react'
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
@@ -45,7 +46,7 @@ function SaveCatalogCharacterButton(){
 
 function SavePlayerCharacterButton(){
   const { savePlayerCharacter } = useGameCommands()
-  return <Button weight='solid' tone='accent' onClick={() => savePlayerCharacter()}>save</Button>
+  return <Button weight='solid' tone='accent' icon={Save} onClick={() => savePlayerCharacter()}>save</Button>
 }
 
 function DeleteCharacterButton(){
@@ -60,14 +61,14 @@ function DeleteCharacterButton(){
 
   return(
     <>
-      <Button tone='bad' onClick={()=> setShowConfirm(true)}>delete</Button>
+      <Button tone='bad' icon={Trash2} onClick={()=> setShowConfirm(true)}>delete</Button>
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="p-4 rounded-md border border-line bg-surface shadow-lg w-72 flex flex-col gap-4">
             <p className="text-sm">Delete {name}? This removes the base character file.</p>
             <div className="flex justify-end gap-2">
               <Button weight='ghost' onClick={() => setShowConfirm(false)}>cancel</Button>
-              <Button weight='solid' tone='bad' onClick={handleDeleteCharacterClick}>delete</Button>
+              <Button weight='solid' tone='bad' icon={Trash2} onClick={handleDeleteCharacterClick}>delete</Button>
             </div>
           </div>
         </div>
@@ -133,7 +134,7 @@ function EditorHeader(){
         <TagItem level='category' />
         <Experience />
         <div className='ml-auto flex flex-row items-center gap-2'>
-          <Button selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
+          <Button icon={FileText} selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
           <SaveCatalogCharacterButton />
           <SavePlayerCharacterButton />
           <DeleteCharacterButton />

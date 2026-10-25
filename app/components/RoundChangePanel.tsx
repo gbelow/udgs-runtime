@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Card } from './SceneCards'
 import { ChaseSetup } from './ChasePanel'
+import { ChevronRight } from 'lucide-react'
 import { ActionKey, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
 import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../hooks/useCombatState'
 import { GmLocked } from './Locks'
@@ -38,7 +39,7 @@ export function RoundChangePanel(){
           ))}
           <span className='ml-auto'>
             <Tooltip text={view.continueBar}>
-              <ActionKey look='go' aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</ActionKey>
+              <ActionKey look='go' icon={ChevronRight} aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</ActionKey>
             </Tooltip>
           </span>
         </div>

@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Hourglass, Play, X } from 'lucide-react'
 import { Button, IconButton, NumberInput, SectionLabel, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog } from './RunParts';
 import { useETAnswer, useETCalls, useETDiceBar, useExploration, useExplorationMaps, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
@@ -35,7 +35,7 @@ export function ExplorationStrip(){
         <span className='text-xs text-muted whitespace-nowrap'>day ETs</span>
         <NumberInput className='w-10' aria-label='day ETs' {...barred(gmBar)} value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
         <Tooltip text={bar ?? 'every running party spends the ET on its plan'}>
-          <Button aria-label='passET' disabled={bar !== null} onClick={passET}>next ET</Button>
+          <Button aria-label='passET' weight='solid' tone='accent' icon={Hourglass} disabled={bar !== null} onClick={passET}>next ET</Button>
         </Tooltip>
       </div>
       {passBar ? <span className='text-xs text-muted'>{passBar}</span> : null}
@@ -266,7 +266,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
           <span className='text-xs font-medium'>{s.name}</span>
           <span className='text-xs text-muted'>{s.forced ? 'forced' : 'offered'}{s.event ? ` · from ${s.event}` : ''} · met by {s.members.join(', ')}</span>
           {s.text ? <span className='text-xs text-muted'>{s.text}</span> : null}
-          <Button size='xs' tone='accent' aria-label={`play ${s.name}`} disabled={s.playBar !== null} title={s.playBar ?? undefined} onClick={() => playScene(s)}>play</Button>
+          <Button size='xs' tone='accent' icon={Play} aria-label={`play ${s.name}`} disabled={s.playBar !== null} title={s.playBar ?? undefined} onClick={() => playScene(s)}>play</Button>
           {s.forced ? null : <Button size='xs' weight='subtle' aria-label={`pass ${s.name} by`} onClick={() => passBy(s.id)}>pass by</Button>}
         </div>
       ))}
