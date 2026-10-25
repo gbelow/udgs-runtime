@@ -1,9 +1,10 @@
 import type { CampaignCharacter, SurgeKind } from '../../types'
-import type { ActionKind, SceneState } from '../types'
+import type { Action, ActionKind, SceneState } from '../types'
 import { SURGES, type SurgeAllowance } from '../../tables'
 import { surgeKinds } from '../../lists'
 import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurged } from '../../character/rules/surge'
 import { ACTIONS, isReaction } from './actionCatalog'
+import { hasGrant } from '../../character/rules/effects'
 import { isInGrapple } from './partners'
 import { getSurgeTurnBar, isInTurn } from './turn'
 
@@ -26,9 +27,18 @@ const ALLOWANCE_KINDS: Record<Exclude<SurgeAllowance, 'grapple'>, readonly Actio
 }
 
 // Whether the surge's AP may pay for the kind, for the character where they
-// stand.
+// stand. abilities.tex "Charge": "Learns to perform one attack with the APs
+// from a movement surge".
 function allows(state: SceneState, c: CampaignCharacter, surge: EarmarkedSurge, kind: ActionKind): boolean {
+  if (surge === 'movement' && kind === 'strike' && hasGrant(c, 'charge')) return true
   return (SURGES[surge].allows as readonly SurgeAllowance[]).some((a) => (a === 'grapple' ? isInGrapple(state, c.id) : ALLOWANCE_KINDS[a].includes(kind)))
+}
+
+// abilities.tex "Charge": a strike paid while a movement surge's AP is left
+// is the charge, and "loses the rest of the AP from the surge".
+export function isChargeStrike(state: SceneState, action: Action): boolean {
+  const c = state.characters[action.actorId]
+  return action.kind === 'strike' && !!c && getBindingSurge(c) === 'movement' && hasGrant(c, 'charge')
 }
 
 // Why the kind cannot be declared while a surge's AP is left, or null.

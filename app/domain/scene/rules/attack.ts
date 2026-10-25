@@ -9,7 +9,7 @@ import { CLIMB_REDO_PENALTY, QUICKEN_DL, EXTEND } from '../../tables'
 import { getAimedPlace } from '../../character/rules/body'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
-import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
+import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
 import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
@@ -29,7 +29,7 @@ import { getFeintTerms } from './feint'
 import { CUT_DL, getCutStrike } from './cut'
 import { EQUIPMENT_ATTACK_PENALTY, isFloorAttack, isObjectOnTarget, isObjectAttack } from './equipment'
 import { getFloorObject, getGroundCell, getGroundDL } from './floorAttack'
-import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
+import { getGrappleStrikeTerm, getManeuverDLTerms, getManeuverTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getAction, getReactionsTo, getRootOf } from './log'
 import { getSensoryTerms, getSensoryTermsHere } from './detection'
@@ -116,7 +116,7 @@ export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id
 // "Grapple Maneuvers": "can be used like opportunity attacks").
 export function getOpportunityAction(state: SceneState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
-  if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver })
+  if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver, gentle: reaction.gentle })
   return getOpportunityStrike(reaction, id)
 }
 
@@ -514,7 +514,7 @@ export function getRootTestTerms(state: SceneState, root: RootAction): RootTestT
     case 'cast':
       return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root), scale: 'overflow', grazes: !root.quicken }
     case 'grapple':
-      return onDegrees({ skill: getManeuverTerms(actor), DL: getDLTerms(state, root) })
+      return onDegrees({ skill: getManeuverTerms(state, root), DL: getDLTerms(state, root) })
     case 'slip':
       return onDegrees(getSlipTerms(state, root))
     case 'feint':
@@ -581,10 +581,6 @@ export function getClimbRedoTest(state: SceneState, root: MoveAction): Test | nu
   if (!terms) return null
   const skill = [...terms.skill, { label: 'interrupted', value: -CLIMB_REDO_PENALTY }]
   return { skill: sumTerms(skill), DL: sumTerms(terms.DL), explodes: false, scale: 'degrees', terms: { skill, DL: terms.DL } }
-}
-
-function getManeuverTerms(c: Character): Term[] {
-  return [{ label: 'grapple', value: getGrapple(c) }]
 }
 
 // A reaction that is a test of its own, scored against the root's DL — but

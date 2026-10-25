@@ -88,6 +88,19 @@ export function trained(c: CampaignCharacter): CampaignCharacter {
   return (['counterattack', 'precise-reflexes', 'precise-evasion', 'archer-s-reflexes', 'jumper-1', 'defender'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
+// The melee abilities that change what the fighter declares or pays: a
+// gentle grapple test, the disarm after an intercept, a strike out of the
+// movement surge, a cheaper braced blow and a sturdier blade.
+export function meleeTrained(c: CampaignCharacter): CampaignCharacter {
+  return (['gentle-art', 'clinch', 'charge', 'pikeman', 'blade-alignment'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
+}
+
+// A brawler with a short sword in the other hand, which intercepts and is
+// bladed.
+export function swordBrawler(id: string): CampaignCharacter {
+  return holdItem(ItemSchema.parse({ name: 'Short Sword', type: 'weapon', refId: 'Short Sword', bulk: 1 }))(brawler(id))
+}
+
 // A spear in one hand and a shield in the other, trained: every defence is
 // open to them, a guard against a shot among them (combat.tex "Guard").
 export function warden(id: string): CampaignCharacter {

@@ -24,7 +24,7 @@ import { hasGrant, isSpellActive } from '../../character/rules/effects'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
+import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGentle, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
 import { canGrapple, getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
@@ -496,12 +496,14 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
   const declared = getDeclaredCost(state, c, action)
   if (!declared) return null
   const recipe = getRecipeCost(state, action, declared)
-  const remaining = { AP: Math.max(0, recipe.AP - action.carried.AP), STA: Math.max(0, recipe.STA - action.carried.STA) }
+  const gentle = isGentle(state, action) ? { AP: recipe.AP, STA: Math.max(0, recipe.STA - 1) } : recipe
+  const remaining = { AP: Math.max(0, gentle.AP - action.carried.AP), STA: Math.max(0, gentle.STA - action.carried.STA) }
   const strike = getStrikePriceOf(state, action)
   return [
     { label: strike?.label ?? getPriceLabel(action), ...declared },
     ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
-    ...costChange('paid in the round before', remaining, recipe),
+    ...costChange('gentle art', gentle, recipe),
+    ...costChange('paid in the round before', remaining, gentle),
     ...(strike?.added ?? []),
   ]
 }

@@ -27,6 +27,7 @@ import { advance, land, repositionDefenders } from './sequence'
 import { giveUpHeld } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
+import { isChargeStrike } from '../rules/surge'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -483,7 +484,8 @@ function payAll(state: SceneState, root: Action, newId: () => string, caller: Ca
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    paid.push({ ...thrown(a), cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo) : 0, step: a.id === root.id ? 'post' : 'done' })
+    const stamped = a.kind === 'strike' ? { ...a, charge: isChargeStrike(state, a) } : a
+    paid.push({ ...thrown(stamped), cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo) : 0, step: a.id === root.id ? 'post' : 'done' })
   }
   return advance(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), newId, caller)
 }

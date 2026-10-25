@@ -1097,9 +1097,10 @@ export const RecipeEventSchema = z.discriminatedUnion('event', [
 export type RecipeEvent = z.infer<typeof RecipeEventSchema>
 
 // What a recipe asks of the fight for one of its terms to apply: the opened
-// strike made with another object than the defense it is opened from, or the
-// struck target running or jumping.
-export const RecipeConditionSchema = z.enum(['differentObjectFromOpener', 'targetInMotion'])
+// strike made with another object than the defense it is opened from, the
+// struck target running or jumping, or the follow-up's actor in a grapple
+// with its target.
+export const RecipeConditionSchema = z.enum(['differentObjectFromOpener', 'targetInMotion', 'inGrapple'])
 export type RecipeCondition = z.infer<typeof RecipeConditionSchema>
 
 export const RecipeOpensSchema = z.discriminatedUnion('kind', [
@@ -1109,9 +1110,10 @@ export const RecipeOpensSchema = z.discriminatedUnion('kind', [
 ])
 
 // `followUp`: what a landed strike offers. `opens` is what the follow-up
-// is; the rest is what it gets: `hit` to its attack, `cost` (when `costWhen`
-// holds, or always), unresisted when `unresistedWhen` holds, and whether it
-// draws opportunity attacks.
+// is, opened only when `openWhen` holds (or always); the rest is what it
+// gets: `hit` to its attack, `cost` (when `costWhen` holds, or always),
+// unresisted when `unresistedWhen` holds, and whether it draws opportunity
+// attacks.
 // `contestedReaction`: a strike of its holder's own in answer to a strike
 // aimed at them, its die thrown with the attack's and the higher landing
 // first (scene/rules/counter.ts); `hit` is what it gets.
@@ -1124,6 +1126,7 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     cost: z.object({ operation: z.enum(['+', 'set']).default('+'), AP: num.default(0), STA: num.default(0) }).nullable().default(null),
     costWhen: RecipeConditionSchema.nullable().default(null),
     unresistedWhen: RecipeConditionSchema.nullable().default(null),
+    openWhen: RecipeConditionSchema.nullable().default(null),
     drawsOpportunity: z.boolean().default(true),
   }).strip(),
   z.object({
@@ -1137,7 +1140,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'preciseEvade', 'bladeAlignment', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks

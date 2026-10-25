@@ -10,6 +10,7 @@ import { getDefaultAim, getFreeAttackOptions } from './attack'
 import { isInReach } from './board/board'
 import { getHookedMotion } from './damage'
 import { getDisarmOptions } from './grapple'
+import { findGrapple, getGrapples } from './partners'
 
 // Actions as data. A recipe (RecipeSchema) says when a fighter may make an
 // action the rules give nobody else — a follow-up a landed strike offers, a
@@ -48,9 +49,11 @@ const RULE_RECIPES = {
     }),
   },
   // combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
-  // stops an attack" — at whoever was intercepted. An intercept stops the
-  // attack on a graze or a miss (the table's ruling, as abilities.tex
-  // "Riposte" reads the same two degrees off a defense).
+  // stops an attack": at whoever was intercepted, in a grapple with them
+  // (the table's ruling: abilities.tex "Clinch" is the same disarm "without
+  // requiring grapple"). An intercept stops the attack on a graze or a miss
+  // (the table's ruling, as abilities.tex "Riposte" reads the same two
+  // degrees off a defense).
   interceptDisarm: {
     label: 'disarm',
     recipe: RecipeSchema.parse({
@@ -58,6 +61,7 @@ const RULE_RECIPES = {
       on: { event: 'defended', defenses: ['intercept'], degrees: ['miss', 'graze'], defender: 'any' },
       opens: { kind: 'grapple', maneuver: 'disarm' },
       cost: { operation: 'set', AP: 1, STA: 1 },
+      openWhen: 'inGrapple',
     }),
   },
 } satisfies Record<string, Omit<RecipeEntry, 'id'>>
@@ -95,6 +99,7 @@ const CONDITIONS: Record<RecipeCondition, (ctx: RecipeContext) => boolean> = {
   },
   // combat.tex "Hook Attack": "if they are running or jumping"
   targetInMotion: ({ state, root }) => getHookedMotion(state, root) !== null,
+  inGrapple: ({ state, opened }) => opened.targetId !== null && findGrapple(getGrapples(state), opened.actorId, opened.targetId) !== null,
 }
 
 // Who the event offers its follow-up to on the landed strike, at whom, and
@@ -128,7 +133,8 @@ function openRecipe(state: SceneState, root: StrikeAction, actorId: string, entr
   const c = state.characters[actorId]
   if (!opening || !c) return null
   const base = { id: newId(), actorId, targetId: opening.targetId, spawnedBy: opening.opener.id, recipe: entry.id }
-  const { opens, unresistedWhen } = entry.recipe
+  const { opens, unresistedWhen, openWhen } = entry.recipe
+  if (openWhen && !CONDITIONS[openWhen]({ state, root, opener: opening.opener, opened: makeAction('grapple', base) })) return null
   switch (opens.kind) {
     case 'strike': {
       const strike = makeAction('strike', { ...base, ...getDefaultAim(state.characters[opening.targetId]) })
@@ -144,7 +150,9 @@ function openRecipe(state: SceneState, root: StrikeAction, actorId: string, entr
 
 // The follow-ups the landed strike's recipes open, for its attacker and for
 // everyone who answered it: the rules' first, then the abilities', so an
-// ability's is played out first.
+// ability's is played out first. An ability's that opens what a rule's
+// already has for the same actor (Clinch's disarm in a grapple) is not
+// opened twice.
 export function getRecipeFollowUps(state: SceneState, root: RootAction, newId: () => string): Action[] {
   if (root.kind !== 'strike') return []
   const actorIds = [...new Set([root.actorId, ...getReactionsTo(state, root.id).map((r) => r.actorId)])]
@@ -152,7 +160,14 @@ export function getRecipeFollowUps(state: SceneState, root: RootAction, newId: (
     const c = state.characters[id]
     return c ? recipesOf(c).filter(isFollowUp).flatMap((entry) => openRecipe(state, root, id, entry, newId) ?? []) : []
   })
-  return [...open(() => RULE_ENTRIES), ...open(getLearnedRecipes)]
+  const ruled = open(() => RULE_ENTRIES)
+  const learned = open(getLearnedRecipes).filter((a) => !ruled.some((r) => isSameFollowUp(r, a)))
+  return [...ruled, ...learned]
+}
+
+function isSameFollowUp(a: Action, b: Action): boolean {
+  if (a.actorId !== b.actorId || a.targetId !== b.targetId || a.spawnedBy !== b.spawnedBy || a.kind !== b.kind) return false
+  return a.kind !== 'grapple' || (b.kind === 'grapple' && a.maneuver === b.maneuver)
 }
 
 // The recipe the fighter makes a contested strike with, if any

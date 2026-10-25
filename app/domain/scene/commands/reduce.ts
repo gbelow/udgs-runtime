@@ -44,7 +44,7 @@ import { loseConcentration, releaseSpell } from '../../character/commands/spells
 import { getAction, getReactionsTo } from '../rules/log'
 import { extinguishCell } from '../rules/extinguish'
 import { coatCell, filterLayers, igniteCell, getHolderOf, isSupersededBy, type FireTouched } from '../rules/board/hazard'
-import { actionSurge } from '../../character/commands/actionSurge'
+import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { getPassingPlacement } from '../rules/sidestep'
 
 // The moments an action touches a character: `roll`, when the die is thrown
@@ -91,6 +91,8 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
         // a held spell fired again draws its charges as it is paid for
         if (action.kind === 'fireAgain') return drawFromSource(action.itemId, getFireAgainCharges(action))(payCost(action.cost, charged)(c))
+        // abilities.tex "Charge": the rest of the movement surge goes with it
+        if (action.kind === 'strike' && action.charge) return endSurge(refund(action.refunded)(payCost(action.cost, charged)(c)))
         return refund(action.refunded)(payCost(action.cost, charged)(c))
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c

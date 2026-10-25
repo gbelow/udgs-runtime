@@ -31,7 +31,7 @@ import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
-import { getDisarmOptions, getManeuverTargets, isManeuverWon } from '../rules/grapple'
+import { getDisarmOptions, getGentle, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
 import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rules/equipment'
 import { getFloorObject } from '../rules/floorAttack'
@@ -115,6 +115,9 @@ export type ReactorOptions = {
   // which answering with anything but the SD gives up (`getGivenUpFor`);
   // null when there is none
   cancellable: string | null
+  // abilities.tex "Gentle Art": whether the grapple test they answer with is
+  // made gently (null where it cannot be)
+  gentle: boolean | null
   // the action still waits on them (`getAwaited`), and they answered it
   // with nothing
   awaited: boolean
@@ -149,7 +152,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
           }
         : null
-      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id), awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id), gentle: declared ? getGentle(state, declared) : null, awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -238,6 +241,9 @@ export type OpenActionView = {
   // none); what a push comes to
   grapples: boolean | null
   maneuver: GrappleManeuver | null
+  // abilities.tex "Gentle Art": whether the maneuver being declared is made
+  // gently (null where it cannot be)
+  gentle: boolean | null
   // once a knockdown or an immobilization has hit: whether the attacker
   // commits themselves along (null: nothing to choose)
   along: boolean | null
@@ -462,6 +468,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       opportunity: open.kind === 'strike' && open.opportunity,
       grapples: open.kind === 'strike' && open.step === 'post' && canGrapple(state, open) ? open.grapples : null,
       maneuver: grapple?.maneuver ?? null,
+      gentle: open.step === 'define' ? getGentle(state, open) : null,
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),

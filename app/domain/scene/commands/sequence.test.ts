@@ -81,7 +81,7 @@ function playOut(start: SceneState, face: number): { state: SceneState; landed: 
     const open = getOpenAction(s)
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
-    const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'move' && open.spawnedBy !== null) || (open.kind === 'grapple' && (open.maneuver === 'escape' || open.recipe === 'interceptDisarm')))
+    const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'move' && open.spawnedBy !== null) || (open.kind === 'grapple' && (open.maneuver === 'escape' || (open.maneuver === 'disarm' && open.recipe !== null))))
     const steps = passedUp ? [withdrawSpawnedAction(() => 5, newId)] : [rollAction(() => face, newId), payAction(newId, () => 5), resolveAction(newId, () => 5)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
@@ -705,11 +705,12 @@ describe('protecting the target of a strike', () => {
 // combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
 // stops an attack" — a discount off the maneuver's usual 3 AP + 1 STA
 // (combat.tex "Grapple Maneuvers"), and open with neither in a grapple.
+// abilities.tex "Clinch": the disarm "without requiring grapple"
 describe('a disarm an intercept opens', () => {
   function facingOff(): SceneState {
     const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
     const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
-    let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), holdItem(shield)(fighter('def')))
+    let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), grantAbility('clinch')(holdItem(shield)(fighter('def'))))
     const [row] = getAttackOptions(s.characters.atk, 'strike', true)
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     return commitAction(() => 5, newId)(setTarget('def')(s))

@@ -1386,7 +1386,9 @@
         "description": "You can take a -2 penalty on grapple tests in exchange for reducing the STA cost by 1.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "gentleArt"
+        ],
         "freeSpells": 0
       }
     ]
@@ -1417,7 +1419,37 @@
         "requirements": [],
         "description": "After an intercept that stops the attack, the character can perform a disarm, without requiring grapple.",
         "effect": [],
-        "recipes": [],
+        "recipes": [
+          {
+            "type": "followUp",
+            "on": {
+              "event": "defended",
+              "defenses": [
+                "intercept"
+              ],
+              "degrees": [
+                "miss",
+                "graze"
+              ],
+              "defender": "any"
+            },
+            "opens": {
+              "kind": "grapple",
+              "maneuver": "disarm",
+              "along": false
+            },
+            "hit": 0,
+            "cost": {
+              "operation": "set",
+              "AP": 1,
+              "STA": 1
+            },
+            "costWhen": null,
+            "unresistedWhen": null,
+            "openWhen": null,
+            "drawsOpportunity": true
+          }
+        ],
         "grants": [],
         "freeSpells": 0
       }
@@ -1621,7 +1653,9 @@
         "description": "Learns to perform one attack with the APs from a movement surge, and loses the rest of the AP from the surge, if there is any.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "charge"
+        ],
         "freeSpells": 0
       }
     ]
@@ -1986,6 +2020,7 @@
             },
             "costWhen": "differentObjectFromOpener",
             "unresistedWhen": null,
+            "openWhen": null,
             "drawsOpportunity": false
           }
         ],
