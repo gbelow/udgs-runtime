@@ -353,12 +353,14 @@ function getStrikeDefense(state: SceneState, root: StrikeAction): Action | null 
 
 // combat.tex "Defend": what one reaction to a strike puts up — the
 // reactor's Defend, with a shield's cover, an evasive jump's "+AGI/2 on the
-// skill test"; "High Ground": "+2 bonus to their melee defense".
+// skill test"; "High Ground": "+2 bonus to their melee defense";
+// abilities.tex "Precise Evasion": "takes -3 to defend".
 function strikeDefenseTerms(state: SceneState, root: StrikeAction, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
   const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction), ...reactionSensoryTerms(state, reaction, 'defend')]
   if (reaction.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(reactor) / 2) })
+  if (reaction.kind === 'evade' && reaction.precise) terms.push({ label: 'precise evasion', value: -3 })
   if (isHighGround(state, root.actorId, reactor.id)) terms.push({ label: 'high ground', value: 2 })
   return terms
 }

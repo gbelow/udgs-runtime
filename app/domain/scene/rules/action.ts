@@ -334,6 +334,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'intercept':
       return withGuardStep(c, action, getActionCost(c, action.kind))
     case 'evade':
+      return getEvadeCost(c, action.precise)
     case 'brace':
     case 'evasiveJump':
     case 'guard':
@@ -584,6 +585,11 @@ export function withGuardStep(c: CampaignCharacter, action: ActionOf<'block'> | 
 // cost 1 AP."
 export function getEvasionCost(c: CampaignCharacter, stay: boolean): ActionCost {
   return stay && hasGrant(c, 'stillReflex') ? { AP: 1, STA: 0 } : getActionCost(c, 'reflex')
+}
+
+// abilities.tex "Precise Evasion": "Learns to use evade with 1 AP".
+export function getEvadeCost(c: CampaignCharacter, precise: boolean): ActionCost {
+  return precise && hasGrant(c, 'preciseEvade') ? { AP: 1, STA: 0 } : getActionCost(c, 'evade')
 }
 
 // ---------------------------------------------------------------------------

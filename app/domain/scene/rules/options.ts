@@ -24,7 +24,7 @@ import { getFeintBar } from './feint'
 import { getExtinguishCells } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvasionCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
+import { getEvadeCost, getEvasionCost, getOpportunityBar, getOpportunityCheck, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { perState } from '../../perState'
@@ -297,8 +297,15 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         ]
       // an evade of a trample opens a step, picked on the board once the
       // trample is paid; closed to one the mover ends on with nowhere to go
-      case 'evade':
-        return [answer({ kind }, cost, gate ?? getSidestepBar(state, open, c.id, cost.AP))]
+      // abilities.tex "Precise Evasion": an evade of a strike for 1 AP at -3;
+      // a trample's evade is not tested, and its AP is the step it opens
+      case 'evade': {
+        const precise = getEvadeCost(c, true)
+        return [
+          answer({ kind }, cost, gate ?? getSidestepBar(state, open, c.id, cost.AP)),
+          ...(open.kind === 'strike' && hasGrant(c, 'preciseEvade') ? [answer({ kind, precise: true }, precise, defenseGate(state, c, open, kind, precise))] : []),
+        ]
+      }
       // nothing to pick among; where an evasive jump lands is picked on the
       // board, not here
       case 'brace':

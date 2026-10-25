@@ -3,6 +3,7 @@ import type { Armor, Character, Damage, Delivery, Item } from '../../types'
 import { breaksOn, getArmorBreakChance, getBlow, getBreakChance, getRowBreakTerms, type Breakable, type BreakingBlow } from '../../character/rules/breakage'
 import { getItemArmor } from '../../item/rules/items'
 import { getUndefendedDamage } from '../../character/rules/damage'
+import { getWeaponRES } from '../../character/rules/gear'
 import { getDefendingReaction, isStoppedByGuard } from './attack'
 import { outcomeOf } from './damage'
 import { getHeldItem } from '../../item/rules/hands'
@@ -40,9 +41,9 @@ export function needsBreakRolls(state: SceneState, root: AttackAction): boolean 
 
 // An item a character holds that can give way: never a natural weapon, nor
 // one already broken.
-function getBreakable(row: WeaponRow | null): (Breakable & { itemId: string }) | null {
+function getBreakable(c: Character, row: WeaponRow | null): (Breakable & { itemId: string }) | null {
   if (!row || row.wielded.natural || row.wielded.broken) return null
-  return { itemId: row.wielded.itemId, RES: row.atk.RES }
+  return { itemId: row.wielded.itemId, RES: getWeaponRES(row.atk, c) }
 }
 
 // An item a blow puts at risk: the percentile it is tested with, whose it is,
@@ -73,8 +74,8 @@ function getObjectRisks(state: SceneState, root: AttackAction, blow: BreakingBlo
   if (!reaction || !reactor || !attacker) return []
 
   const blockRow = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
-  const met = getBreakable(blockRow)
-  const swung = root.kind === 'strike' ? getBreakable(findWeaponRow(attacker, root.weaponKey, root.attack)) : null
+  const met = getBreakable(reactor, blockRow)
+  const swung = root.kind === 'strike' ? getBreakable(attacker, findWeaponRow(attacker, root.weaponKey, root.attack)) : null
   const impact: BreakingBlow | null = blockRow && { blunt: blow.blunt, cut: 0, ...getRowBreakTerms(blockRow.atk) }
   return [
     ...(met ? [{ slot: 'defender' as const, ownerId: reactor.id, itemId: met.itemId, chance: getBreakChance(blow, met), swung: false, shield: blockRow?.weapon.shield !== undefined }] : []),

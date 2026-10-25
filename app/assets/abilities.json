@@ -1352,7 +1352,9 @@
         "description": "Increases the RES of bladed weapons, by 5xDM.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "bladeAlignment"
+        ],
         "freeSpells": 0
       }
     ]
@@ -1377,7 +1379,7 @@
         "talent": [
           {
             "property": "DEX",
-            "level": 4
+            "level": 3
           }
         ],
         "requirements": [],
@@ -1413,7 +1415,7 @@
           }
         ],
         "requirements": [],
-        "description": "You can initiate a grapple without cost whenever you intercept an attack in melee range and the attack misses. The character must have the grapple property on any of their equipped weapons. Hands only count if they are free.",
+        "description": "After an intercept that stops the attack, the character can perform a disarm, without requiring grapple.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -1445,7 +1447,7 @@
           }
         ],
         "requirements": [],
-        "description": "Grants attacks for grappling that cost 4AP+1STA and inflict wounds directly. Spending 5 HOP after a hit allows choosing one special effect: Suffocate the enemy, break an arm, and break a leg. Hits can immobilize both characters if the attacker so chooses.",
+        "description": "Grants attacks for grappling that cost 4AP+1STA and inflict wounds directly, without IL damage. Spending 5 HOP after a hit allows choosing one special effect: Suffocate the enemy, cause broken hand, and broken leg. Broken limbs take 10 IL to heal. Hits can immobilize both characters if the attacker so chooses.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -1485,38 +1487,6 @@
             "hit": -2
           }
         ],
-        "grants": [],
-        "freeSpells": 0
-      }
-    ]
-  },
-  "battle-coordination": {
-    "family": "Battle Coordination",
-    "section": "Melee Combat",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 4,
-        "karma": 0,
-        "talent": [
-          {
-            "property": "DEX",
-            "level": 2
-          }
-        ],
-        "requirements": [],
-        "description": "When there are two allies within melee range of the same enemy, the enemy's attacks against one ally trigger opportunity attacks from the other, provided they have this ability. The opportunity attack occurs after what triggered it. Sweeping attacks do not trigger this, since it is made in an area.",
-        "effect": [],
-        "recipes": [],
         "grants": [],
         "freeSpells": 0
       }
@@ -1580,7 +1550,7 @@
           }
         ],
         "requirements": [],
-        "description": "Spend 1 STA to move forward to get in range to intercept. If the attack hits, the movement is cancelled.",
+        "description": "Spend 1 STA to move forward to get in range to intercept, adding shield cover to the defense.",
         "effect": [],
         "recipes": [],
         "grants": [
@@ -1648,7 +1618,7 @@
           }
         ],
         "requirements": [],
-        "description": "Learns to perform one attack with the APs from a movement surge.",
+        "description": "Learns to perform one attack with the APs from a movement surge, and loses the rest of the AP from the surge, if there is any.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -1890,38 +1860,6 @@
       }
     ]
   },
-  "shield-wall": {
-    "family": "Shield Wall",
-    "section": "Melee Combat",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 6,
-        "karma": 0,
-        "talent": [
-          {
-            "property": "DEX",
-            "level": 1
-          }
-        ],
-        "requirements": [],
-        "description": "Gains +2 to block if holding a shield and adjacent to another character with a shield.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "freeSpells": 0
-      }
-    ]
-  },
   "pikeman": {
     "family": "Pikeman",
     "section": "Melee Combat",
@@ -1947,7 +1885,18 @@
         ],
         "requirements": [],
         "description": "Reduces the AP cost of using braced attack as a reaction by 1 AP.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "ap:braced",
+              "operation": "+",
+              "value": -1
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "freeSpells": 0
@@ -1978,10 +1927,12 @@
           }
         ],
         "requirements": [],
-        "description": "Learns to use evade with 1 AP, but takes -3 to defend in doing so. If the opponent grazes or misses, an opportunity attack is triggered.",
+        "description": "Learns to use evade with 1 AP, but takes -3 to defend in doing so.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "preciseEvade"
+        ],
         "freeSpells": 0
       }
     ]

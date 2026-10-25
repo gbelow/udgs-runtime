@@ -18,7 +18,7 @@ import { getAction, getReactionsTo } from './log'
 import { getSensoryTerms, getSensoryTermsOfDL } from './detection'
 import { findWeaponRow } from './weaponRow'
 import type { Defense } from './delivery'
-import { getBlockValue } from '../../character/rules/gear'
+import { getBlockValue, getWeaponRES } from '../../character/rules/gear'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -311,7 +311,7 @@ function getExplosionBlock(state: SceneState, explosionId: string, id: string): 
   if (block?.kind !== 'blockExplosion' || !reactor || (block.roll?.degree !== 'hit' && block.roll?.degree !== 'critical')) return null
   const row = findWeaponRow(reactor, block.weaponKey, block.attack)
   if (!row) return null
-  return { defense: 'blockExplosion', defenseAP: block.cost?.AP ?? 0, defenseWeaponKey: block.weaponKey, block: getBlockValue(row.atk, row.weapon, reactor) ?? 0, blockCap: row.atk.RES, shield: true }
+  return { defense: 'blockExplosion', defenseAP: block.cost?.AP ?? 0, defenseWeaponKey: block.weaponKey, block: getBlockValue(row.atk, row.weapon, reactor) ?? 0, blockCap: getWeaponRES(row.atk, reactor), shield: true }
 }
 
 // combat.tex "Gas", "Fire": what the explosion leaves on the ground, cell

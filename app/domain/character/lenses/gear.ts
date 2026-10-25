@@ -4,7 +4,7 @@ import { getHardness } from '../../item/rules/items'
 import { injuryMap } from '../../tables'
 import { getAttackKind, getAttackPropertyLabels, getAttackType } from '../../weaponProperties'
 import { getArmor } from '../rules/armor'
-import { getAPSurcharge, getBlockValue, getReloadCost, getStrikeDamage, isOversize, isWieldable, needsFocus } from '../rules/gear'
+import { getAPSurcharge, getBlockValue, getReloadCost, getStrikeDamage, getWeaponRES, isOversize, isWieldable, needsFocus } from '../rules/gear'
 import { getTGH } from '../rules/misc'
 import { getTierThreshold } from '../rules/damage'
 
@@ -39,7 +39,7 @@ export function getWeaponAttackRows(weapon: Weapon, charged: boolean): (c: Chara
       type: getAttackType(atk.range),
       kind: getAttackKind(atk.range),
       handed: atk.handed,
-      RES: atk.RES,
+      RES: getWeaponRES(atk, c),
       // The damage the normal attack deals, STR included — not the bare row.
       ...getStrikeDamage(atk, weapon, c),
       AP: atk.AP + getAPSurcharge(weapon, c),

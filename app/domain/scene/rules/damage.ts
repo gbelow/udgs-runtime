@@ -7,7 +7,7 @@ import { HIT_HOP, HOP_EFFECTS } from '../../tables'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus } from '../../character/rules/gear'
+import { getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus, getWeaponRES } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getHardness } from '../../item/rules/items'
@@ -48,7 +48,7 @@ function getDefense(state: SceneState, root: AttackAction): Defense {
       defenseWeaponKey: reaction.weaponKey,
       block: row ? getBlockValue(row.atk, row.weapon, reactor) ?? 0 : 0,
       // combat.tex "Damage absorption": "The absorption value is RES of the target if that is an object"
-      blockCap: row ? row.atk.RES : null,
+      blockCap: row ? getWeaponRES(row.atk, reactor) : null,
       shield: row?.weapon.shield !== undefined,
     }
   }

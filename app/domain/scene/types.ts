@@ -724,8 +724,9 @@ export const SpellTestActionSchema = z.object({
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
-// An evade of a trample opens a step of the evader's (rules/sidestep.ts).
-export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
+// An evade of a trample opens a step of the evader's (rules/sidestep.ts). A
+// `precise` one is made for 1 AP at -3 (abilities.tex "Precise Evasion").
+export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade'), precise: z.boolean().default(false) }).strip()
 // combat.tex "Crash": the target of a trample standing firm — "The target
 // can spend 2AP+1STA to get +3 in this comparison"
 export const BraceActionSchema = z.object({ ...ActionBase, kind: z.literal('brace') }).strip()

@@ -74,7 +74,7 @@ export const ACTIONS = {
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
   // Jump, Intercept, and Block." "Evade: ... This can be used to avoid
   // being trampled" — a move whose path comes into the evader.
-  evade:       { label: 'evade', rule: 'combat.tex "Defend", "Evade"',        type: 'reaction', price: 'evade',       reactsTo: ['strike', 'move'], die: false },
+  evade:       { label: 'evade', rule: 'combat.tex "Defend", "Evade"',        type: 'reaction', price: 'evade',       reactsTo: ['strike', 'move'], die: false, identity: { precise: false } },
   // combat.tex "Crash": standing firm against the mover, +3 to the Force
   brace:       { label: 'brace', rule: 'combat.tex "Crash"',        type: 'reaction', price: 'brace',       reactsTo: ['move'],   die: false },
   evasiveJump: { label: 'evasive jump', rule: 'combat.tex "Evasive Jump"', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false },

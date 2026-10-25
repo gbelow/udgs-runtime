@@ -40,6 +40,12 @@ export function getSmashBonus(HOP: number, c: Character): number {
   return Math.floor(HOP * SMASH_DM * getDM(c))
 }
 
+// gear.tex "RES": the row's breakage threshold; abilities.tex "Blade
+// Alignment": "Increases the RES of bladed weapons, by 5xDM".
+export function getWeaponRES(atk: WeaponAttack, c: Character): number {
+  return atk.RES + (hasProperty(atk.properties, 'bladed') && hasGrant(c, 'bladeAlignment') ? Math.floor(5 * getDM(c)) : 0)
+}
+
 // gear.tex "Gear condition": "Sharp - Bladed weapon gets +x HOP on a hit".
 export function getEdgeHOP(properties: readonly WeaponProperty[], edge: Edge | null): number {
   return isSharpEdge(edge) && canSharpen(properties) ? SHARP_HOP[edge] : 0
