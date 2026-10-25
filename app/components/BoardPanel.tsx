@@ -52,9 +52,9 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
-  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, turn, light, resize, resizeWarning } = useBoard(fromActive)
+  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, turn, light, resize, resizeWarning } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
-  const [ground, setGrounding] = useState(false)
+  const [floorTool, setFloorTool] = useState<'put' | 'remove' | null>(null)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
   const { gmTools } = useRole()
@@ -74,14 +74,15 @@ export function BoardPanel(){
 
   const painting = open && brush !== null
   const repositioning = open && reposition
-  const grounding = open && ground && item !== null
+  const grounding = open && floorTool === 'put' && item !== null
+  const clearing = open && floorTool === 'remove'
   return (
-    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : grounding ? `click a cell to lay ${item.name || item.refId} on it` : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
+    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : grounding ? `click a cell to lay ${item.name || item.refId} on it` : clearing ? 'click an item on the floor to take it away' : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
         <ZoomButtons zoomPan={zoomPan} />
         <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
-        {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setGrounding(false) }}>GM board tools</Button> : null}
+        {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setFloorTool(null) }}>GM board tools</Button> : null}
         <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
         <Button size='xs' weight='subtle' tone='bad' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>
       </>}>
@@ -90,16 +91,16 @@ export function BoardPanel(){
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>place</SectionLabel>
         <Button size='xs' aria-label='reposition' selected={reposition} title='put the active character anywhere, placed before or not, and turn them'
-          onClick={() => { setReposition(!reposition); setBrush(null); setGrounding(false) }}>reposition</Button>
+          onClick={() => { setReposition(!reposition); setBrush(null); setFloorTool(null) }}>reposition</Button>
       </div>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>paint</SectionLabel>
         <Button size='xs' selected={brush === null}
-          onClick={() => { setBrush(null); setGrounding(false) }}>control</Button>
+          onClick={() => { setBrush(null); setFloorTool(null) }}>control</Button>
         {TERRAIN_BRUSHES.map((b) =>
           <Button key={b} size='xs' selected={brush === b}
-            onClick={() => { setBrush(brush === b ? null : b); setReposition(false); setGrounding(false) }}>{BRUSH_LABEL[b]}</Button>)}
+            onClick={() => { setBrush(brush === b ? null : b); setReposition(false); setFloorTool(null) }}>{BRUSH_LABEL[b]}</Button>)}
       </div>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -116,7 +117,11 @@ export function BoardPanel(){
           <SectionLabel>GM</SectionLabel>
           <Tooltip text={item ? 'put the item picked in the item catalog on each clicked cell' : 'pick an item in the item catalog first'}>
             <Button size='xs' aria-label='gm item to ground' selected={grounding} disabled={!item}
-              onClick={() => { setGrounding(!grounding); setBrush(null); setReposition(false) }}>item to ground</Button>
+              onClick={() => { setFloorTool(grounding ? null : 'put'); setBrush(null); setReposition(false) }}>item to ground</Button>
+          </Tooltip>
+          <Tooltip text='click an item lying on the floor to take it off the board'>
+            <Button size='xs' aria-label='gm item off ground' selected={clearing}
+              onClick={() => { setFloorTool(clearing ? null : 'remove'); setBrush(null); setReposition(false) }}>item off ground</Button>
           </Tooltip>
         </div>
       ) : null}
@@ -140,7 +145,7 @@ export function BoardPanel(){
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
-        {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId)} />)}
+        {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clearing ? removeFloorItem(f.itemId) : clickFloorItem(f.itemId)} />)}
       </svg>
     </Panel>
   )

@@ -15,7 +15,7 @@ import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
 import { followScene } from './parked'
 import { follow } from './follow'
-import { dropToFloor, placeItem, throwOffShieldToFloor } from './floor'
+import { dropToFloor, placeItem, removeFloorItem, throwOffShieldToFloor } from './floor'
 import { impose, updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
@@ -105,6 +105,7 @@ export const sceneCommands = {
   // the GM lets go for them
   dropToFloor: command((_, id: string, itemId: string, gm: boolean) => dropToFloor(id, itemId, gm)).by((_, id, _item, gm) => (gm ? 'gm' : { id })),
   placeItem: command((ctx, item: Item, cell: Coord) => placeItem(item, cell, ctx.newId)).by(gm),
+  removeFloorItem: command((_, itemId: string) => removeFloorItem(itemId)).by(gm),
   throwOffShield: command((_, id: string, gm: boolean) => throwOffShieldToFloor(id, gm)).by((_, id, gm) => (gm ? 'gm' : { id })),
 
   // an edit to a character's sheet, and a move with their gear, which the

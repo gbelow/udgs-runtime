@@ -37,10 +37,11 @@ export function useBoard(fromActive = false) {
   const pendingItem = usePendingItem();
   const item = pending?.source === "catalog" ? pendingItem : null;
   const placeItem = (cell: Coord) => { if (item) dispatch({ kind: "placeItem", args: [item, cell] }); };
+  const removeFloorItem = (itemId: string) => dispatch({ kind: "removeFloorItem", args: [itemId] });
   const turn = (reposition: boolean) => click({ on: 'turn' }, null, reposition);
   const light = (level: LightLevel) => dispatch({ kind: "light", args: [level] });
   const resize = (radius: number) => dispatch({ kind: "resizeBoard", args: [radius] });
   const resizeWarning = (radius: number) => getResizeWarning(useCombatStore.getState(), radius);
 
-  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, turn, light, resize, resizeWarning } as const;
+  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, turn, light, resize, resizeWarning } as const;
 }

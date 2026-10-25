@@ -6,7 +6,7 @@ import { getSeveredItem } from '../../character/rules/body'
 import type { Coord, SceneState } from '../types'
 import { coordKey, distance } from '../rules/board/geometry'
 import type { Character, Item } from '../../types'
-import { onFloor } from '../rules/floor'
+import { findFloorItem, onFloor } from '../rules/floor'
 import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
@@ -56,6 +56,12 @@ export function placeItem(item: Item, cell: Coord, newId: () => string): Updater
     if (board.terrain[coordKey(cell)]?.blocking) return state
     return { ...state, floor: [...state.floor, onFloor({ ...item, id: newId() }, cell)] }
   }
+}
+
+// The GM's hand: takes an item off the floor altogether. Refused while an
+// action is open, as painting is.
+export function removeFloorItem(itemId: string): Updater {
+  return (state) => (getOpenAction(state) || !findFloorItem(state, itemId) ? state : { ...state, floor: state.floor.filter((f) => f.item.id !== itemId) })
 }
 
 // An item on the floor chosen for picking up: declares the pick up with it,

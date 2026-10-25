@@ -309,6 +309,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
   throwOffShieldToFloor: (s) => combatCommands.throwOffShieldToFloor('a')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, onBack: shieldItem } } })),
   placeItem: (s) => combatCommands.placeItem(daggerItem, { q: 0, r: 0 }, newId)(deepFreeze(cleared(s))),
+  removeFloorItem: (s) => combatCommands.removeFloorItem(daggerItem.id)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
