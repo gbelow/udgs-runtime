@@ -3,7 +3,8 @@ import type { Updater } from '../types'
 import { dropItem, throwOffShield } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { getSeveredItem } from '../../character/rules/body'
-import type { SceneState } from '../types'
+import type { Coord, SceneState } from '../types'
+import { coordKey, distance } from '../rules/board/geometry'
 import type { Character, Item } from '../../types'
 import { onFloor } from '../rules/floor'
 import { settleBinds } from './bind'
@@ -43,6 +44,18 @@ export function dropToFloor(characterId: string, itemId: string, gm = false): Up
 // action is paid.
 export function throwOffShieldToFloor(characterId: string, gm = false): Updater {
   return (state) => landOnFloor(characterId, state.characters[characterId]?.onBack, throwOffShield(), gm)(state)
+}
+
+// The GM's hand: lays an item on the floor at a cell of the board, under an id
+// of its own so the same catalog entry can lie in many places. Refused with no
+// board, off the board, in a wall, or while an action is open, as painting is.
+export function placeItem(item: Item, cell: Coord, newId: () => string): Updater {
+  return (state) => {
+    const board = state.board
+    if (!board || getOpenAction(state) || distance(board.origin, cell) > board.radius) return state
+    if (board.terrain[coordKey(cell)]?.blocking) return state
+    return { ...state, floor: [...state.floor, onFloor({ ...item, id: newId() }, cell)] }
+  }
 }
 
 // An item on the floor chosen for picking up: declares the pick up with it,

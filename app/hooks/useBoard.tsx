@@ -3,7 +3,9 @@ import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
 import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useAppStore } from "../stores/useAppStore";
 import { useSceneDispatch } from "./useSceneDispatch";
+import { usePendingItem } from "./useItemLens";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,
 // like the action panel. What a click means, and whom it acts for, is the
@@ -30,10 +32,15 @@ export function useBoard(fromActive = false) {
   const clickToken = (id: string) => click({ on: 'token', id });
   const clickFloorItem = (itemId: string) => click({ on: 'floor', itemId });
   const place = (id: string) => setActiveCharacter(id);
+  // the item picked in the catalog, laid on the clicked cell by the GM
+  const pending = useAppStore((s) => s.pendingItem);
+  const pendingItem = usePendingItem();
+  const item = pending?.source === "catalog" ? pendingItem : null;
+  const placeItem = (cell: Coord) => { if (item) dispatch({ kind: "placeItem", args: [item, cell] }); };
   const turn = (reposition: boolean) => click({ on: 'turn' }, null, reposition);
   const light = (level: LightLevel) => dispatch({ kind: "light", args: [level] });
   const resize = (radius: number) => dispatch({ kind: "resizeBoard", args: [radius] });
   const resizeWarning = (radius: number) => getResizeWarning(useCombatStore.getState(), radius);
 
-  return { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light, resize, resizeWarning } as const;
+  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, turn, light, resize, resizeWarning } as const;
 }

@@ -4,10 +4,10 @@ import type { Actor } from '../../profiles'
 import { commandsOver, playedBy, rollerOf, type CommandOf } from '../../registry'
 import type { SpellModification } from '../../tables'
 import type { ChaseCover, ChaseTier, CrossingSkill } from '../../lists'
-import type { CampaignCharacter, Delivery, SurgeKind, TerrainBrush } from '../../types'
+import type { CampaignCharacter, Delivery, Item, SurgeKind, TerrainBrush } from '../../types'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
-import type { ActionDraft, ChaseDeclaration, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
+import type { ActionDraft, ChaseDeclaration, Coord, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { backSegment, createBoard, importBoard, loadBoardMap, removeBoard, resizeBoard, setLight } from './board'
 import { confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
@@ -15,7 +15,7 @@ import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
 import { followScene } from './parked'
 import { follow } from './follow'
-import { dropToFloor, throwOffShieldToFloor } from './floor'
+import { dropToFloor, placeItem, throwOffShieldToFloor } from './floor'
 import { impose, updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
@@ -106,6 +106,7 @@ export const sceneCommands = {
   // what a character lets go of, onto the floor: outside their own turn only
   // the GM lets go for them
   dropToFloor: command((_, id: string, itemId: string, gm: boolean) => dropToFloor(id, itemId, gm)).by((_, id, _item, gm) => (gm ? 'gm' : { id })),
+  placeItem: command((ctx, item: Item, cell: Coord) => placeItem(item, cell, ctx.newId)).by(gm),
   throwOffShield: command((_, id: string, gm: boolean) => throwOffShieldToFloor(id, gm)).by((_, id, gm) => (gm ? 'gm' : { id })),
 
   // an edit to a character's sheet, and a move with their gear, which the
