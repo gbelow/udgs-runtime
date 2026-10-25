@@ -324,7 +324,7 @@ function openSweepLink(state: SceneState, root: RootAction, newId: () => string)
 // "Sprays"), so it is committed as it opens. A detonating spell's is the
 // charge the caster picks next (spells.tex "Detonate Explosive").
 function castExplosion(state: SceneState, root: CastAction, newId: () => string): ExplosionAction {
-  const detonates = isSpellKey(root.key) && SPELLS[root.key].detonate !== null
+  const detonates = isSpellKey(root.key) && SPELLS[root.key].activates !== null
   const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: detonates ? 'detonate' : 'cast', key: detonates ? '' : root.key, spawnedBy: root.id })
   if (detonates) return explosion
   return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion

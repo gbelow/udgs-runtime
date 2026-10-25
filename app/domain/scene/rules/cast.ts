@@ -86,7 +86,7 @@ export function isAreaSpell(key: SpellKey): boolean {
 // area laid at once (a charged spell's waits in its object).
 function opensArea(key: SpellKey): boolean {
   const spell = SPELLS[key]
-  return spell.detonate !== null || (spell.type !== 'charged' && isAreaSpell(key))
+  return spell.activates !== null || (spell.type !== 'charged' && isAreaSpell(key))
 }
 
 // An area is aimed at the board's ground, so a caster on no board cannot cast

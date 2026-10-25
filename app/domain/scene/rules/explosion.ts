@@ -151,8 +151,8 @@ export function getChargeOptions(state: SceneState, action: ExplosionAction): Ch
 function getDetonationRange(state: SceneState, action: ExplosionAction): number | null {
   const cast = action.spawnedBy ? getAction(state, action.spawnedBy) : null
   if (cast?.kind !== 'cast' || !isSpellKey(cast.key)) return null
-  const detonate = SPELLS[cast.key].detonate
-  return detonate ? detonate.range * (1 + cast.extend) : null
+  const activates = SPELLS[cast.key].activates
+  return activates ? (activates.range ?? 0) * (1 + cast.extend) : null
 }
 
 function getAllCharges(state: SceneState, actorId: string): ChargeOption[] {

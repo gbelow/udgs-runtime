@@ -7,7 +7,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   one of a stack, charge and all; if it goes off on impact (`goesOffOnImpact`: an `impact`
   charge, or a mundane explosive's row `payload`) the throw opens an `explosion` at the
   landing cell, committed and waiting on the reflexes, DL the thrower's Accuracy. A
-  detonation (Detonate Explosive, catalog `detonate`) sets off any charge with an area in
+  detonation (Detonate Explosive, whose catalog effect is a `trigger`) sets off any charge with an area in
   range, and has no DL: whoever noticed its caster answers with the degree of the detection
   test that noticed them, a critical when none was needed (`getReactionDegree`), so no
   reflex or cover die is rolled for it. Nothing reads the `fire` trigger yet; a blow on an object on the floor sets off its `impact` charge (see Attack against an object on the floor).
@@ -33,7 +33,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   declared with the cast, like Quicken, each extension +3 DL (`stepExtend`, `EXTEND`);
   a target must be within the extended range to be aimed at (`canAimCast`). It never
   reaches an explosion's area — the explosion is the effect — only the range a Detonate
-  Explosive cast (catalog `detonate`) sets off a charge at (`getChargeOptions` with the
+  Explosive cast (its `trigger` effect, `SPELLS[key].activates`) sets off a charge at (`getChargeOptions` with the
   detonation it opened). A held spell with a catalog `repeat` may be fired again
   (`fireAgain`, `rules/fireAgain.ts`), its item, size, bound target and percentile die
   written at the commit: a spray opens a `paintOnly` explosion from where the holder

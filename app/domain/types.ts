@@ -1329,7 +1329,14 @@ export type SpellOutcomes = z.infer<typeof SpellOutcomesSchema>
 // the fight and delivers nothing itself; what lands is the outcome's effects.
 export const TestSpellEffectSchema = z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('test'), effect: z.object({ outcomes: SpellOutcomesSchema }).strip() }).strip()
 export type TestSpellEffect = z.infer<typeof TestSpellEffectSchema>
-export const CatalogEffectSchema = z.discriminatedUnion('type', [...SpellEffectSchema.options, MoraleSpellEffectSchema, TestSpellEffectSchema])
+
+// spells.tex "Detonate Explosive": sets off a charge already in an object,
+// within `range` metres of the caster. It is the same activation the GM's
+// hand does, opened in the fight as the charge the caster picks next, and
+// delivers nothing itself.
+export const TriggerSpellEffectSchema = z.object({ ...EffectBase, ...SpellEffectEnvelope, target: z.enum(['charge']).default('charge'), type: z.literal('trigger'), effect: z.object({}).strip().default({}) }).strip()
+export type TriggerSpellEffect = z.infer<typeof TriggerSpellEffectSchema>
+export const CatalogEffectSchema = z.discriminatedUnion('type', [...SpellEffectSchema.options, MoraleSpellEffectSchema, TestSpellEffectSchema, TriggerSpellEffectSchema])
 
 export const SpellKnowledgeRequirementSchema = z.object({
   name: str.default(''), // a knowledge name, lowercased: a formal knowledge's key or a specific knowledge's name
@@ -1366,10 +1373,6 @@ export const SpellSchema = z.object({
   linkRange: num.optional(),
   castRange: str.default(''),
   castArea: str.default(''),
-  // spells.tex "Detonate Explosive": the spell sets off a charge already in
-  // an object, within this many metres of the caster; null for one that
-  // does not
-  detonate: z.object({ range: num.default(0) }).strip().nullable().default(null),
   // spells.tex "Charged": what releases the charge a charged spell leaves in
   // its object; empty for any other spell
   triggers: z.array(ChargeTriggerSchema).default([]),
