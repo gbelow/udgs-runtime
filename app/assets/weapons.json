@@ -1084,5 +1084,31 @@
         "payload": []
       }
     ]
+  },
+  "Teeth": {
+    "name": "Teeth",
+    "scale": 3,
+    "attacks": [
+      {
+        "name": "Bite",
+        "handed": "one",
+        "range": "short",
+        "material": "bone",
+        "RES": 15,
+        "blunt": 3,
+        "cut": 3,
+        "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
+        "payload": [],
+        "properties": [
+          "grapple I",
+          "grapple II",
+          "bladed"
+        ]
+      }
+    ]
   }
 }

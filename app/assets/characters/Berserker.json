@@ -225,14 +225,14 @@
       "talent": ""
     },
     "conviction1": {
-      "value": 0,
-      "name": "Fatalism",
+      "value": 3,
+      "name": "Ferocity",
       "XP": 0,
       "type": "proficiency",
       "talent": ""
     },
     "conviction2": {
-      "value": 0,
+      "value": 2,
       "name": "Domination",
       "XP": 0,
       "type": "proficiency",

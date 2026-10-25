@@ -1,0 +1,322 @@
+{
+  "name": "Canine",
+  "description": "",
+  "playable": false,
+  "bonuses": {
+    "AGI": 2,
+    "STA": 3,
+    "CON": 2,
+    "INT": -1,
+    "SPI": 2
+  },
+  "abilities": [
+    "bear-nose"
+  ],
+  "size": 3,
+  "footprint": [
+    {
+      "q": 0,
+      "r": 0
+    }
+  ],
+  "height": 2,
+  "TGH": 0,
+  "senses": {
+    "vision": {
+      "name": "Vision",
+      "rangePenalty": 3,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": null,
+      "hasSense": true
+    },
+    "hearing": {
+      "name": "Hearing",
+      "rangePenalty": 5,
+      "bonus": 0,
+      "active": false,
+      "reactive": true,
+      "penalty": 3,
+      "range": null,
+      "hasSense": true
+    },
+    "smell": {
+      "name": "Smell",
+      "rangePenalty": 5,
+      "bonus": 0,
+      "active": true,
+      "reactive": false,
+      "penalty": 5,
+      "range": 0,
+      "hasSense": true
+    },
+    "touch": {
+      "name": "Touch",
+      "rangePenalty": 100,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 3,
+      "range": 0,
+      "hasSense": true
+    },
+    "synesthesia": {
+      "name": "Synesthesia",
+      "rangePenalty": 100,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": 0,
+      "hasSense": false
+    }
+  },
+  "movement": {
+    "basic": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 1
+    },
+    "careful": {
+      "AP": 2,
+      "STA": 0,
+      "distance": 1
+    },
+    "crawl": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "climb": {
+      "AP": 3,
+      "STA": 1,
+      "distance": 1
+    },
+    "run": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 5
+    },
+    "jump": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 3
+    },
+    "swim": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "fast swim": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 0.5
+    },
+    "stand": {
+      "AP": 4,
+      "STA": 0,
+      "distance": 0
+    }
+  },
+  "armor": {
+    "name": "Fur",
+    "material": "flesh",
+    "RES": 2,
+    "INS": 2,
+    "protection": 1,
+    "deflection": 3,
+    "burdenPenalty": 0,
+    "properties": [],
+    "notes": ""
+  },
+  "body": [
+    {
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": null,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "shocked",
+          "tier": 4,
+          "blunt": true,
+          "effect": "disable",
+          "heal": 5,
+          "affliction": "immobile",
+          "consequence": "immobile"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "Teeth",
+      "aimPenalty": 5,
+      "maxTier": null,
+      "flags": [
+        "stunUnconscious"
+      ],
+      "wounds": [
+        {
+          "name": "death",
+          "tier": 4,
+          "blunt": false,
+          "effect": "kill",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "instant death"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "handL",
+      "name": "left front leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 0,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 0,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "handR",
+      "name": "right front leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 2,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 10,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 4,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "legL",
+      "name": "back left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "legR",
+      "name": "back right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    }
+  ],
+  "stance": {
+    "lameAt": 1,
+    "proneAt": 2
+  }
+}
