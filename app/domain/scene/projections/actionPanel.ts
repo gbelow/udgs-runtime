@@ -211,8 +211,10 @@ export type OpenActionView = {
   // abilities.tex "Jumper II": whether the climb may start with a jump, and
   // whether it does
   canLeap: boolean
-  // combat.tex "Climbing": the metres of the face the climb goes, and how many are left of it
-  climbSteps: { metres: number; remaining: number } | null
+  // combat.tex "Climbing": the metres of the face the climb goes, how many are
+  // left of it, and the climb a metre shorter or longer would be (null where
+  // the face allows no fewer or no more)
+  climbSteps: { metres: number; remaining: number; less: number | null; more: number | null } | null
   leap: boolean
   // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
   // swim ends, and the dive a metre nearer the surface or the floor would be

@@ -96,11 +96,19 @@ export function getClimbCells(state: SceneState, action: MoveAction): number {
   return getClimbPlan(state, action)?.metres ?? 0
 }
 
-// What the panel offers of a climb: the metres this move goes and how many of
-// the face are left to go; null where there is nothing to choose.
-export function getClimbSteps(state: SceneState, action: MoveAction): { metres: number; remaining: number } | null {
+// What the panel offers of a climb: the metres this move goes, how many of the
+// face are left to go, and the metres a metre less or more would be (null
+// where the face allows no fewer or no more); null where there is nothing to
+// choose.
+export function getClimbSteps(state: SceneState, action: MoveAction): { metres: number; remaining: number; less: number | null; more: number | null } | null {
   const plan = getClimbPlan(state, action)
-  return plan && !plan.trivial ? { metres: plan.metres, remaining: plan.remaining } : null
+  if (!plan || plan.trivial) return null
+  return {
+    metres: plan.metres,
+    remaining: plan.remaining,
+    less: plan.metres > 1 ? plan.metres - 1 : null,
+    more: plan.metres < plan.remaining ? plan.metres + 1 : null,
+  }
 }
 
 export function isTrivialClimb(state: SceneState, action: MoveAction): boolean {
