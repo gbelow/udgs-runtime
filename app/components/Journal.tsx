@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { Button, inputClass, selectClass } from './ui'
+import { Pencil, Trash2 } from 'lucide-react'
+import { Button, IconButton, inputClass, selectClass } from './ui'
 import { useActivePartyId, useJournal } from '../hooks/useCampaign'
 import { useRole } from '../hooks/useRole'
 import type { EntryView } from '../domain/campaign/projections/journal'
@@ -56,7 +57,7 @@ function NoteForm({ parties, write, gmTools }: { parties: { id: string, name: st
             <input type='checkbox' aria-label='GM only' checked={gmOnly} onChange={(e) => setGmOnly(e.target.checked)} />GM only
           </label>
         ) : null}
-        <Button size='xs' variant='primary' className='ml-auto' disabled={text.trim() === ''} onClick={submit}>write</Button>
+        <Button size='xs' weight='solid' tone='accent' className='ml-auto' disabled={text.trim() === ''} onClick={submit}>write</Button>
       </div>
       <textarea aria-label='note' rows={2} className={`${inputClass} text-sm`} placeholder='what happened, what to remember' value={text} onChange={(e) => setText(e.target.value)} />
     </div>
@@ -109,8 +110,8 @@ export function Entry({ entry, gmTools, edit, remove }: EntryProps) {
       <span className={entry.note ? 'text-accent' : 'text-muted'}>{entry.kind}{entry.gmOnly ? ' · GM only' : ''}</span>
       {entry.title ? <span className='text-sm'>{entry.title}</span> : null}
       <span className='ml-auto flex flex-row gap-1'>
-        {entry.editable && draft === null ? <Button size='xs' variant='ghost' aria-label={`edit entry ${entry.id}`} title='rewrite the note' onClick={() => setDraft({ text: entry.lines.join('\n'), gmOnly: entry.gmOnly })}>edit</Button> : null}
-        {entry.removable ? <Button size='xs' variant='ghost' aria-label={`delete entry ${entry.id}`} title='throw the entry away' onClick={() => remove(entry.id)}>×</Button> : null}
+        {entry.editable && draft === null ? <IconButton icon={Pencil} aria-label={`edit entry ${entry.id}`} title='rewrite the note' onClick={() => setDraft({ text: entry.lines.join('\n'), gmOnly: entry.gmOnly })} /> : null}
+        {entry.removable ? <IconButton icon={Trash2} tone='bad' aria-label={`delete entry ${entry.id}`} title='throw the entry away' onClick={() => remove(entry.id)} /> : null}
       </span>
     </span>
   )
@@ -127,7 +128,7 @@ export function Entry({ entry, gmTools, edit, remove }: EntryProps) {
             </label>
           ) : null}
           <Button size='xs' className='ml-auto' onClick={() => setDraft(null)}>cancel</Button>
-          <Button size='xs' variant='primary' disabled={draft.text.trim() === ''} onClick={save}>save</Button>
+          <Button size='xs' weight='solid' tone='accent' disabled={draft.text.trim() === ''} onClick={save}>save</Button>
         </div>
       </div>
     )

@@ -24,13 +24,13 @@ export function ArmorPanel({ tiers: showTiers = true }: { tiers?: boolean }){
             <Button size='xs' aria-label='take off armor' title='then pick a slot group to put it in' onClick={selectWorn}>{armor.worn.doffCost === null ? 'take off' : `take off (${armor.worn.doffCost} AP +)`}</Button> :
             <span className='text-xs text-muted'>takes minutes to take off</span>
           }
-          {armor.worn.canDoff ? <Button size='xs' variant='ghost' aria-label='drop armor' onClick={drop}>drop</Button> : null}
+          {armor.worn.canDoff ? <Button size='xs' weight='subtle' aria-label='drop armor' onClick={drop}>drop</Button> : null}
         </> : null
       }
       {
         equipView ?
         equipView.wearable ?
-        <Button size='xs' variant='good' aria-label='equip pending armor' onClick={equip}>equip</Button> :
+        <Button size='xs' weight='subtle' tone='good' aria-label='equip pending armor' onClick={equip}>equip</Button> :
         <span className='text-xs text-muted'>{equipView.why}</span>
         : null
       }

@@ -1,7 +1,8 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Button, CollectionSelect, NumberInput, TextInput, selectClass } from './ui'
+import { X } from 'lucide-react'
+import { Button, CollectionSelect, IconButton, NumberInput, ResetLink, TextInput, selectClass } from './ui'
 import { AmbientSchema, EVENT_TYPES, EventTestSchema, PlaceChangeSchema, TERRAIN_TAGS, type EventOutcome, type EventResult, type EventTest, type Ambient, type PlaceChange, type TerrainTag, type Wear } from '../domain/campaign/types'
 import { SkillKeySchema, type Degree } from '../domain/types'
 import type { EventView } from '../domain/campaign/projections/map'
@@ -30,7 +31,7 @@ export function EventEditor({ event, edit, on, remove, children }: {
   children?: ReactNode
 }) {
   const reset = (key: EventView['custom'][number]) => (event.custom.includes(key) ?
-    <button type='button' className='text-xs text-accent' title={`changed here; click to take it from ${event.template} again`} onClick={() => edit({ kind: 'resetEventValue', args: [key] })}>↺</button>
+    <ResetLink aria-label={`reset ${key}`} title={`changed here; click to take it from ${event.template} again`} onClick={() => edit({ kind: 'resetEventValue', args: [key] })} />
     : null)
   return (
     <div className='flex flex-col gap-1 ml-4 pl-2 border-l border-line'>
@@ -39,7 +40,7 @@ export function EventEditor({ event, edit, on, remove, children }: {
         {reset('name')}
         {event.template ? <span className='text-xs text-muted'>from {event.template}{event.missing ? ' (not in the catalog)' : ''}</span> : null}
         {children}
-        {remove ? <Button aria-label={`remove ${event.name}`} variant='ghost' onClick={remove}>×</Button> : null}
+        {remove ? <IconButton icon={X} tone='bad' aria-label={`remove ${event.name}`} onClick={remove} /> : null}
       </div>
       <div className='flex flex-row gap-1.5 items-center'>
         <TextInput className='grow' aria-label={`${event.name} description`} placeholder='what it is: a grove to make camp, a group of bandits' value={event.text} onChange={(e) => edit({ kind: 'setEvent', args: [{ text: e.target.value }] })} />
@@ -59,7 +60,7 @@ export function EventEditor({ event, edit, on, remove, children }: {
           <NumberInput className='w-10' aria-label={`${event.name} DL`} value={event.DL} onChange={(e) => edit({ kind: 'setEvent', args: [{ DL: parseInt(e.target.value) || 0 }] })} />
           {reset('DL')}
           {EVENT_TYPES.map((type) => (
-            <Button key={type} size='xs' variant='ghost' selected={event.types.includes(type)} onClick={() => edit({ kind: 'toggleEventType', args: [type] })}>{type}</Button>
+            <Button key={type} size='xs' selected={event.types.includes(type)} onClick={() => edit({ kind: 'toggleEventType', args: [type] })}>{type}</Button>
           ))}
           {reset('types')}
         </div>
@@ -141,10 +142,10 @@ function OutcomeEditor({ event, degree, on, edit }: { event: EventView, degree: 
               onChange={(e) => set({ items: outcome.items.map((it, n) => (n === i ? { ...it, amount: Math.max(1, parseInt(e.target.value) || 1) } : it)) })} />
             <TextInput className='w-32' list='catalog-items' aria-label={`${name} item ${i + 1}`} value={item.key}
               onChange={(e) => set({ items: outcome.items.map((it, n) => (n === i ? { ...it, key: e.target.value } : it)) })} />
-            <Button size='xs' variant='ghost' aria-label={`${name} remove item ${i + 1}`} onClick={() => set({ items: outcome.items.filter((_, n) => n !== i) })}>×</Button>
+            <IconButton icon={X} tone='bad' aria-label={`${name} remove item ${i + 1}`} onClick={() => set({ items: outcome.items.filter((_, n) => n !== i) })} />
           </span>
         ))}
-        <Button size='xs' variant='ghost' aria-label={`${name} add item`} onClick={() => set({ items: [...outcome.items, { key: '', amount: 1 }] })}>+ item</Button>
+        <Button size='xs' weight='subtle' aria-label={`${name} add item`} onClick={() => set({ items: [...outcome.items, { key: '', amount: 1 }] })}>+ item</Button>
       </div>
       <TestInputs label={name} test={outcome.test} set={(test) => set({ test })} />
       <div className='flex flex-row flex-wrap gap-1.5 items-center ml-14'>
@@ -217,7 +218,7 @@ function PlaceChangeInputs({ label, change, set }: { label: string, change: Plac
       <span className='text-xs text-muted'>or +</span>
       <NumberInput className='w-10' aria-label={`${label} raise`} disabled={change.exposure !== null} value={change.raise} onChange={(e) => set({ ...change, raise: parseInt(e.target.value) || 0 })} />
       {TERRAIN_TAGS.map((tag) => (
-        <Button key={tag} size='xs' variant='ghost' selected={change.add.includes(tag) || change.remove.includes(tag)} aria-label={`${label} ${tag}`}
+        <Button key={tag} size='xs' selected={change.add.includes(tag) || change.remove.includes(tag)} aria-label={`${label} ${tag}`}
           title='click: add it, again: keep it out, again: leave it' onClick={() => set(cycle(tag))}>
           {change.add.includes(tag) ? `+${tag}` : change.remove.includes(tag) ? `−${tag}` : tag}
         </Button>
@@ -267,7 +268,7 @@ export function AddEvent({ templates, add }: { templates: { key: string; name: s
   const kept = filter.keep(templates.map((t) => t.key))
   return (
     <>
-      <Button size='xs' variant='ghost' onClick={() => add(null)}>+ event</Button>
+      <Button size='xs' weight='subtle' onClick={() => add(null)}>+ event</Button>
       {templates.length > 0 ?
         <>
           <select aria-label='add event from template' className={selectClass} value='' onChange={(e) => e.target.value && add(e.target.value)}>

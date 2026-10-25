@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, CollectionSelect, ListButton, NumberInput, Panel, SectionLabel, TextInput, selectClass } from './ui'
+import { X } from 'lucide-react'
+import { Button, CollectionSelect, IconButton, ListButton, NumberInput, Panel, ResetLink, SectionLabel, TextInput, selectClass } from './ui'
 import { MapCanvas, type MapSelection } from './MapCanvas'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { MapEditingContext, useMapEditing, useMapEditor } from '../hooks/useMap'
@@ -66,7 +67,7 @@ function MapList() {
       <div className='flex flex-row items-center gap-1'>
         <SectionLabel>Maps</SectionLabel>
         <span className='grow' />
-        <Button size='xs' variant='good' onClick={create}>+ new</Button>
+        <Button size='xs' weight='subtle' tone='good' onClick={create}>+ new</Button>
       </div>
       {maps.map((name) => (
         <ListButton key={name} selected={view.name === name} onClick={() => open(name)}>{name}</ListButton>
@@ -81,14 +82,14 @@ function MapHeader() {
   return (
     <div className='flex flex-row flex-wrap gap-2 items-center'>
       <TextInput aria-label='map name' placeholder='map name' value={view.name} onChange={(e) => setName(e.target.value)} />
-      <Button variant='good' disabled={!view.name.trim()} title={view.name.trim() ? undefined : 'Maps need a name'} onClick={save}>save</Button>
+      <Button weight='solid' tone='accent' disabled={!view.name.trim()} title={view.name.trim() ? undefined : 'Maps need a name'} onClick={save}>save</Button>
       {maps.includes(view.name) ?
         confirm ?
           <>
-            <Button variant='bad' onClick={() => { setConfirm(false); remove(view.name) }}>delete {view.name}</Button>
-            <Button variant='ghost' onClick={() => setConfirm(false)}>keep</Button>
+            <Button weight='solid' tone='bad' onClick={() => { setConfirm(false); remove(view.name) }}>delete {view.name}</Button>
+            <Button weight='ghost' onClick={() => setConfirm(false)}>keep</Button>
           </>
-          : <Button variant='ghost' onClick={() => setConfirm(true)}>delete…</Button>
+          : <Button tone='bad' onClick={() => setConfirm(true)}>delete…</Button>
         : null}
     </div>
   )
@@ -100,7 +101,7 @@ function NodeInspector({ id, close }: { id: string, close: () => void }) {
   const n = view.nodes.find((n) => n.id === id)
   if (!n) return null
   return (
-    <Panel title={n.name || 'node'} meta='node' actions={<Button size='xs' variant='ghost' aria-label='close' onClick={close}>×</Button>}>
+    <Panel title={n.name || 'node'} meta='node' actions={<IconButton icon={X} aria-label='close' onClick={close} />}>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <TextInput className='w-40' aria-label='node name' value={n.name} onChange={(e) => setNode(n.id, { name: e.target.value })} />
         <select aria-label={`${n.name} terrain`} className={selectClass} value={n.terrain ?? ''} onChange={(e) => setNode(n.id, { terrain: e.target.value || null })}>
@@ -124,7 +125,7 @@ function NodeInspector({ id, close }: { id: string, close: () => void }) {
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         {n.knowledge === null ?
           <span className='text-xs text-muted'>knowledge</span>
-          : <button type='button' className='text-xs text-accent' title="changed on this node; click to take the map's" onClick={() => setNodeKnowledge(n.id, null)}>knowledge ↺</button>}
+          : <ResetLink title="changed on this node; click to take the map's" onClick={() => setNodeKnowledge(n.id, null)}>knowledge</ResetLink>}
         <TextInput className='w-28' list='knowledges' aria-label={`${n.name} knowledge`} value={n.knowledge ?? view.knowledge} onChange={(e) => setNodeKnowledge(n.id, e.target.value)} />
       </div>
       <NodeTerrain node={n} />
@@ -135,7 +136,7 @@ function NodeInspector({ id, close }: { id: string, close: () => void }) {
         <AddEvent templates={view.templates} add={(template) => addEvent({ kind: 'node', id: n.id }, template)} />
         <span className='grow' />
         {n.removeBar ? <span className='text-xs text-muted'>{n.removeBar}</span> : null}
-        <Button size='xs' variant='bad' disabled={n.removeBar !== null} title={n.removeBar ?? undefined} onClick={() => { close(); removeNode(n.id) }}>remove node</Button>
+        <Button size='xs' tone='bad' disabled={n.removeBar !== null} title={n.removeBar ?? undefined} onClick={() => { close(); removeNode(n.id) }}>remove node</Button>
       </div>
     </Panel>
   )
@@ -149,7 +150,7 @@ function NodeTerrain({ node }: { node: NodeEditorView }) {
   if (!values) return null
   const label = (key: keyof TerrainValues, text: string) => (
     node.custom.includes(key) ?
-      <button type='button' className='text-xs text-accent' title='changed on this node; click to take it from the terrain' onClick={() => resetValue(node.id, key)}>{text} ↺</button>
+      <ResetLink title='changed on this node; click to take it from the terrain' onClick={() => resetValue(node.id, key)}>{text}</ResetLink>
       : <span className='text-xs text-muted'>{text}</span>
   )
   return (
@@ -167,7 +168,7 @@ function NodeTerrain({ node }: { node: NodeEditorView }) {
       ))}
       {label('tags', 'tags')}
       {TERRAIN_TAGS.map((tag) => (
-        <Button key={tag} size='xs' variant='ghost' selected={values.tags.includes(tag)} onClick={() => toggleTag(node.id, tag)}>{tag}</Button>
+        <Button key={tag} size='xs' selected={values.tags.includes(tag)} onClick={() => toggleTag(node.id, tag)}>{tag}</Button>
       ))}
     </div>
   )
@@ -178,7 +179,7 @@ function PathInspector({ id, close }: { id: string, close: () => void }) {
   const c = view.connections.find((c) => c.id === id)
   if (!c) return null
   return (
-    <Panel title={`${c.aName} ↔ ${c.bName}`} meta='path' actions={<Button size='xs' variant='ghost' aria-label='close' onClick={close}>×</Button>}>
+    <Panel title={`${c.aName} ↔ ${c.bName}`} meta='path' actions={<IconButton icon={X} aria-label='close' onClick={close} />}>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <span className='text-sm'>{c.aName} → {c.bName}</span>
         <span className='text-xs text-muted'>DL</span>
@@ -199,7 +200,7 @@ function PathInspector({ id, close }: { id: string, close: () => void }) {
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <AddEvent templates={view.templates} add={(template) => addEvent({ kind: 'connection', id: c.id }, template)} />
         <span className='grow' />
-        <Button size='xs' variant='bad' aria-label={`remove ${c.aName} to ${c.bName}`} onClick={() => { close(); removeConnection(c.id) }}>remove path</Button>
+        <Button size='xs' tone='bad' aria-label={`remove ${c.aName} to ${c.bName}`} onClick={() => { close(); removeConnection(c.id) }}>remove path</Button>
       </div>
     </Panel>
   )

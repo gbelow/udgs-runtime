@@ -38,7 +38,7 @@ export function RoundChangePanel(){
           ))}
           <span className='ml-auto'>
             <Tooltip text={view.continueBar}>
-              <Button size='sm' variant='primary' aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</Button>
+              <Button size='sm' weight='solid' tone='accent' aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</Button>
             </Tooltip>
           </span>
         </div>

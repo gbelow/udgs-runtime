@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useSpellLens } from '../hooks/useSpellLens'
-import { Button, Panel, Row } from './ui'
+import { Minus, Plus } from 'lucide-react'
+import { Button, IconButton, Panel, Row } from './ui'
 
 // The spells a character knows, one row per spell: the skill it is cast
 // with, the casting DL and, unfolded, the test the target makes and what each
@@ -25,16 +26,16 @@ export function SpellPanel(){
                 <span className='text-xs text-muted'> · {row.method} · skill {row.skill} · DL {row.DL ?? '?'}</span>
               </button>
               <span className='flex flex-row items-center gap-1 text-xs text-muted'>
-                <button type='button' aria-label={`practice ${row.name} down`} className='hover:text-fg cursor-pointer' onClick={() => practice(row.key, -1)}>−</button>
+                <IconButton icon={Minus} aria-label={`practice ${row.name} down`} onClick={() => practice(row.key, -1)} />
                 <span className='font-mono text-fg' title='practice'>{row.practice}</span>
-                <button type='button' aria-label={`practice ${row.name} up`} className='hover:text-fg cursor-pointer' onClick={() => practice(row.key, 1)}>+</button>
+                <IconButton icon={Plus} aria-label={`practice ${row.name} up`} onClick={() => practice(row.key, 1)} />
               </span>
               {
                 row.active ?
-                <Button size='xs' variant='good' className='bg-good/15' aria-label={`release ${row.name}`} onClick={() => release(row.key)}>release</Button>
+                <Button size='xs' weight='subtle' tone='good' aria-label={`release ${row.name}`} onClick={() => release(row.key)}>release</Button>
                 : null
               }
-              <Button size='xs' variant='ghost' aria-label={`forget ${row.name}`} onClick={() => forget(row.key)}>− forget</Button>
+              <Button size='xs' weight='subtle' tone='bad' aria-label={`forget ${row.name}`} onClick={() => forget(row.key)}>− forget</Button>
             </Row>
             {
               open === row.key ?

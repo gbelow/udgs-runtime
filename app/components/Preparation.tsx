@@ -47,7 +47,7 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>loaded with</SectionLabel>
           {view.ammo.map((a) =>
-            <Button key={a.itemId} size='xs' variant='default' onClick={() => onAmend({ ammoId: a.itemId })}>{a.name} <span className='font-mono text-muted'>×{a.amount}</span></Button>)}
+            <Button key={a.itemId} size='xs' onClick={() => onAmend({ ammoId: a.itemId })}>{a.name} <span className='font-mono text-muted'>×{a.amount}</span></Button>)}
         </div>
       ) : null}
       {view.spells.length > 0 ? (

@@ -112,7 +112,7 @@ function Finish() {
         </div>
       ) : null}
       <div>
-        <Button variant='primary' size='md' disabled={view.problems.length > 0} onClick={finish}>create character</Button>
+        <Button weight='solid' tone='accent' size='md' disabled={view.problems.length > 0} onClick={finish}>create character</Button>
       </div>
     </div>
   )
@@ -139,7 +139,7 @@ function CreationBar({ step, onStep }: { step: Step; onStep: (step: Step) => voi
             )
           })}
         </div>
-        <Button size='xs' variant='ghost' onClick={restart}>start over</Button>
+        <Button size='xs' weight='subtle' tone='bad' onClick={restart}>start over</Button>
       </div>
       <div className='flex flex-row flex-wrap items-stretch gap-2'>
         {view.pools.map(({ pool, budget, spent, over }) => <BudgetChip key={pool} label={pool} spent={spent} budget={budget} over={over} />)}
@@ -350,7 +350,7 @@ function Abilities() {
         <CatalogList label='ability' groups={view.abilityCatalog} nameOf={(entry) => entry.view.family} collection={{ filter, keyOf: (entry) => entry.view.key }} render={(entry) => (
           <AbilityFamilyRow key={entry.family} row={entry.view} action={
             entry.level > 0 ? <span className='text-xs text-good px-1'>{entry.bought > 0 ? 'taken' : 'racial'}</span>
-            : entry.next ? <Button size='xs' variant='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
+            : entry.next ? <Button size='xs' weight='subtle' tone='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
             : <LockedLabel reason={entry.view.blocked} />} />
         )} />
       </div>
@@ -390,11 +390,11 @@ function Magic() {
             : (
               <span className='flex flex-row gap-1'>
                 {entry.claimable ? (
-                  <Button size='xs' variant='good' aria-label={`claim ${entry.row.name} free`} title='claim as a free spell, learned as a wizard'
+                  <Button size='xs' weight='subtle' tone='good' aria-label={`claim ${entry.row.name} free`} title='claim as a free spell, learned as a wizard'
                     onClick={() => claimSpell(entry.row.key)}>★ free</Button>
                 ) : null}
                 {SpellMethodSchema.options.map((method) => entry.prices[method] ? (
-                  <Button size='xs' variant='good' key={method} aria-label={`learn ${entry.row.name} ${method}`} title={`learn ${method} · ${priceLabel(entry.prices[method] ?? null)}`}
+                  <Button size='xs' weight='subtle' tone='good' key={method} aria-label={`learn ${entry.row.name} ${method}`} title={`learn ${method} · ${priceLabel(entry.prices[method] ?? null)}`}
                     onClick={() => chooseSpell(entry.row.key, method)}>{method[0]}</Button>
                 ) : null)}
               </span>

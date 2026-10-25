@@ -25,7 +25,7 @@ export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
   return (
     <div className='grid grid-cols-12 gap-2 text-left'>
       <div className='col-span-3 flex flex-col gap-1 border-r border-line pr-2 max-h-[85vh] overflow-y-auto'>
-        <CatalogList label={label} groups={groups} nameOf={(row) => row.name} beside={<Button size='xs' variant='good' onClick={create}>+ new</Button>} render={(row) => (
+        <CatalogList label={label} groups={groups} nameOf={(row) => row.name} beside={<Button size='xs' weight='subtle' tone='good' onClick={create}>+ new</Button>} render={(row) => (
           <ListButton key={row.key} selected={draft?.key === row.key} onClick={() => open(row.key)}>{row.name}</ListButton>
         )} />
       </div>
@@ -43,7 +43,7 @@ function ComparedPanel({ catalog, editor }: { catalog: CatalogName, editor: Edit
     <div className='grid grid-cols-2 gap-2 text-left'>
       <div className='flex flex-col gap-1 border-r border-line pr-2 max-h-[85vh]'>
         <ComparisonTable comparison={comparison} selected={editor.draft?.key ?? null} open={editor.open}
-          beside={<Button size='xs' variant='good' onClick={editor.create}>+ new</Button>} />
+          beside={<Button size='xs' weight='subtle' tone='good' onClick={editor.create}>+ new</Button>} />
       </div>
       <div className='flex flex-col gap-2 max-h-[85vh] overflow-y-auto pr-2'>
         <DraftForm catalog={catalog} editor={editor} />
@@ -62,7 +62,7 @@ function DraftForm({ catalog, editor }: { catalog: CatalogName, editor: Editor }
         <span className='text-xs text-muted'>key</span>
         <span className='text-sm font-mono'>{draft.key || '—'}</span>
         <span className='grow' />
-        <Button variant='primary' onClick={save}>save</Button>
+        <Button weight='solid' tone='accent' onClick={save}>save</Button>
         {!draft.fresh && <ConfirmDelete remove={remove} />}
       </div>
       {catalog === 'events'

@@ -4,7 +4,8 @@ import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
 import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
-import { Button, NumberInput, SectionLabel, StatTile, Tiles } from './ui';
+import { Minus, Plus } from 'lucide-react'
+import { Button, IconButton, NumberInput, SectionLabel, StatTile, Tiles } from './ui';
 import { Characteristics, Knowledges, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -162,7 +163,7 @@ export function NotesAndSave(){
   return(
     <>
       <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
-      <div><Button variant='primary' onClick={copyToMyCharacters}>copy to my characters</Button></div>
+      <div><Button weight='solid' tone='accent' onClick={copyToMyCharacters}>copy to my characters</Button></div>
     </>
   )
 }
@@ -211,9 +212,9 @@ function InjuryControl({type}: {type: keyof typeof INJURY_TITLES}){
       <span className='text-[10px] text-muted'>{INJURY_TITLES[type]}</span>
       <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full border w-16 h-16 ${ring}`}>
         <NumberInput className='w-12 border-transparent text-base' aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value) || 0)} />
-        <div className='flex flex-row gap-2 text-xs text-muted'>
-          <button type='button' className='hover:text-fg cursor-pointer' aria-label={'causeInjury'} onClick={() => setInjury( type, value + 1)}>+</button>
-          <button type='button' className='hover:text-fg cursor-pointer' aria-label={'healInjury'} onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)}>−</button>
+        <div className='flex flex-row gap-1'>
+          <IconButton icon={Plus} aria-label={'causeInjury'} title='raise' onClick={() => setInjury( type, value + 1)} />
+          <IconButton icon={Minus} aria-label={'healInjury'} title='lower' onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)} />
         </div>
       </div>
     </div>
@@ -402,7 +403,7 @@ export function AfflictionsPannel(){
               // they still light up, but a click cannot switch them off.
               section.entries.map((entry) => (
                 <Button key={entry.name} size='xs' disabled={!entry.controlable} title={entry.name}
-                  variant={entry.active ? 'bad' : 'default'} className={`text-left ${entry.active ? 'bg-bad/15' : ''}`}
+                  tone={entry.active ? 'bad' : 'neutral'} active={entry.active} className='text-left'
                   aria-label={entry.name} onClick={() => setAffliction(entry.toggle)}>{entry.label}</Button>
               ))
             }

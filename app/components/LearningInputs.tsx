@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, NumberInput, TextInput, selectClass } from './ui'
+import { X } from 'lucide-react'
+import { Button, IconButton, NumberInput, TextInput, selectClass } from './ui'
 import { LearningTestSchema, SkillKeySchema, type LearningTest, type SkillRef } from '../domain/types'
 import { knowledges_list } from '../domain/lists'
 
@@ -50,6 +51,6 @@ export function LearningGains({ label, gains, set }: { label: string, gains: Lea
 // A learning test switched on at its defaults, or off.
 export function LearningToggle({ label, learning, set }: { label: string, learning: LearningTest | null, set: (learning: LearningTest | null) => void }) {
   return learning
-    ? <Button size='xs' variant='ghost' aria-label={`${label} no learning test`} onClick={() => set(null)}>×</Button>
-    : <Button size='xs' variant='ghost' aria-label={`${label} add learning test`} onClick={() => set(LearningTestSchema.parse({}))}>+ learning test</Button>
+    ? <IconButton icon={X} tone='bad' aria-label={`${label} no learning test`} onClick={() => set(null)} />
+    : <Button size='xs' weight='subtle' aria-label={`${label} add learning test`} onClick={() => set(LearningTestSchema.parse({}))}>+ learning test</Button>
 }

@@ -45,7 +45,7 @@ export function CampaignParties(){
         <CreateParty create={createParty} hint='a new party with nobody in it yet, outside time' />
         {switching ? <SwitchBanner name={switching.name} cancel={() => setSwitching(null)} /> : null}
         {canStart ? (
-          <Button size='xs' variant='bad' className='bg-bad/15' aria-label='start the timeline' aria-pressed={starting} active={starting} disabled={!gmTools}
+          <Button size='xs' weight='subtle' tone='accent' aria-label='start the timeline' aria-pressed={starting} active={starting} disabled={!gmTools}
             title={gmTools ? 'then click the party to start it with' : 'only the GM starts the timeline'} onClick={() => setStarting(!starting)}>
             {starting ? 'click a party to start with it' : 'start the timeline'}
           </Button>

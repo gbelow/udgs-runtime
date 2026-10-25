@@ -20,7 +20,7 @@ export function SpellSelector({ wide = false }: { wide?: boolean }){
         row.learned ?
         <span className='text-xs text-muted px-1'>learned</span> :
         SpellMethodSchema.options.map((method) => (
-          <Button size='xs' variant='good' key={method} aria-label={`learn ${row.name} ${method}`}
+          <Button size='xs' weight='subtle' tone='good' key={method} aria-label={`learn ${row.name} ${method}`}
             title={row.blocked[method] || `learn ${method}`} disabled={row.blocked[method] !== ''}
             onClick={() => learn(row.key, method)}>{method[0]}</Button>
         ))

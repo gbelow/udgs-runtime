@@ -75,7 +75,7 @@ function NewProfile({ create, nameBar }: { create: (name: string) => void, nameB
   return (
     <form className='flex flex-row gap-1' onSubmit={(e) => { e.preventDefault(); if (bar) return; create(name); setName('') }}>
       <TextInput className='flex-1 min-w-0' aria-label='new profile name' placeholder='new profile' value={name} onChange={(e) => setName(e.target.value)} />
-      <Button type='submit' size='xs' variant='primary' disabled={!!bar} title={bar ?? undefined}>make</Button>
+      <Button type='submit' size='xs' weight='solid' tone='accent' disabled={!!bar} title={bar ?? undefined}>make</Button>
     </form>
   )
 }

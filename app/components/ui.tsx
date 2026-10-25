@@ -1,20 +1,53 @@
 'use client'
 import { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, ReactNode, RefObject, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Ellipsis, RotateCcw, type LucideIcon } from 'lucide-react'
 import type { CollectionFilter } from '../hooks/useCollections'
 
 // The shared visual vocabulary. Colour is by meaning (see globals.css): accent
 // selects, good is the pending flow, bad is harm, muted is derived or
 // unavailable. Nothing here knows anything about the game.
 
-export type ButtonVariant = 'default' | 'primary' | 'good' | 'bad' | 'ghost'
+// Weight is how much a button matters among its neighbours: solid for the one
+// press that moves things on (at most one to a panel), outline for ordinary
+// actions, subtle for the actions inside a row, ghost only beside a heavier
+// button. Tone is what kind of thing it does, in the palette's meanings.
+export type ButtonWeight = 'solid' | 'outline' | 'subtle' | 'ghost'
+export type Tone = 'neutral' | 'accent' | 'good' | 'bad'
 
-const VARIANT: Record<ButtonVariant, string> = {
-  default: 'border-line bg-surface text-fg hover:bg-raised hover:border-muted',
-  primary: 'border-accent bg-surface text-accent hover:bg-accent/15',
-  good: 'border-good bg-surface text-good hover:bg-good/15',
-  bad: 'border-bad bg-surface text-bad hover:bg-bad/15',
-  ghost: 'border-transparent bg-transparent text-muted hover:text-fg',
+const LOOK: Record<ButtonWeight, Record<Tone, string>> = {
+  solid: {
+    neutral: 'border-transparent bg-fg text-bg font-medium hover:brightness-110',
+    accent: 'border-transparent bg-accent text-bg font-medium hover:brightness-110',
+    good: 'border-transparent bg-good text-bg font-medium hover:brightness-110',
+    bad: 'border-transparent bg-bad text-bg font-medium hover:brightness-110',
+  },
+  outline: {
+    neutral: 'border-line bg-surface text-fg hover:bg-raised hover:border-muted',
+    accent: 'border-accent bg-surface text-accent hover:bg-accent/15',
+    good: 'border-good bg-surface text-good hover:bg-good/15',
+    bad: 'border-bad bg-surface text-bad hover:bg-bad/15',
+  },
+  subtle: {
+    neutral: 'border-transparent bg-raised text-fg hover:bg-line',
+    accent: 'border-transparent bg-accent/15 text-accent hover:bg-accent/25',
+    good: 'border-transparent bg-good/15 text-good hover:bg-good/25',
+    bad: 'border-transparent bg-bad/15 text-bad hover:bg-bad/25',
+  },
+  ghost: {
+    neutral: 'border-transparent bg-transparent text-muted hover:bg-raised hover:text-fg',
+    accent: 'border-transparent bg-transparent text-muted hover:bg-raised hover:text-accent',
+    good: 'border-transparent bg-transparent text-muted hover:bg-raised hover:text-good',
+    bad: 'border-transparent bg-transparent text-muted hover:bg-raised hover:text-bad',
+  },
+}
+
+// A button held down (a menu open, a mode on, a state it is in), whatever its weight.
+const PRESSED: Record<Tone, string> = {
+  neutral: 'border-muted bg-raised text-fg',
+  accent: 'border-accent bg-accent/15 text-accent',
+  good: 'border-good bg-good/15 text-good',
+  bad: 'border-bad bg-bad/15 text-bad',
 }
 
 const SIZE = {
@@ -23,17 +56,63 @@ const SIZE = {
   md: 'text-sm px-3 py-1',
 } as const
 
-// `selected` marks the one chosen among its siblings — a tab, a mode, a
-// picked option — in the accent, whatever its variant otherwise.
-export function Button({ variant = 'default', size = 'sm', active = false, selected = false, className = '', ...rest }:
-  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant, size?: keyof typeof SIZE, active?: boolean, selected?: boolean }
+const FOCUS = 'focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1'
+
+// `selected` marks the one chosen among its siblings (a tab, a mode, a picked
+// option) in the accent, whatever its tone otherwise. A closed button is drawn
+// dashed and empty, so it still reads as an option, only one not open now; a
+// closed one held down keeps showing the state it is held in, faded.
+export function Button({ weight = 'outline', tone = 'neutral', size = 'sm', active = false, selected = false, className = '', ...rest }:
+  ButtonHTMLAttributes<HTMLButtonElement> & { weight?: ButtonWeight, tone?: Tone, size?: keyof typeof SIZE, active?: boolean, selected?: boolean }
 ){
+  const look = selected ? PRESSED.accent : active ? PRESSED[tone] : LOOK[weight][tone]
+  const closed = selected || active ? 'disabled:opacity-60' : 'disabled:border-dashed disabled:border-line disabled:bg-transparent disabled:text-muted disabled:font-normal'
   return (
     <button type='button'
-      className={`rounded border whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-surface
-        focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1
-        ${VARIANT[selected ? 'primary' : variant]} ${SIZE[size]} ${active ? 'bg-raised' : ''} ${selected ? 'bg-accent/15' : ''} ${className}`}
+      className={`rounded border whitespace-nowrap cursor-pointer transition-colors ${FOCUS} disabled:pointer-events-none ${closed}
+        ${look} ${SIZE[size]} ${className}`}
       {...rest} />
+  )
+}
+
+const ICON_SIZE = {
+  xs: { box: 'size-5', icon: 14 },
+  sm: { box: 'size-6', icon: 16 },
+} as const
+
+const ICON_TONE: Record<Tone, string> = {
+  neutral: 'text-muted hover:bg-raised hover:text-fg',
+  accent: 'text-muted hover:bg-accent/15 hover:text-accent',
+  good: 'text-muted hover:bg-good/15 hover:text-good',
+  bad: 'text-muted hover:bg-bad/15 hover:text-bad',
+}
+
+// A control drawn as an icon alone, for what every screen does the same way:
+// close, add, remove, zoom, turn. Its label is what the hover and a screen
+// reader say, so it has to have one.
+export function IconButton({ icon: Icon, tone = 'neutral', size = 'xs', active = false, selected = false, className = '', title, ...rest }:
+  Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & { icon: LucideIcon, 'aria-label': string, tone?: Tone, size?: keyof typeof ICON_SIZE, active?: boolean, selected?: boolean }
+){
+  const look = selected ? 'bg-accent/15 text-accent' : active ? 'bg-raised text-fg' : ICON_TONE[tone]
+  return (
+    <button type='button' title={title ?? rest['aria-label']}
+      className={`inline-grid shrink-0 place-items-center rounded cursor-pointer transition-colors ${FOCUS} disabled:opacity-40 disabled:pointer-events-none
+        ${ICON_SIZE[size].box} ${look} ${className}`}
+      {...rest}>
+      <Icon size={ICON_SIZE[size].icon} aria-hidden />
+    </button>
+  )
+}
+
+// A value changed here from the template it came from: pressed, it takes the
+// template's again.
+export function ResetLink({ className = '', children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement>){
+  return (
+    <button type='button'
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-xs text-accent bg-accent/10 hover:bg-accent/20 cursor-pointer ${FOCUS} ${className}`}
+      {...rest}>
+      <RotateCcw size={11} aria-hidden />{children}
+    </button>
   )
 }
 
@@ -329,8 +408,9 @@ export function Floating({ anchor, side = 'below', align = 'start', gap = 4, mat
 }
 
 // A button that opens a panel of its own beneath it, closed by a click
-// outside, by Escape, or by what the panel hands to `close`.
-export function Dropdown({ label, text, variant = 'default', title, children }: { label: string, text: ReactNode, variant?: 'default' | 'ghost', title?: string, children: (close: () => void) => ReactNode }){
+// outside, by Escape, or by what the panel hands to `close`. With an `icon`
+// it is drawn as that icon alone.
+export function Dropdown({ label, text, icon, title, children }: { label: string, title?: string, children: (close: () => void) => ReactNode } & ({ text: ReactNode, icon?: never } | { icon: LucideIcon, text?: never })){
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -349,7 +429,9 @@ export function Dropdown({ label, text, variant = 'default', title, children }: 
 
   return (
     <div ref={box} className='relative'>
-      <Button size='xs' variant={variant} active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>
+      {icon
+        ? <IconButton icon={icon} active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)} />
+        : <Button size='xs' active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>}
       {open ? (
         <Floating anchor={box} panelRef={panel} align='end' className='!w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
           {children(() => setOpen(false))}
@@ -413,15 +495,15 @@ export function ConfirmDelete({ remove }: { remove: () => Promise<void> | void }
   const [confirm, setConfirm] = useState(false)
   return confirm
     ? <>
-        <Button variant='bad' className='bg-bad/15' onClick={async () => { await remove(); setConfirm(false) }}>confirm delete</Button>
-        <Button onClick={() => setConfirm(false)}>cancel</Button>
+        <Button weight='solid' tone='bad' onClick={async () => { await remove(); setConfirm(false) }}>confirm delete</Button>
+        <Button weight='ghost' onClick={() => setConfirm(false)}>cancel</Button>
       </>
-    : <Button variant='bad' onClick={() => setConfirm(true)}>delete</Button>
+    : <Button tone='bad' onClick={() => setConfirm(true)}>delete</Button>
 }
 
 const MenuClose = createContext<() => void>(() => {})
 
-// A ⋯ button that opens its options on a click, and closes on a click
+// A "more" button that opens its options on a click, and closes on a click
 // outside it, on Escape, or once an option is chosen. Clicks inside it stay
 // inside, so a menu sits in a clickable frame without setting it off.
 export function Menu({ label, children }: { label: string, children: ReactNode }){
@@ -443,7 +525,7 @@ export function Menu({ label, children }: { label: string, children: ReactNode }
 
   return (
     <div ref={box} className='relative inline-flex' onClick={(e) => e.stopPropagation()}>
-      <Button size='xs' variant='ghost' aria-label={label} aria-expanded={open} active={open} onClick={() => setOpen((o) => !o)}>⋯</Button>
+      <IconButton icon={Ellipsis} aria-label={label} aria-expanded={open} active={open} onClick={() => setOpen((o) => !o)} />
       {open ?
         <Floating anchor={box} panelRef={panel} role='menu' className='min-w-48 max-w-72 flex flex-col gap-0.5 bg-raised border border-line rounded p-1 shadow-lg shadow-black/40 text-xs text-left'>
           <MenuClose.Provider value={() => setOpen(false)}>{children}</MenuClose.Provider>
@@ -476,8 +558,8 @@ export function MenuConfirm({ bar = null, hint, onConfirm, children }: { bar?: s
   if (!asking) return <MenuItem bad stay bar={bar} hint={hint} onClick={() => setAsking(true)}>{children}</MenuItem>
   return (
     <div className='flex flex-row flex-wrap gap-1 items-center px-2 py-1'>
-      <Button size='xs' variant='bad' className='bg-bad/15' onClick={() => { onConfirm(); close() }}>confirm</Button>
-      <Button size='xs' onClick={() => setAsking(false)}>cancel</Button>
+      <Button size='xs' weight='solid' tone='bad' onClick={() => { onConfirm(); close() }}>confirm</Button>
+      <Button size='xs' weight='ghost' onClick={() => setAsking(false)}>cancel</Button>
     </div>
   )
 }

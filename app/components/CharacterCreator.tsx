@@ -45,7 +45,7 @@ function SaveCatalogCharacterButton(){
 
 function SavePlayerCharacterButton(){
   const { savePlayerCharacter } = useGameCommands()
-  return <Button variant='primary' onClick={() => savePlayerCharacter()}>save</Button>
+  return <Button weight='solid' tone='accent' onClick={() => savePlayerCharacter()}>save</Button>
 }
 
 function DeleteCharacterButton(){
@@ -60,14 +60,14 @@ function DeleteCharacterButton(){
 
   return(
     <>
-      <Button variant='bad' onClick={()=> setShowConfirm(true)}>delete</Button>
+      <Button tone='bad' onClick={()=> setShowConfirm(true)}>delete</Button>
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="p-4 rounded-md border border-line bg-surface shadow-lg w-72 flex flex-col gap-4">
             <p className="text-sm">Delete {name}? This removes the base character file.</p>
             <div className="flex justify-end gap-2">
-              <Button onClick={() => setShowConfirm(false)}>cancel</Button>
-              <Button variant='bad' className='bg-bad/15' onClick={handleDeleteCharacterClick}>delete</Button>
+              <Button weight='ghost' onClick={() => setShowConfirm(false)}>cancel</Button>
+              <Button weight='solid' tone='bad' onClick={handleDeleteCharacterClick}>delete</Button>
             </div>
           </div>
         </div>
@@ -97,7 +97,7 @@ function RacePicker(){
 
 function ResetAllSkillsButton(){
   const { resetAllSkills } = useCharacterCommands()
-  return <Button variant='ghost' size='xs' onClick={() => resetAllSkills()}>reset all skills</Button>
+  return <Button weight='subtle' size='xs' onClick={() => resetAllSkills()}>reset all skills</Button>
 }
 
 const EDITOR_TAB_LABELS: Record<EditorTab, string> = {
@@ -133,7 +133,7 @@ function EditorHeader(){
         <TagItem level='category' />
         <Experience />
         <div className='ml-auto flex flex-row items-center gap-2'>
-          <Button variant='ghost' selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
+          <Button selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
           <SaveCatalogCharacterButton />
           <SavePlayerCharacterButton />
           <DeleteCharacterButton />

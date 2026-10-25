@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Button } from './ui'
+import { Scan, ZoomIn, ZoomOut } from 'lucide-react'
+import { Button, IconButton } from './ui'
 import { useMapEditing } from '../hooks/useMap'
 import type { Point } from '../domain/campaign/rules/layout'
 import type { MapGraphView } from '../domain/campaign/projections/map'
@@ -42,8 +43,8 @@ export function MapCanvas({ selected, select }: { selected: MapSelection, select
     <MapDrawing graph={view.graph} selected={selected} select={select} edit={edit}
       hint='double-click to add a node there · drag a node to move it · drag its handle onto another node to join them · wheel to zoom · drag the ground to pan'
       tools={<>
-        <Button size='xs' variant='ghost' onClick={() => addNode()}>+ node</Button>
-        <Button size='xs' variant='ghost' selected={connecting} disabled={selected?.kind !== 'node'} onClick={() => setConnecting(!connecting)}>
+        <Button size='xs' weight='subtle' onClick={() => addNode()}>+ node</Button>
+        <Button size='xs' weight='subtle' selected={connecting} disabled={selected?.kind !== 'node'} onClick={() => setConnecting(!connecting)}>
           {connecting ? 'click the other node…' : 'connect'}
         </Button>
       </>} />
@@ -152,9 +153,9 @@ export function MapDrawing({ graph, selected, select, marked = [], edit, tools, 
     <div className='flex flex-col gap-1 min-w-0 grow'>
       <div className='flex flex-row items-center gap-2'>
         {tools}
-        <Button size='xs' variant='ghost' onClick={() => zoom(ZOOM_STEP)}>+</Button>
-        <Button size='xs' variant='ghost' onClick={() => zoom(1 / ZOOM_STEP)}>−</Button>
-        <Button size='xs' variant='ghost' onClick={() => setBox(fit)}>fit</Button>
+        <IconButton icon={ZoomIn} aria-label='zoom in' title='zoom in (or the wheel)' onClick={() => zoom(ZOOM_STEP)} />
+        <IconButton icon={ZoomOut} aria-label='zoom out' title='zoom out (or the wheel)' onClick={() => zoom(1 / ZOOM_STEP)} />
+        <IconButton icon={Scan} aria-label='fit map' title='show the whole map' onClick={() => setBox(fit)} />
         <span className='text-xs text-muted'>{hint}</span>
       </div>
       <svg ref={svg} role='img' aria-label='point crawl map' viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}

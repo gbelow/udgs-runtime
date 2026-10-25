@@ -15,8 +15,8 @@ export function HandsPanel(){
         panel.canHold ?
         <div className='flex flex-row flex-wrap gap-2 items-center text-xs text-good'>
           <span>hold in</span>
-          {panel.canHold[1] ? <Button size='xs' variant='good' aria-label='hold in one hand' onClick={() => hold(1)}>one hand</Button> : null}
-          {panel.canHold[2] ? <Button size='xs' variant='good' aria-label='hold in two hands' onClick={() => hold(2)}>two hands</Button> : null}
+          {panel.canHold[1] ? <Button size='xs' weight='subtle' tone='good' aria-label='hold in one hand' onClick={() => hold(1)}>one hand</Button> : null}
+          {panel.canHold[2] ? <Button size='xs' weight='subtle' tone='good' aria-label='hold in two hands' onClick={() => hold(2)}>two hands</Button> : null}
           {!panel.canHold[1] && !panel.canHold[2] ? <span className='text-muted'>no free hand</span> : panel.lamingHold ? <span className='text-bad'>lames</span> : null}
         </div>
         : null
@@ -38,16 +38,16 @@ export function HandsPanel(){
               <span className='text-muted'>size {item.scale} · {item.bulkName} · {item.grip}h{item.laming ? <span className='text-bad'> · lame</span> : null}</span>
               {item.canGrip[1] ? <Button size='xs' aria-label={`grip ${item.name} with one hand`} onClick={() => regrip(item.id, 1)}>1h</Button> : null}
               {item.canGrip[2] ? <Button size='xs' aria-label={`grip ${item.name} with two hands`} onClick={() => regrip(item.id, 2)}>2h</Button> : null}
-              {item.wear ? <Button size='xs' variant='good' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)}>wear</Button> : null}
+              {item.wear ? <Button size='xs' weight='subtle' tone='good' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)}>wear</Button> : null}
               {item.sling ? <Button size='xs' aria-label={`sling ${item.name} to the back`} disabled={!item.sling.able} title={item.sling.why} onClick={() => sling(item.id)}>{withCost('to back', item.sling.cost)}</Button> : null}
-              {item.putOn ? <Button size='xs' variant='good' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.why} onClick={() => putOn(item.id)}>{withCost('put on', item.putOn.cost)}</Button> : null}
+              {item.putOn ? <Button size='xs' weight='subtle' tone='good' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.why} onClick={() => putOn(item.id)}>{withCost('put on', item.putOn.cost)}</Button> : null}
               <span className='ml-auto flex flex-row gap-1'>
                 {
                   putting ?
                   <Button size='xs' aria-label={`cancel storing ${item.name}`} onClick={clear}>cancel</Button> :
                   <Button size='xs' aria-label={`store ${item.name}`} onClick={() => selectHeld(item.id)}>store</Button>
                 }
-                <Button size='xs' variant='ghost' aria-label={`drop ${item.name}`} onClick={() => drop(item.id)}>drop</Button>
+                <Button size='xs' weight='subtle' aria-label={`drop ${item.name}`} onClick={() => drop(item.id)}>drop</Button>
               </span>
             </Row>
           )
@@ -57,9 +57,9 @@ export function HandsPanel(){
       <Row>
         <span>{panel.back.name}</span>
         <span className='text-muted'>on back</span>
-        <Button size='xs' variant='good' aria-label={`bring ${panel.back.name} to the front`} disabled={!panel.back.unsling.able} title={panel.back.unsling.why} onClick={unsling}>{withCost('to front', panel.back.unsling.cost)}</Button>
+        <Button size='xs' weight='subtle' tone='good' aria-label={`bring ${panel.back.name} to the front`} disabled={!panel.back.unsling.able} title={panel.back.unsling.why} onClick={unsling}>{withCost('to front', panel.back.unsling.cost)}</Button>
         <span className='ml-auto flex flex-row gap-1'>
-          <Button size='xs' variant='ghost' aria-label={`throw off ${panel.back.name}`} onClick={throwOff}>{withCost('drop', panel.back.throwOffCost)}</Button>
+          <Button size='xs' weight='subtle' aria-label={`throw off ${panel.back.name}`} onClick={throwOff}>{withCost('drop', panel.back.throwOffCost)}</Button>
         </span>
       </Row> : null}
     </Panel>

@@ -26,7 +26,7 @@ export function CollectionsEditor() {
           {CATALOG_KINDS.map((k) => <option key={k} value={k}>{getKindLabel(k)}</option>)}
         </select>
         <CatalogList label='Collections' groups={[{ label: null, rows: collections }]} nameOf={(c) => c.name}
-          beside={<Button size='xs' variant='good' onClick={() => setPicked(create(kind))}>+ new</Button>}
+          beside={<Button size='xs' weight='subtle' tone='good' onClick={() => setPicked(create(kind))}>+ new</Button>}
           render={(c) => (
             <ListButton key={c.id} selected={c.id === picked} onClick={() => setPicked(c.id)}>
               {c.name || '—'} <span className='text-muted'>· {c.keys.length}{c.curated ? (editable(c.id) ? '' : ` · ${ownerName(c.owner)}'s`) : ' · catalog'}</span>

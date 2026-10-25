@@ -43,7 +43,7 @@ export default function DiceTray(){
         <SectionLabel>{request.label}</SectionLabel>
         <span className='text-xs text-muted'>{stage === 'done' ? <>came to <span className='font-mono text-fg'>{request.thrown.die}</span></> : SAY[stage]}</span>
         <span className='ml-auto flex flex-row gap-1'>
-          {stage === 'fling' ? <Button size='xs' variant='primary' onClick={() => tray.current?.release()}>throw</Button> : null}
+          {stage === 'fling' ? <Button size='xs' weight='solid' tone='accent' onClick={() => tray.current?.release()}>throw</Button> : null}
           {stage === 'done' ? <Button size='xs' onClick={() => finish(request.id)}>go on</Button> : null}
         </span>
       </div>

@@ -10,7 +10,8 @@ import type { Coord } from '../domain/scene/types'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
-import { Button, Panel, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
+import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
+import { Button, IconButton, Panel, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
 
 const MODE_LABEL = {
@@ -64,7 +65,7 @@ export function BoardPanel(){
   if (!view.present) {
     return (
       <Panel meta='no grid: everyone is in reach'
-        title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' variant='primary' aria-label='new board' disabled={gmBar !== null} title={gmBar ?? 'draw a hex grid for the scene'} onClick={() => create(6)}>simulate a grid</Button></span>}>
+        title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' tone='accent' aria-label='new board' disabled={gmBar !== null} title={gmBar ?? 'draw a hex grid for the scene'} onClick={() => create(6)}>simulate a grid</Button></span>}>
         {gmTools ? <MapsRow canSave={false} /> : null}
         <SceneCards />
       </Panel>
@@ -74,14 +75,14 @@ export function BoardPanel(){
   const painting = open && brush !== null
   const repositioning = open && reposition
   return (
-    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : repositioning ? 'click a cell to put the active character there, ↻ to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
+    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
         <ZoomButtons zoomPan={zoomPan} />
         <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
         {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false) }}>GM board tools</Button> : null}
-        <Button size='xs' variant='ghost' aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)}>↻</Button>
-        <Button size='xs' variant='ghost' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>
+        <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
+        <Button size='xs' weight='subtle' tone='bad' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>
       </>}>
 
       {open ? (<>
@@ -144,9 +145,9 @@ export function BoardPanel(){
 
 export function ZoomButtons({ zoomPan }: { zoomPan: ReturnType<typeof useZoomPan> }){
   return (<>
-    <Button size='xs' variant='ghost' aria-label='zoom in' title='zoom in (or the wheel)' onClick={zoomPan.zoomIn}>+</Button>
-    <Button size='xs' variant='ghost' aria-label='zoom out' title='zoom out (or the wheel)' onClick={zoomPan.zoomOut}>−</Button>
-    <Button size='xs' variant='ghost' aria-label='fit board' disabled={!zoomPan.zoomed} title='show the whole board' onClick={zoomPan.reset}>fit</Button>
+    <IconButton icon={ZoomIn} aria-label='zoom in' title='zoom in (or the wheel)' onClick={zoomPan.zoomIn} />
+    <IconButton icon={ZoomOut} aria-label='zoom out' title='zoom out (or the wheel)' onClick={zoomPan.zoomOut} />
+    <IconButton icon={Scan} aria-label='fit board' disabled={!zoomPan.zoomed} title='show the whole board' onClick={zoomPan.reset} />
   </>)
 }
 

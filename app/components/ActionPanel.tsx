@@ -9,7 +9,8 @@ import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
-import { Button, Closed, Panel, SectionLabel, Tooltip } from './ui'
+import { X } from 'lucide-react'
+import { Button, Closed, IconButton, Panel, SectionLabel, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
@@ -65,7 +66,7 @@ export function ActionPanel(){
     <Panel title={<>{open.actor} · {open.label}{open.target ? <> → {open.target}</> : null}</>}
       meta={step ? STEP_LABEL[step] : null}
       pending={step === 'react'}
-      actions={declared && !open.spawned ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
+      actions={declared && !open.spawned ? <IconButton icon={X} aria-label='cancel action' onClick={cancel} /> : null}>
 
       <LockedFor id={open.actorId}>
       {declared && open.required ? <span className='text-xs text-muted'>prepared: it must be done</span> : null}
@@ -216,7 +217,7 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-x-3 items-center text-xs text-muted'>
           <span>cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></span>
-          {open.path.length > 0 && !locked ? <Button size='xs' variant='ghost' onClick={backSegment}>back a segment</Button> : null}
+          {open.path.length > 0 && !locked ? <Button size='xs' weight='subtle' onClick={backSegment}>back a segment</Button> : null}
           {open.walked && open.walked.stop !== 'end' ? <span className='text-bad'>stops after {open.walked.cells} ({open.walked.stop})</span> : null}
           {open.path.length === 0 && open.dive === 0 && open.movement !== 'stand' && open.movement !== 'prone' ? <span>pick a path on the board</span> : null}
         </div>
@@ -259,7 +260,7 @@ export function ActionPanel(){
 
       {declared ? (
         <div className='flex flex-row flex-wrap gap-1'>
-          <Button variant='primary' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</Button>
+          <Button weight='solid' tone='accent' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</Button>
           {open.spawned && open.flee === null && !open.required ? (
             <Button aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</Button>
           ) : null}
@@ -294,11 +295,11 @@ export function ActionPanel(){
           <div className='flex flex-row gap-1'>
             <LockedFor id={open.actorId}>
               {view.die
-                ? <Tooltip text={view.goBar}><Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button></Tooltip>
-                : <Tooltip text={view.goBar}><Button variant='primary' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button></Tooltip>}
+                ? <Tooltip text={view.goBar}><Button weight='solid' tone='accent' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button></Tooltip>
+                : <Tooltip text={view.goBar}><Button weight='solid' tone='accent' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button></Tooltip>}
             </LockedFor>
-            {view.canAccept ? <LockedFor id={open.targetId}><Button variant='default' aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</Button></LockedFor> : null}
-            <Button variant='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
+            {view.canAccept ? <LockedFor id={open.targetId}><Button aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</Button></LockedFor> : null}
+            <Button weight='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
           </div>
         </div>
       ) : null}
@@ -366,7 +367,7 @@ export function ActionPanel(){
           {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
           <div className='flex flex-row gap-1.5'>
             {view.restMove ? <Button aria-label='move while resting' onClick={restMove}>move while resting</Button> : null}
-            <Button variant='primary' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</Button>
+            <Button weight='solid' tone='accent' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</Button>
           </div>
         </div>
         </LockedFor>

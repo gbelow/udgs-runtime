@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, ListButton, Row, SectionLabel, StatTile, TextInput, Tiles, inputClass, selectClass } from './ui'
+import { X } from 'lucide-react'
+import { Button, IconButton, ListButton, Row, SectionLabel, StatTile, TextInput, Tiles, inputClass, selectClass } from './ui'
 import { MovementPanel } from './MovementPanel'
 import { SensesPanel } from './SensesPanel'
 import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor'
@@ -44,7 +45,7 @@ function RaceList() {
       <div className='flex flex-row items-center gap-1'>
         <SectionLabel>Races</SectionLabel>
         <span className='grow' />
-        <Button size='xs' variant='good' onClick={create}>+ new</Button>
+        <Button size='xs' weight='subtle' tone='good' onClick={create}>+ new</Button>
       </div>
       {races.map((name) => (
         <ListButton key={name} selected={view.name === name} onClick={() => open(name)}>{name}</ListButton>
@@ -64,13 +65,13 @@ function RaceHeader() {
           <input type='checkbox' className='accent-accent' checked={view.playable} onChange={(e) => edit({ playable: e.target.checked })} />
           playable
         </label>
-        <Button variant='primary' onClick={save} disabled={!view.name.trim()}>save race</Button>
+        <Button weight='solid' tone='accent' onClick={save} disabled={!view.name.trim()}>save race</Button>
         {races.includes(view.name) ? (confirm ?
           <>
-            <Button variant='bad' className='bg-bad/15' onClick={async () => { await remove(view.name); setConfirm(false) }}>confirm delete</Button>
-            <Button onClick={() => setConfirm(false)}>cancel</Button>
+            <Button weight='solid' tone='bad' onClick={async () => { await remove(view.name); setConfirm(false) }}>confirm delete</Button>
+            <Button weight='ghost' onClick={() => setConfirm(false)}>cancel</Button>
           </> :
-          <Button variant='bad' onClick={() => setConfirm(true)}>delete race</Button>) : null}
+          <Button tone='bad' onClick={() => setConfirm(true)}>delete race</Button>) : null}
       </div>
       <textarea aria-label='race description' placeholder='description' className={`${inputClass} p-1 min-h-12 w-full text-sm bg-surface`}
         value={view.description} onChange={(e) => edit({ description: e.target.value })} />
@@ -102,7 +103,7 @@ function RaceAbilities() {
         {view.abilities.map((a) => (
           <Row key={a.key}>
             {a.name}
-            <button type='button' aria-label={`remove ${a.name}`} className='text-muted hover:text-bad cursor-pointer' onClick={() => removeAbility(a.key)}>×</button>
+            <IconButton icon={X} tone='bad' aria-label={`remove ${a.name}`} onClick={() => removeAbility(a.key)} />
           </Row>
         ))}
         <select aria-label='add race ability' className={selectClass} value='' onChange={(e) => e.target.value && addAbility(e.target.value)}>

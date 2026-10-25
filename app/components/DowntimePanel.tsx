@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { Button, CollectionSelect, NumberInput, Tooltip, barred, selectClass } from './ui';
+import { X } from 'lucide-react'
+import { Button, CollectionSelect, IconButton, NumberInput, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
 import { useDowntime, useDowntimeAnswer, useDowntimeCalls, useDowntimeCommands, useDowntimeDiceBar, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
@@ -36,7 +37,7 @@ export function DowntimeStrip(){
         <span className='text-xs text-muted'>days</span>
         <NumberInput className='w-12' aria-label='days' placeholder={`${defaultSpan}`} value={span ?? ''} onChange={(e) => setSpan(e.target.value === '' ? null : num(e.target.value))} />
         <Tooltip text={bar ?? 'every running party spends the days on its activities'}>
-          <Button aria-label='passDays' variant='primary' disabled={bar !== null} onClick={() => { passDays(days); setSpan(null) }}>pass {days} days</Button>
+          <Button aria-label='passDays' weight='solid' tone='accent' disabled={bar !== null} onClick={() => { passDays(days); setSpan(null) }}>pass {days} days</Button>
         </Tooltip>
       </div>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -211,11 +212,11 @@ function ActivityRow({ id, view: v, commands }: { id: string, view: BlockView, c
           : null}
         {b.kind === 'training' ?
           <>
-            <Button size='xs' variant={b.decision === 'accepted' ? 'good' : 'default'} {...barred(gmBar)} onClick={() => decide(id, 'accepted')}>trainer found</Button>
-            <Button size='xs' variant={b.decision === 'refused' ? 'bad' : 'default'} {...barred(gmBar)} onClick={() => decide(id, 'refused')}>none</Button>
+            <Button size='xs' tone='good' active={b.decision === 'accepted'} {...barred(gmBar)} onClick={() => decide(id, 'accepted')}>trainer found</Button>
+            <Button size='xs' tone='bad' active={b.decision === 'refused'} {...barred(gmBar)} onClick={() => decide(id, 'refused')}>none</Button>
           </>
           : null}
-        <Button aria-label='drop activity' variant='ghost' onClick={() => drop(id)}>×</Button>
+        <IconButton icon={X} tone='bad' aria-label='drop activity' onClick={() => drop(id)} />
       </div>
       <span className='text-xs text-muted'>
         <TestLine test={v.test} />{v.test ? ' · ' : ''}cost {v.cost} · yields {v.yields}

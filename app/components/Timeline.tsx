@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { useJournal, usePlacement, useTimelineChart } from '../hooks/useCampaign'
 import { useRole } from '../hooks/useRole'
-import { Button, inputClass, selectClass } from './ui'
+import { X } from 'lucide-react'
+import { Button, IconButton, inputClass, selectClass } from './ui'
 import { Entry } from './Journal'
 import type { TimelineChart, TimelineLane } from '../domain/campaign/projections/timelineChart'
 
@@ -94,7 +95,7 @@ function MomentPanel({ moment, close }: { moment: Moment, close: () => void }) {
       <div className='flex flex-row items-center gap-2 text-xs'>
         <span className='text-sm'>{moment.name}</span>
         <span className='text-muted'>{moment.when}</span>
-        <Button size='xs' variant='ghost' className='ml-auto' aria-label='close moment' onClick={close}>×</Button>
+        <IconButton icon={X} className='ml-auto' aria-label='close moment' onClick={close} />
       </div>
       {shown.length === 0 ? <span className='text-xs text-muted'>nothing written here yet</span> : null}
       {shown.map((e) => <Entry key={e.id} entry={e} gmTools={gmTools} edit={edit} remove={remove} />)}
@@ -105,7 +106,7 @@ function MomentPanel({ moment, close }: { moment: Moment, close: () => void }) {
             <input type='checkbox' aria-label='GM only' checked={gmOnly} onChange={(e) => setGmOnly(e.target.checked)} />GM only
           </label>
         ) : null}
-        <Button size='xs' variant='primary' className='ml-auto' disabled={text.trim() === ''} onClick={attach}>attach</Button>
+        <Button size='xs' weight='solid' tone='accent' className='ml-auto' disabled={text.trim() === ''} onClick={attach}>attach</Button>
       </div>
     </div>
   )
@@ -147,7 +148,7 @@ function PlaceParty({ chart, done }: { chart: TimelineChart, done: () => void })
       {placement.options.map((o) => (
         <div key={o.how} className='flex flex-row flex-wrap gap-1.5 items-center'>
           <span className='text-fg'>{o.warning}</span>
-          <Button size='xs' variant='primary' aria-label={`${o.how} party`} onClick={() => { place(o.how); done() }}>{o.label}</Button>
+          <Button size='xs' tone='accent' aria-label={`${o.how} party`} onClick={() => { place(o.how); done() }}>{o.label}</Button>
         </div>
       ))}
     </div>

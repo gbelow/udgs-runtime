@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Combobox, NumberInput, Panel, Row, SectionLabel, StatTile, TextInput, Tiles, selectClass } from './ui'
+import { X } from 'lucide-react'
+import { Button, IconButton, Combobox, NumberInput, Panel, Row, SectionLabel, StatTile, TextInput, Tiles, selectClass } from './ui'
 import { useNaturalWeapons } from '../hooks/useRace'
 import { useBodyEditor, useBodyView, useFootprintEditor } from '../hooks/useBodyEditor'
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens'
@@ -76,7 +77,7 @@ function Footprint() {
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <span className='text-muted'>place</span>
           {view.parts.map((p) => (
-            <Button key={p.id} size='xs' variant='ghost' active={placing === p.id} aria-pressed={placing === p.id} title={`${p.name} at ${p.cell ?? 'the whole body'}`}
+            <Button key={p.id} size='xs' weight='subtle' active={placing === p.id} aria-pressed={placing === p.id} title={`${p.name} at ${p.cell ?? 'the whole body'}`}
               onClick={() => setPlacing(placing === p.id ? null : p.id)}>{p.name}</Button>
           ))}
           {placing ? <Button size='xs' onClick={() => { placePart(placing, null); setPlacing(null) }}>whole body</Button> : null}
@@ -162,7 +163,7 @@ function PartEditor({ part }: { part: BodyPart }) {
         <Combobox aria-label={`${part.name} natural weapon`} placeholder='natural weapon' className='w-28 text-xs'
           value={part.naturalWeapon} options={naturalWeapons} onChange={(naturalWeapon) => editPart(part.id, { naturalWeapon })} />
         <span className='ml-auto' />
-        <Button size='xs' variant='ghost' aria-label={`remove ${part.name}`} onClick={() => removePart(part.id)}>remove</Button>
+        <Button size='xs' weight='subtle' tone='bad' aria-label={`remove ${part.name}`} onClick={() => removePart(part.id)}>remove</Button>
       </div>
       <div className='flex flex-row flex-wrap gap-2 items-center'>
         <label className='flex flex-row items-center gap-1 text-muted'>aim −
@@ -179,7 +180,7 @@ function PartEditor({ part }: { part: BodyPart }) {
         ))}
       </div>
       {part.wounds.map((wound, i) => <WoundEditor key={i} part={part} index={i} />)}
-      <div><Button size='xs' variant='ghost' onClick={() => addWound(part.id)}>+ wound</Button></div>
+      <div><Button size='xs' weight='subtle' onClick={() => addWound(part.id)}>+ wound</Button></div>
     </div>
   )
 }
@@ -213,7 +214,7 @@ function WoundEditor({ part, index }: { part: BodyPart, index: number }) {
           </select>
         </> : null}
       <TextInput className='w-28' aria-label={`${label} consequence`} placeholder='consequence' value={wound.consequence} onChange={(e) => editWound(part.id, index, { consequence: e.target.value })} />
-      <button type='button' aria-label={`remove ${label}`} className='ml-auto text-muted hover:text-bad cursor-pointer' onClick={() => removeWound(part.id, index)}>×</button>
+      <IconButton icon={X} tone='bad' className='ml-auto' aria-label={`remove ${label}`} onClick={() => removeWound(part.id, index)} />
     </Row>
   )
 }

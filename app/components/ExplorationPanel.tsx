@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, SectionLabel, Tooltip, barred, selectClass } from './ui';
+import { X } from 'lucide-react'
+import { Button, IconButton, NumberInput, SectionLabel, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog } from './RunParts';
 import { useETAnswer, useETCalls, useETDiceBar, useExploration, useExplorationMaps, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { MapDrawing, type MapSelection } from './MapCanvas';
@@ -94,7 +95,7 @@ function PlayMaps(){
     <div className='flex flex-col gap-1 w-full lg:flex-1 min-w-0'>
       {maps.length > 1 ?
         <div className='flex flex-row flex-wrap gap-1'>
-          {maps.map((m) => <Button key={m.id} size='xs' variant='ghost' aria-label={`map ${m.name}`} selected={m.id === map.id} onClick={() => show(m.id)}>{m.name}</Button>)}
+          {maps.map((m) => <Button key={m.id} size='xs' aria-label={`map ${m.name}`} selected={m.id === map.id} onClick={() => show(m.id)}>{m.name}</Button>)}
         </div>
         : <SectionLabel>{map.name}</SectionLabel>}
       <PlayMap key={map.id} map={map} />
@@ -227,13 +228,13 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
         <Locked bar={gmBar} className='flex flex-row flex-wrap gap-1 items-center'>
           <span className='text-xs text-muted'>weather</span>
           {TERRAIN_TAGS.map((tag) => (
-            <Button key={tag} size='xs' variant='ghost' aria-label={`${party.name} ${tag}`} selected={party.place?.tags.includes(tag)} onClick={() => toggleWeatherTag(party.id, tag)}>{tag}</Button>
+            <Button key={tag} size='xs' aria-label={`${party.name} ${tag}`} selected={party.place?.tags.includes(tag)} onClick={() => toggleWeatherTag(party.id, tag)}>{tag}</Button>
           ))}
           <span className='text-xs text-muted'>exposure +</span>
           <NumberInput className='w-10' aria-label={`${party.name} weather exposure`} value={party.weather.raise} onChange={(e) => setWeatherRaise(party.id, parseInt(e.target.value) || 0)} />
-          {party.weather.called ? <Button size='xs' variant='ghost' aria-label={`${party.name} clear weather`} onClick={() => clearWeather(party.id)}>clear</Button> : null}
+          {party.weather.called ? <Button size='xs' weight='subtle' aria-label={`${party.name} clear weather`} onClick={() => clearWeather(party.id)}>clear</Button> : null}
           {party.ambient.map((a) => (
-            <Button key={a.id} size='xs' variant='ghost' aria-label={a.on ? `call off ${a.name}` : `set off ${a.name}`} selected={a.on}
+            <Button key={a.id} size='xs' aria-label={a.on ? `call off ${a.name}` : `set off ${a.name}`} selected={a.on}
               title={a.on ? a.line : `happens by itself ${a.chance}% of ETs`} onClick={() => setOffAmbient(party.id, a.id)}>{a.name} {a.chance}%</Button>
           ))}
           {party.ambient.filter((a) => a.on).map((a) => <span key={a.id} className='text-xs text-muted'>· this ET: {a.line}</span>)}
@@ -263,8 +264,8 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
           <span className='text-xs font-medium'>{s.name}</span>
           <span className='text-xs text-muted'>{s.forced ? 'forced' : 'offered'}{s.event ? ` · from ${s.event}` : ''} · met by {s.members.join(', ')}</span>
           {s.text ? <span className='text-xs text-muted'>{s.text}</span> : null}
-          <Button size='xs' variant='primary' aria-label={`play ${s.name}`} disabled={s.playBar !== null} title={s.playBar ?? undefined} onClick={() => playScene(s)}>play</Button>
-          {s.forced ? null : <Button size='xs' variant='ghost' aria-label={`pass ${s.name} by`} onClick={() => passBy(s.id)}>pass by</Button>}
+          <Button size='xs' tone='accent' aria-label={`play ${s.name}`} disabled={s.playBar !== null} title={s.playBar ?? undefined} onClick={() => playScene(s)}>play</Button>
+          {s.forced ? null : <Button size='xs' weight='subtle' aria-label={`pass ${s.name} by`} onClick={() => passBy(s.id)}>pass by</Button>}
         </div>
       ))}
       <div className='flex flex-row flex-wrap gap-1.5'>
@@ -317,12 +318,12 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
           <Tooltip text={g.resolveBar ?? 'go on this plan now, before the others'}>
             <Button aria-label={`resolve ${g.kind} ${i + 1}`} disabled={g.resolveBar !== null} onClick={() => resolvePlan(party.id, g.id)}>resolve</Button>
           </Tooltip>
-          <Button aria-label={`remove ${g.kind} ${i + 1}`} variant='ghost' onClick={() => removeGroup(party.id, g.id)}>×</Button>
+          <IconButton icon={X} tone='bad' aria-label={`remove ${g.kind} ${i + 1}`} onClick={() => removeGroup(party.id, g.id)} />
         </div>
       )}
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <span className='text-xs text-muted'>add</span>
-        {GROUP_KINDS.map((kind) => <Button key={kind} aria-label={`${party.name} add ${kind}`} variant='ghost' disabled={kind === 'firewood' && !party.wood} title={kind === 'firewood' && !party.wood ? 'no wood here' : undefined} onClick={() => addGroup(party.id, kind)}>{kind}</Button>)}
+        {GROUP_KINDS.map((kind) => <Button key={kind} aria-label={`${party.name} add ${kind}`} weight='subtle' disabled={kind === 'firewood' && !party.wood} title={kind === 'firewood' && !party.wood ? 'no wood here' : undefined} onClick={() => addGroup(party.id, kind)}>{kind}</Button>)}
       </div>
       </Locked>
     </div>

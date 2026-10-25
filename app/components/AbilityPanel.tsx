@@ -26,19 +26,19 @@ export function AbilityPanel(){
               </button>
               {
                 row.use ?
-                <Button size='xs' variant='good' aria-label={`use ${row.use.name}`} disabled={!row.use.affordable}
+                <Button size='xs' weight='subtle' tone='good' aria-label={`use ${row.use.name}`} disabled={!row.use.affordable}
                   onClick={() => use(row.use!.key)}>use · {row.use.price}</Button>
                 : null
               }
               {
                 row.toggle ?
-                <Button size='xs' variant={row.active ? 'good' : 'default'} className={row.active ? 'bg-good/15' : ''} aria-label={`toggle ${row.family}`}
+                <Button size='xs' tone={row.active ? 'good' : 'neutral'} active={row.active} aria-label={`toggle ${row.family}`}
                   onClick={() => toggle(row.toggle!.key)}>{row.active ? 'on' : 'off'}</Button>
                 : null
               }
               {
                 row.top ?
-                <Button size='xs' variant='ghost' aria-label={`forget ${row.top.name}`} onClick={() => forget(row.top!.key)}>{row.stages.length > 1 ? `− ${row.top.name}` : '− forget'}</Button>
+                <Button size='xs' weight='subtle' tone='bad' aria-label={`forget ${row.top.name}`} onClick={() => forget(row.top!.key)}>{row.stages.length > 1 ? `− ${row.top.name}` : '− forget'}</Button>
                 : null
               }
             </Row>

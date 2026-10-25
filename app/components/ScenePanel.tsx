@@ -4,6 +4,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel, FollowPanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
+import { Settings } from 'lucide-react'
 import { Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
@@ -60,8 +61,8 @@ function FightEnd(){
       {round > 0
         ? <Closed reason={endCombatBar}><Tooltip text={endCombatBar ? null : 'the rounds end; everyone stays'}><Button aria-label='endCombat' disabled={endCombatBar !== null} onClick={endCombat}>end combat</Button></Tooltip></Closed>
         : null}
-      <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
-      <Dropdown label='fight settings' variant='ghost' title='how the table plays this fight' text='⚙'>
+      <Button aria-label='resetGame' weight='subtle' tone='bad' onClick={resetCombat}>reset</Button>
+      <Dropdown label='fight settings' title='how the table plays this fight' icon={Settings}>
         {() => <FightSettings />}
       </Dropdown>
     </div>
@@ -107,7 +108,7 @@ export function KillButton(){
   const { killCharacter } = useCombatCommands()
   const { isCharacterDead } = useInjuryLens()
   const { hasOpenAction } = useCombatState()
-  return <Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
+  return <Button tone='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
 }
 
 // The turn, the surges and the actions; the tests held for the round wait
@@ -133,7 +134,7 @@ export function SceneActions(){
       </ControlLocked>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <Button size='xs' aria-label='drawer held tests' variant={due ? 'bad' : 'default'} selected={heldOpen} onClick={() => setHeldOpen(!heldOpen)}>
+          <Button size='xs' aria-label='drawer held tests' tone={due ? 'bad' : 'neutral'} selected={heldOpen} onClick={() => setHeldOpen(!heldOpen)}>
             held tests{due ? ' !' : ''}
           </Button>
         </div>
@@ -285,10 +286,10 @@ function TurnControl(){
         {
           inTurn ?
           <Tooltip text={end ?? 'end the turn; movement and combat surge AP left is lost'}>
-            <Button variant='primary' aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</Button>
+            <Button weight='solid' tone='accent' aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</Button>
           </Tooltip> :
           <Tooltip text={start ?? 'start this turn for the active character'}>
-            <Button variant='primary' aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</Button>
+            <Button weight='solid' tone='accent' aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</Button>
           </Tooltip>
         }
         {
@@ -389,7 +390,7 @@ function SurgeControl(){
       {
         binding ?
         <Tooltip text={`give up the ${binding} surge AP left, to do something it does not allow`}>
-          <Button aria-label='endSurge' variant='bad' onClick={endSurge}>end surge</Button>
+          <Button aria-label='endSurge' tone='bad' onClick={endSurge}>end surge</Button>
         </Tooltip> : null
       }
     </div>
@@ -409,7 +410,7 @@ function CharacterList(){
             {party.name ? <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span> : null}
             {party.entries.map((entry) =>
               <Button key={entry.id} size='xs' aria-label={entry.name}
-                variant={entry.targetable ? 'bad' : 'default'} selected={!entry.targetable && entry.isActive}
+                tone={entry.targetable ? 'bad' : 'neutral'} selected={!entry.targetable && entry.isActive}
                 className={entry.targetable ? 'animate-pulse' : ''}
                 onClick={() => pick(entry)}>
                 {entry.name}

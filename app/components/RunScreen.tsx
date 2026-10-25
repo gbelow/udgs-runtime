@@ -20,7 +20,8 @@ import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, Sustain
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { RecentJournal } from './Journal';
-import { Button, SectionLabel } from './ui';
+import { X } from 'lucide-react'
+import { Button, IconButton, SectionLabel } from './ui';
 import { ControlLocked, GearLocked, GmLocked } from './Locks';
 import { useGameTab } from '../hooks/useGameTab';
 import { useFighterCount } from '../hooks/useCombatState';
@@ -177,7 +178,7 @@ function Overlay({ title, wide = false, shown, close, children }: { title: strin
       className={`absolute z-10 left-2 top-10 bottom-2 ${wide ? 'w-[40rem]' : 'w-max min-w-96'} max-w-[calc(100%-1rem)] overflow-y-auto p-2 rounded border border-line bg-raised shadow-lg shadow-black/40 flex-col gap-2 ${shown ? 'flex' : ''}`}>
       <div className='flex flex-row items-center justify-between'>
         <SectionLabel>{title}</SectionLabel>
-        <Button size='xs' variant='ghost' aria-label={`close ${title}`} onClick={close}>×</Button>
+        <IconButton icon={X} aria-label={`close ${title}`} onClick={close} />
       </div>
       {children}
     </div>

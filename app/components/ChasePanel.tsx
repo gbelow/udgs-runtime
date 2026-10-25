@@ -116,9 +116,9 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
         }
         {p.chasedBy.length ? <span className='text-muted'>chased by <span className='text-fg'>{p.chasedBy.join(', ')}</span></span> : null}
         {p.AP !== null ? <span className='text-muted'>skirmish <span className='font-mono text-fg'>{p.AP}</span> AP</span> : null}
-        <Closed reason={p.fightBar}><Button size='xs' variant='ghost' aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</Button></Closed>
-        {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Closed reason={p.mergeBar}><Button size='xs' variant='ghost' aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</Button></Closed> : null}
-        {p.chases ? <Closed reason={p.giveUpBar}><Button size='xs' variant='ghost' aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</Button></Closed> : null}
+        <Closed reason={p.fightBar}><Button size='xs' weight='subtle' aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</Button></Closed>
+        {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Closed reason={p.mergeBar}><Button size='xs' weight='subtle' aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</Button></Closed> : null}
+        {p.chases ? <Closed reason={p.giveUpBar}><Button size='xs' weight='subtle' aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</Button></Closed> : null}
       </div>
       {
         p.declares ?
@@ -200,11 +200,11 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
       }
       <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
         {p.followOptions.map((o) => (
-          <Closed key={o.id} reason={o.bar}><Button size='xs' variant='ghost' aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</Button></Closed>
+          <Closed key={o.id} reason={o.bar}><Button size='xs' weight='subtle' aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</Button></Closed>
         ))}
         {p.joining ? <span>joining the fight of {p.joining} at the end of the round</span> : null}
         {p.joinOptions.map((o) => (
-          <Closed key={o.id} reason={o.bar}><Button size='xs' variant='ghost' aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</Button></Closed>
+          <Closed key={o.id} reason={o.bar}><Button size='xs' weight='subtle' aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</Button></Closed>
         ))}
         {p.putBackOptions.length ? <>
           put back at
@@ -212,7 +212,7 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
             {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           {p.putBackOptions.map((o) => (
-            <Closed key={o.id} reason={o.bar}><Button size='xs' variant='ghost' aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</Button></Closed>
+            <Closed key={o.id} reason={o.bar}><Button size='xs' weight='subtle' aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</Button></Closed>
           ))}
         </> : null}
       </div>

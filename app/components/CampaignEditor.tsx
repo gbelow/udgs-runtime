@@ -1,6 +1,7 @@
 'use client'
 import { useState, type ReactNode } from 'react'
-import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, Tabs, TextInput, Tooltip, selectClass } from './ui'
+import { Pencil, RefreshCw, X } from 'lucide-react'
+import { Button, CatalogList, CollectionSelect, ConfirmDelete, IconButton, ListButton, SectionLabel, Tabs, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
 import { CampaignTimeline } from './Timeline'
@@ -35,7 +36,7 @@ export function CampaignEditor() {
     <div className='grid grid-cols-12 gap-2 py-2 text-left'>
       <div className='col-span-3 flex flex-col gap-1 border-r border-line pr-2 max-h-[85vh] overflow-y-auto'>
         <CatalogList label='Campaigns' groups={[{ label: null, rows: campaigns }]} nameOf={(c) => c.name}
-          beside={<Button size='xs' variant='good' onClick={() => setReplacing('')}>+ new</Button>}
+          beside={<Button size='xs' weight='subtle' tone='good' onClick={() => setReplacing('')}>+ new</Button>}
           render={(c) => (
             <div key={c.id} className='flex flex-row items-center gap-1'>
               <div className='flex-1 min-w-0'><ListButton selected={c.id === file.id} onClick={() => setReplacing(c.id)}>{c.name || '—'}{c.locked ? <span className='text-muted'> · locked</span> : null}</ListButton></div>
@@ -44,7 +45,7 @@ export function CampaignEditor() {
           )} />
         {replacing !== null ?
           <ConfirmRow text={`${replacing ? 'opening' : 'beginning'} a campaign replaces the one in play, fight and all; the autosave on this screen keeps it until it is opened again`}
-            confirm={replacing ? 'open' : 'begin'} variant='primary' onConfirm={() => { if (replacing) open(replacing); else create(); setReplacing(null) }} onCancel={() => setReplacing(null)} />
+            confirm={replacing ? 'open' : 'begin'} tone='accent' onConfirm={() => { if (replacing) open(replacing); else create(); setReplacing(null) }} onCancel={() => setReplacing(null)} />
           : null}
         <SectionLabel>Join a campaign</SectionLabel>
         <JoinCampaign />
@@ -88,10 +89,10 @@ function CampaignFileBar() {
         <span className='grow' />
         {file.locked ? null : (
           <Tooltip text={saveBar ?? 'save the campaign and its characters, fight and all'}>
-            <Button variant='primary' disabled={saveBar !== null} onClick={save}>save</Button>
+            <Button weight='solid' tone='accent' disabled={saveBar !== null} onClick={save}>save</Button>
           </Tooltip>
         )}
-        {saved ? <Button variant={file.locked ? 'primary' : undefined} onClick={() => { setCopyName(`${file.name} (copy)`); setPending('copy') }}>save as copy…</Button> : null}
+        {saved ? <Button weight={file.locked ? 'solid' : 'outline'} tone={file.locked ? 'accent' : 'neutral'} onClick={() => { setCopyName(`${file.name} (copy)`); setPending('copy') }}>save as copy…</Button> : null}
         {saved ? <Button title='throw away what was played since it was saved' onClick={() => setPending('restart')}>restart from saved</Button> : null}
         {gmTools && file.locked ? <Button onClick={unlock}>unlock</Button> : null}
         {gmTools && !file.locked ? (
@@ -99,10 +100,10 @@ function CampaignFileBar() {
             <Button disabled={saveBar !== null} onClick={() => fighting ? setPending('lock') : lock()}>lock</Button>
           </Tooltip>
         ) : null}
-        {saved && gmTools ? (deleteBar ? <Tooltip text={deleteBar}><Button variant='bad' disabled>delete</Button></Tooltip> : <ConfirmDelete remove={() => remove(file.id)} />) : null}
+        {saved && gmTools ? (deleteBar ? <Tooltip text={deleteBar}><Button tone='bad' disabled>delete</Button></Tooltip> : <ConfirmDelete remove={() => remove(file.id)} />) : null}
       </div>
       {pending === 'copy' ? (
-        <ConfirmRow text={`save what is in play as a new campaign, now in play; ${file.name || 'this one'} stays as it was saved`} confirm='save copy' variant='primary'
+        <ConfirmRow text={`save what is in play as a new campaign, now in play; ${file.name || 'this one'} stays as it was saved`} confirm='save copy' tone='accent'
           disabled={!copyName.trim()} onConfirm={() => { saveAsCopy(copyName); cancel() }} onCancel={cancel}>
           <TextInput className='w-48' aria-label='copy name' value={copyName} onChange={(e) => setCopyName(e.target.value)} />
         </ConfirmRow>
@@ -121,13 +122,13 @@ function CampaignFileBar() {
 
 // A press asked about before it is made: what it does, anything it needs
 // filled in, and confirming or cancelling it.
-function ConfirmRow({ text, confirm, variant = 'bad', disabled, onConfirm, onCancel, children }: { text: string, confirm: string, variant?: 'bad' | 'primary', disabled?: boolean, onConfirm: () => void, onCancel: () => void, children?: ReactNode }) {
+function ConfirmRow({ text, confirm, tone = 'bad', disabled, onConfirm, onCancel, children }: { text: string, confirm: string, tone?: 'bad' | 'accent', disabled?: boolean, onConfirm: () => void, onCancel: () => void, children?: ReactNode }) {
   return (
     <div className='flex flex-row flex-wrap items-center gap-1 p-1 border border-accent rounded text-xs'>
       <span>{text}</span>
       {children}
-      <Button size='xs' variant={variant} aria-label={`confirm ${confirm}`} disabled={disabled} onClick={onConfirm}>{confirm}</Button>
-      <Button size='xs' aria-label={`cancel ${confirm}`} onClick={onCancel}>cancel</Button>
+      <Button size='xs' weight='solid' tone={tone} aria-label={`confirm ${confirm}`} disabled={disabled} onClick={onConfirm}>{confirm}</Button>
+      <Button size='xs' weight='ghost' aria-label={`cancel ${confirm}`} onClick={onCancel}>cancel</Button>
     </div>
   )
 }
@@ -151,7 +152,7 @@ function CampaignMembers() {
             <Button size='xs' selected={m.role === 'player'} disabled={!!locked || !!m.playerBar} onClick={() => set(m.id, 'player')}>player</Button>
           </Tooltip>
           <Tooltip text={locked ?? m.removeBar}>
-            <Button size='xs' variant='ghost' aria-label={`remove ${m.name}`} disabled={!!locked || !!m.removeBar} onClick={() => set(m.id, null)}>×</Button>
+            <IconButton icon={X} tone='bad' aria-label={`remove ${m.name}`} disabled={!!locked || !!m.removeBar} onClick={() => set(m.id, null)} />
           </Tooltip>
         </div>
       ))}
@@ -182,13 +183,13 @@ function JoinCampaign() {
         {characters.map((c) => <option key={c.id} value={c.id}>{c.name || '—'}</option>)}
       </select>
       <div className='flex flex-row gap-1'>
-        <Button size='xs' variant='primary' disabled={!campaign || !character} onClick={() => { request(campaign, character); setCharacter('') }}>ask to join</Button>
-        <Button size='xs' variant='ghost' title='look again for answers' onClick={refresh}>refresh</Button>
+        <Button size='xs' weight='solid' tone='accent' disabled={!campaign || !character} onClick={() => { request(campaign, character); setCharacter('') }}>ask to join</Button>
+        <IconButton icon={RefreshCw} aria-label='refresh answers' title='look again for answers' onClick={refresh} />
       </div>
       {pending.map((q) => (
         <div key={`${q.campaign}:${q.character}`} className='flex flex-row gap-1 items-center'>
           <span className='flex-1 truncate'>{q.name || '—'} → {q.campaignName || '—'}</span>
-          <Button size='xs' variant='ghost' aria-label={`withdraw ${q.name}`} onClick={() => withdraw(q.campaign, q.character)}>withdraw</Button>
+          <Button size='xs' weight='subtle' tone='bad' aria-label={`withdraw ${q.name}`} onClick={() => withdraw(q.campaign, q.character)}>withdraw</Button>
         </div>
       ))}
     </div>
@@ -205,13 +206,13 @@ function CampaignRequests() {
     <div className='flex flex-col gap-1 text-xs'>
       <div className='flex flex-row gap-1 items-center'>
         <span className='text-muted'>{requests.length ? 'asking to join' : 'nobody asking to join'}</span>
-        <Button size='xs' variant='ghost' title='look again for requests' onClick={refresh}>refresh</Button>
+        <IconButton icon={RefreshCw} aria-label='refresh requests' title='look again for requests' onClick={refresh} />
       </div>
       {requests.map((q) => (
         <div key={q.character} className='flex flex-row gap-1 items-center'>
           <span className='w-40 truncate'>{q.name || '—'} <span className='text-muted'>by {q.profileName}</span></span>
-          <Button size='xs' variant='good' aria-label={`accept ${q.name}`} title='onto the roster, in no party' onClick={() => accept(q.character)}>accept</Button>
-          <Button size='xs' variant='ghost' aria-label={`decline ${q.name}`} onClick={() => decline(q.character)}>decline</Button>
+          <Button size='xs' weight='subtle' tone='good' aria-label={`accept ${q.name}`} title='onto the roster, in no party' onClick={() => accept(q.character)}>accept</Button>
+          <Button size='xs' weight='subtle' tone='bad' aria-label={`decline ${q.name}`} onClick={() => decline(q.character)}>decline</Button>
         </div>
       ))}
     </div>
@@ -240,8 +241,8 @@ function CampaignMaps() {
           <div className='flex flex-row gap-2 items-center text-xs'>
             <span className='text-sm'>{m.name}</span>
             <span className='text-muted'>{m.nodes} nodes · {m.parties.length > 0 ? m.parties.join(', ') : 'no party on it'}</span>
-            <Button size='xs' variant='ghost' selected={editing === m.id} onClick={() => setEditing(editing === m.id ? null : m.id)}>edit</Button>
-            <Button size='xs' variant='ghost' aria-label={`remove map ${m.name}`} title={m.parties.length > 0 ? `take the map away: ${m.parties.join(', ')} end up off the map` : 'take the map away'} onClick={() => remove(m.id)}>×</Button>
+            <IconButton icon={Pencil} aria-label={`edit map ${m.name}`} title='edit' selected={editing === m.id} onClick={() => setEditing(editing === m.id ? null : m.id)} />
+            <IconButton icon={X} tone='bad' aria-label={`remove map ${m.name}`} title={m.parties.length > 0 ? `take the map away: ${m.parties.join(', ')} end up off the map` : 'take the map away'} onClick={() => remove(m.id)} />
           </div>
           {editing === m.id ? <CampaignMapEditor mapId={m.id} /> : null}
         </div>

@@ -14,7 +14,7 @@ export function CreateParty({ create, hint }: { create: (name: string) => void, 
   return(
     <div className='flex flex-row gap-1 items-center'>
       <TextInput className='w-36 text-xs' aria-label='new party name' placeholder='party name' value={name} disabled={gmBar !== null} onChange={(e) => setName(e.target.value)} />
-      <Button size='xs' variant='primary' aria-label='create party' disabled={gmBar !== null} title={gmBar ?? hint} onClick={() => { create(name.trim()); setName('') }}>create party</Button>
+      <Button size='xs' weight='solid' tone='accent' aria-label='create party' disabled={gmBar !== null} title={gmBar ?? hint} onClick={() => { create(name.trim()); setName('') }}>create party</Button>
     </div>
   )
 }
@@ -24,7 +24,7 @@ export function SwitchBanner({ name, cancel }: { name: string, cancel: () => voi
   return(
     <span className='flex flex-row gap-1 items-center text-xs text-accent'>
       click a party to put {name} in
-      <Button size='xs' variant='ghost' aria-label='cancel switch' onClick={cancel}>cancel</Button>
+      <Button size='xs' weight='subtle' aria-label='cancel switch' onClick={cancel}>cancel</Button>
     </span>
   )
 }

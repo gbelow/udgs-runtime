@@ -7,7 +7,8 @@ import { useGameTab } from '../hooks/useGameTab';
 import { makeCharacter } from '../domain/factories';
 import { getBaseCharacters, groupByTags, TreeNode } from '../domain/character/grouping';
 import { BaseCharacter, Character } from '../domain/types';
-import { ListButton } from './ui';
+import { Plus, Trash2 } from 'lucide-react'
+import { IconButton, ListButton } from './ui';
 
 type NodeHandlers = {
   open: { [key: string]: boolean }
@@ -35,8 +36,8 @@ function CharacterTreeNode({ node, depth, handlers }: {
       <div className="flex flex-row items-center gap-1">
         <ListButton className='grow py-0.5' aria-label={node.character.name} onClick={() => handlers.onSelect(node.character)}>{node.character.name}</ListButton>
         {handlers.selectedGameTab === 'edit' ? (
-          <button type='button' className="w-5 text-xs text-muted hover:text-bad cursor-pointer" title={`delete ${node.character.name}`}
-            onClick={() => handlers.onDelete(node.character.name)}>×</button>
+          <IconButton icon={Trash2} tone='bad' aria-label={`delete ${node.character.name}`}
+            onClick={() => handlers.onDelete(node.character.name)} />
         ) : null}
       </div>
     )
@@ -53,8 +54,8 @@ function CharacterTreeNode({ node, depth, handlers }: {
           className={`grow text-left px-1 py-0.5 rounded cursor-pointer hover:bg-raised ${isTop ? 'text-[10px] uppercase tracking-wider text-muted' : 'text-sm text-muted'}`}>
           <span className='inline-block w-3 text-muted'>{isOpen ? '▾' : '▸'}</span>{node.label}
         </button>
-        <button type='button' className="w-5 text-xs text-muted hover:text-good cursor-pointer" title='new character here'
-          onClick={() => handlers.onCreate(node.tags)}>+</button>
+        <IconButton icon={Plus} tone='good' aria-label='new character here'
+          onClick={() => handlers.onCreate(node.tags)} />
       </div>
       {isOpen && (
         <div className="ml-3 pl-1 border-l border-line flex flex-col gap-0.5">
@@ -163,7 +164,7 @@ export function CharacterSelector({ onSelect, catalog = true, only }: { onSelect
             openCampaignChars && playerCharacterList.sort().map(el =>
               <div key={el.id} className="flex flex-row items-center gap-1 ml-3 pl-1 border-l border-line">
                 <ListButton className='grow py-0.5' aria-label={el.name} onClick={() => handleSelectPlayerClick(el.id)}>{el.name}</ListButton>
-                <button type='button' className="w-5 text-xs text-muted hover:text-bad cursor-pointer" title={`delete ${el.name}`} onClick={() => handleDeletePlayerClick(el.id)}>×</button>
+                <IconButton icon={Trash2} tone='bad' aria-label={`delete ${el.name}`} onClick={() => handleDeletePlayerClick(el.id)} />
               </div>
             )
           }

@@ -2,7 +2,8 @@
 import { useState, type ReactNode } from 'react'
 import { CharacterSelector } from './CharacterSelector'
 import { useCollectionFilter } from '../hooks/useCollections'
-import { Button, CollectionSelect, MenuSection, SectionLabel, barred, selectClass } from './ui'
+import { X } from 'lucide-react'
+import { Button, CollectionSelect, IconButton, MenuSection, SectionLabel, barred, selectClass } from './ui'
 import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
@@ -42,7 +43,7 @@ export function CatalogDrawer({ label, close, bar = null, onSelect }: { label: s
     <div className='flex flex-col gap-1 p-2 rounded border border-accent w-64 shrink-0'>
       <div className='flex flex-row gap-1 items-center'>
         <SectionLabel>{label}</SectionLabel>
-        <Button size='xs' variant='ghost' className='ml-auto' aria-label='close catalog' onClick={close}>×</Button>
+        <IconButton icon={X} className='ml-auto' aria-label='close catalog' onClick={close} />
       </div>
       {bar ? <span className='text-xs text-muted'>{bar}</span> : null}
       {gmTools ? null : <span className='text-xs text-muted'>the catalog is the GM&apos;s: only PCs can be added</span>}
@@ -153,7 +154,7 @@ export function TableLink(){
         </span>
       ) : null}
       {!mode ? (canHost ? (
-        <Button variant='primary' aria-label='host table' title='let the players join this campaign from their screens' onClick={host}>
+        <Button tone='accent' aria-label='host table' title='let the players join this campaign from their screens' onClick={host}>
           <span className='inline-flex items-center gap-1.5'><Dot className='bg-current' />host table</span>
         </Button>
       ) : played.length > 0 ? (
@@ -170,7 +171,7 @@ export function TableLink(){
             {status === 'open' && mode === 'host' ? `hosting · ${guests.length} joined` : linkText(status, attempt)}{(status === 'closed' || attempt > 0) && why ? `: ${why}` : ''}
           </span>
           {status === 'closed' ? <Button size='xs' aria-label='reconnect table' onClick={reconnect}>reconnect</Button> : null}
-          <Button size='xs' variant='ghost' aria-label='leave table' onClick={leave}>leave</Button>
+          <Button size='xs' weight='subtle' tone='bad' aria-label='leave table' onClick={leave}>leave</Button>
         </span>
       )}
     </div>

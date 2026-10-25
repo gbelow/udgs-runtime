@@ -40,7 +40,7 @@ function DieCallRow({ row, answer }: { row: CallRow, answer: Answer }){
           <form className='flex flex-row gap-1 items-center' onSubmit={(e) => { e.preventDefault(); if (typed !== null && !bar) answer(row.id, typed) }}>
             {place === 'table' ? <>
               <NumberInput className='w-12' aria-label='die rolled' placeholder='die' value={die} onChange={(e) => setDie(e.target.value)} />
-              <Button type='submit' size='xs' variant='primary' disabled={bar !== null} title={bar ?? undefined}>enter</Button>
+              <Button type='submit' size='xs' weight='solid' tone='accent' disabled={bar !== null} title={bar ?? undefined}>enter</Button>
             </> : null}
             <Button size='xs' onClick={() => answer(row.id, null)}>{place === 'tray' ? 'throw' : 'roll here'}</Button>
           </form>
@@ -63,7 +63,7 @@ export function RollButtons<K extends string>({ options, name, onRoll }: { optio
     <>
       {manual ? <NumberInput className='w-12' aria-label={`die rolled ${name}`} placeholder='die' value={die} onChange={(e) => setDie(e.target.value)} /> : null}
       {options.map((o) => (
-        <Button key={o.key} size='xs' variant='primary' aria-label={`${o.label} ${name}`} disabled={bar !== null} title={bar ?? undefined}
+        <Button key={o.key} size='xs' tone='accent' aria-label={`${o.label} ${name}`} disabled={bar !== null} title={bar ?? undefined}
           onClick={() => { onRoll(o.key, manual && typed !== null ? typed : undefined); setDie('') }}>{o.label}</Button>
       ))}
     </>

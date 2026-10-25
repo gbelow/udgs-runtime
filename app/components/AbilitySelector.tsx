@@ -16,7 +16,7 @@ export function AbilitySelector({ wide = false }: { wide?: boolean }){
     <CatalogList wide={wide} label='ability' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.family} collection={{ filter, keyOf: (row) => row.key }} render={(row) => (
       <AbilityFamilyRow key={row.family} row={row} action={
         row.next ?
-        <Button size='xs' variant='good' aria-label={`learn ${row.next.name}`} onClick={() => learn(row.next!.key)}>{row.stages.length > 1 ? `+ ${row.next.name}` : '+ learn'}</Button>
+        <Button size='xs' weight='subtle' tone='good' aria-label={`learn ${row.next.name}`} onClick={() => learn(row.next!.key)}>{row.stages.length > 1 ? `+ ${row.next.name}` : '+ learn'}</Button>
         : row.complete ? <span className='text-xs text-muted px-1'>learned</span>
         : <LockedLabel reason={row.blocked} />
       } />

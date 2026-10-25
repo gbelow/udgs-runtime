@@ -21,7 +21,7 @@ export function BoardMapsEditor() {
     <div className='grid grid-cols-12 gap-2 text-left'>
       <div className='col-span-3 flex flex-col gap-1 border-r border-line pr-2 max-h-[85vh] overflow-y-auto'>
         <CatalogList label='Battle maps' groups={[{ label: null, rows }]} nameOf={(r) => r.name}
-          beside={<Button size='xs' variant='good' onClick={create}>+ new</Button>}
+          beside={<Button size='xs' weight='subtle' tone='good' onClick={create}>+ new</Button>}
           render={(r) => (
             <ListButton key={r.id} selected={r.id === openId} onClick={() => open(r.id)}>
               {r.name || '—'} <span className='text-muted'>· {r.shared ? 'shared' : 'yours'}</span>
@@ -35,7 +35,7 @@ export function BoardMapsEditor() {
             <TextInput className='w-16' type='number' min={1} max={30} aria-label='radius' value={map.radius} onChange={(e) => resize(Number(e.target.value))} />
           </label>
           <span className='grow' />
-          <Button size='xs' variant='primary' disabled={!map.name.trim() || !mine} onClick={() => save(opened ? opened.shared : false)}>{opened?.shared ? 'save for all' : 'save mine'}</Button>
+          <Button size='xs' weight='solid' tone='accent' disabled={!map.name.trim() || !mine} onClick={() => save(opened ? opened.shared : false)}>{opened?.shared ? 'save for all' : 'save mine'}</Button>
           {!opened && devServer ? <Button size='xs' disabled={!map.name.trim()} onClick={() => save(true)}>save for all</Button> : null}
           {opened && mine ? <ConfirmDelete remove={() => remove(opened.id)} /> : null}
         </div>
