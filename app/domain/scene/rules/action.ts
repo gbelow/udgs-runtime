@@ -58,7 +58,7 @@ import { getFireAgainBar, getRepeatCost } from './fireAgain'
 import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
-import { isLungeLanding, isLungeStrike } from './lunge'
+import { isLungeLanding, isLungeStrike } from './jumpAttack'
 import { getStrikeContext, isStrikeDeclarationOpen, type StrikeHolder } from './strikeDeclaration'
 import { addModifierLines, areModifiersOpen, getModifiedPrice, type ModifiedPrice } from './modifiers'
 

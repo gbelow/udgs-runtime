@@ -11,7 +11,7 @@ import { getRootOf } from './log'
 import { isInLiquid } from './board/ground'
 import { canGrab, isGrappleRowOf } from './grapple'
 import { isSweepLink } from './sweep'
-import { LUNGE_COST, canLunge } from './lunge'
+import { LUNGE_COST, canLunge } from './jumpAttack'
 import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
 
 // Every yes-or-no an action is declared with besides what it is (types.ts,

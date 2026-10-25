@@ -3,7 +3,7 @@ import { getWalkableCells, type ReachableCell } from '../move'
 import { getUsableCells } from '../prepared'
 import { isCompelledAway } from '../stress'
 import { getSidestepCells } from '../sidestep'
-import { isLungeLanding } from '../lunge'
+import { isLungeLanding } from '../jumpAttack'
 
 // The spaces a declared move may be taken to: all it can walk to, but for the
 // reposition of a prepared defense, only those its defense can be made from,

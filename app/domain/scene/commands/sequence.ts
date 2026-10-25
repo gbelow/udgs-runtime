@@ -33,7 +33,7 @@ import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 import { getInterruptedClimb } from '../rules/move'
 import { getNextDisplacement } from '../rules/displace'
-import { getLungeStrike, isLunge } from '../rules/lunge'
+import { getLungeStrike, isLunge } from '../rules/jumpAttack'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
 
