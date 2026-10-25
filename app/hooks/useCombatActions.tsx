@@ -1,5 +1,6 @@
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import type { ActionDraft, HOPPurchase } from "../domain/scene/types";
+import type { chooseManeuver } from "../domain/scene/commands/choices";
 import type { SpellModification } from "../domain/tables";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSceneDispatch } from "./useSceneDispatch";
@@ -39,7 +40,7 @@ export function useCombatActions() {
   const restMove = () => dispatch({ kind: "restMove", args: [] });
   const extend = (delta: 1 | -1) => dispatch({ kind: "extend", args: [delta] });
   const cast = (key: string, quicken: boolean) => dispatch({ kind: "cast", args: [key, quicken] });
-  const choose = (fields: { along?: boolean; item?: string }) => dispatch({ kind: "choose", args: [fields] });
+  const choose = (fields: Parameters<typeof chooseManeuver>[0]) => dispatch({ kind: "choose", args: [fields] });
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 

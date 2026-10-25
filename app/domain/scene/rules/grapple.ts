@@ -1,12 +1,14 @@
 import type { Character, WeaponAttack } from '../../types'
 import type { Action, SceneState, Deliveries, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, HoldBackAction, ReleaseAction, StrikeAction } from '../types'
-import { GRAPPLE_AFFLICTIONS } from '../../lists'
+import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS } from '../../lists'
+import { getActionCost, type ActionCost } from '../../character/rules/actionCosts'
 import { getStrikeDamage } from '../../character/rules/gear'
 import { getGrapple } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
 import { hasProperty } from '../../weaponProperties'
 import { getAction, getReactionsTo, getSpawned } from './log'
 import { hasGrant } from '../../character/rules/effects'
+import { getPartWound } from '../../character/rules/wounds'
 import { getItemName } from './fighters'
 import { allowsAlong, type RuleRecipeId } from './recipes'
 import { findGrapple, getGrapples, getGrapplesOf, getPartner, holds } from './partners'
@@ -89,6 +91,7 @@ function getGrappleAfflictions(state: SceneState, grapples: Grapple[], id: strin
   return [
     ...(own.some((g) => isGrappledBy(state, g, id)) ? ['grappled' as const] : []),
     ...(own.some((g) => g.immobile.includes(id)) ? ['immobile' as const] : []),
+    ...(own.some((g) => g.suffocating.includes(id)) ? ['suffocating' as const] : []),
   ]
 }
 
@@ -139,7 +142,7 @@ export function replacePair(grapples: Grapple[], pair: readonly [string, string]
 function facts(state: SceneState, pair: [string, string], next: Grapple | null, extra: Partial<GrappleFacts> = {}): GrappleFacts {
   const before = getGrapples(state)
   const after = replacePair(before, pair, next)
-  return { pair, grapple: next, prone: [], dropped: null, deliveries: {}, ...extra, ...diffGrappleAfflictions(state, before, after, pair) }
+  return { pair, grapple: next, prone: [], dropped: null, deliveries: {}, wounded: null, ...extra, ...diffGrappleAfflictions(state, before, after, pair) }
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +166,7 @@ function takeHold(state: SceneState, actorId: string, targetId: string, weaponKe
   const back = was && holds(was, target.id) ? null : getFreeGrappleRows(state, target)[0]
   const holders = [...new Set([...(was?.holders ?? []), actorId, ...(back ? [target.id] : [])])]
   const anchors = { ...was?.anchors, [actorId]: weaponKey, ...(back ? { [target.id]: back.wielded.key } : {}) }
-  return facts(state, pair, { kind: 'grapple', members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], anchors })
+  return facts(state, pair, { kind: 'grapple', members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], suffocating: was?.suffocating ?? [], anchors })
 }
 
 // Whether the character can take hold of the target with a grapple row no
@@ -341,7 +344,55 @@ export function getManeuverFacts(state: SceneState, root: GrappleAction): Grappl
       if (!item || !critical) return facts(state, pair, g, { deliveries })
       return facts(state, pair, g, { deliveries, dropped: { ownerId: root.targetId, itemId: item, name: getItemName(state, root.targetId, item) } })
     }
+    case 'attack':
+      return getAttackFacts(state, root, g, deliveries)
   }
+}
+
+// The maneuvers the character may make: the book's four, and abilities.tex
+// "Grappling Combat"'s attack for one who has learned it.
+export function getManeuversOf(c: Character): GrappleManeuver[] {
+  return GRAPPLE_MANEUVERS.filter((m) => m !== 'attack' || hasGrant(c, 'grapplingCombat'))
+}
+
+// What the maneuver costs: the book's 3 AP + 1 STA, an attack's 4 AP + 1 STA.
+export function getManeuverCost(c: Character, maneuver: GrappleManeuver): ActionCost {
+  return getActionCost(c, maneuver === 'attack' ? 'grapplingAttack' : 'grappleManeuver')
+}
+
+// abilities.tex "Grappling Combat": an attack does no damage of its own.
+// "Spending 5 HOP after a hit allows choosing one special effect: Suffocate
+// the enemy, cause broken hand, and broken leg. Broken limbs take 10 IL to
+// heal. Hits can immobilize both characters if the attacker so chooses." On
+// the degrees a grapple test is read on, 5 HOP past a hit is a critical. The
+// table's rulings: the limb is the attacker's pick; to suffocate is to
+// immobilize, and to suffocate for as long as that lasts.
+export const GRAPPLING_HOP = 5
+export const BROKEN_LIMB_IL = 10
+
+function getAttackFacts(state: SceneState, root: GrappleAction, g: Grapple, deliveries: Deliveries): GrappleFacts | null {
+  const targetId = root.targetId
+  if (!targetId) return null
+  const pair: [string, string] = [root.actorId, targetId]
+  if (!isManeuverWon(root)) return facts(state, pair, g, { deliveries })
+  const both = root.along && allowsAlong(state, root) ? [targetId, root.actorId] : []
+  const effect = getGrapplingHOP(root) >= GRAPPLING_HOP ? root.effect : null
+  const suffocated = effect === 'suffocate' ? [targetId] : []
+  const limb = effect === 'broken hand' || effect === 'broken leg' ? getBreakableLimbs(state, targetId, effect).find((id) => id === root.limb) : undefined
+  const next = { ...g, immobile: [...new Set([...g.immobile, ...both, ...suffocated])], suffocating: [...new Set([...g.suffocating, ...suffocated])] }
+  return facts(state, pair, next, { deliveries, wounded: limb && effect ? { id: targetId, name: effect, part: limb, IL: BROKEN_LIMB_IL } : null })
+}
+
+// The HOP the attack's test came to past a hit.
+export function getGrapplingHOP(root: GrappleAction): number {
+  return root.roll ? Math.max(0, root.roll.score - root.roll.DL - 5) : 0
+}
+
+// The parts of the target the wound may be put on: those still there that
+// can take it.
+export function getBreakableLimbs(state: SceneState, targetId: string, wound: 'broken hand' | 'broken leg'): string[] {
+  const target = state.characters[targetId]
+  return target ? target.body.filter((p) => !p.lost && getPartWound(target, { name: wound, part: p.id }) !== null).map((p) => p.id) : []
 }
 
 // A maneuver a follow-up opens between two who hold nothing of each other
@@ -352,7 +403,7 @@ export function getManeuverFacts(state: SceneState, root: GrappleAction): Grappl
 // "Disarm").
 function getLooseManeuverFacts(state: SceneState, root: GrappleAction, pair: [string, string]): GrappleFacts | null {
   const critical = root.roll?.degree === 'critical'
-  const none: GrappleFacts = { pair, grapple: null, prone: [], dropped: null, on: {}, off: {}, deliveries: {} }
+  const none: GrappleFacts = { pair, grapple: null, prone: [], dropped: null, on: {}, off: {}, deliveries: {}, wounded: null }
   switch (root.maneuver) {
     case 'knockdown':
       return { ...none, prone: critical ? [pair[1]] : [] }
@@ -362,6 +413,7 @@ function getLooseManeuverFacts(state: SceneState, root: GrappleAction, pair: [st
     }
     case 'escape':
     case 'immobilize':
+    case 'attack':
       return null
   }
 }

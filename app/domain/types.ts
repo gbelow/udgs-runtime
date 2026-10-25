@@ -1098,9 +1098,9 @@ export type RecipeEvent = z.infer<typeof RecipeEventSchema>
 
 // What a recipe asks of the fight for one of its terms to apply: the opened
 // strike made with another object than the defense it is opened from, the
-// struck target running or jumping, or the follow-up's actor in a grapple
-// with its target.
-export const RecipeConditionSchema = z.enum(['differentObjectFromOpener', 'targetInMotion', 'inGrapple'])
+// struck target running or jumping, the follow-up's actor in a grapple with
+// its target, or the strike declared as a tackle.
+export const RecipeConditionSchema = z.enum(['differentObjectFromOpener', 'targetInMotion', 'inGrapple', 'tackled'])
 export type RecipeCondition = z.infer<typeof RecipeConditionSchema>
 
 export const RecipeOpensSchema = z.discriminatedUnion('kind', [
@@ -1142,7 +1142,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'lunge', 'technicalLift', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'lunge', 'technicalLift', 'grapplingCombat', 'tackle', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks

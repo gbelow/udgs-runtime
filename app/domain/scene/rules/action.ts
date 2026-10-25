@@ -24,7 +24,7 @@ import { hasGrant, isSpellActive } from '../../character/rules/effects'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGentle, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
+import { GRAPPLING_HOP, getGrapplingHOP, getHoldBackTargets, getManeuverCost, getManeuversOf, getManeuverTargets, getReleaseTargets, isGentle, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
 import { canGrapple, getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
@@ -75,7 +75,8 @@ export function getOpportunityCheck(state: SceneState, c: Character, action: Act
     if (findGrapple(getGrapples(state), action.actorId, target) === null) return fail('no grapple with them to use a maneuver in', 0)
     if (!getManeuverTargets(state, action.actorId, action.maneuver).includes(target)) return fail(`${action.maneuver} cannot be done to them`, 1)
     if (!isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
-    return canAfford(c, getActionCost(c, 'grappleManeuver'), isCombatStarted(state)) ? { bar: null, stage: 3 } : fail('cannot afford a maneuver', 2)
+    if (!getManeuversOf(c).includes(action.maneuver)) return fail(`${action.maneuver} not learned`, 1)
+    return canAfford(c, getManeuverCost(c, action.maneuver), isCombatStarted(state)) ? { bar: null, stage: 3 } : fail('cannot afford a maneuver', 2)
   }
   const strike = getOpportunityStrike(action, '')
   const fought = getOpportunityState(state, action)
@@ -365,8 +366,9 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'taunt':
     case 'rest':
     case 'prepare':
-    case 'grapple':
       return getCatalogCost(c, action.kind)
+    case 'grapple':
+      return getManeuverCost(c, action.maneuver)
     // abilities.tex "Medicine": the ability's price
     case 'firstAid':
     case 'cauterize':
@@ -715,13 +717,22 @@ export function hasPostChoice(state: SceneState, open: RootAction): boolean {
   return getPostStep(state, open) !== 'confirm'
     || canMoveWhileResting(state, open)
     || (open.kind === 'cast' && canSaveGraze(state, open))
-    || (open.kind === 'grapple' && isAlongOffered(state, open))
+    || (open.kind === 'grapple' && (isAlongOffered(state, open) || isGrapplingEffectOffered(open)))
 }
 
 // Whether a knockdown or an immobilize that hit asks its actor to go along
-// with it for it to land, where whatever opened it allows going along.
+// with it for it to land, where whatever opened it allows going along; and
+// whether a Grappling Combat attack that landed may immobilize both
+// (abilities.tex "Grappling Combat": "Hits can immobilize both characters if
+// the attacker so chooses").
 export function isAlongOffered(state: SceneState, open: GrappleAction): boolean {
-  return open.step === 'post' && isManeuverWon(open) && allowsAlong(state, open) && open.roll?.degree === 'hit' && (open.maneuver === 'knockdown' || open.maneuver === 'immobilize')
+  if (open.step !== 'post' || !isManeuverWon(open) || !allowsAlong(state, open)) return false
+  return open.maneuver === 'attack' || (open.roll?.degree === 'hit' && (open.maneuver === 'knockdown' || open.maneuver === 'immobilize'))
+}
+
+// Whether a Grappling Combat attack's HOP buy it a special effect to pick.
+export function isGrapplingEffectOffered(open: GrappleAction): boolean {
+  return open.step === 'post' && open.maneuver === 'attack' && isManeuverWon(open) && getGrapplingHOP(open) >= GRAPPLING_HOP
 }
 
 // Who the action may be aimed at: retargeted freely until the commit, nobody

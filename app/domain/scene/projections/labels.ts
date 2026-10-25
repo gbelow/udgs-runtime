@@ -15,7 +15,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 // What the action is called where it is shown on its own: a maneuver goes by
 // its name, and the rest by the catalog's label.
 export function getActionName(action: ActionDraft): string {
-  if (action.kind === 'grapple' && action.maneuver) return action.maneuver
+  if (action.kind === 'grapple' && action.maneuver) return action.maneuver === 'attack' ? 'grappling attack' : action.maneuver
   if (action.kind === 'drag' && action.pull) return 'pull'
   if (action.kind === 'social' && action.say) return action.say
   if (action.kind === 'fireAgain' && action.key !== undefined && isSpellKey(action.key)) return `${SPELLS[action.key].name} again`

@@ -89,7 +89,7 @@ export const sceneCommands = {
   restMove: command((ctx) => moveWhileResting(ctx.newId)).by(panel('open')),
   extend: command((_, delta: 1 | -1) => stepExtend(delta)).by(panel('open')),
   cast: command((_, key: string, quicken: boolean) => chooseSpell(key, quicken)).by(panel('open')),
-  choose: command((_, fields: { along?: boolean; item?: string }) => chooseManeuver(fields)).by(panel('open')),
+  choose: command((_, fields: Parameters<typeof chooseManeuver>[0]) => chooseManeuver(fields)).by(panel('open')),
   boostPush: command((_, boost: boolean) => boostPush(boost)).by(panel('open')),
   backSegment: command(() => backSegment()).by(panel('open')),
 

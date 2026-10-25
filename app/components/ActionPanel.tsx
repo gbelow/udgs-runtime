@@ -369,6 +369,19 @@ export function ActionPanel(){
               </Button>
             </div>
           ) : null}
+          {open.grappling ? (
+            <div className='flex flex-row flex-wrap gap-1 items-center'>
+              <SectionLabel>5 HOP</SectionLabel>
+              {open.grappling.effects.flatMap(({ effect, limbs }) => limbs.length === 0
+                ? [<Button key={effect} size='xs' selected={open.grappling?.effect === effect}
+                    onClick={() => choose(open.grappling?.effect === effect ? { effect: null, limb: '' } : { effect, limb: '' })}>{effect}</Button>]
+                : limbs.map((l) => {
+                    const picked = open.grappling?.effect === effect && open.grappling.limb === l.id
+                    return <Button key={`${effect}:${l.id}`} size='xs' selected={picked}
+                      onClick={() => choose(picked ? { effect: null, limb: '' } : { effect, limb: l.id })}>{effect}: {l.name}</Button>
+                  }))}
+            </div>
+          ) : null}
           {open.disarm.length > 0 ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>take</SectionLabel>

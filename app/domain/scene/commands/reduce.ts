@@ -3,6 +3,7 @@ import { HazardLayerSchema, TerrainCellSchema, type Action, type AttackAction, t
 import { getFootprint, placeAt } from '../rules/board/board'
 import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
+import { woundPart } from '../../character/commands/wounds'
 import { cure, inflict } from '../../character/commands/addAffliction'
 import { deliver, deliverAll, touchFire } from '../../character/commands/deliver'
 import { chargeItem, consumeItem, dischargeItem, drawFromSource, dropItem, holdItem, loadItem } from '../../item/commands/hands'
@@ -243,7 +244,8 @@ function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): Campai
   if (!facts) return c
   const down = facts.prone.includes(c.id) ? fallProne(c) : c
   const disarmed = facts.dropped?.ownerId === c.id ? dropItem(facts.dropped.itemId)(down) : down
-  return deliverAll(facts.deliveries[c.id] ?? [])(disarmed)
+  const broken = facts.wounded?.id === c.id ? woundPart(facts.wounded.name, facts.wounded.part, facts.wounded.IL)(disarmed) : disarmed
+  return deliverAll(facts.deliveries[c.id] ?? [])(broken)
 }
 
 // The one place an action changes who is bound to whom: the pair's grapple

@@ -425,7 +425,7 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
 
 // `a` and `b` holding each other, nothing open.
 function grappling(s: SceneState): SceneState {
-  return { ...cleared(s), binds: [{ kind: 'grapple', members: ['a', 'b'], holders: ['a', 'b'], immobile: [], anchors: {} }] }
+  return { ...cleared(s), binds: [{ kind: 'grapple', members: ['a', 'b'], holders: ['a', 'b'], immobile: [], suffocating: [], anchors: {} }] }
 }
 
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.

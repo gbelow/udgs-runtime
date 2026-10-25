@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import type { Action, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
+import type { Action, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
@@ -7,7 +7,7 @@ import { getActionDef, isAttackAction, isReactionAction } from '../rules/actionC
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getAwaited, getGoBar } from '../rules/options'
-import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isPreparedRequired } from '../rules/action'
+import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -31,7 +31,7 @@ import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
-import { getDisarmOptions, getGentle, getManeuverTargets, isManeuverWon } from '../rules/grapple'
+import { getBreakableLimbs, getDisarmOptions, getGentle, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
 import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rules/equipment'
 import { getFloorObject } from '../rules/floorAttack'
@@ -45,7 +45,7 @@ import { canThrowItem, getThrowables } from '../rules/throw'
 import { getPendingGuardStep } from '../rules/protect'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { isSweepVariant } from '../../character/rules/gear'
-import { GRAPPLE_MANEUVERS, HUMANOID_LOCATIONS } from '../../lists'
+import { GRAPPLING_EFFECTS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from '../../perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
@@ -148,7 +148,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             modifiers: declared.kind === 'joinShot' ? [] : getStrikeModifierViews(state, declared),
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
             partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
-            maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
+            maneuvers: getManeuversOf(c).filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
           }
@@ -156,6 +156,13 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
       return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id), gentle: declared ? getGentle(state, declared) : null, awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
     })
     .filter((r) => r.options.length > 0)
+}
+
+function getGrapplingView(state: SceneState, grapple: GrappleAction, targetId: string): NonNullable<OpenActionView['grappling']> {
+  const target = state.characters[targetId]
+  const named = (id: string) => ({ id, name: target?.body.find((p) => p.id === id)?.name ?? id })
+  const effects = GRAPPLING_EFFECTS.map((effect) => ({ effect, limbs: effect === 'suffocate' ? [] : getBreakableLimbs(state, targetId, effect).map(named) }))
+  return { effects: effects.filter((e) => e.effect === 'suffocate' || e.limbs.length > 0), effect: grapple.effect, limb: grapple.limb }
 }
 
 // What the open action is called: one made under a recipe goes by its name
@@ -251,6 +258,9 @@ export type OpenActionView = {
   // commits themselves along (null: nothing to choose)
   along: boolean | null
   push: PushView | null
+  // abilities.tex "Grappling Combat": the special effects an attack's HOP
+  // buy, each with the parts it may break, and the one picked
+  grappling: { effects: { effect: GrapplingEffect; limbs: { id: string; name: string }[] }[]; effect: GrapplingEffect | null; limb: string } | null
   // a disarm's hit: what it can go for, and what it went for
   disarm: { itemId: string; name: string }[]
   item: string
@@ -471,10 +481,11 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       required: isPreparedRequired(state, open),
       flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,
       opportunity: open.kind === 'strike' && open.opportunity,
-      grapples: open.kind === 'strike' && open.step === 'post' && canGrapple(state, open) ? open.grapples : null,
+      grapples: open.kind === 'strike' && open.step === 'post' && !open.tackle && canGrapple(state, open) ? open.grapples : null,
       maneuver: grapple?.maneuver ?? null,
       gentle: open.step === 'define' ? getGentle(state, open) : null,
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
+      grappling: grapple && grapple.targetId && isGrapplingEffectOffered(grapple) ? getGrapplingView(state, grapple, grapple.targetId) : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' || open.kind === 'reload' ? open.ammoId : '',

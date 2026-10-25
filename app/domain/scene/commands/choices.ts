@@ -1,4 +1,4 @@
-import type { Action, Direction, HOPPurchase, Updater } from '../types'
+import type { Action, Direction, GrapplingEffect, HOPPurchase, Updater } from '../types'
 import { canSaveGraze, getGrazeSavedRoll, getImprovementOptions } from '../rules/cast'
 import { canGrapple, canRefundHOP, getHOPOptions } from '../rules/damage'
 import { isSpray } from '../rules/explosion'
@@ -88,13 +88,14 @@ export function displaceTrampled(cell: Coord): Updater {
 
 // combat.tex "Grapple Maneuvers": what a maneuver's hit is made of, the
 // attacker's call once the die is known — committing themselves along
-// ("throw oneself along", "stay immobilized yourself") and what a disarm
-// goes for. Nothing has landed until the maneuver resolves.
-export function chooseManeuver(fields: { along?: boolean; item?: string }): Updater {
+// ("throw oneself along", "stay immobilized yourself"), what a disarm goes
+// for, and the special effect a Grappling Combat attack buys with the part it
+// breaks. Nothing has landed until the maneuver resolves.
+export function chooseManeuver(fields: { along?: boolean; item?: string; effect?: GrapplingEffect | null; limb?: string }): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['grapple'])
     if (!open) return state
-    return replaceActions(state, [{ ...open, along: fields.along ?? open.along, item: fields.item ?? open.item }])
+    return replaceActions(state, [{ ...open, along: fields.along ?? open.along, item: fields.item ?? open.item, effect: fields.effect !== undefined ? fields.effect : open.effect, limb: fields.limb ?? open.limb }])
   }
 }
 

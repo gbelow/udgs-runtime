@@ -1482,7 +1482,9 @@
         "description": "Grants attacks for grappling that cost 4AP+1STA and inflict wounds directly, without IL damage. Spending 5 HOP after a hit allows choosing one special effect: Suffocate the enemy, cause broken hand, and broken leg. Broken limbs take 10 IL to heal. Hits can immobilize both characters if the attacker so chooses.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "grapplingCombat"
+        ],
         "freeSpells": 0
       }
     ]
@@ -1684,10 +1686,39 @@
           }
         ],
         "requirements": [],
-        "description": "Learns to initiate a grapple and perform a trample or knockdown in the same action.",
+        "description": "Learns to initiate a grapple and perform a knockdown in the same action.",
         "effect": [],
-        "recipes": [],
-        "grants": [],
+        "recipes": [
+          {
+            "type": "followUp",
+            "on": {
+              "event": "struck",
+              "degrees": [
+                "hit"
+              ],
+              "spent": null,
+              "locations": []
+            },
+            "opens": {
+              "kind": "grapple",
+              "maneuver": "knockdown",
+              "along": true
+            },
+            "hit": 0,
+            "cost": {
+              "operation": "set",
+              "AP": 0,
+              "STA": 0
+            },
+            "costWhen": null,
+            "unresistedWhen": null,
+            "openWhen": "tackled",
+            "drawsOpportunity": true
+          }
+        ],
+        "grants": [
+          "tackle"
+        ],
         "freeSpells": 0
       }
     ]

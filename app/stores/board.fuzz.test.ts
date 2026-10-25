@@ -272,7 +272,9 @@ function plays(): Play[] {
     { name: 'load a shot', run: (h, pick) => { const ammo = getActionPanel(h.state()).ammo; if (ammo.length) h.send({ kind: 'amend', args: [{ ammoId: pick(ammo).itemId }] }) } },
     { name: 'aim at a place', run: (h, pick) => { const places = getActionPanel(h.state()).locations; if (places.length) { const { location, part } = pick(places); h.send({ kind: 'amend', args: [{ location, part }] }) } } },
     { name: 'pick a movement', run: (h, pick) => { const moves = getActionPanel(h.state()).moves.filter((m) => m.available); if (moves.length) h.send({ kind: 'amend', args: [{ movement: pick(moves).kind }] }) } },
-    { name: 'pick a maneuver', run: (h, pick) => h.send({ kind: 'amend', args: [{ maneuver: pick(GRAPPLE_MANEUVERS) }] }) },
+    // the book's four, so that the seeds pinned before abilities.tex "Grappling
+    // Combat" play as they did; its attack is reached through the panel's offers
+    { name: 'pick a maneuver', run: (h, pick) => h.send({ kind: 'amend', args: [{ maneuver: pick(GRAPPLE_MANEUVERS.filter((m) => m !== 'attack')) }] }) },
     { name: 'choose a spell', weight: 3, run: (h, pick) => { const spells = getActionPanel(h.state()).spells.filter((s) => s.castable || s.quickenable); if (spells.length) { const s = pick(spells); h.send({ kind: 'cast', args: [s.key, !s.castable || (s.quickenable && pick([true, false]))] }) } } },
     { name: 'pick a potion', run: (h, pick) => { const potions = getActionPanel(h.state()).open?.potions ?? []; if (potions.length) h.send({ kind: 'amend', args: [{ itemId: pick(potions).itemId }] }) } },
     { name: 'suggest a limit stress action', run: (h, pick) => { const options = getActionPanel(h.state()).open?.suggestion?.options ?? []; if (options.length) h.send({ kind: 'amend', args: [{ suggested: pick(options) }] }) } },
@@ -819,6 +821,23 @@ function shelterPlay(h: Harness): Play[] {
   return Object.values(h.state().characters).some(holdsBodyShield) ? [{ name: 'shelter', weight: 4, run: shelter }] : []
 }
 
+// abilities.tex "Grappling Combat": the special effect a landed attack's HOP
+// buy, picked or taken back from the panel's offers. Played only where
+// someone has the ability, for the same reason as the shelter.
+function grapplingPlay(h: Harness): Play[] {
+  if (!Object.values(h.state().characters).some((c) => hasGrant(c, 'grapplingCombat'))) return []
+  return [{
+    name: 'pick a grappling effect',
+    weight: 2,
+    run: (h, pick) => {
+      const grappling = getActionPanel(h.state()).open?.grappling
+      if (!grappling) return
+      const picks = grappling.effects.flatMap(({ effect, limbs }) => (limbs.length ? limbs.map((l) => ({ effect, limb: l.id })) : [{ effect, limb: '' }]))
+      h.send({ kind: 'choose', args: [pick([...picks, { effect: null, limb: '' }])] })
+    },
+  }]
+}
+
 // abilities.tex "Lunge": a jump of one's own declared as a lunge, landed
 // where the board offers. Played only where someone has the ability, for the
 // same reason as the shelter.
@@ -898,7 +917,7 @@ function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   h.select('Bob')
   h.cell(duel.apart, 0)
   h.select('Ann')
-  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h)], pick)
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('two characters grappling, pushing, shooting and defending', () => {
@@ -948,7 +967,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h), ...grapplingPlay(h)], pick)
 }
 
 describe('a crowd on rough ground', () => {
@@ -1107,7 +1126,7 @@ function chasePlays(): Play[] {
 // reach or cover from but the chase.
 function playChase(seed: number, table = false) {
   const { h, pick } = openChase(seed, undefined, table)
-  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h), ...gentlePlay(h), ...lungePlay(h), ...grapplingPlay(h)], pick)
 }
 
 function openChase(seed: number, tier?: ChaseTier, table = false) {

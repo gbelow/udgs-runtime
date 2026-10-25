@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { DIE_SOURCES, ROLL_MODES } from '../play/dice'
@@ -421,6 +421,7 @@ export const StrikeDeclaration = {
   ...SweepDeclaration,
   catch: z.boolean().default(false),
   martialSpirit: z.boolean().default(false),
+  tackle: z.boolean().default(false),
 }
 
 // A shot as declared before the die, whatever declares it: what it is made
@@ -449,6 +450,9 @@ const BindBaseSchema = z.object({
 export const GrappleSchema = BindBaseSchema.extend({
   kind: z.literal('grapple'),
   immobile: z.array(str).default([]),
+  // abilities.tex "Grappling Combat": who an attack left immobile and
+  // suffocating, for as long as the grapple lasts
+  suffocating: z.array(str).default([]),
 }).strip()
 export type Grapple = z.infer<typeof GrappleSchema>
 
@@ -490,6 +494,7 @@ export type Bind = z.infer<typeof BindSchema>
 
 export const GrappleAfflictionSchema = z.enum(GRAPPLE_AFFLICTIONS)
 export const GrappleManeuverSchema = z.enum(GRAPPLE_MANEUVERS)
+export type GrapplingEffect = (typeof GRAPPLING_EFFECTS)[number]
 export type GrappleManeuver = z.infer<typeof GrappleManeuverSchema>
 
 // What an action did to one grapple, written at the resolve: the pair it
@@ -507,6 +512,8 @@ export const GrappleFactsSchema = z.object({
   on: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   off: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   deliveries: DeliveriesSchema.default({}),
+  // abilities.tex "Grappling Combat": the wound an attack broke a limb with
+  wounded: z.object({ id: str, name: str, part: str, IL: num }).nullable().default(null),
 }).strip()
 export type GrappleFacts = z.infer<typeof GrappleFactsSchema>
 
@@ -1022,6 +1029,10 @@ export const GrappleActionSchema = z.object({
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
   gentle: z.boolean().default(false),
+  // abilities.tex "Grappling Combat": the special effect an attack's 5 HOP
+  // bought, and the part it breaks
+  effect: z.enum(GRAPPLING_EFFECTS).nullable().default(null),
+  limb: str.default(''),
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 

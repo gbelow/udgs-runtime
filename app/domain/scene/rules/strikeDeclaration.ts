@@ -7,7 +7,8 @@ import { produceSpiritAttack } from '../../character/rules/spirit'
 import { makeAction } from '../factories'
 import { getAttackVariant, getOpportunityStrike, isBracedStep, isHookStep } from './attack'
 import { getCounterStrike } from './counter'
-import { canGrab } from './grapple'
+import { canGrab, isGrappleRowOf } from './grapple'
+import { hasGrant } from '../../character/rules/effects'
 import { getAction, getRootOf } from './log'
 import { isSweepLink } from './sweep'
 import { pickStrikeDeclaration, type StrikeDeclared } from './declaration'
@@ -106,6 +107,7 @@ type StrikeModifier = {
 }
 
 const MARTIAL_SPIRIT = 'martial-spirit'
+const TACKLE = 'tackle'
 
 export const STRIKE_MODIFIERS: Record<StrikeModifierKey, StrikeModifier> = {
   // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
@@ -133,6 +135,19 @@ export const STRIKE_MODIFIERS: Record<StrikeModifierKey, StrikeModifier> = {
       return { add: { AP, STA } }
     },
     riders: ({ attacker, strike }) => (strike.targetId && strike.roll?.degree === 'hit' ? [produceSpiritAttack(attacker)] : []),
+  },
+  // abilities.tex "Tackle": "initiate a grapple and perform a knockdown in
+  // the same action" (the table's ruling: no trample), for its 4 AP + 1 STA.
+  // A strike of one's own with a grapple row: its hit grabs, and opens the
+  // knockdown (the ability's recipe).
+  tackle: {
+    label: 'tackle',
+    allowed: ({ state, attacker, strike, answering }) => answering === null && hasGrant(attacker, 'tackle') && isGrappleRowOf(attacker, strike.weaponKey, strike.attack) && (!strike.targetId || canGrab(state, strike, strike.targetId)),
+    price: () => {
+      const { AP, STA } = ABILITIES[TACKLE].cost
+      return { set: { AP, STA } }
+    },
+    riders: () => [],
   },
 }
 

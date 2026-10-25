@@ -546,6 +546,9 @@ export const ACTION_COSTS = {
   blockExplosion: { AP: 2, STA: 0 },
   // grappling — combat.tex "Grapple"
   grappleManeuver: { AP: 3, STA: 1 },
+  // abilities.tex "Grappling Combat": "attacks for grappling that cost
+  // 4AP+1STA"
+  grapplingAttack: { AP: 4, STA: 1 },
   grappleDefense:  { AP: 2, STA: 1 },
   catch:           { AP: 3, STA: 1 },
   // combat.tex "Push and drag": "spend 2 AP to gain 5 force in one

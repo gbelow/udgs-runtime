@@ -4,6 +4,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { DEGREES, ItemSchema, type CampaignCharacter } from '../../types'
 import { GRAPPLE_MANEUVERS, MOVEMENT_KINDS } from '../../lists'
 import { holdItem } from '../../item/commands/hands'
+import { grantAbility } from '../../character/commands/abilities'
 import { settleBinds } from '../commands/bind'
 import { getAvailableActions } from './options'
 import { getOpenAction } from './log'
@@ -67,8 +68,10 @@ describe('grapple', () => {
 
   // combat.tex "Grapple Maneuvers": "If a grapple maneuvre grazes or misses,
   // it simply as no effect."
+  // abilities.tex "Grappling Combat": the attack is a maneuver its learner makes
   it.each(GRAPPLE_MANEUVERS.flatMap((m) => (['graze', 'miss'] as const).map((degree) => [m, degree] as const)))('a %s that comes to a %s changes nothing', (maneuver, degree) => {
     let s = grappling()
+    s = { ...s, characters: { ...s.characters, a: grantAbility('grappling-combat')(s.characters.a) } }
     s = declareAction('a', { kind: 'grapple', maneuver }, newId)(s)
     s = rollOver(commitAction(() => 5, newId)(setTarget('b')(s)), OVER[degree])
     s = chooseManeuver({ along: true, item: s.characters.b.held[0]?.id ?? '' })(s)

@@ -217,7 +217,7 @@ export function canGrapple(state: SceneState, strike: StrikeAction): boolean {
 export function getStrikeLanding(state: SceneState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo' | 'lifted'> {
   const interruption = getInterruption(state, strike, facts)
   const trample = getStrikeTrample(state, strike)
-  const grabbed = strike.grapples && canGrapple(state, strike) ? getGrabFacts(state, strike) : null
+  const grabbed = (strike.grapples || strike.tackle) && canGrapple(state, strike) ? getGrabFacts(state, strike) : null
   const jump = getReactionsTo(state, strike.id).find((r) => r.kind === 'evasiveJump' && r.actorId === strike.targetId)
   return {
     interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption,

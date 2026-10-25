@@ -7,7 +7,6 @@ import type { Action, ActionDraft, ActionKind, ActionOf, SceneState, DeclarableK
 import { getSocialCost, getSocialSayBar, getTauntBar } from './social'
 import { getStressSocial } from './stress'
 import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
-import { GRAPPLE_MANEUVERS } from '../../lists'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -17,7 +16,7 @@ import { getHangingFall } from './board/cliff'
 import { isInLiquid, isProne } from './board/ground'
 import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
-import { getHoldBackTargets, getManeuverTargets, getReleaseTargets } from './grapple'
+import { getHoldBackTargets, getManeuverCost, getManeuversOf, getManeuverTargets, getReleaseTargets } from './grapple'
 import { getPartners, getGrapples, isHeld, isTether } from './partners'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getFeintBar } from './feint'
@@ -338,7 +337,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       case 'opportunityAttack': {
         const probe = (fields: Partial<ActionOf<'opportunityAttack'>>) => makeAction('opportunityAttack', { id: '', actorId: c.id, targetId: trigger.against ?? open.actorId, reactionTo: open.id, at: trigger.at, catch: trigger.catchOnly === true, ...fields })
         const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant }))
-        const maneuvers = getPartners(state, c.id).includes(open.actorId) ? GRAPPLE_MANEUVERS.map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
+        const maneuvers = getPartners(state, c.id).includes(open.actorId) ? getManeuversOf(c).map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
         const checks = [...strikes, ...maneuvers].map((a) => getOpportunityCheck(state, c, a))
         const reason = checks.length === 0 ? 'no melee weapon in hand' : checks.some((k) => k.bar === null) ? null : checks.reduce((best, k) => (k.stage > best.stage ? k : best)).bar
         return [answer({ kind, at: trigger.at }, null, reason)]
@@ -429,10 +428,11 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   // a grapple row is in hand. Nothing, outside of one.
   grapple: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []
-    const maneuver = getActionCost(c, 'grappleManeuver')
     return [
-      ...GRAPPLE_MANEUVERS.map((m) =>
-        option({ kind: 'grapple', maneuver: m }, maneuver, getManeuverTargets(state, c.id, m).length === 0 ? 'nobody holds you' : afford(state, c, maneuver))),
+      ...getManeuversOf(c).map((m) => {
+        const cost = getManeuverCost(c, m)
+        return option({ kind: 'grapple', maneuver: m }, cost, getManeuverTargets(state, c.id, m).length === 0 ? 'nobody holds you' : afford(state, c, cost))
+      }),
     ]
   },
   // combat.tex "Prone": "cannot push nor drag"
