@@ -6,10 +6,9 @@ import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
 import type { BoardExtent, Coord } from '../domain/scene/types'
-import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
+import type { BoardView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
-import { LIGHT_LEVELS, SURFACE_ART, TERRAIN_BRUSHES } from '../domain/lists'
-import { SURFACE_ART_SRC } from '../assets/surfaceArt'
+import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
@@ -135,7 +134,7 @@ export function BoardPanel(){
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
           </marker>
         </defs>
-        <SurfaceDefs />
+        <SurfaceDefs arts={view.arts} />
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
@@ -147,17 +146,32 @@ export function BoardPanel(){
 }
 
 // One small texture per art, repeated over the board in the units the tokens
-// are placed in, so that it runs on from hex to hex and is decoded once.
-const SURFACE_TILE = 8
+// are placed in, so that it runs on from hex to hex and is decoded once. So
+// that the repeat does not show, the same texture is laid again over itself,
+// smaller and turned, so that the two never line up, and a cloud a few tiles
+// across is multiplied over both.
+const SECOND_SCALE = 0.7
+const SECOND_TURN = 17
+const SECOND_OPACITY = 0.5
+const CLOUD_TILE = 20
+const CLOUD_OPACITY = 0.3
 
-export function SurfaceDefs(){
+export function SurfaceDefs({ arts }: { arts: BoardView['arts'] }){
   return (
     <defs>
-      {SURFACE_ART.map((art) => (
-        <pattern key={art} id={`surface-${art}`} patternUnits='userSpaceOnUse' width={SURFACE_TILE} height={SURFACE_TILE}>
-          <image href={SURFACE_ART_SRC[art]} width={SURFACE_TILE} height={SURFACE_TILE} />
+      {arts.map((art, i) => (
+        <pattern key={i} id={`surface-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile}>
+          <image href={art.src} width={art.tile} height={art.tile} />
         </pattern>
       ))}
+      {arts.map((art, i) => (
+        <pattern key={`second-${i}`} id={`surface-${i}-second`} patternUnits='userSpaceOnUse' width={art.tile * SECOND_SCALE} height={art.tile * SECOND_SCALE} patternTransform={`rotate(${SECOND_TURN})`}>
+          <image href={art.src} width={art.tile * SECOND_SCALE} height={art.tile * SECOND_SCALE} />
+        </pattern>
+      ))}
+      <pattern id='surface-cloud' patternUnits='userSpaceOnUse' width={CLOUD_TILE} height={CLOUD_TILE}>
+        <image href='/surfaces/cloud.webp' width={CLOUD_TILE} height={CLOUD_TILE} />
+      </pattern>
     </defs>
   )
 }
@@ -298,7 +312,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     : cell.visibility === 'zero' || cell.light === 'dark' ? 'fill-fg/35'
     : cell.light === 'dim' ? 'fill-fg/15'
     : cell.visibility === 'bad' ? 'fill-fg/15'
-    : cell.art && cell.terrain === 'open' ? 'fill-surface/0'
+    : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
   const title = [
@@ -325,7 +339,9 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
-      {cell.art ? <polygon points={hex} fill={`url(#surface-${cell.art})`} className='pointer-events-none' /> : null}
+      {cell.art !== null ? <polygon points={hex} fill={`url(#surface-${cell.art})`} className='pointer-events-none' /> : null}
+      {cell.art !== null ? <polygon points={hex} fill={`url(#surface-${cell.art}-second)`} opacity={SECOND_OPACITY} className='pointer-events-none' /> : null}
+      {cell.art !== null ? <polygon points={hex} fill='url(#surface-cloud)' opacity={CLOUD_OPACITY} className='mix-blend-multiply pointer-events-none' /> : null}
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}

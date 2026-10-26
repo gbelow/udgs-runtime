@@ -22,7 +22,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
-import { getCellSurface, getSurfaceNames } from '../rules/board/surface'
+import { getCellArt, getSurfaceNames } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -58,7 +58,8 @@ export type BoardCellView = {
   // what the ground is made of: its name in the surfaces catalog, and the
   // texture it is drawn with; null for ground with none
   surface: string | null
-  art: SurfaceArt | null
+  // the picture it is drawn with: its place in the board's `arts`, null for none
+  art: number | null
   // combat.tex "Darkness and light": the light on the cell, and whether it
   // is a light source that makes it bright
   light: LightLevel
@@ -172,6 +173,8 @@ export type BoardView = {
   // the surface of every cell that names none, and the ones to choose from
   surface: string | null
   surfaces: string[]
+  // the pictures the cells are drawn with, which a cell's `art` indexes
+  arts: SurfaceArt[]
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
@@ -188,7 +191,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -256,6 +259,15 @@ function buildBoardView(state: SeenScene): BoardView {
     if (cell && !drawn.has(key)) drawn.set(key, cell)
   }
 
+  const arts: SurfaceArt[] = []
+  const artIndex = (art: SurfaceArt | null): number | null => {
+    if (!art) return null
+    const at = arts.findIndex((a) => a.src === art.src && a.tile === art.tile)
+    if (at >= 0) return at
+    arts.push(art)
+    return arts.length - 1
+  }
+
   const cells: BoardCellView[] = [...drawn.values()].map((cell) => {
     const key = coordKey(cell)
     const terrain = board.terrain[key]
@@ -278,7 +290,7 @@ function buildBoardView(state: SeenScene): BoardView {
       visibility: hazard.visibility === 'good' ? null : hazard.visibility,
       noise: terrain?.noise ?? 0,
       surface: terrain?.surface ?? board.surface,
-      art: getCellSurface(board, key)?.art ?? null,
+      art: artIndex(getCellArt(board, key)),
       light,
       lit: light === 'bright' && (board.light !== 'bright' || !!terrain?.dark),
       unseen: false,
@@ -355,6 +367,7 @@ function buildBoardView(state: SeenScene): BoardView {
     frame: hexBounds(cells),
     surface: board.surface,
     surfaces: getSurfaceNames(),
+    arts,
     viewBox: frameHexes(cells),
     hex: HEX_POINTS,
     cells,

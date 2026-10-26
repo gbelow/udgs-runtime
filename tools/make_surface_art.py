@@ -1,30 +1,47 @@
-"""Draws the tileable textures the surfaces are laid with, into public/surfaces.
+"""Converts the source textures of the surfaces into the small bitmaps the board repeats.
 
-Each is one TILE-pixel square that repeats seamlessly, so the board only ever
-decodes a small bitmap. Run it again after changing a colour below.
+Also draws cloud.webp, the slow variation laid over every textured cell to hide
+that a texture repeats. Reads every .jpg, .jpeg and .png in the source folder (public/surfaces by default)
+and writes <name>.webp beside it: a TILE-pixel square without alpha, the name
+lower-cased with spaces made underscores. Sources are left where they are; move
+them out of public/ once converted, since everything in public/ is served.
+
+    python tools/make_surface_art.py [source_folder]
 """
+import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
 TILE = 256
-OUT = Path(__file__).resolve().parent.parent / 'public' / 'surfaces'
-rng = np.random.default_rng(11)
+CLOUD = 512
+CLOUD_LOW = 150
+DEFAULT = Path(__file__).resolve().parent.parent / 'public' / 'surfaces'
+SOURCE_SUFFIXES = {'.jpg', '.jpeg', '.png'}
+
+
+def convert(source: Path, out: Path) -> Path:
+    name = source.stem.strip().lower().replace(' ', '_')
+    target = out / f'{name}.webp'
+    image = Image.open(source).convert('RGB').resize((TILE, TILE), Image.LANCZOS)
+    image.save(target, quality=82, method=6)
+    return target
 
 
 def smooth(t):
     return t * t * (3 - 2 * t)
 
 
-def noise(cells, octaves=1):
-    """Tileable value noise in 0..1: a cells x cells lattice, wrapped, blended smoothly."""
-    total = np.zeros((TILE, TILE))
+def cloud(path: Path) -> None:
+    """Tileable greyscale value noise, white where it leaves a texture as it is."""
+    rng = np.random.default_rng(7)
+    total = np.zeros((CLOUD, CLOUD))
     amplitude, norm = 1.0, 0.0
-    for octave in range(octaves):
-        n = cells * 2 ** octave
+    for octave in range(3):
+        n = 3 * 2 ** octave
         lattice = rng.random((n, n))
-        pos = np.arange(TILE) * n / TILE
+        pos = np.arange(CLOUD) * n / CLOUD
         i0 = pos.astype(int) % n
         i1 = (i0 + 1) % n
         f = smooth(pos - np.floor(pos))
@@ -33,52 +50,16 @@ def noise(cells, octaves=1):
         total += (top * (1 - f)[:, None] + bottom * f[:, None]) * amplitude
         norm += amplitude
         amplitude *= 0.5
-    return total / norm
-
-
-def blend(low, high, t):
-    low, high = np.array(low, dtype=float), np.array(high, dtype=float)
-    return low + (high - low) * t[..., None]
-
-
-def save(name, rgb):
-    image = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8))
-    image.save(OUT / f'{name}.webp', quality=82, method=6)
-
-
-def meadow():
-    patches = noise(4, 3)
-    base = blend((92, 104, 64), (118, 126, 80), patches)
-    blades = noise(64, 2)
-    base = base * (0.93 + 0.14 * blades)[..., None]
-    dry = smooth(np.clip((noise(8, 3) - 0.5) / 0.3, 0, 1)) * 0.3
-    return base * (1 - dry)[..., None] + np.array((150, 138, 92)) * dry[..., None]
-
-
-def earth():
-    base = blend((104, 80, 56), (138, 108, 76), noise(5, 3))
-    grit = noise(96, 1)
-    base = base * (0.9 + 0.2 * grit)[..., None]
-    pebbles = noise(48, 1) > 0.9
-    return np.where(pebbles[..., None], base * 0.7 + np.array((150, 140, 128)) * 0.3, base)
-
-
-def flagstone():
-    courses, per_row = 8, 4
-    height, width = TILE // courses, TILE // per_row
-    y, x = np.mgrid[0:TILE, 0:TILE]
-    row = y // height
-    shifted = (x + (row % 2) * (width // 2)) % TILE
-    column = shifted // width
-    tone = rng.random((courses, per_row))[row, column]
-    stone = blend((122, 120, 114), (158, 154, 144), tone * 0.8 + 0.2 * noise(8, 2))
-    stone = stone * (0.94 + 0.12 * noise(48, 1))[..., None]
-    joint = ((y % height) < 2) | ((shifted % width) < 2)
-    return np.where(joint[..., None], stone * 0.55, stone)
+    total = total / norm
+    total = (total - total.min()) / (total.max() - total.min())
+    grey = CLOUD_LOW + (255 - CLOUD_LOW) * total
+    Image.fromarray(grey.astype(np.uint8)).save(path, quality=85, method=6)
 
 
 if __name__ == '__main__':
-    OUT.mkdir(parents=True, exist_ok=True)
-    save('meadow', meadow())
-    save('earth', earth())
-    save('flagstone', flagstone())
+    folder = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT
+    sources = sorted(p for p in folder.iterdir() if p.suffix.lower() in SOURCE_SUFFIXES)
+    for source in sources:
+        print(f'{source.name} -> {convert(source, DEFAULT).name}')
+    cloud(DEFAULT / 'cloud.webp')
+    print(f'{len(sources)} converted, cloud.webp drawn')

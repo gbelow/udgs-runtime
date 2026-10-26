@@ -4,7 +4,7 @@ import { BoardExtentSchema, BoardSchema, PlacementSchema, TerrainCellSchema, typ
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
-import { getSurface } from '../rules/board/surface'
+import { getSurface, pickArt } from '../rules/board/surface'
 import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
@@ -68,8 +68,9 @@ export function setSurface(surface: string | null): Updater {
 
 // Makes one cell of a surface, overwriting every value the surface sets. A
 // wall or water is not walked on, so it stays as it is: no difficult ground
-// under it, and the DL of a swim is not the surface's.
-export function laySurface(cell: Coord, name: string): Updater {
+// under it, and the DL of a swim is not the surface's. The roll is the table's:
+// it picks which of the surface's pictures the cell is drawn with.
+export function laySurface(cell: Coord, name: string, roll: number): Updater {
   return (state) => {
     const surface = getSurface(name)
     if (!state.board || !surface || getOpenAction(state)) return state
@@ -78,6 +79,7 @@ export function laySurface(cell: Coord, name: string): Updater {
     const laid = {
       ...current,
       surface: name,
+      art: pickArt(surface, roll)?.src ?? null,
       difficult: !current.blocking && !current.liquid && surface.difficult,
       DL: current.liquid ? current.DL : surface.DL,
       noise: surface.noise,

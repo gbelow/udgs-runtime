@@ -48,3 +48,6 @@ __pycache__/
 
 # simulation reports
 /reports/
+
+# surface art, hosted elsewhere
+/public/surfaces/

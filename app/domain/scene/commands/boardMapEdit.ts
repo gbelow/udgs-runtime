@@ -30,8 +30,8 @@ export function surfaceBoardMap(surface: string | null): BoardMapUpdater {
   return (map) => viaScene(map, setSurface(surface))
 }
 
-export function laySurfaceBoardMap(cell: Coord, name: string): BoardMapUpdater {
-  return (map) => viaScene(map, laySurface(cell, name))
+export function laySurfaceBoardMap(cell: Coord, name: string, roll: number): BoardMapUpdater {
+  return (map) => viaScene(map, laySurface(cell, name, roll))
 }
 
 export function lightBoardMap(light: LightLevel): BoardMapUpdater {

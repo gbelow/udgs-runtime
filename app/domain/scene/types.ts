@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS, SURFACE_ART } from '../lists'
+import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { DIE_SOURCES, ROLL_MODES } from '../play/dice'
@@ -201,19 +201,33 @@ export const TerrainCellSchema = z.object({
   // what the ground here is made of, by its name in the surfaces catalog; null
   // is the board's own surface. The rules read the values it laid, never this.
   surface: str.nullable().default(null),
+  // which of that surface's pictures this cell was laid with, by its path; the
+  // surface's first when it names none the surface still lists
+  art: str.nullable().default(null),
   layers: z.array(HazardLayerSchema).default([]),
 }).strip()
 export type TerrainCell = z.infer<typeof TerrainCellSchema>
 
-// What the ground is made of: grass, mud, flagstone. Laying one on a cell
-// overwrites exactly these values there, and the texture it is drawn with is
-// `art`. Structure (walls, water, elevation) is not part of it.
+// One picture a surface is drawn with: where it is served from (a path under
+// `public/`), and how many board units one repeat of it covers, so that large
+// features (stones) stay about a token's size and fine ones (grass) do not
+// show the scale.
+export const SurfaceArtSchema = z.object({
+  src: str.default(''),
+  tile: num.default(8),
+}).strip()
+export type SurfaceArt = z.infer<typeof SurfaceArtSchema>
+
+// What the ground is made of: grass, mud, sand. Laying one on a cell
+// overwrites exactly these values there. `arts` are the pictures it may be
+// drawn with: each laying draws one at random when `randomize` is on, else the
+// first. Structure (walls, water, elevation) is not part of it.
 export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true, noise: true, soft: true, visibility: true }).extend({
   name: str.default(''),
-  art: z.enum(SURFACE_ART).nullable().default(null),
+  randomize: z.boolean().default(true),
+  arts: z.array(SurfaceArtSchema).default([]),
 }).strip()
 export type Surface = z.infer<typeof SurfaceSchema>
-export type SurfaceArt = NonNullable<Surface['art']>
 
 export const LightLevelSchema = z.enum(LIGHT_LEVELS)
 export type LightLevel = z.infer<typeof LightLevelSchema>
