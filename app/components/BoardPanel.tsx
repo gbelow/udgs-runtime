@@ -5,7 +5,7 @@ import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
-import type { BoardExtent, Coord } from '../domain/scene/types'
+import type { BoardExtent, Coord, GroundRecipe } from '../domain/scene/types'
 import type { BoardView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
@@ -52,7 +52,7 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
-  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, surface, laySurface, resize, resizeWarning } = useBoard(fromActive)
+  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
@@ -116,7 +116,8 @@ export function BoardPanel(){
             <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
         </Segmented>
       </div>
-      <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
+      <SurfaceRow surfaces={view.surfaces} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
+      <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
       <SizeRow key={`${view.extent.q},${view.extent.r},${view.extent.s}`} extent={view.extent} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
       </>) : null}
@@ -137,6 +138,7 @@ export function BoardPanel(){
         </defs>
         <SurfaceLayer view={view} />
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
+        <ShadeLayer view={view} />
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
@@ -196,22 +198,109 @@ export function SurfaceLayer({ view }: { view: BoardView }){
   )
 }
 
+// The light and the fog of a board, drawn over its cells: where no light
+// reaches, where the eyes of the one looking do not, and where the ground is
+// misty, each as a veil shown through a mask of the cells it covers, blurred so
+// that the dark falls off softly instead of in steps of whole hexes. A cell is
+// drawn in white a little past its edge and its level is the opacity of the
+// whole group, so that the blur fades from full colour at the board's rim and
+// cells of one level do not add up. The ground layer's clip keeps it on the
+// board.
+const SHADE_BLUR = 0.35
+const SHADE_BLEED = 0.45
+const NIGHT_DIM = 0.6
+const NIGHT_DARK = 0.85
+const UNSEEN = 0.92
+const MIST_BAD = 0.35
+const MIST_ZERO = 0.7
+const GLOW = 0.2
+
+// The cells of each level of a veil, weakest first, so that a stronger one is
+// drawn over a weaker.
+function levelsOf(cells: BoardCellView[], levelOf: (c: BoardCellView) => number): { level: number, cells: BoardCellView[] }[] {
+  const levels = new Map<number, BoardCellView[]>()
+  for (const c of cells) {
+    const level = levelOf(c)
+    if (level > 0) levels.set(level, [...(levels.get(level) ?? []), c])
+  }
+  return [...levels.entries()].sort(([a], [b]) => a - b).map(([level, at]) => ({ level, cells: at }))
+}
+
+export function ShadeLayer({ view }: { view: BoardView }){
+  const { frame, hex } = view
+  const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
+  const veils = [
+    { id: 'night', fill: 'black', opacity: 1, levels: levelsOf(view.cells, (c) => (c.unseen ? UNSEEN : c.light === 'dark' ? NIGHT_DARK : c.light === 'dim' ? NIGHT_DIM : 0)) },
+    { id: 'mist', fill: '#c9d4dc', opacity: 1, levels: levelsOf(view.cells, (c) => (c.visibility === null ? 0 : c.visibility === 'zero' ? MIST_ZERO : MIST_BAD)) },
+    { id: 'glow', fill: '#ffb45a', opacity: GLOW, levels: levelsOf(view.cells, (c) => (c.lit && !c.unseen ? 1 : 0)) },
+  ].filter((v) => v.levels.length > 0)
+  if (veils.length === 0) return null
+  return (
+    <g className='pointer-events-none' clipPath='url(#surface-board)'>
+      <defs>
+        <filter id='shade-soft' filterUnits='userSpaceOnUse' {...region}>
+          <feGaussianBlur stdDeviation={SHADE_BLUR} />
+        </filter>
+        {veils.map((v) => (
+          <mask key={v.id} id={`shade-${v.id}`} maskUnits='userSpaceOnUse' {...region}>
+            <g filter='url(#shade-soft)'>
+              {v.levels.map(({ level, cells }) => (
+                <g key={level} opacity={level}>
+                  {cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={2 * SHADE_BLEED} strokeLinejoin='round' />)}
+                </g>
+              ))}
+            </g>
+          </mask>
+        ))}
+      </defs>
+      {veils.map((v) => <rect key={v.id} {...region} fill={v.fill} opacity={v.opacity} mask={`url(#shade-${v.id})`} />)}
+    </g>
+  )
+}
+
+// The recipe a board's ground is generated from: the surfaces to lay, each
+// with a weight, how much they gather in patches, and the seed that picks which
+// of the grounds the recipe can make. Generating overwrites every cell.
+export function GroundGenerator({ surfaces, generate }: { surfaces: BoardView['surfaces'], generate: (recipe: GroundRecipe, seed: number) => void }){
+  const [entries, setEntries] = useState<GroundRecipe['entries']>([])
+  const [clump, setClump] = useState(0.5)
+  const [seed, setSeed] = useState(1)
+  const left = surfaces.filter((s) => !entries.some((e) => e.surface === s.name))
+  const usable = entries.some((e) => e.weight > 0)
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>generate</SectionLabel>
+      <select className={selectClass} aria-label='add a surface to the recipe' value='' onChange={(e) => { if (e.target.value) setEntries([...entries, { surface: e.target.value, weight: 1 }]) }}>
+        <option value=''>add surface</option>
+        {left.map(({ name }) => <option key={name} value={name}>{name}</option>)}
+      </select>
+      {entries.map((entry) => (
+        <span key={entry.surface} className='inline-flex flex-row items-center gap-1 text-xs'>
+          {entry.surface}
+          <TextInput className='w-14' type='number' min={0} aria-label={`${entry.surface} weight`} value={entry.weight} onChange={(e) => setEntries(entries.map((x) => (x === entry ? { ...x, weight: Number(e.target.value) } : x)))} />
+          <Button size='xs' aria-label={`remove ${entry.surface}`} onClick={() => setEntries(entries.filter((x) => x !== entry))}>x</Button>
+        </span>
+      ))}
+      <label className='inline-flex flex-row items-center gap-1 text-xs'>
+        clump
+        <input type='range' min={0} max={1} step={0.05} aria-label='clumping' value={clump} onChange={(e) => setClump(Number(e.target.value))} />
+      </label>
+      <TextInput className='w-24' type='number' aria-label='generator seed' value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
+      <Button size='xs' disabled={!usable} onClick={() => generate({ entries, clump }, seed)}>generate</Button>
+      <Button size='xs' disabled={!usable} title='a new seed, and generate with it' onClick={() => { const next = Math.floor(Math.random() * 0x7fffffff); setSeed(next); generate({ entries, clump }, next) }}>reroll</Button>
+    </div>
+  )
+}
+
 // The board's own surface, and the one laid cell by cell with a click.
-export function SurfaceRow({ surfaces, base, setBase, laying, lay, frozen, freeze }: { surfaces: BoardView['surfaces'], base: string | null, setBase: (name: string | null) => void, laying: string | null, lay: (name: string) => void, frozen: string | null, freeze: (art: string | null) => void }){
+export function SurfaceRow({ surfaces, laying, lay, frozen, freeze }: { surfaces: BoardView['surfaces'], laying: string | null, lay: (name: string) => void, frozen: string | null, freeze: (art: string | null) => void }){
   const arts = surfaces.find((s) => s.name === laying)?.arts ?? []
   return (<>
-    <div className='flex flex-row flex-wrap gap-1 items-center'>
-      <SectionLabel>ground</SectionLabel>
-      <Segmented label='ground'>
-        <Segment selected={base === null} onClick={() => setBase(null)}>none</Segment>
-        {surfaces.map(({ name }) => <Segment key={name} selected={base === name} onClick={() => setBase(name)}>{name}</Segment>)}
-      </Segmented>
-    </div>
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>surface</SectionLabel>
       {surfaces.map(({ name }) => <Button key={name} size='xs' selected={laying === name} onClick={() => lay(name)}>{name}</Button>)}
     </div>
-    {arts.length > 1 ? (
+    {arts.length > 0 ? (
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>art</SectionLabel>
         <Button size='xs' selected={frozen === null} onClick={() => freeze(null)}>random</Button>
@@ -336,14 +425,10 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     : cell.swept ? 'fill-accent/20'
     : cell.zone ? ZONE_FILL[cell.zone]
     : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/15'
-    : cell.unseen ? 'fill-fg/50'
     : cell.threatened ? 'fill-bad/10'
     : cell.fire > 0 ? 'fill-injury-2/30'
     : cell.fuels.length > 0 ? 'fill-accent/15'
     : cell.suffocating ? 'fill-fg/25'
-    : cell.visibility === 'zero' || cell.light === 'dark' ? 'fill-fg/35'
-    : cell.light === 'dim' ? 'fill-fg/15'
-    : cell.visibility === 'bad' ? 'fill-fg/15'
     : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'

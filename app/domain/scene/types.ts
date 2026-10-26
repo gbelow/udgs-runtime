@@ -238,6 +238,19 @@ export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true,
 }).strip()
 export type Surface = z.infer<typeof SurfaceSchema>
 
+// How a board's ground is generated: the surfaces to lay, each with a weight
+// (relative, so only their proportions count), and how much they gather in
+// patches instead of lying scattered, from 0 (every cell on its own) to 1.
+export const GroundEntrySchema = z.object({
+  surface: str.default(''),
+  weight: num.min(0).default(1),
+}).strip()
+export const GroundRecipeSchema = z.object({
+  entries: z.array(GroundEntrySchema).default([]),
+  clump: num.min(0).max(1).default(0.5),
+}).strip()
+export type GroundRecipe = z.infer<typeof GroundRecipeSchema>
+
 export const LightLevelSchema = z.enum(LIGHT_LEVELS)
 export type LightLevel = z.infer<typeof LightLevelSchema>
 

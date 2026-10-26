@@ -8,9 +8,9 @@ import type { CampaignCharacter, Delivery, Item, SurgeKind, TerrainBrush } from 
 import type { ExplosionDraft } from '../rules/impose'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
-import type { ActionDraft, BoardExtent, ChaseDeclaration, Coord, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
+import type { ActionDraft, BoardExtent, ChaseDeclaration, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
-import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, resizeBoard, setLight, setSurface } from './board'
+import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
 import { confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
@@ -103,6 +103,7 @@ export const sceneCommands = {
   light: command((_, level: LightLevel) => setLight(level)).by(gm),
   surface: command((_, surface: string | null) => setSurface(surface)).by(gm),
   laySurface: command((_, cell: Coord, surface: string, roll: number, frozen: string | null) => laySurface(cell, surface, roll, frozen)).by(gm),
+  generateGround: command((_, recipe: GroundRecipe, seed: number) => generateGround(recipe, seed)).by(gm),
   // a kept board, with everyone off it
   loadBoardMap: command((_, raw: unknown) => loadBoardMap(raw)).by(gm),
 

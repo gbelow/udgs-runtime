@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput } from '../ui'
-import { BRUSH_LABEL, Cell, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, Cell, GroundGenerator, ShadeLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardMapEditor } from '../../hooks/useBoardMaps'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../../domain/lists'
@@ -12,7 +12,7 @@ import type { TerrainBrush } from '../../domain/types'
 // profile's own. One is opened or begun anew, painted with the brushes the
 // scene's board has, and kept under its name.
 export function BoardMapsEditor() {
-  const { rows, view, map, openId, devServer, open, create, remove, save, setName, paint, light, surface, laySurface, resize } = useBoardMapEditor()
+  const { rows, view, map, openId, devServer, open, create, remove, save, setName, paint, light, laySurface, generateGround, resize } = useBoardMapEditor()
   const [brush, setBrush] = useState<TerrainBrush | null>('wall')
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
@@ -56,11 +56,13 @@ export function BoardMapsEditor() {
           <span className='grow' />
           <ZoomButtons zoomPan={zoomPan} />
         </div>
-        <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={laying} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
+        <SurfaceRow surfaces={view.surfaces} laying={laying} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
+        <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label='battle map'
           onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen); else if (brush) paint(cell, brush) }}>
           <SurfaceLayer view={view} />
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
+          <ShadeLayer view={view} />
         </svg>
       </div>
     </div>

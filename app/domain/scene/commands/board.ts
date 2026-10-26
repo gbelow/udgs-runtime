@@ -1,9 +1,10 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardExtentSchema, BoardSchema, PlacementSchema, TerrainCellSchema, type BoardExtent, type SceneState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
+import { BoardExtentSchema, BoardSchema, PlacementSchema, TerrainCellSchema, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type Surface, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
-import { coordKey, directionTo, distance, sameCell, turn } from '../rules/board/geometry'
+import { coordKey, directionTo, distance, extentCells, sameCell, turn } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
+import { planGround } from '../rules/board/generate'
 import { getSurface, pickArt } from '../rules/board/surface'
 import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
@@ -76,18 +77,39 @@ export function laySurface(cell: Coord, name: string, roll: number, frozen: stri
     const surface = getSurface(name)
     if (!state.board || !surface || getOpenAction(state)) return state
     const key = coordKey(cell)
-    const current = state.board.terrain[key] ?? TerrainCellSchema.parse({})
-    const laid = {
-      ...current,
-      surface: name,
-      art: pickArt(surface, roll, frozen)?.src ?? null,
-      difficult: !current.blocking && !current.liquid && surface.difficult,
-      DL: current.liquid ? current.DL : surface.DL,
-      noise: surface.noise,
-      soft: surface.soft,
-      visibility: surface.visibility,
-    }
+    const laid = laidCell(state.board.terrain[key] ?? TerrainCellSchema.parse({}), name, surface, pickArt(surface, roll, frozen)?.src ?? null)
     return { ...state, board: { ...state.board, terrain: { ...state.board.terrain, [key]: laid } } }
+  }
+}
+
+function laidCell(current: TerrainCell, name: string, surface: Surface, art: string | null): TerrainCell {
+  return {
+    ...current,
+    surface: name,
+    art,
+    difficult: !current.blocking && !current.liquid && surface.difficult,
+    DL: current.liquid ? current.DL : surface.DL,
+    noise: surface.noise,
+    soft: surface.soft,
+    visibility: surface.visibility,
+  }
+}
+
+// Lays the ground a recipe makes on every cell of the board, as laying each by
+// hand would, and so overwriting whatever ground they had. A recipe naming no
+// surface of the catalog, or all of weight none, changes nothing. Refused while
+// an action is open, as painting is.
+export function generateGround(recipe: GroundRecipe, seed: number): Updater {
+  return (state) => {
+    if (!state.board || getOpenAction(state)) return state
+    const plan = planGround(recipe, extentCells(state.board.origin, state.board.extent), seed)
+    if (plan.size === 0) return state
+    const terrain = { ...state.board.terrain }
+    for (const [key, { surface: name, roll }] of plan) {
+      const surface = getSurface(name)
+      if (surface) terrain[key] = laidCell(terrain[key] ?? TerrainCellSchema.parse({}), name, surface, pickArt(surface, roll, null)?.src ?? null)
+    }
+    return { ...state, board: { ...state.board, terrain } }
   }
 }
 
