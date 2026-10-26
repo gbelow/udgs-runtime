@@ -484,7 +484,7 @@ function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: st
             <circle r={0.62} className={`fill-none ${ring} pointer-events-none`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
           </>
         ) : <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>}
-        <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>
+        <text y={0.95} textAnchor='middle' className='fill-fg stroke-bg font-semibold pointer-events-none' fontSize={0.32} strokeWidth={0.16} strokeLinejoin='round' paintOrder='stroke'>{token.name}</text>
         {token.shieldAngle !== null ? <rect x={0.72} y={-0.45} width={0.16} height={0.9} rx={0.05} transform={`rotate(${token.shieldAngle})`} className='fill-accent pointer-events-none' /> : null}
         {token.depth > 0 ? <text y={-0.8} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.35}>{`↓${token.depth}`}</text> : null}
       </g>
