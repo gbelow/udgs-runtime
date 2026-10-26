@@ -215,16 +215,25 @@ export type TerrainCell = z.infer<typeof TerrainCellSchema>
 export const SurfaceArtSchema = z.object({
   src: str.default(''),
   tile: num.default(8),
+  // where the picture starts, in board units, so that one picture can be
+  // started elsewhere than another and no two line up
+  offsetX: num.default(0),
+  offsetY: num.default(0),
 }).strip()
 export type SurfaceArt = z.infer<typeof SurfaceArtSchema>
 
 // What the ground is made of: grass, mud, sand. Laying one on a cell
 // overwrites exactly these values there. `arts` are the pictures it may be
 // drawn with: each laying draws one at random when `randomize` is on, else the
-// first. Structure (walls, water, elevation) is not part of it.
+// first. Where it meets another surface, it spreads `bleed` board units into the
+// other's hexes with a soft ragged edge (none keeps the hex edge: a road, a
+// bridge), and the one with the higher `priority` is drawn over the other.
+// Structure (walls, water, elevation) is not part of it.
 export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true, noise: true, soft: true, visibility: true }).extend({
   name: str.default(''),
   randomize: z.boolean().default(true),
+  bleed: num.min(0).default(0.5),
+  priority: num.default(0),
   arts: z.array(SurfaceArtSchema).default([]),
 }).strip()
 export type Surface = z.infer<typeof SurfaceSchema>

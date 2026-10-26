@@ -1,4 +1,4 @@
-import type { Bind, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, SurfaceArt } from '../types'
+import type { Bind, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -22,7 +22,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
-import { getCellArt, getSurfaceNames } from '../rules/board/surface'
+import { getCellArt, getSurfaceNames, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -173,8 +173,9 @@ export type BoardView = {
   // the surface of every cell that names none, and the ones to choose from
   surface: string | null
   surfaces: string[]
-  // the pictures the cells are drawn with, which a cell's `art` indexes
-  arts: SurfaceArt[]
+  // the pictures the cells are drawn with, lowest priority first (the order
+  // they are drawn in), which a cell's `art` indexes
+  arts: CellArt[]
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
@@ -259,16 +260,16 @@ function buildBoardView(state: SeenScene): BoardView {
     if (cell && !drawn.has(key)) drawn.set(key, cell)
   }
 
-  const arts: SurfaceArt[] = []
-  const artIndex = (art: SurfaceArt | null): number | null => {
+  const found: CellArt[] = []
+  const artIndex = (art: CellArt | null): number | null => {
     if (!art) return null
-    const at = arts.findIndex((a) => a.src === art.src && a.tile === art.tile)
+    const at = found.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.priority === art.priority)
     if (at >= 0) return at
-    arts.push(art)
-    return arts.length - 1
+    found.push(art)
+    return found.length - 1
   }
 
-  const cells: BoardCellView[] = [...drawn.values()].map((cell) => {
+  const unsorted: BoardCellView[] = [...drawn.values()].map((cell) => {
     const key = coordKey(cell)
     const terrain = board.terrain[key]
     const { x, y } = toPlane(cell)
@@ -309,6 +310,13 @@ function buildBoardView(state: SeenScene): BoardView {
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, cell)).map((f) => f.item.name),
     }
   })
+
+  // lowest priority first, ties in the order they were met, so that a
+  // higher one is drawn over a lower
+  const drawing = found.map((_, i) => i).sort((a, b) => found[a].priority - found[b].priority || a - b)
+  const arts = drawing.map((i) => found[i])
+  const place = new Map(drawing.map((from, to) => [from, to]))
+  const cells: BoardCellView[] = unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null }))
 
   const awaited = new Set(getAwaited(state))
   const tokens: BoardTokenView[] = Object.entries(board.placements).flatMap(([id, placement]) => {

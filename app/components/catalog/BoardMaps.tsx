@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput } from '../ui'
-import { BRUSH_LABEL, Cell, SurfaceDefs, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, Cell, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardMapEditor } from '../../hooks/useBoardMaps'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../../domain/lists'
@@ -58,7 +58,7 @@ export function BoardMapsEditor() {
         <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={laying} lay={(name) => { setLaying(laying === name ? null : name); setBrush(null) }} />
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label='battle map'
           onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying); else if (brush) paint(cell, brush) }}>
-          <SurfaceDefs arts={view.arts} />
+          <SurfaceLayer view={view} />
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
         </svg>
       </div>

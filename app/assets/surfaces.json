@@ -7,30 +7,44 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
     "arts": [
       {
         "src": "/surfaces/grass_green_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/grass_green2y_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/grass_ground_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/grass_mix_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/grass_autumn_orn_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/grass_rocky_d.webp",
-        "tile": 5
+        "tile": 5,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -42,10 +56,14 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
     "arts": [
       {
         "src": "/surfaces/savanna_dry_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -57,18 +75,26 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
     "arts": [
       {
         "src": "/surfaces/moss_ground_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/moss_plants_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/ground_ferns_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -80,18 +106,26 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
     "arts": [
       {
         "src": "/surfaces/ground_dry_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/ground_dry2_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/dirt_1.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -103,14 +137,20 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
     "arts": [
       {
         "src": "/surfaces/ground_cracks2v_d.webp",
-        "tile": 5
+        "tile": 5,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/ground_cracks2y_d.webp",
-        "tile": 5
+        "tile": 5,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -122,14 +162,20 @@
     "soft": true,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 1,
     "arts": [
       {
         "src": "/surfaces/ground_mud_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/ground_mud2_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -141,18 +187,26 @@
     "soft": true,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 2,
     "arts": [
       {
         "src": "/surfaces/desert_sand_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/desert_sand_big_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/island_sand_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -164,30 +218,44 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
     "arts": [
       {
         "src": "/surfaces/mntn_canyon_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/mntn_dark_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/desert_mntn_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/adesert_mntn_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/jungle_mntn_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/jungle_mntn2_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -199,18 +267,26 @@
     "soft": true,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 2,
     "arts": [
       {
         "src": "/surfaces/snow1_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/snow_bumpy_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/snow_rough_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -222,18 +298,26 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 1,
     "arts": [
       {
         "src": "/surfaces/snow_grass_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/snow_grass2_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/snow_grass3_d.webp",
-        "tile": 8
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   },
@@ -245,18 +329,26 @@
     "soft": false,
     "visibility": "good",
     "randomize": true,
+    "bleed": 0.5,
+    "priority": 1,
     "arts": [
       {
         "src": "/surfaces/lava_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/lava_mars_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       },
       {
         "src": "/surfaces/lava_black_d.webp",
-        "tile": 6
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
       }
     ]
   }

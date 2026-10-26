@@ -28,12 +28,16 @@ export function pickArt(surface: Surface, roll: number): SurfaceArt | null {
   return surface.arts[surface.randomize && Number.isInteger(roll) ? Math.abs(roll) % surface.arts.length : 0]
 }
 
+// A picture with how its surface meets the next one.
+export type CellArt = SurfaceArt & { bleed: number; priority: number }
+
 // The picture a cell is drawn with: the one it was laid with while its surface
 // still lists it, else the surface's first. A cell that names no surface is
 // the board's, drawn with that surface's first.
-export function getCellArt(board: Board, key: string): SurfaceArt | null {
+export function getCellArt(board: Board, key: string): CellArt | null {
   const surface = getCellSurface(board, key)
   if (!surface) return null
   const laid = board.terrain[key]?.surface ? board.terrain[key]?.art : null
-  return surface.arts.find((a) => a.src === laid) ?? surface.arts[0] ?? null
+  const art = surface.arts.find((a) => a.src === laid) ?? surface.arts[0]
+  return art ? { ...art, bleed: surface.bleed, priority: surface.priority } : null
 }

@@ -134,7 +134,7 @@ export function BoardPanel(){
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
           </marker>
         </defs>
-        <SurfaceDefs arts={view.arts} />
+        <SurfaceLayer view={view} />
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
@@ -145,34 +145,53 @@ export function BoardPanel(){
   )
 }
 
-// One small texture per art, repeated over the board in the units the tokens
-// are placed in, so that it runs on from hex to hex and is decoded once. So
-// that the repeat does not show, the same texture is laid again over itself,
-// smaller and turned, so that the two never line up, and a cloud a few tiles
-// across is multiplied over both.
-const SECOND_SCALE = 0.7
-const SECOND_TURN = 17
-const SECOND_OPACITY = 0.5
-const CLOUD_TILE = 20
-const CLOUD_OPACITY = 0.3
+// The ground of a board, drawn under its cells. Each picture is one small
+// texture repeated over the board in the units the tokens are placed in, so
+// that it runs on from hex to hex and is decoded once, and it is shown through
+// a mask of the hexes laid with it, grown outwards and roughened with noise:
+// where two pictures meet, the one drawn later pushes a ragged edge into the
+// other's hexes instead of cutting along the hex edge. How far a surface
+// spreads (none keeps the hex edge) and which is drawn over which are the
+// surface's own.
+const ROUGHNESS = 0.8
+const ROUGH_FREQUENCY = 0.3
+const FEATHER = 0.1
+const ROUGH_SEED = 7
+const ROUGH_MARGIN = 2
 
-export function SurfaceDefs({ arts }: { arts: BoardView['arts'] }){
+export function SurfaceLayer({ view }: { view: BoardView }){
+  const { frame, hex } = view
+  const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
   return (
-    <defs>
-      {arts.map((art, i) => (
-        <pattern key={i} id={`surface-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile}>
-          <image href={art.src} width={art.tile} height={art.tile} />
-        </pattern>
-      ))}
-      {arts.map((art, i) => (
-        <pattern key={`second-${i}`} id={`surface-${i}-second`} patternUnits='userSpaceOnUse' width={art.tile * SECOND_SCALE} height={art.tile * SECOND_SCALE} patternTransform={`rotate(${SECOND_TURN})`}>
-          <image href={art.src} width={art.tile * SECOND_SCALE} height={art.tile * SECOND_SCALE} />
-        </pattern>
-      ))}
-      <pattern id='surface-cloud' patternUnits='userSpaceOnUse' width={CLOUD_TILE} height={CLOUD_TILE}>
-        <image href='/surfaces/cloud.webp' width={CLOUD_TILE} height={CLOUD_TILE} />
-      </pattern>
-    </defs>
+    <g className='pointer-events-none'>
+      <defs>
+        {view.arts.map((art, i) => (
+          <pattern key={i} id={`surface-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile} patternTransform={`translate(${art.offsetX} ${art.offsetY})`}>
+            <image href={art.src} width={art.tile} height={art.tile} />
+          </pattern>
+        ))}
+        <filter id='surface-rough' filterUnits='userSpaceOnUse' {...region}>
+          <feTurbulence type='fractalNoise' baseFrequency={ROUGH_FREQUENCY} numOctaves={1} seed={ROUGH_SEED} result='noise' />
+          <feDisplacementMap in='SourceGraphic' in2='noise' scale={ROUGHNESS} xChannelSelector='R' yChannelSelector='G' result='displaced' />
+          <feGaussianBlur in='displaced' stdDeviation={FEATHER} />
+        </filter>
+        {view.arts.map((art, i) => (
+          <mask key={i} id={`surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
+            <g filter={art.bleed > 0 ? 'url(#surface-rough)' : undefined}>
+              {view.cells.filter((c) => c.art === i).map((c) => (
+                <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke={art.bleed > 0 ? 'white' : 'none'} strokeWidth={art.bleed * 2} strokeLinejoin='round' />
+              ))}
+            </g>
+          </mask>
+        ))}
+        <clipPath id='surface-board'>
+          {view.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} />)}
+        </clipPath>
+      </defs>
+      <g clipPath='url(#surface-board)'>
+        {view.arts.map((_, i) => <rect key={i} {...region} fill={`url(#surface-${i})`} mask={`url(#surface-mask-${i})`} />)}
+      </g>
+    </g>
   )
 }
 
@@ -314,7 +333,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     : cell.visibility === 'bad' ? 'fill-fg/15'
     : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
-  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
+  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
   const title = [
     cell.key,
     cell.unseen ? 'out of sight' : null,
@@ -339,9 +358,6 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
-      {cell.art !== null ? <polygon points={hex} fill={`url(#surface-${cell.art})`} className='pointer-events-none' /> : null}
-      {cell.art !== null ? <polygon points={hex} fill={`url(#surface-${cell.art}-second)`} opacity={SECOND_OPACITY} className='pointer-events-none' /> : null}
-      {cell.art !== null ? <polygon points={hex} fill='url(#surface-cloud)' opacity={CLOUD_OPACITY} className='mix-blend-multiply pointer-events-none' /> : null}
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
