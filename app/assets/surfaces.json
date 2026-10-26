@@ -5,6 +5,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -42,6 +43,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -61,6 +63,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -80,6 +83,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -99,6 +103,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -120,11 +125,12 @@
   },
   "Ferns": {
     "name": "Ferns",
-    "difficult": false,
-    "DL": -5,
+    "difficult": true,
+    "DL": -2,
     "noise": 0,
     "soft": false,
-    "visibility": "good",
+    "liquid": false,
+    "visibility": "bad",
     "randomize": true,
     "bleed": 0.5,
     "priority": 0,
@@ -143,6 +149,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -168,13 +175,32 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
     "priority": 0,
     "arts": [
       {
-        "src": "/surfaces/dirt_1.webp",
+        "src": "/surfaces/dirt_01.webp",
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/dirt_02.webp",
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/dirt_03.webp",
+        "tile": 8,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/dirt_04.webp",
         "tile": 8,
         "offsetX": 0,
         "offsetY": 0
@@ -187,6 +213,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -212,6 +239,7 @@
     "DL": -5,
     "noise": 0,
     "soft": true,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -237,6 +265,7 @@
     "DL": -5,
     "noise": 0,
     "soft": true,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -268,6 +297,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -299,6 +329,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -318,6 +349,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -343,6 +375,7 @@
     "DL": -5,
     "noise": 0,
     "soft": true,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -374,6 +407,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -405,6 +439,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -430,6 +465,7 @@
     "DL": -5,
     "noise": 0,
     "soft": false,
+    "liquid": false,
     "visibility": "good",
     "randomize": true,
     "bleed": 0.5,
@@ -437,6 +473,142 @@
     "arts": [
       {
         "src": "/surfaces/lava_black_d.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ]
+  },
+  "Stone tiles": {
+    "name": "Stone tiles",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "liquid": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
+      {
+        "src": "/surfaces/stone_tile_1.webp",
+        "tile": 4,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/stone_tile_2.webp",
+        "tile": 4,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/stone_tile_3.webp",
+        "tile": 4,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/stone_tile_4.webp",
+        "tile": 4,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ]
+  },
+  "Blue water": {
+    "name": "Blue water",
+    "difficult": false,
+    "DL": -2,
+    "noise": 0,
+    "soft": true,
+    "liquid": true,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 1,
+    "arts": [
+      {
+        "src": "/surfaces/liquid_blue_01-512x512.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/liquid_blue_02-512x512.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/liquid_blue_06-512x512.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      {
+        "src": "/surfaces/liquid_blue_08-512x512.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ]
+  },
+  "Brown water": {
+    "name": "Brown water",
+    "difficult": false,
+    "DL": -2,
+    "noise": 0,
+    "soft": true,
+    "liquid": true,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 1,
+    "arts": [
+      {
+        "src": "/surfaces/liquid_brown_03-512x512.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ]
+  },
+  "Green water": {
+    "name": "Green water",
+    "difficult": false,
+    "DL": -2,
+    "noise": 0,
+    "soft": true,
+    "liquid": true,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 1,
+    "arts": [
+      {
+        "src": "/surfaces/liquid_green_01-512x512.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ]
+  },
+  "Red water": {
+    "name": "Red water",
+    "difficult": false,
+    "DL": -2,
+    "noise": 0,
+    "soft": true,
+    "liquid": true,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 1,
+    "arts": [
+      {
+        "src": "/surfaces/liquid_red_02-512x512.webp",
         "tile": 6,
         "offsetX": 0,
         "offsetY": 0

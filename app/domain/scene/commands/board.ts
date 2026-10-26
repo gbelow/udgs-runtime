@@ -69,9 +69,11 @@ export function setSurface(surface: string | null): Updater {
 
 // Makes one cell of a surface, overwriting every value the surface sets. A
 // wall or water is not walked on, so it stays as it is: no difficult ground
-// under it, and the DL of a swim is not the surface's. The picture the cell is
-// drawn with is the frozen one, when the surface lists it, else the roll's: the
-// table's, picking one of the surface's own.
+// under it, and the DL of a swim is not the surface's. A surface of water
+// makes its cell water, with the surface's DL for the swim, and the next
+// surface laid takes that water away again; water painted by hand stays. The
+// picture the cell is drawn with is the frozen one, when the surface lists it,
+// else the roll's: the table's, picking one of the surface's own.
 export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null): Updater {
   return (state) => {
     const surface = getSurface(name)
@@ -83,12 +85,14 @@ export function laySurface(cell: Coord, name: string, roll: number, frozen: stri
 }
 
 function laidCell(current: TerrainCell, name: string, surface: Surface, art: string | null): TerrainCell {
+  const liquid = !current.blocking && (surface.liquid || (current.liquid && !getSurface(current.surface ?? '')?.liquid))
   return {
     ...current,
     surface: name,
     art,
-    difficult: !current.blocking && !current.liquid && surface.difficult,
-    DL: current.liquid ? current.DL : surface.DL,
+    liquid,
+    difficult: !current.blocking && !liquid && surface.difficult,
+    DL: liquid && !surface.liquid ? current.DL : surface.DL,
     noise: surface.noise,
     soft: surface.soft,
     visibility: surface.visibility,
