@@ -102,7 +102,7 @@ export const sceneCommands = {
   resizeBoard: command((_, extent: BoardExtent) => resizeBoard(extent)).by(gm),
   light: command((_, level: LightLevel) => setLight(level)).by(gm),
   surface: command((_, surface: string | null) => setSurface(surface)).by(gm),
-  laySurface: command((_, cell: Coord, surface: string, roll: number) => laySurface(cell, surface, roll)).by(gm),
+  laySurface: command((_, cell: Coord, surface: string, roll: number, frozen: string | null) => laySurface(cell, surface, roll, frozen)).by(gm),
   // a kept board, with everyone off it
   loadBoardMap: command((_, raw: unknown) => loadBoardMap(raw)).by(gm),
 

@@ -29,7 +29,7 @@ describe('the pictures of a board', () => {
   it('are listed lowest priority first and indexed by the cells that use them', () => {
     const names = getSurfaceNames()
     let s: SceneState = SceneStateSchema.parse({ board: {} })
-    names.forEach((name, i) => { s = laySurface({ q: i, r: 0 }, name, i)(s) })
+    names.forEach((name, i) => { s = laySurface({ q: i, r: 0 }, name, i, null)(s) })
     const view = getBoardView({ ...s, activeCharacterId: null })
     const priorities = view.arts.map((a) => a.priority)
     expect(priorities).toEqual([...priorities].sort((a, b) => a - b))

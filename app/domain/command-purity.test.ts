@@ -305,7 +305,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
   setLight: (s) => combatCommands.setLight('dark')(deepFreeze(cleared(s))),
   setSurface: (s) => combatCommands.setSurface(getSurfaceNames()[0])(deepFreeze(cleared(s))),
-  laySurface: (s) => combatCommands.laySurface({ q: 1, r: 1 }, getSurfaceNames()[0], 0)(deepFreeze(cleared(s))),
+  laySurface: (s) => combatCommands.laySurface({ q: 1, r: 1 }, getSurfaceNames()[0], 0, null)(deepFreeze(cleared(s))),
   pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 }, newId)(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
   backSegment: (s) => combatCommands.backSegment()(deepFreeze(combatCommands.pickCell({ q: 1, r: 0 }, newId)(declaredMove(s)))),

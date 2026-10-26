@@ -20,12 +20,18 @@ export function getCellSurface(board: Board, key: string): Surface | null {
   return name ? getSurface(name) : null
 }
 
-// The picture a laying draws: one of the surface's own by the roll when it
-// randomizes, else its first; none for a surface with no pictures. A roll that
-// is not a whole number draws the first.
-export function pickArt(surface: Surface, roll: number): SurfaceArt | null {
+// The picture a laying draws: the one asked for by its path when the surface
+// lists it, else one of the surface's own by the roll when it randomizes, else
+// its first; none for a surface with no pictures. A roll that is not a whole
+// number draws the first.
+export function pickArt(surface: Surface, roll: number, frozen: string | null): SurfaceArt | null {
   if (surface.arts.length === 0) return null
-  return surface.arts[surface.randomize && Number.isInteger(roll) ? Math.abs(roll) % surface.arts.length : 0]
+  return surface.arts.find((a) => a.src === frozen) ?? surface.arts[surface.randomize && Number.isInteger(roll) ? Math.abs(roll) % surface.arts.length : 0]
+}
+
+// A surface and the pictures it may be laid with, by their paths.
+export function getSurfaceChoices(): { name: string; arts: string[] }[] {
+  return getSurfaceNames().map((name) => ({ name, arts: SURFACES[name].arts.map((a) => a.src) }))
 }
 
 // A picture with how its surface meets the next one.

@@ -33,13 +33,39 @@
         "tile": 8,
         "offsetX": 0,
         "offsetY": 0
-      },
+      }
+    ]
+  },
+  "Autumn grass": {
+    "name": "Autumn grass",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
       {
         "src": "/surfaces/grass_autumn_orn_d.webp",
         "tile": 8,
         "offsetX": 0,
         "offsetY": 0
-      },
+      }
+    ]
+  },
+  "Rocky grass": {
+    "name": "Rocky grass",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
       {
         "src": "/surfaces/grass_rocky_d.webp",
         "tile": 5,
@@ -89,7 +115,20 @@
         "tile": 8,
         "offsetX": 0,
         "offsetY": 0
-      },
+      }
+    ]
+  },
+  "Ferns": {
+    "name": "Ferns",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
       {
         "src": "/surfaces/ground_ferns_d.webp",
         "tile": 8,
@@ -98,8 +137,8 @@
       }
     ]
   },
-  "Ground": {
-    "name": "Ground",
+  "Dry earth": {
+    "name": "Dry earth",
     "difficult": false,
     "DL": -5,
     "noise": 0,
@@ -120,7 +159,20 @@
         "tile": 8,
         "offsetX": 0,
         "offsetY": 0
-      },
+      }
+    ]
+  },
+  "Dirt": {
+    "name": "Dirt",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
       {
         "src": "/surfaces/dirt_1.webp",
         "tile": 8,
@@ -210,8 +262,8 @@
       }
     ]
   },
-  "Rock": {
-    "name": "Rock",
+  "Canyon rock": {
+    "name": "Canyon rock",
     "difficult": false,
     "DL": -5,
     "noise": 0,
@@ -228,12 +280,6 @@
         "offsetY": 0
       },
       {
-        "src": "/surfaces/mntn_dark_d.webp",
-        "tile": 6,
-        "offsetX": 0,
-        "offsetY": 0
-      },
-      {
         "src": "/surfaces/desert_mntn_d.webp",
         "tile": 6,
         "offsetX": 0,
@@ -244,7 +290,39 @@
         "tile": 6,
         "offsetX": 0,
         "offsetY": 0
-      },
+      }
+    ]
+  },
+  "Dark rock": {
+    "name": "Dark rock",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
+      {
+        "src": "/surfaces/mntn_dark_d.webp",
+        "tile": 6,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ]
+  },
+  "Mossy rock": {
+    "name": "Mossy rock",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
       {
         "src": "/surfaces/jungle_mntn_d.webp",
         "tile": 6,
@@ -343,7 +421,20 @@
         "tile": 6,
         "offsetX": 0,
         "offsetY": 0
-      },
+      }
+    ]
+  },
+  "Charcoal": {
+    "name": "Charcoal",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "randomize": true,
+    "bleed": 0.5,
+    "priority": 0,
+    "arts": [
       {
         "src": "/surfaces/lava_black_d.webp",
         "tile": 6,

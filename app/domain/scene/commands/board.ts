@@ -68,9 +68,10 @@ export function setSurface(surface: string | null): Updater {
 
 // Makes one cell of a surface, overwriting every value the surface sets. A
 // wall or water is not walked on, so it stays as it is: no difficult ground
-// under it, and the DL of a swim is not the surface's. The roll is the table's:
-// it picks which of the surface's pictures the cell is drawn with.
-export function laySurface(cell: Coord, name: string, roll: number): Updater {
+// under it, and the DL of a swim is not the surface's. The picture the cell is
+// drawn with is the frozen one, when the surface lists it, else the roll's: the
+// table's, picking one of the surface's own.
+export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null): Updater {
   return (state) => {
     const surface = getSurface(name)
     if (!state.board || !surface || getOpenAction(state)) return state
@@ -79,7 +80,7 @@ export function laySurface(cell: Coord, name: string, roll: number): Updater {
     const laid = {
       ...current,
       surface: name,
-      art: pickArt(surface, roll)?.src ?? null,
+      art: pickArt(surface, roll, frozen)?.src ?? null,
       difficult: !current.blocking && !current.liquid && surface.difficult,
       DL: current.liquid ? current.DL : surface.DL,
       noise: surface.noise,

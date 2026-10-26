@@ -55,6 +55,7 @@ export function BoardPanel(){
   const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, surface, laySurface, resize, resizeWarning } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
+  const [frozen, setFrozen] = useState<string | null>(null)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
   const { gmTools } = useRole()
@@ -115,7 +116,7 @@ export function BoardPanel(){
             <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
         </Segmented>
       </div>
-      <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={surfacing ? laying : null} lay={(name) => { setLaying(laying === name ? null : name); setBrush(null); setReposition(false); setFloorTool(null) }} />
+      <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
       <SizeRow key={`${view.extent.q},${view.extent.r},${view.extent.s}`} extent={view.extent} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
       </>) : null}
@@ -128,7 +129,7 @@ export function BoardPanel(){
       ) : null}
 
       <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
-        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
+        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
         <defs>
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
@@ -196,19 +197,31 @@ export function SurfaceLayer({ view }: { view: BoardView }){
 }
 
 // The board's own surface, and the one laid cell by cell with a click.
-export function SurfaceRow({ surfaces, base, setBase, laying, lay }: { surfaces: string[], base: string | null, setBase: (name: string | null) => void, laying: string | null, lay: (name: string) => void }){
+export function SurfaceRow({ surfaces, base, setBase, laying, lay, frozen, freeze }: { surfaces: BoardView['surfaces'], base: string | null, setBase: (name: string | null) => void, laying: string | null, lay: (name: string) => void, frozen: string | null, freeze: (art: string | null) => void }){
+  const arts = surfaces.find((s) => s.name === laying)?.arts ?? []
   return (<>
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>ground</SectionLabel>
       <Segmented label='ground'>
         <Segment selected={base === null} onClick={() => setBase(null)}>none</Segment>
-        {surfaces.map((name) => <Segment key={name} selected={base === name} onClick={() => setBase(name)}>{name}</Segment>)}
+        {surfaces.map(({ name }) => <Segment key={name} selected={base === name} onClick={() => setBase(name)}>{name}</Segment>)}
       </Segmented>
     </div>
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>surface</SectionLabel>
-      {surfaces.map((name) => <Button key={name} size='xs' selected={laying === name} onClick={() => lay(name)}>{name}</Button>)}
+      {surfaces.map(({ name }) => <Button key={name} size='xs' selected={laying === name} onClick={() => lay(name)}>{name}</Button>)}
     </div>
+    {arts.length > 1 ? (
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>art</SectionLabel>
+        <Button size='xs' selected={frozen === null} onClick={() => freeze(null)}>random</Button>
+        {arts.map((src) => (
+          <Button key={src} size='xs' selected={frozen === src} title={src} aria-label={src} onClick={() => freeze(frozen === src ? null : src)}>
+            <span className='inline-block h-5 w-5 rounded-sm bg-cover bg-center' style={{ backgroundImage: `url(${src})` }} />
+          </Button>
+        ))}
+      </div>
+    ) : null}
   </>)
 }
 

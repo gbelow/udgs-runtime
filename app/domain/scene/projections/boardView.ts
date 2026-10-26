@@ -22,7 +22,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
-import { getCellArt, getSurfaceNames, type CellArt } from '../rules/board/surface'
+import { getCellArt, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -172,7 +172,7 @@ export type BoardView = {
   frame: { x: number; y: number; width: number; height: number }
   // the surface of every cell that names none, and the ones to choose from
   surface: string | null
-  surfaces: string[]
+  surfaces: { name: string; arts: string[] }[]
   // the pictures the cells are drawn with, lowest priority first (the order
   // they are drawn in), which a cell's `art` indexes
   arts: CellArt[]
@@ -374,7 +374,7 @@ function buildBoardView(state: SeenScene): BoardView {
     light: board.light,
     frame: hexBounds(cells),
     surface: board.surface,
-    surfaces: getSurfaceNames(),
+    surfaces: getSurfaceChoices(),
     arts,
     viewBox: frameHexes(cells),
     hex: HEX_POINTS,

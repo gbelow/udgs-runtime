@@ -15,6 +15,7 @@ export function BoardMapsEditor() {
   const { rows, view, map, openId, devServer, open, create, remove, save, setName, paint, light, surface, laySurface, resize } = useBoardMapEditor()
   const [brush, setBrush] = useState<TerrainBrush | null>('wall')
   const [laying, setLaying] = useState<string | null>(null)
+  const [frozen, setFrozen] = useState<string | null>(null)
   const zoomPan = useZoomPan(view.viewBox)
   const opened = rows.find((r) => r.id === openId)
   const mine = opened ? !opened.shared || devServer : true
@@ -55,9 +56,9 @@ export function BoardMapsEditor() {
           <span className='grow' />
           <ZoomButtons zoomPan={zoomPan} />
         </div>
-        <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={laying} lay={(name) => { setLaying(laying === name ? null : name); setBrush(null) }} />
+        <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={laying} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label='battle map'
-          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying); else if (brush) paint(cell, brush) }}>
+          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen); else if (brush) paint(cell, brush) }}>
           <SurfaceLayer view={view} />
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
         </svg>
