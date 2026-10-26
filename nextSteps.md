@@ -1,14 +1,12 @@
 # CURRENT PRIORITY
 
-Adding all game modes:
-- Scene - DONE
-- Boardless scene
-- Chase scene - DONE
-- Exploration - DONE
-- Downtime - DONE
+Complete combat features
 
 # TO DO Priority
 
+Map features
+Test stealth combat
+Implements abilities that are not pure text
 Improve Chase UI/ playability
 Multiplayer
 
@@ -25,10 +23,7 @@ Multiplayer
 - layering in UI for height. is it doable?
 
 ### combat abilities/spells
-- finish melee combat abilities
-- finish ranged combat abilities
 - morale spells -- must test
-- healing spells -- done
 - terrain altering spells
 
 ### Content primitives for combat
@@ -43,15 +38,6 @@ Multiplayer
 - curse at beginning of round
 
 ### knowledge actions
-
-## GM TOOLS
-- GM generated explosions
-- GM made tests for players on the fly
-- GM activated triggers
-- add charge to item
-- cause effect on character
-- settings
-- GM mode to edit characters freely/ players can only do it through actions
 
 
 ### misc
@@ -156,3 +142,5 @@ After that, in my recommended order:
 3. Homebrew entries. Your own catalog entries, stored in Redis and merged with the built-in ones whenever a catalog is read. This is the biggest of the four, because every catalog read has to merge both sources.
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
 
+intercepting with bare hands - damage or not?
+review body - injuries are not dropdowns, but text

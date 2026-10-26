@@ -124,7 +124,7 @@ export interface AppState {
 
 export const createAppStore = (initialState: Partial<AppState>) =>
   createStore<AppState>((set) => ({
-    selectedGameTab: 'edit',
+    selectedGameTab: 'scene',
     baseCharacterList: initialState.baseCharacterList || {},
     playerCharacterList: initialState.playerCharacterList || [],
     raceList: initialState.raceList || {},

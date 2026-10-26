@@ -335,6 +335,8 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
 
 function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: string, picked: boolean, onClick: () => void }){
   const ring = picked ? 'stroke-accent' : token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
+  const [broken, setBroken] = useState(false)
+  const clip = `token-clip-${token.id}`
   return (
     <g className='cursor-pointer' onClick={onClick}>
       <title>{`${token.name}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
@@ -342,7 +344,13 @@ function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: st
       <g transform={`translate(${token.x} ${token.y})`}>
         {token.awaited ? <circle r={0.82} className='fill-none stroke-accent animate-pulse pointer-events-none' strokeWidth={0.08} strokeDasharray='0.25 0.15' /> : null}
         <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
-        <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>
+        {token.image && !broken ? (
+          <>
+            <clipPath id={clip}><circle r={0.62} /></clipPath>
+            <image href={token.image} x={-0.62} y={-0.62} width={1.24} height={1.24} preserveAspectRatio='xMidYMid slice' clipPath={`url(#${clip})`} className='pointer-events-none' onError={() => setBroken(true)} />
+            <circle r={0.62} className={`fill-none ${ring} pointer-events-none`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
+          </>
+        ) : <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>}
         <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>
         {token.shieldAngle !== null ? <rect x={0.72} y={-0.45} width={0.16} height={0.9} rx={0.05} transform={`rotate(${token.shieldAngle})`} className='fill-accent pointer-events-none' /> : null}
         {token.depth > 0 ? <text y={-0.8} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.35}>{`↓${token.depth}`}</text> : null}

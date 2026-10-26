@@ -1498,6 +1498,9 @@ export type RaceDraft = z.infer<typeof RaceDraftSchema>
 const CharacterValues = {
   id: z.string().default(() => crypto.randomUUID()),
   name: z.string().default(''),
+  // where the picture drawn on the character's board token is served from
+  // (a path under `public/`, such as `/tokens/orc.webp`); empty for none
+  token: z.string().default(''),
 
   trainables: TrainablesSchema.partial().default({}).transform(v => TrainablesSchema.parse(v)),
   specificKnowledges: SpecificKnowledgesSchema,

@@ -129,6 +129,7 @@ function EditorHeader(){
     <div className='sticky top-0 z-20 flex flex-col gap-2 bg-surface border-b border-line px-1 pt-2'>
       <div className='flex flex-row flex-wrap items-center gap-2'>
         <TextItem keyName={'name'} mode='normal'/>
+        <TextItem keyName='token' mode='normal'/>
         <RacePicker />
         <TagItem level='type' />
         <TagItem level='category' />
@@ -408,11 +409,11 @@ function TagItem({ level }: { level: TagLevel }){
   return <TextInput className='w-40' aria-label={level} placeholder={level} value={value} onChange={(e) => setValue(e.target.value)} />
 }
 
-const TextItem = ({keyName, mode}:{keyName: 'name' | 'notes', mode: 'normal' | 'large'}) => {
+const TextItem = ({keyName, mode}:{keyName: 'name' | 'notes' | 'token', mode: 'normal' | 'large'}) => {
   const [value, setValue] = useTextLens(keyName)
 
   return mode == 'large' ?
     <textarea aria-label='notes' className={`${inputClass} p-1 min-h-32 w-full text-sm bg-surface`} value={value+''} onChange={(e) => setValue(e.target.value)} /> :
-    <TextInput className='w-64 text-base font-medium' title={keyName} placeholder='name' value={value+''} onChange={(e) => setValue(e.target.value)} />
+    <TextInput className='w-64 text-base font-medium' title={keyName} placeholder={keyName === 'token' ? '/tokens/name.webp' : 'name'} value={value+''} onChange={(e) => setValue(e.target.value)} />
 }
 

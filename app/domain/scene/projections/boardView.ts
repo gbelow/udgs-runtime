@@ -97,6 +97,8 @@ export type BoardCellView = {
 export type BoardTokenView = {
   id: string
   name: string
+  // the picture on the token, empty for none
+  image: string
   x: number
   y: number
   cells: { key: string; x: number; y: number }[]
@@ -307,6 +309,7 @@ function buildBoardView(state: SeenScene): BoardView {
     return [{
       id,
       name: getFightName(state, id),
+      image: c.token,
       x: anchor.x,
       y: anchor.y,
       cells: footprint,
