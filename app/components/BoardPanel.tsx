@@ -5,7 +5,7 @@ import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
-import type { Coord } from '../domain/scene/types'
+import type { BoardExtent, Coord } from '../domain/scene/types'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, SURFACE_ART, TERRAIN_BRUSHES } from '../domain/lists'
@@ -117,7 +117,7 @@ export function BoardPanel(){
         </Segmented>
       </div>
       <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={surfacing ? laying : null} lay={(name) => { setLaying(laying === name ? null : name); setBrush(null); setReposition(false); setFloorTool(null) }} />
-      <SizeRow key={view.radius} radius={view.radius} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
+      <SizeRow key={`${view.extent.q},${view.extent.r},${view.extent.s}`} extent={view.extent} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
       </>) : null}
 
@@ -189,15 +189,18 @@ export function ZoomButtons({ zoomPan }: { zoomPan: ReturnType<typeof useZoomPan
 
 // The board widened or narrowed around its centre. A shrink waits for the GM
 // to confirm what it takes off the board.
-function SizeRow({ radius, bar, resize, warningFor }: { radius: number, bar: string | null, resize: (radius: number) => void, warningFor: (radius: number) => string | null }){
-  const [size, setSize] = useState(radius)
+function SizeRow({ extent, bar, resize, warningFor }: { extent: BoardExtent, bar: string | null, resize: (extent: BoardExtent) => void, warningFor: (extent: BoardExtent) => string | null }){
+  const [size, setSize] = useState(extent)
   const [warning, setWarning] = useState<string | null>(null)
   const apply = () => { const w = warningFor(size); if (w) setWarning(w); else resize(size) }
+  const unchanged = size.q === extent.q && size.r === extent.r && size.s === extent.s
   return (
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>size</SectionLabel>
-      <TextInput className='w-16' type='number' min={1} max={30} aria-label='board radius' value={size} onChange={(e) => { setSize(Number(e.target.value)); setWarning(null) }} />
-      <Button size='xs' disabled={bar !== null || size === radius} title={bar ?? 'widen or narrow the board around its centre'} onClick={apply}>resize</Button>
+      {(['q', 'r', 's'] as const).map((axis) => (
+        <TextInput key={axis} className='w-16' type='number' min={1} max={30} aria-label={`board extent ${axis}`} value={size[axis]} onChange={(e) => { setSize({ ...size, [axis]: Number(e.target.value) }); setWarning(null) }} />
+      ))}
+      <Button size='xs' disabled={bar !== null || unchanged} title={bar ?? 'widen or narrow the board around its centre, along each hex axis'} onClick={apply}>resize</Button>
       {warning ? (<>
         <span className='text-xs'>{warning}</span>
         <Button size='xs' weight='solid' tone='bad' aria-label='confirm shrink' disabled={bar !== null} onClick={() => { resize(size); setWarning(null) }}>shrink</Button>

@@ -2,7 +2,7 @@ import type { Coord, Updater } from '../types'
 import { makeAction } from '../factories'
 import { getOpenAction } from '../rules/log'
 import { getExplosionEffect, type ExplosionDraft } from '../rules/impose'
-import { coordKey, distance } from '../rules/board/geometry'
+import { coordKey, inExtent } from '../rules/board/geometry'
 import { appendActions } from './log'
 
 // The GM's hand: sets an explosion off at a cell of the board. Nobody set it
@@ -14,7 +14,7 @@ export function setOffExplosion(draft: ExplosionDraft, cell: Coord, newId: () =>
   return (state) => {
     const board = state.board
     const effect = getExplosionEffect(draft)
-    if (!board || !effect || getOpenAction(state) || distance(board.origin, cell) > board.radius) return state
+    if (!board || !effect || getOpenAction(state) || !inExtent(board.origin, board.extent, cell)) return state
     if (board.terrain[coordKey(cell)]?.blocking) return state
     return appendActions(state, [makeAction('explosion', { id: newId(), actorId: '', source: 'gm', dl: draft.DL, effects: [effect], center: cell, step: 'react' })])
   }

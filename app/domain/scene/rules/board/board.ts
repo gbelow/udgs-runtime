@@ -1,9 +1,9 @@
 import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../../types'
-import type { Board, SceneState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../../types'
+import type { Board, BoardExtent, SceneState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../../types'
 import { REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, disk, distance, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, disk, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 import { without } from '../../../utils'
@@ -24,13 +24,13 @@ export function getFootprint(c: Character, placement: Placement): Coord[] {
   return c.footprint.map((offset) => add(placement.cell, rotate(offset, placement.orientation)))
 }
 
-// What lies beyond the edge of the board were it `radius` cells from its
-// origin: whoever has a cell of their footprint out there, the items on the
-// floor out there, by id, and the painted cells, by key.
-export function getBeyondEdge(state: SceneState, radius: number): { characters: string[]; floor: string[]; terrain: string[] } {
+// What lies beyond the edge of the board were it `extent` from its origin
+// along each axis: whoever has a cell of their footprint out there, the items
+// on the floor out there, by id, and the painted cells, by key.
+export function getBeyondEdge(state: SceneState, extent: BoardExtent): { characters: string[]; floor: string[]; terrain: string[] } {
   const board = state.board
   if (!board) return { characters: [], floor: [], terrain: [] }
-  const beyond = (cell: Coord) => distance(board.origin, cell) > radius
+  const beyond = (cell: Coord) => !inExtent(board.origin, extent, cell)
   return {
     characters: Object.entries(board.placements).filter(([id, p]) => state.characters[id] && getFootprint(state.characters[id], p).some(beyond)).map(([id]) => id),
     floor: state.floor.filter((f) => f.cell !== null && beyond(f.cell)).map((f) => f.item.id),

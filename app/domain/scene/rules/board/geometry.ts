@@ -1,4 +1,4 @@
-import type { Coord, Direction } from '../../types'
+import type { BoardExtent, Coord, Direction } from '../../types'
 
 // Hex arithmetic in axial coordinates (q, r), with the implied third cube
 // axis s = -q - r. Nothing here is a rule: this is the metric the board
@@ -118,6 +118,18 @@ export function disk(center: Coord, radius: number): Coord[] {
   const cells: Coord[] = []
   for (let k = 0; k <= radius; k++) cells.push(...ring(center, k))
   return cells
+}
+
+// Whether a cell lies within `extent` half-widths of the centre along each
+// of the three hex axes.
+export function inExtent(center: Coord, extent: BoardExtent, cell: Coord): boolean {
+  const d = subtract(cell, center)
+  return Math.abs(d.q) <= extent.q && Math.abs(d.r) <= extent.r && Math.abs(d.q + d.r) <= extent.s
+}
+
+// Every cell within `extent` of the centre, centre included.
+export function extentCells(center: Coord, extent: BoardExtent): Coord[] {
+  return disk(center, Math.max(extent.q, extent.r, extent.s)).filter((c) => inExtent(center, extent, c))
 }
 
 // An offset turned `steps` times about the origin in DIRECTIONS' order,

@@ -8,7 +8,7 @@ import type { CampaignCharacter, Delivery, Item, SurgeKind, TerrainBrush } from 
 import type { ExplosionDraft } from '../rules/impose'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import type { CalledKind } from '../rules/heldTest'
-import type { ActionDraft, ChaseDeclaration, Coord, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
+import type { ActionDraft, BoardExtent, ChaseDeclaration, Coord, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, resizeBoard, setLight, setSurface } from './board'
 import { confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
@@ -99,7 +99,7 @@ export const sceneCommands = {
     .by((state, click, brush, reposition, selected) => readOn(() => '', state, click, brush, reposition, selected)?.actor ?? null),
   createBoard: command((_, radius: number) => createBoard(radius)).by(gm),
   removeBoard: command(() => removeBoard).by(gm),
-  resizeBoard: command((_, radius: number) => resizeBoard(radius)).by(gm),
+  resizeBoard: command((_, extent: BoardExtent) => resizeBoard(extent)).by(gm),
   light: command((_, level: LightLevel) => setLight(level)).by(gm),
   surface: command((_, surface: string | null) => setSurface(surface)).by(gm),
   laySurface: command((_, cell: Coord, surface: string) => laySurface(cell, surface)).by(gm),

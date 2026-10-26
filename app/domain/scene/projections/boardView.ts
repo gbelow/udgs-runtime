@@ -1,8 +1,8 @@
-import type { Bind, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, SurfaceArt } from '../types'
+import type { Bind, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, SurfaceArt } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { HEX_POINTS, angleBetween, coordKey, disk, frameHexes, hexBounds, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { HEX_POINTS, angleBetween, coordKey, extentCells, frameHexes, hexBounds, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -160,7 +160,7 @@ export type { BoardMode }
 
 export type BoardView = {
   present: boolean
-  radius: number
+  extent: BoardExtent
   // the SVG viewBox that frames every cell, with a margin
   viewBox: string
   // one hexagon's corners around its centre, as an SVG `points` string
@@ -188,7 +188,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -248,15 +248,15 @@ function buildBoardView(state: SeenScene): BoardView {
   const threatened = new Set(laid ? getThreatenedCells(state, laid).map(coordKey) : [])
   const zones = new Map(laid ? getExplosionZones(state, laid).map((z) => [coordKey(z.cell), z.degree]) : [])
 
-  // The drawn extent: the disk of the board's radius, plus anything placed,
+  // The drawn cells: those within the board's extent, plus anything placed,
   // painted or threatened beyond it.
-  const extent = new Map(disk(board.origin, board.radius).map((c) => [coordKey(c), c]))
+  const drawn = new Map(extentCells(board.origin, board.extent).map((c) => [coordKey(c), c]))
   for (const key of [...Object.keys(board.terrain), ...Object.keys(occupancy), ...threatened]) {
     const cell = parseCoordKey(key)
-    if (cell && !extent.has(key)) extent.set(key, cell)
+    if (cell && !drawn.has(key)) drawn.set(key, cell)
   }
 
-  const cells: BoardCellView[] = [...extent.values()].map((cell) => {
+  const cells: BoardCellView[] = [...drawn.values()].map((cell) => {
     const key = coordKey(cell)
     const terrain = board.terrain[key]
     const { x, y } = toPlane(cell)
@@ -350,7 +350,7 @@ function buildBoardView(state: SeenScene): BoardView {
   const mover = move ? board.placements[move.actorId] : undefined
   return {
     present: true,
-    radius: board.radius,
+    extent: board.extent,
     light: board.light,
     frame: hexBounds(cells),
     surface: board.surface,
@@ -373,18 +373,19 @@ function buildBoardView(state: SeenScene): BoardView {
 
 export const getBoardView = perState(buildBoardView)
 
-// What the table is told before the board shrinks to `radius`: who comes off
+// What the table is told before the board shrinks to `extent`: who comes off
 // it, and how many items on the floor and painted cells are lost beyond the
-// new edge. Null when the board does not shrink.
-export function getResizeWarning(state: SceneState, radius: number): string | null {
-  if (!state.board || radius >= state.board.radius) return null
-  const beyond = getBeyondEdge(state, radius)
+// new edge. Null when the board does not shrink on any axis.
+export function getResizeWarning(state: SceneState, extent: BoardExtent): string | null {
+  const board = state.board
+  if (!board || (extent.q >= board.extent.q && extent.r >= board.extent.r && extent.s >= board.extent.s)) return null
+  const beyond = getBeyondEdge(state, extent)
   const lost = [
     beyond.characters.length ? `${beyond.characters.map((id) => getFightName(state, id)).join(', ')} off the board` : null,
     beyond.floor.length ? `${beyond.floor.length} item${beyond.floor.length === 1 ? '' : 's'} off the floor` : null,
     beyond.terrain.length ? `${beyond.terrain.length} painted cell${beyond.terrain.length === 1 ? '' : 's'} dropped` : null,
   ].filter((s) => s !== null)
-  return `shrink the board to ${radius}: ${lost.length ? lost.join('; ') : 'nothing lies beyond the new edge'}`
+  return `shrink the board to ${extent.q} × ${extent.r} × ${extent.s}: ${lost.length ? lost.join('; ') : 'nothing lies beyond the new edge'}`
 }
 
 // The board as the active character's eyes take it in: the cells none of

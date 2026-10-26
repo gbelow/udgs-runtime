@@ -16,7 +16,6 @@ function fight(observerAt: { cell: Coord; orientation: Direction }, targetCell: 
         placements: { o: PlacementSchema.parse(observerAt), t: PlacementSchema.parse({ cell: targetCell }) },
         terrain,
         origin: { q: 0, r: 0 },
-        radius: 6,
       },
     }),
     characters: { o: fighter('o'), t: fighter('t') },

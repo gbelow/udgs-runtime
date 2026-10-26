@@ -230,7 +230,7 @@ describe('the move made while resting', () => {
     const base = fighter('a')
     let s: SceneState = {
       ...combat({ ...base, resources: { ...base.resources, AP: 1 } }),
-      board: BoardSchema.parse({ radius: 5, placements: { a: { cell: { q: 0, r: 0 } } } }),
+      board: BoardSchema.parse({ extent: { q: 5, r: 5, s: 5 }, placements: { a: { cell: { q: 0, r: 0 } } } }),
     }
     s = commitAction(() => 5, newId)(declareAction('a', { kind: 'rest' }, newId)(s))
     s = moveWhileResting(newId)(s)

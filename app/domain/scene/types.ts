@@ -222,6 +222,15 @@ export type LightLevel = z.infer<typeof LightLevelSchema>
 // needs of the grid to judge distance, reach, cover and where a move may end. `placements` is keyed by character id, `terrain` by the cell
 // key `geometry.ts` makes of a Coord, and a cell absent from `terrain` is
 // open ground.
+// How far the board reaches from its origin along each of the three hex
+// axes: a cell (q, r, s = -q - r) lies on it when |q| <= q, |r| <= r, |s| <= s.
+export const BoardExtentSchema = z.object({
+  q: num.int().min(1).default(6),
+  r: num.int().min(1).default(6),
+  s: num.int().min(1).default(6),
+}).strip()
+export type BoardExtent = z.infer<typeof BoardExtentSchema>
+
 export const BoardSchema = z.object({
   placements: z.record(z.string(), PlacementSchema).default({}),
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
@@ -234,9 +243,9 @@ export const BoardSchema = z.object({
   // where and how far the board is drawn; the rules do not care, the
   // simulation tool does.
   origin: CoordSchema.default({ q: 0, r: 0 }),
-  radius: num.int().min(1).default(6),
+  extent: BoardExtentSchema.default({ q: 6, r: 6, s: 6 }),
 }).strip()
-export type Board = z.infer<typeof BoardSchema>
+export type Board= z.infer<typeof BoardSchema>
 
 // A board kept to be played on again: the ground and its light, with nobody
 // standing on it and nothing an action left there.

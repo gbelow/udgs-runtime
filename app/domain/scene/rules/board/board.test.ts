@@ -43,7 +43,7 @@ describe('a fight without a board is a fight where every positional gate passes'
     surface: null,
     light: 'bright',
     origin: { q: 0, r: 0 },
-    radius: 6,
+    extent: { q: 6, r: 6, s: 6 },
   }
 
   function declared(board: Board | null): SceneState {

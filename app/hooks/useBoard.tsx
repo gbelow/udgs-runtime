@@ -1,4 +1,4 @@
-import type { Coord, LightLevel } from "../domain/scene/types";
+import type { BoardExtent, Coord, LightLevel } from "../domain/scene/types";
 import { EXPLOSION_DRAFT, EXPLOSION_EFFECTS, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_KINDS, type ExplosionDraft } from "../domain/scene/rules/impose";
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
@@ -52,8 +52,8 @@ export function useBoard(fromActive = false) {
   const light = (level: LightLevel) => dispatch({ kind: "light", args: [level] });
   const surface = (name: string | null) => dispatch({ kind: "surface", args: [name] });
   const laySurface = (cell: Coord, name: string) => dispatch({ kind: "laySurface", args: [cell, name] });
-  const resize = (radius: number) => dispatch({ kind: "resizeBoard", args: [radius] });
-  const resizeWarning = (radius: number) => getResizeWarning(useCombatStore.getState(), radius);
+  const resize = (extent: BoardExtent) => dispatch({ kind: "resizeBoard", args: [extent] });
+  const resizeWarning = (extent: BoardExtent) => getResizeWarning(useCombatStore.getState(), extent);
 
   return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, setExplosion, explosionOptions, turn, light, surface, laySurface, resize, resizeWarning } as const;
 }

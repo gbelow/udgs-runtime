@@ -12,7 +12,7 @@ import { makeBoardMap } from '../factories'
 describe('a kept battle map', () => {
   const painted = SceneStateSchema.parse({
     board: BoardSchema.parse({
-      radius: 4,
+      extent: { q: 4, r: 3, s: 5 },
       light: 'dim',
       placements: { a: { cell: { q: 1, r: 1 } } },
       terrain: { '1,1': { blocking: true, layers: [{ fire: 2 }] }, '0,1': { elevation: 2 } },

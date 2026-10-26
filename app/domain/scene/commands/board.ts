@@ -1,6 +1,6 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
+import { BoardExtentSchema, BoardSchema, PlacementSchema, TerrainCellSchema, type BoardExtent, type SceneState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
@@ -25,9 +25,9 @@ import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
 // hand, outside any action. Placing and painting are refused while an action
 // is open, so a fight in progress cannot have its ground changed under it.
 
-// A fresh, empty board of the given radius, everyone unplaced.
+// A fresh, empty board reaching `radius` along every axis, everyone unplaced.
 export function createBoard(radius: number): Updater {
-  return (state) => (state.board ? state : { ...state, board: BoardSchema.parse({ radius }) })
+  return (state) => (state.board ? state : { ...state, board: BoardSchema.parse({ extent: { q: radius, r: radius, s: radius } }) })
 }
 
 // Takes the board away: the fight goes on with no grid, everyone in reach,
@@ -36,19 +36,19 @@ export function createBoard(radius: number): Updater {
 export const removeBoard: Updater = (state) =>
   !state.board || getOpenAction(state) ? state : { ...state, board: null, floor: state.floor.map((f) => ({ ...f, cell: null })) }
 
-// Widens or narrows the board around its origin: whoever stands partly
-// beyond the new edge comes off it, what lay on the floor out there lies
-// nowhere in particular, and the ground painted there is dropped. Refused
-// while an action is open, as painting is.
-export function resizeBoard(radius: number): Updater {
+// Widens or narrows the board around its origin, along each of the three hex
+// axes: whoever stands partly beyond the new edge comes off it, what lay on
+// the floor out there lies nowhere in particular, and the ground painted
+// there is dropped. Refused while an action is open, as painting is.
+export function resizeBoard(extent: BoardExtent): Updater {
   return (state) => {
-    const resized = BoardSchema.shape.radius.safeParse(radius)
+    const resized = BoardExtentSchema.safeParse(extent)
     if (!state.board || getOpenAction(state) || !resized.success) return state
     const beyond = getBeyondEdge(state, resized.data)
     const off = withoutPlacements(state, beyond.characters).board ?? state.board
     return {
       ...state,
-      board: { ...off, radius: resized.data, terrain: beyond.terrain.reduce(without, off.terrain) },
+      board: { ...off, extent: resized.data, terrain: beyond.terrain.reduce(without, off.terrain) },
       floor: state.floor.map((f) => (beyond.floor.includes(f.item.id) ? { ...f, cell: null } : f)),
     }
   }

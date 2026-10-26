@@ -23,6 +23,7 @@ const HOSTILE: { label: string; raw: unknown }[] = [
   { label: 'an origin that is not a cell', raw: { origin: 'middle' } },
   { label: 'a radius that is not a whole number', raw: { radius: 2.5 } },
   { label: 'a radius of nothing', raw: { radius: 0 } },
+  { label: 'an extent of nothing on one axis', raw: { extent: { q: 3, r: 0, s: 3 } } },
 ]
 
 const populated = () =>
@@ -36,7 +37,7 @@ const populated = () =>
       '1,-1': { difficult: true, elevation: 1 },
     },
     origin: { q: 4, r: -2 },
-    radius: 9,
+    extent: { q: 9, r: 7, s: 5 },
   })
 
 describe('board ingestion is total', () => {

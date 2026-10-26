@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { deleteBoardMap, saveBoardMap } from "../actions";
 import type { TerrainBrush } from "../domain/types";
-import type { Coord, LightLevel } from "../domain/scene/types";
+import type { BoardExtent, Coord, LightLevel } from "../domain/scene/types";
 import type { BoardView } from "../domain/scene/projections/boardView";
 import { getBoardMap, getBoardMapView } from "../domain/scene/projections/boardMap";
 import { laySurfaceBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
@@ -89,6 +89,6 @@ export function useBoardMapEditor() {
     light: (level: LightLevel) => edit(lightBoardMap(level)),
     surface: (name: string | null) => edit(surfaceBoardMap(name)),
     laySurface: (cell: Coord, name: string) => edit(laySurfaceBoardMap(cell, name)),
-    resize: (radius: number) => edit(resizeBoardMap(radius)),
+    resize: (extent: BoardExtent) => edit(resizeBoardMap(extent)),
   } as const;
 }

@@ -1,5 +1,5 @@
 import type { TerrainBrush } from '../../types'
-import { BoardMapSchema, type BoardMap, type Coord, type LightLevel } from '../types'
+import { BoardMapSchema, type BoardExtent, type BoardMap, type Coord, type LightLevel } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
 import { laySurface, paintTerrain, resizeBoard, setSurface } from './board'
 
@@ -8,9 +8,9 @@ import { laySurface, paintTerrain, resizeBoard, setSurface } from './board'
 
 export type BoardMapUpdater = (map: BoardMap) => BoardMap
 
-// A fresh map of the given radius, all open ground.
+// A fresh map reaching `radius` along every axis, all open ground.
 export function newBoardMap(radius = 6): BoardMap {
-  return BoardMapSchema.parse({ radius })
+  return BoardMapSchema.parse({ extent: { q: radius, r: radius, s: radius } })
 }
 
 function viaScene(map: BoardMap, change: (scene: ReturnType<typeof sceneOfMap>) => ReturnType<typeof sceneOfMap>): BoardMap {
@@ -39,6 +39,6 @@ export function lightBoardMap(light: LightLevel): BoardMapUpdater {
 }
 
 // Widens or narrows the field; what lay beyond the new edge is dropped.
-export function resizeBoardMap(radius: number): BoardMapUpdater {
-  return (map) => viaScene(map, resizeBoard(radius))
+export function resizeBoardMap(extent: BoardExtent): BoardMapUpdater {
+  return (map) => viaScene(map, resizeBoard(extent))
 }

@@ -33,9 +33,11 @@ export function BoardMapsEditor() {
       <div className='col-span-9 flex flex-col gap-2 max-h-[85vh] overflow-y-auto pr-2'>
         <div className='flex flex-row flex-wrap items-center gap-2'>
           <TextInput className='w-64' aria-label='battle map name' placeholder='name it' value={map.name} onChange={(e) => setName(e.target.value)} />
-          <label className='flex flex-row items-center gap-1 text-xs'>radius
-            <TextInput className='w-16' type='number' min={1} max={30} aria-label='radius' value={map.radius} onChange={(e) => resize(Number(e.target.value))} />
-          </label>
+          {(['q', 'r', 's'] as const).map((axis) => (
+            <label key={axis} className='flex flex-row items-center gap-1 text-xs'>{axis}
+              <TextInput className='w-16' type='number' min={1} max={30} aria-label={`extent ${axis}`} value={map.extent[axis]} onChange={(e) => resize({ ...map.extent, [axis]: Number(e.target.value) })} />
+            </label>
+          ))}
           <span className='grow' />
           <Button size='xs' weight='solid' tone='accent' icon={Save} disabled={!map.name.trim() || !mine} onClick={() => save(opened ? opened.shared : false)}>{opened?.shared ? 'save for all' : 'save mine'}</Button>
           {!opened && devServer ? <Button size='xs' disabled={!map.name.trim()} onClick={() => save(true)}>save for all</Button> : null}

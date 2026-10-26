@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ActionSchema, BoardMapSchema, BoardSchema, CoordSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type SceneState } from './types'
+import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type SceneState } from './types'
 import { parseCoordKey } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
@@ -16,6 +16,7 @@ const BoardIngestSchema = z.object({
   placements: z.record(z.string(), z.unknown()).optional(),
   terrain: z.record(z.string(), z.unknown()).optional(),
   origin: z.unknown().optional(),
+  extent: z.unknown().optional(),
   radius: z.unknown().optional(),
   surface: z.unknown().optional(),
 }).strip()
@@ -52,13 +53,14 @@ export function makeBoard(raw: unknown): Board {
   const parsed = BoardIngestSchema.safeParse(raw)
   if (!parsed.success) return BoardSchema.parse({})
   const origin = CoordSchema.safeParse(parsed.data.origin)
-  const radius = BoardSchema.shape.radius.safeParse(parsed.data.radius)
+  const extent = BoardSchema.shape.extent.safeParse(parsed.data.extent)
+  const radius = BoardExtentSchema.shape.q.safeParse(parsed.data.radius)
   const surface = BoardSchema.shape.surface.safeParse(parsed.data.surface)
   return BoardSchema.parse({
     placements: readEntries(parsed.data.placements, PlacementSchema, () => true),
     terrain: readEntries(parsed.data.terrain, TerrainCellSchema, (key) => parseCoordKey(key) !== null),
     ...(origin.success ? { origin: origin.data } : {}),
-    ...(radius.success ? { radius: radius.data } : {}),
+    ...(extent.success && parsed.data.extent !== undefined ? { extent: extent.data } : radius.success ? { extent: { q: radius.data, r: radius.data, s: radius.data } } : {}),
     ...(surface.success ? { surface: surface.data } : {}),
   })
 }

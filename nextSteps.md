@@ -8,7 +8,6 @@ Map features
 Test stealth combat
 Implements abilities that are not pure text
 Improve Chase UI/ playability
-Multiplayer
 
 
 # TO DO

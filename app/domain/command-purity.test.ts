@@ -297,7 +297,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   chooseSpell: (s) => combatCommands.chooseSpell('sleep', true)(deepFreeze(combatCommands.declareAction('a', { kind: 'cast' }, newId)(deepFreeze(cleared(s))))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
   removeBoard: (s) => combatCommands.removeBoard(deepFreeze(cleared(s))),
-  resizeBoard: (s) => combatCommands.resizeBoard(1)(deepFreeze(cleared(s))),
+  resizeBoard: (s) => combatCommands.resizeBoard({ q: 1, r: 1, s: 1 })(deepFreeze(cleared(s))),
   loadBoardMap: (s) => combatCommands.loadBoardMap({ name: 'x', terrain: { '1,1': { blocking: true } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
   repositionCharacter: (s) => combatCommands.repositionCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),

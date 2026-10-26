@@ -19,7 +19,7 @@ function caster(): CampaignCharacter {
 }
 
 function night(): SceneState {
-  const state = SceneStateSchema.parse({ board: { placements: { c: PlacementSchema.parse({ cell: { q: 0, r: 0 } }) }, light: 'dark', radius: 12 } })
+  const state = SceneStateSchema.parse({ board: { placements: { c: PlacementSchema.parse({ cell: { q: 0, r: 0 } }) }, light: 'dark', extent: { q: 12, r: 12, s: 12 } } })
   return { ...state, characters: { c: caster() }, inTurnCharacter: 'c' }
 }
 

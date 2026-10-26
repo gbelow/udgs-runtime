@@ -4,7 +4,7 @@ import { dropItem, throwOffShield } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { getSeveredItem } from '../../character/rules/body'
 import type { Coord, SceneState } from '../types'
-import { coordKey, distance } from '../rules/board/geometry'
+import { coordKey, inExtent } from '../rules/board/geometry'
 import type { Character, Item } from '../../types'
 import { findFloorItem, onFloor } from '../rules/floor'
 import { settleBinds } from './bind'
@@ -52,7 +52,7 @@ export function throwOffShieldToFloor(characterId: string, gm = false): Updater 
 export function placeItem(item: Item, cell: Coord, newId: () => string): Updater {
   return (state) => {
     const board = state.board
-    if (!board || getOpenAction(state) || distance(board.origin, cell) > board.radius) return state
+    if (!board || getOpenAction(state) || !inExtent(board.origin, board.extent, cell)) return state
     if (board.terrain[coordKey(cell)]?.blocking) return state
     return { ...state, floor: [...state.floor, onFloor({ ...item, id: newId() }, cell)] }
   }
