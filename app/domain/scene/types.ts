@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, GROUND_KEYS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS, SURFACE_ART } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { DIE_SOURCES, ROLL_MODES } from '../play/dice'
@@ -198,15 +198,25 @@ export const TerrainCellSchema = z.object({
   // combat.tex "Darkness and light": ground with no light of its own, seen
   // only where a light source reaches it
   dark: z.boolean().default(false),
+  // what the ground here is made of, by its name in the surfaces catalog; null
+  // is the board's own surface. The rules read the values it laid, never this.
+  surface: str.nullable().default(null),
   layers: z.array(HazardLayerSchema).default([]),
 }).strip()
 export type TerrainCell = z.infer<typeof TerrainCellSchema>
 
+// What the ground is made of: grass, mud, flagstone. Laying one on a cell
+// overwrites exactly these values there, and the texture it is drawn with is
+// `art`. Structure (walls, water, elevation) is not part of it.
+export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true, noise: true, soft: true, visibility: true }).extend({
+  name: str.default(''),
+  art: z.enum(SURFACE_ART).nullable().default(null),
+}).strip()
+export type Surface = z.infer<typeof SurfaceSchema>
+export type SurfaceArt = NonNullable<Surface['art']>
+
 export const LightLevelSchema = z.enum(LIGHT_LEVELS)
 export type LightLevel = z.infer<typeof LightLevelSchema>
-
-export const GroundKeySchema = z.enum(GROUND_KEYS)
-export type GroundKey = z.infer<typeof GroundKeySchema>
 
 // The spatial facts of a fight, in game units: what the domain
 // needs of the grid to judge distance, reach, cover and where a move may end. `placements` is keyed by character id, `terrain` by the cell
@@ -218,8 +228,9 @@ export const BoardSchema = z.object({
   // combat.tex "Darkness and light": the light everywhere no light source
   // reaches and no darkness is painted
   light: LightLevelSchema.default('bright'),
-  // the picture the board is drawn over; the rules do not read it
-  ground: GroundKeySchema.nullable().default(null),
+  // the surface of every cell that names none, by its name in the surfaces
+  // catalog; the rules do not read it
+  surface: str.nullable().default(null),
   // where and how far the board is drawn; the rules do not care, the
   // simulation tool does.
   origin: CoordSchema.default({ q: 0, r: 0 }),

@@ -1,0 +1,29 @@
+{
+  "Meadow": {
+    "name": "Meadow",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "art": "meadow"
+  },
+  "Earth": {
+    "name": "Earth",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "visibility": "good",
+    "art": "earth"
+  },
+  "Flagstone": {
+    "name": "Flagstone",
+    "difficult": false,
+    "DL": -5,
+    "noise": 1,
+    "soft": false,
+    "visibility": "good",
+    "art": "flagstone"
+  }
+}

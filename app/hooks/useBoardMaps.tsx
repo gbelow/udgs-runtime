@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { deleteBoardMap, saveBoardMap } from "../actions";
 import type { TerrainBrush } from "../domain/types";
-import type { Coord, GroundKey, LightLevel } from "../domain/scene/types";
+import type { Coord, LightLevel } from "../domain/scene/types";
 import type { BoardView } from "../domain/scene/projections/boardView";
 import { getBoardMap, getBoardMapView } from "../domain/scene/projections/boardMap";
-import { groundBoardMap, lightBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
+import { laySurfaceBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
 import { useBoardMapDraftStore } from "../stores/useBoardMapDraftStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -87,7 +87,8 @@ export function useBoardMapEditor() {
     setName: (name: string) => edit(renameBoardMap(name)),
     paint: (cell: Coord, brush: TerrainBrush) => edit(paintBoardMap(cell, brush)),
     light: (level: LightLevel) => edit(lightBoardMap(level)),
-    ground: (key: GroundKey | null) => edit(groundBoardMap(key)),
+    surface: (name: string | null) => edit(surfaceBoardMap(name)),
+    laySurface: (cell: Coord, name: string) => edit(laySurfaceBoardMap(cell, name)),
     resize: (radius: number) => edit(resizeBoardMap(radius)),
   } as const;
 }

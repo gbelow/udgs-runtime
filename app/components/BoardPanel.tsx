@@ -5,11 +5,11 @@ import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
-import type { Coord, GroundKey } from '../domain/scene/types'
-import type { BoardView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
+import type { Coord } from '../domain/scene/types'
+import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
-import { GROUND_KEYS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
-import { GROUND } from '../assets/ground'
+import { LIGHT_LEVELS, SURFACE_ART, TERRAIN_BRUSHES } from '../domain/lists'
+import { SURFACE_ART_SRC } from '../assets/surfaceArt'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
@@ -53,8 +53,9 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
-  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, ground, resize, resizeWarning } = useBoard(fromActive)
+  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, surface, laySurface, resize, resizeWarning } = useBoard(fromActive)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
+  const [laying, setLaying] = useState<string | null>(null)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
   const { gmTools } = useRole()
@@ -74,6 +75,7 @@ export function BoardPanel(){
 
   const floor = gmTools ? floorTool : null
   const painting = open && floor === null && brush !== null
+  const surfacing = open && floor === null && brush === null && laying !== null
   const repositioning = open && floor === null && reposition
   const grounding = floor === 'put' && item !== null
   const clearing = floor === 'remove'
@@ -95,16 +97,16 @@ export function BoardPanel(){
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>place</SectionLabel>
         <Button size='xs' aria-label='reposition' selected={reposition} title='put the active character anywhere, placed before or not, and turn them'
-          onClick={() => { setReposition(!reposition); setBrush(null); setFloorTool(null) }}>reposition</Button>
+          onClick={() => { setReposition(!reposition); setBrush(null); setLaying(null); setFloorTool(null) }}>reposition</Button>
       </div>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>paint</SectionLabel>
         <Button size='xs' selected={brush === null}
-          onClick={() => { setBrush(null); setFloorTool(null) }}>control</Button>
+          onClick={() => { setBrush(null); setLaying(null); setFloorTool(null) }}>control</Button>
         {TERRAIN_BRUSHES.map((b) =>
           <Button key={b} size='xs' selected={brush === b}
-            onClick={() => { setBrush(brush === b ? null : b); setReposition(false); setFloorTool(null) }}>{BRUSH_LABEL[b]}</Button>)}
+            onClick={() => { setBrush(brush === b ? null : b); setLaying(null); setReposition(false); setFloorTool(null) }}>{BRUSH_LABEL[b]}</Button>)}
       </div>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -114,7 +116,7 @@ export function BoardPanel(){
             <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
         </Segmented>
       </div>
-      <GroundRow ground={view.ground?.key ?? null} set={ground} />
+      <SurfaceRow surfaces={view.surfaces} base={view.surface} setBase={surface} laying={surfacing ? laying : null} lay={(name) => { setLaying(laying === name ? null : name); setBrush(null); setReposition(false); setFloorTool(null) }} />
       <SizeRow key={view.radius} radius={view.radius} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
       </>) : null}
@@ -127,14 +129,14 @@ export function BoardPanel(){
       ) : null}
 
       <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
-        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
+        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
         <defs>
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
           </marker>
         </defs>
-        <Ground ground={view.ground} />
-        {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} bare={view.ground !== null} />)}
+        <SurfaceDefs />
+        {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
@@ -144,21 +146,37 @@ export function BoardPanel(){
   )
 }
 
-export function Ground({ ground }: { ground: BoardView['ground'] }){
-  if (!ground) return null
-  return <image href={GROUND[ground.key].src} x={ground.x} y={ground.y} width={ground.width} height={ground.height} preserveAspectRatio='xMidYMid slice' className='pointer-events-none' />
+// One small texture per art, repeated over the board in the units the tokens
+// are placed in, so that it runs on from hex to hex and is decoded once.
+const SURFACE_TILE = 8
+
+export function SurfaceDefs(){
+  return (
+    <defs>
+      {SURFACE_ART.map((art) => (
+        <pattern key={art} id={`surface-${art}`} patternUnits='userSpaceOnUse' width={SURFACE_TILE} height={SURFACE_TILE}>
+          <image href={SURFACE_ART_SRC[art]} width={SURFACE_TILE} height={SURFACE_TILE} />
+        </pattern>
+      ))}
+    </defs>
+  )
 }
 
-export function GroundRow({ ground, set }: { ground: GroundKey | null, set: (key: GroundKey | null) => void }){
-  return (
+// The board's own surface, and the one laid cell by cell with a click.
+export function SurfaceRow({ surfaces, base, setBase, laying, lay }: { surfaces: string[], base: string | null, setBase: (name: string | null) => void, laying: string | null, lay: (name: string) => void }){
+  return (<>
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>ground</SectionLabel>
       <Segmented label='ground'>
-        <Segment selected={ground === null} onClick={() => set(null)}>none</Segment>
-        {GROUND_KEYS.map((k) => <Segment key={k} selected={ground === k} onClick={() => set(k)}>{GROUND[k].label}</Segment>)}
+        <Segment selected={base === null} onClick={() => setBase(null)}>none</Segment>
+        {surfaces.map((name) => <Segment key={name} selected={base === name} onClick={() => setBase(name)}>{name}</Segment>)}
       </Segmented>
     </div>
-  )
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>surface</SectionLabel>
+      {surfaces.map((name) => <Button key={name} size='xs' selected={laying === name} onClick={() => lay(name)}>{name}</Button>)}
+    </div>
+  </>)
 }
 
 export function ZoomButtons({ zoomPan }: { zoomPan: ReturnType<typeof useZoomPan> }){
@@ -259,11 +277,11 @@ function sameValue(a: unknown, b: unknown): boolean {
   return typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b)
 }
 
-function sameCellDrawing(a: { cell: BoardCellView, hex: string, bare?: boolean }, b: { cell: BoardCellView, hex: string, bare?: boolean }): boolean {
-  return a.hex === b.hex && a.bare === b.bare && (Object.keys(a.cell) as (keyof BoardCellView)[]).every((k) => k === 'cell' || sameValue(a.cell[k], b.cell[k]))
+function sameCellDrawing(a: { cell: BoardCellView, hex: string }, b: { cell: BoardCellView, hex: string }): boolean {
+  return a.hex === b.hex && (Object.keys(a.cell) as (keyof BoardCellView)[]).every((k) => k === 'cell' || sameValue(a.cell[k], b.cell[k]))
 }
 
-export const Cell = memo(function Cell({ cell, hex, bare }: { cell: BoardCellView, hex: string, bare?: boolean }){
+export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex: string }){
   const fill = cell.isJumpTo ? 'fill-good/40'
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.swept ? 'fill-accent/20'
@@ -277,13 +295,14 @@ export const Cell = memo(function Cell({ cell, hex, bare }: { cell: BoardCellVie
     : cell.visibility === 'zero' || cell.light === 'dark' ? 'fill-fg/35'
     : cell.light === 'dim' ? 'fill-fg/15'
     : cell.visibility === 'bad' ? 'fill-fg/15'
-    : bare && cell.terrain === 'open' ? 'fill-surface/0'
+    : cell.art && cell.terrain === 'open' ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
   const title = [
     cell.key,
     cell.unseen ? 'out of sight' : null,
     TERRAIN_LABEL[cell.terrain],
+    cell.surface,
     cell.strength,
     cell.elevation ? `${cell.elevation} m` : null,
     cell.fire > 0 ? `fire ${cell.fire}` : null,
@@ -303,6 +322,7 @@ export const Cell = memo(function Cell({ cell, hex, bare }: { cell: BoardCellVie
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
+      {cell.art ? <polygon points={hex} fill={`url(#surface-${cell.art})`} className='pointer-events-none' /> : null}
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}

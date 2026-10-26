@@ -1,7 +1,7 @@
 import type { Dice } from '../domain/play/dice'
 import { toTable, type Throw } from '../domain/play/calls'
 import type { TerrainBrush } from '../domain/types'
-import { SceneStateSchema, type ActionDraft, type SceneState, type SeenScene, type GroundKey, type LightLevel, type Updater } from '../domain/scene/types'
+import { SceneStateSchema, type ActionDraft, type SceneState, type SeenScene, type Coord, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { readClick, type Click } from '../domain/scene/commands/click'
 import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
@@ -94,7 +94,8 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     removeBoard: () => send({ kind: 'removeBoard', args: [] }),
     resizeBoard: (radius: number) => send({ kind: 'resizeBoard', args: [radius] }),
     light: (level: LightLevel) => send({ kind: 'light', args: [level] }),
-    ground: (ground: GroundKey | null) => send({ kind: 'ground', args: [ground] }),
+    surface: (surface: string | null) => send({ kind: 'surface', args: [surface] }),
+    laySurface: (cell: Coord, surface: string) => send({ kind: 'laySurface', args: [cell, surface] }),
 
     // the board
     cell: (q: number, r: number) => click({ on: 'cell', cell: { q, r } }),

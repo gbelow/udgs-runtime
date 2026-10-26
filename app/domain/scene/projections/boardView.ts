@@ -1,4 +1,4 @@
-import type { Bind, SceneState, SeenScene, Coord, Degree, GroundKey, LightLevel, Placement } from '../types'
+import type { Bind, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, SurfaceArt } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -22,6 +22,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
+import { getCellSurface, getSurfaceNames } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -54,6 +55,10 @@ export type BoardCellView = {
   // and the noise its ground makes per AP (combat.tex "Actions in stealth")
   visibility: Visibility | null
   noise: number
+  // what the ground is made of: its name in the surfaces catalog, and the
+  // texture it is drawn with; null for ground with none
+  surface: string | null
+  art: SurfaceArt | null
   // combat.tex "Darkness and light": the light on the cell, and whether it
   // is a light source that makes it bright
   light: LightLevel
@@ -160,9 +165,11 @@ export type BoardView = {
   hex: string
   // combat.tex "Darkness and light": the light where no source reaches
   light: LightLevel
-  // the picture laid under the cells over the frame, in the units the
-  // tokens are placed in; null on a bare board
-  ground: { key: GroundKey; x: number; y: number; width: number; height: number } | null
+  // the rectangle that frames every cell, in the units the tokens are placed in
+  frame: { x: number; y: number; width: number; height: number }
+  // the surface of every cell that names none, and the ones to choose from
+  surface: string | null
+  surfaces: string[]
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
@@ -179,7 +186,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', ground: null, cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -268,6 +275,8 @@ function buildBoardView(state: SeenScene): BoardView {
       suffocating: hazard.suffocating,
       visibility: hazard.visibility === 'good' ? null : hazard.visibility,
       noise: terrain?.noise ?? 0,
+      surface: terrain?.surface ?? board.surface,
+      art: getCellSurface(board, key)?.art ?? null,
       light,
       lit: light === 'bright' && (board.light !== 'bright' || !!terrain?.dark),
       unseen: false,
@@ -340,7 +349,9 @@ function buildBoardView(state: SeenScene): BoardView {
     present: true,
     radius: board.radius,
     light: board.light,
-    ground: board.ground ? { key: board.ground, ...hexBounds(cells) } : null,
+    frame: hexBounds(cells),
+    surface: board.surface,
+    surfaces: getSurfaceNames(),
     viewBox: frameHexes(cells),
     hex: HEX_POINTS,
     cells,

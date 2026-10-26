@@ -45,6 +45,7 @@ import { SPELLS } from './spells'
 import { severPart } from './character/commands/wounds'
 import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema, RaceDraftSchema, RaceSchema, TrainableSchema } from './types'
 import type { CampaignCharacter, Character, CreationDraft } from './types'
+import { getSurfaceNames } from './scene/rules/board/surface'
 import armorsCatalog from '../assets/armors.json'
 
 // A character holding a race being made, for the commands that make one.
@@ -303,7 +304,8 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(cleared(s))),
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
   setLight: (s) => combatCommands.setLight('dark')(deepFreeze(cleared(s))),
-  setGround: (s) => combatCommands.setGround('meadow')(deepFreeze(cleared(s))),
+  setSurface: (s) => combatCommands.setSurface(getSurfaceNames()[0])(deepFreeze(cleared(s))),
+  laySurface: (s) => combatCommands.laySurface({ q: 1, r: 1 }, getSurfaceNames()[0])(deepFreeze(cleared(s))),
   pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 }, newId)(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
   backSegment: (s) => combatCommands.backSegment()(deepFreeze(combatCommands.pickCell({ q: 1, r: 0 }, newId)(declaredMove(s)))),

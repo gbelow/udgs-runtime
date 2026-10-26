@@ -1,9 +1,10 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type Coord, type GroundKey, type LightLevel, type MoveAction, type Updater } from '../types'
+import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
+import { getSurface } from '../rules/board/surface'
 import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
@@ -59,10 +60,32 @@ export function setLight(light: LightLevel): Updater {
   return (state) => (!state.board || getOpenAction(state) ? state : { ...state, board: { ...state.board, light } })
 }
 
-// Lays the board over a picture, or bare. Refused while an action is open, as
-// painting is.
-export function setGround(ground: GroundKey | null): Updater {
-  return (state) => (!state.board || getOpenAction(state) ? state : { ...state, board: { ...state.board, ground } })
+// Sets the surface of every cell that names none, or none. Refused while an
+// action is open, as painting is.
+export function setSurface(surface: string | null): Updater {
+  return (state) => (!state.board || (surface !== null && !getSurface(surface)) || getOpenAction(state) ? state : { ...state, board: { ...state.board, surface } })
+}
+
+// Makes one cell of a surface, overwriting every value the surface sets. A
+// wall or water is not walked on, so it stays as it is: no difficult ground
+// under it, and the DL of a swim is not the surface's.
+export function laySurface(cell: Coord, name: string): Updater {
+  return (state) => {
+    const surface = getSurface(name)
+    if (!state.board || !surface || getOpenAction(state)) return state
+    const key = coordKey(cell)
+    const current = state.board.terrain[key] ?? TerrainCellSchema.parse({})
+    const laid = {
+      ...current,
+      surface: name,
+      difficult: !current.blocking && !current.liquid && surface.difficult,
+      DL: current.liquid ? current.DL : surface.DL,
+      noise: surface.noise,
+      soft: surface.soft,
+      visibility: surface.visibility,
+    }
+    return { ...state, board: { ...state.board, terrain: { ...state.board.terrain, [key]: laid } } }
+  }
 }
 
 // Plays the fight on a kept board: its ground and light, everyone off it and

@@ -160,6 +160,7 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
     'slots.large.items': hidden,
   },
   terrains: {},
+  surfaces: {},
   events: {},
   scenes: {
     text: textarea,

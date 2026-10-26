@@ -228,8 +228,8 @@ export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water'
 // light source reaches, brightest first.
 export const LIGHT_LEVELS = ['bright', 'dim', 'dark'] as const
 
-// The pictures a board may be laid over; the art for each is in `assets/ground.ts`.
-export const GROUND_KEYS = ['meadow', 'earth', 'flagstone'] as const
+// The textures a surface may be drawn with; the picture for each is in `assets/surfaceArt.ts`.
+export const SURFACE_ART = ['meadow', 'earth', 'flagstone'] as const
 
 // survival.tex "Exploration": "Exploration Action: are Traveling, Searching,
 // Preparing"
