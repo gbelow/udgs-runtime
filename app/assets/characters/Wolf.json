@@ -6,6 +6,7 @@
   "type": "base",
   "startingWealth": null,
   "name": "Wolf",
+  "token": "/tokens/wolf.svg",
   "trainables": {
     "strike": {
       "value": 1,

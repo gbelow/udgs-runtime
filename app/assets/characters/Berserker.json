@@ -6,6 +6,7 @@
   "type": "base",
   "startingWealth": null,
   "name": "Berserker",
+  "token": "/tokens/viking.webp",
   "trainables": {
     "strike": {
       "value": 3,

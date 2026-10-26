@@ -5,6 +5,7 @@
   ],
   "type": "base",
   "name": "Human Spearman",
+  "token": "/tokens/spearman.webp",
   "trainables": {
     "strike": {
       "value": 0,

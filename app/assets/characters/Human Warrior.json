@@ -6,6 +6,7 @@
   "type": "base",
   "startingWealth": null,
   "name": "Human Warrior",
+  "token": "/tokens/human-warrior.svg",
   "trainables": {
     "strike": {
       "value": 3,

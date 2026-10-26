@@ -6,6 +6,7 @@
   "type": "base",
   "startingWealth": null,
   "name": "HumanPiromancer",
+  "token": "/tokens/dwarf.webp",
   "trainables": {
     "strike": {
       "value": 0,

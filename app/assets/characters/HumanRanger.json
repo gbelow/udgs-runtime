@@ -6,6 +6,7 @@
   "type": "base",
   "startingWealth": null,
   "name": "HumanRanger",
+  "token": "/tokens/ranger.webp",
   "trainables": {
     "strike": {
       "value": 0,

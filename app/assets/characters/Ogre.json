@@ -5,6 +5,7 @@
   ],
   "type": "base",
   "name": "Ogre",
+  "token": "/tokens/ogre.svg",
   "trainables": {
     "strike": {
       "value": 1,
