@@ -170,6 +170,15 @@ describe('a character survives its storage format', () => {
     expect(makeCharacter({ startingWealth: 3000 }).startingWealth).toBe(3000)
   })
 
+  // The picture on a character's token never reached the board, because
+  // ingestion strips what it has no entry for and token had none.
+  it('keeps the token a character names, into a base copy and into play', () => {
+    const raw = { token: '/tokens/knight.webp' }
+    expect(makeCharacter(raw).token).toBe(raw.token)
+    expect(makeCampaignCharacter(raw).token).toBe(raw.token)
+    expect(copyIntoPlay(makeCharacter(raw), 'copy').token).toBe(raw.token)
+  })
+
   it('round-trips a campaign character through JSON', () => {
     const c = makeCampaignCharacter({
       ...populated(),

@@ -4,8 +4,8 @@ import { CampaignCharacterSchema, type CampaignCharacter } from '../../types'
 // character they see but do not play — the token: who it is, how big, what it
 // wears and holds in the open and where it is wounded. The rest of the sheet
 // reads as an empty one, so what is worked out against it is an estimate.
-type Face = Pick<CampaignCharacter, 'id' | 'name' | 'size' | 'footprint' | 'height' | 'armor' | 'body' | 'stance' | 'hasGauntlets' | 'hasHelm' | 'visorOpen' | 'worn' | 'held' | 'onBack'>
-const FACE_KEYS: (keyof Face)[] = ['id', 'name', 'size', 'footprint', 'height', 'armor', 'body', 'stance', 'hasGauntlets', 'hasHelm', 'visorOpen', 'worn', 'held', 'onBack']
+type Face = Pick<CampaignCharacter, 'id' | 'name' | 'token' | 'size' | 'footprint' | 'height' | 'armor' | 'body' | 'stance' | 'hasGauntlets' | 'hasHelm' | 'visorOpen' | 'worn' | 'held' | 'onBack'>
+const FACE_KEYS: (keyof Face)[] = ['id', 'name', 'token', 'size', 'footprint', 'height', 'armor', 'body', 'stance', 'hasGauntlets', 'hasHelm', 'visorOpen', 'worn', 'held', 'onBack']
 
 const blank = CampaignCharacterSchema.parse({})
 const faces = new WeakMap<CampaignCharacter, CampaignCharacter>()

@@ -269,6 +269,7 @@ function readWounds(raw: unknown, body: BodyPart[]): Wound[] {
 const CharacterIngestValues = {
   id: z.string().optional(),
   name: z.string().optional(),
+  token: z.string().optional().catch(undefined),
 
   trainables: z.record(z.string(), z.any()).optional(),
   specificKnowledges: z.record(z.string(), z.unknown()).optional().catch(undefined),
