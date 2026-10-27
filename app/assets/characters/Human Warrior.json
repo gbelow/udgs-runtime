@@ -6,7 +6,7 @@
   "type": "base",
   "startingWealth": null,
   "name": "Human Warrior",
-  "token": "/tokens/human-warrior.svg",
+  "token": "/tokens/spearman.webp",
   "trainables": {
     "strike": {
       "value": 3,
@@ -327,6 +327,7 @@
     }
   },
   "specificKnowledges": {},
+  "bodyPlan": "humanoid",
   "size": 3,
   "footprint": [
     {
@@ -754,6 +755,6 @@
   "spells": {},
   "raceDraft": null,
   "attributeBalanceBase": 10,
-  "limitStress": "abusive",
+  "limitStress": null,
   "notes": ""
 }

@@ -6,6 +6,7 @@
   "type": "base",
   "startingWealth": null,
   "name": "HumanBarbarian",
+  "token": "/tokens/viking.webp",
   "trainables": {
     "strike": {
       "value": 2,
@@ -326,6 +327,7 @@
     }
   },
   "specificKnowledges": {},
+  "bodyPlan": "humanoid",
   "size": 3,
   "footprint": [
     {
