@@ -1,4 +1,4 @@
-import type { Bind, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, TerrainCell } from '../types'
+import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, SurfaceArt } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -23,7 +23,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
-import { getCellArt, getCellBledInto, getSurfaceChoices, type CellArt } from '../rules/board/surface'
+import { getCellArt, getCellBledInto, getCellSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -153,12 +153,15 @@ export type BoardBindView = {
 
 // The top edge of a cliff, between a cell and a neighbour at least a cliff's
 // height lower: `a` to `b` is the ridge, `face` the strip of the lower ground
-// the drop falls over, and `height` the metres it drops.
+// the drop falls over (ending at `foot`), `art` the picture it is drawn with, in
+// the board's `faces`, and `height` the metres it drops.
 export type BoardRidgeView = {
   key: string
   a: { x: number; y: number }
   b: { x: number; y: number }
+  foot: { x: number; y: number }
   face: string
+  art: number | null
   height: number
 }
 
@@ -192,6 +195,8 @@ export type BoardView = {
   arts: CellArt[]
   cells: BoardCellView[]
   ridges: BoardRidgeView[]
+  // the pictures the cliffs are drawn with, which a ridge's `art` indexes
+  faces: SurfaceArt[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
   binds: BoardBindView[]
@@ -217,7 +222,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], faces: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -406,7 +411,7 @@ function buildBoardView(state: SeenScene): BoardView {
     viewBox: frameHexes(cells),
     hex: HEX_POINTS,
     cells,
-    ridges: getRidges(board.terrain, cells),
+    ...getRidges(board, cells),
     tokens,
     floor,
     binds,
@@ -484,27 +489,40 @@ function rimToRim(from: { x: number; y: number }, to: { x: number; y: number }):
   return { from: { x: from.x + ux * TOKEN_RIM, y: from.y + uy * TOKEN_RIM }, to: { x: to.x - ux * TOKEN_RIM, y: to.y - uy * TOKEN_RIM } }
 }
 
-// How far a cliff's face is drawn over the lower ground, in board units.
-const FACE_DEPTH = 0.25
+// How far a cliff's face is drawn over the lower ground, in board units: so
+// much a metre of the drop, up to a most.
+const FACE_PER_METRE = 0.15
+const FACE_MOST = 0.5
 
 // Every side where ground drops a cliff's height or more to the neighbour, read
 // off the two elevations, so that nothing marks which way a cliff faces: the
-// higher cell is the ridge.
-function getRidges(terrain: Record<string, TerrainCell>, cells: BoardCellView[]): BoardRidgeView[] {
-  return cells.flatMap((c) => ROTATIONS.flatMap((d) => {
+// higher cell is the ridge. Each is drawn with the face of the higher cell's
+// surface, the pictures listed once in `faces`.
+function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeView[]; faces: SurfaceArt[] } {
+  const faces: SurfaceArt[] = []
+  const faceIndex = (face: SurfaceArt | null): number | null => {
+    if (!face) return null
+    const at = faces.findIndex((f) => f.src === face.src && f.tile === face.tile && f.offsetX === face.offsetX && f.offsetY === face.offsetY)
+    if (at >= 0) return at
+    faces.push(face)
+    return faces.length - 1
+  }
+  const ridges = cells.flatMap((c) => ROTATIONS.flatMap((d) => {
     const next = add(c.cell, DIRECTIONS[d])
-    const low = terrain[coordKey(next)]?.elevation ?? 0
+    const low = board.terrain[coordKey(next)]?.elevation ?? 0
     if (!isCliff(low, c.elevation) || low > c.elevation) return []
+    const height = c.elevation - low
     const [p, q] = hexSide(d)
     const a = { x: c.x + p.x, y: c.y + p.y }
     const b = { x: c.x + q.x, y: c.y + q.y }
     const away = toPlane(DIRECTIONS[d])
-    const length = Math.hypot(away.x, away.y)
-    const dx = (away.x / length) * FACE_DEPTH
-    const dy = (away.y / length) * FACE_DEPTH
+    const depth = Math.min(FACE_MOST, FACE_PER_METRE * height) / Math.hypot(away.x, away.y)
+    const [dx, dy] = [away.x * depth, away.y * depth]
     const face = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
-    return [{ key: `${c.key}:${d}`, a, b, face, height: c.elevation - low }]
+    const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
+    return [{ key: `${c.key}:${d}`, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), height }]
   }))
+  return { ridges, faces }
 }
 
 function elevationLabel(elevation: number): string {

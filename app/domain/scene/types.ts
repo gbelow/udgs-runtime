@@ -230,7 +230,9 @@ export type SurfaceArt = z.infer<typeof SurfaceArtSchema>
 // and the one with the higher `priority` is drawn over the other. `bledInto` is
 // how much of a neighbour's spreading it lets in over its own hexes, from all
 // of it (1) to none (0): pavement. `bank` is the width of the wet band drawn
-// on the ground just outside its edge, none for 0: the shore of a lake.
+// on the ground just outside its edge, none for 0: the shore of a lake. `face`
+// is the picture a cliff is drawn with where this is the higher ground; none
+// leaves the drop shaded.
 // Structure (walls, elevation) is not part of it; water is, as `liquid`.
 export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true, noise: true, soft: true, liquid: true, visibility: true }).extend({
   name: str.default(''),
@@ -241,6 +243,7 @@ export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true,
   bank: num.min(0).default(0),
   priority: num.default(0),
   arts: z.array(SurfaceArtSchema).default([]),
+  face: SurfaceArtSchema.nullable().default(null),
 }).strip()
 export type Surface = z.infer<typeof SurfaceSchema>
 

@@ -175,14 +175,32 @@ const BANK_SOFT = 0.3
 const LIP = 0.3
 const LIP_OPACITY = 0.5
 
-// The drop of every cliff: a shaded strip over the lower ground and a dark
-// line along the ridge, which the view places on the higher cell's side.
+// The drop of every cliff: a strip over the lower ground, drawn with the
+// picture of the higher ground's surface (shaded plain where it has none) and
+// darkening towards the foot, and a dark line along the ridge, which the view
+// places on the higher cell's side.
+const FACE_SHADE = 0.45
+
 export function RidgeLayer({ view }: { view: BoardView }){
   return (
     <g className='pointer-events-none'>
+      <defs>
+        {view.faces.map((face, i) => (
+          <pattern key={i} id={`face-${i}`} patternUnits='userSpaceOnUse' width={face.tile} height={face.tile} patternTransform={`translate(${face.offsetX} ${face.offsetY})`}>
+            <image href={face.src} width={face.tile} height={face.tile} />
+          </pattern>
+        ))}
+        {view.ridges.map((r) => (
+          <linearGradient key={r.key} id={`face-shade-${r.key}`} gradientUnits='userSpaceOnUse' x1={(r.a.x + r.b.x) / 2} y1={(r.a.y + r.b.y) / 2} x2={r.foot.x} y2={r.foot.y}>
+            <stop offset='0' stopColor='black' stopOpacity={0} />
+            <stop offset='1' stopColor='black' stopOpacity={FACE_SHADE} />
+          </linearGradient>
+        ))}
+      </defs>
       {view.ridges.map((r) => (
         <g key={r.key}>
-          <polygon points={r.face} className='fill-fg/30 stroke-none' />
+          {r.art === null ? <polygon points={r.face} className='fill-fg/30 stroke-none' /> : <polygon points={r.face} fill={`url(#face-${r.art})`} className='stroke-none' />}
+          <polygon points={r.face} fill={`url(#face-shade-${r.key})`} className='stroke-none' />
           <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />
         </g>
       ))}
