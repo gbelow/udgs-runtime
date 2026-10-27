@@ -36,6 +36,7 @@ export function CharacterCreation() {
             <Priorities />
           </div>
           <div className='md:col-span-6 flex flex-col gap-2'>
+            <AttributeAverage />
             {group('Attributes')}
             {group('Talents')}
           </div>
@@ -169,7 +170,7 @@ function RacePreset() {
   const filter = useCollectionFilter('races')
   const race = view.race
   const picker = (
-    <span className='flex flex-row gap-1'>
+    <span className='flex flex-row flex-wrap gap-1'>
       <CollectionSelect label='race collection' filter={filter} />
       <select aria-label='race' className={selectClass} value={race?.name ?? ''} onChange={(e) => chooseRace(e.target.value)}>
         <option value=''>— race —</option>
@@ -178,7 +179,8 @@ function RacePreset() {
     </span>
   )
   return (
-    <Section title='Race' actions={picker}>
+    <Section title='Race'>
+      {picker}
       {race ? (
         <>
           <div className='flex flex-row flex-wrap gap-2 text-xs'>
@@ -188,6 +190,22 @@ function RacePreset() {
         </>
       ) : <span className='text-xs text-muted'>no race chosen</span>}
     </Section>
+  )
+}
+
+// creating.tex "Improving attributes": the average of the three attributes
+// against the most it can be before raising them costs double.
+function AttributeAverage() {
+  const { view: { attributes } } = useCreation()
+  const over = attributes.average > attributes.maximum
+  return (
+    <div className='flex flex-row items-baseline gap-2 text-xs'>
+      <span className='text-muted'>attribute average</span>
+      <span className={`font-mono ${over ? 'text-bad' : ''}`}>{Number(attributes.average.toFixed(2))}</span>
+      <span className='text-muted'>of at most</span>
+      <span className='font-mono'>{attributes.maximum}</span>
+      <span className='text-muted'>before costs double</span>
+    </div>
   )
 }
 
@@ -274,7 +292,7 @@ function WealthLine() {
 }
 
 const priceLabel = (price: CreationPrice): string =>
-  price === null ? '—' : price.pool === null ? 'free' : `${price.amount} ${price.pool}`
+  price === null ? '—' : price.pool === null ? 'free' : `${price.amount} ${price.pool === 'karma' ? 'karma' : 'XP'}`
 
 // One thing that can be bought: its level now, − to give a level back, + to
 // buy the next at the price shown.

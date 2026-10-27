@@ -6,7 +6,7 @@ import { getSpellCatalogRows, type SpellCatalogRow } from './spells'
 import { sumTerms, type Term } from '../rules/terms'
 import { groupBy, type Group } from '../../utils'
 import { getStartingWealthView, type StartingWealthView } from '../../item/projections/money'
-import { getTrainableLimit } from '../rules/learning'
+import { getAttributeBalance, getTrainableLimit } from '../rules/learning'
 import { skillTermGetters } from '../rules/skills'
 import { isFormalKnowledge } from '../rules/knowledge'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
@@ -63,6 +63,7 @@ export type CreationPanelView = {
   gold: number
   wealth: StartingWealthView | null // the gold against the gear carried
   groups: { label: string; rows: CreationRow[] }[]
+  attributes: { average: number; maximum: number } // creating.tex "Improving attributes": the average past `maximum` doubles the cost
   abilities: CreationAbilityEntry[] // the families held, racial or bought
   abilityCatalog: Group<CreationAbilityEntry>[] // the sections offered, in the book's order
   spells: CreationSpellEntry[] // the spells chosen
@@ -168,6 +169,7 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
         }
       }),
     })),
+    attributes: { average: (build.trainables.STR.value + build.trainables.AGI.value + build.trainables.STA.value) / 3, maximum: getAttributeBalance(build) },
     abilities: entries.filter((entry) => entry.level > 0),
     abilityCatalog: ABILITY_SECTIONS.filter(offered)
       .map((label) => ({ label, rows: entries.filter((entry) => entry.view.section === label) }))
