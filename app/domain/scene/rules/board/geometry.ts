@@ -202,6 +202,16 @@ export const HEX_POINTS = Array.from({ length: 6 }, (_, i) => {
   return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
 }).join(' ')
 
+// The two corners of the side of a unit hex about its centre that faces the
+// neighbour in `direction`.
+export function hexSide(direction: Direction): [{ x: number; y: number }, { x: number; y: number }] {
+  const corner = (k: number) => {
+    const angle = (Math.PI / 180) * (60 * (((k % 6) + 6) % 6) - 30)
+    return { x: Math.cos(angle), y: Math.sin(angle) }
+  }
+  return [corner(-direction), corner(1 - direction)]
+}
+
 // The SVG viewBox that frames hexes centred on the points, with a margin.
 export function hexBounds(points: readonly { x: number; y: number }[]): { x: number; y: number; width: number; height: number } {
   const xs = points.map((p) => p.x)

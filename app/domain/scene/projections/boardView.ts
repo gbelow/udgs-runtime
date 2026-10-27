@@ -1,8 +1,9 @@
-import type { Bind, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement } from '../types'
+import type { Bind, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, TerrainCell } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { HEX_POINTS, angleBetween, coordKey, extentCells, frameHexes, hexBounds, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { DIRECTIONS, HEX_POINTS, ROTATIONS, add, angleBetween, coordKey, extentCells, frameHexes, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { isCliff } from '../rules/board/cliff'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -148,6 +149,17 @@ export type BoardBindView = {
   title: string
 }
 
+// The top edge of a cliff, between a cell and a neighbour at least a cliff's
+// height lower: `a` to `b` is the ridge, `face` the strip of the lower ground
+// the drop falls over, and `height` the metres it drops.
+export type BoardRidgeView = {
+  key: string
+  a: { x: number; y: number }
+  b: { x: number; y: number }
+  face: string
+  height: number
+}
+
 export type BoardGhostView = {
   id: string
   name: string
@@ -177,6 +189,7 @@ export type BoardView = {
   // they are drawn in), which a cell's `art` indexes
   arts: CellArt[]
   cells: BoardCellView[]
+  ridges: BoardRidgeView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
   binds: BoardBindView[]
@@ -192,7 +205,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -379,6 +392,7 @@ function buildBoardView(state: SeenScene): BoardView {
     viewBox: frameHexes(cells),
     hex: HEX_POINTS,
     cells,
+    ridges: getRidges(board.terrain, cells),
     tokens,
     floor,
     binds,
@@ -454,6 +468,29 @@ function rimToRim(from: { x: number; y: number }, to: { x: number; y: number }):
   const ux = (to.x - from.x) / length
   const uy = (to.y - from.y) / length
   return { from: { x: from.x + ux * TOKEN_RIM, y: from.y + uy * TOKEN_RIM }, to: { x: to.x - ux * TOKEN_RIM, y: to.y - uy * TOKEN_RIM } }
+}
+
+// How far a cliff's face is drawn over the lower ground, in board units.
+const FACE_DEPTH = 0.25
+
+// Every side where ground drops a cliff's height or more to the neighbour, read
+// off the two elevations, so that nothing marks which way a cliff faces: the
+// higher cell is the ridge.
+function getRidges(terrain: Record<string, TerrainCell>, cells: BoardCellView[]): BoardRidgeView[] {
+  return cells.flatMap((c) => ROTATIONS.flatMap((d) => {
+    const next = add(c.cell, DIRECTIONS[d])
+    const low = terrain[coordKey(next)]?.elevation ?? 0
+    if (!isCliff(low, c.elevation) || low > c.elevation) return []
+    const [p, q] = hexSide(d)
+    const a = { x: c.x + p.x, y: c.y + p.y }
+    const b = { x: c.x + q.x, y: c.y + q.y }
+    const away = toPlane(DIRECTIONS[d])
+    const length = Math.hypot(away.x, away.y)
+    const dx = (away.x / length) * FACE_DEPTH
+    const dy = (away.y / length) * FACE_DEPTH
+    const face = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
+    return [{ key: `${c.key}:${d}`, a, b, face, height: c.elevation - low }]
+  }))
 }
 
 function elevationLabel(elevation: number): string {

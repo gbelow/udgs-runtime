@@ -138,6 +138,7 @@ export function BoardPanel(){
         </defs>
         <SurfaceLayer view={view} />
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
+        <RidgeLayer view={view} />
         <ShadeLayer view={view} />
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
@@ -168,6 +169,21 @@ const RIDGE_TINT = 0.3
 const RIDGE_SOFT = 0.3
 const LIP = 0.3
 const LIP_OPACITY = 0.5
+
+// The drop of every cliff: a shaded strip over the lower ground and a dark
+// line along the ridge, which the view places on the higher cell's side.
+export function RidgeLayer({ view }: { view: BoardView }){
+  return (
+    <g className='pointer-events-none'>
+      {view.ridges.map((r) => (
+        <g key={r.key}>
+          <polygon points={r.face} className='fill-fg/30 stroke-none' />
+          <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />
+        </g>
+      ))}
+    </g>
+  )
+}
 
 export function SurfaceLayer({ view }: { view: BoardView }){
   const { frame, hex } = view
