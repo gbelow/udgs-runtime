@@ -191,14 +191,15 @@ function roundCube(q: number, r: number): Coord {
 // ---------------------------------------------------------------------------
 // Angles
 
-// Axial to the plane, pointy-top hexes of unit spacing.
+// Axial to the plane, flat-top hexes of unit circumradius (their centres
+// are the square root of three apart).
 export function toPlane(c: Coord): { x: number; y: number } {
-  return { x: Math.sqrt(3) * (c.q + c.r / 2), y: 1.5 * c.r }
+  return { x: 1.5 * c.q, y: Math.sqrt(3) * (c.r + c.q / 2) }
 }
 
 // The corners of a unit hex about its centre, as SVG polygon points.
 export const HEX_POINTS = Array.from({ length: 6 }, (_, i) => {
-  const angle = (Math.PI / 180) * (60 * i - 30)
+  const angle = (Math.PI / 180) * 60 * i
   return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
 }).join(' ')
 
@@ -206,7 +207,7 @@ export const HEX_POINTS = Array.from({ length: 6 }, (_, i) => {
 // neighbour in `direction`.
 export function hexSide(direction: Direction): [{ x: number; y: number }, { x: number; y: number }] {
   const corner = (k: number) => {
-    const angle = (Math.PI / 180) * (60 * (((k % 6) + 6) % 6) - 30)
+    const angle = (Math.PI / 180) * 60 * (((k % 6) + 6) % 6)
     return { x: Math.cos(angle), y: Math.sin(angle) }
   }
   return [corner(-direction), corner(1 - direction)]

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput } from '../ui'
-import { BRUSH_LABEL, Cell, GroundGenerator, ShadeLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, Cell, GroundGenerator, RidgeLayer, ShadeLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardMapEditor } from '../../hooks/useBoardMaps'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../../domain/lists'
@@ -63,6 +63,7 @@ export function BoardMapsEditor() {
           onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen, radius); else if (brush) paint(cell, brush) }}>
           <SurfaceLayer view={view} />
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
+          <RidgeLayer view={view} />
           <ShadeLayer view={view} />
         </svg>
       </div>

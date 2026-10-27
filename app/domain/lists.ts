@@ -53,6 +53,7 @@ export const ABILITY_SECTIONS = [
   'Athletics',
   'Ranged Combat',
   'Melee Combat',
+  'Cunning',
   'Adaptation',
   'Domination',
   'Stoicism',
@@ -72,7 +73,6 @@ export const ABILITY_SECTIONS = [
   'Navigation',
   'Survival',
   'Animal Handling',
-  'Cunning',
   'General',
   'Alchemy',
   'Animancy',
@@ -222,6 +222,13 @@ export const GRAPPLING_EFFECTS = ['suffocate', 'broken hand', 'broken leg'] as c
 
 // The widest a brush that lays ground reaches, in steps around the cell clicked.
 export const BRUSH_RADIUS_MOST = 6
+
+// How far a metre of height lifts the ground up the screen when the board is seen
+// from the front, in board units: what it starts at, and the least and most
+// the table may ask for.
+export const LIFT_PER_METRE = 0.3
+export const LIFT_LEAST = 0
+export const LIFT_MOST = 1
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.

@@ -2,6 +2,8 @@ import type { BoardExtent, Coord, GroundRecipe, LightLevel } from "../domain/sce
 import { EXPLOSION_DRAFT, EXPLOSION_EFFECTS, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_KINDS, type ExplosionDraft } from "../domain/scene/rules/impose";
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
+import { getFrontView } from "../domain/scene/projections/frontView";
+import type { BoardLook } from "./useBoardLook";
 import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
@@ -18,9 +20,10 @@ import { useState } from "react";
 // screen has picked.
 const NONE: string[] = [];
 
-export function useBoard(fromActive = false) {
+export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "lift"> = { front: false, lift: 0 }) {
   useCombatStore(fromActive ? getBoardViewFromDigest : getBoardViewDigest);
-  const view: BoardView = (fromActive ? getBoardViewFrom : getBoardView)(useCombatStore.getState());
+  const flat: BoardView = (fromActive ? getBoardViewFrom : getBoardView)(useCombatStore.getState());
+  const view = look.front ? getFrontView(flat, look.lift) : flat;
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
 

@@ -8,7 +8,8 @@ import { useZoomPan } from '../hooks/useZoomPan'
 import type { BoardExtent, Coord, GroundRecipe } from '../domain/scene/types'
 import type { BoardView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
-import { BRUSH_RADIUS_MOST, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
+import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
+import { useBoardLook } from '../hooks/useBoardLook'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
@@ -52,7 +53,8 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // only translates it into shapes.
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
-  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning } = useBoard(fromActive)
+  const look = useBoardLook()
+  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning } = useBoard(fromActive, look)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
@@ -88,6 +90,8 @@ export function BoardPanel(){
       className='h-full'
       actions={<>
         <ZoomButtons zoomPan={zoomPan} />
+        <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
+        {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
         <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
         {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setFloorTool(null) }}>GM board tools</Button> : null}
         <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
@@ -137,10 +141,14 @@ export function BoardPanel(){
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
           </marker>
         </defs>
-        <SurfaceLayer view={view} />
-        {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
-        <RidgeLayer view={view} />
-        <ShadeLayer view={view} />
+        {Array.from({ length: view.bands }, (_, band) => (
+          <Fragment key={band}>
+            <SurfaceLayer view={view} band={band} />
+            {view.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
+            <RidgeLayer view={view} band={band} />
+            <ShadeLayer view={view} band={band} />
+          </Fragment>
+        ))}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
@@ -182,17 +190,19 @@ const LIP_OPACITY = 0.5
 // places on the higher cell's side.
 const FACE_SHADE = 0.45
 
-export function RidgeLayer({ view }: { view: BoardView }){
+export function RidgeLayer({ view: whole, band }: { view: BoardView, band?: number }){
+  const idPrefix = band === undefined ? '' : `b${band}-`
+  const view = band === undefined ? whole : { ...whole, ridges: whole.ridges.filter((r) => r.band === band) }
   return (
     <g className='pointer-events-none'>
       <defs>
         {view.faces.map((face, i) => (
-          <pattern key={i} id={`face-${i}`} patternUnits='userSpaceOnUse' width={face.tile} height={face.tile} patternTransform={`translate(${face.offsetX} ${face.offsetY})`}>
+          <pattern key={i} id={`${idPrefix}face-${i}`} patternUnits='userSpaceOnUse' width={face.tile} height={face.tile} patternTransform={`translate(${face.offsetX} ${face.offsetY})`}>
             <image href={face.src} width={face.tile} height={face.tile} />
           </pattern>
         ))}
         {view.ridges.map((r) => (
-          <linearGradient key={r.key} id={`face-shade-${r.key}`} gradientUnits='userSpaceOnUse' x1={(r.a.x + r.b.x) / 2} y1={(r.a.y + r.b.y) / 2} x2={r.foot.x} y2={r.foot.y}>
+          <linearGradient key={r.key} id={`${idPrefix}face-shade-${r.key}`} gradientUnits='userSpaceOnUse' x1={(r.a.x + r.b.x) / 2} y1={(r.a.y + r.b.y) / 2} x2={r.foot.x} y2={r.foot.y}>
             <stop offset='0' stopColor='black' stopOpacity={0} />
             <stop offset='1' stopColor='black' stopOpacity={FACE_SHADE} />
           </linearGradient>
@@ -200,8 +210,8 @@ export function RidgeLayer({ view }: { view: BoardView }){
       </defs>
       {view.ridges.map((r) => (
         <g key={r.key}>
-          {r.art === null ? <polygon points={r.face} className='fill-fg/30 stroke-none' /> : <polygon points={r.face} fill={`url(#face-${r.art})`} className='stroke-none' />}
-          <polygon points={r.face} fill={`url(#face-shade-${r.key})`} className='stroke-none' />
+          {r.art === null ? <polygon points={r.face} className='fill-fg/30 stroke-none' /> : <polygon points={r.face} fill={`url(#${idPrefix}face-${r.art})`} className='stroke-none' />}
+          <polygon points={r.face} fill={`url(#${idPrefix}face-shade-${r.key})`} className='stroke-none' />
           <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />
         </g>
       ))}
@@ -209,9 +219,12 @@ export function RidgeLayer({ view }: { view: BoardView }){
   )
 }
 
-export function SurfaceLayer({ view }: { view: BoardView }){
+export function SurfaceLayer({ view: whole, band }: { view: BoardView, band?: number }){
+  const idPrefix = band === undefined ? '' : `b${band}-`
+  const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
   const { frame, hex } = view
   const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
+  const used = new Set(view.cells.map((c) => c.art))
   const taking = view.cells.filter((c) => c.bledInto < 1)
   const shut = taking.filter((c) => c.bledInto === 0)
   const depths = [...new Set(taking.map((c) => c.bledInto))].filter((b) => b > 0)
@@ -224,30 +237,30 @@ export function SurfaceLayer({ view }: { view: BoardView }){
   // hex lets in, shown only over the hexes of that depth. The cut is made
   // after the roughening so that it stays a hex edge.
   const body = (art: BoardView['arts'][number], i: number) => {
-    const rough = art.bleed > 0 ? `url(#surface-rough-${i})` : undefined
+    const rough = art.bleed > 0 ? `url(#${idPrefix}surface-rough-${i})` : undefined
     const limited = art.bleed > 0 && takesFrom(i)
     return (<>
-      <g mask={limited ? `url(#surface-take-${i})` : undefined}>
+      <g mask={limited ? `url(#${idPrefix}surface-take-${i})` : undefined}>
         <g filter={rough}>{ownHexes(i, Math.max(art.bleed * 2, SEAM))}</g>
       </g>
       {limited ? depths.map((b, d) => (
-        <g key={b} clipPath={`url(#surface-receiving-${d})`}>
+        <g key={b} clipPath={`url(#${idPrefix}surface-receiving-${d})`}>
           <g filter={rough}>{ownHexes(i, art.bleed * b * 2)}</g>
         </g>
       )) : null}
     </>)
   }
-  const unbanked = shut.length > 0 ? 'url(#surface-shut)' : undefined
+  const unbanked = shut.length > 0 ? `url(#${idPrefix}surface-shut)` : undefined
   return (
     <g className='pointer-events-none'>
       <defs>
-        {view.arts.map((art, i) => (
-          <pattern key={i} id={`surface-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile} patternTransform={`translate(${art.offsetX} ${art.offsetY})`}>
+        {view.arts.map((art, i) => !used.has(i) ? null : (
+          <pattern key={i} id={`${idPrefix}surface-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile} patternTransform={`translate(${art.offsetX} ${art.offsetY})`}>
             <image href={art.src} width={art.tile} height={art.tile} />
           </pattern>
         ))}
-        {view.arts.map((art, i) => art.bleed <= 0 ? null : (
-          <filter key={i} id={`surface-rough-${i}`} filterUnits='userSpaceOnUse' {...region}>
+        {view.arts.map((art, i) => !used.has(i) || art.bleed <= 0 ? null : (
+          <filter key={i} id={`${idPrefix}surface-rough-${i}`} filterUnits='userSpaceOnUse' {...region}>
             {art.roughness > 0 ? (<>
               <feTurbulence type='fractalNoise' baseFrequency={ROUGH_FREQUENCY} numOctaves={1} seed={ROUGH_SEED} result='noise' />
               <feDisplacementMap in='SourceGraphic' in2='noise' scale={ROUGHNESS * art.roughness} xChannelSelector='R' yChannelSelector='G' result='displaced' />
@@ -255,57 +268,57 @@ export function SurfaceLayer({ view }: { view: BoardView }){
             </>) : <feGaussianBlur in='SourceGraphic' stdDeviation={FEATHER} />}
           </filter>
         ))}
-        {view.arts.map((_, i) => !takesFrom(i) ? null : (
-          <mask key={i} id={`surface-take-${i}`} maskUnits='userSpaceOnUse' {...region}>
+        {view.arts.map((_, i) => !used.has(i) || !takesFrom(i) ? null : (
+          <mask key={i} id={`${idPrefix}surface-take-${i}`} maskUnits='userSpaceOnUse' {...region}>
             <rect {...region} fill='white' />
             {taking.filter((c) => c.art !== i).map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='black' />)}
           </mask>
         ))}
         {depths.map((b, d) => (
-          <clipPath key={b} id={`surface-receiving-${d}`}>
+          <clipPath key={b} id={`${idPrefix}surface-receiving-${d}`}>
             {taking.filter((c) => c.bledInto === b).map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y}) scale(${RECEIVING_GROW})`} />)}
           </clipPath>
         ))}
         {shut.length > 0 ? (
-          <mask id='surface-shut' maskUnits='userSpaceOnUse' {...region}>
+          <mask id={`${idPrefix}surface-shut`} maskUnits='userSpaceOnUse' {...region}>
             <rect {...region} fill='white' />
             {shut.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='black' />)}
           </mask>
         ) : null}
-        {view.arts.map((art, i) => (
-          <mask key={i} id={`surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>{body(art, i)}</mask>
+        {view.arts.map((art, i) => !used.has(i) ? null : (
+          <mask key={i} id={`${idPrefix}surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>{body(art, i)}</mask>
         ))}
-        <clipPath id='surface-board'>
+        <clipPath id={`${idPrefix}surface-board`}>
           {view.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} />)}
         </clipPath>
-        {view.arts.map((art, i) => art.bank <= 0 ? null : (<Fragment key={i}>
-          <filter id={`surface-bank-${i}`} filterUnits='userSpaceOnUse' {...region}>
+        {view.arts.map((art, i) => !used.has(i) || art.bank <= 0 ? null : (<Fragment key={i}>
+          <filter id={`${idPrefix}surface-bank-${i}`} filterUnits='userSpaceOnUse' {...region}>
             <feMorphology in='SourceAlpha' operator='dilate' radius={art.bank} result='fat' />
             <feComposite in='fat' in2='SourceAlpha' operator='out' result='ring' />
             <feGaussianBlur in='ring' stdDeviation={art.bank * BANK_SOFT} result='soft' />
             <feFlood floodColor='white' />
             <feComposite in2='soft' operator='in' />
           </filter>
-          <filter id={`surface-lip-${i}`} filterUnits='userSpaceOnUse' {...region}>
+          <filter id={`${idPrefix}surface-lip-${i}`} filterUnits='userSpaceOnUse' {...region}>
             <feMorphology in='SourceAlpha' operator='dilate' radius={art.bank * LIP} result='fat' />
             <feComposite in='fat' in2='SourceAlpha' operator='out' result='ring' />
             <feFlood floodColor='white' />
             <feComposite in2='ring' operator='in' />
           </filter>
-          <mask id={`surface-bank-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
-            <g mask={unbanked}><g filter={`url(#surface-bank-${i})`}>{body(art, i)}</g></g>
+          <mask id={`${idPrefix}surface-bank-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
+            <g mask={unbanked}><g filter={`url(#${idPrefix}surface-bank-${i})`}>{body(art, i)}</g></g>
           </mask>
-          <mask id={`surface-lip-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
-            <g mask={unbanked}><g filter={`url(#surface-lip-${i})`}>{body(art, i)}</g></g>
+          <mask id={`${idPrefix}surface-lip-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
+            <g mask={unbanked}><g filter={`url(#${idPrefix}surface-lip-${i})`}>{body(art, i)}</g></g>
           </mask>
         </Fragment>))}
       </defs>
-      <g clipPath='url(#surface-board)'>
-        {view.arts.map((art, i) => (<Fragment key={i}>
-          <rect {...region} fill={`url(#surface-${i})`} mask={`url(#surface-mask-${i})`} />
+      <g clipPath={`url(#${idPrefix}surface-board)`}>
+        {view.arts.map((art, i) => !used.has(i) ? null : (<Fragment key={i}>
+          <rect {...region} fill={`url(#${idPrefix}surface-${i})`} mask={`url(#${idPrefix}surface-mask-${i})`} />
           {art.bank > 0 ? (<>
-            <rect {...region} fill='black' opacity={BANK_TINT} mask={`url(#surface-bank-mask-${i})`} />
-            <rect {...region} fill='white' opacity={LIP_OPACITY} mask={`url(#surface-lip-mask-${i})`} />
+            <rect {...region} fill='black' opacity={BANK_TINT} mask={`url(#${idPrefix}surface-bank-mask-${i})`} />
+            <rect {...region} fill='white' opacity={LIP_OPACITY} mask={`url(#${idPrefix}surface-lip-mask-${i})`} />
           </>) : null}
         </Fragment>))}
       </g>
@@ -341,7 +354,9 @@ function levelsOf(cells: BoardCellView[], levelOf: (c: BoardCellView) => number)
   return [...levels.entries()].sort(([a], [b]) => a - b).map(([level, at]) => ({ level, cells: at }))
 }
 
-export function ShadeLayer({ view }: { view: BoardView }){
+export function ShadeLayer({ view: whole, band }: { view: BoardView, band?: number }){
+  const idPrefix = band === undefined ? '' : `b${band}-`
+  const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
   const { frame, hex } = view
   const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
   const veils = [
@@ -351,14 +366,14 @@ export function ShadeLayer({ view }: { view: BoardView }){
   ].filter((v) => v.levels.length > 0)
   if (veils.length === 0) return null
   return (
-    <g className='pointer-events-none' clipPath='url(#surface-board)'>
+    <g className='pointer-events-none' clipPath={`url(#${idPrefix}surface-board)`}>
       <defs>
-        <filter id='shade-soft' filterUnits='userSpaceOnUse' {...region}>
+        <filter id={`${idPrefix}shade-soft`} filterUnits='userSpaceOnUse' {...region}>
           <feGaussianBlur stdDeviation={SHADE_BLUR} />
         </filter>
         {veils.map((v) => (
-          <mask key={v.id} id={`shade-${v.id}`} maskUnits='userSpaceOnUse' {...region}>
-            <g filter='url(#shade-soft)'>
+          <mask key={v.id} id={`${idPrefix}shade-${v.id}`} maskUnits='userSpaceOnUse' {...region}>
+            <g filter={`url(#${idPrefix}shade-soft)`}>
               {v.levels.map(({ level, cells }) => (
                 <g key={level} opacity={level}>
                   {cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={2 * SHADE_BLEED} strokeLinejoin='round' />)}
@@ -368,7 +383,7 @@ export function ShadeLayer({ view }: { view: BoardView }){
           </mask>
         ))}
       </defs>
-      {veils.map((v) => <rect key={v.id} {...region} fill={v.fill} opacity={v.opacity} mask={`url(#shade-${v.id})`} />)}
+      {veils.map((v) => <rect key={v.id} {...region} fill={v.fill} opacity={v.opacity} mask={`url(#${idPrefix}shade-${v.id})`} />)}
     </g>
   )
 }
@@ -592,12 +607,13 @@ function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: st
   const [broken, setBroken] = useState(false)
   const clip = `token-clip-${token.id}`
   return (
-    <g className='cursor-pointer' onClick={onClick}>
-      <title>{`${token.name}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
+    <g className='cursor-pointer' onClick={onClick} opacity={token.hidden ? 0.6 : 1}>
+      <title>{`${token.name}${token.hidden ? ' · behind higher ground' : ''}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
       {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
+      {token.shadow ? <ellipse cx={token.shadow.x} cy={token.shadow.y + 0.5} rx={0.55} ry={0.2} className='fill-fg/30 pointer-events-none' /> : null}
       <g transform={`translate(${token.x} ${token.y})`}>
         {token.awaited ? <circle r={0.82} className='fill-none stroke-accent animate-pulse pointer-events-none' strokeWidth={0.08} strokeDasharray='0.25 0.15' /> : null}
-        <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
+        <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable || token.hidden ? '0.2 0.12' : undefined} />
         {token.image && !broken ? (
           <>
             <clipPath id={clip}><circle r={0.62} /></clipPath>

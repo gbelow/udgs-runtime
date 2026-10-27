@@ -31,7 +31,7 @@ import { isOffGrid } from '../rules/parked'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
-// it covers, and the plane coordinates of all of it — pointy-top hexes of
+// it covers, and the plane coordinates of all of it — flat-top hexes of
 // unit spacing, so the panel only has to translate and scale.
 
 export type CellTerrain = 'open' | 'wall' | 'glass' | 'water' | 'rough'
@@ -41,6 +41,9 @@ export type BoardCellView = {
   cell: Coord
   x: number
   y: number
+  // the order the board is drawn in, back to front: a cell is drawn over every
+  // cell of a lower band (all in band 0 where the board is seen from above)
+  band: number
   terrain: CellTerrain
   // combat.tex "Damage absorption": how sturdy the wall or cover in the cell
   // is, its RES or unbreakable; null for ground with neither
@@ -107,6 +110,11 @@ export type BoardTokenView = {
   y: number
   cells: { key: string; x: number; y: number }[]
   elevation: number
+  // where the token's shadow falls, on the ground under it, when the board is
+  // seen from the front; null from above
+  shadow: { x: number; y: number } | null
+  // seen from the front, something drawn over the token's place hides it
+  hidden: boolean
   // metres below the water's surface, 0 for one who breathes
   depth: number
   orientation: number
@@ -129,6 +137,8 @@ export type BoardTokenView = {
 export type BoardFloorItemView = {
   itemId: string
   name: string
+  // the key of the cell it lies on
+  cell: string
   x: number
   y: number
   pickable: boolean
@@ -144,6 +154,8 @@ export type BoardFloorItemView = {
 export type BoardBindView = {
   key: string
   kind: Bind['kind']
+  // the two characters it binds, whose tokens its ends are at
+  ids: [string, string]
   from: { x: number; y: number }
   to: { x: number; y: number }
   forward: boolean
@@ -157,6 +169,11 @@ export type BoardBindView = {
 // the board's `faces`, and `height` the metres it drops.
 export type BoardRidgeView = {
   key: string
+  // the cell on the higher side and the side of it that drops, a direction
+  cell: string
+  side: number
+  // the band of the cell, which the ridge is drawn with
+  band: number
   a: { x: number; y: number }
   b: { x: number; y: number }
   foot: { x: number; y: number }
@@ -197,6 +214,10 @@ export type BoardView = {
   ridges: BoardRidgeView[]
   // the pictures the cliffs are drawn with, which a ridge's `art` indexes
   faces: SurfaceArt[]
+  // how many bands the cells are drawn in, and whether they are seen from the
+  // front, the raised ones lifted up the screen
+  bands: number
+  front: boolean
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
   binds: BoardBindView[]
@@ -222,7 +243,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], faces: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], faces: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -311,6 +332,7 @@ function buildBoardView(state: SeenScene): BoardView {
       cell,
       x,
       y,
+      band: 0,
       terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
       strength: terrain?.blocking ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
       elevation: terrain?.elevation ?? 0,
@@ -366,6 +388,8 @@ function buildBoardView(state: SeenScene): BoardView {
       y: anchor.y,
       cells: footprint,
       elevation: placement.elevation,
+      shadow: null,
+      hidden: false,
       depth: getDepth(state, id),
       orientation: placement.orientation,
       isActive: id === state.activeCharacterId,
@@ -387,7 +411,7 @@ function buildBoardView(state: SeenScene): BoardView {
     const stack = stacks.get(key) ?? 0
     stacks.set(key, stack + 1)
     const { x, y } = toPlane(f.cell)
-    return [{ itemId: f.item.id, name: f.item.name, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id), targetable: struck.has(f.item.id) }]
+    return [{ itemId: f.item.id, name: f.item.name, cell: key, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id), targetable: struck.has(f.item.id) }]
   })
 
   const binds: BoardBindView[] = state.binds.flatMap((g) => {
@@ -396,7 +420,7 @@ function buildBoardView(state: SeenScene): BoardView {
     const pb = board.placements[b]
     if (!pa || !pb) return []
     const title = g.members.flatMap((id) => (holds(g, id) ? [`${getFightName(state, id)} ${getBindVerb(g)} ${getFightName(state, getPartner(g, id))}`] : [])).join(' · ')
-    return [{ key: `${g.kind}:${a}~${b}`, kind: g.kind, ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), title }]
+    return [{ key: `${g.kind}:${a}~${b}`, kind: g.kind, ids: [a, b] as [string, string], ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), title }]
   })
 
   const mover = move ? board.placements[move.actorId] : undefined
@@ -412,6 +436,8 @@ function buildBoardView(state: SeenScene): BoardView {
     hex: HEX_POINTS,
     cells,
     ...getRidges(board, cells),
+    bands: 1,
+    front: false,
     tokens,
     floor,
     binds,
@@ -520,7 +546,7 @@ function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeVi
     const [dx, dy] = [away.x * depth, away.y * depth]
     const face = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
     const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
-    return [{ key: `${c.key}:${d}`, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), height }]
+    return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), height }]
   }))
   return { ridges, faces }
 }
