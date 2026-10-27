@@ -1290,7 +1290,7 @@ export const PlantActionSchema = z.object({
 }).strip()
 
 // combat.tex "Rest": "an action that costs 4 AP and recovers STA by an
-// amount equal to STA/4".
+// amount equal to STA/3".
 export const RestActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('rest'),

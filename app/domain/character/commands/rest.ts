@@ -3,7 +3,7 @@ import { CampaignCharacter } from "../../types"
 import type { ActionCost } from "../rules/actionCosts"
 import { payCost } from "./cost"
 
-// combat.tex "Rest": "recovers STA by an amount equal to STA/4". The rest's
+// combat.tex "Rest": "recovers STA by an amount equal to STA/3". The rest's
 // AP is its action's price, paid when it is taken; the careful movement it
 // allows is a move of its own, made while resting (scene/rules/rest.ts).
 // It recovers up to the character's STA, and takes nothing from one already
