@@ -23,7 +23,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
-import { getCellArt, getSurfaceChoices, type CellArt } from '../rules/board/surface'
+import { getCellArt, getCellBledInto, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -61,6 +61,8 @@ export type BoardCellView = {
   surface: string | null
   // the picture it is drawn with: its place in the board's `arts`, null for none
   art: number | null
+  // how much of a neighbouring picture's spreading the cell lets in, 0 to 1
+  bledInto: number
   // combat.tex "Darkness and light": the light on the cell, and whether it
   // is a light source that makes it bright
   light: LightLevel
@@ -205,6 +207,16 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
+const compareArts = (a: CellArt, b: CellArt): number =>
+  a.priority - b.priority
+  || (a.src < b.src ? -1 : a.src > b.src ? 1 : 0)
+  || a.tile - b.tile
+  || a.offsetX - b.offsetX
+  || a.offsetY - b.offsetY
+  || a.bleed - b.bleed
+  || a.roughness - b.roughness
+  || a.bank - b.bank
+
 const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
@@ -276,7 +288,7 @@ function buildBoardView(state: SeenScene): BoardView {
   const found: CellArt[] = []
   const artIndex = (art: CellArt | null): number | null => {
     if (!art) return null
-    const at = found.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.ridge === art.ridge && a.priority === art.priority)
+    const at = found.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.roughness === art.roughness && a.bank === art.bank && a.priority === art.priority)
     if (at >= 0) return at
     found.push(art)
     return found.length - 1
@@ -305,6 +317,7 @@ function buildBoardView(state: SeenScene): BoardView {
       noise: terrain?.noise ?? 0,
       surface: terrain?.surface ?? board.surface,
       art: artIndex(getCellArt(board, key)),
+      bledInto: getCellBledInto(board, key),
       light,
       lit: light === 'bright' && (board.light !== 'bright' || !!terrain?.dark),
       unseen: false,
@@ -324,9 +337,10 @@ function buildBoardView(state: SeenScene): BoardView {
     }
   })
 
-  // lowest priority first, ties in the order they were met, so that a
-  // higher one is drawn over a lower
-  const drawing = found.map((_, i) => i).sort((a, b) => found[a].priority - found[b].priority || a - b)
+  // lowest priority first, so that a higher one is drawn over a lower; ties
+  // by the pictures themselves, so that which of two is drawn over the other
+  // never depends on which cell happened to be met first
+  const drawing = found.map((_, i) => i).sort((a, b) => compareArts(found[a], found[b]))
   const arts = drawing.map((i) => found[i])
   const place = new Map(drawing.map((from, to) => [from, to]))
   const cells: BoardCellView[] = unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null }))

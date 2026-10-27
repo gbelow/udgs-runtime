@@ -5,7 +5,8 @@ import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem } from '../../item/commands/hands'
 import { pickThrowItem } from '../commands/floor'
 import { laySurface } from '../commands/board'
-import { getSurfaceNames } from '../rules/board/surface'
+import { extentCells } from '../rules/board/geometry'
+import { getSurfaceChoices, getSurfaceNames } from '../rules/board/surface'
 import { getBoardView } from './boardView'
 
 // A throw was declared with the board locked, so where it lands could never
@@ -37,5 +38,21 @@ describe('the pictures of a board', () => {
       if (cell.art !== null) expect(view.arts[cell.art]).toBeDefined()
     }
     expect(view.cells.filter((c) => c.art !== null).length).toBe(names.length)
+  })
+
+  // Pictures of equal priority were drawn in the order their first cell was
+  // met, so editing one cell could flip which of two covered the other along
+  // their whole border.
+  it('are drawn in an order that does not depend on where the cells that use them lie', () => {
+    const choices = getSurfaceChoices().flatMap(({ name, arts }) => arts.map((src) => ({ name, src })))
+    const cells = extentCells({ q: 0, r: 0 }, { q: 6, r: 6, s: 6 }).slice(0, choices.length)
+    const drawn = (at: typeof cells) => {
+      let s: SceneState = SceneStateSchema.parse({ board: {} })
+      choices.forEach(({ name, src }, i) => { s = laySurface(at[i], name, 0, src)(s) })
+      return getBoardView({ ...s, activeCharacterId: null }).arts.map((a) => a.src)
+    }
+    const forward = drawn(cells)
+    const backward = drawn([...cells].reverse())
+    expect(backward).toEqual(forward)
   })
 })

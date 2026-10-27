@@ -34,8 +34,14 @@ export function getSurfaceChoices(): { name: string; arts: string[] }[] {
   return getSurfaceNames().map((name) => ({ name, arts: SURFACES[name].arts.map((a) => a.src) }))
 }
 
+// How much of a neighbour's spreading the ground of a cell lets in: all of it
+// for ground with no surface.
+export function getCellBledInto(board: Board, key: string): number {
+  return getCellSurface(board, key)?.bledInto ?? 1
+}
+
 // A picture with how its surface meets the next one.
-export type CellArt = SurfaceArt & { bleed: number; ridge: number; priority: number }
+export type CellArt = SurfaceArt & { bleed: number; roughness: number; bank: number; priority: number }
 
 // The picture a cell is drawn with: the one it was laid with while its surface
 // still lists it, else the surface's first. A cell that names no surface is
@@ -45,5 +51,5 @@ export function getCellArt(board: Board, key: string): CellArt | null {
   if (!surface) return null
   const laid = board.terrain[key]?.surface ? board.terrain[key]?.art : null
   const art = surface.arts.find((a) => a.src === laid) ?? surface.arts[0]
-  return art ? { ...art, bleed: surface.bleed, ridge: surface.ridge, priority: surface.priority } : null
+  return art ? { ...art, bleed: surface.bleed, roughness: surface.roughness, bank: surface.bank, priority: surface.priority } : null
 }
