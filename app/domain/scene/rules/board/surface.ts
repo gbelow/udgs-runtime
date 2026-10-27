@@ -35,7 +35,7 @@ export function getSurfaceChoices(): { name: string; arts: string[] }[] {
 }
 
 // A picture with how its surface meets the next one.
-export type CellArt = SurfaceArt & { bleed: number; priority: number }
+export type CellArt = SurfaceArt & { bleed: number; ridge: number; priority: number }
 
 // The picture a cell is drawn with: the one it was laid with while its surface
 // still lists it, else the surface's first. A cell that names no surface is
@@ -45,5 +45,5 @@ export function getCellArt(board: Board, key: string): CellArt | null {
   if (!surface) return null
   const laid = board.terrain[key]?.surface ? board.terrain[key]?.art : null
   const art = surface.arts.find((a) => a.src === laid) ?? surface.arts[0]
-  return art ? { ...art, bleed: surface.bleed, priority: surface.priority } : null
+  return art ? { ...art, bleed: surface.bleed, ridge: surface.ridge, priority: surface.priority } : null
 }

@@ -526,7 +526,8 @@
     "liquid": true,
     "visibility": "good",
     "randomize": true,
-    "bleed": 0.5,
+    "bleed": 0.2,
+    "ridge": 0.08,
     "priority": 1,
     "arts": [
       {
@@ -564,7 +565,8 @@
     "liquid": true,
     "visibility": "good",
     "randomize": true,
-    "bleed": 0.5,
+    "bleed": 0.2,
+    "ridge": 0.08,
     "priority": 1,
     "arts": [
       {
@@ -584,7 +586,8 @@
     "liquid": true,
     "visibility": "good",
     "randomize": true,
-    "bleed": 0.5,
+    "bleed": 0.2,
+    "ridge": 0.08,
     "priority": 1,
     "arts": [
       {
@@ -604,7 +607,8 @@
     "liquid": true,
     "visibility": "good",
     "randomize": true,
-    "bleed": 0.5,
+    "bleed": 0.2,
+    "ridge": 0.08,
     "priority": 1,
     "arts": [
       {

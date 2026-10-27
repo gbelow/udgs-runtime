@@ -263,7 +263,7 @@ function buildBoardView(state: SeenScene): BoardView {
   const found: CellArt[] = []
   const artIndex = (art: CellArt | null): number | null => {
     if (!art) return null
-    const at = found.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.priority === art.priority)
+    const at = found.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.ridge === art.ridge && a.priority === art.priority)
     if (at >= 0) return at
     found.push(art)
     return found.length - 1

@@ -228,11 +228,14 @@ export type SurfaceArt = z.infer<typeof SurfaceArtSchema>
 // first. Where it meets another surface, it spreads `bleed` board units into the
 // other's hexes with a soft ragged edge (none keeps the hex edge: a road, a
 // bridge), and the one with the higher `priority` is drawn over the other.
+// `ridge` is the width of the wet band drawn on the ground just outside its
+// edge, none for 0: the bank of a lake.
 // Structure (walls, elevation) is not part of it; water is, as `liquid`.
 export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true, noise: true, soft: true, liquid: true, visibility: true }).extend({
   name: str.default(''),
   randomize: z.boolean().default(true),
   bleed: num.min(0).default(0.5),
+  ridge: num.min(0).default(0),
   priority: num.default(0),
   arts: z.array(SurfaceArtSchema).default([]),
 }).strip()

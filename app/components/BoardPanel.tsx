@@ -1,5 +1,5 @@
 'use client'
-import { memo, useState, type MouseEvent } from 'react'
+import { Fragment, memo, useState, type MouseEvent } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useRole } from '../hooks/useRole'
@@ -154,17 +154,31 @@ export function BoardPanel(){
 // a mask of the hexes laid with it, grown outwards and roughened with noise:
 // where two pictures meet, the one drawn later pushes a ragged edge into the
 // other's hexes instead of cutting along the hex edge. How far a surface
-// spreads (none keeps the hex edge) and which is drawn over which are the
-// surface's own.
+// spreads (none keeps the hex edge), which is drawn over which and the width of
+// the ridge along its edge are the surface's own. A ridge is a wet band on the
+// ground just outside the edge, tinted over whatever lies there and edged with
+// a pale line, drawn right after its picture so that a surface drawn over it
+// covers it.
 const ROUGHNESS = 0.8
 const ROUGH_FREQUENCY = 0.3
 const FEATHER = 0.1
 const ROUGH_SEED = 7
 const ROUGH_MARGIN = 2
+const RIDGE_TINT = 0.3
+const RIDGE_SOFT = 0.3
+const LIP = 0.3
+const LIP_OPACITY = 0.5
 
 export function SurfaceLayer({ view }: { view: BoardView }){
   const { frame, hex } = view
   const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
+  const body = (art: BoardView['arts'][number], i: number) => (
+    <g filter={art.bleed > 0 ? 'url(#surface-rough)' : undefined}>
+      {view.cells.filter((c) => c.art === i).map((c) => (
+        <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke={art.bleed > 0 ? 'white' : 'none'} strokeWidth={art.bleed * 2} strokeLinejoin='round' />
+      ))}
+    </g>
+  )
   return (
     <g className='pointer-events-none'>
       <defs>
@@ -179,20 +193,41 @@ export function SurfaceLayer({ view }: { view: BoardView }){
           <feGaussianBlur in='displaced' stdDeviation={FEATHER} />
         </filter>
         {view.arts.map((art, i) => (
-          <mask key={i} id={`surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
-            <g filter={art.bleed > 0 ? 'url(#surface-rough)' : undefined}>
-              {view.cells.filter((c) => c.art === i).map((c) => (
-                <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke={art.bleed > 0 ? 'white' : 'none'} strokeWidth={art.bleed * 2} strokeLinejoin='round' />
-              ))}
-            </g>
-          </mask>
+          <mask key={i} id={`surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>{body(art, i)}</mask>
         ))}
         <clipPath id='surface-board'>
           {view.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} />)}
         </clipPath>
+        {view.arts.map((art, i) => art.ridge <= 0 ? null : (<Fragment key={i}>
+          <filter id={`surface-ridge-${i}`} filterUnits='userSpaceOnUse' {...region}>
+            <feMorphology in='SourceAlpha' operator='dilate' radius={art.ridge} result='fat' />
+            <feComposite in='fat' in2='SourceAlpha' operator='out' result='ring' />
+            <feGaussianBlur in='ring' stdDeviation={art.ridge * RIDGE_SOFT} result='soft' />
+            <feFlood floodColor='white' />
+            <feComposite in2='soft' operator='in' />
+          </filter>
+          <filter id={`surface-lip-${i}`} filterUnits='userSpaceOnUse' {...region}>
+            <feMorphology in='SourceAlpha' operator='dilate' radius={art.ridge * LIP} result='fat' />
+            <feComposite in='fat' in2='SourceAlpha' operator='out' result='ring' />
+            <feFlood floodColor='white' />
+            <feComposite in2='ring' operator='in' />
+          </filter>
+          <mask id={`surface-ridge-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
+            <g filter={`url(#surface-ridge-${i})`}>{body(art, i)}</g>
+          </mask>
+          <mask id={`surface-lip-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
+            <g filter={`url(#surface-lip-${i})`}>{body(art, i)}</g>
+          </mask>
+        </Fragment>))}
       </defs>
       <g clipPath='url(#surface-board)'>
-        {view.arts.map((_, i) => <rect key={i} {...region} fill={`url(#surface-${i})`} mask={`url(#surface-mask-${i})`} />)}
+        {view.arts.map((art, i) => (<Fragment key={i}>
+          <rect {...region} fill={`url(#surface-${i})`} mask={`url(#surface-mask-${i})`} />
+          {art.ridge > 0 ? (<>
+            <rect {...region} fill='black' opacity={RIDGE_TINT} mask={`url(#surface-ridge-mask-${i})`} />
+            <rect {...region} fill='white' opacity={LIP_OPACITY} mask={`url(#surface-lip-mask-${i})`} />
+          </>) : null}
+        </Fragment>))}
       </g>
     </g>
   )
