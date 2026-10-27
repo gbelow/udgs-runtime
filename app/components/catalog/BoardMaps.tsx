@@ -16,6 +16,7 @@ export function BoardMapsEditor() {
   const [brush, setBrush] = useState<TerrainBrush | null>('wall')
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
+  const [radius, setRadius] = useState(0)
   const zoomPan = useZoomPan(view.viewBox)
   const opened = rows.find((r) => r.id === openId)
   const mine = opened ? !opened.shared || devServer : true
@@ -56,10 +57,10 @@ export function BoardMapsEditor() {
           <span className='grow' />
           <ZoomButtons zoomPan={zoomPan} />
         </div>
-        <SurfaceRow surfaces={view.surfaces} laying={laying} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
+        <SurfaceRow surfaces={view.surfaces} laying={laying} frozen={frozen} freeze={setFrozen} radius={radius} setRadius={setRadius} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
         <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label='battle map'
-          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen); else if (brush) paint(cell, brush) }}>
+          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen, radius); else if (brush) paint(cell, brush) }}>
           <SurfaceLayer view={view} />
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
           <ShadeLayer view={view} />

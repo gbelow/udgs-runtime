@@ -88,7 +88,7 @@ export function useBoardMapEditor() {
     paint: (cell: Coord, brush: TerrainBrush) => edit(paintBoardMap(cell, brush)),
     light: (level: LightLevel) => edit(lightBoardMap(level)),
     surface: (name: string | null) => edit(surfaceBoardMap(name)),
-    laySurface: (cell: Coord, name: string, frozen: string | null) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen)),
+    laySurface: (cell: Coord, name: string, frozen: string | null, radius: number) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius)),
     generateGround: (recipe: GroundRecipe, seed: number) => edit(generateGroundBoardMap(recipe, seed)),
     resize: (extent: BoardExtent) => edit(resizeBoardMap(extent)),
   } as const;

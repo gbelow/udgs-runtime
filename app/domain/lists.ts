@@ -220,6 +220,9 @@ export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile', 'suffocating'] as co
 // and broken leg"
 export const GRAPPLING_EFFECTS = ['suffocate', 'broken hand', 'broken leg'] as const
 
+// The widest a brush that lays ground reaches, in steps around the cell clicked.
+export const BRUSH_RADIUS_MOST = 6
+
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
 export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'clear'] as const

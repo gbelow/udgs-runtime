@@ -8,7 +8,7 @@ import { useZoomPan } from '../hooks/useZoomPan'
 import type { BoardExtent, Coord, GroundRecipe } from '../domain/scene/types'
 import type { BoardView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
-import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
+import { BRUSH_RADIUS_MOST, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
@@ -56,6 +56,7 @@ export function BoardPanel(){
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
+  const [radius, setRadius] = useState(0)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
   const { gmTools } = useRole()
@@ -116,7 +117,7 @@ export function BoardPanel(){
             <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
         </Segmented>
       </div>
-      <SurfaceRow surfaces={view.surfaces} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
+      <SurfaceRow surfaces={view.surfaces} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} radius={radius} setRadius={setRadius} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
       <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
       <SizeRow key={`${view.extent.q},${view.extent.r},${view.extent.s}`} extent={view.extent} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
@@ -130,7 +131,7 @@ export function BoardPanel(){
       ) : null}
 
       <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
-        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
+        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning) }}>
         <defs>
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
@@ -407,12 +408,18 @@ export function GroundGenerator({ surfaces, generate }: { surfaces: BoardView['s
 }
 
 // The board's own surface, and the one laid cell by cell with a click.
-export function SurfaceRow({ surfaces, laying, lay, frozen, freeze }: { surfaces: BoardView['surfaces'], laying: string | null, lay: (name: string) => void, frozen: string | null, freeze: (art: string | null) => void }){
+export function SurfaceRow({ surfaces, laying, lay, frozen, freeze, radius, setRadius }: { surfaces: BoardView['surfaces'], laying: string | null, lay: (name: string) => void, frozen: string | null, freeze: (art: string | null) => void, radius: number, setRadius: (radius: number) => void }){
   const arts = surfaces.find((s) => s.name === laying)?.arts ?? []
   return (<>
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>surface</SectionLabel>
       {surfaces.map(({ name }) => <Button key={name} size='xs' selected={laying === name} onClick={() => lay(name)}>{name}</Button>)}
+    </div>
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>brush</SectionLabel>
+      <Button size='xs' disabled={radius <= 0} aria-label='smaller brush' onClick={() => setRadius(radius - 1)}>-</Button>
+      <span className='text-xs w-4 text-center'>{radius}</span>
+      <Button size='xs' disabled={radius >= BRUSH_RADIUS_MOST} aria-label='bigger brush' onClick={() => setRadius(radius + 1)}>+</Button>
     </div>
     {arts.length > 0 ? (
       <div className='flex flex-row flex-wrap gap-1 items-center'>

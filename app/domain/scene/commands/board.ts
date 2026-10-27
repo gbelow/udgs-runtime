@@ -2,7 +2,8 @@ import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
 import { BoardExtentSchema, BoardSchema, PlacementSchema, TerrainCellSchema, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type Surface, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
-import { coordKey, directionTo, distance, extentCells, sameCell, turn } from '../rules/board/geometry'
+import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
+import { BRUSH_RADIUS_MOST } from '../../lists'
 import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
 import { getSurface, pickArt } from '../rules/board/surface'
@@ -73,14 +74,22 @@ export function setSurface(surface: string | null): Updater {
 // makes its cell water, with the surface's DL for the swim, and the next
 // surface laid takes that water away again; water painted by hand stays. The
 // picture the cell is drawn with is the frozen one, when the surface lists it,
-// else the roll's: the table's, picking one of the surface's own.
-export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null): Updater {
+// else the roll's: the table's, picking one of the surface's own. A `radius`
+// lays every cell within that many steps of the cell, those off the board left
+// alone, each drawing its own picture from the roll.
+export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0): Updater {
   return (state) => {
     const surface = getSurface(name)
-    if (!state.board || !surface || getOpenAction(state)) return state
-    const key = coordKey(cell)
-    const laid = laidCell(state.board.terrain[key] ?? TerrainCellSchema.parse({}), name, surface, pickArt(surface, roll, frozen)?.src ?? null)
-    return { ...state, board: { ...state.board, terrain: { ...state.board.terrain, [key]: laid } } }
+    const board = state.board
+    if (!board || !surface || getOpenAction(state)) return state
+    const reach = Number.isInteger(radius) ? Math.max(0, Math.min(BRUSH_RADIUS_MOST, radius)) : 0
+    const cells = disk(cell, reach).filter((c) => sameCell(c, cell) || inExtent(board.origin, board.extent, c))
+    const terrain = { ...board.terrain }
+    cells.forEach((c, i) => {
+      const key = coordKey(c)
+      terrain[key] = laidCell(terrain[key] ?? TerrainCellSchema.parse({}), name, surface, pickArt(surface, roll + i, frozen)?.src ?? null)
+    })
+    return { ...state, board: { ...board, terrain } }
   }
 }
 

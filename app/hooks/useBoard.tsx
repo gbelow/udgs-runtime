@@ -51,7 +51,7 @@ export function useBoard(fromActive = false) {
   const turn = (reposition: boolean) => click({ on: 'turn' }, null, reposition);
   const light = (level: LightLevel) => dispatch({ kind: "light", args: [level] });
   const surface = (name: string | null) => dispatch({ kind: "surface", args: [name] });
-  const laySurface = (cell: Coord, name: string, frozen: string | null) => dispatch({ kind: "laySurface", args: [cell, name, Math.floor(Math.random() * 0x7fffffff), frozen] });
+  const laySurface = (cell: Coord, name: string, frozen: string | null, radius: number) => dispatch({ kind: "laySurface", args: [cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius] });
   const generateGround = (recipe: GroundRecipe, seed: number) => dispatch({ kind: "generateGround", args: [recipe, seed] });
   const resize = (extent: BoardExtent) => dispatch({ kind: "resizeBoard", args: [extent] });
   const resizeWarning = (extent: BoardExtent) => getResizeWarning(useCombatStore.getState(), extent);

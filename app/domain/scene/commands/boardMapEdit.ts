@@ -30,8 +30,8 @@ export function surfaceBoardMap(surface: string | null): BoardMapUpdater {
   return (map) => viaScene(map, setSurface(surface))
 }
 
-export function laySurfaceBoardMap(cell: Coord, name: string, roll: number, frozen: string | null): BoardMapUpdater {
-  return (map) => viaScene(map, laySurface(cell, name, roll, frozen))
+export function laySurfaceBoardMap(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0): BoardMapUpdater {
+  return (map) => viaScene(map, laySurface(cell, name, roll, frozen, radius))
 }
 
 export function generateGroundBoardMap(recipe: GroundRecipe, seed: number): BoardMapUpdater {
