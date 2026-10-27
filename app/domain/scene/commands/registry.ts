@@ -53,8 +53,8 @@ const gm = (): Actor => 'gm'
 const typed = (ctx: CommandContext, die?: number) => (die === undefined || die === null ? toThrower(ctx.thrower).dice : () => die)
 // what the board makes of a click, as the screen that made it saw the board;
 // a click that only picks a character there does nothing to the fight
-const readOn = (newId: () => string, state: SceneState, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null) => {
-  const read = readClick(state, click, { brush, reposition, selected, newId })
+const readOn = (newId: () => string, state: SceneState, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null, radius: number) => {
+  const read = readClick(state, click, { brush, radius, reposition, selected, newId })
   return 'select' in read ? null : read
 }
 
@@ -94,9 +94,9 @@ export const sceneCommands = {
   backSegment: command(() => backSegment()).by(panel('open')),
 
   // the board
-  click: command((ctx, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null): Updater =>
-    (state) => readOn(ctx.newId, state, click, brush, reposition, selected)?.apply(state) ?? state)
-    .by((state, click, brush, reposition, selected) => readOn(() => '', state, click, brush, reposition, selected)?.actor ?? null),
+  click: command((ctx, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null, radius?: number): Updater =>
+    (state) => readOn(ctx.newId, state, click, brush, reposition, selected, radius ?? 0)?.apply(state) ?? state)
+    .by((state, click, brush, reposition, selected, radius) => readOn(() => '', state, click, brush, reposition, selected, radius ?? 0)?.actor ?? null),
   createBoard: command((_, radius: number) => createBoard(radius)).by(gm),
   removeBoard: command(() => removeBoard).by(gm),
   resizeBoard: command((_, extent: BoardExtent) => resizeBoard(extent)).by(gm),

@@ -85,7 +85,7 @@ export function useBoardMapEditor() {
     create: () => open(null, newBoardMap()),
     remove: async (id: string) => { await removeKept(id); if (id === openId) open(null, newBoardMap()); },
     setName: (name: string) => edit(renameBoardMap(name)),
-    paint: (cell: Coord, brush: TerrainBrush) => edit(paintBoardMap(cell, brush)),
+    paint: (cell: Coord, brush: TerrainBrush, radius: number) => edit(paintBoardMap(cell, brush, radius)),
     light: (level: LightLevel) => edit(lightBoardMap(level)),
     surface: (name: string | null) => edit(surfaceBoardMap(name)),
     laySurface: (cell: Coord, name: string, frozen: string | null, radius: number) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius)),

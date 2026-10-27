@@ -47,6 +47,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
   useCampaignStore.setState(CampaignStateSchema.parse({}))
   const record: SessionRecord = { table, start: SceneStateSchema.parse({}), sent: [] }
   let brush: TerrainBrush | null = null
+  let radius = 0
   let reposition = false
 
   const state = (): SeenScene => useCombatStore.getState()
@@ -58,9 +59,9 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
   }
   const click = (c: Click) => {
     const selected = state().activeCharacterId
-    const read = readClick(state(), c, { brush, reposition, selected, newId: () => '' })
+    const read = readClick(state(), c, { brush, radius, reposition, selected, newId: () => '' })
     if ('select' in read) useCombatStore.getState().setActiveCharacter(read.select)
-    else send({ kind: 'click', args: [c, brush, reposition, selected] })
+    else send({ kind: 'click', args: [c, brush, reposition, selected, radius] })
   }
 
   const idOf = (name: string): string => {
@@ -108,10 +109,12 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     // the GM's repositioning tool, held while `run` clicks
     repositioning: (run: () => void) => { reposition = true; try { run() } finally { reposition = false } },
     // the brush held, a click on each cell `times` over, and put down again
-    paint: (b: TerrainBrush, cells: [number, number][], times = 1) => {
+    paint: (b: TerrainBrush, cells: [number, number][], times = 1, wide = 0) => {
       brush = b
+      radius = wide
       for (const [q, r] of cells) for (let i = 0; i < times; i++) click({ on: 'cell', cell: { q, r } })
       brush = null
+      radius = 0
     },
 
     // the action panel and turn controls, which act for the active character

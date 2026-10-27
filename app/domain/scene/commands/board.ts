@@ -169,7 +169,22 @@ export function turnCharacter(id: string): Updater {
   }
 }
 
-// Paints one cell. `glass` toggles a wall that is seen through but stops
+// The state a toggling brush sets on a cell, for the brushes that flip a flag:
+// a disk is set to what the centre becomes, so that a stroke does not leave
+// some cells on and others off.
+const TOGGLED: Partial<Record<TerrainBrush, (cell: TerrainCell) => boolean>> = {
+  wall: (c) => c.blocking,
+  glass: (c) => c.blocking && c.transparent,
+  water: (c) => c.liquid,
+  rough: (c) => c.difficult,
+  soft: (c) => c.soft,
+  dim: (c) => c.visibility === 'bad',
+  fog: (c) => c.visibility === 'zero',
+  dark: (c) => c.dark,
+}
+
+// Paints the cell, and every cell within `radius` steps of it, as the brush does
+// to each. `glass` toggles a wall that is seen through but stops
 // what is shot or thrown, and `sturdier` and `flimsier` step the RES of the
 // wall in the cell (combat.tex "Damage absorption"), from a wall nothing
 // breaks. `raise` and `lower` step the elevation a metre (combat.tex
@@ -181,41 +196,54 @@ export function turnCharacter(id: string): Updater {
 // `dim` and `fog` toggle bad and zero visibility (combat.tex "Visibility"),
 // `louder` and `quieter` step its noise (combat.tex "Actions in stealth"); the others set what the cell is, and `clear` returns it to
 // open ground by forgetting it, putting out whatever burns or hangs there.
-export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
+export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0): Updater {
   return (state) => {
-    if (!state.board || getOpenAction(state)) return state
-    const key = coordKey(cell)
-    const { [key]: current = TerrainCellSchema.parse({}), ...rest } = state.board.terrain
-    const painted = (() => {
-      switch (brush) {
-        case 'wall': return { ...current, blocking: !current.blocking, transparent: false, liquid: false, difficult: false }
-        case 'glass': {
-          const glass = current.blocking && current.transparent
-          return { ...current, blocking: !glass, transparent: !glass, liquid: false, difficult: false }
-        }
-        case 'sturdier': return { ...current, RES: current.RES === null ? null : current.RES + 5 }
-        case 'flimsier': return { ...current, RES: current.RES === null ? COVER_START_RES : Math.max(5, current.RES - 5) }
-        case 'water': return { ...current, liquid: !current.liquid, blocking: false, difficult: false, DL: current.liquid ? current.DL : SWIM_DEFAULT_DL }
-        case 'rough': return { ...current, difficult: !current.difficult, blocking: false, liquid: false }
-        case 'soft': return { ...current, soft: !current.soft }
-        case 'raise': return { ...current, elevation: current.elevation + 1 }
-        case 'lower': return { ...current, elevation: current.elevation - 1 }
-        case 'deepen': return { ...current, depth: current.depth + 1 }
-        case 'shoal': return { ...current, depth: Math.max(0, current.depth - 1) }
-        case 'harder': return { ...current, DL: current.DL + 1 }
-        case 'easier': return { ...current, DL: current.DL - 1 }
-        case 'grip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL + 1 }
-        case 'slip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL - 1 }
-        case 'bare': return { ...current, climbDL: null }
-        case 'dim': return { ...current, visibility: current.visibility === 'bad' ? 'good' as const : 'bad' as const }
-        case 'fog': return { ...current, visibility: current.visibility === 'zero' ? 'good' as const : 'zero' as const }
-        case 'dark': return { ...current, dark: !current.dark }
-        case 'louder': return { ...current, noise: current.noise + 1 }
-        case 'quieter': return { ...current, noise: Math.max(0, current.noise - 1) }
-        case 'clear': return null
-      }
-    })()
-    return { ...state, board: { ...state.board, terrain: painted ? { ...rest, [key]: painted } : rest } }
+    const board = state.board
+    if (!board || getOpenAction(state)) return state
+    const reach = Number.isInteger(radius) ? Math.max(0, Math.min(BRUSH_RADIUS_MOST, radius)) : 0
+    const cells = disk(cell, reach).filter((c) => sameCell(c, cell) || inExtent(board.origin, board.extent, c))
+    const flag = TOGGLED[brush]
+    const target = flag ? !flag(board.terrain[coordKey(cell)] ?? TerrainCellSchema.parse({})) : null
+    const terrain = { ...board.terrain }
+    for (const c of cells) {
+      const key = coordKey(c)
+      const current = terrain[key] ?? TerrainCellSchema.parse({})
+      if (flag && flag(current) === target) continue
+      const painted = paintedCell(current, brush)
+      if (painted) terrain[key] = painted
+      else delete terrain[key]
+    }
+    return { ...state, board: { ...board, terrain } }
+  }
+}
+
+function paintedCell(current: TerrainCell, brush: TerrainBrush): TerrainCell | null {
+  switch (brush) {
+    case 'wall': return { ...current, blocking: !current.blocking, transparent: false, liquid: false, difficult: false }
+    case 'glass': {
+      const glass = current.blocking && current.transparent
+      return { ...current, blocking: !glass, transparent: !glass, liquid: false, difficult: false }
+    }
+    case 'sturdier': return { ...current, RES: current.RES === null ? null : current.RES + 5 }
+    case 'flimsier': return { ...current, RES: current.RES === null ? COVER_START_RES : Math.max(5, current.RES - 5) }
+    case 'water': return { ...current, liquid: !current.liquid, blocking: false, difficult: false, DL: current.liquid ? current.DL : SWIM_DEFAULT_DL }
+    case 'rough': return { ...current, difficult: !current.difficult, blocking: false, liquid: false }
+    case 'soft': return { ...current, soft: !current.soft }
+    case 'raise': return { ...current, elevation: current.elevation + 1 }
+    case 'lower': return { ...current, elevation: current.elevation - 1 }
+    case 'deepen': return { ...current, depth: current.depth + 1 }
+    case 'shoal': return { ...current, depth: Math.max(0, current.depth - 1) }
+    case 'harder': return { ...current, DL: current.DL + 1 }
+    case 'easier': return { ...current, DL: current.DL - 1 }
+    case 'grip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL + 1 }
+    case 'slip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL - 1 }
+    case 'bare': return { ...current, climbDL: null }
+    case 'dim': return { ...current, visibility: current.visibility === 'bad' ? 'good' as const : 'bad' as const }
+    case 'fog': return { ...current, visibility: current.visibility === 'zero' ? 'good' as const : 'zero' as const }
+    case 'dark': return { ...current, dark: !current.dark }
+    case 'louder': return { ...current, noise: current.noise + 1 }
+    case 'quieter': return { ...current, noise: Math.max(0, current.noise - 1) }
+    case 'clear': return null
   }
 }
 

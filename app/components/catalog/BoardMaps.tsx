@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput } from '../ui'
-import { BRUSH_LABEL, Cell, GroundGenerator, RidgeLayer, ShadeLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, BrushSize, Cell, GroundGenerator, RidgeLayer, ShadeLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardMapEditor } from '../../hooks/useBoardMaps'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../../domain/lists'
@@ -49,6 +49,7 @@ export function BoardMapsEditor() {
           <SectionLabel>paint</SectionLabel>
           {TERRAIN_BRUSHES.map((b) => <Button key={b} size='xs' selected={brush === b} onClick={() => { setBrush(b); setLaying(null) }}>{BRUSH_LABEL[b]}</Button>)}
         </div>
+        <BrushSize radius={radius} setRadius={setRadius} />
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>light</SectionLabel>
           <Segmented label='light'>
@@ -57,10 +58,10 @@ export function BoardMapsEditor() {
           <span className='grow' />
           <ZoomButtons zoomPan={zoomPan} />
         </div>
-        <SurfaceRow surfaces={view.surfaces} laying={laying} frozen={frozen} freeze={setFrozen} radius={radius} setRadius={setRadius} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
+        <SurfaceRow surfaces={view.surfaces} laying={laying} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
         <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label='battle map'
-          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen, radius); else if (brush) paint(cell, brush) }}>
+          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen, radius); else if (brush) paint(cell, brush, radius) }}>
           <SurfaceLayer view={view} />
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
           <RidgeLayer view={view} />

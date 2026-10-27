@@ -29,15 +29,15 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
 
   const create = (radius: number) => dispatch({ kind: "createBoard", args: [radius] });
   const remove = () => dispatch({ kind: "removeBoard", args: [] });
-  const click = (c: Click, brush: TerrainBrush | null = null, reposition = false) => {
+  const click = (c: Click, brush: TerrainBrush | null = null, reposition = false, radius = 0) => {
     const state = useCombatStore.getState();
     const selected = state.activeCharacterId;
-    const read = readClick(state, c, { brush, reposition, selected, newId: () => "" });
+    const read = readClick(state, c, { brush, radius, reposition, selected, newId: () => "" });
     if ("select" in read) setActiveCharacter(read.select);
-    else dispatch({ kind: "click", args: [c, brush, reposition, selected] });
+    else dispatch({ kind: "click", args: [c, brush, reposition, selected, radius] });
   };
 
-  const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean) => click({ on: 'cell', cell }, brush, reposition);
+  const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean, radius: number) => click({ on: 'cell', cell }, brush, reposition, radius);
   const clickToken = (id: string) => {
     if (useGmPickStore.getState().picking) useGmPickStore.getState().toggle(id);
     else click({ on: 'token', id });

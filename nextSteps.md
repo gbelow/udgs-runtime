@@ -14,9 +14,6 @@ Improve Chase UI/ playability
 
 ## Scene
 
-### balance
-consider reducing surge cost to 2
-
 ### terrain
 - items on the ground, containers in terrain
 

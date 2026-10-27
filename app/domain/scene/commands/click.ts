@@ -16,10 +16,10 @@ export type Click =
   | { on: 'floor', itemId: string }
   | { on: 'turn' }
 
-// What the click does not say for itself: the brush in hand, whether the
+// What the click does not say for itself: the brush in hand and how wide, whether the
 // GM's repositioning tool is, and whom the screen has picked, which only the
 // screen knows, and where the ids of whatever it declares come from.
-export type ClickContext = { brush: TerrainBrush | null, reposition: boolean, selected: string | null, newId: () => string }
+export type ClickContext = { brush: TerrainBrush | null, radius?: number, reposition: boolean, selected: string | null, newId: () => string }
 
 // What a click means: whom it acts for and what it does to the fight, or the
 // character it picks on the screen it was made on, which the fight never sees.
@@ -60,7 +60,7 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
 const NOTHING = { actor: null, apply: (s: SceneState) => s }
 
 function readCell(state: SceneState, cell: Coord, ctx: ClickContext): ClickReading {
-  if (ctx.brush) return { actor: 'gm', apply: paintTerrain(cell, ctx.brush) }
+  if (ctx.brush) return { actor: 'gm', apply: paintTerrain(cell, ctx.brush, ctx.radius ?? 0) }
   const mode = getBoardMode(state)
   if (mode === 'path' || mode === 'jump' || mode === 'aim') {
     const pick = readPick(state, cell, ctx.newId)

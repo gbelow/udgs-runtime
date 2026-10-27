@@ -22,8 +22,8 @@ export function renameBoardMap(name: string): BoardMapUpdater {
   return (map) => ({ ...map, name })
 }
 
-export function paintBoardMap(cell: Coord, brush: TerrainBrush): BoardMapUpdater {
-  return (map) => viaScene(map, paintTerrain(cell, brush))
+export function paintBoardMap(cell: Coord, brush: TerrainBrush, radius = 0): BoardMapUpdater {
+  return (map) => viaScene(map, paintTerrain(cell, brush, radius))
 }
 
 export function surfaceBoardMap(surface: string | null): BoardMapUpdater {
