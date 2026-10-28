@@ -11,7 +11,7 @@ import { getHistory, getLog, getOpenAction } from '../rules/log'
 import { getTriggersFor } from '../rules/reactions'
 import { getPrepared, getPreparedZone } from '../rules/prepared'
 import { add, coordKey, disk, DIRECTIONS, sameCell } from '../rules/board/geometry'
-import { seesAcross } from '../rules/board/board'
+import { LEVEL_EYES, seesAcross } from '../rules/board/board'
 import { getReachableCells } from '../rules/board/reach'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawSpawnedAction } from './action'
 import { passRound } from '../../bot/table'
@@ -212,7 +212,7 @@ describe('what must be performed', () => {
     const origin: Coord = { q: 0, r: 0 }
     const wall: Coord = { q: -1, r: 0 }
     const cover = SceneStateSchema.parse({ board: { placements: { p: { cell: origin } }, terrain: { [coordKey(wall)]: { blocking: true } } } })
-    const sees = (cell: Coord) => seesAcross(cover.board!, [origin], [cell])
+    const sees = (cell: Coord) => seesAcross(cover.board!, [origin], [cell], LEVEL_EYES)
     const open = (cell: Coord) => !sameCell(cell, wall) && !sameCell(cell, origin)
     const steps = disk(origin, 2).filter((to) => open(to) && sees(to)).flatMap((to) => DIRECTIONS.map((d) => add(to, d)).filter((from) => open(from) && !sees(from)).map((from) => ({ from, to })))
     expect(steps.length).toBeGreaterThan(0)

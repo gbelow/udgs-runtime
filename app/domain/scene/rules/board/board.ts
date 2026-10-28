@@ -1,5 +1,7 @@
 import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../../types'
 import type { Board, BoardExtent, SceneState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../../types'
+import { TerrainCellSchema } from '../../types'
+import { getHeight } from '../../../character/rules/size'
 import { REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
@@ -160,23 +162,63 @@ export function isInReach(state: SceneState, action: StrikeAction, targetId: str
 // combat.tex "Cover": "A character has cover if the shortest path from the
 // origin of the ... projectile to a destination passes through a space
 // containing a blocking object. Cover blocks vision unless it is
-// transparent." The ground a straight line between two cells crosses, the
+// transparent." The line between two cells climbs or falls from the height of
+// one end to the other's, so a storey's wall stops it only within that
+// storey's metres, and a floor stops it where it goes up or down through it.
+export type Eyes = { from: number; to: number }
+
+// A line with no climb, which is how a board without storeys is read.
+export const LEVEL_EYES: Eyes = { from: 0, to: 0 }
+
+// A character's eyes are as high as their feet and their height.
+function getEyeHeight(state: SceneState, id: string): number {
+  const c = state.characters[id]
+  return (state.board?.placements[id]?.elevation ?? 0) + (c ? getHeight(c) : 0)
+}
+
+// The line from one character's eyes to another's.
+export function getEyes(state: SceneState, a: string, b: string): Eyes {
+  return state.board?.levels.length ? { from: getEyeHeight(state, a), to: getEyeHeight(state, b) } : LEVEL_EYES
+}
+
+// What a floor is to a line that goes through it: a wall nothing breaks.
+const FLOOR: TerrainCell = TerrainCellSchema.parse({ blocking: true })
+
+// Whether `stops` holds of something in the cell for a line `centre` high in
+// the middle of it that rises or falls `reach` to either side. A wall is met
+// at the middle, so that a pane fills its storey sill included; a floor is
+// gone through, which a cell with a wall has no floor of its own to be.
+function holds(board: Board, key: string, centre: number, reach: number, stops: (t: TerrainCell) => boolean): boolean {
+  const ground = board.terrain[key]
+  const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[key]).map((l) => l.floor))
+  if (ground && centre < ceiling && stops(ground)) return true
+  return board.levels.some((level) => {
+    const here = level.terrain[key]
+    if (!here) return false
+    const goesThrough = !here.hole && !here.blocking && Math.abs(level.floor - centre) <= reach
+    return (goesThrough && stops(FLOOR)) || (level.floor <= centre && centre < level.floor + level.height && stops(here))
+  })
+}
+
+// Whether `stops` holds of anything the line from `a` to `b` crosses, the
 // ends left out.
-function crossed(board: Board, a: Coord, b: Coord): (TerrainCell | undefined)[] {
-  return line(a, b).slice(1, -1).map((cell) => board.terrain[coordKey(cell)])
+function stoppedBetween(board: Board, a: Coord, b: Coord, eyes: Eyes, stops: (t: TerrainCell) => boolean): boolean {
+  const cells = line(a, b)
+  const slope = (eyes.to - eyes.from) / (cells.length - 1)
+  return cells.slice(1, -1).some((cell, k) => holds(board, coordKey(cell), eyes.from + slope * (k + 1), Math.abs(slope) / 2, stops))
 }
 
 // Whether some cell of one set sees some cell of the other: a line between
 // them crossing no opaque blocking cell.
-export function seesAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): boolean {
-  return from.some((a) => to.some((b) => !crossed(board, a, b).some((t) => t?.blocking && !t.transparent)))
+export function seesAcross(board: Board, from: readonly Coord[], to: readonly Coord[], eyes: Eyes): boolean {
+  return from.some((a) => to.some((b) => !stoppedBetween(board, a, b, eyes, (t) => t.blocking && !t.transparent)))
 }
 
 // Whether what is shot or thrown from some cell of one set can reach some cell
 // of the other: a line between them crossing no blocking cell, transparent or
 // not — glass is seen through and stops the projectile all the same.
-export function firesAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): boolean {
-  return from.some((a) => to.some((b) => !crossed(board, a, b).some((t) => t?.blocking)))
+export function firesAcross(board: Board, from: readonly Coord[], to: readonly Coord[], eyes: Eyes): boolean {
+  return from.some((a) => to.some((b) => !stoppedBetween(board, a, b, eyes, (t) => t.blocking)))
 }
 
 // combat.tex "Cover": what stands in the way of something shot or blown at a
@@ -189,11 +231,15 @@ export type Cover = { kind: 'total' } | { kind: 'wall'; RES: number }
 // most open line of fire between them: a line is met by the sturdiest wall
 // on it, a wall nothing breaks stopping it. Null when some line crosses
 // nothing.
-export function getCoverAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): Cover | null {
+export function getCoverAcross(board: Board, from: readonly Coord[], to: readonly Coord[], eyes: Eyes): Cover | null {
   let weakest = Infinity
   for (const a of from) {
     for (const b of to) {
-      const RES = Math.max(-Infinity, ...crossed(board, a, b).map((t) => (t?.blocking ? t.RES ?? Infinity : -Infinity)))
+      let RES = -Infinity
+      stoppedBetween(board, a, b, eyes, (t) => {
+        if (t.blocking) RES = Math.max(RES, t.RES ?? Infinity)
+        return false
+      })
       if (RES === -Infinity) return null
       weakest = Math.min(weakest, RES)
     }
@@ -206,23 +252,24 @@ export function toDamageWall(cover: Cover | null): Damage['wall'] {
   return cover?.kind === 'wall' ? { RES: cover.RES } : null
 }
 
-// Whether something can be aimed at the cell from the footprint: within
-// `reach` of some cell of it, off blocking ground, and with a line to it that
-// `across` lets through — sight, or for what is thrown or shot there, fire
+// Whether something can be aimed at the cell by the actor: within `reach` of
+// some cell of their footprint, off blocking ground, and with a line to it
+// that `across` lets through, level with their eyes since a cell has no
+// height of its own. Sight, or for what is thrown or shot there, fire
 // (combat.tex "Cover").
 export type Across = typeof seesAcross
 
-export function isAimableCell(board: Board, footprint: readonly Coord[], reach: number, cell: Coord, across: Across): boolean {
-  return setDistance([cell], footprint) <= reach && !board.terrain[coordKey(cell)]?.blocking && across(board, footprint, [cell])
+export function isAimableCell(state: SceneState, actorId: string, reach: number, cell: Coord, across: Across): boolean {
+  const board = state.board
+  const footprint = getPlacedFootprint(state, actorId)
+  if (!board || !footprint) return false
+  return setDistance([cell], footprint) <= reach && !board.terrain[coordKey(cell)]?.blocking && across(board, footprint, [cell], getEyes(state, actorId, actorId))
 }
 
 // Every cell around the actor something can be aimed at within `reach`.
 export function getAimableCells(state: SceneState, actorId: string, reach: number, across: Across): Coord[] {
-  const board = state.board
-  const from = board?.placements[actorId]
-  const footprint = getPlacedFootprint(state, actorId)
-  if (!board || !from || !footprint) return []
-  return disk(from.cell, reach).filter((cell) => isAimableCell(board, footprint, reach, cell, across))
+  const from = state.board?.placements[actorId]
+  return from ? disk(from.cell, reach).filter((cell) => isAimableCell(state, actorId, reach, cell, across)) : []
 }
 
 // combat.tex "Cover": "When using a body shield, it is possible to take total
@@ -257,11 +304,11 @@ export function getBodyCoverToward(state: SceneState, id: string): Coord | null 
 // What stands between the cells something is shot or blown from and the
 // character: a body shield they are behind, or the ground. Null on a fight
 // without a board, or with nothing in the way.
-export function getCover(state: SceneState, from: readonly Coord[], targetId: string): Cover | null {
+export function getCover(state: SceneState, from: readonly Coord[], targetId: string, eyes: Eyes): Cover | null {
   const board = state.board
   const footprint = getPlacedFootprint(state, targetId)
   if (!board || !footprint) return null
-  return isBehindBodyShield(state, targetId, from) ? { kind: 'total' } : getCoverAcross(board, from, footprint)
+  return isBehindBodyShield(state, targetId, from) ? { kind: 'total' } : getCoverAcross(board, from, footprint, eyes)
 }
 
 // Whether some cell of one character's footprint sees some cell of the
@@ -272,7 +319,7 @@ export function hasLineOfSight(state: SceneState, a: string, b: string): boolean
   const fa = getPlacedFootprint(state, a)
   const fb = getPlacedFootprint(state, b)
   if (!board || !fa || !fb) return true
-  return seesAcross(board, fa, fb) && !isBehindBodyShield(state, b, fa)
+  return seesAcross(board, fa, fb, getEyes(state, a, b)) && !isBehindBodyShield(state, b, fa)
 }
 
 // Whether what one character shoots can reach the other: they are not in
@@ -280,7 +327,7 @@ export function hasLineOfSight(state: SceneState, a: string, b: string): boolean
 // absorbed. True on a fight without a board.
 export function hasLineOfFire(state: SceneState, a: string, b: string): boolean {
   const fa = getPlacedFootprint(state, a)
-  return !fa || getCover(state, fa, b)?.kind !== 'total'
+  return !fa || getCover(state, fa, b, getEyes(state, a, b))?.kind !== 'total'
 }
 
 // The metres the shot as declared carries: the variation's reach for this

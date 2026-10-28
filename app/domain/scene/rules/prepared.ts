@@ -11,7 +11,7 @@ import { makeAction } from '../factories'
 import { firstStep, getPathDistances } from './approach'
 import { getActionCost } from '../../character/rules/actionCosts'
 import { line, setDistance } from './board/geometry'
-import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, seesAcross, withPlacements } from './board/board'
+import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, LEVEL_EYES, seesAcross, withPlacements } from './board/board'
 import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
 import { getFreeStep, getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
@@ -258,7 +258,7 @@ function getTriggerStep(state: SceneState, mover: Character, placements: Placeme
     case 'sighted': {
       const board = state.board
       if (!board) return null
-      const seen = placements.map((placement) => (seesAcross(board, getFootprint(mover, placement), other) ? 1 : 0))
+      const seen = placements.map((placement) => (seesAcross(board, getFootprint(mover, placement), other, LEVEL_EYES) ? 1 : 0))
       return firstStep(seen, (previous, now) => previous === 0 && now === 1)
     }
     case 'attacked':

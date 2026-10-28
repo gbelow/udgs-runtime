@@ -9,7 +9,7 @@ import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { explodes } from '../../weaponProperties'
 import { DIRECTIONS, add, angleBetween, angularGap, coordKey, disk, distance, ring, sameCell, setDistance, toPlane } from './board/geometry'
-import { getAimableCells, getCover, getPlacedFootprint, seesAcross, toDamageWall } from './board/board'
+import { getAimableCells, getCover, getPlacedFootprint, LEVEL_EYES, seesAcross, toDamageWall } from './board/board'
 import { getItemWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { findReadyObject } from './fighters'
@@ -265,7 +265,7 @@ function getZoneOf(state: SceneState, action: BlastShape, id: string, area: Area
   const degree = worstOf(footprint.map((cell) => zones.get(coordKey(cell)) ?? null))
   if (!degree) return null
   const origin = getBlastOrigin(state, action, area.shape === 'spray')
-  const cover = origin ? getCover(state, origin, id) : null
+  const cover = origin ? getCover(state, origin, id, LEVEL_EYES) : null
   return cover?.kind === 'total' ? null : { degree, wall: toDamageWall(cover) }
 }
 

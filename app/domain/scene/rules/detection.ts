@@ -8,7 +8,7 @@ import { getAfflictedSense } from '../../character/rules/afflictions'
 import { getCamouflage } from '../../item/rules/items'
 import { getSituationalAfflictions } from './situational'
 import { directionTo, disk, parseCoordKey, sameCell, setDistance } from './board/geometry'
-import { getDistanceBetween, getPlacedFootprint, hasLineOfSight, seesAcross } from './board/board'
+import { getDistanceBetween, getPlacedFootprint, hasLineOfSight, LEVEL_EYES, seesAcross } from './board/board'
 import { getCellHazard, getHazardAt } from './board/hazard'
 import { getPartners } from './partners'
 import { getMoveOrigin } from './board/waypoint'
@@ -202,7 +202,7 @@ function getVisibilityTerm(state: SceneState, observer: CampaignCharacter, towar
 // they stand: `IMPAIRMENTS` of a place, line of sight kept.
 function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from: Coord[], at: Coord[], sense: keyof Senses): Impairment {
   if (sense !== 'vision') return TOTAL_INTO[sense](state, from, at, observer.senses[sense].range) ? 'total' : 'none'
-  if (state.board && !seesAcross(state.board, from, at)) return 'total'
+  if (state.board && !seesAcross(state.board, from, at, LEVEL_EYES)) return 'total'
   return seeInto(state, from, at, () => seesInDimLight(observer))
 }
 

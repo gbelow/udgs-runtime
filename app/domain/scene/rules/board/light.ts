@@ -3,7 +3,7 @@ import type { SceneState, Coord, LightLevel } from '../../types'
 import { SPELL_LIGHT } from '../../../tables'
 import { LIGHT_LEVELS } from '../../../lists'
 import { coordKey, distance } from './geometry'
-import { getPlacedFootprint, seesAcross } from './board'
+import { getPlacedFootprint, LEVEL_EYES, seesAcross } from './board'
 import { perState } from '../../../perState'
 import { isSuppressed } from '../../../character/rules/effects'
 
@@ -55,7 +55,7 @@ export function getCellLight(state: SceneState, cell: Coord): LightLevel {
   if (!board) return 'bright'
   const unlit = board.terrain[coordKey(cell)]?.dark ? 'dark' : board.light
   if (unlit === 'bright') return 'bright'
-  const reached = getLights(state).some((l) => l.cells.some((at) => distance(at, cell) <= l.radius) && seesAcross(board, l.cells, [cell]))
+  const reached = getLights(state).some((l) => l.cells.some((at) => distance(at, cell) <= l.radius) && seesAcross(board, l.cells, [cell], LEVEL_EYES))
   return reached ? 'bright' : unlit
 }
 

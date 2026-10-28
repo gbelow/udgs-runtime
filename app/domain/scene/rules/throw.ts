@@ -7,7 +7,7 @@ import { getSize } from '../../character/rules/size'
 import { getWieldedWeapons } from '../../item/rules/hands'
 import { SHOTS, THROW_ITEM_RANGE } from '../../tables'
 import { getAttackKind } from '../../weaponProperties'
-import { firesAcross, getAimableCells, getPlacedFootprint, isAimableCell } from './board/board'
+import { firesAcross, getAimableCells, isAimableCell } from './board/board'
 import { findRowVariant, isRowUsable } from './weaponRow'
 import { getReachableFloor, takeOne } from './floor'
 import { isTying } from './tether'
@@ -63,8 +63,7 @@ export function getThrowCells(state: SceneState, actorId: string, itemId: string
 
 export function isThrowCell(state: SceneState, actorId: string, itemId: string, cell: Coord): boolean {
   const thrower = state.characters[actorId]
-  const footprint = getPlacedFootprint(state, actorId)
-  return !!state.board && !!thrower && !!footprint && isAimableCell(state.board, footprint, getThrowReach(thrower, itemId, isCombatStarted(state)), cell, firesAcross)
+  return !!thrower && isAimableCell(state, actorId, getThrowReach(thrower, itemId, isCombatStarted(state)), cell, firesAcross)
 }
 
 // What lands where it was aimed: one of the stack, carrying the charge,

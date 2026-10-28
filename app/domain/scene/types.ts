@@ -276,9 +276,29 @@ export const BoardExtentSchema = z.object({
 }).strip()
 export type BoardExtent = z.infer<typeof BoardExtentSchema>
 
+// A cell of a level above the ground. Its floor is a slab at the level's
+// `floor` that nothing crosses, unless the cell is a `hole` (a stairwell).
+export const LevelCellSchema = TerrainCellSchema.extend({
+  hole: z.boolean().default(false),
+}).strip()
+export type LevelCell = z.infer<typeof LevelCellSchema>
+
+// A storey above the ground, kept like the ground is: terrain by cell key,
+// where a cell absent from it is open air with no floor. What stands in a
+// cell of it fills the metres from `floor` to `floor + height`.
+export const LevelSchema = z.object({
+  floor: num.default(3),
+  height: num.min(0).default(3),
+  terrain: z.record(z.string(), LevelCellSchema).default({}),
+}).strip()
+export type Level = z.infer<typeof LevelSchema>
+
 export const BoardSchema = z.object({
   placements: z.record(z.string(), PlacementSchema).default({}),
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
+  // storeys above the ground (a house's upper floor and roof), each a map of
+  // the same extent as the ground; none is the flat board
+  levels: z.array(LevelSchema).default([]),
   // combat.tex "Darkness and light": the light everywhere no light source
   // reaches and no darkness is painted
   light: LightLevelSchema.default('bright'),

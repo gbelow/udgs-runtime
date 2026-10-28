@@ -19,7 +19,7 @@ import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, getRowProperties, type WeaponRow } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
-import { getCover, getPlacedFootprint, toDamageWall } from './board/board'
+import { getCover, getEyes, getPlacedFootprint, toDamageWall } from './board/board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 import { getSpiritBlow } from '../../character/rules/spirit'
@@ -158,7 +158,7 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
 // target as they stand, which absorbs the shot. Nothing for a strike.
 function getShotWall(state: SceneState, root: AttackAction): Damage['wall'] {
   const from = getPlacedFootprint(state, root.actorId)
-  return root.kind === 'shoot' && root.targetId && from ? toDamageWall(getCover(state, from, root.targetId)) : null
+  return root.kind === 'shoot' && root.targetId && from ? toDamageWall(getCover(state, from, root.targetId, getEyes(state, root.actorId, root.targetId))) : null
 }
 
 // spells.tex "Charged", Taser: "discharges on the first object it comes into

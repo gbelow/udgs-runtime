@@ -59,7 +59,7 @@ function isWorthHitting(state: SceneState, attack: AttackAction, found: FloorIte
 function isInFloorReach(state: SceneState, attack: AttackAction, found: FloorItem): boolean {
   const footprint = getPlacedFootprint(state, attack.actorId)
   if (!state.board || !footprint || found.cell === null) return true
-  if (attack.kind === 'shoot') return isAimableCell(state.board, footprint, getShotReachOf(state, attack) ?? Infinity, found.cell, firesAcross)
+  if (attack.kind === 'shoot') return isAimableCell(state, attack.actorId, getShotReachOf(state, attack) ?? Infinity, found.cell, firesAcross)
   const reach = getStrikeReach(state, attack)
   return reach === null || setDistance(footprint, [found.cell]) <= reach
 }
