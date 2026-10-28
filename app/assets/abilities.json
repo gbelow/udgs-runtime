@@ -5882,7 +5882,7 @@
   },
   "magic-theory": {
     "family": "★ Magic Theory",
-    "section": "General",
+    "section": "Magical",
     "activation": "passive",
     "cost": {
       "AP": 0,
@@ -5926,7 +5926,7 @@
   },
   "battle-mage": {
     "family": "★ Battle Mage",
-    "section": "General",
+    "section": "Magical",
     "activation": "passive",
     "cost": {
       "AP": 0,

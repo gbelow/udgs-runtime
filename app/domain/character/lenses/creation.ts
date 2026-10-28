@@ -1,6 +1,6 @@
-import { ABILITIES, ABILITY_FAMILIES, FamilyKey, getAbilityLevel, isAbilityKey } from '../../abilities'
+import { ABILITIES, ABILITY_FAMILIES, ABILITY_SECTIONS, FamilyKey, getAbilityLevel, isAbilityKey } from '../../abilities'
 import { AttributesSchema, FOCI, KnowledgesSchema, ProficienciesSchema, SkillsSchema, TalentsSchema, type CreationDraft, type Focus, type Priority, SpellMethodSchema, type SpellMethod, type Skills, type Trainables } from '../../types'
-import { ABILITY_SECTIONS, type LimitStressAction } from '../../lists'
+import { type LimitStressAction } from '../../lists'
 import { getAbilityCatalogRows, type AbilityFamilyView } from './abilities'
 import { getSpellCatalogRows, type SpellCatalogRow } from './spells'
 import { sumTerms, type Term } from '../rules/terms'

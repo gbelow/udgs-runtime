@@ -2,7 +2,7 @@
 import { Overrides } from './SchemaForm'
 import { inputClass } from '../ui'
 import { CatalogName } from '../../forms/catalogs'
-import { ABILITY_KEYS } from '../../domain/abilities'
+import { ABILITY_KEYS, ABILITY_SECTIONS } from '../../domain/abilities'
 import { SPELL_KEYS } from '../../domain/spells'
 import { BULK_NAMES, HEAVY_MAX_DEGREE, MIN_BULK, knowledges_list } from '../../domain/lists'
 import weapons from '../../assets/weapons.json'
@@ -124,6 +124,7 @@ const heavyRange: Widget = ({ value, onChange }) => {
 
 export const OVERRIDES: Record<CatalogName, Overrides> = {
   abilities: {
+    section: suggesting(() => ABILITY_SECTIONS),
     'stages.requirements.name': requirementName,
     'stages.description': textarea,
   },

@@ -17,6 +17,10 @@ export type AbilityKey = FamilyKey | `${FamilyKey}-${1 | 2 | 3 | 4 | 5}`
 
 export const ABILITY_FAMILIES: Record<FamilyKey, AbilityFamily> = z.record(z.string(), AbilityFamilySchema).parse(catalog) as Record<FamilyKey, AbilityFamily>
 
+// The sections abilities are filed under: the distinct sections across the
+// catalog, in the order the file first names them.
+export const ABILITY_SECTIONS: readonly string[] = [...new Set(Object.values(ABILITY_FAMILIES).map((family) => family.section))]
+
 // `<family>` for a single-stage ability, `<family>-<n>` for stage n of a
 // multi-stage one; a stage requires the one before it and every ability its
 // requirements name outright.

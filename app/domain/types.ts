@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -1170,12 +1170,9 @@ export type AbilityStage = z.infer<typeof AbilityStageSchema>
 // abilities.tex "Acquiring abilities": an ability is stored as a family —
 // what every level shares, then one stage per level (I, II, III). This is
 // the shape app/assets/abilities.json holds and the editor writes.
-export const AbilitySectionSchema = z.enum(ABILITY_SECTIONS)
-export type AbilitySection = z.infer<typeof AbilitySectionSchema>
-
 export const AbilityFamilySchema = z.object({
   family: str.default(''),
-  section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
+  section: str.default(''), // free text: the sections are the distinct values across the catalog
   activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
   cost: CostSchema.prefault({}), // what a use of an active ability takes, on top of its instant cost effects
   concentration: z.boolean().default(false), // combat.tex "Concentration": a use needs the focus surge and may be held over to the next round
@@ -1191,7 +1188,7 @@ export const AbilitySchema = z.object({
   name: str.default(''),
   family: str.default(''),
   stage: num.default(1),
-  section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
+  section: str.default(''),
   activation: ActivationSchema.default('passive'),
   cost: CostSchema.prefault({}),
   concentration: z.boolean().default(false),
