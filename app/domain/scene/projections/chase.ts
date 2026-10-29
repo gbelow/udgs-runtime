@@ -4,7 +4,9 @@ import { perState } from '../../perState'
 import { getFightName, getMembers, getPartyName } from '../rules/fighters'
 import { getFightBusy } from '../rules/turn'
 import { getNextRoundNote } from './turn'
-import { canTurnAround, getCaught, getChasers, getChaseParties, getChaseStage, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
+import { getRoundPhase } from '../rules/roundChange'
+import { isParkedParty } from '../rules/parked'
+import { canTurnAround, getCaught, getChaseIntentBar, getChasers, getChaseParties, getChaseStartBar, getStartCaught, getChaseStage, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
 
 type Option = { id: string; name: string; bar: string | null }
 
@@ -57,10 +59,55 @@ export type ChasePartyRow = {
 
 export type ChaseRollRow = { kind: 'hide' | 'scout' | 'cross'; parties: string; found: string | null; die: number; score: number; DL: number; degree: string }
 
+// A party at the round change's chase step (combat.tex "Escape"): what it
+// chose, whether it may run away or give chase and to whom, and whoever of it
+// the chase would catch at once, to be left behind for it to start.
+export type ChaseSetupRow = {
+  id: string
+  name: string
+  intent: 'run' | 'chase' | null
+  target: string
+  tier: ChaseTier
+  runBar: string | null
+  chaseBar: string | null
+  targets: { id: string; name: string }[]
+  caught: string[]
+  // who would stay behind, by name, null when nobody has to
+  leaveBehind: string | null
+}
+
+export type ChaseSetup = { rows: ChaseSetupRow[]; startBar: string | null }
+
+function getSetup(state: SceneState): ChaseSetup | null {
+  if (state.chase || getRoundPhase(state) !== 'chase') return null
+  const parties = Object.keys(state.parties).filter((p) => !isParkedParty(state, p) && getMembers(state, p).length > 0)
+  const running = parties.filter((p) => state.chaseIntents[p]?.kind === 'run')
+  return {
+    startBar: getChaseStartBar(state),
+    rows: parties.map((id) => {
+      const intent = state.chaseIntents[id] ?? null
+      const targets = running.filter((p) => p !== id).map((p) => ({ id: p, name: getPartyName(state, p) }))
+      const caught = getStartCaught(state, id)
+      return {
+        id,
+        name: getPartyName(state, id),
+        intent: intent?.kind ?? null,
+        target: intent?.kind === 'chase' ? intent.target : '',
+        tier: intent?.kind === 'chase' ? intent.tier : 'combat',
+        runBar: getChaseIntentBar(state, id, { kind: 'run' }),
+        chaseBar: targets.length ? getChaseIntentBar(state, id, { kind: 'chase', target: targets[0].id, tier: 'combat' }) : 'nobody is running away',
+        targets,
+        caught: caught.map((c) => c.reason),
+        leaveBehind: caught.length ? caught.map((c) => getFightName(state, c.id)).join(', ') : null,
+      }
+    }),
+  }
+}
+
 export type ChasePanel = {
   tiers: readonly ChaseTier[]
-  // the fight parties, and whether each is running away
-  parties: { id: string; name: string; quarry: boolean }[]
+  // the round change's chase step, null anywhere else
+  setup: ChaseSetup | null
   chasing: boolean
   rows: ChasePartyRow[]
   // combat.tex "Chain order of running": who declares, head first
@@ -171,7 +218,7 @@ function buildRow(state: SceneState, id: string): ChasePartyRow {
 // to tail, resolve, play out the turns, the next round.
 function getNext(state: SceneState): string | null {
   const chase = state.chase
-  if (!chase) return 'tick the parties running away, pick how far apart they start, and start the chase'
+  if (!chase) return 'each party chooses to run away, to give chase, or neither; the chase starts with the round'
   if (state.round === 0) return 'press start combat to begin the first round'
   const first = getFightFirst(state)
   if (first) return `${first}: fight it out, then have them run again`
@@ -209,7 +256,7 @@ function buildChasePanel(state: SceneState): ChasePanel {
   const named = (ids: string[]) => ids.map((p) => getPartyName(state, p)).join(', ')
   return {
     tiers: CHASE_TIERS,
-    parties: Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name || 'no name', quarry: !!chase?.runaways.includes(id) })),
+    setup: getSetup(state),
     chasing: chase !== null,
     rows: parties.map((p) => buildRow(state, p)),
     order: chase ? getDeclareOrder(state).map((p) => getPartyName(state, p)) : [],

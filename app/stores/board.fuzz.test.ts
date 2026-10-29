@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterAll, describe, expect, it } from 'vitest'
 import { rollD10, seededRng } from '../domain/play/dice'
-import { SceneStateSchema, type ActionDraft, type SceneState } from '../domain/scene/types'
+import { SceneStateSchema, type ActionDraft, type ChaseIntent, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import type { ModifierView } from '../domain/scene/projections/modifiers'
 import { getFootprint, getMeleeThreateners } from '../domain/scene/rules/board/board'
@@ -15,11 +15,11 @@ import { getBoardViewFrom } from '../domain/scene/projections/boardView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
-import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
+import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, type RoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
 import { getChasePanel } from '../domain/scene/projections/chase'
 import { getFollowPanel } from '../domain/scene/projections/parked'
-import { getChaseStartBar, getDeclareBar, getDeclareOrder } from '../domain/scene/rules/chase'
+import { getChaseIntentBar, getDeclareBar, getDeclareOrder, getStartCaught } from '../domain/scene/rules/chase'
 import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
@@ -56,6 +56,8 @@ const STORAGE_EVERY = 8
 
 type Play = { name: string, weight?: number, run: (h: Harness, pick: Picker) => void }
 type Picker = <T>(from: readonly T[]) => T
+// The first of whatever is offered, for a scenario that plays one fixed way
+const firstOf: Picker = (from) => from[0]
 
 const highlighted = (h: Harness) => h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center)
 
@@ -689,7 +691,21 @@ function roundChangePlays(): Play[] {
 // whether to hold on, the morale tests are made, and the change moves on.
 function passRoundChange(h: Harness, pick: Picker) {
   h.send({ kind: 'nextRound', args: [] })
-  for (let i = 0; i < 40 && getRoundPhase(h.state()); i++) {
+  stepRoundChange(h, pick)
+}
+
+// The parties choose at the round change's chase step, the fight brought
+// there first: `runaways` run away and every other party gives chase to the
+// first of them, from `tier`.
+function chooseChaseAt(h: Harness, pick: Picker, runaways: string[], tier: ChaseTier) {
+  if (!getRoundPhase(h.state())) h.send({ kind: 'nextRound', args: [] })
+  stepRoundChange(h, pick, 'chase')
+  for (const p of runaways) h.send({ kind: 'chooseChase', args: [p, { kind: 'run' }] })
+  for (const p of Object.keys(h.state().parties).filter((p) => !runaways.includes(p))) h.send({ kind: 'chooseChase', args: [p, { kind: 'chase', target: runaways[0], tier }] })
+}
+
+function stepRoundChange(h: Harness, pick: Picker, until: RoundPhase | null = null) {
+  for (let i = 0; i < 40 && getRoundPhase(h.state()) && getRoundPhase(h.state()) !== until; i++) {
     const s = h.state()
     const owed = getConcentrationOwed(s)
     const untested = s.morale.find((m) => m.roll === null && s.characters[m.id])
@@ -1135,11 +1151,23 @@ function chasePlays(): Play[] {
   }
   return [
     {
-      name: 'start a chase',
+      name: 'choose to run away or give chase',
       run: (h, pick) => {
-        const quarry = Object.keys(h.state().parties).filter(() => pick([true, false]))
-        const tier = pick(CHASE_TIERS)
-        refused(h, getChaseStartBar(h.state(), quarry, tier), () => h.send({ kind: 'startChase', args: [quarry, tier] }), 'starting the chase')
+        const parties = Object.keys(h.state().parties)
+        if (!parties.length) return
+        const p = pick(parties)
+        const intent = pick<ChaseIntent | null>([null, { kind: 'run' }, { kind: 'chase', target: pick(parties), tier: pick(CHASE_TIERS) }])
+        refused(h, getChaseIntentBar(h.state(), p, intent), () => h.send({ kind: 'chooseChase', args: [p, intent] }), 'choosing to run away or give chase')
+      },
+    },
+    {
+      name: 'leave behind whoever cannot run',
+      run: (h, pick) => {
+        const parties = Object.keys(h.state().parties)
+        if (!parties.length) return
+        const p = pick(parties)
+        const bar = getStartCaught(h.state(), p).length === 0 ? 'nobody to leave behind' : getChaseIntentBar(h.state(), p, null)
+        refused(h, bar, () => h.send({ kind: 'leaveBehind', args: [p] }), 'leaving someone behind')
       },
     },
     {
@@ -1261,8 +1289,8 @@ function openChase(seed: number, tier?: ChaseTier, table = false) {
   h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
   const theirs = h.state().partyOf[h.idOf('Dee')]
   for (const name of ['Eve', 'Fay']) h.send({ kind: 'moveToParty', args: [h.idOf(name), theirs] })
-  h.send({ kind: 'startChase', args: [[h.state().partyOf[h.idOf('Ann')]], tier ?? pick(['combat', 'shooting', 'far'] as const)] })
-  passRoundChange(h, pick)
+  chooseChaseAt(h, pick, [h.state().partyOf[h.idOf('Ann')]], tier ?? pick(['combat', 'shooting', 'far'] as const))
+  stepRoundChange(h, pick)
   h.select('Ann')
   return { h, pick }
 }
@@ -1323,7 +1351,7 @@ describe('a chase with no board', () => {
     h.declare({ kind: 'rest' } as ActionDraft)
     h.commit()
     for (let i = 0; i < 10 && getRoundPhase(h.state()) !== 'chase'; i++) h.send({ kind: 'continueRound', args: [] })
-    h.send({ kind: 'startChase', args: [[h.state().partyOf[h.idOf('Ann')]], 'shooting'] })
+    chooseChaseAt(h, firstOf, [h.state().partyOf[h.idOf('Ann')]], 'shooting')
     h.send({ kind: 'continueRound', args: [] })
     for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
     confirmAll(h)
@@ -1360,7 +1388,8 @@ describe('a chase with no board', () => {
     h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
     const [ann, dee] = ['Ann', 'Dee'].map((name) => h.state().partyOf[h.idOf(name)])
     expect(Object.keys(h.state().board!.placements)).toHaveLength(2)
-    h.send({ kind: 'startChase', args: [[ann], 'far'] })
+    chooseChaseAt(h, firstOf, [ann], 'far')
+    stepRoundChange(h, firstOf)
     expect(h.state().board!.placements).toEqual({})
     h.send({ kind: 'giveUp', args: [dee] })
     h.send({ kind: 'followScene', args: [ann] })
@@ -1384,7 +1413,7 @@ describe('a chase with no board', () => {
     h.send({ kind: 'splitOff', args: [h.idOf('Cy')] })
     h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
     const [ann, cy, dee] = ['Ann', 'Cy', 'Dee'].map((name) => h.state().partyOf[h.idOf(name)])
-    h.send({ kind: 'startChase', args: [[ann, cy], 'shooting'] })
+    chooseChaseAt(h, firstOf, [ann, cy], 'shooting')
     for (let i = 0; i < 10 && getRoundPhase(h.state()); i++) h.send({ kind: 'continueRound', args: [] })
     expect(h.state().chase?.links[dee]?.chases).toBe(ann)
     for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })

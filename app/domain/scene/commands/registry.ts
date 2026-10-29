@@ -7,11 +7,12 @@ import type { ChaseCover, ChaseTier, CrossingSkill } from '../../lists'
 import type { CampaignCharacter, Delivery, Item, SurgeKind, TerrainBrush } from '../../types'
 import type { ExplosionDraft } from '../rules/impose'
 import { getPanelActor, type PanelPress } from '../rules/decider'
+import { getMembers } from '../rules/fighters'
 import type { CalledKind } from '../rules/heldTest'
-import type { ActionDraft, BoardExtent, ChaseDeclaration, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
+import type { ActionDraft, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
-import { confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from './chase'
+import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
 import { followScene } from './parked'
@@ -47,6 +48,8 @@ const panel = (press: PanelPress) => (state: SceneState): Actor => character(get
 const reactor = (_: SceneState, reactorId: string): Actor => ({ id: reactorId })
 const own = (_: SceneState, id: string): Actor => ({ id })
 const anyone = (): Actor => null
+// whoever plays someone in the party acts for it
+const partyMember = (state: SceneState, partyId: string): Actor => ({ anyOf: getMembers(state, partyId).map((c) => c.id) })
 const gm = (): Actor => 'gm'
 // a die typed in from the table for a test the press makes, or the table's
 // (a die left out comes back null once it has been sent as JSON)
@@ -159,7 +162,8 @@ export const sceneCommands = {
   renameParty: command((_, partyId: string, name: string) => renameParty(partyId, name)).by(gm),
 
   // combat.tex "Chases"
-  startChase: command((_, quarry: string[], tier: ChaseTier) => startChase(quarry, tier)).by(anyone),
+  chooseChase: command((_, partyId: string, intent: ChaseIntent | null) => chooseChase(partyId, intent)).by(partyMember),
+  leaveBehind: command((ctx, partyId: string) => leaveBehind(partyId, ctx.newId)).by(partyMember),
   declareChase: command((_, partyId: string, declaration: ChaseDeclaration) => declareChase(partyId, declaration)).by(anyone),
   confirmChase: command((_, partyId: string) => confirmChase(partyId)).by(anyone),
   resolveChase: command((ctx) => resolveChase(ctx.thrower)).by(anyone),

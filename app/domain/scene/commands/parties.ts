@@ -20,7 +20,7 @@ export function dropEmptyFightParties(state: SceneState, left: readonly string[]
 // A new party in the fight with nobody in it yet, called `name` or the next
 // free party name.
 export function createParty(partyId: string, name: string): Updater {
-  return (state) => (state.parties[partyId] ? state : { ...state, parties: { ...state.parties, [partyId]: { name: name || nextPartyName(state.parties) } } })
+  return (state) => (state.parties[partyId] ? state : { ...state, parties: { ...state.parties, [partyId]: { name: name || nextPartyName(state.parties), from: '' } } })
 }
 
 // The character enters the fight under their id, in the party named, made
@@ -31,7 +31,7 @@ export function createParty(partyId: string, name: string): Updater {
 export function joinFight(char: CampaignCharacter, partyId: string, partyName: string, reserved: readonly string[], preferred?: string): Updater {
   return (state) => {
     const named = state.names[char.id] ?? makeName(preferred ?? char.name, [...Object.values(state.names), ...reserved])
-    const parties = state.parties[partyId] ? state.parties : { ...state.parties, [partyId]: { name: partyName || nextPartyName(state.parties) } }
+    const parties = state.parties[partyId] ? state.parties : { ...state.parties, [partyId]: { name: partyName || nextPartyName(state.parties), from: '' } }
     return { ...state, characters: { ...state.characters, [char.id]: char }, names: { ...state.names, [char.id]: named }, parties, partyOf: { ...state.partyOf, [char.id]: partyId } }
   }
 }
@@ -58,12 +58,13 @@ export function moveToParty(id: string, partyId: string): Updater {
 }
 
 // The character leaves for a new party of their own, on the side of the
-// chase they were on. Refused while an action is being played out.
+// chase they were on, which the campaign takes back where the one they left
+// is. Refused while an action is being played out.
 export function splitOff(id: string, newId: () => string): Updater {
   return (state) => {
     if (getOpenAction(state) || !state.characters[id]) return state
     const partyId = newId()
-    const moved = { ...state, parties: { ...state.parties, [partyId]: { name: nextPartyName(state.parties) } }, partyOf: { ...state.partyOf, [id]: partyId } }
+    const moved = { ...state, parties: { ...state.parties, [partyId]: { name: nextPartyName(state.parties), from: state.partyOf[id] ?? '' } }, partyOf: { ...state.partyOf, [id]: partyId } }
     return dropEmptyFightParties({ ...moved, chase: getSplitChase(moved, state.partyOf[id] ?? '', partyId) }, [state.partyOf[id]])
   }
 }
@@ -74,5 +75,5 @@ export function deleteParty(partyId: string): Updater {
 }
 
 export function renameParty(partyId: string, name: string): Updater {
-  return (state) => (state.parties[partyId] && name ? { ...state, parties: { ...state.parties, [partyId]: { name } } } : state)
+  return (state) => (state.parties[partyId] && name ? { ...state, parties: { ...state.parties, [partyId]: { ...state.parties[partyId], name } } } : state)
 }

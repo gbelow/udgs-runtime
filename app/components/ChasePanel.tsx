@@ -4,38 +4,64 @@ import { Check, ChevronsRight, Dices, Flag, Footprints, GitMerge, Swords } from 
 import { ActionKey, Button, Closed, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
 import { useChase, useChaseCommands, useFollowScene } from '../hooks/useChase'
 import type { ChaseCover, ChaseMove, ChaseTier, CrossingSkill } from '../domain/lists'
-import type { ChasePanel as Panel, ChasePartyRow } from '../domain/scene/projections/chase'
+import type { ChasePanel as Panel, ChasePartyRow, ChaseSetupRow } from '../domain/scene/projections/chase'
 
 const MOVE_LABELS: Record<ChaseMove, string> = { run: 'run', reverse: 'run the other way', shoot: 'shoot', hide: 'hide' }
 
-// combat.tex "Chases": who runs away and from how far, said before the chase
-// begins.
+// combat.tex "Escape": at the round change's chase step each party chooses to
+// run away, to give chase to a party running away and from how far, or
+// neither; the chase starts with the round. Whoever cannot run is named, with
+// the press that leaves them behind so the others can.
 export function ChaseSetup(){
-  const [quarry, setQuarry] = useState<string[]>([])
-  const [startTier, setStartTier] = useState<ChaseTier>('combat')
-  const chase = useChase(quarry, startTier)
-  const { startChase } = useChaseCommands()
-  if (chase.parties.length === 0 || chase.chasing) return null
-
-  const toggle = (id: string) => setQuarry(quarry.includes(id) ? quarry.filter((q) => q !== id) : [...quarry, id])
+  const chase = useChase()
+  if (!chase.setup) return null
 
   return(
-    <div className='flex flex-col gap-1 text-sm'>
-      {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
-      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
-        <span>running away</span>
-        {chase.parties.map((p) => (
-          <label key={p.id} className='flex gap-1 items-center'>
-            <input type='checkbox' aria-label={`quarry ${p.name}`} checked={quarry.includes(p.id)} onChange={() => toggle(p.id)} />
-            {p.name}
-          </label>
-        ))}
-        <select className={selectClass} aria-label='starting tier' value={startTier} onChange={(e) => setStartTier(e.target.value as ChaseTier)}>
-          {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <Closed reason={chase.startBar}><ActionKey look='go' icon={Footprints} aria-label='startChase' disabled={chase.startBar !== null} onClick={() => startChase(quarry, startTier)}>start chase</ActionKey></Closed>
-        {chase.startBar ? <span>{chase.startBar}</span> : null}
+    <div className='flex flex-col gap-1.5 py-2 border-y border-line text-sm'>
+      <SectionLabel>Run away or give chase</SectionLabel>
+      {chase.setup.rows.map((row) => <SetupRow key={row.id} row={row} tiers={chase.tiers} />)}
+      {chase.setup.startBar ? <span className='text-xs text-bad'>{chase.setup.startBar}</span> : null}
+    </div>
+  )
+}
+
+function SetupRow({ row, tiers }: { row: ChaseSetupRow; tiers: readonly ChaseTier[] }){
+  const { choose, leaveBehind } = useChaseCommands()
+  const chaseAt = (target: string, tier: ChaseTier) => choose(row.id, { kind: 'chase', target, tier })
+
+  return(
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap gap-2 items-center'>
+        <span className='font-medium min-w-24'>{row.name}</span>
+        <Closed reason={row.intent === 'run' ? null : row.runBar}>
+          <ActionKey look={row.intent === 'run' ? 'picked' : 'plain'} icon={Footprints} aria-label={`run away ${row.name}`} aria-pressed={row.intent === 'run'} disabled={row.intent !== 'run' && row.runBar !== null}
+            onClick={() => choose(row.id, row.intent === 'run' ? null : { kind: 'run' })}>run away</ActionKey>
+        </Closed>
+        <Closed reason={row.intent === 'chase' ? null : row.chaseBar}>
+          <ActionKey look={row.intent === 'chase' ? 'picked' : 'plain'} icon={ChevronsRight} aria-label={`give chase ${row.name}`} aria-pressed={row.intent === 'chase'} disabled={row.intent !== 'chase' && row.chaseBar !== null}
+            onClick={() => (row.intent === 'chase' ? choose(row.id, null) : chaseAt(row.targets[0].id, row.tier))}>give chase</ActionKey>
+        </Closed>
+        {row.intent === 'chase' ? (
+          <span className='flex flex-row gap-1 items-center text-xs text-muted'>
+            to
+            <select className={selectClass} aria-label={`chase target ${row.name}`} value={row.target} onChange={(e) => chaseAt(e.target.value, row.tier)}>
+              {row.targets.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            from
+            <select className={selectClass} aria-label={`chase tier ${row.name}`} value={row.tier} onChange={(e) => chaseAt(row.target, e.target.value as ChaseTier)}>
+              {tiers.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </span>
+        ) : null}
+        {row.intent === null ? <span className='text-xs text-muted'>stays out of the chase</span> : null}
       </div>
+      {row.leaveBehind ? (
+        <div className='flex flex-row flex-wrap gap-2 items-center pl-2 border-l-2 border-bad text-xs'>
+          <span className='text-bad'>cannot run: {row.caught.join(', ')}</span>
+          <Button aria-label={`leave behind ${row.name}`} tone='bad' size='xs' onClick={() => leaveBehind(row.id)}>leave {row.leaveBehind} behind</Button>
+          <span className='text-muted'>they stay in a party of their own, out of the chase</span>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -44,7 +70,7 @@ export function ChaseSetup(){
 // and how its run went, hiding, scouting and obstacles, cover, and who sets
 // off to join a fight.
 export function ChasePanel(){
-  const chase = useChase([], 'combat')
+  const chase = useChase()
   const { resolve, setCover } = useChaseCommands()
   if (!chase.chasing) return null
 

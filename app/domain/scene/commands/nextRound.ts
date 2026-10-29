@@ -24,7 +24,7 @@ import { getHeldActions } from '../rules/hold'
 import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
 import { rollHeld } from './heldTest'
 import { getRoundSeconds, isRunningInChase } from '../rules/chase'
-import { endChaseRound, endChaseRoundChange } from './chase'
+import { beginChase, endChaseRound, endChaseRoundChange } from './chase'
 import { carryOver, finishHeld } from './hold'
 import { updateCharacter } from './characters'
 
@@ -66,7 +66,7 @@ export function nextRound(thrown: Throw): Updater {
     if (state.roundStep !== null || getPlayingOutBar(state)) return state
     const receive = state.round === 0 ? startAP : receiveAP
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) ? c : receive(wake(state, c))]))
-    const begun: SceneState = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], following: {}, stealthTurns: [], compulsions: [], concentration: [], roundStep: 'rest' }
+    const begun: SceneState = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })
@@ -100,7 +100,10 @@ function stepOn(state: SceneState, caller: Caller): SceneState {
     case 'rest': return openConcentration(passEnvironment(state), caller)
     case 'concentration': return { ...state, roundStep: 'join' }
     case 'join': return { ...state, roundStep: 'morale', morale: getMoraleCalled(state).map((id) => ({ id, roll: null })) }
-    case 'morale': return { ...state, roundStep: null, chase: endChaseRoundChange(state) }
+    case 'morale': {
+      const begun = beginChase(state)
+      return { ...begun, roundStep: null, chase: endChaseRoundChange(begun) }
+    }
     default: return state
   }
 }

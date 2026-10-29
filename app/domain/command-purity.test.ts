@@ -336,12 +336,12 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
 }
 
 // The fight with `a` in party `x` and `b` in party `y`.
-const partied = (s: SceneState): SceneState => ({ ...cleared(s), parties: { x: { name: 'X' }, y: { name: 'Y' } }, partyOf: { a: 'x', b: 'y' } })
+const partied = (s: SceneState): SceneState => ({ ...cleared(s), parties: { x: { name: 'X', from: '' }, y: { name: 'Y', from: '' } }, partyOf: { a: 'x', b: 'y' } })
 
 // The table with `a` sent from the roster to the fight, in party `p`.
 const away = ({ campaign, fight }: Table): Table => {
   const { a: _sent, ...characters } = campaign.characters
-  return { campaign: { ...campaign, characters }, fight: { ...fight, parties: { p: { name: 'Party 1' } }, partyOf: { a: 'p' } } }
+  return { campaign: { ...campaign, characters }, fight: { ...fight, parties: { p: { name: 'Party 1', from: '' } }, partyOf: { a: 'p' } } }
 }
 
 // The campaign's subject is a table: `a` and `b` on the roster in party

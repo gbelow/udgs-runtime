@@ -95,7 +95,7 @@ function FightSettings(){
 // started is played out, the board otherwise; and whom the scene follows once
 // a chase is over.
 export function SceneSpace(){
-  const chase = useChase([], 'combat')
+  const chase = useChase()
   const { view } = useRoundChange()
   if (view) return <RoundChangePanel />
   return(
@@ -189,7 +189,7 @@ export function GmSceneTools(){
 // items laid on the floor, charged with an explosion, set off or taken away,
 // each used by clicking the board once picked.
 function FloorTriggers(){
-  const { boardInPlay } = useChase([], 'combat')
+  const { boardInPlay } = useChase()
   const { floorTool, setFloorTool, explosion, setExplosion, explosionOptions, item } = useGmFloorTools()
   const bar = boardInPlay ? null : 'no board: simulate a grid first'
   const tools = [

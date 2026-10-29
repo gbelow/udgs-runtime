@@ -41,10 +41,20 @@ export function isFromRoster({ campaign }: Table, id: string): boolean {
 
 // The party the fight leaves the character in, for the campaign to take them
 // back into — the one they were sent in, or one of their own, if a fight from
-// before there were parties in it left them in none. A party the fight made
-// goes where the first party the campaign sent to it is.
+// before there were parties in it left them in none. A party split off in the
+// fight goes where the campaign's party it split from is, on its timeline;
+// any other party the fight made goes where the first party the campaign sent
+// to it is.
 export function getHomecoming({ campaign, fight }: Table, id: string): Homecoming {
   const partyId = fight.partyOf[id] ?? campaign.partyOf[id] ?? id
-  const sent = Object.keys(fight.parties).find((pid) => campaign.parties[pid])
+  const sent = getSplitFrom(fight, partyId, campaign.parties) ?? Object.keys(fight.parties).find((pid) => campaign.parties[pid])
   return { partyId, name: fight.parties[partyId]?.name ?? '', from: sent ? campaign.parties[sent] : undefined }
+}
+
+// The campaign's party the fight party split off from, through every split
+// made in the fight, or null.
+function getSplitFrom(fight: SceneState, partyId: string, campaignParties: Record<string, unknown>, seen: readonly string[] = []): string | null {
+  const from = fight.parties[partyId]?.from
+  if (!from || seen.includes(from)) return null
+  return campaignParties[from] ? from : getSplitFrom(fight, from, campaignParties, [...seen, partyId])
 }

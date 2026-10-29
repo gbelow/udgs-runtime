@@ -32,6 +32,7 @@ export function resetCombat(state: SceneState): SceneState {
     resume: null,
     elapsed: 0,
     chase: null,
+    chaseIntents: {},
     followed: null,
     actions: {},
     live: [],

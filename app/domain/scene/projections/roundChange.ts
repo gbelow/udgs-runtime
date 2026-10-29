@@ -11,7 +11,8 @@ import { ROUND_AP } from '../../tables'
 import { isDead } from '../../character/rules/afflictions'
 import { getAvailableActions } from '../rules/options'
 import { getActionDef } from '../rules/actionCatalog'
-import { getFightName } from '../rules/fighters'
+import { getFightName, getMembers, getPartyName } from '../rules/fighters'
+import { isParkedParty } from '../rules/parked'
 
 const PHASE_LABELS: Record<RoundPhase, string> = {
   rest: 'rest and speak',
@@ -86,7 +87,8 @@ function getConcentration(state: SceneState, id: string): RoundConcentration | n
 // What the step the round change waits at still lets someone do and moving
 // it on takes away, so that nobody misses a chance by it: resting and
 // speaking, and the AP above the round's, once the rest step is left; joining
-// once the join step is; starting a chase once the round begins.
+// once the join step is; running away or giving chase, for a party that chose
+// neither, once the round begins.
 function getClosing(state: SceneState, phase: RoundPhase): string[] {
   switch (phase) {
     case 'rest':
@@ -98,7 +100,11 @@ function getClosing(state: SceneState, phase: RoundPhase): string[] {
         return lost.length > 0 ? [`${getFightName(state, c.id)} ${lost.join(' and ')}`] : []
       })
     case 'join': return ['nobody can join the fight until the next round change']
-    case 'chase': return state.chase ? [] : ['no chase can start until the next round change']
+    case 'chase':
+      if (state.chase) return []
+      return Object.keys(state.parties)
+        .filter((p) => !state.chaseIntents[p] && !isParkedParty(state, p) && getMembers(state, p).length > 0)
+        .map((p) => `${getPartyName(state, p)} can no longer run away or give chase until the next round change`)
     default: return []
   }
 }

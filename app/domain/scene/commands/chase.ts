@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import type { Chase, ChaseDeclaration, ChaseLink, ChaseRoll, ChaseRun, SceneResume, SceneState, Updater } from '../types'
+import type { Chase, ChaseDeclaration, ChaseIntent, ChaseLink, ChaseRoll, ChaseRun, SceneResume, SceneState, Updater } from '../types'
 import type { ChaseCover, ChaseRole, ChaseTier, ChaseWay, CrossingSkill } from '../../lists'
 import { SKIRMISH_APPROACH_AP, SKIRMISH_SHOOT_AP, SURGES } from '../../tables'
 import { rollPercent } from '../../play/dice'
@@ -8,21 +8,48 @@ import type { Caller, Throw } from '../../play/calls'
 import { calling } from './calling'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
-import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getChaseWithoutDead, getConfirmBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getRechained, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isRunningInChase, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
+import { canTurnAround, getActiveLinks, getChaseIntentBar, getChaseParties, getChaseStartBar, getStartCaught, getChaseWithoutDead, getConfirmBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getRechained, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isRunningInChase, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
 import { getFightBusy } from '../rules/turn'
 import { getMembers } from '../rules/fighters'
 import { updateCharacter } from './characters'
 import { dropEmptyFightParties } from './parties'
+import { nextPartyName } from '../../campaign/rules/parties'
 import { withoutPlacements } from '../rules/board/board'
 
-// combat.tex "Chases": these fight parties run away from everyone else, at
-// the tier the table sets, and everyone running leaves the grid.
-export function startChase(quarry: string[], tier: ChaseTier): Updater {
+// combat.tex "Escape": the party chooses, at the round change's chase step,
+// to run away, to give chase to a party running away, or neither (null). A
+// party that no longer runs away is chased by nobody.
+export function chooseChase(partyId: string, intent: ChaseIntent | null): Updater {
   return (state) => {
-    if (getChaseStartBar(state, quarry, tier)) return state
-    const started = { ...state, chase: newChase(state, quarry, tier) }
-    return withoutPlacements(started, Object.keys(state.characters).filter((id) => isRunningInChase(started, id)))
+    if (getChaseIntentBar(state, partyId, intent)) return state
+    const kept = Object.entries(state.chaseIntents).filter(([p, i]) => p !== partyId && (intent?.kind === 'run' || i.kind !== 'chase' || i.target !== partyId))
+    return { ...state, chaseIntents: Object.fromEntries(intent ? [...kept, [partyId, intent]] : kept) }
   }
+}
+
+// combat.tex "Escape": "unless they get left behind". Whoever of the party
+// running away the chase would catch at once stays behind in a party of
+// their own, which chose neither and is out of the chase.
+export function leaveBehind(partyId: string, newId: () => string): Updater {
+  return (state) => {
+    const caught = getStartCaught(state, partyId).map((c) => c.id)
+    if (caught.length === 0 || getChaseIntentBar(state, partyId, null)) return state
+    const left = newId()
+    return {
+      ...state,
+      parties: { ...state.parties, [left]: { name: nextPartyName(state.parties), from: partyId } },
+      partyOf: { ...state.partyOf, ...Object.fromEntries(caught.map((id) => [id, left])) },
+    }
+  }
+}
+
+// The chase the parties chose starts as the round begins, and everyone
+// running leaves the grid. Nothing starts while nobody chose, or while what
+// they chose cannot start one.
+export function beginChase(state: SceneState): SceneState {
+  if (Object.keys(state.chaseIntents).length === 0 || getChaseStartBar(state)) return state
+  const started = { ...state, chase: newChase(state, state.chaseIntents), chaseIntents: {} }
+  return withoutPlacements(started, Object.keys(state.characters).filter((id) => isRunningInChase(started, id)))
 }
 
 function withChase(state: SceneState, change: Partial<Chase>): SceneState {

@@ -7,6 +7,7 @@ import { getHeldActions } from './hold'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
 import { getNextStress, getStressRoundBar, getStressTurn } from './stress'
+import { getChaseStartBar } from './chase'
 
 // The round change, in the table's order: the AP of the new round come in,
 // and whoever wants to rests or speaks with what is left of both rounds
@@ -119,6 +120,8 @@ export function getContinueBar(state: SceneState): string | null {
       return getMoraleTurnBar(state)
     case 'stress':
       return getStressRoundBar(state) ?? 'a limit stress action is being taken'
+    case 'chase':
+      return getChaseStartBar(state)
     default:
       return null
   }

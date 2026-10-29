@@ -1,24 +1,22 @@
 import { getChaseDigest, getChasePanel, type ChasePanel } from "../domain/scene/projections/chase";
 import { getFollowDigest, getFollowPanel, type FollowPanel } from "../domain/scene/projections/parked";
-import { getChaseStartBar } from "../domain/scene/rules/chase";
-import type { ChaseDeclaration } from "../domain/scene/types";
+import type { ChaseDeclaration, ChaseIntent } from "../domain/scene/types";
 import type { ChaseCover, ChaseTier, CrossingSkill } from "../domain/lists";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSceneDispatch } from "./useSceneDispatch";
 
 // combat.tex "Chases" — the chase panel, gated on a digest since it is
-// freshly allocated, and why the parties picked cannot set off at the tier
-// picked.
-export function useChase(quarry: string[], tier: ChaseTier): ChasePanel & { startBar: string | null } {
+// freshly allocated.
+export function useChase(): ChasePanel {
   useCombatStore(getChaseDigest);
-  const startBar = useCombatStore((s) => getChaseStartBar(s, quarry, tier));
-  return { ...getChasePanel(useCombatStore.getState()), startBar };
+  return getChasePanel(useCombatStore.getState());
 }
 
 export function useChaseCommands() {
   const dispatch = useSceneDispatch();
   return {
-    startChase: (quarry: string[], tier: ChaseTier) => dispatch({ kind: "startChase", args: [quarry, tier] }),
+    choose: (partyId: string, intent: ChaseIntent | null) => dispatch({ kind: "chooseChase", args: [partyId, intent] }),
+    leaveBehind: (partyId: string) => dispatch({ kind: "leaveBehind", args: [partyId] }),
     declare: (partyId: string, declaration: ChaseDeclaration) => dispatch({ kind: "declareChase", args: [partyId, declaration] }),
     confirm: (partyId: string) => dispatch({ kind: "confirmChase", args: [partyId] }),
     resolve: () => dispatch({ kind: "resolveChase", args: [] }),

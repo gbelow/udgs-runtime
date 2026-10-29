@@ -24,6 +24,7 @@ export function endScene(state: SceneState, caller: Caller): SceneState {
     round: 0,
     roundStep: null,
     chase: null,
+    chaseIntents: {},
     inTurnCharacter: '',
     forcedSurge: '',
     fleeing: false,

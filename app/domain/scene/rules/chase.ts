@@ -1,6 +1,6 @@
 import { getDiceBar } from '../../play/calls'
 import type { CampaignCharacter } from '../../types'
-import type { Chase, ChaseDeclaration, ChaseLink, SceneState } from '../types'
+import type { Chase, ChaseDeclaration, ChaseIntent, ChaseLink, SceneState } from '../types'
 import type { Term } from '../../character/rules/terms'
 import { AFFLICTIONS, CHASE_PARTIAL_COVER_REFLEX, CHASE_ROUND_SECONDS, CHASE_TIER_METRES, ROUND_AP, ROUND_SECONDS, SKIRMISH_APPROACH_AP, SKIRMISH_SECONDS, SKIRMISH_SHOOT_AP, SURGES } from '../../tables'
 import { CHASE_TIERS, SHOT_RANGES, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseStage, type ChaseTier, type ChaseWay, type CrossingSkill } from '../../lists'
@@ -37,22 +37,31 @@ export function getTeam(chase: Chase, partyId: string): ChaseSide {
   return chase.runaways.includes(partyId) ? 'quarry' : 'pursuers'
 }
 
-// combat.tex "Group chases": the chain a chase starts as. The parties
-// running away run at their slowest member's speed, so "The slower member of
-// a split party starts chasing the faster ones": each runs after the next
-// faster, side by side, and everyone giving chase chases the slowest, at the
-// tier the table sets ("Approach": "The weapon range will decide at what
-// distance both teams start").
-export function newChase(state: SceneState, quarry: string[], tier: ChaseTier): Chase {
+// combat.tex "Group chases": the chain a chase starts as, from what each
+// party chose at the round change. The parties running away run at their
+// slowest member's speed, so "The slower member of a split party starts
+// chasing the faster ones": each runs after the next faster, side by side.
+// Each party giving chase chases the party it picked, at the tier it picked
+// ("Approach": "The weapon range will decide at what distance both teams
+// start"); a party that chose neither is out of the chase.
+export function newChase(state: SceneState, intents: Record<string, ChaseIntent>): Chase {
   const inPlay = Object.keys(state.parties).filter((p) => !isParkedParty(state, p))
-  const runaways = quarry.filter((p) => inPlay.includes(p))
-  const bySpeed = [...runaways].sort((a, b) => getPartySpeed(state, a, tier) - getPartySpeed(state, b, tier))
-  const pursuers = inPlay.filter((p) => !runaways.includes(p))
+  const runaways = inPlay.filter((p) => intents[p]?.kind === 'run')
+  const chasing = inPlay.flatMap((p): [string, { target: string; tier: ChaseTier }][] => {
+    const intent = intents[p]
+    return intent?.kind === 'chase' && runaways.includes(intent.target) ? [[p, intent]] : []
+  })
+  const chasedAt = (p: string) => {
+    const tiers = chasing.filter(([, c]) => c.target === p).map(([, c]) => CHASE_TIERS.indexOf(c.tier))
+    return CHASE_TIERS[tiers.length ? Math.min(...tiers) : 0]
+  }
+  const bySpeed = [...runaways].sort((a, b) => getPartySpeed(state, a, chasedAt(a)) - getPartySpeed(state, b, chasedAt(b)))
   const links: Record<string, ChaseLink> = Object.fromEntries([
     ...bySpeed.slice(0, -1).map((p, i) => [p, { chases: bySpeed[i + 1], tier: 'combat' as ChaseTier, run: null }]),
-    ...(bySpeed.length ? pursuers.map((p) => [p, { chases: bySpeed[0], tier, run: null }]) : []),
+    ...chasing.map(([p, c]) => [p, { chases: c.target, tier: c.tier, run: null }]),
   ])
-  return getChaseWithoutDead(state, { runaways, links, out: Object.keys(state.parties).filter((p) => !inPlay.includes(p)), fighting: [], joining: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
+  const inChase = [...runaways, ...chasing.map(([p]) => p)]
+  return getChaseWithoutDead(state, { runaways, links, out: Object.keys(state.parties).filter((p) => !inChase.includes(p)), fighting: [], joining: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
 }
 
 // The chain once a party leaves it: whoever chased it chases whoever it
@@ -240,21 +249,36 @@ export function getCaught(state: SceneState, partyId: string): { id: string; rea
   })
 }
 
-// combat.tex "Escape": "The chase starts when everyone in a party decides to
-// run away [...]. It always starts at the beginning of a new round. Any
-// character that cannot run for whatever reason at the beginning of the
-// round will prevent the chase from beginning" — whoever the chase would
-// catch at once. In a fight under way, its round change is where, once the
-// morale tests are made and the limit stress actions taken.
-export function getChaseStartBar(state: SceneState, quarry: string[], tier: ChaseTier): string | null {
+// Whether the party can choose now to run away, give chase or neither: only
+// at the round change, once the morale tests are made and the limit stress
+// actions taken (combat.tex "Escape": "It always starts at the beginning of a
+// new round"), and only after a party that runs away.
+export function getChaseIntentBar(state: SceneState, partyId: string, intent: ChaseIntent | null): string | null {
   if (state.chase) return 'a chase is under way'
-  const busy = getFightBusy(state)
-  if (busy) return busy
-  if (state.round > 0 && getRoundPhase(state) !== 'chase') return 'a chase starts at the round change, after the morale tests'
-  const started = { ...state, chase: newChase(state, quarry, tier) }
+  if (getRoundPhase(state) !== 'chase') return 'only at the round change, after the morale tests'
+  if (!state.parties[partyId] || isParkedParty(state, partyId) || getMembers(state, partyId).length === 0) return 'nobody in the party can'
+  if (intent?.kind !== 'chase') return null
+  if (intent.target === partyId) return 'a party does not chase itself'
+  return state.chaseIntents[intent.target]?.kind === 'run' ? null : 'that party is not running away'
+}
+
+// combat.tex "Escape": "Any character that cannot run for whatever reason at
+// the beginning of the round will prevent the chase from beginning, unless
+// they get left behind": whoever of a party running away the chase the
+// parties chose would catch at once.
+export function getStartCaught(state: SceneState, partyId: string): { id: string; reason: string }[] {
+  if (state.chase || state.chaseIntents[partyId]?.kind !== 'run') return []
+  return getCaught({ ...state, chase: newChase(state, state.chaseIntents) }, partyId)
+}
+
+// Why what the parties chose cannot start a chase as the round begins, or
+// null when it can or nobody chose to run or chase.
+export function getChaseStartBar(state: SceneState): string | null {
+  if (state.chase || Object.keys(state.chaseIntents).length === 0) return null
+  const started = { ...state, chase: newChase(state, state.chaseIntents) }
   const sides = getChaseParties(started).map((p) => getMembers(state, p).length > 0 ? getTeam(started.chase, p) : null)
-  if (!sides.includes('quarry') || !sides.includes('pursuers')) return 'a chase needs someone on each side'
-  const caught = quarry.flatMap((g) => getCaught(started, g))
+  if (!sides.includes('quarry') || !sides.includes('pursuers')) return 'a chase needs a party running away and one giving chase'
+  const caught = started.chase.runaways.flatMap((p) => getStartCaught(state, p))
   return caught.length ? `cannot run: ${caught.map((c) => c.reason).join(', ')}` : null
 }
 

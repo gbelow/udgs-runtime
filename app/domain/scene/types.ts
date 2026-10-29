@@ -1600,7 +1600,9 @@ export type EditEntry = z.infer<typeof EditEntrySchema>
 // still lands on a complete SceneState.
 // A party in the fight: one the campaign sent its characters in, under the
 // campaign's id, or one made in the fight.
-export const FightPartySchema = z.object({ name: str.default('') })
+// `from` is the party it split off from in the fight, '' for one that did not:
+// the campaign takes it back where that one is, on its timeline
+export const FightPartySchema = z.object({ name: str.default(''), from: str.default('') })
 export type FightParty = z.infer<typeof FightPartySchema>
 
 // combat.tex "Running": what one link of the chain came to this round — the
@@ -1693,6 +1695,14 @@ export const ChaseSchema = z.object({
 }).strip()
 export type Chase = z.infer<typeof ChaseSchema>
 
+// What a party chose at the round change's chase step (combat.tex "Escape"):
+// to run away, or to give chase to a party running away, from a tier.
+export const ChaseIntentSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('run') }),
+  z.object({ kind: z.literal('chase'), target: str, tier: z.enum(CHASE_TIERS).default('combat') }),
+])
+export type ChaseIntent = z.infer<typeof ChaseIntentSchema>
+
 // The command a scene's dice were called for by, carried on once the last of
 // them is in: the exchange's roll or payment, the turn contest, the round
 // change and its steps, a concentrating character's choice, the combat's end,
@@ -1732,6 +1742,9 @@ export const SceneStateSchema = z.object({
   // Null is a fight; otherwise the scene is a chase (combat.tex "Chases"),
   // played without a board
   chase: ChaseSchema.nullable().default(null),
+  // What each party chose at the round change's chase step, a chase started
+  // from it as the round begins
+  chaseIntents: z.record(str, ChaseIntentSchema).default({}),
   // The fight party the scene follows once a chase is over; everyone in any
   // other party is parked, in the scene and off the grid. Null parks nobody
   followed: str.nullable().default(null),
