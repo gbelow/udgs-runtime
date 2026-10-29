@@ -315,36 +315,24 @@ export function putBack(partyId: string, target: string, tier: ChaseTier): Updat
 }
 
 // The fight that lives in the chase ends, and the chase takes up where it
-// was saved: whoever fought and is left runs again off the grid, whoever was
-// on the way stays where they were, and the dead are out. The round change
+// was saved: whoever fought and is left runs again off the grid, and the dead
+// are out. The round change
 // calls it (`backToChase`, nextRound.ts).
 export function endChaseFight(state: SceneState): SceneState {
   if (getBackToChaseBar(state)) return state
   const fighters = Object.keys(state.characters).filter((id) => state.chase!.fighting.includes(state.partyOf[id] ?? ''))
-  const back = withChase(state, { fighting: [], joining: {}, setOff: {} })
+  const back = withChase(state, { fighting: [] })
   return withoutPlacements({ ...back, chase: getChaseWithoutDead(back, back.chase!) }, fighters)
 }
 
-// The party arrives at the fight, within combat range of the party it set
-// off for, and fights in it.
-function arrive(state: SceneState, partyId: string, to: string): SceneState {
+// combat.tex "Combat with split group": a party at shooting range of the
+// fight that lives in the chase joins it, within combat range of the party it
+// joins. The round change's join step calls it (`joinChaseFight`,
+// nextRound.ts).
+export function enterChaseFight(state: SceneState, partyId: string, to: string): SceneState {
+  if (getJoinBar(state, partyId, to)) return state
   const chase = state.chase!
-  return withChase(state, {
-    links: { ...chase.links, [partyId]: { chases: to, tier: 'combat', run: null } },
-    fighting: chase.fighting.includes(partyId) ? chase.fighting : [...chase.fighting, partyId],
-    joining: dropKey(chase.joining, partyId),
-    setOff: dropKey(chase.setOff, partyId),
-  })
-}
-
-// combat.tex "Combat with split group": a party at shooting range sets off to
-// join the fight, and "must spend one full round to arrive at the fight";
-// frozen until it does.
-export function joinFight(partyId: string, to: string): Updater {
-  return (state) => {
-    if (getJoinBar(state, partyId, to)) return state
-    return withChase(state, { joining: { ...state.chase!.joining, [partyId]: to }, setOff: { ...state.chase!.setOff, [partyId]: state.round } })
-  }
+  return withChase(state, { links: { ...chase.links, [partyId]: { chases: to, tier: 'combat', run: null } }, fighting: [...chase.fighting, partyId] })
 }
 
 // What a party leaves behind in the chase once it is gone from the fight.
@@ -355,8 +343,6 @@ function forget(chase: Chase, partyId: string): Chase {
     links: dropKey(chase.links, partyId),
     out: without(chase.out, partyId),
     fighting: without(chase.fighting, partyId),
-    joining: dropKey(chase.joining, partyId),
-    setOff: dropKey(chase.setOff, partyId),
     declarations: dropKey(chase.declarations, partyId),
     confirmed: without(chase.confirmed, partyId),
     features: dropKey(chase.features, partyId),
@@ -402,10 +388,8 @@ function approachFeatures(chase: Chase): Chase['features'] {
 
 // The chase as the round ends: unless a fight was being played out, which
 // the chases wait on, the skirmishes' ways land and the places run towards
-// come nearer; whoever was on the way to a fight arrives; the round's
-// declarations, runs and tests are cleared; and whoever is left disconnected
-// is out of the chase. Whoever set off for the fight arrives once a full
-// round has passed since.
+// come nearer; the round's declarations, runs and tests are cleared; and
+// whoever is left disconnected is out of the chase.
 export function endChaseRound(state: SceneState): Chase | null {
   const chase = state.chase
   if (!chase) return null
@@ -413,10 +397,8 @@ export function endChaseRound(state: SceneState): Chase | null {
   const settled = ran ? Object.entries(chase.links).reduce((links, [from, l]) => (l.run?.skirmish ? applyWay(links, from, l.run.way) : links), chase.links) : chase.links
   const links = Object.fromEntries(Object.entries(settled).map(([from, l]) => [from, { ...l, run: null }]))
   const features = ran ? approachFeatures(chase) : chase.features
-  const due = Object.entries(chase.joining).filter(([p]) => state.round > (chase.setOff[p] ?? 0))
-  const arrived = due.reduce((s: SceneState, [p, to]) => arrive(s, p, to), withChase(state, { links, features }))
-  const cleared = withChase(arrived, { declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [] })
-  const out = getChaseParties(cleared).filter((p) => isDisconnected(cleared, p) && !isHeldOn(cleared.chase!, p))
+  const cleared = withChase(state, { links, features, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [] })
+  const out = getChaseParties(cleared).filter((p) => isDisconnected(cleared, p) && !cleared.chase!.fighting.includes(p))
   return { ...cleared.chase!, out: [...cleared.chase!.out, ...out] }
 }
 
@@ -424,10 +406,6 @@ export function endChaseRound(state: SceneState): Chase | null {
 // their work: a party with nobody left alive leaves it.
 export function endChaseRoundChange(state: SceneState): Chase | null {
   return state.chase && getChaseWithoutDead(state, state.chase)
-}
-
-function isHeldOn(chase: Chase, partyId: string): boolean {
-  return chase.fighting.includes(partyId) || !!chase.joining[partyId]
 }
 
 // combat.tex "Catching": one of a chased party turns around to face the

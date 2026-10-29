@@ -251,6 +251,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   answerScene: (s) => combatCommands.answerScene('contest:a', 4, 'entered', () => 0, newId)({ ...s, resume: { kind: 'contest' }, calls: { 'contest:a': { id: 'contest:a', roller: 'a', label: 'cunning, for the turn', explodes: false, mode: 'normal', test: null, die: null, source: 'screen' } } }),
   continueRound: (s) => combatCommands.continueRound(() => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'rest' })),
   backToChase: (s) => combatCommands.backToChase(deepFreeze({ ...partied(s), inTurnCharacter: '', roundStep: 'chase', chase: ChaseSchema.parse({ runaways: ['y'], links: { x: { chases: 'y', tier: 'combat' } }, fighting: ['x', 'y'] }) })),
+  joinChaseFight: (s) => combatCommands.joinChaseFight('y', 'x')(deepFreeze({ ...partied(s), inTurnCharacter: '', roundStep: 'join', chase: ChaseSchema.parse({ runaways: ['y'], links: { x: { chases: 'y', tier: 'shooting' } }, fighting: ['x'] }) })),
   holdOn: (s) => combatCommands.holdOn('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
   letGo: (s) => combatCommands.letGo('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
   rollMorale: (s) => combatCommands.rollMorale('a', 'safe', true, () => 3)(deepFreeze({ ...s, morale: [{ id: 'a', roll: null }] })),

@@ -1233,7 +1233,7 @@ function chasePlays(): Play[] {
       },
     },
     { name: 'turn around', run: (h, pick) => { const members = rows(h).filter((r) => r.turnable).flatMap((r) => r.members); if (members.length) h.send({ kind: 'turnAround', args: [pick(members).id] }) } },
-    { name: 'take cover', run: (h, pick) => { const runners = panel(h).runners; if (runners.length) h.send({ kind: 'setChaseCover', args: [pick(runners).id, pick([null, ...CHASE_COVERS])] }) } },
+    { name: 'take cover', run: (h, pick) => { const runners = rows(h).flatMap((r) => r.members); if (runners.length) h.send({ kind: 'setChaseCover', args: [pick(runners).id, pick([null, ...CHASE_COVERS])] }) } },
     {
       name: 'cross an obstacle',
       run: (h, pick) => {

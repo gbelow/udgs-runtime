@@ -23,9 +23,10 @@ export type ChaseRunRow = {
   runners: { id: string; name: string; role: ChaseRole; speed: number; slowest: boolean }[]
 }
 
-// A party in the chase: its team, where it stands, who it chases and how
-// far, who chases it, what it declared and what it may declare, how its
-// link ran, and what the table may do with it.
+// A party in the chase: its team, where it stands, who it chases and who
+// chases it (how far is the track's to draw), its members with whether they
+// turned around and the cover the table gives them, what it declared and
+// what it may declare, how its link ran, and what the table may do with it.
 export type ChasePartyRow = {
   id: string
   name: string
@@ -33,9 +34,9 @@ export type ChasePartyRow = {
   status: string
   out: boolean
   fighting: boolean
-  chases: { name: string; tier: ChaseTier; enemy: boolean; frozen: boolean } | null
+  chases: { name: string; enemy: boolean } | null
   chasedBy: string[]
-  members: { id: string; name: string; turned: boolean }[]
+  members: { id: string; name: string; turned: boolean; cover: ChaseCover | null }[]
   turnable: boolean
   caught: string[]
   declares: boolean
@@ -50,7 +51,6 @@ export type ChasePartyRow = {
   crossBar: string | null
   followOptions: Option[]
   putBackOptions: Option[]
-  joining: string | null
   mergeBar: string | null
   giveUpBar: string | null
 }
@@ -103,11 +103,13 @@ function getSetup(state: SceneState): ChaseSetup | null {
 }
 
 // The chase while a fight lives in it (the table's ruling): saved, with who
-// fights, each party still in the chase and the fights it may set off for
-// from shooting range, and why the GM cannot take the chase up again yet.
+// fights, each party frozen in the chase and the fights it may join at the
+// round change, and why the GM cannot take the chase up again yet.
 export type ChaseSaved = {
   fighting: string
-  parties: { id: string; name: string; joining: string | null; options: Option[] }[]
+  parties: { id: string; name: string; options: Option[] }[]
+  // combat.tex "Combat with split group": where a party joining is placed
+  arriving: string
   backBar: string | null
 }
 
@@ -120,9 +122,9 @@ function getSaved(state: SceneState): ChaseSaved | null {
     parties: getChaseParties(state).filter((p) => !chase.fighting.includes(p) && getMembers(state, p).length > 0).map((id) => ({
       id,
       name: getPartyName(state, id),
-      joining: chase.joining[id] ? getPartyName(state, chase.joining[id]) : null,
-      options: chase.joining[id] ? [] : fighting.map((p) => ({ id: p, name: getPartyName(state, p), bar: getJoinBar(state, id, p) })),
+      options: fighting.map((p) => ({ id: p, name: getPartyName(state, p), bar: getJoinBar(state, id, p) })),
     })),
+    arriving: 'no closer than 50 m to any enemy',
     backBar: getBackToChaseBar(state),
   }
 }
@@ -147,7 +149,7 @@ export type ChasePanel = {
   boardInPlay: boolean
   // what the table does next
   next: string | null
-  // where the tokens go when a fight starts or someone arrives at one
+  // where the tokens go when a catch starts a fight
   placement: string | null
   // why the round cannot end yet
   roundBar: string | null
@@ -155,7 +157,6 @@ export type ChasePanel = {
   crossingSkills: typeof CROSSING_SKILLS
   // combat.tex "Cover": everyone in the chase and the cover the table gives them
   covers: readonly ChaseCover[]
-  runners: { id: string; name: string; team: ChaseSide; cover: ChaseCover | null }[]
   elapsed: string
   roundTakes: string
 }
@@ -172,7 +173,6 @@ function getStatus(state: SceneState, id: string): string {
   const chase = state.chase!
   if (chase.out.includes(id)) return 'out of the chase'
   if (chase.fighting.includes(id)) return 'fighting'
-  if (chase.joining[id]) return `on the way to the fight of ${getPartyName(state, chase.joining[id])}`
   if (isDisconnected(state, id)) return 'disconnected: out when the round ends'
   if (isFrozen(state, id)) return 'keeping the distance at far range'
   const stage = getChaseStage(state, id)
@@ -214,9 +214,9 @@ function buildRow(state: SceneState, id: string): ChasePartyRow {
     status: getStatus(state, id),
     out: chase.out.includes(id),
     fighting: chase.fighting.includes(id),
-    chases: link && { name: getPartyName(state, link.chases), tier: link.tier, enemy: isEnemyLink(state, id), frozen: isFrozen(state, id) },
+    chases: link && { name: getPartyName(state, link.chases), enemy: isEnemyLink(state, id) },
     chasedBy: getChasers(state, id).map((p) => getPartyName(state, p)),
-    members: getMembers(state, id).map((c) => ({ id: c.id, name: getFightName(state, c.id), turned: chase.turned.includes(c.id) })),
+    members: getMembers(state, id).map((c) => ({ id: c.id, name: getFightName(state, c.id), turned: chase.turned.includes(c.id), cover: chase.cover[c.id] ?? null })),
     turnable: getMembers(state, id).some((c) => canTurnAround(state, c.id)),
     caught: getCaught(state, id).map((c) => c.reason),
     declares: getDeclarers(state).includes(id),
@@ -231,7 +231,6 @@ function buildRow(state: SceneState, id: string): ChasePartyRow {
     crossBar: getObstacleOwner(state, id) ? getCrossBar(state, id) : null,
     followOptions: chase.out.includes(id) ? [] : others.filter((p) => !chase.out.includes(p) && link?.chases !== p).map((p) => ({ id: p, name: getPartyName(state, p), bar: getFollowBar(state, id, p) })),
     putBackOptions: chase.out.includes(id) ? others.filter((p) => !chase.out.includes(p)).map((p) => ({ id: p, name: getPartyName(state, p), bar: getPutBackBar(state, id, p) })) : [],
-    joining: chase.joining[id] ? getPartyName(state, chase.joining[id]) : null,
     mergeBar: link && !isEnemyLink(state, id) ? getMergeBar(state, id) : null,
     giveUpBar: link ? getFightBusy(state) : null,
   }
@@ -262,15 +261,9 @@ function getNext(state: SceneState): string | null {
   return bar ?? 'resolve the round'
 }
 
-// combat.tex "Catching", "Combat with split group": where the tokens go.
+// combat.tex "Catching": where the tokens go.
 function getPlacement(state: SceneState): string | null {
-  const chase = state.chase
-  if (!chase) return null
-  const notes = [
-    getFightingParties(state).length ? 'caught: the one who ended the chase within 10 m of an enemy and 20 m of every teammate, teams on either side of a semicircle around them, the chasers placing first; a grapple starts adjacent' : null,
-    Object.keys(chase.joining).length ? 'arriving: no closer than 50 m to any enemy' : null,
-  ].filter((n) => n)
-  return notes.length ? notes.join('; ') : null
+  return getFightingParties(state).length ? 'caught: the one who ended the chase within 10 m of an enemy and 20 m of every teammate, teams on either side of a semicircle around them, the chasers placing first; a grapple starts adjacent' : null
 }
 
 function buildChasePanel(state: SceneState): ChasePanel {
@@ -295,7 +288,6 @@ function buildChasePanel(state: SceneState): ChasePanel {
     moves: CHASE_MOVES,
     crossingSkills: CROSSING_SKILLS,
     covers: CHASE_COVERS,
-    runners: chase ? Object.values(state.characters).filter((c) => getMembers(state, state.partyOf[c.id] ?? '').includes(c)).map((c) => ({ id: c.id, name: getFightName(state, c.id), team: getTeam(chase, state.partyOf[c.id]), cover: chase.cover[c.id] ?? null })) : [],
     elapsed: clock(state.elapsed),
     roundTakes: clock(getRoundSeconds(state)),
   }
@@ -315,8 +307,6 @@ export type TrackParty = {
   stage: ChaseStage | null
   hiding: boolean
   fighting: boolean
-  // the party whose fight it is on its way to, by name
-  joining: string | null
   tokens: TrackToken[]
   // members past the tokens drawn
   more: number
@@ -379,7 +369,6 @@ function buildTrackParty(state: SceneState, id: string, parties: string[]): Trac
     stage: getChaseStage(state, id),
     hiding: chase.declarations[id]?.move === 'hide',
     fighting: chase.fighting.includes(id),
-    joining: chase.joining[id] ? getPartyName(state, chase.joining[id]) : null,
     tokens: members.slice(0, TRACK_TOKENS).map((c) => {
       const reason = caught.find((x) => x.id === c.id)?.reason
       const cover = chase.cover[c.id]

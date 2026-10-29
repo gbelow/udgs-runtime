@@ -1673,8 +1673,7 @@ export type ChaseRoll = z.infer<typeof ChaseRollSchema>
 
 // combat.tex "Chases": the parties on the team that ran away first (everyone
 // else gave chase); the party each party chases, the chain; who is out of it
-// ("Disconnected party"), caught and fighting, or on the way to join a
-// fight; what each party declared this round and who has confirmed it,
+// ("Disconnected party") and who is caught and fighting; what each party declared this round and who has confirmed it,
 // whether the round has been resolved, how long it took and the tests it
 // made; the places parties found; who of a chased party has turned around to
 // face the chasers; and who the table has in cover.
@@ -1683,9 +1682,6 @@ export const ChaseSchema = z.object({
   links: z.record(str, ChaseLinkSchema).default({}),
   out: z.array(str).default([]),
   fighting: z.array(str).default([]),
-  joining: z.record(str, str).default({}),
-  // the round each party on its way to the fight set off in
-  setOff: z.record(str, num).default({}),
   declarations: z.record(str, ChaseDeclarationSchema).default({}),
   confirmed: z.array(str).default([]),
   resolved: z.boolean().default(false),

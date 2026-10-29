@@ -61,7 +61,7 @@ export function newChase(state: SceneState, intents: Record<string, ChaseIntent>
     ...chasing.map(([p, c]) => [p, { chases: c.target, tier: c.tier, run: null }]),
   ])
   const inChase = [...runaways, ...chasing.map(([p]) => p)]
-  return getChaseWithoutDead(state, { runaways, links, out: Object.keys(state.parties).filter((p) => !inChase.includes(p)), fighting: [], joining: {}, setOff: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
+  return getChaseWithoutDead(state, { runaways, links, out: Object.keys(state.parties).filter((p) => !inChase.includes(p)), fighting: [], declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
 }
 
 // The chain once a party leaves it: whoever chased it chases whoever it
@@ -86,8 +86,6 @@ export function getChaseWithoutDead(state: SceneState, chase: Chase): Chase {
     links: dead.reduce(getRechained, chase.links),
     out: [...chase.out, ...dead],
     fighting: chase.fighting.filter((p) => !dead.includes(p)),
-    joining: Object.fromEntries(Object.entries(chase.joining).filter(([p]) => !dead.includes(p))),
-    setOff: Object.fromEntries(Object.entries(chase.setOff).filter(([p]) => !dead.includes(p))),
   }
 }
 
@@ -128,10 +126,9 @@ export function isDisconnected(state: SceneState, partyId: string): boolean {
   return !getLink(state, partyId) && getChasers(state, partyId).length === 0
 }
 
-// A party sitting the run out: caught and fighting, or on its way to a fight.
+// A party sitting the run out: caught and fighting.
 export function isHeld(state: SceneState, partyId: string): boolean {
-  const chase = state.chase
-  return !!chase && (chase.fighting.includes(partyId) || !!chase.joining[partyId])
+  return !!state.chase?.fighting.includes(partyId)
 }
 
 // The tier a link stands at this round: the one it was run at, once run.
@@ -298,8 +295,7 @@ export function getFightingParties(state: SceneState): string[] {
 }
 
 // The table's ruling: a scene is a chase or a fight, and a fight lives in the
-// chase. While one does, everyone outside it is frozen until they arrive in
-// it; while none does, everyone out of the chase is. Nothing happens to a
+// chase. While one does, everyone outside it is frozen until they join it; while none does, everyone out of the chase is. Nothing happens to a
 // frozen party: no turns, no AP, nothing from the round change. False with
 // no chase.
 export function isFrozenParty(state: SceneState, partyId: string): boolean {
@@ -328,11 +324,10 @@ export function getBackToChaseBar(state: SceneState): string | null {
 // combat.tex "Escaping": the chase is over once outrunning, hiding or an
 // obstacle has broken every link between enemies still in it, or one end of
 // every such link has nobody left alive. A fight a catch started is played
-// out first, and whoever is on the way to one arrives first. False with no
-// chase.
+// out first. False with no chase.
 export function isChaseOver(state: SceneState): boolean {
   const chase = state.chase
-  if (!chase || getFightFirst(state) || Object.keys(chase.joining).length > 0) return false
+  if (!chase || getFightFirst(state)) return false
   const alive = (p: string) => getMembers(state, p).length > 0
   return !getChaseParties(state).some((p) => isEnemyLink(state, p) && alive(p) && alive(getLink(state, p)!.chases))
 }
@@ -701,18 +696,18 @@ export function getMergeBar(state: SceneState, partyId: string): string | null {
   return getFightBusy(state)
 }
 
-// Why the party cannot set off to join the fight: no fight lives in the
-// chase, it is in that fight, on its way already, or not at shooting range of
-// it ("any character from a group that is at shooting distance must spend
-// one full round to arrive at the fight [...]. Anyone at far range or more is
-// out"; whoever is within combat range is in it already).
+// Why the party cannot join the fight that lives in the chase now: no fight
+// lives there, it is in that fight, it is not the round change's join step,
+// or it is not at shooting range of it (combat.tex "Combat with split group":
+// "Anyone at far range or more is out"; whoever is within combat range is in
+// it already, and from shooting range they join at once, the table's ruling).
 export function getJoinBar(state: SceneState, partyId: string, to: string): string | null {
   const chase = state.chase
   if (!chase) return 'there is no chase'
   if (!getFightingParties(state).includes(to)) return 'there is no fight there'
   if (partyId === to || chase.fighting.includes(partyId)) return 'they are fighting'
   if (chase.out.includes(partyId)) return 'they are out of the chase'
-  if (chase.joining[partyId]) return 'they are on their way'
+  if (getRoundPhase(state) !== 'join') return 'only at the round change, when characters join'
   if (getPartyTierBetween(state, partyId, to) !== 'shooting') return 'only from shooting range'
   return getMembers(state, partyId).length === 0 ? 'nobody left in the party' : null
 }
@@ -734,7 +729,6 @@ export function getSplitChase(state: SceneState, from: string, to: string): Chas
     ...chase,
     runaways: chase.runaways.includes(from) ? [...chase.runaways, to] : chase.runaways,
     fighting: chase.fighting.includes(from) ? [...chase.fighting, to] : chase.fighting,
-    joining: chase.joining[from] ? { ...chase.joining, [to]: chase.joining[from] } : chase.joining,
     out: chase.out.includes(from) ? [...chase.out, to] : chase.out,
   }
   const link = chase.links[from]

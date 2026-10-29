@@ -24,7 +24,7 @@ import { getHeldActions } from '../rules/hold'
 import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
 import { rollHeld } from './heldTest'
 import { getRoundSeconds, isRunningInChase } from '../rules/chase'
-import { beginChase, endChaseFight, endChaseRound, endChaseRoundChange } from './chase'
+import { beginChase, endChaseFight, endChaseRound, endChaseRoundChange, enterChaseFight } from './chase'
 import { carryOver, finishHeld } from './hold'
 import { updateCharacter } from './characters'
 import { isParked } from '../rules/parked'
@@ -99,6 +99,17 @@ export function backToChase(state: SceneState): SceneState {
   if (back === state) return state
   const woken = frozen.filter((id) => !isParked(back, id) && !isDead(back.characters[id]))
   return woken.reduce((s, id) => updateCharacter(id, (c) => capAP(receiveAP(c)), 'back to the chase')(s), back)
+}
+
+// At the round change's join step, a party the fight that lives in the chase
+// froze joins it, waking to the round's AP like whoever goes back to the
+// chase: their time stood still.
+export function joinChaseFight(partyId: string, to: string): Updater {
+  return (state) => {
+    const joined = enterChaseFight(state, partyId, to)
+    if (joined === state) return state
+    return getMembers(joined, partyId).reduce((s, c) => updateCharacter(c.id, (x) => capAP(receiveAP(x)), 'joins the fight')(s), joined)
+  }
 }
 
 // The round change moves on to its next step, once the one it is at has

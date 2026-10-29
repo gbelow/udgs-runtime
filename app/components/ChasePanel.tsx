@@ -1,11 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Check, ChevronsRight, Dices, Flag, Footprints, GitMerge, Swords } from 'lucide-react'
 import { GmLocked } from './Locks'
-import { ActionKey, Button, Closed, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
+import { ActionKey, Button, Closed, NumberInput, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { useChase, useChaseCommands, useFollowScene } from '../hooks/useChase'
-import type { ChaseCover, ChaseMove, ChaseTier, CrossingSkill } from '../domain/lists'
-import type { ChasePanel as Panel, ChasePartyRow, ChaseSetupRow } from '../domain/scene/projections/chase'
+import type { ChaseCover, ChaseMove, ChaseSide, ChaseTier, CrossingSkill } from '../domain/lists'
+import type { ChasePanel as Panel, ChasePartyRow, ChaseRunRow, ChaseSetupRow } from '../domain/scene/projections/chase'
 
 const MOVE_LABELS: Record<ChaseMove, string> = { run: 'run', reverse: 'run the other way', shoot: 'shoot', hide: 'hide' }
 
@@ -86,86 +86,175 @@ export function BackToChase(){
 }
 
 // The chase while a fight lives in it (the table's ruling): saved and
-// frozen, drawn as it stands, with each party at shooting range of the fight
-// free to set off for it.
+// frozen, drawn as it stands below.
 export function ChaseSaved(){
-  const chase = useChase()
-  const { join } = useChaseCommands()
-  const saved = chase.saved
+  const { saved } = useChase()
   if (!saved) return null
 
   return(
-    <div className='flex flex-col gap-1.5 rounded border border-line bg-surface p-2 text-sm'>
-      <div className='flex flex-row flex-wrap gap-3 items-center'>
-        <SectionLabel>Chase saved</SectionLabel>
-        <span className='text-xs text-muted'>{saved.fighting} fighting; everyone else is frozen until they arrive or the GM ends the fight at a round change</span>
+    <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center rounded border border-line bg-surface px-2 py-1.5 text-xs text-muted'>
+      <SectionLabel>Chase saved</SectionLabel>
+      <span><span className='text-fg'>{saved.fighting}</span> fighting; everyone else is frozen until they join at a round change or the GM ends the fight</span>
+    </div>
+  )
+}
+
+// combat.tex "Combat with split group": at the round change's join step, each
+// party the fight in the chase froze may join it from shooting range.
+export function JoinChaseFight(){
+  const { saved } = useChase()
+  const { join } = useChaseCommands()
+  if (!saved || saved.parties.length === 0) return null
+
+  return(
+    <div className='flex flex-col gap-1 py-2 border-y border-line text-xs'>
+      <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
+        <SectionLabel>Join from the chase</SectionLabel>
+        <span className='text-muted'>placed {saved.arriving}</span>
       </div>
       {saved.parties.map((p) => (
-        <div key={p.id} className='flex flex-row flex-wrap gap-2 items-center text-xs text-muted'>
-          <span className='text-fg font-medium'>{p.name}</span>
-          {p.joining ? <span>on the way to the fight of {p.joining}: arrives once a full round has passed</span> : p.options.map((o) => (
+        <div key={p.id} className='flex flex-row flex-wrap gap-2 items-center'>
+          <span className='font-medium min-w-24'>{p.name}</span>
+          {p.options.map((o) => (
             <Closed key={o.id} reason={o.bar}><ActionKey icon={Swords} aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</ActionKey></Closed>
           ))}
         </div>
       ))}
-      {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
     </div>
   )
 }
 
-// combat.tex "Chases": the chain of who chases whom, what each party declares
-// and how its run went, hiding, scouting and obstacles, cover, and who sets
-// off to join a fight.
+const TEAM_EDGE: Record<ChaseSide, string> = { pursuers: 'border-l-bad', quarry: 'border-l-accent' }
+const TEAM_TEXT: Record<ChaseSide, string> = { pursuers: 'text-bad', quarry: 'text-accent' }
+
+// combat.tex "Chases": the round as the table plays it, what to do next and
+// the tests it made, then a card for each party: who it chases, its members,
+// what it declares, how its run went, the places it found and what the table
+// may do with it.
 export function ChasePanel(){
   const chase = useChase()
-  const { resolve, setCover } = useChaseCommands()
+  const { resolve } = useChaseCommands()
   if (!chase.chasing) return null
 
   return(
-    <div className='flex flex-col gap-1 text-sm'>
-      <div className='flex flex-row flex-wrap gap-3 items-center'>
-        <SectionLabel>Chase</SectionLabel>
-        <span className='text-xs text-muted'>time <span className='font-mono text-fg'>{chase.elapsed}</span></span>
-        <span className='text-xs text-muted'>a round takes <span className='font-mono text-fg'>{chase.roundTakes}</span></span>
-        {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
+    <div className='flex flex-col gap-2 text-sm'>
+      <div className='flex flex-col gap-1.5 rounded border border-line bg-surface p-2'>
+        <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
+          <SectionLabel>Chase</SectionLabel>
+          <span className='text-xs text-muted'>time <span className='font-mono text-fg'>{chase.elapsed}</span></span>
+          <span className='text-xs text-muted'>a round takes <span className='font-mono text-fg'>{chase.roundTakes}</span></span>
+          <span className='ml-auto'>
+            <Closed reason={chase.resolveBar}><ActionKey look='go' icon={Dices} aria-label='resolveChase' disabled={chase.resolveBar !== null} onClick={resolve}>resolve the round</ActionKey></Closed>
+          </span>
+        </div>
+        {chase.next ? <span className='rounded border-l-2 border-accent bg-accent/10 px-2 py-1 text-xs text-fg'><span className='font-semibold text-accent'>next </span>{chase.next}</span> : null}
+        {chase.order.length && !chase.resolved ? <span className='text-xs text-muted'>declaring order: <span className='text-fg'>{chase.order.join(' → ')}</span></span> : null}
         {chase.roundBar ? <span className='text-xs text-muted'>next round: {chase.roundBar}</span> : null}
-        <Closed reason={chase.resolveBar}><ActionKey look='go' icon={Dices} aria-label='resolveChase' disabled={chase.resolveBar !== null} onClick={resolve}>resolve the round</ActionKey></Closed>
+        {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
+        {chase.rolls.length ? (
+          <div className='flex flex-col gap-0.5 border-t border-line pt-1 text-xs text-muted'>
+            {chase.rolls.map((r, i) => (
+              <span key={i}>
+                {r.kind} by <span className='text-fg'>{r.parties}</span>: <span className='font-mono'>{r.die}</span> → <span className='font-mono text-fg'>{r.score}</span> vs <span className='font-mono'>{r.DL}</span>, {r.degree}
+                {r.found ? <span className='text-bad'>, {r.found} found</span> : null}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
-      {chase.order.length && !chase.resolved ? <span className='text-xs text-muted'>declaring order: <span className='text-fg'>{chase.order.join(' → ')}</span></span> : null}
-      {chase.rolls.map((r, i) => (
-        <span key={i} className='text-xs text-muted'>
-          {r.kind} by <span className='text-fg'>{r.parties}</span>: <span className='font-mono'>{r.die}</span> → <span className='font-mono text-fg'>{r.score}</span> vs <span className='font-mono'>{r.DL}</span>, {r.degree}
-          {r.found ? <span className='text-bad'> — {r.found} found</span> : null}
-        </span>
-      ))}
-      {chase.rows.map((row) => <PartyRow key={row.id} row={row} chase={chase} />)}
-      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
-        <span>cover</span>
-        {chase.runners.map((r) => (
-          <label key={r.id} className='flex gap-1 items-center'>
-            {r.name}
-            <select className={selectClass} aria-label={`cover ${r.name}`} value={r.cover ?? ''} onChange={(e) => setCover(r.id, (e.target.value || null) as ChaseCover | null)}>
-              <option value=''>none</option>
-              {chase.covers.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
-        ))}
+      <div className='grid gap-2 grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]'>
+        {chase.rows.map((row) => <PartyCard key={row.id} row={row} chase={chase} />)}
       </div>
     </div>
   )
 }
 
-function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
-  const { declare, confirm, follow, putBack, giveUp, mergeBack, cross, turnAround } = useChaseCommands()
+function PartyCard({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
+  const { follow, putBack, giveUp, mergeBack } = useChaseCommands()
+  const [backTier, setBackTier] = useState<ChaseTier>('far')
+  const merges = p.mergeBar !== null || (p.chases !== null && !p.chases.enemy)
+  const acts = merges || p.chases !== null || p.followOptions.length > 0 || p.putBackOptions.length > 0
+
+  return(
+    <div className={`flex flex-col gap-2 rounded-md border border-line border-l-4 bg-surface p-2 text-xs ${TEAM_EDGE[p.team]} ${p.out ? 'opacity-70' : ''}`}>
+      <div className='flex flex-col gap-0.5'>
+        <div className='flex flex-row flex-wrap gap-x-2 items-baseline'>
+          <span className='text-sm font-semibold text-fg'>{p.name}</span>
+          <span className={`text-[10px] uppercase tracking-wide ${TEAM_TEXT[p.team]}`}>{p.team}</span>
+          <span className={`ml-auto rounded border px-1.5 ${p.out ? 'border-good text-good' : p.fighting ? 'border-bad text-bad' : 'border-line text-muted'}`}>{p.status}</span>
+        </div>
+        <div className='flex flex-row flex-wrap gap-x-3 text-muted'>
+          {p.chases ? <span>chases <span className='text-fg'>{p.chases.name}</span>{p.chases.enemy ? null : ' (their team)'}</span> : null}
+          {p.chasedBy.length ? <span>chased by <span className='text-fg'>{p.chasedBy.join(', ')}</span></span> : null}
+          {p.AP !== null ? <span>skirmish <span className='font-mono text-fg'>{p.AP}</span> AP</span> : null}
+        </div>
+      </div>
+      <Members row={p} covers={chase.covers} />
+      {p.caught.map((reason) => <span key={reason} className='text-bad'>caught: {reason}</span>)}
+      {p.declares ? <Declare row={p} /> : null}
+      {p.run ? <Run run={p.run} /> : null}
+      {p.feature || p.crossBar !== null ? <Feature row={p} chase={chase} /> : null}
+      {acts ? (
+        <div className='flex flex-row flex-wrap gap-1.5 items-center border-t border-line pt-1.5 text-muted'>
+          {merges ? <Closed reason={p.mergeBar}><ActionKey icon={GitMerge} aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</ActionKey></Closed> : null}
+          {p.chases ? <Closed reason={p.giveUpBar}><ActionKey icon={Flag} aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</ActionKey></Closed> : null}
+          {p.followOptions.map((o) => (
+            <Closed key={o.id} reason={o.bar}><ActionKey icon={ChevronsRight} aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</ActionKey></Closed>
+          ))}
+          {p.putBackOptions.length ? (
+            <span className='flex flex-row flex-wrap gap-1.5 items-center'>
+              put back at
+              <select className={selectClass} aria-label={`${p.name} put back tier`} value={backTier} onChange={(e) => setBackTier(e.target.value as ChaseTier)}>
+                {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {p.putBackOptions.map((o) => (
+                <Closed key={o.id} reason={o.bar}><ActionKey aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</ActionKey></Closed>
+              ))}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// combat.tex "Catching", "Cover": each member, whether they turned around to
+// face the chasers, and the cover the table gives them.
+function Members({ row: p, covers }: { row: ChasePartyRow; covers: readonly ChaseCover[] }){
+  const { turnAround, setCover } = useChaseCommands()
+  if (p.members.length === 0) return null
+
+  return(
+    <div className='grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-0.5 items-center'>
+      <span className='text-[10px] uppercase tracking-wide text-muted'>member</span>
+      <span className='text-[10px] uppercase tracking-wide text-muted'>{p.turnable ? 'turned around' : ''}</span>
+      <span className='text-[10px] uppercase tracking-wide text-muted'>cover</span>
+      {p.members.map((m) => (
+        <Fragment key={m.id}>
+          <span className='truncate text-fg'>{m.name}</span>
+          <span className='justify-self-center'>
+            {p.turnable ? <input type='checkbox' aria-label={`turn around ${m.name}`} checked={m.turned} onChange={() => turnAround(m.id)} /> : null}
+          </span>
+          <select className={selectClass} aria-label={`cover ${m.name}`} value={m.cover ?? ''} onChange={(e) => setCover(m.id, (e.target.value || null) as ChaseCover | null)}>
+            <option value=''>none</option>
+            {covers.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Fragment>
+      ))}
+    </div>
+  )
+}
+
+// combat.tex "Chase actions": the move the party declares this round, with
+// the scouting a run may carry and the modifier a hide is tested at, then
+// the confirmation.
+function Declare({ row: p }: { row: ChasePartyRow }){
+  const { declare, confirm } = useChaseCommands()
   const [scouting, setScouting] = useState(false)
   const [what, setWhat] = useState('')
   const [scoutDL, setScoutDL] = useState(10)
   const [obstacle, setObstacle] = useState(false)
   const [hideModifier, setHideModifier] = useState(0)
-  const [skill, setSkill] = useState<CrossingSkill>('climb')
-  const [crossDL, setCrossDL] = useState(10)
-  const [backTier, setBackTier] = useState<ChaseTier>('far')
 
   const declareMove = (move: ChaseMove) => declare(p.id, {
     move,
@@ -174,93 +263,75 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
   })
 
   return(
-    <div className='flex flex-col gap-0.5 py-1 border-t border-line text-xs'>
-      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
-        <span className='text-fg font-medium'>{p.name}</span>
-        <span className='text-muted'>{p.team}</span>
-        <span className={p.out ? 'text-good' : p.fighting ? 'text-bad' : 'text-muted'}>{p.status}</span>
-        {
-          p.chases ?
-          <span className='flex gap-1 items-center text-muted'>
-            chases <span className='text-fg'>{p.chases.name}</span>{p.chases.enemy ? null : <span>(their team)</span>}
-            {chase.tiers.map((t) => <span key={t} className={`px-1.5 rounded border ${t === p.chases!.tier ? 'border-accent text-accent' : 'border-line text-muted'}`}>{t}</span>)}
-          </span>
-          : null
-        }
-        {p.chasedBy.length ? <span className='text-muted'>chased by <span className='text-fg'>{p.chasedBy.join(', ')}</span></span> : null}
-        {p.AP !== null ? <span className='text-muted'>skirmish <span className='font-mono text-fg'>{p.AP}</span> AP</span> : null}
-        {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Closed reason={p.mergeBar}><ActionKey icon={GitMerge} aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</ActionKey></Closed> : null}
-        {p.chases ? <Closed reason={p.giveUpBar}><ActionKey icon={Flag} aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</ActionKey></Closed> : null}
-      </div>
-      {
-        p.declares ?
-        <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
-          <span>declares</span>
+    <div className='flex flex-col gap-1.5 rounded border border-line bg-raised/40 p-1.5'>
+      <div className='flex flex-row flex-wrap gap-2 items-center'>
+        <SectionLabel>declares</SectionLabel>
+        <Segmented label={`${p.name} declares`}>
           {p.moves.map(({ move, bar }) => (
-            <Closed key={move} reason={bar}><ActionKey look={p.declaration?.move === move ? 'picked' : 'plain'} aria-label={`${p.name} ${move}`} disabled={bar !== null} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</ActionKey></Closed>
+            <Segment key={move} aria-label={`${p.name} ${move}`} selected={p.declaration?.move === move} disabled={bar !== null} title={bar ?? undefined} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</Segment>
           ))}
-          <Closed reason={p.scoutBar}>
-            <label className='flex gap-1 items-center'>
-              <input type='checkbox' aria-label={`${p.name} scouts`} disabled={p.scoutBar !== null} checked={scouting} onChange={() => setScouting(!scouting)} />
-              scout for
-            </label>
-          </Closed>
-          {scouting ? <>
-            <TextInput className='w-32' aria-label={`${p.name} scouts for`} value={what} onChange={(e) => setWhat(e.target.value)} />
-            DL <NumberInput className='w-10' aria-label={`${p.name} scout DL`} value={scoutDL} onChange={(e) => setScoutDL(Number(e.target.value))} />
-            <label className='flex gap-1 items-center'><input type='checkbox' aria-label={`${p.name} scouts an obstacle`} checked={obstacle} onChange={() => setObstacle(!obstacle)} />obstacle</label>
-          </> : null}
-          hide modifier <NumberInput className='w-10' aria-label={`${p.name} hide modifier`} value={hideModifier} onChange={(e) => setHideModifier(Number(e.target.value))} />
-          {p.declaration ? <span className='text-fg'>— {MOVE_LABELS[p.declaration.move]}{p.declaration.scout ? `, scouting for ${p.declaration.scout.what || 'a place'}` : ''}</span> : null}
+        </Segmented>
+        <span className='ml-auto'>
           <Closed reason={p.confirmed ? null : p.confirmBar}>
             <ActionKey look={p.confirmed ? 'picked' : 'plain'} icon={Check} aria-label={`${p.name} confirms`} disabled={p.confirmBar !== null} onClick={() => confirm(p.id)}>
               {p.confirmed ? 'confirmed' : 'confirm'}
             </ActionKey>
           </Closed>
-        </div>
-        : null
-      }
-      {
-        p.turnable ?
-        <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-muted'>
-          <span>turn around</span>
-          {p.members.map((m) => (
-            <label key={m.id} className='flex gap-1 items-center'>
-              <input type='checkbox' aria-label={`turn around ${m.name}`} checked={m.turned} onChange={() => turnAround(m.id)} />
-              {m.name}
-            </label>
-          ))}
-        </div>
-        : null
-      }
-      {p.caught.map((reason) => <span key={reason} className='text-bad'>caught: {reason}</span>)}
-      {
-        p.run ?
-        <div className='flex flex-col gap-0.5 text-muted'>
-          <span>
-            {p.run.skirmish ? 'skirmish' : 'run'} at {p.run.tier}
-            {p.run.contest ? <>: chaser <span className='font-mono text-fg'>{p.run.chaser}</span>, chased <span className='font-mono text-fg'>{p.run.chased}</span> — {p.run.winner} wins</> : null}
-            {p.run.coin !== null ? <> (draw settled by <span className='font-mono'>{p.run.coin}</span>)</> : null}
-            {' — '}{p.run.way === 'close' ? 'closing in' : p.run.way === 'open' ? 'pulling away' : 'no change'}{p.run.skirmish && p.run.way ? ' at the end of the round' : ''}
-          </span>
-          {p.run.contest ? (
-            <span className='flex flex-row flex-wrap gap-x-3'>
-              {p.run.runners.map((r) => <span key={r.id} className={r.slowest ? 'text-fg' : undefined}>{r.name} ({r.role}) <span className='font-mono'>{r.speed}</span></span>)}
-            </span>
-          ) : null}
-        </div>
-        : null
-      }
-      {
-        p.feature ?
-        <span className='text-muted'>
-          found <span className='text-fg'>{p.feature.what || 'a place'}</span>{p.feature.obstacle ? ' (obstacle)' : ''}: {p.feature.reached ? 'reached' : `at ${p.feature.tier}`}
         </span>
-        : null
-      }
-      {
-        p.crossBar !== null || p.feature?.reached && p.feature.obstacle ?
-        <div className='flex flex-row flex-wrap gap-x-2 items-center text-muted'>
+      </div>
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-muted'>
+        <Closed reason={p.scoutBar}>
+          <label className='flex gap-1 items-center'>
+            <input type='checkbox' aria-label={`${p.name} scouts`} disabled={p.scoutBar !== null} checked={scouting} onChange={() => setScouting(!scouting)} />
+            scout while running
+          </label>
+        </Closed>
+        {scouting ? (
+          <span className='flex flex-row flex-wrap gap-1 items-center'>
+            for <TextInput className='w-28' aria-label={`${p.name} scouts for`} value={what} onChange={(e) => setWhat(e.target.value)} />
+            DL <NumberInput className='w-10' aria-label={`${p.name} scout DL`} value={scoutDL} onChange={(e) => setScoutDL(Number(e.target.value))} />
+            <label className='flex gap-1 items-center'><input type='checkbox' aria-label={`${p.name} scouts an obstacle`} checked={obstacle} onChange={() => setObstacle(!obstacle)} />obstacle</label>
+          </span>
+        ) : null}
+        <span className='flex gap-1 items-center'>hide modifier <NumberInput className='w-10' aria-label={`${p.name} hide modifier`} value={hideModifier} onChange={(e) => setHideModifier(Number(e.target.value))} /></span>
+      </div>
+      {p.declaration?.scout ? <span className='text-fg'>scouting for {p.declaration.scout.what || 'a place'}</span> : null}
+    </div>
+  )
+}
+
+// How the party's link ran this round: the contest, each runner's speed with
+// the slowest of each side lit, and which way it went.
+function Run({ run }: { run: ChaseRunRow }){
+  return(
+    <div className='flex flex-col gap-0.5 border-t border-line pt-1.5 text-muted'>
+      <span>
+        <span className='text-fg'>{run.skirmish ? 'skirmish' : 'run'}</span> at {run.tier}
+        {run.contest ? <>: chaser <span className='font-mono text-fg'>{run.chaser}</span>, chased <span className='font-mono text-fg'>{run.chased}</span>, {run.winner} wins</> : null}
+        {run.coin !== null ? <> (draw settled by <span className='font-mono'>{run.coin}</span>)</> : null}
+      </span>
+      <span className='text-fg'>{run.way === 'close' ? 'closing in' : run.way === 'open' ? 'pulling away' : 'no change'}{run.skirmish && run.way ? ' at the end of the round' : ''}</span>
+      {run.contest ? (
+        <span className='flex flex-row flex-wrap gap-x-3'>
+          {run.runners.map((r) => <span key={r.id} className={r.slowest ? 'text-fg' : undefined}>{r.name} ({r.role}) <span className='font-mono'>{r.speed}</span></span>)}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+// combat.tex "Scouting", "Obstacle": the place the party found and, once an
+// obstacle is reached, the test that crosses it.
+function Feature({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
+  const { cross } = useChaseCommands()
+  const [skill, setSkill] = useState<CrossingSkill>('climb')
+  const [crossDL, setCrossDL] = useState(10)
+
+  return(
+    <div className='flex flex-col gap-1 border-t border-line pt-1.5 text-muted'>
+      {p.feature ? <span>found <span className='text-fg'>{p.feature.what || 'a place'}</span>{p.feature.obstacle ? ' (obstacle)' : ''}: {p.feature.reached ? 'reached' : `at ${p.feature.tier}`}</span> : null}
+      {p.crossBar !== null || (p.feature?.reached && p.feature.obstacle) ? (
+        <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center'>
           cross with
           <select className={selectClass} aria-label={`${p.name} crossing skill`} value={skill} onChange={(e) => setSkill(e.target.value as CrossingSkill)}>
             {chase.crossingSkills.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -268,22 +339,7 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
           DL <NumberInput className='w-10' aria-label={`${p.name} crossing DL`} value={crossDL} onChange={(e) => setCrossDL(Number(e.target.value))} />
           <Closed reason={p.crossBar}><ActionKey aria-label={`${p.name} crosses`} disabled={p.crossBar !== null} onClick={() => cross(p.id, skill, crossDL)}>cross</ActionKey></Closed>
         </div>
-        : null
-      }
-      <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
-        {p.followOptions.map((o) => (
-          <Closed key={o.id} reason={o.bar}><ActionKey icon={ChevronsRight} aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</ActionKey></Closed>
-        ))}
-        {p.putBackOptions.length ? <>
-          put back at
-          <select className={selectClass} aria-label={`${p.name} put back tier`} value={backTier} onChange={(e) => setBackTier(e.target.value as ChaseTier)}>
-            {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          {p.putBackOptions.map((o) => (
-            <Closed key={o.id} reason={o.bar}><ActionKey aria-label={`${p.name} put back chasing ${o.name}`} disabled={o.bar !== null} onClick={() => putBack(p.id, o.id, backTier)}>chasing {o.name}</ActionKey></Closed>
-          ))}
-        </> : null}
-      </div>
+      ) : null}
     </div>
   )
 }

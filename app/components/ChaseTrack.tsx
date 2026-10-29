@@ -64,7 +64,7 @@ export function ChaseTrack({ preview = false }: { preview?: boolean }){
 
 function PartyBlock({ party, picked, onPick }: { party: TrackParty; picked: string | null; onPick: () => void }){
   const from = picked && picked !== party.id ? party.tiers[picked] : null
-  const badges = [party.stage, party.hiding ? 'hiding' : null, party.fighting ? 'fighting first' : null, party.joining ? `joining ${party.joining}` : null].filter((b) => b !== null)
+  const badges = [party.stage, party.hiding ? 'hiding' : null, party.fighting ? 'fighting first' : null].filter((b) => b !== null)
 
   return(
     <button type='button' aria-label={`track ${party.name}`} aria-pressed={picked === party.id} onClick={onPick}

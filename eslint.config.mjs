@@ -189,7 +189,7 @@ const eslintConfig = [
           },
           {
             group: ["./chase"],
-            allowImportNames: ["endChaseRound", "endChaseRoundChange", "resumeChase", "beginChase", "endChaseFight"],
+            allowImportNames: ["endChaseRound", "endChaseRoundChange", "resumeChase", "beginChase", "endChaseFight", "enterChaseFight"],
             allowTypeImports: true,
             message: "The scene's shared commands reach the chase only through the crossing points listed in eslint.config.mjs (6). Add a new one there, and have it answer nothing when there is no chase.",
           },
