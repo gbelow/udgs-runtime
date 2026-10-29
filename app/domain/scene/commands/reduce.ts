@@ -408,7 +408,7 @@ function landOnBoard(state: SceneState, action: Action, phase: Phase): (board: B
       // a jump away from an opportunity attack put the mover where it landed
       const destination = action.facts && action.facts.stop !== 'jump' ? getMoveDestination(state, action, action.facts.path) : null
       const hang = action.movement === 'climb' ? action.facts?.hang : null
-      const hanging = hang && placements[action.actorId] ? { ...placements[action.actorId], elevation: hang.elevation, climb: { to: hang.to, covered: hang.covered, upright: hang.upright } } : null
+      const hanging = hang && placements[action.actorId] ? { ...placements[action.actorId], elevation: hang.elevation, climb: { to: hang.to, covered: hang.covered, upright: hang.upright, floor: hang.floor, bound: hang.bound } } : null
       if (hanging) return { ...board, placements: { ...placements, [action.actorId]: hanging } }
       return { ...board, placements: destination ? { ...placements, [action.actorId]: settleDepth(state, action, destination) } : placements }
     }

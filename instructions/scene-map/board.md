@@ -50,8 +50,11 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   own. Every move rule reads the ground through `readGround(...).at(height)`, and a path carries
   its height from step to step (`getPathPlacements`), so a walk keeps to its storey, an edge or
   a stairwell is a cliff, and a stair is ground under a stairwell rising less than a cliff a
-  step. Distance between characters counts a metre up or down as a cell across. Climbing a
-  storey's edge, and fire, gas and light on a storey, are not wired in yet.
+  step. A climb goes to the floor a cliff up or down in the next cell (`getClimbTarget`), never
+  through a floor over the climber, and a climber hanging keeps the two floors of their face
+  (`Placement.climb.floor`, `bound`). Melee reach counts the metres between two bodies up or
+  down as cells (`getMeleeGap`); every other distance is flat. Fire, gas and light on a storey
+  are not wired in yet.
 - **Balance on difficult terrain.** A move across difficult cells is closed by a Balance die
   unless the mover's test stands for the round (a held test, below: the first move's die is
   held, and a fall drops it, `dropFallenBalance`). The one score is held against the DL of every difficult cell on the path

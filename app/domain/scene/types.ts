@@ -134,8 +134,9 @@ export const PlacementSchema = z.object({
   // combat.tex "Climbing": a climber part of the way up (or down) the face
   // between the cell they are in and `to`, with the metres of it they have
   // covered, the height they started at included; `elevation` is how high
-  // their feet are
-  climb: z.object({ to: CoordSchema, covered: num.default(0), upright: z.boolean().default(false) }).strip().nullable().default(null),
+  // their feet are; `floor` the height of the floor they set out from and
+  // `bound` of the one they climb to
+  climb: z.object({ to: CoordSchema, covered: num.default(0), upright: z.boolean().default(false), floor: num.default(0), bound: num.default(0) }).strip().nullable().default(null),
 }).strip()
 export type Placement = z.infer<typeof PlacementSchema>
 
@@ -910,7 +911,7 @@ export const MoveFactsSchema = z.object({
   finish: z.enum(['prone', 'standing']).nullable().default(null),
   // combat.tex "Climbing": where a climb that stopped short of the top left its
   // climber, hanging on the face
-  hang: z.object({ to: CoordSchema, covered: num, upright: z.boolean(), elevation: num }).strip().nullable().default(null),
+  hang: z.object({ to: CoordSchema, covered: num, upright: z.boolean(), elevation: num, floor: num, bound: num }).strip().nullable().default(null),
 }).strip()
 export type MoveFacts = z.infer<typeof MoveFactsSchema>
 

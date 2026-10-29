@@ -60,23 +60,55 @@ export function getOccupancy(board: Board, characters: Record<string, Character>
 // ground).
 export type Footing = { terrain: TerrainCell | undefined; floor: number; level: number | null }
 
-// The floor someone whose feet are at `height` stands on in the cell: the
-// highest there that is no cliff above them (combat.tex "Choosing Fall DL":
-// a cliff is a metre or more), the ground or a storey's floor that is not a
-// hole, or the lowest where every floor is. A walk up a stair is ground under
-// a stairwell rising less than a cliff a step until it meets the storey.
-export function getTerrainAt(board: Board, cell: Coord, height: number): Footing {
+// Every floor of the cell: the ground, and each storey's that is not a hole.
+function getFloors(board: Board, cell: Coord): Footing[] {
   const key = coordKey(cell)
   const ground = board.terrain[key]
-  if (board.levels.length === 0) return { terrain: ground, floor: ground?.elevation ?? 0, level: null }
-  const floors: Footing[] = [
+  return [
     { terrain: ground, floor: ground?.elevation ?? 0, level: null },
     ...board.levels.flatMap((l, level) => (l.terrain[key] && !l.terrain[key].hole ? [{ terrain: l.terrain[key], floor: l.floor, level }] : [])),
   ]
+}
+
+// The floor someone whose feet are at `height` stands on in the cell: the
+// highest there that is no cliff above them (combat.tex "Choosing Fall DL":
+// a cliff is a metre or more), or the lowest where every floor is. A walk up a
+// stair is ground under a stairwell rising less than a cliff a step until it
+// meets the storey.
+export function getTerrainAt(board: Board, cell: Coord, height: number): Footing {
+  if (board.levels.length === 0) {
+    const ground = board.terrain[coordKey(cell)]
+    return { terrain: ground, floor: ground?.elevation ?? 0, level: null }
+  }
+  const floors = getFloors(board, cell)
   const reached = floors.filter((f) => f.floor - height < FALL.minHeight)
   return reached.length > 0
     ? reached.reduce((a, b) => (b.floor > a.floor ? b : a))
     : floors.reduce((a, b) => (b.floor < a.floor ? b : a))
+}
+
+// combat.tex "Climbing": the floor a climb from a floor `here` high in one
+// cell goes to in the next, a cliff above or below it. Up, the lowest such
+// floor, with nothing over the climber's own cell on the way; down, the
+// highest, with nothing over it in its own cell up to the climber's floor.
+// Up before down; null where neither is.
+export function getClimbBound(board: Board, from: Coord, here: number, to: Coord): Footing | null {
+  const own = getFloors(board, from)
+  const next = getFloors(board, to)
+  const up = next
+    .filter((f) => f.floor - here >= FALL.minHeight && !own.some((g) => g.floor > here && g.floor <= f.floor))
+    .sort((a, b) => a.floor - b.floor)[0]
+  if (up) return up
+  return next
+    .filter((f) => here - f.floor >= FALL.minHeight && !next.some((g) => g.floor > f.floor && g.floor - here < FALL.minHeight))
+    .sort((a, b) => b.floor - a.floor)[0] ?? null
+}
+
+// The floor a climber hanging on a face, or setting out on one from where they
+// stand, is bound for in the next cell.
+export function getClimbTarget(board: Board, from: Placement, to: Coord): Footing | null {
+  if (from.climb) return sameCell(from.climb.to, to) ? getTerrainAt(board, to, from.climb.bound) : null
+  return getClimbBound(board, from.cell, getTerrainAt(board, from.cell, from.elevation).floor, to)
 }
 
 // A placement moved to `cell`, on the floor there its feet reach from the
@@ -106,15 +138,46 @@ export function getPlacedFootprint(state: SceneState, id: string): Coord[] | nul
 
 // Cells between two characters, edge to edge: 0 when they share a cell, 1
 // when adjacent — or the metres a chase puts between them (a cell is a
-// metre). A metre between their feet up or down is as far as a cell across,
-// and the farther of the two is the distance.
+// metre).
 export function getDistanceBetween(state: SceneState, a: string, b: string): number | null {
   const apart = getChaseDistance(state, a, b)
   if (apart !== null) return apart
   const fa = getPlacedFootprint(state, a)
   const fb = getPlacedFootprint(state, b)
-  const rise = Math.abs((state.board?.placements[a]?.elevation ?? 0) - (state.board?.placements[b]?.elevation ?? 0))
-  return fa && fb ? Math.max(setDistance(fa, fb), rise) : null
+  return fa && fb ? setDistance(fa, fb) : null
+}
+
+// A character as a melee weapon meets them: the cells they cover and the
+// metres from their feet to their feet and their height.
+export type Body = { footprint: Coord[]; feet: number; height: number }
+
+export function getBodyAt(c: Character, placement: Placement): Body {
+  return { footprint: getFootprint(c, placement), feet: placement.elevation, height: getHeight(c) }
+}
+
+export function getBody(state: SceneState, id: string): Body | null {
+  const placement = state.board?.placements[id]
+  const c = state.characters[id]
+  return placement && c ? getBodyAt(c, placement) : null
+}
+
+// How far a melee weapon has to reach from one body to the other: the cells
+// across, or the metres up or down between them counted as cells are, bodies
+// that touch a cell apart and bodies side by side in height none, whichever
+// is the farther. A character reaches as high as their feet and their height,
+// and a weapon a metre more for every cell of reach past the first.
+export function getMeleeGap(a: Body, b: Body): number {
+  const gap = Math.max(a.feet - (b.feet + b.height), b.feet - (a.feet + a.height))
+  return Math.max(setDistance(a.footprint, b.footprint), gap < 0 ? 0 : gap + 1)
+}
+
+// The melee distance between two characters as they stand, or what a chase
+// puts between them.
+export function getMeleeDistance(state: SceneState, a: string, b: string): number | null {
+  const apart = getChaseDistance(state, a, b)
+  if (apart !== null) return apart
+  const [ba, bb] = [getBody(state, a), getBody(state, b)]
+  return ba && bb ? getMeleeGap(ba, bb) : null
 }
 
 // Everyone standing next to the character: within a cell, edge to edge.
@@ -139,7 +202,7 @@ export function getReach(weapon: Weapon, range: MeleeRange): number {
 // The height of the ground someone stands on; a climber hanging on a face
 // stands on none.
 function getStanding(state: SceneState, placement: Placement): number {
-  return placement.climb ? state.board?.terrain[coordKey(placement.cell)]?.elevation ?? 0 : placement.elevation
+  return placement.climb ? placement.climb.floor : placement.elevation
 }
 
 // combat.tex "High Ground": "standing on terrain around 1m higher than its
@@ -177,7 +240,7 @@ export function getStrikeReach(state: SceneState, action: StrikeAction): number 
 
 // Whether the strike can land on the target from where its actor stands.
 export function isInReach(state: SceneState, action: StrikeAction, targetId: string): boolean {
-  const distance = getDistanceBetween(state, action.actorId, targetId)
+  const distance = getMeleeDistance(state, action.actorId, targetId)
   if (distance === null) return true
   const reach = getStrikeReach(state, { ...action, targetId })
   return reach === null || distance <= reach
@@ -424,17 +487,17 @@ export function getMeleeRange(c: Character, fits: (atk: WeaponAttack) => boolean
 // range, standing more than a quarter turn off the attacker's line to the
 // target. Nobody, on a fight without a board.
 export function getFlankers(state: SceneState, attackerId: string, targetId: string): string[] {
-  const attacker = getPlacedFootprint(state, attackerId)
+  const attacker = getBody(state, attackerId)
   const target = getPlacedFootprint(state, targetId)
   if (!attacker || !target) return []
-  const center = centroid(attacker)
+  const center = centroid(attacker.footprint)
   const toTarget = angleBetween(center, centroid(target))
   return Object.keys(state.characters).filter((id) => {
     if (id === attackerId || id === targetId) return false
     const other = state.characters[id]
-    const footprint = getPlacedFootprint(state, id)
-    if (!footprint || setDistance(footprint, attacker) > getMeleeRange(other)) return false
-    return angularGap(toTarget, angleBetween(center, centroid(footprint))) > Math.PI / 2 + 1e-9
+    const body = getBody(state, id)
+    if (!body || getMeleeGap(body, attacker) > getMeleeRange(other)) return false
+    return angularGap(toTarget, angleBetween(center, centroid(body.footprint))) > Math.PI / 2 + 1e-9
   })
 }
 
@@ -442,11 +505,11 @@ export function getFlankers(state: SceneState, attackerId: string, targetId: str
 // who threatens the one attempting it with a melee weapon — everyone with
 // them in their own melee range, whatever the board.
 export function getMeleeThreateners(state: SceneState, id: string, reachOf: (c: Character) => number = getMeleeRange): string[] {
-  const footprint = getPlacedFootprint(state, id)
-  if (!footprint) return []
+  const body = getBody(state, id)
+  if (!body) return []
   return Object.keys(state.characters).filter((other) => {
     if (other === id) return false
-    const otherFootprint = getPlacedFootprint(state, other)
-    return !!otherFootprint && setDistance(otherFootprint, footprint) <= reachOf(state.characters[other])
+    const otherBody = getBody(state, other)
+    return !!otherBody && getMeleeGap(otherBody, body) <= reachOf(state.characters[other])
   })
 }

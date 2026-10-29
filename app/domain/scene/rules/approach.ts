@@ -1,7 +1,7 @@
 import type { Character } from '../../types'
 import type { Coord, Placement } from '../types'
 import { setDistance } from './board/geometry'
-import { getFootprint } from './board/board'
+import { getBodyAt, getFootprint, getMeleeGap, type Body } from './board/board'
 
 // How a mover's way brings them to someone, step by step.
 
@@ -9,6 +9,12 @@ import { getFootprint } from './board/board'
 // along the way, the one set out from first.
 export function getPathDistances(mover: Character, placements: Placement[], other: Coord[]): number[] {
   return placements.map((p) => setDistance(getFootprint(mover, p), other))
+}
+
+// The same as a melee weapon has to reach it (`getMeleeGap`), up or down
+// included.
+export function getPathMeleeDistances(mover: Character, placements: Placement[], other: Body): number[] {
+  return placements.map((p) => getMeleeGap(getBodyAt(mover, p), other))
 }
 
 // combat.tex "Opportunity Attack": "moving towards a melee weapon while

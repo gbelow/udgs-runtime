@@ -2,7 +2,7 @@ import { isCombatStarted } from './started'
 import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
-import { getFlankers, isGuardingCells, isGuardingShot, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
+import { getBody, getFlankers, isGuardingCells, isGuardingShot, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
 import { getBlastOf, getThreatenedIds } from './explosion'
 import { isTrampleable } from './trample'
 import { requiresConcentration } from './hold'
@@ -13,7 +13,7 @@ import { isCampaignCharacter } from '../../utils'
 import { hasGrant } from '../../character/rules/effects'
 import { getRetargetOptions } from './fireAgain'
 import { getEnteringStep, getMovePlacements } from './board/waypoint'
-import { firstStep, getApproachStep, getPathDistances } from './approach'
+import { firstStep, getApproachStep, getPathDistances, getPathMeleeDistances } from './approach'
 import { getPreparedTriggers } from './prepared'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
@@ -314,14 +314,14 @@ function dragApproaches(state: SceneState, root: DragAction, reachOf: (c: Charac
   const start = (id: string) => origin[id]
   const triggers: { id: string; at: number; against: string }[] = []
   for (const id of Object.keys(state.characters)) {
-    const other = getPlacedFootprint(state, id)
+    const other = getBody(state, id)
     const range = reachOf(state.characters[id])
     if (group.includes(id) || !other || range === 0) continue
     const hit = movers.flatMap((m) => {
       const c = state.characters[m]
       const from = start(m)
       if (!c || !from) return []
-      const at = getApproachStep(getPathDistances(c, [from, ...steps.map((step) => step[m])], other), range)
+      const at = getApproachStep(getPathMeleeDistances(c, [from, ...steps.map((step) => step[m])], other), range)
       return at === null ? [] : [{ at, against: m }]
     }).sort((a, b) => a.at - b.at)[0]
     if (hit) triggers.push({ id, ...hit })
@@ -385,7 +385,10 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     if (isTrampleable(state, id) && getEnteringStep(state, root, id) !== null) {
       triggers.push({ characterId: id, kind: 'evade', at: null }, { characterId: id, kind: 'brace', at: null })
     }
-    const distances = getPathDistances(mover, getMovePlacements(state, root), other)
+    const placements = getMovePlacements(state, root)
+    const distances = getPathDistances(mover, placements, other)
+    const body = getBody(state, id)
+    const reaches = body ? getPathMeleeDistances(mover, placements, body) : distances
     // combat.tex "Flee": "to prevent them from entering a 4m perimeter from
     // the character" — the step that first brings the mover within it. The
     // flee "interrupts the opponents turn", so it is never open to the one
@@ -395,12 +398,12 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     const range = getMeleeRange(state.characters[id])
     // combat.tex "Follow": "as a reaction to any movement except running" —
     // of the one the follower marked in their turn, already within melee range
-    if (state.following[id] === root.actorId && range > 0 && distances[0] <= range && root.movement !== 'run' && !reactive) triggers.push({ characterId: id, kind: 'follow', at: null })
+    if (state.following[id] === root.actorId && range > 0 && reaches[0] <= range && root.movement !== 'run' && !reactive) triggers.push({ characterId: id, kind: 'follow', at: null })
     const spray = sprayReach(state.characters[id])
-    const aimed = spray > 0 ? getApproachStep(distances, spray) : null
+    const aimed = spray > 0 ? getApproachStep(reaches, spray) : null
     if (aimed !== null) triggers.push(...retargetsOf(state.characters[id], aimed))
     if (range === 0) continue
-    const approach = getApproachStep(distances, range)
+    const approach = getApproachStep(reaches, range)
     if (approach !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: approach })
     // combat.tex "Catch": "someone tries to initiate a grapple against a
     // running target" — one with a grapple row may grab a runner once the
@@ -409,7 +412,7 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     // `at` left them — here, the first step in reach
     const grab = root.movement === 'run' ? getMeleeRange(state.characters[id], isGrappleRow) : 0
     if (grab > 0) {
-      const inReach = distances.slice(1).findIndex((d) => d <= grab)
+      const inReach = reaches.slice(1).findIndex((d) => d <= grab)
       if (inReach >= 0 && !triggers.some((t) => t.characterId === id && t.at === inReach + 2)) triggers.push({ characterId: id, kind: 'opportunityAttack', at: inReach + 2, catchOnly: true })
     }
     // combat.tex "Hook Attack": "a reaction against running targets that
@@ -417,7 +420,7 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     // melee range"
     const hook = getMeleeRange(state.characters[id], (atk) => hasProperty(atk.properties, 'hook'))
     if (root.movement !== 'run' || hook === 0) continue
-    const away = firstStep(distances, (previous, now) => now > previous && now <= hook)
+    const away = firstStep(reaches, (previous, now) => now > previous && now <= hook)
     if (away !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: away })
   }
   return triggers

@@ -13,7 +13,7 @@ import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
-import { getDistanceBetween, getStrikeReach, isInReach, isInShotRange } from './board/board'
+import { getMeleeDistance, getStrikeReach, isInReach, isInShotRange } from './board/board'
 import { isSheltered } from './chase'
 import { getMoveFacts, getMovePrice, getWalkedCells, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { needsClimbTest } from './board/cliff'
@@ -105,7 +105,7 @@ export function getOpportunityCheck(state: SceneState, c: Character, action: Act
   if (!cost || !isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
   if (!canAfford(c, cost, isCombatStarted(state))) return fail(`cannot afford ${cost.AP} AP${cost.STA ? ` and ${cost.STA} STA` : ''}`, 3)
   if (!isInReach(fought, strike, target)) {
-    const distance = getDistanceBetween(fought, action.actorId, target)
+    const distance = getMeleeDistance(fought, action.actorId, target)
     const reach = getStrikeReach(fought, strike)
     return fail(`out of reach from where it is fought: ${distance} m away, the attack reaches ${reach} m`, 4)
   }

@@ -5,9 +5,10 @@ import { FALL } from '../../../tables'
 import { makeAction } from '../../factories'
 import { makeCampaignCharacter } from '../../../factories'
 import { coordKey } from './geometry'
-import { firesAcross, getCoverAcross, getDistanceBetween, hasLineOfSight, seesAcross, type Eyes } from './board'
+import { firesAcross, getCoverAcross, getMeleeGap, hasLineOfSight, seesAcross, type Eyes } from './board'
+import { getHeight } from '../../../character/rules/size'
 import { canStandAt } from './ground'
-import { getMoveFall } from './cliff'
+import { getClimbPlan, getMoveFall } from './cliff'
 import { getMoveDestination } from './waypoint'
 import { isPathLegal } from '../move'
 
@@ -158,10 +159,53 @@ describe('standing and walking on a storey', () => {
     expect(getMoveFall(upstairs, down, down.path, false)?.height).toBe(FLOOR)
   })
 
-  it('stands two characters in one cell a storey apart, as far apart as the storey is high', () => {
+  it('stands two characters in one cell a storey apart', () => {
     const stacked = scene({ a: { cell: cell(0), elevation: FLOOR }, b: { cell: cell(0), elevation: 0 } })
     expect(canStandAt(stacked, 'a', stacked.board!.placements.a)).toBe(true)
     expect(canStandAt(stacked, 'b', stacked.board!.placements.b)).toBe(true)
-    expect(getDistanceBetween(stacked, 'a', 'b')).toBe(FLOOR)
+  })
+
+  // combat.tex "Climbing": "Any character starts a climb at their own height.
+  // Once they reach the top, they must spend AP to stand up or finish the
+  // climb prone."
+  it('climbs from the open ground outside onto the storey, the storey less the climber high', () => {
+    const outside = scene({ a: { cell: cell(3), elevation: 0 } })
+    const climb = walk([cell(2)], 'climb')
+    expect(getMoveDestination(outside, climb, climb.path)?.elevation).toBe(FLOOR)
+    expect(getClimbPlan(outside, climb)?.remaining).toBe(Math.max(0, FLOOR - getHeight(outside.characters.a)))
+  })
+
+  it('climbs down from the edge of the storey to the ground outside', () => {
+    const climb = walk([cell(3)], 'climb')
+    const edge = scene({ a: { cell: cell(2), elevation: FLOOR } })
+    expect(getMoveDestination(edge, climb, climb.path)?.elevation).toBe(0)
+  })
+
+  it('climbs nothing from under the storey, which is a ceiling', () => {
+    expect(getClimbPlan(scene({ a: { cell: cell(0), elevation: 0 } }), walk([cell(1)], 'climb'))).toBeNull()
+  })
+})
+
+// The table's ruling: a character fills the metres from their feet to their
+// feet and their height, and a melee weapon reaches as high as that and a
+// metre more for every cell of reach past the first.
+describe('melee reaches up and down', () => {
+  const HEIGHT = 2
+  const body = (q: number, feet: number) => ({ footprint: [at(q)], feet, height: HEIGHT })
+  const striker = body(0, 0)
+
+  it('reaches anything as high as the striker with a cell of reach, and a metre higher with two', () => {
+    expect(getMeleeGap(striker, body(1, HEIGHT))).toBeLessThanOrEqual(1)
+    expect(getMeleeGap(striker, body(1, HEIGHT + 0.5))).toBeGreaterThan(1)
+    expect(getMeleeGap(striker, body(1, HEIGHT + 1))).toBeLessThanOrEqual(2)
+  })
+
+  it('reaches down the same way, from the feet of the striker to the head below', () => {
+    expect(getMeleeGap(body(0, HEIGHT), body(1, 0))).toBeLessThanOrEqual(1)
+    expect(getMeleeGap(body(0, HEIGHT + 1), body(1, 0))).toBeGreaterThan(1)
+  })
+
+  it('adds nothing up or down between bodies side by side in height', () => {
+    expect(getMeleeGap(striker, body(3, HEIGHT / 2))).toBe(3)
   })
 })

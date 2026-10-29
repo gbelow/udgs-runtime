@@ -4,7 +4,7 @@ import { canSurgeAtAll } from '../../character/rules/surge'
 import { getCunningTerms } from '../../character/rules/skills'
 import type { Term } from '../../character/rules/terms'
 import type { SceneState, FeintAction } from '../types'
-import { getDistanceBetween, getMeleeRange } from './board/board'
+import { getMeleeDistance, getMeleeRange } from './board/board'
 import { isWon } from './test'
 import { getRoutingTerms } from './chase'
 
@@ -12,7 +12,7 @@ import { getRoutingTerms } from './chase'
 // either can strike from where they stand, and a cell is the least. On a
 // fight without a board every character is in melee.
 function isInMelee(state: SceneState, a: string, b: string): boolean {
-  const distance = getDistanceBetween(state, a, b)
+  const distance = getMeleeDistance(state, a, b)
   const [ca, cb] = [state.characters[a], state.characters[b]]
   return distance === null || !ca || !cb || distance <= Math.max(1, getMeleeRange(ca), getMeleeRange(cb))
 }

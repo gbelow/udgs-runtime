@@ -3,7 +3,7 @@ import { isDead } from '../../character/rules/afflictions'
 import { isCombatStarted } from './started'
 import { isInTurn } from './turn'
 import { getFightName } from './fighters'
-import { getDistanceBetween, getMeleeRange } from './board/board'
+import { getMeleeDistance, getMeleeRange } from './board/board'
 
 // combat.tex "Follow": "A character can follow another character that is in
 // melee range, as a reaction to any movement except running." The table's
@@ -21,7 +21,7 @@ export function getFollowBar(state: SceneState, id: string, targetId: string): s
   if (!isCombatStarted(state)) return 'combat has not started'
   if (!isInTurn(state, id)) return 'only in your own turn'
   if (isDead(target)) return 'dead'
-  const apart = getDistanceBetween(state, id, targetId)
+  const apart = getMeleeDistance(state, id, targetId)
   if (apart === null) return 'not on the board'
   return apart <= getMeleeRange(c) ? null : 'out of melee range'
 }

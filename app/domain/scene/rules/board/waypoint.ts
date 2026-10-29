@@ -1,7 +1,7 @@
 import type { MoveKind } from '../../../types'
 import type { SceneState, Coord, MoveAction, Placement } from '../../types'
 import { sameCell, setDistance } from './geometry'
-import { getFootprint, getPlacedFootprint, placeAt } from './board'
+import { getClimbTarget, getFootprint, getPlacedFootprint, placeAt } from './board'
 import { perPair } from '../../../perState'
 
 // Where the mover stands along a move: where it sets out from, each step of
@@ -37,13 +37,14 @@ export function withoutLastSegment(action: MoveAction): { path: Coord[]; turns: 
 // out: a walk takes each step onto the floor its feet reach from the step
 // before (`placeAt`), so it keeps to its storey or goes up a stair; a jump,
 // which touches nothing between, lands on the floor it reaches from where it
-// set out.
+// set out; a climb comes to the floor its face is bound for.
 export function getPathPlacements(state: SceneState, action: MoveAction, path: Coord[]): Placement[] {
   const from = getMoveOrigin(state, action)
   if (!from) return []
   let feet = from
   return path.map((cell) => {
-    const at = placeAt(state.board, feet, cell)
+    const bound = action.movement === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
+    const at = bound ? { ...placeAt(state.board, from, cell), elevation: bound.floor } : placeAt(state.board, feet, cell)
     if (action.movement !== 'jump') feet = at
     return at
   })

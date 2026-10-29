@@ -34,7 +34,7 @@ export function readGround(state: SceneState, mover: string, landing: Record<str
   const feetOf = (id: string) => landing[id]?.elevation ?? board.placements[id]?.elevation ?? 0
   const feet: Record<string, Placement> = {}
   for (const [id, placement] of Object.entries(board.placements)) {
-    const foot = getHangingLanding(placement, (cell) => getTerrainAt(board, cell, placement.elevation).floor)
+    const foot = getHangingLanding(placement)
     if (foot) feet[id] = { ...placement, cell: foot }
   }
   const held = getOccupancy({ ...board, placements: feet }, state.characters)
@@ -61,9 +61,9 @@ export function readGround(state: SceneState, mover: string, landing: Record<str
 
 // combat.tex "Balance": the cell a climber hanging on a face falls into, the
 // foot of the face; null for one not hanging.
-export function getHangingLanding(placement: Placement, elevation: (cell: Coord) => number): Coord | null {
+export function getHangingLanding(placement: Placement): Coord | null {
   if (!placement.climb) return null
-  return elevation(placement.climb.to) > elevation(placement.cell) ? placement.cell : placement.climb.to
+  return placement.climb.bound > placement.climb.floor ? placement.cell : placement.climb.to
 }
 
 // Off blocking cells. A swim is in the water except for its step out onto dry

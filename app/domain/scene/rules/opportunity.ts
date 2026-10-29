@@ -1,7 +1,7 @@
 import type { Action, ActionOf, SceneState, InterruptibleAction, OpportunityAction } from '../types'
 import type { Term } from '../../character/rules/terms'
 import { getActionDef, isRootAction } from './actionCatalog'
-import { getDistanceBetween, getMeleeRange, withPlacements } from './board/board'
+import { getMeleeDistance, getMeleeRange, withPlacements } from './board/board'
 import { getDrawnOpportunityAttacks, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { isBroken } from './interruption'
 import { getFreeStep, getMoveFacts, getMoveOverride } from './move'
@@ -59,7 +59,7 @@ export function isOpportunityReached(state: SceneState, root: Action, reaction: 
 // stands within the flanker's reach when it comes to be fought.
 export function isFlankInReach(state: SceneState, reaction: ActionOf<'opportunityAttack'>, root: Action): boolean {
   const reactor = state.characters[reaction.actorId]
-  const distance = getDistanceBetween(state, reaction.actorId, root.actorId)
+  const distance = getMeleeDistance(state, reaction.actorId, root.actorId)
   return !!reactor && (distance === null || distance <= getMeleeRange(reactor))
 }
 
