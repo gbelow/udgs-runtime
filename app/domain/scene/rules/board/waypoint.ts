@@ -2,6 +2,7 @@ import type { MoveKind } from '../../../types'
 import type { SceneState, Coord, MoveAction, Placement } from '../../types'
 import { sameCell, setDistance } from './geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
+import { perPair } from '../../../perState'
 
 // Where the mover stands along a move: where it sets out from, each step of
 // the path, and where it ends.
@@ -32,24 +33,43 @@ export function withoutLastSegment(action: MoveAction): { path: Coord[]; turns: 
   return { path: action.path.slice(0, turns.at(-1) ?? 0), turns: turns.slice(0, -1) }
 }
 
+// Where the mover stands on each cell of `path`, as oriented when they set
+// out: a walk takes each step onto the floor its feet reach from the step
+// before (`placeAt`), so it keeps to its storey or goes up a stair; a jump,
+// which touches nothing between, lands on the floor it reaches from where it
+// set out.
+export function getPathPlacements(state: SceneState, action: MoveAction, path: Coord[]): Placement[] {
+  const from = getMoveOrigin(state, action)
+  if (!from) return []
+  let feet = from
+  return path.map((cell) => {
+    const at = placeAt(state.board, feet, cell)
+    if (action.movement !== 'jump') feet = at
+    return at
+  })
+}
+
 // Where the mover stands part of the way along the move: the anchor at that
 // step, as oriented when they set out, and on the last step turned the way
 // the move names. Null at step 0, where they have not left the origin.
 export function getMoveWaypoint(state: SceneState, action: MoveAction, steps: number): Placement | null {
-  const from = getMoveOrigin(state, action)
-  const cell = action.path[steps - 1]
-  if (!from || !cell || steps <= 0) return null
-  const orientation = steps === action.path.length ? action.orientation ?? from.orientation : from.orientation
-  return { ...placeAt(state.board, from, cell), orientation }
+  if (steps <= 0) return null
+  return getMovePlacements(state, action)[steps] ?? null
 }
 
 // Where the mover stands at every step of the move: where it sets out, then
 // each step of the path.
 export function getMovePlacements(state: SceneState, action: MoveAction): Placement[] {
+  return movePlacements(state, action)
+}
+
+const movePlacements = perPair<Placement[], SceneState, MoveAction>(({ a: state, b: action }) => {
   const from = getMoveOrigin(state, action)
   if (!from) return []
-  return [from, ...action.path.flatMap((_, i) => getMoveWaypoint(state, action, i + 1) ?? [])]
-}
+  const steps = getPathPlacements(state, action, action.path)
+  const turned = (p: Placement, i: number) => (i === steps.length - 1 ? { ...p, orientation: action.orientation ?? from.orientation } : p)
+  return [from, ...steps.map(turned)]
+})
 
 // The cells the mover's token covers at each step of the path, the first
 // entry for the first step: every space the move passes over, for a token
@@ -94,13 +114,13 @@ export function isHookedRunner(state: SceneState, action: MoveAction, at: number
 }
 
 // Where the move ends: the last cell of the path as walked, the orientation
-// it named, the elevation of the ground there — the board's terrain says how
+// it named, the elevation of the floor there: the board's terrain says how
 // high a cell is, so a placement whose stored elevation is stale is re-read off
 // it on the first move.
 export function getMoveDestination(state: SceneState, action: MoveAction, path: Coord[]): Placement | null {
   const from = getMoveOrigin(state, action)
-  const cell = path[path.length - 1]
   if (!from) return null
-  if (!cell) return action.path.length === 0 ? { ...from, orientation: action.orientation ?? from.orientation } : null
-  return { ...placeAt(state.board, from, cell), orientation: action.orientation ?? from.orientation }
+  const end = getPathPlacements(state, action, path).at(-1)
+  if (!end) return action.path.length === 0 ? { ...from, orientation: action.orientation ?? from.orientation } : null
+  return { ...end, orientation: action.orientation ?? from.orientation }
 }

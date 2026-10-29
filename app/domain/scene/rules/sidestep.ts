@@ -69,12 +69,12 @@ export function isSidestepPath(state: SceneState, root: MoveAction, id: string, 
   const step = at === null ? null : getStepPlacements(state, root, at)
   const c = state.characters[id]
   const from = state.board?.placements[id]
-  const ground = readGround(state, id)
-  if (!step || !c || !from || !ground) return false
+  const floor = from && readGround(state, id)?.at(from.elevation)
+  if (!step || !c || !from || !floor) return false
   const heading = directionTo(step.before.cell, step.after.cell)
-  const height = ground.elevation(from.cell)
+  const height = floor.elevation(from.cell)
   return path.every((cell, i) =>
-    directionTo(i === 0 ? from.cell : path[i - 1], cell) !== heading && ground.elevation(cell) === height && !isWet(getFootprint(c, { ...from, cell }), ground))
+    directionTo(i === 0 ? from.cell : path[i - 1], cell) !== heading && floor.elevation(cell) === height && !isWet(getFootprint(c, { ...from, cell }), floor))
 }
 
 // Of the spaces a move can reach, those a sidestep may go to; every other

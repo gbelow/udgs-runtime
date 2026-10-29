@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { BoardSchema, SceneStateSchema, type Board, type Coord, type SceneState } from '../../types'
+import { BoardSchema, PlacementSchema, SceneStateSchema, type Board, type Coord, type SceneState } from '../../types'
+import type { MoveKind } from '../../../types'
+import { FALL } from '../../../tables'
+import { makeAction } from '../../factories'
 import { makeCampaignCharacter } from '../../../factories'
 import { coordKey } from './geometry'
-import { firesAcross, getCoverAcross, hasLineOfSight, seesAcross, type Eyes } from './board'
+import { firesAcross, getCoverAcross, getDistanceBetween, hasLineOfSight, seesAcross, type Eyes } from './board'
+import { canStandAt } from './ground'
+import { getMoveFall } from './cliff'
+import { getMoveDestination } from './waypoint'
+import { isPathLegal } from '../move'
 
 // combat.tex "Cover": a space containing a blocking object stops what passes
 // through it; "cover blocks vision unless it is transparent". A house is drawn
@@ -88,5 +95,73 @@ describe('characters see along their own eyes', () => {
 
   it('does not see out of the same cell on the ground floor, where the wall is opaque', () => {
     expect(hasLineOfSight(combat(house(GLASS), 0), 'above', 'outside')).toBe(false)
+  })
+})
+
+// combat.tex "Choosing Fall DL": ground a metre or more above or below is a
+// cliff, which a walk does not step over. A storey's floor is ground to whoever
+// stands on it, and a stair is ground under a stairwell rising less than a
+// cliff a step. A room upstairs runs along r = 0 from q = 0 to q = 2, over a
+// wall on the ground at q = 2; the stair climbs to it from q = -4, and a
+// stairwell at (0, 1) has nothing under it but the ground.
+describe('standing and walking on a storey', () => {
+  const STEP = FALL.minHeight * 0.75
+  const FLOOR = 4 * STEP
+  const cell = (q: number, r = 0): Coord => ({ q, r })
+  const stair = [3, 2, 1].map((n, i) => [coordKey(cell(-n)), { elevation: (i + 1) * STEP }] as const)
+  const board = BoardSchema.parse({
+    terrain: { [coordKey(cell(2))]: WALL, ...Object.fromEntries(stair) },
+    levels: [{
+      floor: FLOOR,
+      terrain: {
+        ...Object.fromEntries([0, 1, 2].map((q) => [coordKey(cell(q)), {}])),
+        ...Object.fromEntries(stair.map(([k]) => [k, { hole: true }])),
+        [coordKey(cell(0, 1))]: { hole: true },
+      },
+    }],
+  })
+  const scene = (placed: Record<string, { cell: Coord; elevation: number }>): SceneState => ({
+    ...SceneStateSchema.parse({ board: { ...board, placements: Object.fromEntries(Object.entries(placed).map(([id, p]) => [id, PlacementSchema.parse(p)])) } }),
+    characters: Object.fromEntries(Object.keys(placed).map((id) => [id, { ...makeCampaignCharacter({ name: id }), id }])),
+  })
+  const walk = (path: Coord[], movement: MoveKind = 'basic') => makeAction('move', { id: 'walk', actorId: 'a', movement, path })
+  const upstairs = scene({ a: { cell: cell(0), elevation: FLOOR } })
+
+  it('keeps a walk to the storey it is on, over a wall on the ground below', () => {
+    const along = walk([cell(1), cell(2)])
+    expect(isPathLegal(upstairs, along)).toBe(true)
+    expect(getMoveDestination(upstairs, along, along.path)?.elevation).toBe(FLOOR)
+  })
+
+  it('walks the ground under the storey, where the wall on the ground stands in the way', () => {
+    const below = (q: number) => scene({ a: { cell: cell(q, -1), elevation: 0 } })
+    const under = walk([cell(0)])
+    expect(isPathLegal(below(0), under)).toBe(true)
+    expect(getMoveDestination(below(0), under, under.path)?.elevation).toBe(0)
+    expect(isPathLegal(below(2), walk([cell(2)]))).toBe(false)
+  })
+
+  it('does not walk off the storey into the open air or down the stairwell', () => {
+    expect(isPathLegal(upstairs, walk([cell(1), cell(2), cell(3)]))).toBe(false)
+    expect(isPathLegal(upstairs, walk([cell(0, 1)]))).toBe(false)
+  })
+
+  it('walks up the stair onto the storey', () => {
+    const up = walk([cell(-3), cell(-2), cell(-1), cell(0), cell(1)])
+    const below = scene({ a: { cell: cell(-4), elevation: 0 } })
+    expect(isPathLegal(below, up)).toBe(true)
+    expect(getMoveDestination(below, up, up.path)?.elevation).toBe(FLOOR)
+  })
+
+  it('falls the height of the storey jumping down the stairwell', () => {
+    const down = walk([cell(0, 1)], 'jump')
+    expect(getMoveFall(upstairs, down, down.path, false)?.height).toBe(FLOOR)
+  })
+
+  it('stands two characters in one cell a storey apart, as far apart as the storey is high', () => {
+    const stacked = scene({ a: { cell: cell(0), elevation: FLOOR }, b: { cell: cell(0), elevation: 0 } })
+    expect(canStandAt(stacked, 'a', stacked.board!.placements.a)).toBe(true)
+    expect(canStandAt(stacked, 'b', stacked.board!.placements.b)).toBe(true)
+    expect(getDistanceBetween(stacked, 'a', 'b')).toBe(FLOOR)
   })
 })

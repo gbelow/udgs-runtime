@@ -2,7 +2,7 @@ import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../
 import type { Board, BoardExtent, SceneState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../../types'
 import { TerrainCellSchema } from '../../types'
 import { getHeight } from '../../../character/rules/size'
-import { REACH, RMArr } from '../../../tables'
+import { FALL, REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
 import { add, angleBetween, angularGap, centroid, coordKey, disk, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
@@ -55,10 +55,35 @@ export function getOccupancy(board: Board, characters: Record<string, Character>
   return occupancy
 }
 
-// A placement moved to `cell`, at the height of the ground there (combat.tex
-// "High Ground"); off any board, the ground is at 0.
+// What someone stands on in a cell: the terrain there, how high its floor is,
+// and the storey it is a floor of (its index in `levels`, null for the
+// ground).
+export type Footing = { terrain: TerrainCell | undefined; floor: number; level: number | null }
+
+// The floor someone whose feet are at `height` stands on in the cell: the
+// highest there that is no cliff above them (combat.tex "Choosing Fall DL":
+// a cliff is a metre or more), the ground or a storey's floor that is not a
+// hole, or the lowest where every floor is. A walk up a stair is ground under
+// a stairwell rising less than a cliff a step until it meets the storey.
+export function getTerrainAt(board: Board, cell: Coord, height: number): Footing {
+  const key = coordKey(cell)
+  const ground = board.terrain[key]
+  if (board.levels.length === 0) return { terrain: ground, floor: ground?.elevation ?? 0, level: null }
+  const floors: Footing[] = [
+    { terrain: ground, floor: ground?.elevation ?? 0, level: null },
+    ...board.levels.flatMap((l, level) => (l.terrain[key] && !l.terrain[key].hole ? [{ terrain: l.terrain[key], floor: l.floor, level }] : [])),
+  ]
+  const reached = floors.filter((f) => f.floor - height < FALL.minHeight)
+  return reached.length > 0
+    ? reached.reduce((a, b) => (b.floor > a.floor ? b : a))
+    : floors.reduce((a, b) => (b.floor < a.floor ? b : a))
+}
+
+// A placement moved to `cell`, on the floor there its feet reach from the
+// height they are at (combat.tex "High Ground"); off any board, the ground is
+// at 0.
 export function placeAt(board: Board | null, placement: Placement, cell: Coord): Placement {
-  return { ...placement, cell, elevation: board?.terrain[coordKey(cell)]?.elevation ?? 0, climb: null }
+  return { ...placement, cell, elevation: board ? getTerrainAt(board, cell, placement.elevation).floor : 0, climb: null }
 }
 
 // The fight with the given characters standing elsewhere, for reading what
@@ -81,13 +106,15 @@ export function getPlacedFootprint(state: SceneState, id: string): Coord[] | nul
 
 // Cells between two characters, edge to edge: 0 when they share a cell, 1
 // when adjacent — or the metres a chase puts between them (a cell is a
-// metre).
+// metre). A metre between their feet up or down is as far as a cell across,
+// and the farther of the two is the distance.
 export function getDistanceBetween(state: SceneState, a: string, b: string): number | null {
   const apart = getChaseDistance(state, a, b)
   if (apart !== null) return apart
   const fa = getPlacedFootprint(state, a)
   const fb = getPlacedFootprint(state, b)
-  return fa && fb ? setDistance(fa, fb) : null
+  const rise = Math.abs((state.board?.placements[a]?.elevation ?? 0) - (state.board?.placements[b]?.elevation ?? 0))
+  return fa && fb ? Math.max(setDistance(fa, fb), rise) : null
 }
 
 // Everyone standing next to the character: within a cell, edge to edge.

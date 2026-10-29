@@ -58,13 +58,13 @@ export function getDisplacementCells(state: SceneState, move: MoveAction, id: st
   const board = state.board
   const landing: Record<string, Placement> = { [move.actorId]: end }
   for (const d of move.displaced) if (d.id !== id) landing[d.id] = placeAt(board, d.from, d.to)
-  const ground = readGround(state, id, landing)
-  if (!ground) return []
+  const floor = readGround(state, id, landing)?.at(from.elevation)
+  if (!floor) return []
   const way = new Set([getFootprint(mover, origin), ...getMoveSweep(state, move)].flat().map(coordKey))
-  const height = ground.elevation(from.cell)
+  const height = floor.elevation(from.cell)
   return ring(from.cell, 1).filter((cell) => {
     const footprint = getFootprint(c, placeAt(board, from, cell))
-    return !footprint.some((f) => way.has(coordKey(f))) && ground.elevation(cell) === height && !footprint.some(ground.blocked) && !isWet(footprint, ground) && canRest(state, c, footprint, ground, false)
+    return !footprint.some((f) => way.has(coordKey(f))) && floor.elevation(cell) === height && !footprint.some(floor.blocked) && !isWet(footprint, floor) && canRest(state, c, footprint, floor, false)
   })
 }
 

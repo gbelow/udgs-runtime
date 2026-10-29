@@ -9,7 +9,8 @@ import { coordKey, sameCell } from './geometry'
 import { getDegree } from '../../../play/test'
 import { isCampaignCharacter } from '../../../utils'
 import { getHangingLanding, readGround } from './ground'
-import { getMoveOrigin } from './waypoint'
+import { getMoveOrigin, getPathPlacements } from './waypoint'
+import { getTerrainAt } from './board'
 import { getMoveHeld } from '../heldRoll'
 
 // Where the ground drops or rises too far to be walked: the cliffs of a move,
@@ -37,8 +38,8 @@ export function canStepOver(kind: MoveKind, from: number, to: number): boolean {
 // the path; null where there is no board.
 export function getPathElevations(state: SceneState, action: MoveAction, path: Coord[]): number[] | null {
   const from = getMoveOrigin(state, action)
-  const ground = readGround(state, action.actorId)
-  return from && ground ? [ground.elevation(from.cell), ...path.map((cell) => ground.elevation(cell))] : null
+  const board = state.board
+  return from && board ? [getTerrainAt(board, from.cell, from.elevation).floor, ...getPathPlacements(state, action, path).map((p) => p.elevation)] : null
 }
 
 // combat.tex "Climbing": "Any character starts a climb at their own height";
@@ -52,15 +53,18 @@ export function getClimbStart(c: Character, leap: boolean): number {
 // climber is in to the next, over a cliff — and "can be in an intermediate
 // position" on it. How it goes, read off the declaration: the height of the
 // face, the climber's start (which only the first move of a climb takes),
-// the metres this move covers and where that leaves them.
+// the metres this move covers and where that leaves them. A face is between
+// two cells of ground: the edge of a storey is not climbed yet.
 type Face = { from: Placement; height: number; up: boolean; low: Coord; high: Coord }
 
 function getFace(state: SceneState, action: MoveAction): Face | null {
   const from = getMoveOrigin(state, action)
   const to = action.path[0]
-  const ground = readGround(state, action.actorId)
-  if (!from || !to || action.path.length !== 1 || !ground) return null
-  const [here, there] = [ground.elevation(from.cell), ground.elevation(to)]
+  const board = state.board
+  if (!from || !to || action.path.length !== 1 || !board) return null
+  const ends = [getTerrainAt(board, from.cell, from.elevation), getTerrainAt(board, to, from.elevation)]
+  if (ends.some((end) => end.level !== null)) return null
+  const [here, there] = ends.map((end) => end.floor)
   if (!isCliff(here, there)) return null
   return { from, height: Math.abs(there - here), up: there > here, low: there > here ? from.cell : to, high: there > here ? to : from.cell }
 }
@@ -211,7 +215,7 @@ function getClimbFall(state: SceneState, action: MoveAction, redoFell: boolean):
   const plan = getClimbPlan(state, action)
   const ground = readGround(state, action.actorId)
   if (!plan || !ground) return null
-  const floor = ground.elevation(plan.face.low)
+  const floor = ground.at(plan.face.from.elevation).elevation(plan.face.low)
   const feet = redoFell ? (plan.first ? floor : plan.face.from.elevation) : getClimbFeet(plan)
   return feet - floor >= FALL.minHeight ? { height: feet - floor, to: plan.face.low } : null
 }
@@ -220,10 +224,10 @@ function getClimbFall(state: SceneState, action: MoveAction, redoFell: boolean):
 // down the face they are on.
 export function getHangingFall(state: SceneState, id: string): MoveFall | null {
   const placement = state.board?.placements[id]
-  const ground = readGround(state, id)
-  const to = placement && ground ? getHangingLanding(placement, ground.elevation) : null
-  if (!placement || !ground || !to) return null
-  return { height: Math.max(0, placement.elevation - ground.elevation(to)), to }
+  const floor = placement && readGround(state, id)?.at(placement.elevation)
+  const to = placement && floor ? getHangingLanding(placement, floor.elevation) : null
+  if (!placement || !floor || !to) return null
+  return { height: Math.max(0, placement.elevation - floor.elevation(to)), to }
 }
 
 // combat.tex "Fall skill test": a jump that comes down on lower ground lands
