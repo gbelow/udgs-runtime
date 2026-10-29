@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel, FollowPanel } from './ChasePanel';
-import { RoundChangePanel } from './RoundChangePanel';
+import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
 import { ActionKey, Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
 import { useImpose } from '../hooks/useImpose';
@@ -39,15 +39,17 @@ export function SceneStrip(){
 
 function FightControls(){
   const { nextRound } = useCombatCommands()
-  const { round, nextRoundBar } = useCombatState()
+  const { round, nextRoundBar, nextRoundClosing } = useCombatState()
+  const forfeits = nextRoundBar === null && nextRoundClosing.length > 0
 
   return(
-    <div className='flex flex-row gap-2 items-center'>
+    <div className='flex flex-row flex-wrap gap-2 items-center'>
       <span className='text-xs text-muted whitespace-nowrap'>Round <span className='font-mono text-fg'>{round}</span></span>
       <Tooltip text={nextRoundBar ?? (round === 0 ? 'start the first round' : 'on to the next round')}>
-        <Button aria-label='nextRound' disabled={nextRoundBar !== null} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
+        <Button aria-label='nextRound' tone={forfeits ? 'bad' : 'neutral'} disabled={nextRoundBar !== null} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
       </Tooltip>
       {nextRoundBar ? <span className='text-xs text-muted'>{nextRoundBar}</span> : null}
+      {forfeits ? <Forfeits lines={nextRoundClosing} inline /> : null}
     </div>
   )
 }

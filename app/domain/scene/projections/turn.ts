@@ -10,6 +10,9 @@ import { getCompelledSurge } from '../rules/stress'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 import { getFollowOptions } from '../rules/follow'
 import { getStealthScore, getStealthTurn } from '../rules/stealth'
+import { hasAPLeft } from '../../character/rules/surge'
+import { hasAffliction, isDead } from '../../character/rules/afflictions'
+import { getPreparedRows } from './prepare'
 
 // The turn buttons as the character sees them: whose turn it is, who asked
 // to contest it, whether they agree to end the round, and why each button is
@@ -88,6 +91,19 @@ export function getFollowControls(state: SceneState, id: string): FollowControls
 // Why the round cannot pass, as the button says it: an action under way is
 // named with whoever it still waits on to react or pass.
 export const getNextRoundNote = perState((state: SceneState): string | null => getOpenNote(state) ?? getNextRoundBar(state))
+
+// What passing the round leaves nobody able to do, a line each, so that
+// nobody misses a chance by it: turns, for whoever agreed to end the round
+// with AP or a surge left, and the preparations, which lapse with it.
+export const getNextRoundClosing = perState((state: SceneState): string[] => {
+  if (state.round === 0) return []
+  const unspent = state.agreedToEnd.flatMap((id) => {
+    const c = state.characters[id]
+    if (!c || isDead(c) || hasAffliction(c, 'unconscious') || !hasAPLeft(c)) return []
+    return [`${getFightName(state, id)} takes no more turns this round, with ${c.resources.AP > 0 ? `${c.resources.AP} AP` : 'a surge'} left`]
+  })
+  return [...unspent, ...getPreparedRows(state).map((p) => `${p.actor}'s preparation lapses: ${p.text}`)]
+})
 
 // Why the combat cannot end, said the same way.
 export const getEndCombatNote = perState((state: SceneState): string | null => {

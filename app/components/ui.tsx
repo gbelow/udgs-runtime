@@ -114,12 +114,14 @@ const KEY_LOOK = {
   plain: 'border-line from-raised to-surface text-fg hover:border-muted',
   picked: 'border-accent from-accent/25 to-accent/10 text-accent',
   go: 'border-accent from-accent to-accent text-bg font-semibold hover:brightness-110',
+  warn: 'border-bad from-bad to-bad text-bg font-semibold hover:brightness-110',
 } as const
 
 // A thing a character does in play, drawn as a key that sinks when pressed,
 // set apart from the controls that edit and arrange. `cost` sits inside it in
-// a chip; `go` is the press that moves play on, at most one to a panel. A
-// closed key lies flat and dashed. An `icon` leads the label.
+// a chip; `go` is the press that moves play on, at most one to a panel, and
+// `warn` the same press when it takes a chance away from someone. A closed key
+// lies flat and dashed. An `icon` leads the label.
 export function ActionKey({ cost, look = 'plain', icon: Icon, className = '', children, title, ...rest }:
   ButtonHTMLAttributes<HTMLButtonElement> & { cost?: ReactNode, look?: keyof typeof KEY_LOOK, icon?: LucideIcon }
 ){

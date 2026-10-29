@@ -7,11 +7,14 @@ import { getStressOwed } from '../rules/stress'
 import { describeChangeTo } from './episode'
 import { getMoraleRows, type MoraleRow } from './morale'
 import { getSceneCards, type SceneCard } from './cards'
+import { ROUND_AP } from '../../tables'
+import { isDead } from '../../character/rules/afflictions'
+import { getAvailableActions } from '../rules/options'
+import { getActionDef } from '../rules/actionCatalog'
+import { getFightName } from '../rules/fighters'
 
 const PHASE_LABELS: Record<RoundPhase, string> = {
   rest: 'rest and speak',
-  bleed: 'bleeding',
-  environment: 'environment',
   concentration: 'hold on or let go',
   join: 'join the fight',
   morale: 'morale tests',
@@ -22,8 +25,6 @@ const PHASE_LABELS: Record<RoundPhase, string> = {
 // What the button moving the round change on does, at each step it waits at.
 const CONTINUE_LABELS: Record<RoundPhase, string> = {
   rest: 'bleed and burn',
-  bleed: 'continue',
-  environment: 'continue',
   concentration: 'on to joining',
   join: 'on to the morale tests',
   morale: 'continue',
@@ -58,6 +59,8 @@ export type RoundChangeView = {
   steps: RoundStepView[]
   continueBar: string | null
   continueLabel: string
+  // what moving the round change on leaves nobody able to do, a line each
+  closing: string[]
   parties: { id: string; name: string; cards: RoundCard[] }[]
 }
 
@@ -80,6 +83,26 @@ function getConcentration(state: SceneState, id: string): RoundConcentration | n
   }
 }
 
+// What the step the round change waits at still lets someone do and moving
+// it on takes away, so that nobody misses a chance by it: resting and
+// speaking, and the AP above the round's, once the rest step is left; joining
+// once the join step is; starting a chase once the round begins.
+function getClosing(state: SceneState, phase: RoundPhase): string[] {
+  switch (phase) {
+    case 'rest':
+      return Object.values(state.characters).filter((c) => !isDead(c)).flatMap((c) => {
+        const lost = [
+          getAvailableActions(state, c.id).some((o) => o.available && getActionDef(o.draft.kind).rest) ? 'can no longer rest or speak' : null,
+          c.resources.AP > ROUND_AP ? `loses ${c.resources.AP - ROUND_AP} unspent AP` : null,
+        ].filter((x) => x !== null)
+        return lost.length > 0 ? [`${getFightName(state, c.id)} ${lost.join(' and ')}`] : []
+      })
+    case 'join': return ['nobody can join the fight until the next round change']
+    case 'chase': return state.chase ? [] : ['no chase can start until the next round change']
+    default: return []
+  }
+}
+
 // The round change as the middle of the run screen shows it: its steps, where
 // it stands, and each character, by party, with what it has done to them and
 // what they still have to choose in it.
@@ -93,6 +116,7 @@ function buildRoundChange(state: SeenScene): RoundChangeView | null {
     steps: ROUND_PHASES.map((p, i) => ({ phase: p, label: PHASE_LABELS[p], status: i < at ? 'done' : i === at ? 'current' : 'next' })),
     continueBar: getContinueBar(state),
     continueLabel: CONTINUE_LABELS[phase],
+    closing: getClosing(state, phase),
     parties: getSceneCards(state).map((party) => ({
       ...party,
       cards: party.cards.map((card) => ({

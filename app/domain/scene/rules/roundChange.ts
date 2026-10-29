@@ -21,14 +21,15 @@ import { getNextStress, getStressRoundBar, getStressTurn } from './stress'
 // beginning of a round"); the limit stress actions they activate ("before
 // anyone has had their turn"); and a chase, which "always starts at the
 // beginning of a new round".
-export type RoundPhase = 'rest' | 'bleed' | 'environment' | 'concentration' | 'join' | 'morale' | 'stress' | 'chase'
+// Only the steps it waits at: bleeding and the environment run on their own as
+// the rest step is left.
+export type RoundPhase = 'rest' | 'concentration' | 'join' | 'morale' | 'stress' | 'chase'
 
-export const ROUND_PHASES: readonly RoundPhase[] = ['rest', 'bleed', 'environment', 'concentration', 'join', 'morale', 'stress', 'chase']
+export const ROUND_PHASES: readonly RoundPhase[] = ['rest', 'concentration', 'join', 'morale', 'stress', 'chase']
 
 // Where the round change stands, or null while the round is played in turns.
-// Bleeding and the environment run on their own, so the change is never at
-// them; the morale tests, the limit stress actions and the chase follow one
-// another as the tests are made and the actions taken.
+// The morale tests, the limit stress actions and the chase follow one another
+// as the tests are made and the actions taken.
 export function getRoundPhase(state: SceneState): RoundPhase | null {
   if (state.roundStep !== 'morale') return state.roundStep
   if (getMoraleTurnBar(state)) return 'morale'

@@ -6,7 +6,7 @@ import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getGearBar } from "../domain/scene/rules/turn";
-import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundNote, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
+import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -25,10 +25,11 @@ export function useCombatState() {
   // in it until it resolves.
   const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
   const nextRoundBar = useCombatStore(getNextRoundNote);
+  const nextRoundClosing = useCombatStore(useShallow(getNextRoundClosing));
   const returnBar = useCombatStore(getReturnBar);
   const endCombatBar = useCombatStore(getEndCombatNote);
 
-  return { round, hasOpenAction, nextRoundBar, returnBar, endCombatBar } as const;
+  return { round, hasOpenAction, nextRoundBar, nextRoundClosing, returnBar, endCombatBar } as const;
 }
 
 // How many are in the fight, seen from the run screen's other modes.
