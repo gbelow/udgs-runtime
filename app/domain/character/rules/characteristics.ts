@@ -58,12 +58,18 @@ export function getSTRBase(c: Character): number {
   return getAttributeHeld(c, 'STR')
 }
 
-// combat.tex "Rest": the Rest action recovers STA by an amount equal to STA/3
+// combat.tex "Rest": the Rest action recovers STA by an amount equal to STA/4
 // (its AP price is in ACTION_COSTS). Both the Rest command and the "STA regen"
 // readout derive from here, so the displayed number and the applied number
 // cannot drift.
 export function getSTARegen(c: Character): number {
-  return Math.floor(getSTA(c) / 3)
+  return Math.floor(getSTA(c) / 4)
+}
+
+// The STA a character holding `STA` has once `amount` comes back: up to
+// their STA, and nothing taken from one already above it.
+export function getRecoveredSTA(c: Character, STA: number, amount: number): number {
+  return Math.max(STA, Math.min(getSTA(c), STA + amount))
 }
 
 export const getCON = (c: Character) => c.trainables.CON.value

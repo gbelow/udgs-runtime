@@ -35,9 +35,10 @@ import { updateCharacter } from './characters'
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had" — a surge's lost among what was left. What is left is kept until the
 // AP are cut down to the round's, so a rest or a social action can be paid
-// out of both rounds.
+// out of both rounds. combat.tex "Action surge": the recovery surge "plays
+// automatically if no surge was picked that round".
 function receiveAP(c: CampaignCharacter): CampaignCharacter {
-  const { resources } = endSurge(c)
+  const { resources } = endSurge(c.usedSurge === null ? actionSurge('recovery')(c) : c)
   return { ...c, usedSurge: null, resources: { ...resources, AP: resources.AP + ROUND_AP } }
 }
 

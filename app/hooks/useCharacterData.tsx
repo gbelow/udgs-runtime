@@ -35,7 +35,7 @@ export function useHasActiveCharacter(): boolean {
 // A character outside a fight has no surge to spend, and the constant keeps the
 // fallback from allocating on every call.
 const NO_SURGES: Record<SurgeKind, boolean> = {
-  movement: false, combat: false, reaction: false, focus: false,
+  movement: false, combat: false, reaction: false, focus: false, recovery: false,
 }
 
 // combat.tex "Action surge" — `usedSurge` says which surge was spent, which

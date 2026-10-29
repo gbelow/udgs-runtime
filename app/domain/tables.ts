@@ -415,7 +415,7 @@ export const HIT_MARGIN = 5
 export const SPELL_MODIFICATIONS = {
   enhance:    { HOP: 4, text: 'the special improvement described in the spell' },
   amplify:    { HOP: 5, text: 'cast one size larger: damage by DM, reach and area by RM; up to 1 size above the item' },
-  effortless: { HOP: 6, text: 'rest while casting: STA/3 back, AP raised to the rest cost, careful movement; halves the exhaustion cost out of combat' },
+  effortless: { HOP: 6, text: 'rest while casting: STA/4 back, AP raised to the rest cost, careful movement; halves the exhaustion cost out of combat' },
 } as const satisfies Record<string, { HOP: number; text: string }>
 
 // "Quicken Spell: Increases spell DL by 3 to allow it to be cast during any
@@ -459,11 +459,15 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // restricts a surge is recorded as prose for the UI. `forbiddenBy` is the
 // affliction under which the surge cannot be made voluntarily (combat.tex
 // "Afflictions": afraid bars the combat surge, enraged the reaction surge).
+// The recovery surge gives back STA instead of AP: "STA equal to resting -1
+// STA".
+export const RECOVERY_SURGE_SHORT = 1
 export const SURGES = {
   movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'reactions'], restriction: 'Only in your own turn, or as a flee. A push or a drag is not movement here. Running costs no STA for the rest of the turn.' },
   combat:   { STA: 2, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
   reaction: { STA: 2, AP: () => 4, earmarked: false, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
   focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
+  recovery: { STA: 0, AP: () => 0, earmarked: false, restriction: 'Recovers a rest\'s STA less 1. Made by itself at the end of a round in which no surge was.' },
 } as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; allows?: readonly SurgeAllowance[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
 
 // combat.tex "Morale": "Combat morale DL = 0 + aggravating factors", and a

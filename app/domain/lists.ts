@@ -43,7 +43,7 @@ export const WORLDVIEW_CONVICTIONS = {
   providentialism: { id: 'providentialism', name: 'Providentialism' },
 }
 
-export const surgeKinds = ['movement', 'combat', 'reaction', 'focus'] as const
+export const surgeKinds = ['movement', 'combat', 'reaction', 'focus', 'recovery'] as const
 
 // gear.tex "Containers and Burden" — the named bulks, indexed by the stored
 // bulk; past these "the list goes on numerically".

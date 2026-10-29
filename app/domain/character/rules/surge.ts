@@ -1,6 +1,6 @@
 import { CampaignCharacter, Character, SurgeKind } from "../../types"
-import { SURGES } from "../../tables"
-import { getAGI } from "./characteristics"
+import { RECOVERY_SURGE_SHORT, SURGES } from "../../tables"
+import { getAGI, getRecoveredSTA, getSTARegen } from "./characteristics"
 import { getBuffBonus } from "./effects"
 import { hasAffliction } from "./afflictions"
 import { getBled } from "./wounds"
@@ -41,9 +41,16 @@ export function getSurgeAPLeft(c: CampaignCharacter): number {
   return c.surgeFloor === null ? 0 : Math.max(0, c.resources.AP - c.surgeFloor)
 }
 
+// combat.tex "Action surge": the STA the recovery surge gives back, a rest's
+// less RECOVERY_SURGE_SHORT; none from any other.
+export function getSurgeRecovery(kind: SurgeKind): (c: CampaignCharacter) => number {
+  return (c: CampaignCharacter) => (kind === 'recovery' ? Math.max(0, getSTARegen(c) - RECOVERY_SURGE_SHORT) : 0)
+}
+
 // The character as a surge leaves them, whether or not it is open to them:
 // its STA spent and bled for, its AP granted, an earmarked surge's marked off
-// from the rest by the AP held before it (`surgeFloor`).
+// from the rest by the AP held before it (`surgeFloor`), and the STA the
+// recovery surge gives back.
 export function getSurged(kind: SurgeKind): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { STA, earmarked } = SURGES[kind]
@@ -56,7 +63,7 @@ export function getSurged(kind: SurgeKind): (c: CampaignCharacter) => CampaignCh
       resources: {
         ...char.resources,
         AP: char.resources.AP + getSurgeAP(kind)(c),
-        STA: char.resources.STA - STA,
+        STA: getRecoveredSTA(c, char.resources.STA - STA, getSurgeRecovery(kind)(c)),
       },
     }
   }
@@ -67,10 +74,15 @@ export function canSurgeAtAll(c: CampaignCharacter): boolean {
   return surgeKinds.some((kind) => canSurge(kind)(c))
 }
 
-// Whether some surge other than the focus surge is still open to the
-// character.
-export function canSurgeBesidesFocus(c: CampaignCharacter): boolean {
-  return surgeKinds.some((kind) => kind !== 'focus' && canSurge(kind)(c))
+// combat.tex "Feint": the loser must "use an action surge, except recovery or
+// focus surge".
+export function isFeintSurge(kind: SurgeKind): boolean {
+  return kind !== 'focus' && kind !== 'recovery'
+}
+
+// Whether some surge a feint may force is still open to the character.
+export function canMakeFeintSurge(c: CampaignCharacter): boolean {
+  return surgeKinds.some((kind) => isFeintSurge(kind) && canSurge(kind)(c))
 }
 
 // Whether the character has AP to spend, or a surge that would give them

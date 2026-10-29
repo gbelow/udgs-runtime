@@ -777,10 +777,10 @@ describe('a disarm an intercept opens', () => {
   })
 
   // a defender with no STA was offered the disarm, could not commit it, and
-  // was left holding it
+  // was left holding it (their surge spent, so none can give them the STA)
   it('is not opened to a defender who cannot pay for it', () => {
     const start = facingOff()
-    const broke = { ...start, characters: { ...start.characters, def: { ...start.characters.def, resources: { ...start.characters.def.resources, STA: 0 } } } }
+    const broke = { ...start, characters: { ...start.characters, def: { ...start.characters.def, usedSurge: 'focus' as const, resources: { ...start.characters.def.resources, STA: 0 } } } }
     const intercept = getAvailableActions(broke, 'def').find((o) => o.draft.kind === 'intercept')!
     const declared = declareReaction('def', intercept.draft, newId)(broke)
     const s = resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(declared))

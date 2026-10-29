@@ -18,7 +18,7 @@ import { getRecipeFollowUps } from '../rules/recipes'
 import { makeAction } from '../factories'
 import { canTakeQueuedTurn, getFleeFollowUps, getFleersOf } from '../rules/flee'
 import { getTurnHolder } from '../rules/turn'
-import { canSurgeBesidesFocus } from '../../character/rules/surge'
+import { canMakeFeintSurge } from '../../character/rules/surge'
 import { getHeldRoll } from '../rules/heldRoll'
 import { isHeldCalled } from '../rules/heldTest'
 import { getFeinted } from '../rules/feint'
@@ -126,11 +126,12 @@ function landOnTable(state: SceneState, resolved: RootAction): SceneState {
 // combat.tex "Turns and Actions" ("Feint"): the one the test went against "is
 // forced to take their turn and use one action surge". The feinter's turn
 // ends as any turn does when they won; when they lost it goes on, with the
-// surge owed. Without the STA for a surge but the focus, it has no effect.
+// surge owed. Without the STA for a surge but the focus or recovery, it has
+// no effect.
 function forceSurge(state: SceneState, feint: FeintAction): SceneState {
   const feinted = getFeinted(feint)
   if (!feinted || !state.characters[feinted] || isVoided(state, feint)) return state
-  if (!canSurgeBesidesFocus(state.characters[feinted])) return state
+  if (!canMakeFeintSurge(state.characters[feinted])) return state
   const holder = getTurnHolder(state)
   if (holder === feinted) return { ...state, forcedSurge: feinted }
   const ended = holder ? closeTurn(state, holder) : state

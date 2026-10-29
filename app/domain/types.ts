@@ -691,7 +691,7 @@ export const CostSchema = z.object({
 
 export type Cost = z.infer<typeof CostSchema>
 
-export const SurgeKindSchema = z.enum(['movement', 'combat', 'reaction', 'focus'])
+export const SurgeKindSchema = z.enum(['movement', 'combat', 'reaction', 'focus', 'recovery'])
 export type SurgeKind = z.infer<typeof SurgeKindSchema>
 
 // Everything a buff can land on, as `<group>:<key>`. The list is derived from
