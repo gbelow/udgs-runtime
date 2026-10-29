@@ -19,8 +19,8 @@ export function getSurgeAP(kind: SurgeKind): (c: CampaignCharacter) => number {
 }
 
 // combat.tex "Action surge": one per round, so a surge already spent closes all
-// four. Past that each kind has its own price — 3 STA for movement, combat and
-// reaction, 1 for focus — so the affordable set is not uniform. A surge is
+// four. Past that each kind has its own price in STA (SURGES), so the
+// affordable set is not uniform. A surge is
 // also closed by the affliction that forbids it (afraid / enraged); the
 // derived set is read so a forced state counts the same as a hand-set one.
 // creating.tex "Limit Stress Actions": a surge the limit stress action

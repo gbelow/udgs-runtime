@@ -60,6 +60,14 @@ function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
   return { ...damage, damage: damage.damage.map((d) => (d.kind === kind ? { ...d, value: d.value + value } : d)) }
 }
 
+function getCut(damage: Damage): number {
+  return damage.damage.reduce((sum, d) => sum + (d.kind === 'cut' ? d.value : 0), 0)
+}
+
+// combat.tex "Slice": a share of the whole cutting damage, so it is bought
+// last, once everything else that adds to the cut has.
+const PURCHASE_ORDER: readonly HOPPurchase[] = [...HOP_PURCHASES.filter((p) => p !== 'slice'), 'slice']
+
 // combat.tex "Success Overflow", "Hand": what each purchase does to the
 // damage on its way, bought `times` over. Slice and smash add to the cut and
 // the blunt; the rest mark the damage for the target's side to read (the cut
@@ -75,7 +83,7 @@ function addPhysical(damage: Damage, value: number): Damage {
 
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
   bust: (d) => ({ ...d, bust: true }),
-  slice: (d, times, { attacker, properties }) => addTo(d, 'cut', getSliceBonus(times, attacker, hasProperty(properties, 'bladed'))),
+  slice: (d, times, { properties }) => addTo(d, 'cut', getSliceBonus(times, getCut(d), hasProperty(properties, 'bladed'))),
   smash: (d, times, { attacker }) => addTo(d, 'blunt', getSmashBonus(times, attacker)),
   handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
   assassinate: (d) => d,
@@ -148,7 +156,7 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), wall: getShotWall(state, root) }
   const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties }
-  const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
+  const bought = PURCHASE_ORDER.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
   const riders = root.kind === 'strike' ? getModifierRiders(state, root) : []
   return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: [...followUps, ...riders] }

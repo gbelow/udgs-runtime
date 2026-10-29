@@ -7,6 +7,7 @@ import type { CampaignCharacter } from '../../types'
 import { getEndTurnBar, getStartTurnBar } from '../rules/turn'
 import { getDefenderSteps } from '../rules/protect'
 import { makeAction } from '../factories'
+import { SURGES } from '../../tables'
 
 function fighter(id: string, overrides: Partial<CampaignCharacter> = {}): CampaignCharacter {
   const base = makeCampaignCharacter({})
@@ -65,7 +66,7 @@ describe('limit stress turns', () => {
 
   it('give a martyr who cannot pay for the surge a turn to rest first', () => {
     const base = fighter('a', { limitStress: 'martyr' })
-    const state = oweStress(tested([{ ...base, resources: { ...base.resources, STA: 2 } }], [1]))
+    const state = oweStress(tested([{ ...base, resources: { ...base.resources, STA: SURGES.reaction.STA - 1 } }], [1]))
 
     expect(state.inTurnCharacter).toBe('a')
     expect(state.characters.a.usedSurge).toBeNull()

@@ -232,10 +232,10 @@ export const HOP_EFFECTS = {
   hook:        { cost: 0,            property: 'hook',        repeatable: false, gives: 0 },
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null; repeatable: boolean; gives: number }>
 
-// combat.tex "Slice": "increase cutting damage by 5xDM"; "Smash": "Increases
+// combat.tex "Slice": "increase cutting damage by 25%"; "Smash": "Increases
 // blunt damage by 1xDM per HOP". "Slice": "Weapons with the bladed property
 // get the full bonus damage, while others get only half."
-export const SLICE_DM = 5
+export const SLICE_SHARE = 0.25
 export const SLICE_UNBLADED_SHARE = 0.5
 export const SMASH_DM = 1
 
@@ -461,8 +461,8 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // "Afflictions": afraid bars the combat surge, enraged the reaction surge).
 export const SURGES = {
   movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'reactions'], restriction: 'Only in your own turn, or as a flee. A push or a drag is not movement here. Running costs no STA for the rest of the turn.' },
-  combat:   { STA: 3, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
-  reaction: { STA: 3, AP: () => 4, earmarked: false, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
+  combat:   { STA: 2, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
+  reaction: { STA: 2, AP: () => 4, earmarked: false, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
   focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
 } as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; allows?: readonly SurgeAllowance[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
 

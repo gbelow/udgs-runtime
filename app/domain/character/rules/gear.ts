@@ -1,7 +1,7 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDM } from "./size";
-import { BOWS, DISTANCE_FREE, SHARP_HOP, SLICE_DM, SLICE_UNBLADED_SHARE, SMASH_DM, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { BOWS, DISTANCE_FREE, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
@@ -28,10 +28,11 @@ function getWieldSTR(weapon: Weapon, c: Character): number {
   return getSTR(c) - (isOversize(weapon, c) ? 5 : 0)
 }
 
-// combat.tex "Success Overflow", "Slice": "increase cutting damage by 5xDM",
-// for every slice bought, half of it from a weapon that is not bladed.
-export function getSliceBonus(times: number, c: Character, bladed: boolean): number {
-  return times * Math.floor(SLICE_DM * (bladed ? 1 : SLICE_UNBLADED_SHARE) * getDM(c))
+// combat.tex "Success Overflow", "Slice": "increase cutting damage by 25%",
+// for every slice bought, each a share of the same cut (x1.25, x1.5, x1.75),
+// half of it from a weapon that is not bladed.
+export function getSliceBonus(times: number, cut: number, bladed: boolean): number {
+  return Math.floor(times * SLICE_SHARE * (bladed ? 1 : SLICE_UNBLADED_SHARE) * cut)
 }
 
 // combat.tex "Success Overflow", "Smash": "Increases blunt damage by 1xDM per
