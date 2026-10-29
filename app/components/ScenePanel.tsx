@@ -4,6 +4,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
+import { ChaseTrack } from './ChaseTrack';
 import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
 import { ActionKey, Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
 import { useImpose } from '../hooks/useImpose';
@@ -101,7 +102,7 @@ export function SceneSpace(){
   return(
     <>
       <FollowPanel />
-      {chase.chasing ? <ChasePanel /> : null}
+      {chase.chasing ? <><ChaseTrack /><ChasePanel /></> : null}
       {chase.boardInPlay ? <BoardPanel /> : null}
     </>
   )

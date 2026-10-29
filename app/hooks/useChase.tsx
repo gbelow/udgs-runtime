@@ -1,4 +1,4 @@
-import { getChaseDigest, getChasePanel, type ChasePanel } from "../domain/scene/projections/chase";
+import { getChaseDigest, getChasePanel, getChaseTrack, getChaseTrackDigest, getChaseTrackPreview, type ChasePanel, type ChaseTrack } from "../domain/scene/projections/chase";
 import { getFollowDigest, getFollowPanel, type FollowPanel } from "../domain/scene/projections/parked";
 import type { ChaseDeclaration, ChaseIntent } from "../domain/scene/types";
 import type { ChaseCover, ChaseTier, CrossingSkill } from "../domain/lists";
@@ -10,6 +10,14 @@ import { useSceneDispatch } from "./useSceneDispatch";
 export function useChase(): ChasePanel {
   useCombatStore(getChaseDigest);
   return getChasePanel(useCombatStore.getState());
+}
+
+// The chain drawn as a track, or, with `preview`, the one the parties'
+// choices would start at the round change's chase step; gated on a digest.
+export function useChaseTrack(preview = false): ChaseTrack | null {
+  useCombatStore(getChaseTrackDigest);
+  const state = useCombatStore.getState();
+  return preview ? getChaseTrackPreview(state) : getChaseTrack(state);
 }
 
 export function useChaseCommands() {

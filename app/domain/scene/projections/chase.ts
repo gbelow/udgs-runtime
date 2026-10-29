@@ -1,12 +1,12 @@
 import type { ChaseDeclaration, SceneState } from '../types'
-import { CHASE_COVERS, CHASE_MOVES, CHASE_TIERS, CROSSING_SKILLS, type ChaseCover, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseTier, type ChaseWay } from '../../lists'
+import { CHASE_COVERS, CHASE_MOVES, CHASE_TIERS, CROSSING_SKILLS, type ChaseCover, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseStage, type ChaseTier, type ChaseWay } from '../../lists'
 import { perState } from '../../perState'
 import { getFightName, getMembers, getPartyName } from '../rules/fighters'
 import { getFightBusy } from '../rules/turn'
 import { getNextRoundNote } from './turn'
 import { getRoundPhase } from '../rules/roundChange'
 import { isParkedParty } from '../rules/parked'
-import { canTurnAround, getCaught, getChaseIntentBar, getChasers, getChaseParties, getChaseStartBar, getStartCaught, getChaseStage, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
+import { canTurnAround, getCaught, getChaseIntentBar, getChasers, getChaseParties, getChaseStartBar, getStartCaught, getChaseStage, getPartyTierBetween, getWant, newChase, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
 
 type Option = { id: string; name: string; bar: string | null }
 
@@ -279,3 +279,143 @@ function buildChasePanel(state: SceneState): ChasePanel {
 
 export const getChasePanel = perState(buildChasePanel)
 export const getChaseDigest = perState((state: SceneState) => JSON.stringify(getChasePanel(state)))
+
+// A member of a party on the chase track, with what marks them: turned
+// around, in cover, or unable to run.
+export type TrackToken = { id: string; name: string; short: string; marks: string[]; caught: boolean }
+
+export type TrackParty = {
+  id: string
+  name: string
+  team: ChaseSide
+  stage: ChaseStage | null
+  hiding: boolean
+  fighting: boolean
+  // the party whose fight it is on its way to, by name
+  joining: string | null
+  tokens: TrackToken[]
+  // members past the tokens drawn
+  more: number
+  // the tier from this party to each other on the track, by id
+  tiers: Record<string, ChaseTier | null>
+}
+
+// What one end of a link means to do this round: close in or pull away, or
+// stand and shoot or hide; null while it has not declared.
+export type TrackIntent = ChaseWay | 'shoot' | 'hide' | null
+
+// A link on the chase track, the chaser on the left: its tier and the tier it
+// was run at, its length step (1 for combat up to 4 for horizon), whether it
+// joins enemies, whether it is frozen, what each end declared and, once
+// resolved, the way it went and who won the contest.
+export type TrackGap = {
+  tier: ChaseTier
+  was: ChaseTier | null
+  step: number
+  enemy: boolean
+  frozen: boolean
+  chaser: TrackIntent
+  chased: TrackIntent
+  way: ChaseWay | null
+  winner: ChaseRole | null
+}
+
+export type TrackItem = { kind: 'party'; party: TrackParty } | { kind: 'gap'; gap: TrackGap } | { kind: 'join'; id: string; name: string }
+
+// combat.tex "Group chases": the chain drawn as lanes, tail on the left and
+// head on the right. The first lane runs from a tail to the head; a lane that
+// branches off ends where it joins a party already drawn.
+export type ChaseTrack = { lanes: TrackItem[][]; resolved: boolean; preview: boolean }
+
+export const TRACK_TOKENS = 6
+
+// A name cut to what fits on a token: the first letters of its first and
+// last words (split at spaces and capitals), a number kept whole, or the
+// first two letters of a single word.
+function getShortName(name: string): string {
+  const words = name.match(/\d+|[A-Z]?[a-z]+|[A-Z]+(?![a-z])/g) ?? [name]
+  if (words.length === 1) return words[0].slice(0, 2)
+  const last = words[words.length - 1]
+  return `${words[0][0].toUpperCase()}${/^\d+$/.test(last) ? last : last[0].toUpperCase()}`
+}
+
+function getIntent(state: SceneState, partyId: string, role: ChaseRole): TrackIntent {
+  const move = state.chase?.declarations[partyId]?.move
+  return move === 'shoot' || move === 'hide' ? move : getWant(move, role)
+}
+
+function buildTrackParty(state: SceneState, id: string, parties: string[]): TrackParty {
+  const chase = state.chase!
+  const caught = getCaught(state, id)
+  const members = getMembers(state, id)
+  return {
+    id,
+    name: getPartyName(state, id),
+    team: getTeam(chase, id),
+    stage: getChaseStage(state, id),
+    hiding: chase.declarations[id]?.move === 'hide',
+    fighting: chase.fighting.includes(id),
+    joining: chase.joining[id] ? getPartyName(state, chase.joining[id]) : null,
+    tokens: members.slice(0, TRACK_TOKENS).map((c) => {
+      const reason = caught.find((x) => x.id === c.id)?.reason
+      const cover = chase.cover[c.id]
+      return {
+        id: c.id,
+        name: getFightName(state, c.id),
+        short: getShortName(getFightName(state, c.id)),
+        marks: [chase.turned.includes(c.id) ? 'turned around' : null, cover ? `${cover} cover` : null, reason ?? null].filter((m) => m !== null),
+        caught: reason !== undefined,
+      }
+    }),
+    more: Math.max(0, members.length - TRACK_TOKENS),
+    tiers: Object.fromEntries(parties.filter((p) => p !== id).map((p) => [p, getPartyTierBetween(state, id, p)])),
+  }
+}
+
+function buildTrackGap(state: SceneState, from: string): TrackGap {
+  const link = getLink(state, from)!
+  const resolved = !!state.chase?.resolved && link.run !== null
+  return {
+    tier: link.tier,
+    was: resolved && link.run!.tier !== link.tier ? link.run!.tier : null,
+    step: CHASE_TIERS.indexOf(link.tier) + 1,
+    enemy: isEnemyLink(state, from),
+    frozen: isFrozen(state, from),
+    chaser: getIntent(state, from, 'chaser'),
+    chased: getIntent(state, link.chases, 'chased'),
+    way: resolved ? link.run!.way : null,
+    winner: resolved ? link.run!.winner : null,
+  }
+}
+
+function buildTrack(state: SceneState, preview: boolean): ChaseTrack | null {
+  if (!state.chase) return null
+  const parties = getChaseParties(state).filter((p) => getMembers(state, p).length > 0 && !isDisconnected(state, p))
+  const tails = parties.filter((p) => getChasers(state, p).length === 0)
+  const drawn = new Set<string>()
+  const lanes = tails.map((tail) => {
+    const lane: TrackItem[] = []
+    for (let at: string | undefined = tail; at !== undefined; at = getLink(state, at)?.chases) {
+      if (drawn.has(at)) {
+        lane.push({ kind: 'join', id: at, name: getPartyName(state, at) })
+        break
+      }
+      drawn.add(at)
+      lane.push({ kind: 'party', party: buildTrackParty(state, at, parties) })
+      if (getLink(state, at)) lane.push({ kind: 'gap', gap: buildTrackGap(state, at) })
+    }
+    return lane
+  })
+  return { lanes: lanes.filter((l) => l.length > 0), resolved: state.chase.resolved, preview }
+}
+
+export const getChaseTrack = perState((state: SceneState) => buildTrack(state, false))
+
+// At the round change's chase step, the chain the parties' choices would
+// start, drawn the same way; null while nobody chose.
+export const getChaseTrackPreview = perState((state: SceneState) => {
+  if (state.chase || getRoundPhase(state) !== 'chase' || Object.keys(state.chaseIntents).length === 0) return null
+  return buildTrack({ ...state, chase: newChase(state, state.chaseIntents) }, true)
+})
+
+export const getChaseTrackDigest = perState((state: SceneState) => JSON.stringify([getChaseTrack(state), getChaseTrackPreview(state)]))
