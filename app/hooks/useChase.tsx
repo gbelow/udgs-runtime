@@ -32,7 +32,7 @@ export function useChaseCommands() {
     putBack: (partyId: string, target: string, tier: ChaseTier) => dispatch({ kind: "putBack", args: [partyId, target, tier] }),
     giveUp: (partyId: string) => dispatch({ kind: "giveUp", args: [partyId] }),
     mergeBack: (partyId: string) => dispatch({ kind: "mergeBack", args: [partyId] }),
-    setFighting: (partyId: string, fighting: boolean) => dispatch({ kind: "setPartyFighting", args: [partyId, fighting] }),
+    backToChase: () => dispatch({ kind: "backToChase", args: [] }),
     join: (partyId: string, to: string) => dispatch({ kind: "joinChaseFight", args: [partyId, to] }),
     cross: (partyId: string, skill: CrossingSkill, DL: number) => dispatch({ kind: "crossObstacle", args: [partyId, skill, DL] }),
     turnAround: (id: string) => dispatch({ kind: "turnAround", args: [id] }),

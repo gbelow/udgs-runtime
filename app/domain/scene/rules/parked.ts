@@ -2,7 +2,7 @@ import type { SceneState } from '../types'
 import { isCombatStarted } from './started'
 import { getPlayingOutBar } from './log'
 import { getMembers } from './fighters'
-import { isChaseOver, isRunningInChase } from './chase'
+import { isChaseOver, isFrozenParty, isRunningInChase } from './chase'
 
 // The party the scene follows since a chase was over, while it is still in
 // the scene.
@@ -10,17 +10,25 @@ function getFollowed(state: SceneState): string | null {
   return state.followed !== null && state.parties[state.followed] ? state.followed : null
 }
 
-// Whether the character is parked: the scene follows another party since a
-// chase was over, so they stay in it off the grid, out of the rounds, until
-// the table follows them (the table's ruling).
+// Whether the character is parked: in the scene, off the grid and frozen,
+// with no turns and nothing from the round change (the table's ruling).
 export function isParked(state: SceneState, id: string): boolean {
   return isParkedParty(state, state.partyOf[id] ?? '')
 }
 
-// Whether the scene follows a party other than this one.
+// Whether the party is parked: the scene follows another party since a chase
+// was over, or the chase leaves it frozen (outside the fight that lives in
+// it, or out of it).
 export function isParkedParty(state: SceneState, partyId: string): boolean {
+  return getParkedReason(state, partyId) !== null
+}
+
+// Why the party is parked, or null.
+export function getParkedReason(state: SceneState, partyId: string): string | null {
   const followed = getFollowed(state)
-  return followed !== null && partyId !== followed
+  if (followed !== null && partyId !== followed) return 'parked: the scene follows another party'
+  if (!isFrozenParty(state, partyId)) return null
+  return state.chase?.out.includes(partyId) ? 'out of the chase' : 'frozen until the fight in the chase is over or they arrive in it'
 }
 
 // Whether the table picks whom the scene follows: once a chase is over, and

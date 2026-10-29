@@ -10,6 +10,7 @@ import { getSituationalAfflictions } from './situational'
 import { getSwimTestTerms, getWaterOf } from './swim'
 import { getStealthTerms } from '../../character/rules/skills'
 import { getDegree } from '../../play/test'
+import { isParked } from './parked'
 
 export type CalledKind = (typeof CALLED_TESTS)[number]
 
@@ -84,7 +85,7 @@ export function isHeldCalled(state: SceneState, id: string, kind: CalledKind): b
 export function getHeldCalled(state: SceneState): HeldTest[] {
   return CALLED_TESTS.flatMap((kind) =>
     Object.keys(state.characters)
-      .filter((id) => isHeldCalled(state, id, kind))
+      .filter((id) => !isParked(state, id) && isHeldCalled(state, id, kind))
       .map((id) => ({ id, kind, roll: null })),
   )
 }

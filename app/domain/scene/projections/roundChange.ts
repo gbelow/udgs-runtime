@@ -6,6 +6,7 @@ import { ROUND_PHASES, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase,
 import { getStressOwed } from '../rules/stress'
 import { describeChangeTo } from './episode'
 import { getMoraleRows, type MoraleRow } from './morale'
+import { getMoraleCalled } from '../rules/morale'
 import { getSceneCards, type SceneCard } from './cards'
 import { ROUND_AP } from '../../tables'
 import { isDead } from '../../character/rules/afflictions'
@@ -20,17 +21,17 @@ const PHASE_LABELS: Record<RoundPhase, string> = {
   join: 'join the fight',
   morale: 'morale tests',
   stress: 'limit stress actions',
-  chase: 'start a chase',
+  chase: 'run away or give chase',
 }
 
 // What the button moving the round change on does, at each step it waits at.
 const CONTINUE_LABELS: Record<RoundPhase, string> = {
   rest: 'bleed and burn',
   concentration: 'on to joining',
-  join: 'on to the morale tests',
-  morale: 'continue',
-  stress: 'continue',
-  chase: 'start the round',
+  join: 'on to running away',
+  chase: 'on to the morale tests',
+  morale: 'start the round',
+  stress: 'start the round',
 }
 
 export type RoundStepView = { phase: RoundPhase; label: string; status: 'done' | 'current' | 'next' }
@@ -101,12 +102,22 @@ function getClosing(state: SceneState, phase: RoundPhase): string[] {
       })
     case 'join': return ['nobody can join the fight until the next round change']
     case 'chase':
+      if (state.chase?.fighting.some((p) => getMembers(state, p).length > 0)) return ['nobody can go back to the chase until the next round change: the fight goes on']
       if (state.chase) return []
       return Object.keys(state.parties)
         .filter((p) => !state.chaseIntents[p] && !isParkedParty(state, p) && getMembers(state, p).length > 0)
         .map((p) => `${getPartyName(state, p)} can no longer run away or give chase until the next round change`)
     default: return []
   }
+}
+
+// What leaving the chase step does: starts the chase the parties chose, or
+// goes on to the morale tests, or begins the round when nobody is called to
+// one.
+function getChaseStepLabel(state: SceneState): string {
+  if (Object.keys(state.chaseIntents).length > 0) return 'start the chase'
+  if (state.chase?.fighting.some((p) => getMembers(state, p).length > 0)) return 'fight another round'
+  return getMoraleCalled(state).length > 0 ? 'on to the morale tests' : 'start the round'
 }
 
 // The round change as the middle of the run screen shows it: its steps, where
@@ -121,7 +132,7 @@ function buildRoundChange(state: SeenScene): RoundChangeView | null {
     phase,
     steps: ROUND_PHASES.map((p, i) => ({ phase: p, label: PHASE_LABELS[p], status: i < at ? 'done' : i === at ? 'current' : 'next' })),
     continueBar: getContinueBar(state),
-    continueLabel: CONTINUE_LABELS[phase],
+    continueLabel: phase === 'chase' ? getChaseStepLabel(state) : CONTINUE_LABELS[phase],
     closing: getClosing(state, phase),
     parties: getSceneCards(state).map((party) => ({
       ...party,

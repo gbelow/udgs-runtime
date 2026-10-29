@@ -8,6 +8,7 @@ import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
 import { getNextStress, getStressRoundBar, getStressTurn } from './stress'
 import { getChaseStartBar } from './chase'
+import { isParked } from './parked'
 
 // The round change, in the table's order: the AP of the new round come in,
 // and whoever wants to rests or speaks with what is left of both rounds
@@ -19,22 +20,23 @@ import { getChaseStartBar } from './chase'
 // the round's ("Any unspent AP is lost") and whoever concentrates holds on,
 // paying again with the focus surge, or lets go and finishes what they held;
 // who joins the fight; the morale tests ("Morale test triggers": "at the
-// beginning of a round"); the limit stress actions they activate ("before
-// anyone has had their turn"); and a chase, which "always starts at the
-// beginning of a new round".
+// beginning of a round"), unless a chase has started, which "always starts
+// at the beginning of a new round"; and the limit stress actions they
+// activate ("before anyone has had their turn").
 // Only the steps it waits at: bleeding and the environment run on their own as
 // the rest step is left.
-export type RoundPhase = 'rest' | 'concentration' | 'join' | 'morale' | 'stress' | 'chase'
+// The chase comes before the morale tests (the table's ruling: a scene is a
+// chase or a fight, so whoever runs away is tested by neither).
+export type RoundPhase = 'rest' | 'concentration' | 'join' | 'chase' | 'morale' | 'stress'
 
-export const ROUND_PHASES: readonly RoundPhase[] = ['rest', 'concentration', 'join', 'morale', 'stress', 'chase']
+export const ROUND_PHASES: readonly RoundPhase[] = ['rest', 'concentration', 'join', 'chase', 'morale', 'stress']
 
 // Where the round change stands, or null while the round is played in turns.
-// The morale tests, the limit stress actions and the chase follow one another
-// as the tests are made and the actions taken.
+// The morale tests and the limit stress actions follow one another as the
+// tests are made and the actions taken.
 export function getRoundPhase(state: SceneState): RoundPhase | null {
   if (state.roundStep !== 'morale') return state.roundStep
-  if (getMoraleTurnBar(state)) return 'morale'
-  return getNextStress(state) || getStressTurn(state) ? 'stress' : 'chase'
+  return !getMoraleTurnBar(state) && (getNextStress(state) || getStressTurn(state)) ? 'stress' : 'morale'
 }
 
 // Why the round change bars something meant for the round's turns, or null.
@@ -77,7 +79,7 @@ export function holdsThroughRound(state: SceneState, id: string): boolean {
 // Who still has to hold on or let go.
 export function getConcentrationOwed(state: SceneState): string[] {
   if (state.roundStep !== 'concentration') return []
-  return Object.keys(state.characters).filter((id) => holdsThroughRound(state, id) && !state.concentration.some((x) => x.id === id))
+  return Object.keys(state.characters).filter((id) => !isParked(state, id) && holdsThroughRound(state, id) && !state.concentration.some((x) => x.id === id))
 }
 
 // Whether holding on takes the focus surge: a held spell or a held action

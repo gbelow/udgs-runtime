@@ -168,7 +168,7 @@ const eslintConfig = [
       "@typescript-eslint/no-restricted-imports": ["error", {
         patterns: [{
           group: ["./chase", "../chase"],
-          allowImportNames: ["getChaseDistance", "getChaseTierBetween", "isChaseMate", "reachesTier", "isSheltered", "getChaseCoverTerms", "getRoutingTerms", "getChaseRestBar", "getChaseTurnBar", "isIdleInChase", "isRunningInChase", "isChaseOver", "getChaseStartBar"],
+          allowImportNames: ["getChaseDistance", "getChaseTierBetween", "isChaseMate", "reachesTier", "isSheltered", "getChaseCoverTerms", "getRoutingTerms", "getChaseRestBar", "getChaseTurnBar", "isIdleInChase", "isRunningInChase", "isChaseOver", "getChaseStartBar", "isFrozenParty"],
           allowTypeImports: true,
           message: "The scene's shared rules reach the chase only through the crossing points listed in eslint.config.mjs (6). Add a new one there, and have it answer nothing when there is no chase.",
         }],
@@ -189,7 +189,7 @@ const eslintConfig = [
           },
           {
             group: ["./chase"],
-            allowImportNames: ["endChaseRound", "endChaseRoundChange", "resumeChase", "beginChase"],
+            allowImportNames: ["endChaseRound", "endChaseRoundChange", "resumeChase", "beginChase", "endChaseFight"],
             allowTypeImports: true,
             message: "The scene's shared commands reach the chase only through the crossing points listed in eslint.config.mjs (6). Add a new one there, and have it answer nothing when there is no chase.",
           },

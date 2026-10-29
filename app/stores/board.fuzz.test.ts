@@ -19,7 +19,7 @@ import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRou
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
 import { getChasePanel } from '../domain/scene/projections/chase'
 import { getFollowPanel } from '../domain/scene/projections/parked'
-import { getChaseIntentBar, getDeclareBar, getDeclareOrder, getStartCaught } from '../domain/scene/rules/chase'
+import { getBackToChaseBar, getChaseIntentBar, getDeclareBar, getDeclareOrder, getStartCaught } from '../domain/scene/rules/chase'
 import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
@@ -1209,18 +1209,26 @@ function chasePlays(): Play[] {
       run: (h, pick) => { const c = option(h, pick, (r) => r.putBackOptions); if (c) refused(h, c.o.bar, () => h.send({ kind: 'putBack', args: [c.row.id, c.o.id, pick(CHASE_TIERS)] }), `${c.row.name} put back after ${c.o.name}`) },
     },
     {
-      name: 'join a fight',
-      run: (h, pick) => { const c = option(h, pick, (r) => r.joinOptions); if (c) refused(h, c.o.bar, () => h.send({ kind: 'joinChaseFight', args: [c.row.id, c.o.id] }), `${c.row.name} joining ${c.o.name}`) },
+      name: 'join the fight in the chase',
+      run: (h, pick) => {
+        const offered = (panel(h).saved?.parties ?? []).flatMap((p) => p.options.map((o) => ({ p, o })))
+        if (!offered.length) return
+        const { p, o } = pick(offered)
+        refused(h, o.bar, () => h.send({ kind: 'joinChaseFight', args: [p.id, o.id] }), `${p.name} joining ${o.name}`)
+      },
     },
     {
-      name: 'give up, merge back or fight',
+      name: 'end the fight in the chase',
+      run: (h) => refused(h, getBackToChaseBar(h.state()), () => h.send({ kind: 'backToChase', args: [] }), 'going back to the chase'),
+    },
+    {
+      name: 'give up or merge back',
       run: (h, pick) => {
         if (!rows(h).length) return
         const row = pick(rows(h))
         pick([
           () => refused(h, row.giveUpBar, () => h.send({ kind: 'giveUp', args: [row.id] }), `${row.name} giving up`),
           () => refused(h, row.mergeBar, () => h.send({ kind: 'mergeBack', args: [row.id] }), `${row.name} merging back`),
-          () => refused(h, row.fightBar, () => h.send({ kind: 'setPartyFighting', args: [row.id, !row.fighting] }), `${row.name} ${row.fighting ? 'running again' : 'fighting'}`),
         ])()
       },
     },

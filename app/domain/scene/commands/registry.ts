@@ -12,7 +12,7 @@ import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
-import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, turnAround } from './chase'
+import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, joinFight, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { endCombat } from './endCombat'
 import { followScene } from './parked'
@@ -24,7 +24,7 @@ import { impose, updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
 import { rollMorale, setTablePressure } from './morale'
-import { continueRound, holdOn, letGo, nextRound } from './nextRound'
+import { backToChase, continueRound, holdOn, letGo, nextRound } from './nextRound'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
 import { agreeAllToEnd, endTurn, rollContest, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
@@ -171,7 +171,7 @@ export const sceneCommands = {
   putBack: command((_, partyId: string, target: string, tier: ChaseTier) => putBack(partyId, target, tier)).by(anyone),
   giveUp: command((_, partyId: string) => giveUp(partyId)).by(anyone),
   mergeBack: command((_, partyId: string) => mergeBack(partyId)).by(anyone),
-  setPartyFighting: command((_, partyId: string, fighting: boolean) => setPartyFighting(partyId, fighting)).by(anyone),
+  backToChase: command(() => backToChase).by(gm),
   joinChaseFight: command((_, partyId: string, to: string) => joinFight(partyId, to)).by(anyone),
   crossObstacle: command((ctx, partyId: string, skill: CrossingSkill, DL: number) => crossObstacle(partyId, skill, DL, ctx.thrower)).by(anyone),
   turnAround: command((_, id: string) => turnAround(id)).by(anyone),

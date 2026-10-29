@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Check, ChevronsRight, Dices, Flag, Footprints, GitMerge, Swords } from 'lucide-react'
+import { GmLocked } from './Locks'
 import { ActionKey, Button, Closed, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
 import { useChase, useChaseCommands, useFollowScene } from '../hooks/useChase'
 import type { ChaseCover, ChaseMove, ChaseTier, CrossingSkill } from '../domain/lists'
@@ -66,6 +67,52 @@ function SetupRow({ row, tiers }: { row: ChaseSetupRow; tiers: readonly ChaseTie
   )
 }
 
+// The GM's press at the round change's chase step that ends the fight living
+// in the chase and takes the chase up again with the round.
+export function BackToChase(){
+  const chase = useChase()
+  const { backToChase } = useChaseCommands()
+  if (!chase.saved) return null
+
+  return(
+    <div className='flex flex-row flex-wrap gap-2 items-center py-2 border-y border-line text-xs text-muted'>
+      <span>{chase.saved.fighting} fighting in the saved chase</span>
+      <GmLocked>
+        <Closed reason={chase.saved.backBar}><ActionKey icon={Footprints} aria-label='backToChase' disabled={chase.saved.backBar !== null} onClick={backToChase}>end the fight, back to the chase</ActionKey></Closed>
+      </GmLocked>
+      <span>or fight another round</span>
+    </div>
+  )
+}
+
+// The chase while a fight lives in it (the table's ruling): saved and
+// frozen, drawn as it stands, with each party at shooting range of the fight
+// free to set off for it.
+export function ChaseSaved(){
+  const chase = useChase()
+  const { join } = useChaseCommands()
+  const saved = chase.saved
+  if (!saved) return null
+
+  return(
+    <div className='flex flex-col gap-1.5 rounded border border-line bg-surface p-2 text-sm'>
+      <div className='flex flex-row flex-wrap gap-3 items-center'>
+        <SectionLabel>Chase saved</SectionLabel>
+        <span className='text-xs text-muted'>{saved.fighting} fighting; everyone else is frozen until they arrive or the GM ends the fight at a round change</span>
+      </div>
+      {saved.parties.map((p) => (
+        <div key={p.id} className='flex flex-row flex-wrap gap-2 items-center text-xs text-muted'>
+          <span className='text-fg font-medium'>{p.name}</span>
+          {p.joining ? <span>on the way to the fight of {p.joining}: arrives once a full round has passed</span> : p.options.map((o) => (
+            <Closed key={o.id} reason={o.bar}><ActionKey icon={Swords} aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</ActionKey></Closed>
+          ))}
+        </div>
+      ))}
+      {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
+    </div>
+  )
+}
+
 // combat.tex "Chases": the chain of who chases whom, what each party declares
 // and how its run went, hiding, scouting and obstacles, cover, and who sets
 // off to join a fight.
@@ -80,7 +127,6 @@ export function ChasePanel(){
         <SectionLabel>Chase</SectionLabel>
         <span className='text-xs text-muted'>time <span className='font-mono text-fg'>{chase.elapsed}</span></span>
         <span className='text-xs text-muted'>a round takes <span className='font-mono text-fg'>{chase.roundTakes}</span></span>
-        {chase.fightFirst ? <span className='text-xs text-bad'>{chase.fightFirst}</span> : null}
         {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
         {chase.roundBar ? <span className='text-xs text-muted'>next round: {chase.roundBar}</span> : null}
         <Closed reason={chase.resolveBar}><ActionKey look='go' icon={Dices} aria-label='resolveChase' disabled={chase.resolveBar !== null} onClick={resolve}>resolve the round</ActionKey></Closed>
@@ -111,7 +157,7 @@ export function ChasePanel(){
 }
 
 function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
-  const { declare, confirm, follow, putBack, giveUp, mergeBack, setFighting, join, cross, turnAround } = useChaseCommands()
+  const { declare, confirm, follow, putBack, giveUp, mergeBack, cross, turnAround } = useChaseCommands()
   const [scouting, setScouting] = useState(false)
   const [what, setWhat] = useState('')
   const [scoutDL, setScoutDL] = useState(10)
@@ -143,7 +189,6 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
         }
         {p.chasedBy.length ? <span className='text-muted'>chased by <span className='text-fg'>{p.chasedBy.join(', ')}</span></span> : null}
         {p.AP !== null ? <span className='text-muted'>skirmish <span className='font-mono text-fg'>{p.AP}</span> AP</span> : null}
-        <Closed reason={p.fightBar}><ActionKey icon={p.fighting ? Footprints : Swords} aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</ActionKey></Closed>
         {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Closed reason={p.mergeBar}><ActionKey icon={GitMerge} aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} onClick={() => mergeBack(p.id)}>merge back</ActionKey></Closed> : null}
         {p.chases ? <Closed reason={p.giveUpBar}><ActionKey icon={Flag} aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} onClick={() => giveUp(p.id)}>give up</ActionKey></Closed> : null}
       </div>
@@ -228,10 +273,6 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
       <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
         {p.followOptions.map((o) => (
           <Closed key={o.id} reason={o.bar}><ActionKey icon={ChevronsRight} aria-label={`${p.name} chases ${o.name}`} disabled={o.bar !== null} onClick={() => follow(p.id, o.id)}>chase {o.name}</ActionKey></Closed>
-        ))}
-        {p.joining ? <span>joining the fight of {p.joining} at the end of the round</span> : null}
-        {p.joinOptions.map((o) => (
-          <Closed key={o.id} reason={o.bar}><ActionKey icon={Swords} aria-label={`${p.name} joins ${o.name}`} disabled={o.bar !== null} onClick={() => join(p.id, o.id)}>join the fight of {o.name}</ActionKey></Closed>
         ))}
         {p.putBackOptions.length ? <>
           put back at

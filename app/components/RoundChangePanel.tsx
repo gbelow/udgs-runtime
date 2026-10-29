@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Card } from './SceneCards'
-import { ChaseSetup } from './ChasePanel'
+import { BackToChase, ChaseSetup } from './ChasePanel'
 import { ChaseTrack } from './ChaseTrack'
 import { Check, ChevronRight } from 'lucide-react'
 import { ActionKey, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
@@ -78,6 +78,7 @@ export function RoundChangePanel(){
         {HINTS[view.phase] ? <span className='text-xs text-muted'>{HINTS[view.phase]}</span> : null}
         {view.phase === 'morale' ? <MoralePanel /> : null}
         {view.phase === 'chase' ? <ChaseSetup /> : null}
+        {view.phase === 'chase' ? <BackToChase /> : null}
         {view.phase === 'chase' ? <ChaseTrack preview /> : null}
         {view.parties.map((party) => (
           <div key={party.id} className='flex flex-col gap-1.5'>

@@ -6,7 +6,7 @@ import { getFightBusy } from '../rules/turn'
 import { getNextRoundNote } from './turn'
 import { getRoundPhase } from '../rules/roundChange'
 import { isParkedParty } from '../rules/parked'
-import { canTurnAround, getCaught, getChaseIntentBar, getChasers, getChaseParties, getChaseStartBar, getStartCaught, getChaseStage, getPartyTierBetween, getWant, newChase, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
+import { canTurnAround, getCaught, getChaseIntentBar, getChasers, getChaseParties, getChaseStartBar, getStartCaught, getChaseStage, getPartyTierBetween, getWant, newChase, getConfirmBar, getCrossBar, getDeclareBar, getDeclareOrder, getBackToChaseBar, getDeclarers, getFightFirst, getFightingParties, getFollowBar, getJoinBar, getLink, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen } from '../rules/chase'
 
 type Option = { id: string; name: string; bar: string | null }
 
@@ -50,11 +50,9 @@ export type ChasePartyRow = {
   crossBar: string | null
   followOptions: Option[]
   putBackOptions: Option[]
-  joinOptions: Option[]
   joining: string | null
   mergeBar: string | null
   giveUpBar: string | null
-  fightBar: string | null
 }
 
 export type ChaseRollRow = { kind: 'hide' | 'scout' | 'cross'; parties: string; found: string | null; die: number; score: number; DL: number; degree: string }
@@ -104,10 +102,37 @@ function getSetup(state: SceneState): ChaseSetup | null {
   }
 }
 
+// The chase while a fight lives in it (the table's ruling): saved, with who
+// fights, each party still in the chase and the fights it may set off for
+// from shooting range, and why the GM cannot take the chase up again yet.
+export type ChaseSaved = {
+  fighting: string
+  parties: { id: string; name: string; joining: string | null; options: Option[] }[]
+  backBar: string | null
+}
+
+function getSaved(state: SceneState): ChaseSaved | null {
+  const chase = state.chase
+  const fighting = getFightingParties(state)
+  if (!chase || fighting.length === 0) return null
+  return {
+    fighting: fighting.map((p) => getPartyName(state, p)).join(', '),
+    parties: getChaseParties(state).filter((p) => !chase.fighting.includes(p) && getMembers(state, p).length > 0).map((id) => ({
+      id,
+      name: getPartyName(state, id),
+      joining: chase.joining[id] ? getPartyName(state, chase.joining[id]) : null,
+      options: chase.joining[id] ? [] : fighting.map((p) => ({ id: p, name: getPartyName(state, p), bar: getJoinBar(state, id, p) })),
+    })),
+    backBar: getBackToChaseBar(state),
+  }
+}
+
 export type ChasePanel = {
   tiers: readonly ChaseTier[]
   // the round change's chase step, null anywhere else
   setup: ChaseSetup | null
+  // the chase saved while a fight lives in it, null otherwise
+  saved: ChaseSaved | null
   chasing: boolean
   rows: ChasePartyRow[]
   // combat.tex "Chain order of running": who declares, head first
@@ -146,7 +171,7 @@ function clock(seconds: number): string {
 function getStatus(state: SceneState, id: string): string {
   const chase = state.chase!
   if (chase.out.includes(id)) return 'out of the chase'
-  if (chase.fighting.includes(id)) return 'caught, fighting'
+  if (chase.fighting.includes(id)) return 'fighting'
   if (chase.joining[id]) return `on the way to the fight of ${getPartyName(state, chase.joining[id])}`
   if (isDisconnected(state, id)) return 'disconnected: out when the round ends'
   if (isFrozen(state, id)) return 'keeping the distance at far range'
@@ -206,11 +231,9 @@ function buildRow(state: SceneState, id: string): ChasePartyRow {
     crossBar: getObstacleOwner(state, id) ? getCrossBar(state, id) : null,
     followOptions: chase.out.includes(id) ? [] : others.filter((p) => !chase.out.includes(p) && link?.chases !== p).map((p) => ({ id: p, name: getPartyName(state, p), bar: getFollowBar(state, id, p) })),
     putBackOptions: chase.out.includes(id) ? others.filter((p) => !chase.out.includes(p)).map((p) => ({ id: p, name: getPartyName(state, p), bar: getPutBackBar(state, id, p) })) : [],
-    joinOptions: chase.joining[id] || chase.fighting.includes(id) ? [] : chase.fighting.filter((p) => p !== id && state.parties[p]).map((p) => ({ id: p, name: getPartyName(state, p), bar: getJoinBar(state, id, p) })),
     joining: chase.joining[id] ? getPartyName(state, chase.joining[id]) : null,
     mergeBar: link && !isEnemyLink(state, id) ? getMergeBar(state, id) : null,
     giveUpBar: link ? getFightBusy(state) : null,
-    fightBar: getFightBar(state, id, !chase.fighting.includes(id)),
   }
 }
 
@@ -244,7 +267,7 @@ function getPlacement(state: SceneState): string | null {
   const chase = state.chase
   if (!chase) return null
   const notes = [
-    chase.fighting.length ? 'caught: the one who ended the chase within 10 m of an enemy and 20 m of every teammate, teams on either side of a semicircle around them, the chasers placing first; a grapple starts adjacent' : null,
+    getFightingParties(state).length ? 'caught: the one who ended the chase within 10 m of an enemy and 20 m of every teammate, teams on either side of a semicircle around them, the chasers placing first; a grapple starts adjacent' : null,
     Object.keys(chase.joining).length ? 'arriving: no closer than 50 m to any enemy' : null,
   ].filter((n) => n)
   return notes.length ? notes.join('; ') : null
@@ -257,6 +280,7 @@ function buildChasePanel(state: SceneState): ChasePanel {
   return {
     tiers: CHASE_TIERS,
     setup: getSetup(state),
+    saved: getSaved(state),
     chasing: chase !== null,
     rows: parties.map((p) => buildRow(state, p)),
     order: chase ? getDeclareOrder(state).map((p) => getPartyName(state, p)) : [],

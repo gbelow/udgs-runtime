@@ -24,9 +24,11 @@ import { getHeldActions } from '../rules/hold'
 import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
 import { rollHeld } from './heldTest'
 import { getRoundSeconds, isRunningInChase } from '../rules/chase'
-import { beginChase, endChaseRound, endChaseRoundChange } from './chase'
+import { beginChase, endChaseFight, endChaseRound, endChaseRoundChange } from './chase'
 import { carryOver, finishHeld } from './hold'
 import { updateCharacter } from './characters'
+import { isParked } from '../rules/parked'
+import { getMembers } from '../rules/fighters'
 
 // The round change (rules/roundChange.ts has its order). `nextRound` opens
 // it, `continueRound` moves it on a step at a time, and `holdOn` / `letGo`
@@ -66,8 +68,9 @@ export function nextRound(thrown: Throw): Updater {
   return calling({ kind: 'nextRound' }, thrown, (caller) => (state) => {
     if (state.roundStep !== null || getPlayingOutBar(state)) return state
     const receive = state.round === 0 ? startAP : receiveAP
-    const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) ? c : receive(wake(state, c))]))
-    const begun: SceneState = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
+    const moved = { ...state, chase: endChaseRound(state) }
+    const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) || isParked(moved, id) ? c : receive(wake(state, c))]))
+    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })
@@ -86,6 +89,18 @@ function rollStealth(state: SceneState, caller: Caller): SceneState {
   }, state)
 }
 
+// At the round change's chase step, the GM ends the fight that lives in the
+// chase and the chase takes up again with the round. Whoever it froze wakes
+// to the round's AP ("reset to 8 AP minus any negative AP they had"), with
+// nothing else of the round change: their time stood still.
+export function backToChase(state: SceneState): SceneState {
+  const frozen = Object.keys(state.characters).filter((id) => isParked(state, id))
+  const back = endChaseFight(state)
+  if (back === state) return state
+  const woken = frozen.filter((id) => !isParked(back, id) && !isDead(back.characters[id]))
+  return woken.reduce((s, id) => updateCharacter(id, (c) => capAP(receiveAP(c)), 'back to the chase')(s), back)
+}
+
 // The round change moves on to its next step, once the one it is at has
 // nothing owed.
 export function continueRound(thrown: Throw): Updater {
@@ -100,24 +115,29 @@ function stepOn(state: SceneState, caller: Caller): SceneState {
   switch (state.roundStep) {
     case 'rest': return openConcentration(passEnvironment(state), caller)
     case 'concentration': return { ...state, roundStep: 'join' }
-    case 'join': return { ...state, roundStep: 'morale', morale: getMoraleCalled(state).map((id) => ({ id, roll: null })) }
-    case 'morale': {
+    case 'join': return { ...state, roundStep: 'chase' }
+    case 'chase': {
       const begun = beginChase(state)
-      return { ...begun, roundStep: null, chase: endChaseRoundChange(begun) }
+      const called = getMoraleCalled(begun)
+      if (called.length === 0) return { ...begun, roundStep: null, chase: endChaseRoundChange(begun) }
+      return { ...begun, roundStep: 'morale', morale: called.map((id) => ({ id, roll: null })) }
     }
+    case 'morale': return { ...state, roundStep: null, chase: endChaseRoundChange(state) }
     default: return state
   }
 }
 
 // combat.tex "Chain order of running": a chase round runs into the next with
 // no fight's round change between them, so a step with nothing for anyone in
-// a chase passes on its own. With everyone running nobody may rest and nobody
-// joins a fight, and a chase under way has none to start.
+// a chase passes on its own. With everyone running nobody may rest, nobody
+// joins a fight and nobody is called to a morale test, and a chase under way
+// has none to start, unless a fight lives in it, which the GM may end there.
 function passIdle(state: SceneState, caller: Caller): SceneState {
   if (!state.chase) return state
   const phase = getRoundPhase(state)
-  const running = Object.values(state.characters).filter((c) => !isDead(c)).every((c) => isRunningInChase(state, c.id))
-  return phase === 'chase' || ((phase === 'rest' || phase === 'join') && running) ? continueWith(caller)(state) : state
+  const running = Object.values(state.characters).filter((c) => !isDead(c) && !isParked(state, c.id)).every((c) => isRunningInChase(state, c.id))
+  const fightLives = state.chase.fighting.some((p) => getMembers(state, p).length > 0)
+  return (phase === 'chase' && !fightLives) || ((phase === 'rest' || phase === 'join' || phase === 'morale') && running) ? continueWith(caller)(state) : state
 }
 
 // combat.tex "Bleed": "+1 to their IL per bleed intensity at the end of
@@ -128,7 +148,7 @@ function passIdle(state: SceneState, caller: Caller): SceneState {
 // able to breathe costs its STA. A dead character has nothing left to bleed
 // out or burn.
 function passEnvironment(state: SceneState): SceneState {
-  return Object.values(state.characters).filter((c) => !isDead(c)).reduce((s, c) => {
+  return Object.values(state.characters).filter((c) => !isDead(c) && !isParked(state, c.id)).reduce((s, c) => {
     const bled = updateCharacter(c.id, (x) => {
       const out = bleed(1)(x)
       return out.injuries.staunched ? { ...out, injuries: { ...out.injuries, staunched: false } } : out
@@ -147,7 +167,7 @@ function passEnvironment(state: SceneState): SceneState {
 // Whoever can no longer act lets go of what they held. With nobody left to
 // choose, the change moves on to who joins.
 function openConcentration(state: SceneState, caller: Caller): SceneState {
-  const settled = Object.values(state.characters).filter((c) => !isDead(c)).reduce<SceneState>((s, c) => {
+  const settled = Object.values(state.characters).filter((c) => !isDead(c) && !isParked(state, c.id)).reduce<SceneState>((s, c) => {
     const capped = updateCharacter(c.id, capAP, 'unspent AP lost')(s)
     if (!holdsThroughRound(capped, c.id)) return updateCharacter(c.id, payRoundEnd, 'round end')(capped)
     return hasAffliction(c, 'unconscious') ? letGoOf(capped, c.id, caller) : capped

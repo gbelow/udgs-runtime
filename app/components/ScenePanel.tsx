@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
-import { ChasePanel, FollowPanel } from './ChasePanel';
+import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
 import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
@@ -91,10 +91,10 @@ function FightSettings(){
   )
 }
 
-// What the scene is played on: the round change while it runs, the chase's
-// chain while there is a chase, with the board under it while a fight a catch
-// started is played out, the board otherwise; and whom the scene follows once
-// a chase is over.
+// What the scene is played on: the round change while it runs; while a fight
+// lives in the chase, the chase saved and frozen above the board the fight is
+// played on; the chase's chain while it runs; the board otherwise; and whom
+// the scene follows once a chase is over.
 export function SceneSpace(){
   const chase = useChase()
   const { view } = useRoundChange()
@@ -102,7 +102,7 @@ export function SceneSpace(){
   return(
     <>
       <FollowPanel />
-      {chase.chasing ? <><ChaseTrack /><ChasePanel /></> : null}
+      {chase.saved ? <><ChaseSaved /><ChaseTrack /></> : chase.chasing ? <><ChaseTrack /><ChasePanel /></> : null}
       {chase.boardInPlay ? <BoardPanel /> : null}
     </>
   )

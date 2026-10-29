@@ -14,7 +14,7 @@ import type { Dice } from '../../play/dice'
 import { getCunning } from '../../character/rules/skills'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
-import { isParked } from './parked'
+import { getParkedReason, isParked } from './parked'
 import { getPartners } from './partners'
 import { isImmobile } from './situational'
 import { sumTerms } from '../../character/rules/terms'
@@ -48,7 +48,8 @@ function getTurnlessReason(state: SceneState, id: string): string | null {
   if (!c) return 'not in the fight'
   if (isDead(c)) return 'dead'
   if (hasAffliction(c, 'unconscious')) return 'unconscious'
-  if (isParked(state, id)) return 'parked: the scene follows another party'
+  const parked = getParkedReason(state, state.partyOf[id] ?? '')
+  if (parked) return parked
   if (c.usedSurge === 'reaction') return 'reaction surge used this round'
   return null
 }

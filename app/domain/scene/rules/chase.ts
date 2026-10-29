@@ -61,7 +61,7 @@ export function newChase(state: SceneState, intents: Record<string, ChaseIntent>
     ...chasing.map(([p, c]) => [p, { chases: c.target, tier: c.tier, run: null }]),
   ])
   const inChase = [...runaways, ...chasing.map(([p]) => p)]
-  return getChaseWithoutDead(state, { runaways, links, out: Object.keys(state.parties).filter((p) => !inChase.includes(p)), fighting: [], joining: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
+  return getChaseWithoutDead(state, { runaways, links, out: Object.keys(state.parties).filter((p) => !inChase.includes(p)), fighting: [], joining: {}, setOff: {}, declarations: {}, confirmed: [], resolved: false, seconds: null, rolls: [], features: {}, turned: [], cover: {} })
 }
 
 // The chain once a party leaves it: whoever chased it chases whoever it
@@ -87,6 +87,7 @@ export function getChaseWithoutDead(state: SceneState, chase: Chase): Chase {
     out: [...chase.out, ...dead],
     fighting: chase.fighting.filter((p) => !dead.includes(p)),
     joining: Object.fromEntries(Object.entries(chase.joining).filter(([p]) => !dead.includes(p))),
+    setOff: Object.fromEntries(Object.entries(chase.setOff).filter(([p]) => !dead.includes(p))),
   }
 }
 
@@ -255,7 +256,7 @@ export function getCaught(state: SceneState, partyId: string): { id: string; rea
 // new round"), and only after a party that runs away.
 export function getChaseIntentBar(state: SceneState, partyId: string, intent: ChaseIntent | null): string | null {
   if (state.chase) return 'a chase is under way'
-  if (getRoundPhase(state) !== 'chase') return 'only at the round change, after the morale tests'
+  if (getRoundPhase(state) !== 'chase') return 'only at the round change, after joining'
   if (!state.parties[partyId] || isParkedParty(state, partyId) || getMembers(state, partyId).length === 0) return 'nobody in the party can'
   if (intent?.kind !== 'chase') return null
   if (intent.target === partyId) return 'a party does not chase itself'
@@ -285,10 +286,43 @@ export function getChaseStartBar(state: SceneState): string | null {
 const partyName = (state: SceneState, id: string) => state.parties[id]?.name || 'a party'
 
 // combat.tex "Escape": "finish the fight, and then start the chase" — while
-// a party is caught and fighting, the fight is played out before anyone runs.
+// a fight lives in the chase, the chase is saved and waits on it.
 export function getFightFirst(state: SceneState): string | null {
-  const fighting = state.chase?.fighting.filter((p) => state.parties[p] && getMembers(state, p).length > 0) ?? []
+  const fighting = getFightingParties(state)
   return fighting.length ? `${fighting.map((p) => partyName(state, p)).join(', ')} fighting first` : null
+}
+
+// The parties in the fight that lives in the chase, with anyone left alive.
+export function getFightingParties(state: SceneState): string[] {
+  return state.chase?.fighting.filter((p) => state.parties[p] && getMembers(state, p).length > 0) ?? []
+}
+
+// The table's ruling: a scene is a chase or a fight, and a fight lives in the
+// chase. While one does, everyone outside it is frozen until they arrive in
+// it; while none does, everyone out of the chase is. Nothing happens to a
+// frozen party: no turns, no AP, nothing from the round change. False with
+// no chase.
+export function isFrozenParty(state: SceneState, partyId: string): boolean {
+  const chase = state.chase
+  if (!chase) return false
+  return getFightingParties(state).length > 0 ? !chase.fighting.includes(partyId) : chase.out.includes(partyId)
+}
+
+// combat.tex "Catching": "a combat or social situation starts". The parties
+// the fight takes in when these are caught: them, and everyone within combat
+// range of any of them (the table's ruling).
+export function getCaughtInFight(state: SceneState, caught: string[]): string[] {
+  return getChaseParties(state).filter((p) => caught.includes(p) || caught.some((c) => getPartyTierBetween(state, c, p) === 'combat'))
+}
+
+// Why the GM cannot end the fight that lives in the chase and take the chase
+// up again now, or null: only at the round change's chase step, as a chase
+// "always starts at the beginning of a new round".
+export function getBackToChaseBar(state: SceneState): string | null {
+  if (!state.chase) return 'there is no chase'
+  if (getFightingParties(state).length === 0) return 'no fight is under way in the chase'
+  if (getRoundPhase(state) !== 'chase') return 'only at the round change, after joining'
+  return getFightBusy(state)
 }
 
 // combat.tex "Escaping": the chase is over once outrunning, hiding or an
@@ -408,7 +442,8 @@ export function isHidingLink(state: SceneState, from: string): boolean {
 }
 
 // Why the round's chase cannot be resolved: it has been, a fight is played
-// out first, someone is caught, or someone has not declared or confirmed.
+// out first, or someone has not declared or confirmed. Someone caught does
+// not wait on anyone: the resolve opens the fight.
 export function getResolveBar(state: SceneState): string | null {
   const chase = state.chase
   if (!chase) return 'there is no chase'
@@ -418,8 +453,7 @@ export function getResolveBar(state: SceneState): string | null {
   if (first) return first
   const busy = getFightBusy(state)
   if (busy) return busy
-  const caught = getChaseParties(state).flatMap((p) => getCaught(state, p))
-  if (caught.length) return `caught: ${caught.map((c) => c.reason).join(', ')}`
+  if (getChaseParties(state).some((p) => getCaught(state, p).length > 0)) return null
   if (getActiveLinks(state).length === 0) return 'nobody is running this round'
   const waiting = getDeclarers(state).filter((p) => !chase.declarations[p])
   if (waiting.length) return `still to declare: ${waiting.map((p) => partyName(state, p)).join(', ')}`
@@ -667,30 +701,20 @@ export function getMergeBar(state: SceneState, partyId: string): string | null {
   return getFightBusy(state)
 }
 
-// Why the party cannot set off to join the fight: it is out of the chase, in
-// that fight, on its way already, or too far ("any character from a group
-// that is at shooting distance must spend one full round to arrive at the
-// fight [...]. Anyone at far range or more is out").
+// Why the party cannot set off to join the fight: no fight lives in the
+// chase, it is in that fight, on its way already, or not at shooting range of
+// it ("any character from a group that is at shooting distance must spend
+// one full round to arrive at the fight [...]. Anyone at far range or more is
+// out"; whoever is within combat range is in it already).
 export function getJoinBar(state: SceneState, partyId: string, to: string): string | null {
   const chase = state.chase
   if (!chase) return 'there is no chase'
-  if (!chase.fighting.includes(to)) return 'there is no fight there'
+  if (!getFightingParties(state).includes(to)) return 'there is no fight there'
   if (partyId === to || chase.fighting.includes(partyId)) return 'they are fighting'
   if (chase.out.includes(partyId)) return 'they are out of the chase'
   if (chase.joining[partyId]) return 'they are on their way'
-  const tier = getPartyTierBetween(state, partyId, to)
-  if (tier === 'far' || tier === 'horizon') return 'too far to reach the fight'
-  if (getMembers(state, partyId).length === 0) return 'nobody left in the party'
-  return getFightBusy(state)
-}
-
-// Why the table cannot have the party caught and fighting, or running again.
-export function getFightBar(state: SceneState, partyId: string, fighting: boolean): string | null {
-  const chase = state.chase
-  if (!chase) return 'there is no chase'
-  if (chase.out.includes(partyId)) return 'they are out of the chase'
-  if (fighting && getEnemyChasers(state, partyId).length === 0 && !(getLink(state, partyId) && isEnemyLink(state, partyId))) return 'no enemy is after them'
-  return getFightBusy(state)
+  if (getPartyTierBetween(state, partyId, to) !== 'shooting') return 'only from shooting range'
+  return getMembers(state, partyId).length === 0 ? 'nobody left in the party' : null
 }
 
 // Who of the party may turn around: a party enemies chase.

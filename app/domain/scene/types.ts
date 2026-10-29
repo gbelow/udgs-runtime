@@ -1508,7 +1508,7 @@ export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchem
 // The steps of the round change the table moves on from by hand; what runs on
 // its own between them, and the steps inside the last one, are read off the
 // state (rules/roundChange.ts).
-export const RoundStepSchema = z.enum(['rest', 'concentration', 'join', 'morale'])
+export const RoundStepSchema = z.enum(['rest', 'concentration', 'join', 'chase', 'morale'])
 export type RoundStep = z.infer<typeof RoundStepSchema>
 // What a character holding something on through the round change chose: to
 // pay for it again, or to let it go and finish what it held.
@@ -1684,6 +1684,8 @@ export const ChaseSchema = z.object({
   out: z.array(str).default([]),
   fighting: z.array(str).default([]),
   joining: z.record(str, str).default({}),
+  // the round each party on its way to the fight set off in
+  setOff: z.record(str, num).default({}),
   declarations: z.record(str, ChaseDeclarationSchema).default({}),
   confirmed: z.array(str).default([]),
   resolved: z.boolean().default(false),
