@@ -24,6 +24,10 @@ const HOSTILE: { label: string; raw: unknown }[] = [
   { label: 'a radius that is not a whole number', raw: { radius: 2.5 } },
   { label: 'a radius of nothing', raw: { radius: 0 } },
   { label: 'an extent of nothing on one axis', raw: { extent: { q: 3, r: 0, s: 3 } } },
+  { label: 'levels that are not a list', raw: { levels: { floor: 3 } } },
+  { label: 'a level that is not an object', raw: { levels: [null, 'roof'] } },
+  { label: 'a level with a floor that is not a number', raw: { levels: [{ floor: 'up', height: -1 }] } },
+  { label: 'a level keyed by something that is not a cell', raw: { levels: [{ terrain: { roof: {}, '0,0': { hole: 'yes' } } }] } },
 ]
 
 const populated = () =>
@@ -36,6 +40,7 @@ const populated = () =>
       '0,0': { blocking: true },
       '1,-1': { difficult: true, elevation: 1 },
     },
+    levels: [{ floor: 3, height: 2, terrain: { '0,0': { blocking: true }, '1,-1': { hole: true } } }],
     origin: { q: 4, r: -2 },
     extent: { q: 9, r: 7, s: 5 },
   })
@@ -55,6 +60,11 @@ describe('board ingestion is total', () => {
     })
     expect(Object.keys(board.placements)).toEqual(['ana'])
     expect(Object.keys(board.terrain)).toEqual(['0,0'])
+  })
+
+  it('keeps the storeys and storey cells it can read when it drops one it cannot', () => {
+    const board = makeBoard({ levels: [null, { floor: 3, terrain: { '0,0': { hole: true }, roof: {} } }] })
+    expect(board.levels.map((level) => Object.keys(level.terrain))).toEqual([['0,0']])
   })
 
   it('keeps nothing it cannot vouch for', () => {

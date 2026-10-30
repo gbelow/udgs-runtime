@@ -460,10 +460,11 @@ export function getResizeWarning(state: SceneState, extent: BoardExtent): string
   const board = state.board
   if (!board || (extent.q >= board.extent.q && extent.r >= board.extent.r && extent.s >= board.extent.s)) return null
   const beyond = getBeyondEdge(state, extent)
+  const painted = beyond.terrain.length + beyond.levels.reduce((n, cells) => n + cells.length, 0)
   const lost = [
     beyond.characters.length ? `${beyond.characters.map((id) => getFightName(state, id)).join(', ')} off the board` : null,
     beyond.floor.length ? `${beyond.floor.length} item${beyond.floor.length === 1 ? '' : 's'} off the floor` : null,
-    beyond.terrain.length ? `${beyond.terrain.length} painted cell${beyond.terrain.length === 1 ? '' : 's'} dropped` : null,
+    painted ? `${painted} painted cell${painted === 1 ? '' : 's'} dropped` : null,
   ].filter((s) => s !== null)
   return `shrink the board to ${extent.q} × ${extent.r} × ${extent.s}: ${lost.length ? lost.join('; ') : 'nothing lies beyond the new edge'}`
 }

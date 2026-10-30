@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type SceneState } from './types'
+import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, LevelCellSchema, LevelSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type Level, type SceneState } from './types'
 import { parseCoordKey } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
@@ -19,6 +19,13 @@ const BoardIngestSchema = z.object({
   extent: z.unknown().optional(),
   radius: z.unknown().optional(),
   surface: z.unknown().optional(),
+  levels: z.array(z.unknown()).optional(),
+}).strip()
+
+const LevelIngestSchema = z.object({
+  floor: z.unknown().optional(),
+  height: z.unknown().optional(),
+  terrain: z.record(z.string(), z.unknown()).optional(),
 }).strip()
 
 function readEntries<T>(record: Record<string, unknown> | undefined, schema: z.ZodType<T>, keepKey: (key: string) => boolean): Record<string, T> {
@@ -32,15 +39,35 @@ function readEntries<T>(record: Record<string, unknown> | undefined, schema: z.Z
   return Object.fromEntries(entries)
 }
 
+// A storey that cannot be read is dropped with everything on it; one that can
+// keeps the cells it can read, as the ground does.
+function readLevels(raw: unknown[] | undefined): Level[] {
+  const levels: Level[] = []
+  for (const entry of raw ?? []) {
+    const parsed = LevelIngestSchema.safeParse(entry)
+    if (!parsed.success) continue
+    const floor = LevelSchema.shape.floor.safeParse(parsed.data.floor)
+    const height = LevelSchema.shape.height.safeParse(parsed.data.height)
+    levels.push(LevelSchema.parse({
+      ...(floor.success ? { floor: floor.data } : {}),
+      ...(height.success ? { height: height.data } : {}),
+      terrain: readEntries(parsed.data.terrain, LevelCellSchema, (key) => parseCoordKey(key) !== null),
+    }))
+  }
+  return levels
+}
+
 // A kept board read the same way, whatever else is in it: the ground, with
 // nobody on it and no layer an action left.
 export function makeBoardMap(raw: unknown): BoardMap {
-  const { placements: _placements, terrain, ...rest } = makeBoard(raw)
+  const { placements: _placements, terrain, levels, ...rest } = makeBoard(raw)
+  const clean = <T extends { layers: unknown[] }>(cells: Record<string, T>) => Object.fromEntries(Object.entries(cells).map(([key, cell]) => [key, { ...cell, layers: [] }]))
   const name = z.object({ name: z.string() }).safeParse(raw)
   return BoardMapSchema.parse({
     ...rest,
     name: name.success ? name.data.name : '',
-    terrain: Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, { ...cell, layers: [] }])),
+    terrain: clean(terrain),
+    levels: levels.map((level) => ({ ...level, terrain: clean(level.terrain) })),
   })
 }
 
@@ -59,6 +86,7 @@ export function makeBoard(raw: unknown): Board {
   return BoardSchema.parse({
     placements: readEntries(parsed.data.placements, PlacementSchema, () => true),
     terrain: readEntries(parsed.data.terrain, TerrainCellSchema, (key) => parseCoordKey(key) !== null),
+    levels: readLevels(parsed.data.levels),
     ...(origin.success ? { origin: origin.data } : {}),
     ...(extent.success && parsed.data.extent !== undefined ? { extent: extent.data } : radius.success ? { extent: { q: radius.data, r: radius.data, s: radius.data } } : {}),
     ...(surface.success ? { surface: surface.data } : {}),

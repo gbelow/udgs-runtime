@@ -29,14 +29,17 @@ export function getFootprint(c: Character, placement: Placement): Coord[] {
 // What lies beyond the edge of the board were it `extent` from its origin
 // along each axis: whoever has a cell of their footprint out there, the items
 // on the floor out there, by id, and the painted cells, by key.
-export function getBeyondEdge(state: SceneState, extent: BoardExtent): { characters: string[]; floor: string[]; terrain: string[] } {
+// `levels` holds the cells of each storey, in the order of `board.levels`.
+export function getBeyondEdge(state: SceneState, extent: BoardExtent): { characters: string[]; floor: string[]; terrain: string[]; levels: string[][] } {
   const board = state.board
-  if (!board) return { characters: [], floor: [], terrain: [] }
+  if (!board) return { characters: [], floor: [], terrain: [], levels: [] }
   const beyond = (cell: Coord) => !inExtent(board.origin, extent, cell)
+  const cellsBeyond = (terrain: Record<string, unknown>) => Object.keys(terrain).filter((key) => { const cell = parseCoordKey(key); return cell === null || beyond(cell) })
   return {
     characters: Object.entries(board.placements).filter(([id, p]) => state.characters[id] && getFootprint(state.characters[id], p).some(beyond)).map(([id]) => id),
     floor: state.floor.filter((f) => f.cell !== null && beyond(f.cell)).map((f) => f.item.id),
-    terrain: Object.keys(board.terrain).filter((key) => { const cell = parseCoordKey(key); return cell === null || beyond(cell) }),
+    terrain: cellsBeyond(board.terrain),
+    levels: board.levels.map((level) => cellsBeyond(level.terrain)),
   }
 }
 

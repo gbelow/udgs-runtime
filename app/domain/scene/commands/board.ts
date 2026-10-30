@@ -40,8 +40,8 @@ export const removeBoard: Updater = (state) =>
 
 // Widens or narrows the board around its origin, along each of the three hex
 // axes: whoever stands partly beyond the new edge comes off it, what lay on
-// the floor out there lies nowhere in particular, and the ground painted
-// there is dropped. Refused while an action is open, as painting is.
+// the floor out there lies nowhere in particular, and the ground and storeys
+// painted there are dropped. Refused while an action is open, as painting is.
 export function resizeBoard(extent: BoardExtent): Updater {
   return (state) => {
     const resized = BoardExtentSchema.safeParse(extent)
@@ -50,7 +50,12 @@ export function resizeBoard(extent: BoardExtent): Updater {
     const off = withoutPlacements(state, beyond.characters).board ?? state.board
     return {
       ...state,
-      board: { ...off, extent: resized.data, terrain: beyond.terrain.reduce(without, off.terrain) },
+      board: {
+        ...off,
+        extent: resized.data,
+        terrain: beyond.terrain.reduce(without, off.terrain),
+        levels: off.levels.map((level, i) => ({ ...level, terrain: beyond.levels[i].reduce(without, level.terrain) })),
+      },
       floor: state.floor.map((f) => (beyond.floor.includes(f.item.id) ? { ...f, cell: null } : f)),
     }
   }

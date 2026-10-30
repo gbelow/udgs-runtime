@@ -16,6 +16,7 @@ describe('a kept battle map', () => {
       light: 'dim',
       placements: { a: { cell: { q: 1, r: 1 } } },
       terrain: { '1,1': { blocking: true, layers: [{ fire: 2 }] }, '0,1': { elevation: 2 } },
+      levels: [{ floor: 3, terrain: { '1,1': { layers: [{ fire: 2 }] }, '0,1': { hole: true } } }],
     }),
   })
 
