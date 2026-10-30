@@ -132,6 +132,9 @@ export type BoardTokenView = {
   targetable: boolean
   // the committed action still waits on their answer (`getAwaited`)
   awaited: boolean
+  // standing on another floor than the one the board is looked at from
+  // (`getStoreyView`)
+  elsewhere: boolean
   // combat.tex "Cover": in total cover behind a body shield, which faces
   // this way, in degrees; null out of it
   shieldAngle: number | null
@@ -408,6 +411,7 @@ function buildBoardView(state: SeenScene): BoardView {
       role: open ? getRole(state, open, id) : null,
       targetable: targets.has(id),
       awaited: awaited.has(id),
+      elsewhere: false,
       shieldAngle: facing === null ? null : (facing * 180) / Math.PI,
     }]
   })

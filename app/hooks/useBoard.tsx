@@ -3,6 +3,7 @@ import { EXPLOSION_DRAFT, EXPLOSION_EFFECTS, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_K
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
 import { getFrontView } from "../domain/scene/projections/frontView";
+import { getStoreyChoices, getStoreyView, getViewHeight } from "../domain/scene/projections/storeyView";
 import type { BoardLook } from "./useBoardLook";
 import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -20,10 +21,15 @@ import { useState } from "react";
 // screen has picked.
 const NONE: string[] = [];
 
-export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "lift"> = { front: false, lift: 0 }) {
+// `storey` is the height the board is looked at from, or 'auto' for the floor
+// the active character stands on.
+export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "lift"> = { front: false, lift: 0 }, storey: number | null | "auto" = "auto") {
   useCombatStore(fromActive ? getBoardViewFromDigest : getBoardViewDigest);
-  const flat: BoardView = (fromActive ? getBoardViewFrom : getBoardView)(useCombatStore.getState());
+  const state = useCombatStore.getState();
+  const height = getViewHeight(state, storey);
+  const flat: BoardView = getStoreyView(state, (fromActive ? getBoardViewFrom : getBoardView)(state), height);
   const view = look.front ? getFrontView(flat, look.lift) : flat;
+  const storeys = getStoreyChoices(state.board);
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
 
@@ -59,7 +65,7 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
   const resize = (extent: BoardExtent) => dispatch({ kind: "resizeBoard", args: [extent] });
   const resizeWarning = (extent: BoardExtent) => getResizeWarning(useCombatStore.getState(), extent);
 
-  return { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, setExplosion, explosionOptions, turn, light, surface, laySurface, generateGround, resize, resizeWarning } as const;
+  return { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, setExplosion, explosionOptions, turn, light, surface, laySurface, generateGround, resize, resizeWarning } as const;
 }
 
 // The GM's floor tool and the explosion it carries, shared by the buttons that

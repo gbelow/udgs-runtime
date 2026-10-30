@@ -54,7 +54,11 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   through a floor over the climber, and a climber hanging keeps the two floors of their face
   (`Placement.climb.floor`, `bound`). Melee reach counts the metres between two bodies up or
   down as cells (`getMeleeGap`); every other distance is flat. Fire, gas and light on a storey
-  are not wired in yet.
+  are not wired in yet. The move search reaches each cell once, the first way it comes there,
+  so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).
+  The fight's board is looked at from a height (`projections/storeyView.ts`): the cells are drawn
+  as the floor someone there stands on, open air veiled, others on another floor drawn apart;
+  what the board offers and what a click means do not change with it.
 - **Pieces.** A structure (a house, a tree) is laid on the board as one piece
   (`rules/board/piece.ts`): its cells are written into `terrain` and its storeys into `levels`,
   marked with the piece's id, turned about its anchor, and its heights raised by the ground under

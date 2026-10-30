@@ -58,7 +58,8 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
 export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
   const look = useBoardLook()
-  const { view, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning } = useBoard(fromActive, look)
+  const [storey, setStorey] = useState<number | null | 'auto'>('auto')
+  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning } = useBoard(fromActive, look, storey)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
@@ -96,6 +97,12 @@ export function BoardPanel(){
         <ZoomButtons zoomPan={zoomPan} />
         <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
         {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
+        {storeys.length > 1 ?
+          <Segmented label='storey'>
+            <Segment selected={storey === 'auto'} title='the floor the active character stands on' onClick={() => setStorey('auto')}>theirs</Segment>
+            {storeys.map((s) => <Segment key={s.label} selected={storey !== 'auto' && s.height === height} onClick={() => setStorey(s.height)}>{s.label}</Segment>)}
+          </Segmented>
+          : null}
         <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
         {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setFloorTool(null) }}>GM board tools</Button> : null}
         <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
@@ -623,8 +630,8 @@ function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: st
   const [broken, setBroken] = useState(false)
   const clip = `token-clip-${token.id}`
   return (
-    <g className='cursor-pointer' onClick={onClick} opacity={token.hidden ? 0.6 : 1}>
-      <title>{`${token.name}${token.hidden ? ' · behind higher ground' : ''}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
+    <g className='cursor-pointer' onClick={onClick} opacity={token.elsewhere ? 0.35 : token.hidden ? 0.6 : 1}>
+      <title>{`${token.name}${token.elsewhere ? ' · on another floor' : ''}${token.hidden ? ' · behind higher ground' : ''}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
       {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
       {token.shadow ? <ellipse cx={token.shadow.x} cy={token.shadow.y + 0.5} rx={0.55} ry={0.2} className='fill-fg/30 pointer-events-none' /> : null}
       <g transform={`translate(${token.x} ${token.y})`}>

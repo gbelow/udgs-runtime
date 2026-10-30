@@ -12,8 +12,9 @@ import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getSeenBy } from '../domain/scene/rules/seen'
 import { getBoardViewFrom } from '../domain/scene/projections/boardView'
+import { getStoreyChoices, getStoreyView } from '../domain/scene/projections/storeyView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
-import { coordKey, distance, ring } from '../domain/scene/rules/board/geometry'
+import { coordKey, distance, ring, sameCell } from '../domain/scene/rules/board/geometry'
 import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renameBoardMap } from '../domain/scene/commands/boardMapEdit'
 import { newStructureMap, structureOfMap } from '../domain/scene/factories'
 import type { BoardMap, Coord } from '../domain/scene/types'
@@ -408,6 +409,13 @@ function assertSound(h: Harness, storage: boolean) {
     }
   }
   expect(view.tokens.map((t) => t.id).sort(), 'the board draws every placed character').toEqual(Object.keys(placements).filter((id) => s.characters[id]).sort())
+  // looked at from any storey, the board draws the same characters and
+  // offers the same cells; only the drawing changes
+  for (const { height } of getStoreyChoices(s.board)) {
+    const seen = getStoreyView(s, view, height)
+    expect(seen.tokens.map((t) => t.id), `the board at ${height ?? 'the ground'} draws every placed character`).toEqual(view.tokens.map((t) => t.id))
+    expect(seen.cells.map((c) => [c.key, c.reachable]), `the board at ${height ?? 'the ground'} offers what the board offers`).toEqual(view.cells.map((c) => [c.key, c.reachable]))
+  }
 
   // the board from the active character's eyes draws them, and anyone it
   // draws whose sight the cells and the detection agree on
@@ -1180,7 +1188,21 @@ function playHouse(seed: number, table = false) {
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...jumpAttackPlay(h), ...steadyShotPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'stair', weight: 6, run: climbStair }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...jumpAttackPlay(h), ...steadyShotPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
+}
+
+// Someone walks up the stair a cell a segment, and on across the upper
+// floor, each cell clicked only where the board offers it.
+function climbStair(h: Harness, pick: Picker) {
+  startTurnOf(h, pick)
+  if (!ownOptions(h, h.active()!).some((o) => o.draft.kind === 'move')) return
+  h.declare({ kind: 'move' })
+  for (const cell of [...HOUSE_STAIR, HOUSE_ROOM[5], { q: 0, r: 0 }]) {
+    if (h.view().cells.some((c) => c.reachable !== null && sameCell(c.cell, cell))) h.click({ on: 'cell', cell })
+  }
+  h.commit()
+  answerOpen(h, pick, pick([0, 1, 2]))
+  playOut(h, pick)
 }
 
 describe('a crowd in and around a house', () => {
