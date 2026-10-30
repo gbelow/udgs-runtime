@@ -5,6 +5,7 @@ import type { ActionCost } from '../../character/rules/actionCosts'
 import { DIRECTIONS, HEX_POINTS, ROTATIONS, add, angleBetween, coordKey, extentCells, frameHexes, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
+import { getPieceAt } from '../rules/board/piece'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
@@ -77,6 +78,10 @@ export type BoardCellView = {
   // the storey the board is drawn at, in the editor: a floor laid in the cell,
   // a stairwell over the ground, or open air over it; null for the ground
   storey: 'floor' | 'hole' | 'air' | null
+  // the piece laid on the board the cell is part of, on the ground or a
+  // storey, and whether it is the one picked in the editor
+  piece: string | null
+  chosen: boolean
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
   // this cell's place on the path of the move in play, counted from 1; null
@@ -353,6 +358,8 @@ function buildBoardView(state: SeenScene): BoardView {
       unseen: false,
       occupants: occupancy[key] ?? [],
       storey: null,
+      piece: getPieceAt(board, key),
+      chosen: false,
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,
       swept: swept.has(key),

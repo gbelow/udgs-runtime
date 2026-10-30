@@ -4,7 +4,7 @@ import { rollD10, seededRng } from '../domain/play/dice'
 import { SceneStateSchema, type ActionDraft, type ChaseIntent, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import type { ModifierView } from '../domain/scene/projections/modifiers'
-import { getFootprint, getMeleeThreateners } from '../domain/scene/rules/board/board'
+import { getFootprint, getMeleeThreateners, getTerrainAt } from '../domain/scene/rules/board/board'
 import { isProne } from '../domain/scene/rules/board/ground'
 import { defRows } from '../domain/scene/rules/attack'
 import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
@@ -13,7 +13,10 @@ import { getOpenAction } from '../domain/scene/rules/log'
 import { getSeenBy } from '../domain/scene/rules/seen'
 import { getBoardViewFrom } from '../domain/scene/projections/boardView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
-import { coordKey, distance } from '../domain/scene/rules/board/geometry'
+import { coordKey, distance, ring } from '../domain/scene/rules/board/geometry'
+import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renameBoardMap } from '../domain/scene/commands/boardMapEdit'
+import { newStructureMap, structureOfMap } from '../domain/scene/factories'
+import type { BoardMap, Coord } from '../domain/scene/types'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, type RoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
@@ -23,7 +26,7 @@ import { getBackToChaseBar, getChaseIntentBar, getDeclareBar, getDeclareOrder, g
 import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
-import { CampaignCharacterSchema, SurgeKindSchema, type Character } from '../domain/types'
+import { CampaignCharacterSchema, SurgeKindSchema, type Character, type TerrainBrush } from '../domain/types'
 import { getAim } from '../domain/scene/rules/aim'
 import { hasGrant } from '../domain/character/rules/effects'
 import { JUMP_ATTACKS, type JumpAttackKey } from '../domain/scene/rules/jumpAttack'
@@ -399,7 +402,7 @@ function assertSound(h: Harness, storage: boolean) {
     expect(s.characters[id], `${id} is placed but not in the fight`).toBeDefined()
     if (isProne(s, id)) continue
     for (const cell of getFootprint(s.characters[id], placement)) {
-      const key = coordKey(cell)
+      const key = `${coordKey(cell)} at ${getTerrainAt(s.board!, cell, placement.elevation).floor} m`
       expect(held.get(key), `${id} and ${held.get(key)} both stand on ${key}`).toBeUndefined()
       held.set(key, id)
     }
@@ -1127,6 +1130,61 @@ const COVER: [number, number][] = [[-1, 0], [-1, -1], [1, -1], [2, 0]]
 
 describe('a crowd behind cover', () => {
   it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => playCrowd(seed, COVER))
+})
+
+// A house of two storeys and a roof, built in the structure editor brush by
+// brush as a GM builds one: walls round a room with a door and two windows, a
+// stair rising half a metre a step round the room under a stairwell to the
+// upper floor, its walls and windows upstairs with holds to climb them by,
+// and a roof over it all. It is
+// laid on a battle map, which the fight loads as its board.
+const HOUSE_ROOM = ring({ q: 0, r: 0 }, 1)
+const HOUSE_WALLS = ring({ q: 0, r: 0 }, 2)
+const HOUSE_DOOR = HOUSE_WALLS[0]
+const HOUSE_WINDOWS = [HOUSE_WALLS[4], HOUSE_WALLS[9]]
+const HOUSE_STAIR = HOUSE_ROOM.slice(0, 5)
+
+function houseMap(): BoardMap {
+  let made = renameBoardMap('house')(newStructureMap())
+  const brush = (b: TerrainBrush, cells: Coord[], level: number | null = null) => { for (const c of cells) made = paintBoardMap(c, b, 0, level)(made) }
+  const solid = HOUSE_WALLS.filter((c) => c !== HOUSE_DOOR && !HOUSE_WINDOWS.includes(c))
+  brush('wall', solid)
+  brush('glass', HOUSE_WINDOWS)
+  HOUSE_STAIR.forEach((c, i) => { for (let step = 0; step <= i; step++) brush('rise', [c]) })
+  made = addLevelBoardMap()(made)
+  brush('floor', [{ q: 0, r: 0 }, ...HOUSE_ROOM, ...HOUSE_WALLS], 0)
+  brush('hole', HOUSE_STAIR, 0)
+  brush('wall', HOUSE_WALLS.filter((c) => !HOUSE_WINDOWS.includes(c)), 0)
+  brush('glass', HOUSE_WINDOWS, 0)
+  brush('grip', HOUSE_WALLS, 0)
+  made = addLevelBoardMap()(made)
+  brush('floor', [{ q: 0, r: 0 }, ...HOUSE_ROOM, ...HOUSE_WALLS], 1)
+  return placePieceBoardMap('house', structureOfMap(made), { q: 0, r: 0 }, 0)(newBoardMap(5))
+}
+
+// The crowd in and around the house: two of them in the room, under the
+// upper floor, and the rest outside, so that a walk may take the stair or
+// come out through the door, a climb may go up the outside wall, and a shot
+// may cross a window.
+function playHouse(seed: number, table = false) {
+  const rng = seededRng(seed)
+  const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
+  const h = openHarness((explodes) => rollD10(explodes, rng), { table })
+  h.bring(towerWarden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), torchbearer('Gus'))
+  h.createBoard(5)
+  h.loadMap(houseMap())
+  expect(Object.keys(h.state().board?.pieces ?? {}), 'the house stands on the board').toEqual(['house'])
+  const [inside] = HOUSE_ROOM.slice(5)
+  for (const [name, q, r] of [['Ann', 0, 0], ['Bob', inside.q, inside.r], ['Cy', 3, 0], ['Dee', 0, 3], ['Eve', -3, 0], ['Fay', 0, -3], ['Gus', -3, 3]] as const) {
+    h.select(name)
+    h.cell(q, r)
+  }
+  h.select('Ann')
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h), ...jumpAttackPlay(h), ...steadyShotPlay(h), ...reflexShotPlay(h), ...grapplingPlay(h)], pick)
+}
+
+describe('a crowd in and around a house', () => {
+  it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => playHouse(seed))
 })
 
 // combat.tex "Chain order of running": every party declaring confirms, tail

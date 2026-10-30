@@ -1,6 +1,6 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Surface, type TerrainCell, type Updater } from '../types'
+import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
 import { BRUSH_RADIUS_MOST, GROUND_ONLY_BRUSHES } from '../../lists'
@@ -11,8 +11,8 @@ import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
 import { CLIMB_EASY_DL, COVER_START_RES, SWIM_DEFAULT_DL } from '../../tables'
-import { getBeyondEdge, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
-import { liftPiece } from '../rules/board/piece'
+import { getBeyondEdge, getOccupancy, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
+import { getPieceCells, getPieceStructure, getStructureAt, layPiece, liftPiece } from '../rules/board/piece'
 import { without } from '../../utils'
 import { drawsSegments, getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
 import { findOpenJump } from '../rules/options'
@@ -277,6 +277,68 @@ export function addLevel(floor?: number, height?: number): Updater {
     const level = LevelSchema.safeParse({ floor: floor ?? top, height: height ?? fresh.height })
     return level.success ? { ...state, board: { ...board, levels: [...board.levels, level.data] } } : state
   }
+}
+
+// The board with a piece laid on it kept, unless a cell of the piece would
+// cover someone standing on the board.
+function withPiece(state: SceneState, board: Board | null, id: string): SceneState {
+  if (!board) return state
+  const occupied = new Set(Object.keys(getOccupancy(board, state.characters)))
+  return getPieceCells(board, id).some((key) => occupied.has(key)) ? state : { ...state, board }
+}
+
+// Lays a structure on the board as the piece `id`, its anchor on `cell`,
+// turned `rotation` times. Refused while an action is open, and where a cell
+// of it would fall beyond the edge, on another piece or on someone.
+export function placePiece(id: string, structure: Structure, cell: Coord, rotation = 0): Updater {
+  return (state) => (!state.board || getOpenAction(state) ? state : withPiece(state, layPiece(state.board, id, structure, cell, rotation), id))
+}
+
+// The piece lifted and laid again as `next` makes it, refused as laying it is.
+function relayPiece(id: string, next: (state: SceneState, board: Board, piece: Piece) => { structure: Structure, cell: Coord, rotation: number } | null): Updater {
+  return (state) => {
+    const board = state.board
+    const piece = board?.pieces[id]
+    if (!board || !piece || getOpenAction(state)) return state
+    const to = next(state, board, piece)
+    return to ? withPiece(state, layPiece(liftPiece(board, id), id, to.structure, to.cell, to.rotation), id) : state
+  }
+}
+
+// Moves the piece's anchor to `cell`, its heights now from the ground there.
+export function movePiece(id: string, cell: Coord): Updater {
+  return relayPiece(id, (_, board, piece) => ({ structure: getPieceStructure(board, id)!, cell, rotation: piece.rotation }))
+}
+
+// Turns the piece `steps` times about its anchor.
+export function turnPiece(id: string, steps: number): Updater {
+  return relayPiece(id, (_, board, piece) => ({ structure: getPieceStructure(board, id)!, cell: piece.cell, rotation: (((piece.rotation + steps) % 6) + 6) % 6 }))
+}
+
+// Takes the piece off the board, giving back the ground under it.
+export function removePiece(id: string): Updater {
+  return (state) => (!state.board?.pieces[id] || getOpenAction(state) ? state : { ...state, board: liftPiece(state.board, id) })
+}
+
+// Changes the piece by an edit of the board's own (a brush, a surface, a
+// storey added): the edit is made on the board as it would be with the piece
+// lifted and its cells and storeys laid back as the board's own, measured from
+// the ground it was laid on, and the piece is then every cell it had that is
+// left and every cell the edit changed. Its storeys are the board's only
+// storeys there, in the order the piece has them. The board's own ground is
+// never changed by it.
+export function editPiece(id: string, change: Updater): Updater {
+  return relayPiece(id, (state, board, piece) => {
+    const lifted = liftPiece(board, id)
+    const lower = <T extends TerrainCell>(cell: T): T => ({ ...cell, elevation: cell.elevation - piece.elevation })
+    const own = Object.fromEntries(Object.entries(board.terrain).filter(([, cell]) => cell.piece === id).map(([key, cell]) => [key, { ...lower(cell), piece: null }]))
+    const before = { ...Object.fromEntries(Object.entries(lifted.terrain).map(([key, cell]) => [key, lower(cell)])), ...own }
+    const levels = board.levels.filter((level) => level.piece === id).map((level) => ({ ...level, floor: level.floor - piece.elevation, piece: null }))
+    const edited = change({ ...state, board: { ...lifted, placements: {}, terrain: before, levels } }).board
+    if (!edited) return null
+    const terrain = Object.fromEntries(Object.entries(edited.terrain).filter(([key, cell]) => key in own || cell !== before[key]))
+    return { structure: getStructureAt(piece, terrain, edited.levels), cell: piece.cell, rotation: piece.rotation }
+  })
 }
 
 // Takes a storey of the board's own away, whatever is painted on it.

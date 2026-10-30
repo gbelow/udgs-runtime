@@ -1,7 +1,7 @@
 import type { Dice } from '../domain/play/dice'
 import { toTable, type Throw } from '../domain/play/calls'
 import type { TerrainBrush } from '../domain/types'
-import { SceneStateSchema, type ActionDraft, type GroundRecipe, type SceneState, type SeenScene, type Coord, type LightLevel, type Updater } from '../domain/scene/types'
+import { SceneStateSchema, type ActionDraft, type BoardMap, type GroundRecipe, type SceneState, type SeenScene, type Coord, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { readClick, type Click } from '../domain/scene/commands/click'
 import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
@@ -93,6 +93,8 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     },
     createBoard: (radius: number) => send({ kind: 'createBoard', args: [radius] }),
     removeBoard: () => send({ kind: 'removeBoard', args: [] }),
+    // a kept battle map played on, as the board panel's map picker loads it
+    loadMap: (map: BoardMap) => send({ kind: 'loadBoardMap', args: [map] }),
     resizeBoard: (radius: number) => send({ kind: 'resizeBoard', args: [{ q: radius, r: radius, s: radius }] }),
     light: (level: LightLevel) => send({ kind: 'light', args: [level] }),
     surface: (surface: string | null) => send({ kind: 'surface', args: [surface] }),

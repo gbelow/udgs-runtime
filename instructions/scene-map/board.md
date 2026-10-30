@@ -62,7 +62,11 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   lifting it gives that ground back, and the rules read a piece's cells like any other. Pieces
   never share a cell. A resize lifts a piece any cell of which falls beyond the edge, and the map's
   brushes leave a piece's cells alone. Ingestion makes a mark naming a missing piece the board's own
-  and drops a piece no cell is marked with.
+  and drops a piece no cell is marked with. `placePiece`, `movePiece`, `turnPiece` and
+  `removePiece` (`commands/board.ts`) lay, move, turn and lift one, refused where it would cover
+  someone standing; `editPiece` runs any board edit (a brush, a surface, a storey) on the piece
+  alone, laid back as the board's own over the ground it covers, and takes every cell the edit
+  changed into it. The battle map editor picks a piece to paint it (`boardMapEdit.ts`, `onOwner`).
 - **Balance on difficult terrain.** A move across difficult cells is closed by a Balance die
   unless the mover's test stands for the round (a held test, below: the first move's die is
   held, and a fall drops it, `dropFallenBalance`). The one score is held against the DL of every difficult cell on the path

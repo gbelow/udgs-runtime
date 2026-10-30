@@ -202,6 +202,10 @@ export const STOREY_ONLY_BRUSHES = ['floor', 'hole'] as const
 export const GROUND_BRUSHES = TERRAIN_BRUSHES.filter((b) => !(STOREY_ONLY_BRUSHES as readonly string[]).includes(b))
 export const STOREY_BRUSHES = TERRAIN_BRUSHES.filter((b) => !(GROUND_ONLY_BRUSHES as readonly string[]).includes(b))
 
+// The turns a piece may be laid at about its anchor, each a sixth of a turn
+// (`rotate`).
+export const PIECE_TURNS = [0, 1, 2, 3, 4, 5] as const
+
 // combat.tex "Darkness and light": how much light the fight has where no
 // light source reaches, brightest first.
 export const LIGHT_LEVELS = ['bright', 'dim', 'dark'] as const

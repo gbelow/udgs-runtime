@@ -36,7 +36,7 @@ import { ExplorationStateSchema, MeetingSchema, type Exploring } from './explora
 import * as downtimeModule from './downtime/commands/downtime'
 import * as downtimePlansModule from './downtime/commands/plans'
 import { DowntimeStateSchema, type Downtime } from './downtime/types'
-import { ChaseSchema, SceneStateSchema, SocialActionSchema, type SceneState } from './scene/types'
+import { ChaseSchema, SceneStateSchema, SocialActionSchema, StructureSchema, type SceneState } from './scene/types'
 import { getOpenAction, withLiveActions } from './scene/rules/log'
 import { getRootTest } from './scene/rules/attack'
 import { makeCampaignCharacter, makeCreationDraft } from './factories'
@@ -300,6 +300,11 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
   removeBoard: (s) => combatCommands.removeBoard(deepFreeze(cleared(s))),
   resizeBoard: (s) => combatCommands.resizeBoard({ q: 1, r: 1, s: 1 })(deepFreeze(cleared(s))),
+  placePiece: (s) => combatCommands.placePiece('shed', SHED, { q: -2, r: 0 })(deepFreeze(cleared(s))),
+  movePiece: (s) => combatCommands.movePiece('shed', { q: -2, r: 1 })(deepFreeze(shedded(s))),
+  turnPiece: (s) => combatCommands.turnPiece('shed', 1)(deepFreeze(shedded(s))),
+  removePiece: (s) => combatCommands.removePiece('shed')(deepFreeze(shedded(s))),
+  editPiece: (s) => combatCommands.editPiece('shed', combatCommands.paintTerrain({ q: -2, r: 0 }, 'glass'))(deepFreeze(shedded(s))),
   addLevel: (s) => combatCommands.addLevel()(deepFreeze(cleared(s))),
   removeLevel: (s) => combatCommands.removeLevel(0)(deepFreeze(combatCommands.addLevel()(cleared(s)))),
   setLevel: (s) => combatCommands.setLevel(0, { floor: 4 })(deepFreeze(combatCommands.addLevel()(cleared(s)))),
@@ -446,6 +451,12 @@ function rolledManeuver(s: SceneState): SceneState {
 
 // The subject with its committed strike and the evade struck off, for the
 // commands that need nothing open.
+const SHED = StructureSchema.parse({ name: 'shed', terrain: { '0,0': { blocking: true } }, levels: [{ floor: 3, terrain: { '0,0': {} } }] })
+
+function shedded(s: SceneState): SceneState {
+  return combatCommands.placePiece('shed', SHED, { q: -2, r: 0 })(cleared(s))
+}
+
 function cleared(s: SceneState): SceneState {
   return withLiveActions(s, [])
 }

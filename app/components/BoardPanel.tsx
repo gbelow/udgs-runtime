@@ -580,10 +580,11 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     : cell.suffocating ? 'fill-fg/25'
     : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
-  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
+  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
   const title = [
     cell.key,
     cell.unseen ? 'out of sight' : null,
+    cell.piece !== null ? (cell.chosen ? 'the piece picked' : 'part of a piece') : null,
     cell.storey === 'air' ? 'open air over the ground' : cell.storey === 'hole' ? 'stairwell over the ground' : null,
     TERRAIN_LABEL[cell.terrain],
     cell.surface,
@@ -606,7 +607,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
-      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
+      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={cell.chosen ? 0.14 : 0.06} />
       {cell.storey === 'air' || cell.storey === 'hole' ? <polygon points={hex} className={`fill-bg/55 pointer-events-none ${cell.storey === 'hole' ? 'stroke-accent' : 'stroke-none'}`} strokeWidth={0.1} strokeDasharray='0.2 0.12' /> : null}
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}

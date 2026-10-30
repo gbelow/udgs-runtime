@@ -1,4 +1,4 @@
-import type { Board, Coord, Level, LevelCell, Structure, TerrainCell } from '../../types'
+import type { Board, Coord, Level, LevelCell, Piece, Structure, TerrainCell } from '../../types'
 import { add, coordKey, inExtent, parseCoordKey, rotate, subtract } from './geometry'
 
 // A structure is laid as one piece: its cells are written onto the board
@@ -67,19 +67,38 @@ export function liftPiece(board: Board, id: string): Board {
 // The piece as a structure again, as it now stands on the board: around its
 // anchor, unturned, its heights from the ground it was laid on, with nothing
 // an action left on it.
-export function getPieceStructure(board: Board, id: string): Structure | null {
+export function getPieceStructure(board: Pick<Board, 'terrain' | 'levels' | 'pieces'>, id: string): Structure | null {
   const piece = board.pieces[id]
   if (!piece) return null
+  const own = Object.fromEntries(Object.entries(board.terrain).filter(([, cell]) => cell.piece === id).map(([key, cell]) => [key, { ...cell, elevation: cell.elevation - piece.elevation }]))
+  return getStructureAt(piece, own, board.levels.filter((level) => level.piece === id).map((level) => ({ ...level, floor: level.floor - piece.elevation })))
+}
+
+// The structure whose ground and storeys stand on the board as these, already
+// measured from the ground the piece was laid on, around the piece's anchor
+// and turned back.
+export function getStructureAt(piece: Piece, terrain: Record<string, TerrainCell>, levels: Level[]): Structure {
   const unplace = (cell: Coord) => rotate(subtract(cell, piece.cell), 6 - piece.rotation)
-  const own = Object.fromEntries(Object.entries(board.terrain).filter(([, cell]) => cell.piece === id))
   return {
     name: piece.name,
-    terrain: Object.fromEntries(rekey(own, unplace).map(([key, cell]): [string, TerrainCell] => [key, { ...cell, elevation: cell.elevation - piece.elevation, piece: null, layers: [] }])),
-    levels: board.levels.filter((level) => level.piece === id).map((level) => ({
+    terrain: Object.fromEntries(rekey(terrain, unplace).map(([key, cell]): [string, TerrainCell] => [key, { ...cell, piece: null, layers: [] }])),
+    levels: levels.map((level) => ({
       ...level,
-      floor: level.floor - piece.elevation,
       piece: null,
       terrain: Object.fromEntries(rekey(level.terrain, unplace).map(([key, cell]): [string, LevelCell] => [key, { ...cell, layers: [] }])),
     })),
   }
+}
+
+// The piece that covers the cell, on the ground or on any storey; null for
+// none.
+export function getPieceAt(board: Pick<Board, 'terrain' | 'levels'>, key: string): string | null {
+  return board.terrain[key]?.piece ?? board.levels.find((level) => level.piece !== null && level.terrain[key])?.piece ?? null
+}
+
+// The place among the piece's own storeys of the board's storey `level`; null
+// for the ground or a storey not the piece's.
+export function getPieceLevel(board: Pick<Board, 'levels'>, id: string, level: number | null): number | null {
+  if (level === null || board.levels[level]?.piece !== id) return null
+  return board.levels.slice(0, level).filter((l) => l.piece === id).length
 }

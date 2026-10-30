@@ -4,9 +4,11 @@ import { deleteBoardMap, deleteStructure, saveBoardMap, saveStructure, type Acti
 import type { TerrainBrush } from "../domain/types";
 import type { BoardExtent, BoardMap, Coord, GroundRecipe, LightLevel } from "../domain/scene/types";
 import type { BoardView } from "../domain/scene/projections/boardView";
-import { getBoardMap, getBoardMapView, getStoreyRows } from "../domain/scene/projections/boardMap";
+import { getBoardMap, getBoardMapView, getPieceRows, getStoreyRows } from "../domain/scene/projections/boardMap";
+import { getPieceAt, getPieceStructure } from "../domain/scene/rules/board/piece";
+import { coordKey } from "../domain/scene/rules/board/geometry";
 import { mapOfStructure, newStructureMap, structureOfMap } from "../domain/scene/factories";
-import { addLevelBoardMap, generateGroundBoardMap, laySurfaceBoardMap, removeLevelBoardMap, setLevelBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
+import { addLevelBoardMap, generateGroundBoardMap, laySurfaceBoardMap, movePieceBoardMap, placePieceBoardMap, removeLevelBoardMap, removePieceBoardMap, setLevelBoardMap, turnPieceBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
 import { useBoardMapDraftStore, useStructureDraftStore } from "../stores/useBoardMapDraftStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -61,9 +63,9 @@ export function useBoardMaps() {
 // fight's own brushes, and kept again under its name, as the profile's own or
 // (dev server) for everyone. Keeping an opened map under another name moves
 // it to that name.
-export function useBoardMapEditor(level: number | null) {
+export function useBoardMapEditor(storeyAt: number, chosen: string | null) {
   const { rows, boardMaps, devServer, refresh, remove } = useBoardMapList();
-  return useKeptBoardEditor(useBoardMapDraftStore, level, {
+  return useKeptBoardEditor(useBoardMapDraftStore, storeyAt, chosen, {
     rows, devServer, refresh, remove,
     noun: "Battle map",
     stored: (id) => boardMaps[id] && { map: boardMaps[id].map, shared: boardMaps[id].owner === null },
@@ -75,7 +77,7 @@ export function useBoardMapEditor(level: number | null) {
 
 // The Structures tab: a house or a tree made the way a battle map is, on a
 // small board around its anchor, and kept as a structure.
-export function useStructureEditor(level: number | null) {
+export function useStructureEditor(storeyAt: number) {
   const structures = useAppStore((s) => s.structures);
   const refresh = useAppStore((s) => s.updateStructures);
   const devServer = useAppStore((s) => s.devServer);
@@ -89,7 +91,7 @@ export function useStructureEditor(level: number | null) {
     toast.success("Structure deleted.");
     refresh();
   };
-  return useKeptBoardEditor(useStructureDraftStore, level, {
+  return useKeptBoardEditor(useStructureDraftStore, storeyAt, null, {
     rows, devServer, refresh, remove,
     noun: "Structure",
     stored: (id) => structures[id] && { map: mapOfStructure(structures[id].structure), shared: structures[id].owner === null },
@@ -111,13 +113,25 @@ type KeptBoards = {
   fresh: () => BoardMap;
 };
 
-function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, level: number | null, kept: KeptBoards) {
+// `storeyAt` is the place of the storey painted on among the storeys of the
+// map's own, or of the piece `chosen`, the ground first.
+function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, storeyAt: number, chosen: string | null, kept: KeptBoards) {
   const openId = useDraft((s) => s.openId);
   const map = useDraft((s) => s.map);
   const open = useDraft((s) => s.open);
   const update = useDraft((s) => s.updateMap);
-  const view: BoardView = useMemo(() => getBoardMapView(map, level), [map, level]);
-  const storeys = useMemo(() => getStoreyRows(map), [map]);
+  const structureList = useAppStore((s) => s.structures);
+  const refreshStructures = useAppStore((s) => s.updateStructures);
+  const piece = chosen !== null && map.pieces[chosen] ? chosen : null;
+  const storeys = useMemo(() => getStoreyRows(map, piece), [map, piece]);
+  const storey = storeys[storeyAt] ?? storeys[0];
+  const level = storey.level;
+  const view: BoardView = useMemo(() => getBoardMapView(map, level, piece), [map, level, piece]);
+  const pieces = useMemo(() => getPieceRows(map), [map]);
+  const structures: BoardMapRow[] = useMemo(
+    () => Object.values(structureList).map((b) => ({ id: b.id, name: b.structure.name, shared: b.owner === null })).sort((a, b) => a.name.localeCompare(b.name)),
+    [structureList],
+  );
 
   const edit = (updater: BoardMapUpdater) => update(updater);
 
@@ -131,19 +145,37 @@ function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, level: numbe
   };
 
   return {
-    rows: kept.rows, devServer: kept.devServer, view, map, openId, storeys, save,
+    rows: kept.rows, devServer: kept.devServer, view, map, openId, storeys, storey, pieces, piece, structures, save,
     open: (id: string) => { const stored = kept.stored(id); if (stored) open(id, stored.map); },
     create: () => open(null, kept.fresh()),
     remove: async (id: string) => { await kept.remove(id); if (id === openId) open(null, kept.fresh()); },
     setName: (name: string) => edit(renameBoardMap(name)),
-    paint: (cell: Coord, brush: TerrainBrush, radius: number) => edit(paintBoardMap(cell, brush, radius, level)),
+    paint: (cell: Coord, brush: TerrainBrush, radius: number) => edit(paintBoardMap(cell, brush, radius, level, piece)),
     light: (level: LightLevel) => edit(lightBoardMap(level)),
     surface: (name: string | null) => edit(surfaceBoardMap(name)),
-    laySurface: (cell: Coord, name: string, frozen: string | null, radius: number) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius, level)),
+    laySurface: (cell: Coord, name: string, frozen: string | null, radius: number) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius, level, piece)),
     generateGround: (recipe: GroundRecipe, seed: number) => edit(generateGroundBoardMap(recipe, seed)),
     resize: (extent: BoardExtent) => edit(resizeBoardMap(extent)),
-    addStorey: () => edit(addLevelBoardMap()),
-    removeStorey: (at: number) => edit(removeLevelBoardMap(at)),
-    setStorey: (at: number, change: { floor?: number, height?: number }) => edit(setLevelBoardMap(at, change)),
+    addStorey: () => edit(addLevelBoardMap(piece)),
+    removeStorey: (at: number) => edit(removeLevelBoardMap(at, piece)),
+    setStorey: (at: number, change: { floor?: number, height?: number }) => edit(setLevelBoardMap(at, change, piece)),
+    // the piece on the cell, if any
+    pieceAt: (cell: Coord) => getPieceAt(map, coordKey(cell)),
+    placePiece: (structureId: string, cell: Coord, rotation: number) => {
+      const structure = structureList[structureId]?.structure;
+      if (structure) edit(placePieceBoardMap(crypto.randomUUID(), structure, cell, rotation));
+    },
+    movePiece: (id: string, cell: Coord) => edit(movePieceBoardMap(id, cell)),
+    turnPiece: (id: string, steps: number) => edit(turnPieceBoardMap(id, steps)),
+    removePiece: (id: string) => edit(removePieceBoardMap(id)),
+    // keeps the piece as it now stands as a structure of the profile's own
+    savePiece: async (id: string) => {
+      const structure = getPieceStructure(map, id);
+      if (!structure) return;
+      const res = await saveStructure(structure, false);
+      if (!res.ok) { toast.error(res.error); return; }
+      toast.success(`Structure ${structure.name} saved.`);
+      refreshStructures();
+    },
   } as const;
 }
