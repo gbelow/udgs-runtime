@@ -1,17 +1,18 @@
 import { App } from "./components/App"; 
-import { getBasicCharList, getCharacterList, getCampaignList, getCollectionList, getCurrentProfile, getMapList, getBoardMapList, getProfileList, getRaceList } from "./actions";
+import { getBasicCharList, getCharacterList, getCampaignList, getCollectionList, getCurrentProfile, getMapList, getBoardMapList, getStructureList, getProfileList, getRaceList } from "./actions";
 import { AppStoreProvider } from "./stores/appStoreProvider";
 import { isDevServer } from "./devServer";
 import z from "zod";
 
 export default async function Home() {
   // Fetch initial data server-side for faster initial load
-  const [baseRes, playerRes, raceRes, mapRes, boardRes, profileRes, profileListRes, collectionRes, campaignRes] = await Promise.all([
+  const [baseRes, playerRes, raceRes, mapRes, boardRes, structureRes, profileRes, profileListRes, collectionRes, campaignRes] = await Promise.all([
     getBasicCharList(),
     getCharacterList(),
     getRaceList(),
     getMapList(),
     getBoardMapList(),
+    getStructureList(),
     getCurrentProfile(),
     getProfileList(),
     getCollectionList(),
@@ -38,7 +39,7 @@ export default async function Home() {
 
   return (
     <div className="font-sans items-center justify-items-center min-h-screen pb-20 gap-16 h-screen">
-      <AppStoreProvider initialState={{baseCharacterList, raceList, mapList, boardMaps: boardRes.ok ? boardRes.data : {}, playerCharacterList: characterList.data || [], profile, profileList, collections, campaignList, devServer: isDevServer()}}>
+      <AppStoreProvider initialState={{baseCharacterList, raceList, mapList, boardMaps: boardRes.ok ? boardRes.data : {}, structures: structureRes.ok ? structureRes.data : {}, playerCharacterList: characterList.data || [], profile, profileList, collections, campaignList, devServer: isDevServer()}}>
         <App />
       </AppStoreProvider>
     </div>

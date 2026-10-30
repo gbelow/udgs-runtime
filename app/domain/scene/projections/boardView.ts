@@ -74,6 +74,9 @@ export type BoardCellView = {
   // takes the cell in (`getBoardViewFrom`)
   unseen: boolean
   occupants: string[]
+  // the storey the board is drawn at, in the editor: a floor laid in the cell,
+  // a stairwell over the ground, or open air over it; null for the ground
+  storey: 'floor' | 'hole' | 'air' | null
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
   // this cell's place on the path of the move in play, counted from 1; null
@@ -349,6 +352,7 @@ function buildBoardView(state: SeenScene): BoardView {
       lit: light === 'bright' && (board.light !== 'bright' || !!terrain?.dark),
       unseen: false,
       occupants: occupancy[key] ?? [],
+      storey: null,
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,
       swept: swept.has(key),

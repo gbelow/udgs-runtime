@@ -194,7 +194,13 @@ export const LIFT_MOST = 1
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
-export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'clear'] as const
+export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'rise', 'sink', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'floor', 'hole', 'clear'] as const
+// A storey's floor is at one height and holds no water, and only a storey has
+// a floor to lay or a stairwell to open.
+export const GROUND_ONLY_BRUSHES = ['raise', 'lower', 'rise', 'sink', 'water', 'deepen', 'shoal'] as const
+export const STOREY_ONLY_BRUSHES = ['floor', 'hole'] as const
+export const GROUND_BRUSHES = TERRAIN_BRUSHES.filter((b) => !(STOREY_ONLY_BRUSHES as readonly string[]).includes(b))
+export const STOREY_BRUSHES = TERRAIN_BRUSHES.filter((b) => !(GROUND_ONLY_BRUSHES as readonly string[]).includes(b))
 
 // combat.tex "Darkness and light": how much light the fight has where no
 // light source reaches, brightest first.

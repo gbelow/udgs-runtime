@@ -8,7 +8,7 @@ import { useZoomPan } from '../hooks/useZoomPan'
 import type { BoardExtent, Coord, GroundRecipe } from '../domain/scene/types'
 import type { BoardView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
-import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
+import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
@@ -32,6 +32,8 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   soft: 'soft',
   raise: '+1 m',
   lower: '−1 m',
+  rise: '+½ m',
+  sink: '−½ m',
   deepen: 'deeper',
   shoal: 'shallower',
   harder: 'DL +1',
@@ -44,6 +46,8 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   dark: 'dark',
   louder: 'noise +1',
   quieter: 'noise −1',
+  floor: 'floor',
+  hole: 'stairwell',
   clear: 'clear',
 }
 
@@ -109,7 +113,7 @@ export function BoardPanel(){
         <SectionLabel>paint</SectionLabel>
         <Button size='xs' selected={brush === null}
           onClick={() => { setBrush(null); setLaying(null); setFloorTool(null) }}>control</Button>
-        {TERRAIN_BRUSHES.map((b) =>
+        {GROUND_BRUSHES.map((b) =>
           <Button key={b} size='xs' selected={brush === b}
             onClick={() => { setBrush(brush === b ? null : b); setLaying(null); setReposition(false); setFloorTool(null) }}>{BRUSH_LABEL[b]}</Button>)}
       </div>
@@ -580,6 +584,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
   const title = [
     cell.key,
     cell.unseen ? 'out of sight' : null,
+    cell.storey === 'air' ? 'open air over the ground' : cell.storey === 'hole' ? 'stairwell over the ground' : null,
     TERRAIN_LABEL[cell.terrain],
     cell.surface,
     cell.strength,
@@ -599,9 +604,9 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,
   ].filter((s) => s !== null).join(' · ')
   return (
-    <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
+    <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r} opacity={cell.storey === 'air' || cell.storey === 'hole' ? 0.35 : 1}>
       <title>{title}</title>
-      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
+      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={cell.storey === 'hole' ? 0.12 : 0.06} strokeDasharray={cell.storey === 'hole' ? '0.2 0.12' : undefined} />
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
       {cell.fire > 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-injury-2 pointer-events-none' fontSize={0.35}>{`🔥${cell.fire}`}</text> : null}

@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, LevelCellSchema, LevelSchema, PieceSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type Level, type SceneState } from './types'
-import { parseCoordKey } from './rules/board/geometry'
+import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, LevelCellSchema, LevelSchema, PieceSchema, PlacementSchema, SceneStateSchema, StructureSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type Level, type SceneState, type Structure } from './types'
+import { coordKey, distance, parseCoordKey, subtract } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
 export function makeAction<K extends ActionKind>(kind: K, fields: Partial<Omit<ActionOf<K>, 'kind'>> & { id: string; actorId: string }): ActionOf<K> {
@@ -112,4 +112,47 @@ export function makeBoard(raw: unknown): Board {
     ...(extent.success && parsed.data.extent !== undefined ? { extent: extent.data } : radius.success ? { extent: { q: radius.data, r: radius.data, s: radius.data } } : {}),
     ...(surface.success ? { surface: surface.data } : {}),
   }))
+}
+
+// A structure arrives the way a board does, read best effort: the ground and
+// storeys around its anchor, marked as no piece's, with nothing an action left.
+export function makeStructure(raw: unknown): Structure {
+  const name = z.object({ name: z.string() }).safeParse(raw)
+  const parts = z.object({ terrain: z.unknown(), levels: z.unknown() }).partial().safeParse(raw)
+  const { terrain, levels } = makeBoardMap(parts.success ? { terrain: parts.data.terrain, levels: parts.data.levels } : {})
+  return StructureSchema.parse({
+    name: name.success ? name.data.name : '',
+    terrain: Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, { ...cell, piece: null }])),
+    levels: levels.map((level) => ({ ...level, piece: null })),
+  })
+}
+
+// The least reach of the editor's board for a structure.
+const STRUCTURE_RADIUS_LEAST = 3
+
+// A structure opened in the editor: a battle map around its anchor, reaching
+// every cell of it.
+export function mapOfStructure(structure: Structure): BoardMap {
+  const keys = [...Object.keys(structure.terrain), ...structure.levels.flatMap((level) => Object.keys(level.terrain))]
+  const radius = Math.max(STRUCTURE_RADIUS_LEAST, ...keys.flatMap((key) => { const cell = parseCoordKey(key); return cell ? [distance(cell, { q: 0, r: 0 })] : [] }))
+  return makeBoardMap({ ...structure, extent: { q: radius, r: radius, s: radius } })
+}
+
+// The editor's map kept as a structure: its own ground and storeys around its
+// origin, the anchor.
+export function structureOfMap(map: BoardMap): Structure {
+  const around = <T>(cells: Record<string, T>) => Object.fromEntries(Object.entries(cells).flatMap(([key, cell]) => {
+    const at = parseCoordKey(key)
+    return at ? [[coordKey(subtract(at, map.origin)), cell]] : []
+  }))
+  return makeStructure({
+    name: map.name,
+    terrain: around(Object.fromEntries(Object.entries(map.terrain).filter(([, cell]) => cell.piece === null))),
+    levels: map.levels.filter((level) => level.piece === null).map((level) => ({ ...level, terrain: around(level.terrain) })),
+  })
+}
+
+// A structure begun anew, opened in the editor.
+export function newStructureMap(): BoardMap {
+  return mapOfStructure(StructureSchema.parse({}))
 }

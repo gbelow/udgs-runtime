@@ -3,8 +3,8 @@
 import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
-import { SavedBoardMapSchema, type BoardMap, type SavedBoardMap } from './domain/scene/types';
-import { makeBoardMap } from './domain/scene/factories';
+import { SavedBoardMapSchema, SavedStructureSchema, type BoardMap, type SavedBoardMap, type SavedStructure, type Structure } from './domain/scene/types';
+import { makeBoardMap, makeStructure } from './domain/scene/factories';
 import { CampaignSaveSchema, getCampaignSaveBar, getDeleteBar, getLockBar, getOverwriteBar, type CampaignSave } from './domain/saves';
 import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getAssignBar, getCampaignRole, getCampaignRow, getJoinBar, type CampaignRow, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
@@ -224,74 +224,128 @@ export async function deleteMap(name: string): Promise<ActionResult> {
   }
 }
 
-// ── kept battle maps ────────────────────────────────────────────────────
-// The developer's are <name>.json under app/assets/boards, shared with
-// everyone; a profile's own are fields of one Redis hash, id -> the map and
-// its owner, seen by that profile alone.
-const BOARD_DIR = path.join(process.cwd(), "app/assets/boards");
-const BOARDS_KEY = 'boardMaps';
+// ── kept battle maps and structures ─────────────────────────────────────
+// The developer's are <name>.json under a folder of app/assets, shared with
+// everyone; a profile's own are fields of one Redis hash, id -> the kept
+// thing and its owner, seen by that profile alone.
 const SHARED_PREFIX = 'shared:';
 
-export async function getBoardMapList(): Promise<ActionResult<Record<string, SavedBoardMap>>> {
+type Kept<T extends { name: string }, S extends { id: string; owner: string | null }> = {
+  dir: string;
+  key: string;
+  noun: string;
+  schema: ZodType<S>;
+  make: (raw: unknown) => T;
+  wrap: (id: string, owner: string | null, kept: T) => S;
+  unwrap: (saved: S) => T;
+};
+
+const BOARD_MAPS: Kept<BoardMap, SavedBoardMap> = {
+  dir: path.join(process.cwd(), "app/assets/boards"),
+  key: 'boardMaps',
+  noun: 'battle map',
+  schema: SavedBoardMapSchema,
+  make: makeBoardMap,
+  wrap: (id, owner, map) => ({ id, owner, map }),
+  unwrap: (saved) => saved.map,
+};
+
+const STRUCTURES: Kept<Structure, SavedStructure> = {
+  dir: path.join(process.cwd(), "app/assets/structures"),
+  key: 'structures',
+  noun: 'structure',
+  schema: SavedStructureSchema,
+  make: makeStructure,
+  wrap: (id, owner, structure) => ({ id, owner, structure }),
+  unwrap: (saved) => saved.structure,
+};
+
+const capitalized = (noun: string) => noun[0].toUpperCase() + noun.slice(1);
+
+async function listKept<T extends { name: string }, S extends { id: string; owner: string | null }>(kind: Kept<T, S>): Promise<ActionResult<Record<string, S>>> {
   try {
-    await fs.mkdir(BOARD_DIR, { recursive: true });
-    const files = await loadJsonFromFolder(BOARD_DIR);
-    const shared = Object.fromEntries(Object.entries(files).map(([name, raw]) => [SHARED_PREFIX + name, { id: SHARED_PREFIX + name, owner: null, map: makeBoardMap({ ...(raw as object), name }) }]));
+    await fs.mkdir(kind.dir, { recursive: true });
+    const files = await loadJsonFromFolder(kind.dir);
+    const shared = Object.fromEntries(Object.entries(files).map(([name, raw]) => [SHARED_PREFIX + name, kind.wrap(SHARED_PREFIX + name, null, kind.make({ ...(raw as object), name }))]));
     const profile = await getProfileId();
-    const own = profile ? Object.fromEntries(Object.entries(await readIndex(BOARDS_KEY, SavedBoardMapSchema)).filter(([, b]) => b.owner === profile)) : {};
+    const own = profile ? Object.fromEntries(Object.entries(await readIndex(kind.key, kind.schema)).filter(([, b]) => b.owner === profile)) : {};
     return { ok: true, data: { ...shared, ...own } };
   } catch (err) {
-    console.error('Error loading battle maps:', err);
-    return { ok: false, error: 'Failed to load battle maps.' };
+    console.error(`Error loading ${kind.noun}s:`, err);
+    return { ok: false, error: `Failed to load ${kind.noun}s.` };
   }
 }
 
-// Keeps the map under its name: as a file for everyone on the dev server, or
-// as the profile's own.
-export async function saveBoardMap(raw: BoardMap, shared: boolean): Promise<ActionResult> {
-  const map = makeBoardMap(raw);
-  if (!map.name.trim()) return { ok: false, error: 'Battle maps need a name.' };
+// Keeps it under its name: as a file for everyone on the dev server, or as
+// the profile's own.
+async function saveKept<T extends { name: string }, S extends { id: string; owner: string | null }>(kind: Kept<T, S>, raw: T, shared: boolean): Promise<ActionResult> {
+  const kept = kind.make(raw);
+  if (!kept.name.trim()) return { ok: false, error: `${capitalized(kind.noun)}s need a name.` };
   try {
     if (shared) {
       if (!isDevServer()) return DEV_ONLY;
-      const filePath = resolveNamedFile(BOARD_DIR, map.name);
-      if (!filePath) return { ok: false, error: 'Battle map names must be a plain file name.' };
-      await fs.mkdir(BOARD_DIR, { recursive: true });
-      await fs.writeFile(filePath, JSON.stringify(map, null, 2) + "\n", "utf-8");
+      const filePath = resolveNamedFile(kind.dir, kept.name);
+      if (!filePath) return { ok: false, error: `${capitalized(kind.noun)} names must be a plain file name.` };
+      await fs.mkdir(kind.dir, { recursive: true });
+      await fs.writeFile(filePath, JSON.stringify(kept, null, 2) + "\n", "utf-8");
       return { ok: true, data: undefined };
     }
     const profile = await getProfileId();
     if (!profile) return { ok: false, error: 'Pick a profile first.' };
-    const own = Object.values(await readIndex(BOARDS_KEY, SavedBoardMapSchema)).find((b) => b.owner === profile && b.map.name === map.name);
+    const own = Object.values(await readIndex(kind.key, kind.schema)).find((b) => b.owner === profile && kind.unwrap(b).name === kept.name);
     const id = own?.id ?? crypto.randomUUID();
-    await redis.hset(BOARDS_KEY, { [id]: { id, owner: profile, map } });
+    await redis.hset(kind.key, { [id]: kind.wrap(id, profile, kept) });
     return { ok: true, data: undefined };
   } catch (err) {
-    console.error('Error saving battle map:', err);
-    return { ok: false, error: 'Failed to save battle map.' };
+    console.error(`Error saving ${kind.noun}:`, err);
+    return { ok: false, error: `Failed to save ${kind.noun}.` };
   }
 }
 
-export async function deleteBoardMap(id: string): Promise<ActionResult> {
+async function deleteKept<T extends { name: string }, S extends { id: string; owner: string | null }>(kind: Kept<T, S>, id: string): Promise<ActionResult> {
   try {
     if (id.startsWith(SHARED_PREFIX)) {
       if (!isDevServer()) return DEV_ONLY;
-      const filePath = resolveNamedFile(BOARD_DIR, id.slice(SHARED_PREFIX.length));
-      if (!filePath) return { ok: false, error: 'Battle map names must be a plain file name.' };
+      const filePath = resolveNamedFile(kind.dir, id.slice(SHARED_PREFIX.length));
+      if (!filePath) return { ok: false, error: `${capitalized(kind.noun)} names must be a plain file name.` };
       await fs.unlink(filePath);
       return { ok: true, data: undefined };
     }
     const { profile, dev } = await getViewer();
-    const before = SavedBoardMapSchema.safeParse(await redis.hget(BOARDS_KEY, id));
-    if (!before.success) return { ok: false, error: 'Battle map not found.' };
-    if (!isOwnerOrDev(before.data.owner, profile, dev)) return { ok: false, error: 'Only its owner deletes this battle map.' };
-    await redis.hdel(BOARDS_KEY, id);
+    const before = kind.schema.safeParse(await redis.hget(kind.key, id));
+    if (!before.success) return { ok: false, error: `${capitalized(kind.noun)} not found.` };
+    if (!isOwnerOrDev(before.data.owner, profile, dev)) return { ok: false, error: `Only its owner deletes this ${kind.noun}.` };
+    await redis.hdel(kind.key, id);
     return { ok: true, data: undefined };
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { ok: false, error: 'Battle map not found.' };
-    console.error('Error deleting battle map:', err);
-    return { ok: false, error: 'Failed to delete battle map.' };
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { ok: false, error: `${capitalized(kind.noun)} not found.` };
+    console.error(`Error deleting ${kind.noun}:`, err);
+    return { ok: false, error: `Failed to delete ${kind.noun}.` };
   }
+}
+
+export async function getBoardMapList(): Promise<ActionResult<Record<string, SavedBoardMap>>> {
+  return listKept(BOARD_MAPS);
+}
+
+export async function saveBoardMap(raw: BoardMap, shared: boolean): Promise<ActionResult> {
+  return saveKept(BOARD_MAPS, raw, shared);
+}
+
+export async function deleteBoardMap(id: string): Promise<ActionResult> {
+  return deleteKept(BOARD_MAPS, id);
+}
+
+export async function getStructureList(): Promise<ActionResult<Record<string, SavedStructure>>> {
+  return listKept(STRUCTURES);
+}
+
+export async function saveStructure(raw: Structure, shared: boolean): Promise<ActionResult> {
+  return saveKept(STRUCTURES, raw, shared);
+}
+
+export async function deleteStructure(id: string): Promise<ActionResult> {
+  return deleteKept(STRUCTURES, id);
 }
 
 // The player-character index is a Redis hash of id -> the character's row: its

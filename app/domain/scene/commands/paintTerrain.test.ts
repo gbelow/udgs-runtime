@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { BoardSchema, SceneStateSchema, StructureSchema, type SceneState } from '../types'
-import { BRUSH_RADIUS_MOST, TERRAIN_BRUSHES } from '../../lists'
+import { BRUSH_RADIUS_MOST, GROUND_ONLY_BRUSHES, STOREY_BRUSHES, TERRAIN_BRUSHES } from '../../lists'
 import { layPiece } from '../rules/board/piece'
 import type { TerrainBrush } from '../../types'
 import { coordKey, disk, distance } from '../rules/board/geometry'
@@ -50,4 +50,29 @@ describe('painting over a piece', () => {
       expect(terrainAt(paintTerrain(centre, brush, 1)(start), centre)).toEqual(terrainAt(start, centre))
     }
   })
+})
+
+// A brush held over a storey paints the clicked cell of that storey and
+// nothing else: not the ground under it, not another storey.
+describe('painting a storey', () => {
+  const start = (): SceneState => SceneStateSchema.parse({
+    board: BoardSchema.parse({
+      terrain: { '0,0': { difficult: true } },
+      levels: [{ floor: 3, terrain: { '0,0': {}, '1,0': { hole: true } } }, { floor: 6, terrain: { '0,0': { blocking: true } } }],
+    }),
+  })
+  const others = (s: SceneState) => ({ ...s.board!, levels: s.board!.levels.map((l, i) => (i === 0 ? { ...l, terrain: { ...l.terrain, '0,0': null } } : l)) })
+
+  for (const brush of STOREY_BRUSHES) {
+    it(`touches only the clicked cell of the storey for ${brush}`, () => {
+      const painted = paintTerrain(centre, brush, 0, 0)(start())
+      expect(others(painted)).toEqual(others(start()))
+    })
+  }
+
+  for (const brush of GROUND_ONLY_BRUSHES) {
+    it(`leaves the storey as it is for ${brush}`, () => {
+      expect(paintTerrain(centre, brush, 0, 0)(start())).toEqual(start())
+    })
+  }
 })

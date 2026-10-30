@@ -1,9 +1,9 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardExtentSchema, BoardSchema, PlacementSchema, TerrainCellSchema, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type Surface, type TerrainCell, type Updater } from '../types'
+import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Surface, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
-import { BRUSH_RADIUS_MOST } from '../../lists'
+import { BRUSH_RADIUS_MOST, GROUND_ONLY_BRUSHES } from '../../lists'
 import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
 import { getSurface, pickArt } from '../rules/board/surface'
@@ -204,13 +204,16 @@ const TOGGLED: Partial<Record<TerrainBrush, (cell: TerrainCell) => boolean>> = {
 // `dim` and `fog` toggle bad and zero visibility (combat.tex "Visibility"),
 // `louder` and `quieter` step its noise (combat.tex "Actions in stealth"); the others set what the cell is, and `clear` returns it to
 // open ground by forgetting it, putting out whatever burns or hangs there. A
-// cell of a piece is left alone.
-export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0): Updater {
+// cell of a piece is left alone. `rise` and `sink` step the elevation half a
+// metre, a stair's step, under a cliff. With a `level`, the brush paints that
+// storey instead (`paintStorey`).
+export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0, level: number | null = null): Updater {
   return (state) => {
     const board = state.board
     if (!board || getOpenAction(state)) return state
     const reach = Number.isInteger(radius) ? Math.max(0, Math.min(BRUSH_RADIUS_MOST, radius)) : 0
     const cells = disk(cell, reach).filter((c) => sameCell(c, cell) || inExtent(board.origin, board.extent, c))
+    if (level !== null) return { ...state, board: paintStorey(board, level, cell, cells, brush) }
     const flag = TOGGLED[brush]
     const target = flag ? !flag(board.terrain[coordKey(cell)] ?? TerrainCellSchema.parse({})) : null
     const terrain = { ...board.terrain }
@@ -226,7 +229,65 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0): Upda
   }
 }
 
-function paintedCell(current: TerrainCell, brush: TerrainBrush): TerrainCell | null {
+// A storey's cell is open air until something is painted on it: `floor` lays
+// a floor there (closing a stairwell), `hole` opens or closes a stairwell, a
+// wall or anything else stands on a floor it lays, and `clear` takes the cell
+// back to open air. The brushes that change a height or lay water paint no
+// storey, and a piece's storey is left alone.
+function paintStorey(board: Board, level: number, clicked: Coord, cells: Coord[], brush: TerrainBrush): Board {
+  const storey = board.levels[level]
+  if (!storey || storey.piece !== null || (GROUND_ONLY_BRUSHES as readonly string[]).includes(brush)) return board
+  const open = (key: string) => storey.terrain[key] ?? LevelCellSchema.parse({})
+  const flag = brush === 'hole' ? (c: LevelCell) => c.hole : TOGGLED[brush]
+  const target = flag ? !flag(open(coordKey(clicked))) : null
+  const terrain = { ...storey.terrain }
+  for (const c of cells) {
+    const key = coordKey(c)
+    const current = open(key)
+    if (brush === 'clear') delete terrain[key]
+    else if (brush === 'floor') terrain[key] = { ...current, hole: false }
+    else if (brush === 'hole') terrain[key] = { ...current, hole: target === true }
+    else if (!flag || flag(current) !== target) terrain[key] = { ...(paintedCell(current, brush) ?? LevelCellSchema.parse({})), hole: current.hole }
+  }
+  return { ...board, levels: board.levels.map((l, i) => (i === level ? { ...l, terrain } : l)) }
+}
+
+// A storey of the board's own, at the floor and height given, or else a
+// storey's height over the top of the highest there is (the ground, with none).
+export function addLevel(floor?: number, height?: number): Updater {
+  return (state) => {
+    const board = state.board
+    if (!board || getOpenAction(state)) return state
+    const fresh = LevelSchema.parse({})
+    const own = board.levels.filter((l) => l.piece === null)
+    const top = own.length ? Math.max(...own.map((l) => l.floor + l.height)) : fresh.floor
+    const level = LevelSchema.safeParse({ floor: floor ?? top, height: height ?? fresh.height })
+    return level.success ? { ...state, board: { ...board, levels: [...board.levels, level.data] } } : state
+  }
+}
+
+// Takes a storey of the board's own away, whatever is painted on it.
+export function removeLevel(level: number): Updater {
+  return (state) => {
+    const board = state.board
+    if (!board || getOpenAction(state) || board.levels[level]?.piece !== null) return state
+    return { ...state, board: { ...board, levels: board.levels.filter((_, i) => i !== level) } }
+  }
+}
+
+// Moves a storey of the board's own to another floor, or gives it another
+// height.
+export function setLevel(level: number, change: { floor?: number, height?: number }): Updater {
+  return (state) => {
+    const board = state.board
+    const storey = board?.levels[level]
+    if (!board || !storey || getOpenAction(state) || storey.piece !== null) return state
+    const changed = LevelSchema.safeParse({ ...storey, ...change })
+    return changed.success ? { ...state, board: { ...board, levels: board.levels.map((l, i) => (i === level ? changed.data : l)) } } : state
+  }
+}
+
+function paintedCell<T extends TerrainCell>(current: T, brush: TerrainBrush): T | null {
   switch (brush) {
     case 'wall': return { ...current, blocking: !current.blocking, transparent: false, liquid: false, difficult: false }
     case 'glass': {
@@ -240,6 +301,9 @@ function paintedCell(current: TerrainCell, brush: TerrainBrush): TerrainCell | n
     case 'soft': return { ...current, soft: !current.soft }
     case 'raise': return { ...current, elevation: current.elevation + 1 }
     case 'lower': return { ...current, elevation: current.elevation - 1 }
+    case 'rise': return { ...current, elevation: current.elevation + 0.5 }
+    case 'sink': return { ...current, elevation: current.elevation - 0.5 }
+    case 'floor': case 'hole': return current
     case 'deepen': return { ...current, depth: current.depth + 1 }
     case 'shoal': return { ...current, depth: Math.max(0, current.depth - 1) }
     case 'harder': return { ...current, DL: current.DL + 1 }

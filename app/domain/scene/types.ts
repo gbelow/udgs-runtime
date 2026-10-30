@@ -359,6 +359,14 @@ export const SavedBoardMapSchema = z.object({
 }).strip()
 export type SavedBoardMap = z.infer<typeof SavedBoardMapSchema>
 
+// A kept structure as it is stored, kept the way a battle map is.
+export const SavedStructureSchema = z.object({
+  id: z.string(),
+  owner: z.string().nullable().default(null),
+  structure: StructureSchema,
+}).strip()
+export type SavedStructure = z.infer<typeof SavedStructureSchema>
+
 // ---------------------------------------------------------------------------
 // Actions
 

@@ -1,7 +1,7 @@
 import type { TerrainBrush } from '../../types'
 import { BoardMapSchema, type BoardExtent, type BoardMap, type Coord, type GroundRecipe, type LightLevel } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
-import { generateGround, laySurface, paintTerrain, resizeBoard, setSurface } from './board'
+import { addLevel, generateGround, laySurface, paintTerrain, removeLevel, resizeBoard, setLevel, setSurface } from './board'
 
 // A kept board edited as the fight's board is, with the same brushes: the map
 // stands in a fight of nobody and the fight's own commands change it.
@@ -22,8 +22,20 @@ export function renameBoardMap(name: string): BoardMapUpdater {
   return (map) => ({ ...map, name })
 }
 
-export function paintBoardMap(cell: Coord, brush: TerrainBrush, radius = 0): BoardMapUpdater {
-  return (map) => viaScene(map, paintTerrain(cell, brush, radius))
+export function paintBoardMap(cell: Coord, brush: TerrainBrush, radius = 0, level: number | null = null): BoardMapUpdater {
+  return (map) => viaScene(map, paintTerrain(cell, brush, radius, level))
+}
+
+export function addLevelBoardMap(floor?: number, height?: number): BoardMapUpdater {
+  return (map) => viaScene(map, addLevel(floor, height))
+}
+
+export function removeLevelBoardMap(level: number): BoardMapUpdater {
+  return (map) => viaScene(map, removeLevel(level))
+}
+
+export function setLevelBoardMap(level: number, change: { floor?: number, height?: number }): BoardMapUpdater {
+  return (map) => viaScene(map, setLevel(level, change))
 }
 
 export function surfaceBoardMap(surface: string | null): BoardMapUpdater {

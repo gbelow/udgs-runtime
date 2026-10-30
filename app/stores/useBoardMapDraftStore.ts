@@ -11,9 +11,15 @@ type BoardMapDraftStore = {
   updateMap: (updater: BoardMapUpdater) => void
 }
 
-export const useBoardMapDraftStore = create<BoardMapDraftStore>((set, get) => ({
+const createDraftStore = () => create<BoardMapDraftStore>((set, get) => ({
   openId: null,
   map: BoardMapSchema.parse({}),
   open: (openId, map) => set({ openId, map }),
   updateMap: (updater) => set({ map: updater(get().map) }),
 }))
+
+export const useBoardMapDraftStore = createDraftStore()
+
+// The Structures tab edits a structure the same way, as a small battle map
+// around its anchor.
+export const useStructureDraftStore = createDraftStore()

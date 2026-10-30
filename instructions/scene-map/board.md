@@ -111,6 +111,14 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
 - Board edits outside any action (`createBoard`, `placeCharacter`,
   `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
   action is open. `makeBoard` (`factories.ts`) ingests a kept board best-effort.
+- **Painting storeys.** `paintTerrain` with a `level` paints that storey of the board's own:
+  a cell of it is open air until painted, `floor` and `hole` lay a floor or a stairwell, and the
+  brushes that change a height or lay water (`GROUND_ONLY_BRUSHES`) paint no storey. `addLevel`,
+  `removeLevel` and `setLevel` add, take away and move the board's own storeys. The editor draws
+  a storey through `getBoardMapView(map, level)`, its open air and stairwells over the ground.
+- **Structures** are kept like battle maps (Catalog tab "Structures", shared ones under
+  `app/assets/structures`) and edited as a small battle map around the anchor at its origin
+  (`mapOfStructure`, `structureOfMap`, read best-effort by `makeStructure`).
 - What a click on the board means is `readClick` (`commands/click.ts`), read off the state
   at the click and whom the screen has picked through `getBoardMode` and `getFloorPicker`
   (`rules/board/boardMode.ts`): a change to the fight and whom it acts for, or a character picked

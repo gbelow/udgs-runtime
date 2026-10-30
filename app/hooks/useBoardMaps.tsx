@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { deleteBoardMap, saveBoardMap } from "../actions";
+import { deleteBoardMap, deleteStructure, saveBoardMap, saveStructure, type ActionResult } from "../actions";
 import type { TerrainBrush } from "../domain/types";
-import type { BoardExtent, Coord, GroundRecipe, LightLevel } from "../domain/scene/types";
+import type { BoardExtent, BoardMap, Coord, GroundRecipe, LightLevel } from "../domain/scene/types";
 import type { BoardView } from "../domain/scene/projections/boardView";
-import { getBoardMap, getBoardMapView } from "../domain/scene/projections/boardMap";
-import { generateGroundBoardMap, laySurfaceBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
-import { useBoardMapDraftStore } from "../stores/useBoardMapDraftStore";
+import { getBoardMap, getBoardMapView, getStoreyRows } from "../domain/scene/projections/boardMap";
+import { mapOfStructure, newStructureMap, structureOfMap } from "../domain/scene/factories";
+import { addLevelBoardMap, generateGroundBoardMap, laySurfaceBoardMap, removeLevelBoardMap, setLevelBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
+import { useBoardMapDraftStore, useStructureDraftStore } from "../stores/useBoardMapDraftStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSceneDispatch } from "./useSceneDispatch";
@@ -60,36 +61,89 @@ export function useBoardMaps() {
 // fight's own brushes, and kept again under its name, as the profile's own or
 // (dev server) for everyone. Keeping an opened map under another name moves
 // it to that name.
-export function useBoardMapEditor() {
-  const { rows, boardMaps, devServer, refresh, remove: removeKept } = useBoardMapList();
-  const openId = useBoardMapDraftStore((s) => s.openId);
-  const map = useBoardMapDraftStore((s) => s.map);
-  const open = useBoardMapDraftStore((s) => s.open);
-  const update = useBoardMapDraftStore((s) => s.updateMap);
-  const view: BoardView = useMemo(() => getBoardMapView(map), [map]);
+export function useBoardMapEditor(level: number | null) {
+  const { rows, boardMaps, devServer, refresh, remove } = useBoardMapList();
+  return useKeptBoardEditor(useBoardMapDraftStore, level, {
+    rows, devServer, refresh, remove,
+    noun: "Battle map",
+    stored: (id) => boardMaps[id] && { map: boardMaps[id].map, shared: boardMaps[id].owner === null },
+    keep: saveBoardMap,
+    drop: deleteBoardMap,
+    fresh: () => newBoardMap(),
+  });
+}
+
+// The Structures tab: a house or a tree made the way a battle map is, on a
+// small board around its anchor, and kept as a structure.
+export function useStructureEditor(level: number | null) {
+  const structures = useAppStore((s) => s.structures);
+  const refresh = useAppStore((s) => s.updateStructures);
+  const devServer = useAppStore((s) => s.devServer);
+  const rows: BoardMapRow[] = useMemo(
+    () => Object.values(structures).map((b) => ({ id: b.id, name: b.structure.name, shared: b.owner === null })).sort((a, b) => a.name.localeCompare(b.name)),
+    [structures],
+  );
+  const remove = async (id: string) => {
+    const res = await deleteStructure(id);
+    if (!res.ok) { toast.error(res.error); return; }
+    toast.success("Structure deleted.");
+    refresh();
+  };
+  return useKeptBoardEditor(useStructureDraftStore, level, {
+    rows, devServer, refresh, remove,
+    noun: "Structure",
+    stored: (id) => structures[id] && { map: mapOfStructure(structures[id].structure), shared: structures[id].owner === null },
+    keep: (map, shared) => saveStructure(structureOfMap(map), shared),
+    drop: deleteStructure,
+    fresh: newStructureMap,
+  });
+}
+
+type KeptBoards = {
+  rows: BoardMapRow[];
+  devServer: boolean;
+  refresh: () => void;
+  remove: (id: string) => Promise<void>;
+  noun: string;
+  stored: (id: string) => { map: BoardMap; shared: boolean } | undefined;
+  keep: (map: BoardMap, shared: boolean) => Promise<ActionResult>;
+  drop: (id: string) => Promise<ActionResult>;
+  fresh: () => BoardMap;
+};
+
+function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, level: number | null, kept: KeptBoards) {
+  const openId = useDraft((s) => s.openId);
+  const map = useDraft((s) => s.map);
+  const open = useDraft((s) => s.open);
+  const update = useDraft((s) => s.updateMap);
+  const view: BoardView = useMemo(() => getBoardMapView(map, level), [map, level]);
+  const storeys = useMemo(() => getStoreyRows(map), [map]);
 
   const edit = (updater: BoardMapUpdater) => update(updater);
 
   const save = async (shared: boolean) => {
-    const res = await saveBoardMap(map, shared);
+    const res = await kept.keep(map, shared);
     if (!res.ok) { toast.error(res.error); return; }
-    toast.success(`Battle map ${map.name} saved.`);
-    const before = openId ? boardMaps[openId] : undefined;
-    if (openId && before && before.map.name !== map.name && (before.owner === null) === shared) await deleteBoardMap(openId);
-    refresh();
+    toast.success(`${kept.noun} ${map.name} saved.`);
+    const before = openId ? kept.stored(openId) : undefined;
+    if (openId && before && before.map.name !== map.name && before.shared === shared) await kept.drop(openId);
+    kept.refresh();
   };
 
   return {
-    rows, view, map, openId, devServer, save,
-    open: (id: string) => { if (id in boardMaps) open(id, boardMaps[id].map); },
-    create: () => open(null, newBoardMap()),
-    remove: async (id: string) => { await removeKept(id); if (id === openId) open(null, newBoardMap()); },
+    rows: kept.rows, devServer: kept.devServer, view, map, openId, storeys, save,
+    open: (id: string) => { const stored = kept.stored(id); if (stored) open(id, stored.map); },
+    create: () => open(null, kept.fresh()),
+    remove: async (id: string) => { await kept.remove(id); if (id === openId) open(null, kept.fresh()); },
     setName: (name: string) => edit(renameBoardMap(name)),
-    paint: (cell: Coord, brush: TerrainBrush, radius: number) => edit(paintBoardMap(cell, brush, radius)),
+    paint: (cell: Coord, brush: TerrainBrush, radius: number) => edit(paintBoardMap(cell, brush, radius, level)),
     light: (level: LightLevel) => edit(lightBoardMap(level)),
     surface: (name: string | null) => edit(surfaceBoardMap(name)),
     laySurface: (cell: Coord, name: string, frozen: string | null, radius: number) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius)),
     generateGround: (recipe: GroundRecipe, seed: number) => edit(generateGroundBoardMap(recipe, seed)),
     resize: (extent: BoardExtent) => edit(resizeBoardMap(extent)),
+    addStorey: () => edit(addLevelBoardMap()),
+    removeStorey: (at: number) => edit(removeLevelBoardMap(at)),
+    setStorey: (at: number, change: { floor?: number, height?: number }) => edit(setLevelBoardMap(at, change)),
   } as const;
 }
