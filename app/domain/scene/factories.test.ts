@@ -28,6 +28,11 @@ const HOSTILE: { label: string; raw: unknown }[] = [
   { label: 'a level that is not an object', raw: { levels: [null, 'roof'] } },
   { label: 'a level with a floor that is not a number', raw: { levels: [{ floor: 'up', height: -1 }] } },
   { label: 'a level keyed by something that is not a cell', raw: { levels: [{ terrain: { roof: {}, '0,0': { hole: 'yes' } } }] } },
+  { label: 'pieces that are not a map', raw: { pieces: [] } },
+  { label: 'a null piece', raw: { pieces: { shed: null } } },
+  { label: 'a cell marked with a piece the board does not have', raw: { terrain: { '0,0': { piece: 'shed' } }, levels: [{ piece: 'barn' }] } },
+  { label: 'a piece no cell is marked with', raw: { pieces: { shed: { under: { '0,0': { blocking: true } } } } } },
+  { label: 'a piece keeping ground under a cell not its own', raw: { terrain: { '0,0': { piece: 'shed' } }, pieces: { shed: { under: { '0,0': { piece: 'barn' }, '1,0': {} } } } } },
 ]
 
 const populated = () =>
@@ -39,8 +44,10 @@ const populated = () =>
     terrain: {
       '0,0': { blocking: true },
       '1,-1': { difficult: true, elevation: 1 },
+      '-1,0': { blocking: true, elevation: 1, piece: 'shed' },
     },
-    levels: [{ floor: 3, height: 2, terrain: { '0,0': { blocking: true }, '1,-1': { hole: true } } }],
+    levels: [{ floor: 3, height: 2, terrain: { '0,0': { blocking: true }, '1,-1': { hole: true } } }, { floor: 4, piece: 'shed', terrain: { '-1,0': {} } }],
+    pieces: { shed: { name: 'shed', cell: { q: -1, r: 0 }, rotation: 2, elevation: 1, under: { '-1,0': { difficult: true } } } },
     origin: { q: 4, r: -2 },
     extent: { q: 9, r: 7, s: 5 },
   })

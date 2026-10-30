@@ -206,6 +206,9 @@ export const TerrainCellSchema = z.object({
   // surface's first when it names none the surface still lists
   art: str.nullable().default(null),
   layers: z.array(HazardLayerSchema).default([]),
+  // the piece laid on the board this cell is part of (`Board.pieces`); null is
+  // the board's own ground
+  piece: str.nullable().default(null),
 }).strip()
 export type TerrainCell = z.infer<typeof TerrainCellSchema>
 
@@ -291,8 +294,32 @@ export const LevelSchema = z.object({
   floor: num.default(3),
   height: num.min(0).default(3),
   terrain: z.record(z.string(), LevelCellSchema).default({}),
+  // the piece laid on the board this storey is part of; null is the board's own
+  piece: str.nullable().default(null),
 }).strip()
 export type Level = z.infer<typeof LevelSchema>
+
+// What is built to be laid on a board as one (a house, a tree): ground and
+// storeys around its anchor at { q: 0, r: 0 }, every elevation and floor
+// measured from the ground under the anchor.
+export const StructureSchema = z.object({
+  name: z.string().default(''),
+  terrain: z.record(z.string(), TerrainCellSchema).default({}),
+  levels: z.array(LevelSchema).default([]),
+}).strip()
+export type Structure = z.infer<typeof StructureSchema>
+
+// A structure laid on the board: where its anchor is, how many times it is
+// turned (`rotate`), the height of the ground under the anchor it was laid
+// on, and the board's own ground its cells cover, given back when it is lifted.
+export const PieceSchema = z.object({
+  name: z.string().default(''),
+  cell: CoordSchema.default({ q: 0, r: 0 }),
+  rotation: z.number().int().min(0).max(5).default(0),
+  elevation: num.default(0),
+  under: z.record(z.string(), TerrainCellSchema).default({}),
+}).strip()
+export type Piece = z.infer<typeof PieceSchema>
 
 export const BoardSchema = z.object({
   placements: z.record(z.string(), PlacementSchema).default({}),
@@ -300,6 +327,9 @@ export const BoardSchema = z.object({
   // storeys above the ground (a house's upper floor and roof), each a map of
   // the same extent as the ground; none is the flat board
   levels: z.array(LevelSchema).default([]),
+  // the structures laid on it, each by its own id; their cells are in
+  // `terrain` and `levels`, marked with the id
+  pieces: z.record(z.string(), PieceSchema).default({}),
   // combat.tex "Darkness and light": the light everywhere no light source
   // reaches and no darkness is painted
   light: LightLevelSchema.default('bright'),

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { SceneStateSchema, type SceneState } from '../types'
-import { BRUSH_RADIUS_MOST } from '../../lists'
+import { BoardSchema, SceneStateSchema, StructureSchema, type SceneState } from '../types'
+import { BRUSH_RADIUS_MOST, TERRAIN_BRUSHES } from '../../lists'
+import { layPiece } from '../rules/board/piece'
 import type { TerrainBrush } from '../../types'
 import { coordKey, disk, distance } from '../rules/board/geometry'
 import { paintTerrain } from './board'
@@ -36,5 +37,17 @@ describe('painting with a wide brush', () => {
     const start: SceneState = SceneStateSchema.parse({ board: { extent: { q: 12, r: 12, s: 12 } } })
     const s = paintTerrain(centre, 'raise', BRUSH_RADIUS_MOST + 5)(start)
     expect(terrainAt(s, { q: BRUSH_RADIUS_MOST + 1, r: 0 })).toBeUndefined()
+  })
+})
+
+// The table's ruling: the map's brushes paint the map's own ground, and a cell
+// of a piece laid on it is left as it is.
+describe('painting over a piece', () => {
+  it('leaves every cell of the piece alone, for every brush', () => {
+    const shed = StructureSchema.parse({ name: 'shed', terrain: { '0,0': { blocking: true, RES: 5 } } })
+    const start = SceneStateSchema.parse({ board: layPiece(BoardSchema.parse({}), 'shed', shed, centre, 0)! })
+    for (const brush of TERRAIN_BRUSHES) {
+      expect(terrainAt(paintTerrain(centre, brush, 1)(start), centre)).toEqual(terrainAt(start, centre))
+    }
   })
 })

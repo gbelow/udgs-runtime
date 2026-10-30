@@ -12,6 +12,7 @@ import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
 import { CLIMB_EASY_DL, COVER_START_RES, SWIM_DEFAULT_DL } from '../../tables'
 import { getBeyondEdge, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
+import { liftPiece } from '../rules/board/piece'
 import { without } from '../../utils'
 import { drawsSegments, getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
 import { findOpenJump } from '../rules/options'
@@ -40,14 +41,15 @@ export const removeBoard: Updater = (state) =>
 
 // Widens or narrows the board around its origin, along each of the three hex
 // axes: whoever stands partly beyond the new edge comes off it, what lay on
-// the floor out there lies nowhere in particular, and the ground and storeys
-// painted there are dropped. Refused while an action is open, as painting is.
+// the floor out there lies nowhere in particular, a piece any cell of which
+// lies out there is lifted whole, and the ground and storeys painted there are
+// dropped. Refused while an action is open, as painting is.
 export function resizeBoard(extent: BoardExtent): Updater {
   return (state) => {
     const resized = BoardExtentSchema.safeParse(extent)
     if (!state.board || getOpenAction(state) || !resized.success) return state
     const beyond = getBeyondEdge(state, resized.data)
-    const off = withoutPlacements(state, beyond.characters).board ?? state.board
+    const off = beyond.pieces.reduce(liftPiece, withoutPlacements(state, beyond.characters).board ?? state.board)
     return {
       ...state,
       board: {
@@ -80,8 +82,8 @@ export function setSurface(surface: string | null): Updater {
 // surface laid takes that water away again; water painted by hand stays. The
 // picture the cell is drawn with is the frozen one, when the surface lists it,
 // else the roll's: the table's, picking one of the surface's own. A `radius`
-// lays every cell within that many steps of the cell, those off the board left
-// alone, each drawing its own picture from the roll.
+// lays every cell within that many steps of the cell, those off the board and
+// those of a piece left alone, each drawing its own picture from the roll.
 export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0): Updater {
   return (state) => {
     const surface = getSurface(name)
@@ -92,6 +94,7 @@ export function laySurface(cell: Coord, name: string, roll: number, frozen: stri
     const terrain = { ...board.terrain }
     cells.forEach((c, i) => {
       const key = coordKey(c)
+      if (terrain[key]?.piece) return
       terrain[key] = laidCell(terrain[key] ?? TerrainCellSchema.parse({}), name, surface, pickArt(surface, roll + i, frozen)?.src ?? null)
     })
     return { ...state, board: { ...board, terrain } }
@@ -114,7 +117,7 @@ function laidCell(current: TerrainCell, name: string, surface: Surface, art: str
 }
 
 // Lays the ground a recipe makes on every cell of the board, as laying each by
-// hand would, and so overwriting whatever ground they had. A recipe naming no
+// hand would, and so overwriting whatever ground they had but a piece's. A recipe naming no
 // surface of the catalog, or all of weight none, changes nothing. Refused while
 // an action is open, as painting is.
 export function generateGround(recipe: GroundRecipe, seed: number): Updater {
@@ -125,7 +128,7 @@ export function generateGround(recipe: GroundRecipe, seed: number): Updater {
     const terrain = { ...state.board.terrain }
     for (const [key, { surface: name, roll }] of plan) {
       const surface = getSurface(name)
-      if (surface) terrain[key] = laidCell(terrain[key] ?? TerrainCellSchema.parse({}), name, surface, pickArt(surface, roll, null)?.src ?? null)
+      if (surface && !terrain[key]?.piece) terrain[key] = laidCell(terrain[key] ?? TerrainCellSchema.parse({}), name, surface, pickArt(surface, roll, null)?.src ?? null)
     }
     return { ...state, board: { ...state.board, terrain } }
   }
@@ -200,7 +203,8 @@ const TOGGLED: Partial<Record<TerrainBrush, (cell: TerrainCell) => boolean>> = {
 // easy climb, and `bare` leaves it nothing to hold (combat.tex "Climbing");
 // `dim` and `fog` toggle bad and zero visibility (combat.tex "Visibility"),
 // `louder` and `quieter` step its noise (combat.tex "Actions in stealth"); the others set what the cell is, and `clear` returns it to
-// open ground by forgetting it, putting out whatever burns or hangs there.
+// open ground by forgetting it, putting out whatever burns or hangs there. A
+// cell of a piece is left alone.
 export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0): Updater {
   return (state) => {
     const board = state.board
@@ -213,7 +217,7 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0): Upda
     for (const c of cells) {
       const key = coordKey(c)
       const current = terrain[key] ?? TerrainCellSchema.parse({})
-      if (flag && flag(current) === target) continue
+      if (current.piece || (flag && flag(current) === target)) continue
       const painted = paintedCell(current, brush)
       if (painted) terrain[key] = painted
       else delete terrain[key]

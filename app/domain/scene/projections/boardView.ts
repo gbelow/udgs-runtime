@@ -464,6 +464,7 @@ export function getResizeWarning(state: SceneState, extent: BoardExtent): string
   const lost = [
     beyond.characters.length ? `${beyond.characters.map((id) => getFightName(state, id)).join(', ')} off the board` : null,
     beyond.floor.length ? `${beyond.floor.length} item${beyond.floor.length === 1 ? '' : 's'} off the floor` : null,
+    beyond.pieces.length ? `${beyond.pieces.map((id) => board.pieces[id].name || 'a structure').join(', ')} lifted` : null,
     painted ? `${painted} painted cell${painted === 1 ? '' : 's'} dropped` : null,
   ].filter((s) => s !== null)
   return `shrink the board to ${extent.q} × ${extent.r} × ${extent.s}: ${lost.length ? lost.join('; ') : 'nothing lies beyond the new edge'}`

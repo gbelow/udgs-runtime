@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, LevelCellSchema, LevelSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type Level, type SceneState } from './types'
+import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, LevelCellSchema, LevelSchema, PieceSchema, PlacementSchema, SceneStateSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardMap, type Level, type SceneState } from './types'
 import { parseCoordKey } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
@@ -20,12 +20,14 @@ const BoardIngestSchema = z.object({
   radius: z.unknown().optional(),
   surface: z.unknown().optional(),
   levels: z.array(z.unknown()).optional(),
+  pieces: z.record(z.string(), z.unknown()).optional(),
 }).strip()
 
 const LevelIngestSchema = z.object({
   floor: z.unknown().optional(),
   height: z.unknown().optional(),
   terrain: z.record(z.string(), z.unknown()).optional(),
+  piece: z.unknown().optional(),
 }).strip()
 
 function readEntries<T>(record: Record<string, unknown> | undefined, schema: z.ZodType<T>, keepKey: (key: string) => boolean): Record<string, T> {
@@ -48,19 +50,36 @@ function readLevels(raw: unknown[] | undefined): Level[] {
     if (!parsed.success) continue
     const floor = LevelSchema.shape.floor.safeParse(parsed.data.floor)
     const height = LevelSchema.shape.height.safeParse(parsed.data.height)
+    const piece = LevelSchema.shape.piece.safeParse(parsed.data.piece)
     levels.push(LevelSchema.parse({
       ...(floor.success ? { floor: floor.data } : {}),
       ...(height.success ? { height: height.data } : {}),
+      ...(piece.success ? { piece: piece.data } : {}),
       terrain: readEntries(parsed.data.terrain, LevelCellSchema, (key) => parseCoordKey(key) !== null),
     }))
   }
   return levels
 }
 
+// Every cell and storey marked with a piece the board does not have is the
+// board's own; a piece no cell is marked with is dropped, and the ground it
+// keeps is only what lies under its own cells.
+function settlePieces(board: Board): Board {
+  const known = (piece: string | null) => (piece !== null && board.pieces[piece] ? piece : null)
+  const terrain = Object.fromEntries(Object.entries(board.terrain).map(([key, cell]) => [key, { ...cell, piece: known(cell.piece) }]))
+  const levels = board.levels.map((level) => ({ ...level, piece: known(level.piece) }))
+  const marked = new Set([...Object.values(terrain).map((cell) => cell.piece), ...levels.map((level) => level.piece)])
+  const pieces = Object.fromEntries(Object.entries(board.pieces).filter(([id]) => marked.has(id)).map(([id, piece]) => [id, {
+    ...piece,
+    under: Object.fromEntries(Object.entries(piece.under).filter(([key]) => terrain[key]?.piece === id).map(([key, cell]) => [key, { ...cell, piece: null }])),
+  }]))
+  return { ...board, terrain, levels, pieces }
+}
+
 // A kept board read the same way, whatever else is in it: the ground, with
 // nobody on it and no layer an action left.
 export function makeBoardMap(raw: unknown): BoardMap {
-  const { placements: _placements, terrain, levels, ...rest } = makeBoard(raw)
+  const { placements: _placements, terrain, levels, pieces, ...rest } = makeBoard(raw)
   const clean = <T extends { layers: unknown[] }>(cells: Record<string, T>) => Object.fromEntries(Object.entries(cells).map(([key, cell]) => [key, { ...cell, layers: [] }]))
   const name = z.object({ name: z.string() }).safeParse(raw)
   return BoardMapSchema.parse({
@@ -68,6 +87,7 @@ export function makeBoardMap(raw: unknown): BoardMap {
     name: name.success ? name.data.name : '',
     terrain: clean(terrain),
     levels: levels.map((level) => ({ ...level, terrain: clean(level.terrain) })),
+    pieces: Object.fromEntries(Object.entries(pieces).map(([id, piece]) => [id, { ...piece, under: clean(piece.under) }])),
   })
 }
 
@@ -83,12 +103,13 @@ export function makeBoard(raw: unknown): Board {
   const extent = BoardSchema.shape.extent.safeParse(parsed.data.extent)
   const radius = BoardExtentSchema.shape.q.safeParse(parsed.data.radius)
   const surface = BoardSchema.shape.surface.safeParse(parsed.data.surface)
-  return BoardSchema.parse({
+  return settlePieces(BoardSchema.parse({
     placements: readEntries(parsed.data.placements, PlacementSchema, () => true),
     terrain: readEntries(parsed.data.terrain, TerrainCellSchema, (key) => parseCoordKey(key) !== null),
     levels: readLevels(parsed.data.levels),
+    pieces: readEntries(parsed.data.pieces, PieceSchema, () => true),
     ...(origin.success ? { origin: origin.data } : {}),
     ...(extent.success && parsed.data.extent !== undefined ? { extent: extent.data } : radius.success ? { extent: { q: radius.data, r: radius.data, s: radius.data } } : {}),
     ...(surface.success ? { surface: surface.data } : {}),
-  })
+  }))
 }

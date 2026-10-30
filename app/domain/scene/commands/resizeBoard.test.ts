@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { SceneStateSchema } from '../types'
+import { BoardSchema, SceneStateSchema, StructureSchema } from '../types'
+import { layPiece } from '../rules/board/piece'
 import { resizeBoard } from './board'
 
 // A shrink once dropped the ground painted beyond the new edge but kept the
@@ -16,5 +17,18 @@ describe('shrinking the board', () => {
     const board = resizeBoard({ q: 1, r: 1, s: 1 })(state).board!
     expect(Object.keys(board.terrain)).toEqual(['0,0'])
     expect(board.levels.map((level) => Object.keys(level.terrain))).toEqual([['0,0']])
+  })
+})
+
+// The table's ruling: a piece is lifted whole when any cell of it falls
+// beyond the edge, and the ground under it inside the edge is given back.
+describe('shrinking the board past a piece', () => {
+  it('lifts the whole piece and leaves the ground it covered', () => {
+    const shed = StructureSchema.parse({ name: 'shed', terrain: { '0,0': { blocking: true }, '2,0': { blocking: true } }, levels: [{ floor: 3, terrain: { '1,0': {} } }] })
+    const board = layPiece(BoardSchema.parse({ extent: { q: 4, r: 4, s: 4 }, terrain: { '0,0': { difficult: true } } }), 'shed', shed, { q: 0, r: 0 }, 0)!
+    const shrunk = resizeBoard({ q: 1, r: 1, s: 1 })(SceneStateSchema.parse({ board })).board!
+    expect(shrunk.pieces).toEqual({})
+    expect(shrunk.levels).toEqual([])
+    expect(shrunk.terrain).toEqual({ '0,0': board.pieces.shed.under['0,0'] })
   })
 })

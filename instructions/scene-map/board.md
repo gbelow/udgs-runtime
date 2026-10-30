@@ -55,6 +55,14 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   (`Placement.climb.floor`, `bound`). Melee reach counts the metres between two bodies up or
   down as cells (`getMeleeGap`); every other distance is flat. Fire, gas and light on a storey
   are not wired in yet.
+- **Pieces.** A structure (a house, a tree) is laid on the board as one piece
+  (`rules/board/piece.ts`): its cells are written into `terrain` and its storeys into `levels`,
+  marked with the piece's id, turned about its anchor, and its heights raised by the ground under
+  the anchor. The board's own ground under it is kept on the piece (`Board.pieces[id].under`), so
+  lifting it gives that ground back, and the rules read a piece's cells like any other. Pieces
+  never share a cell. A resize lifts a piece any cell of which falls beyond the edge, and the map's
+  brushes leave a piece's cells alone. Ingestion makes a mark naming a missing piece the board's own
+  and drops a piece no cell is marked with.
 - **Balance on difficult terrain.** A move across difficult cells is closed by a Balance die
   unless the mover's test stands for the round (a held test, below: the first move's die is
   held, and a fall drops it, `dropFallenBalance`). The one score is held against the DL of every difficult cell on the path
