@@ -4,7 +4,8 @@ import { BRUSH_RADIUS_MOST, GROUND_ONLY_BRUSHES, STOREY_BRUSHES, TERRAIN_BRUSHES
 import { layPiece } from '../rules/board/piece'
 import type { TerrainBrush } from '../../types'
 import { coordKey, disk, distance } from '../rules/board/geometry'
-import { paintTerrain } from './board'
+import { laySurface, paintTerrain } from './board'
+import { getSurface, getSurfaceNames } from '../rules/board/surface'
 
 const centre = { q: 0, r: 0 }
 const terrainAt = (s: SceneState, c: { q: number, r: number }) => s.board?.terrain[coordKey(c)]
@@ -67,6 +68,14 @@ describe('painting a storey', () => {
     it(`touches only the clicked cell of the storey for ${brush}`, () => {
       const painted = paintTerrain(centre, brush, 0, 0)(start())
       expect(others(painted)).toEqual(others(start()))
+    })
+  }
+
+  for (const name of getSurfaceNames()) {
+    it(`lays ${name} on the clicked cell of the storey alone`, () => {
+      const laid = laySurface(centre, name, 0, null, 0, 0)(start())
+      expect(others(laid)).toEqual(others(start()))
+      expect(!!laid.board!.levels[0].terrain['0,0']?.surface).toBe(!getSurface(name)!.liquid)
     })
   }
 

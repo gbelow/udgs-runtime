@@ -90,15 +90,11 @@ function KeptBoardEditor({ label, editor, level, setLevel }: { label: string, ed
           <span className='grow' />
           <ZoomButtons zoomPan={zoomPan} />
         </div>
-        {storey.level === null ?
-          <>
-            <SurfaceRow surfaces={view.surfaces} laying={laying} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
-            <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
-          </>
-          : null}
+        <SurfaceRow surfaces={view.surfaces} laying={laying} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null) }} />
+        {storey.level === null ? <GroundGenerator surfaces={view.surfaces} generate={generateGround} /> : null}
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label={label}
-          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying && storey.level === null) laySurface(cell, laying, frozen, radius); else if (brush && brushes.includes(brush)) paint(cell, brush, radius) }}>
-          {storey.level === null ? <SurfaceLayer view={view} /> : null}
+          onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (laying) laySurface(cell, laying, frozen, radius); else if (brush && brushes.includes(brush)) paint(cell, brush, radius) }}>
+          <SurfaceLayer view={view} />
           {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
           <RidgeLayer view={view} />
           <ShadeLayer view={view} />

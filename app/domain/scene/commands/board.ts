@@ -84,13 +84,26 @@ export function setSurface(surface: string | null): Updater {
 // else the roll's: the table's, picking one of the surface's own. A `radius`
 // lays every cell within that many steps of the cell, those off the board and
 // those of a piece left alone, each drawing its own picture from the roll.
-export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0): Updater {
+// With a `level`, it lays that storey of the board's own instead, a floor
+// under the surface where the storey had open air; a storey holds no water,
+// so a surface of water lays none there.
+export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0, level: number | null = null): Updater {
   return (state) => {
     const surface = getSurface(name)
     const board = state.board
     if (!board || !surface || getOpenAction(state)) return state
     const reach = Number.isInteger(radius) ? Math.max(0, Math.min(BRUSH_RADIUS_MOST, radius)) : 0
     const cells = disk(cell, reach).filter((c) => sameCell(c, cell) || inExtent(board.origin, board.extent, c))
+    if (level !== null) {
+      const storey = board.levels[level]
+      if (!storey || storey.piece !== null || surface.liquid) return state
+      const floors = { ...storey.terrain }
+      cells.forEach((c, i) => {
+        const key = coordKey(c)
+        floors[key] = laidCell(floors[key] ?? LevelCellSchema.parse({}), name, surface, pickArt(surface, roll + i, frozen)?.src ?? null)
+      })
+      return { ...state, board: { ...board, levels: board.levels.map((l, i) => (i === level ? { ...l, terrain: floors } : l)) } }
+    }
     const terrain = { ...board.terrain }
     cells.forEach((c, i) => {
       const key = coordKey(c)
@@ -101,7 +114,7 @@ export function laySurface(cell: Coord, name: string, roll: number, frozen: stri
   }
 }
 
-function laidCell(current: TerrainCell, name: string, surface: Surface, art: string | null): TerrainCell {
+function laidCell<T extends TerrainCell>(current: T, name: string, surface: Surface, art: string | null): T {
   const liquid = !current.blocking && (surface.liquid || (current.liquid && !getSurface(current.surface ?? '')?.liquid))
   return {
     ...current,

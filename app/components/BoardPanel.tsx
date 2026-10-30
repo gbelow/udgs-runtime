@@ -604,9 +604,10 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,
   ].filter((s) => s !== null).join(' · ')
   return (
-    <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r} opacity={cell.storey === 'air' || cell.storey === 'hole' ? 0.35 : 1}>
+    <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
-      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={cell.storey === 'hole' ? 0.12 : 0.06} strokeDasharray={cell.storey === 'hole' ? '0.2 0.12' : undefined} />
+      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
+      {cell.storey === 'air' || cell.storey === 'hole' ? <polygon points={hex} className={`fill-bg/55 pointer-events-none ${cell.storey === 'hole' ? 'stroke-accent' : 'stroke-none'}`} strokeWidth={0.1} strokeDasharray='0.2 0.12' /> : null}
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
       {cell.fire > 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-injury-2 pointer-events-none' fontSize={0.35}>{`🔥${cell.fire}`}</text> : null}
