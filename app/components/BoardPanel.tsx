@@ -48,6 +48,7 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   quieter: 'noise −1',
   floor: 'floor',
   hole: 'stairwell',
+  lattice: 'lattice',
   clear: 'clear',
 }
 
@@ -592,7 +593,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     cell.key,
     cell.unseen ? 'out of sight' : null,
     cell.piece !== null ? (cell.chosen ? 'the piece picked' : 'part of a piece') : null,
-    cell.storey === 'air' ? 'open air over the ground' : cell.storey === 'hole' ? 'stairwell over the ground' : null,
+    cell.storey === 'air' ? 'open air over the ground' : cell.storey === 'hole' ? 'stairwell over the ground' : cell.storey === 'lattice' ? 'lattice: seen, shot and climbed through' : null,
     TERRAIN_LABEL[cell.terrain],
     cell.surface,
     cell.strength,
@@ -615,6 +616,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={cell.chosen ? 0.14 : 0.06} />
+      {cell.storey === 'lattice' ? <polygon points={hex} className='fill-none stroke-good pointer-events-none' strokeWidth={0.08} strokeDasharray='0.1 0.1' /> : null}
       {cell.storey === 'air' || cell.storey === 'hole' ? <polygon points={hex} className={`fill-bg/55 pointer-events-none ${cell.storey === 'hole' ? 'stroke-accent' : 'stroke-none'}`} strokeWidth={0.1} strokeDasharray='0.2 0.12' /> : null}
       {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}

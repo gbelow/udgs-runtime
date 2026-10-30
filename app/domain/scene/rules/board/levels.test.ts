@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { BoardSchema, PlacementSchema, SceneStateSchema, type Board, type Coord, type SceneState } from '../../types'
+import { BoardSchema, LevelCellSchema, PlacementSchema, SceneStateSchema, type Board, type Coord, type SceneState } from '../../types'
 import type { MoveKind } from '../../../types'
 import { FALL } from '../../../tables'
 import { makeAction } from '../../factories'
@@ -67,6 +67,13 @@ describe('the floor of a storey is crossed only where it is a hole', () => {
   it('stops a line from the room below to the room above', () => {
     expect(seesAcross(upper(false), [at(0)], [at(2)], upTheStairs)).toBe(false)
     expect(getCoverAcross(upper(false), [at(0)], [at(2)], upTheStairs)).toEqual({ kind: 'total' })
+  })
+
+  // The table's ruling: a lattice is seen and shot through.
+  it('lets it through a lattice', () => {
+    const lattice = BoardSchema.parse({ levels: [{ floor: SECOND_FLOOR, height: STOREY, terrain: { [key(0)]: {}, [key(1)]: { lattice: true }, [key(2)]: {} } }] })
+    expect(seesAcross(lattice, [at(0)], [at(2)], upTheStairs)).toBe(true)
+    expect(getCoverAcross(lattice, [at(0)], [at(2)], upTheStairs)).toBeNull()
   })
 
   it('lets it through a hole', () => {
@@ -183,6 +190,15 @@ describe('standing and walking on a storey', () => {
 
   it('climbs nothing from under the storey, which is a ceiling', () => {
     expect(getClimbPlan(scene({ a: { cell: cell(0), elevation: 0 } }), walk([cell(1)], 'climb'))).toBeNull()
+  })
+
+  // The table's ruling: a lattice (leaves, a grating) is a floor stood on that
+  // closes nothing under it, and is climbed up through from below.
+  it('climbs up through a lattice over the climber onto the lattice beside them', () => {
+    const canopy = { ...board, levels: [{ ...board.levels[0], terrain: { ...board.levels[0].terrain, [coordKey(cell(0))]: LevelCellSchema.parse({ lattice: true }), [coordKey(cell(1))]: LevelCellSchema.parse({ lattice: true }) } }] }
+    const under = { ...scene({ a: { cell: cell(0), elevation: 0 } }), board: { ...canopy, placements: { a: PlacementSchema.parse({ cell: cell(0), elevation: 0 }) } } }
+    const climb = walk([cell(1)], 'climb')
+    expect(getMoveDestination(under, climb, climb.path)?.elevation).toBe(FLOOR)
   })
 })
 

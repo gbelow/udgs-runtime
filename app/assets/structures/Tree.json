@@ -1,0 +1,12 @@
+{
+  "name": "Tree",
+  "terrain": {},
+  "levels": [
+    {
+      "floor": 3,
+      "height": 3,
+      "terrain": {},
+      "piece": null
+    }
+  ]
+}

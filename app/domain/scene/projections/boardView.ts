@@ -75,9 +75,10 @@ export type BoardCellView = {
   // takes the cell in (`getBoardViewFrom`)
   unseen: boolean
   occupants: string[]
-  // the storey the board is drawn at, in the editor: a floor laid in the cell,
-  // a stairwell over the ground, or open air over it; null for the ground
-  storey: 'floor' | 'hole' | 'air' | null
+  // the storey the board is drawn at: a floor laid in the cell, a lattice
+  // floor, a stairwell over the ground, or open air over it; null for the
+  // ground
+  storey: 'floor' | 'lattice' | 'hole' | 'air' | null
   // the piece laid on the board the cell is part of, on the ground or a
   // storey, and whether it is the one picked in the editor
   piece: string | null

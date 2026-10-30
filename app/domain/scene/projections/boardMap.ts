@@ -22,7 +22,7 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
     ...view,
     cells: view.cells.map((c) => {
       const piece = getPieceAt(map, c.key)
-      return { ...c, piece, chosen: piece !== null && piece === chosen, storey: !storey ? null : storey.terrain[c.key] ? (storey.terrain[c.key].hole ? 'hole' : 'floor') : 'air' }
+      return { ...c, piece, chosen: piece !== null && piece === chosen, storey: !storey ? null : storey.terrain[c.key] ? (storey.terrain[c.key].hole ? 'hole' : storey.terrain[c.key].lattice ? 'lattice' : 'floor') : 'air' }
     }),
   }
 }

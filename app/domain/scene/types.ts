@@ -281,9 +281,12 @@ export const BoardExtentSchema = z.object({
 export type BoardExtent = z.infer<typeof BoardExtentSchema>
 
 // A cell of a level above the ground. Its floor is a slab at the level's
-// `floor` that nothing crosses, unless the cell is a `hole` (a stairwell).
+// `floor` that nothing crosses, unless the cell is a `hole` (a stairwell). A
+// `lattice` is a floor stood on that closes nothing under it (leaves, a
+// grating): it is seen and shot through, and climbed up through from below.
 export const LevelCellSchema = TerrainCellSchema.extend({
   hole: z.boolean().default(false),
+  lattice: z.boolean().default(false),
 }).strip()
 export type LevelCell = z.infer<typeof LevelCellSchema>
 

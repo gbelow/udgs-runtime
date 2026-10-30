@@ -1,10 +1,12 @@
 import type { Board, Coord, Level, LevelCell, Piece, Structure, TerrainCell } from '../../types'
 import { add, coordKey, inExtent, parseCoordKey, rotate, subtract } from './geometry'
+import { FALL } from '../../../tables'
 
 // A structure is laid as one piece: its cells are written onto the board
 // marked with the piece's id, the board's own ground under them kept on the
 // piece, and lifting it takes those cells away and gives the ground back.
-// Pieces never share a cell, on the ground or on a storey.
+// Pieces never share a cell of ground, nor a cell of storey within a cliff of
+// each other's floor, unless both are lattice (two canopies grown together).
 
 function rekey<T>(cells: Record<string, T>, move: (cell: Coord) => Coord): [string, T][] {
   return Object.entries(cells).flatMap(([key, cell]) => {
@@ -36,11 +38,16 @@ export function layPiece(board: Board, id: string, structure: Structure, anchor:
   if (board.pieces[id]) return null
   const elevation = getGroundUnder(board, coordKey(anchor))?.elevation ?? 0
   const place = (cell: Coord) => add(anchor, rotate(cell, rotation))
-  const taken = new Set(Object.keys(board.pieces).flatMap((other) => getPieceCells(board, other)))
-  const fits = (key: string) => inExtent(board.origin, board.extent, parseCoordKey(key)!) && !taken.has(key)
+  const onBoard = (key: string) => inExtent(board.origin, board.extent, parseCoordKey(key)!)
+  const others = board.levels.filter((level) => level.piece !== null)
+  const clashes = (key: string, floor: number, cell: LevelCell) => others.some((level) => {
+    const there = level.terrain[key]
+    return there && Math.abs(level.floor - floor) < FALL.minHeight && !(there.lattice && cell.lattice)
+  })
   const ground = rekey(structure.terrain, place)
   const levels = structure.levels.map((level) => ({ level, cells: rekey(level.terrain, place) }))
-  if (![...ground, ...levels.flatMap((l) => l.cells)].every(([key]) => fits(key))) return null
+  if (!ground.every(([key]) => onBoard(key) && !board.terrain[key]?.piece)) return null
+  if (!levels.every(({ level, cells }) => cells.every(([key, cell]) => onBoard(key) && !clashes(key, level.floor + elevation, cell)))) return null
   const under = Object.fromEntries(ground.flatMap(([key]) => (board.terrain[key] ? [[key, board.terrain[key]]] : [])))
   const laid = ground.map(([key, cell]): [string, TerrainCell] => [key, { ...cell, elevation: cell.elevation + elevation, piece: id }])
   return {

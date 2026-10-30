@@ -15,7 +15,7 @@ import { getBoardViewFrom } from '../domain/scene/projections/boardView'
 import { getStoreyChoices, getStoreyView } from '../domain/scene/projections/storeyView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
 import { coordKey, distance, ring, sameCell } from '../domain/scene/rules/board/geometry'
-import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renameBoardMap } from '../domain/scene/commands/boardMapEdit'
+import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renameBoardMap, setLevelBoardMap } from '../domain/scene/commands/boardMapEdit'
 import { newStructureMap, structureOfMap } from '../domain/scene/factories'
 import type { BoardMap, Coord } from '../domain/scene/types'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
@@ -1167,13 +1167,29 @@ function houseMap(): BoardMap {
   brush('grip', HOUSE_WALLS, 0)
   made = addLevelBoardMap()(made)
   brush('floor', [{ q: 0, r: 0 }, ...HOUSE_ROOM, ...HOUSE_WALLS], 1)
-  return placePieceBoardMap('house', structureOfMap(made), { q: 0, r: 0 }, 0)(newBoardMap(5))
+  const house = placePieceBoardMap('house', structureOfMap(made), { q: 0, r: 0 }, 0)(newBoardMap(5))
+  return TREES.reduce((map, at, i) => placePieceBoardMap(`tree ${i}`, treeStructure(), at, i)(map), house)
+}
+
+// A tree: a trunk, and a canopy of leaves four metres up around it, a lattice
+// rough to walk and hard to see into, with holds to climb into it by. Two
+// stand beside the house, their canopies grown together.
+const TREES: Coord[] = [{ q: 3, r: -3 }, { q: 4, r: -2 }]
+
+function treeStructure() {
+  let made = renameBoardMap('tree')(newStructureMap())
+  const trunk = { q: 0, r: 0 }
+  made = paintBoardMap(trunk, 'wall')(made)
+  made = addLevelBoardMap()(made)
+  made = setLevelBoardMap(0, { floor: 4, height: 2 })(made)
+  for (const b of ['lattice', 'rough', 'dim', 'grip'] as const) made = paintBoardMap(trunk, b, 1, 0)(made)
+  return structureOfMap(made)
 }
 
 // The crowd in and around the house: two of them in the room, under the
 // upper floor, and the rest outside, so that a walk may take the stair or
-// come out through the door, a climb may go up the outside wall, and a shot
-// may cross a window.
+// come out through the door, a climb may go up the outside wall or into the
+// trees, and a shot may cross a window or the leaves.
 function playHouse(seed: number, table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
@@ -1181,7 +1197,7 @@ function playHouse(seed: number, table = false) {
   h.bring(towerWarden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), torchbearer('Gus'))
   h.createBoard(5)
   h.loadMap(houseMap())
-  expect(Object.keys(h.state().board?.pieces ?? {}), 'the house stands on the board').toEqual(['house'])
+  expect(Object.keys(h.state().board?.pieces ?? {}).sort(), 'the house and the trees stand on the board').toEqual(['house', ...TREES.map((_, i) => `tree ${i}`)].sort())
   const [inside] = HOUSE_ROOM.slice(5)
   for (const [name, q, r] of [['Ann', 0, 0], ['Bob', inside.q, inside.r], ['Cy', 3, 0], ['Dee', 0, 3], ['Eve', -3, 0], ['Fay', 0, -3], ['Gus', -3, 3]] as const) {
     h.select(name)

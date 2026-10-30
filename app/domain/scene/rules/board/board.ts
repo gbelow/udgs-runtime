@@ -102,14 +102,15 @@ export function getTerrainAt(board: Board, cell: Coord, height: number): Footing
 // highest, with nothing over it in its own cell up to the climber's floor.
 // Up before down; null where neither is.
 export function getClimbBound(board: Board, from: Coord, here: number, to: Coord): Footing | null {
-  const own = getFloors(board, from)
+  const solid = (cell: Coord) => (f: Footing) => f.level === null || !board.levels[f.level].terrain[coordKey(cell)]?.lattice
+  const own = getFloors(board, from).filter(solid(from))
   const next = getFloors(board, to)
   const up = next
     .filter((f) => f.floor - here >= FALL.minHeight && !own.some((g) => g.floor > here && g.floor <= f.floor))
     .sort((a, b) => a.floor - b.floor)[0]
   if (up) return up
   return next
-    .filter((f) => here - f.floor >= FALL.minHeight && !next.some((g) => g.floor > f.floor && g.floor - here < FALL.minHeight))
+    .filter((f) => here - f.floor >= FALL.minHeight && !next.filter(solid(to)).some((g) => g.floor > f.floor && g.floor - here < FALL.minHeight))
     .sort((a, b) => b.floor - a.floor)[0] ?? null
 }
 
@@ -294,7 +295,7 @@ function holds(board: Board, key: string, centre: number, reach: number, stops: 
   return board.levels.some((level) => {
     const here = level.terrain[key]
     if (!here) return false
-    const goesThrough = !here.hole && !here.blocking && Math.abs(level.floor - centre) <= reach
+    const goesThrough = !here.hole && !here.lattice && !here.blocking && Math.abs(level.floor - centre) <= reach
     return (goesThrough && stops(FLOOR)) || (level.floor <= centre && centre < level.floor + level.height && stops(here))
   })
 }

@@ -4,6 +4,8 @@ import { STOREY_BRUSHES, TERRAIN_BRUSHES } from '../../lists'
 import { getSurfaceNames } from '../rules/board/surface'
 import { liftPiece } from '../rules/board/piece'
 import { makeCampaignCharacter } from '../../factories'
+import { getHeight } from '../../character/rules/size'
+import { FALL } from '../../tables'
 import { addLevel, editPiece, laySurface, movePiece, paintTerrain, placePiece, turnPiece } from './board'
 
 // A shed: walls on two cells and a floor over them, laid on a map whose own
@@ -76,5 +78,12 @@ describe('laying a piece over someone', () => {
     const ana = makeCampaignCharacter({ id: 'ana', name: 'Ana' })
     const stood = SceneStateSchema.parse({ ...map(), characters: { ana }, board: { ...map().board, placements: { ana: { cell: { q: 1, r: 0 } } } } })
     expect(placePiece('shed', shed, anchor, 0)(stood)).toEqual(stood)
+  })
+
+  it('is laid with a storey over someone standing under it', () => {
+    const ana = makeCampaignCharacter({ id: 'ana', name: 'Ana' })
+    const stood = SceneStateSchema.parse({ ...map(), characters: { ana }, board: { ...map().board, placements: { ana: { cell: { q: 1, r: 1 } } } } })
+    const tree = StructureSchema.parse({ name: 'tree', terrain: { '0,0': { blocking: true } }, levels: [{ floor: getHeight(ana) + FALL.minHeight, terrain: { '0,0': { lattice: true }, '0,1': { lattice: true } } }] })
+    expect(placePiece('tree', tree, { q: 1, r: 0 }, 0)(stood).board!.pieces.tree).toBeDefined()
   })
 })

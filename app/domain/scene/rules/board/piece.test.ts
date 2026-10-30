@@ -52,6 +52,17 @@ describe('a piece laid on the board', () => {
     expect(layPiece(laid, 'g', house, { q: 3, r: -1 }, 0)).toBeNull()
   })
 
+  // The table's ruling: two canopies grow together where both are lattice,
+  // and storeys a cliff apart pass over each other; two solid floors at one
+  // height never share a cell.
+  it('shares a storey cell with another piece where both are lattice, or a cliff apart, and nowhere else', () => {
+    const tree = (lattice: boolean, floor: number) => StructureSchema.parse({ name: 'tree', terrain: { '0,0': { blocking: true } }, levels: [{ floor, terrain: { '0,0': { lattice }, '1,0': { lattice } } }] })
+    const first = layPiece(ground(), 'a', tree(true, 4), { q: 3, r: 0 }, 0)!
+    expect(layPiece(first, 'b', tree(true, 4), { q: 4, r: 0 }, 0)).not.toBeNull()
+    expect(layPiece(first, 'b', tree(false, 4), { q: 4, r: 0 }, 0)).toBeNull()
+    expect(layPiece(first, 'b', tree(false, 6), { q: 4, r: 0 }, 0)).not.toBeNull()
+  })
+
   it('is refused where a cell of it would fall beyond the edge', () => {
     expect(layPiece(ground(), 'h', house, { q: 6, r: 0 }, 0)).toBeNull()
   })

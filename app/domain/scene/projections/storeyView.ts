@@ -50,7 +50,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
     const d = byKey.get(c.key)
     const f = footing(c.cell)
     const hole = board.levels.some((level) => Math.abs(level.floor - height) < FALL.minHeight && level.terrain[c.key]?.hole)
-    const storey = f.level !== null ? 'floor' : hole ? 'hole' : height - f.floor >= FALL.minHeight ? 'air' : null
+    const storey = f.level !== null ? (board.levels[f.level].terrain[c.key]?.lattice ? 'lattice' : 'floor') : hole ? 'hole' : height - f.floor >= FALL.minHeight ? 'air' : null
     return { ...c, ...(d ? Object.fromEntries(DRAWN.map((k) => [k, d[k]])) : {}), storey }
   })
   const tokens = view.tokens.map((t) => {

@@ -54,7 +54,8 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   through a floor over the climber, and a climber hanging keeps the two floors of their face
   (`Placement.climb.floor`, `bound`). Melee reach counts the metres between two bodies up or
   down as cells (`getMeleeGap`); every other distance is flat. Fire, gas and light on a storey
-  are not wired in yet. The move search reaches each cell once, the first way it comes there,
+  are not wired in yet. A `lattice` storey cell (leaves, a grating) is stood on like a floor but
+  closes nothing under it: a line passes it, and a climb from under it is not stopped by it. The move search reaches each cell once, the first way it comes there,
   so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).
   The fight's board is looked at from a height (`projections/storeyView.ts`): the cells are drawn
   as the floor someone there stands on, open air veiled, others on another floor drawn apart;
@@ -64,7 +65,8 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   marked with the piece's id, turned about its anchor, and its heights raised by the ground under
   the anchor. The board's own ground under it is kept on the piece (`Board.pieces[id].under`), so
   lifting it gives that ground back, and the rules read a piece's cells like any other. Pieces
-  never share a cell. A resize lifts a piece any cell of which falls beyond the edge, and the map's
+  never share a cell of ground, nor a storey cell within a cliff of each other's floor unless both
+  are lattice (canopies grown together). A resize lifts a piece any cell of which falls beyond the edge, and the map's
   brushes leave a piece's cells alone. Ingestion makes a mark naming a missing piece the board's own
   and drops a piece no cell is marked with. `placePiece`, `movePiece`, `turnPiece` and
   `removePiece` (`commands/board.ts`) lay, move, turn and lift one, refused where it would cover
