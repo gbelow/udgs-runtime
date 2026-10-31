@@ -10,7 +10,7 @@ import { getOpportunityState, getOpportunityStop, isFlankInReach, isOpportunityR
 import { getJoinedShot } from './coordinated'
 import { isSpellKey } from '../../spells'
 import { getHold } from './fireAgain'
-import { getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot } from './counter'
+import { getCounterAttack, getCounterAttackOf, getCounterSlot, type CounterSlot } from './counter'
 import { getInterruptionOf } from './interruption'
 import { withSweepArc } from './sweep'
 import { getEscapeAfterBlast, getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
@@ -170,12 +170,13 @@ export function getAnsweringReactions(state: SceneState, root: RootAction): Reac
   return getReactionsTo(state, answered).filter(isReactionAction)
 }
 
-// The counterattack's strike, with the arc a sweep reaches as everyone
+// The counterattack's strike or shot, with the arc a sweep reaches as everyone
 // stands when it opens.
 function openCounter(state: SceneState, root: RootAction, reaction: ActionOf<'counterattack'>, slots: CounterSlot[], newId: () => string): Action | null {
   const slot = getCounterSlot(root, reaction)
-  if (!slot || !slots.includes(slot) || getCounterStrikeOf(state, reaction)) return null
-  return withSweepArc(state, getCounterStrike(reaction, newId()))
+  if (!slot || !slots.includes(slot) || getCounterAttackOf(state, reaction)) return null
+  const attack = getCounterAttack(reaction, newId())
+  return attack.kind === 'strike' ? withSweepArc(state, attack) : attack
 }
 
 // The move a reaction opens for its reactor.

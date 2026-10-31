@@ -31,7 +31,7 @@ import { makeAction } from '../factories'
 import { perState } from '../../perState'
 import { getFightName } from './fighters'
 import { canAnswer, getLiveActions, getLiveReactionsTo, getOpenAction, getReactionsTo, withLiveActions } from './log'
-import { defRows, explosionBlockRows, getAmmoOptions, getFreeAttackOptions, getOpportunityShot, guardRows, getRowBar } from './attack'
+import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, getRowBar } from './attack'
 import { getReloadBar, getReloadRows } from './reload'
 import { getHeldOf } from './hold'
 import { getReloadCost } from '../../character/rules/gear'
@@ -325,13 +325,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         const catching = { catch: trigger.catchOnly === true, martialSpirit: false, tackle: false, gentle: false }
         const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant, modifiers: catching }))
         const maneuvers = getPartners(state, c.id).includes(open.actorId) ? getManeuversOf(c).map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
-        // abilities.tex "Archer's Reflexes": a quick shot, loaded from the
-        // first stack it can be
-        const shots = hasGrant(c, 'reflexShot') ? getFreeAttackOptions(state, c, 'shoot').filter((s) => s.variant === SHOTS.quickShot.variant).map((s) => {
-          const shot = probe({ mode: 'shoot', weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })
-          return { ...shot, ammoId: getAmmoOptions(c, getOpportunityShot(shot, ''))[0]?.itemId ?? '' }
-        }) : []
-        const checks = [...strikes, ...maneuvers, ...shots].map((a) => getOpportunityCheck(state, c, a))
+        const checks = [...strikes, ...maneuvers].map((a) => getOpportunityCheck(state, c, a))
         const reason = checks.length === 0 ? 'no melee weapon in hand' : checks.some((k) => k.bar === null) ? null : checks.reduce((best, k) => (k.stage > best.stage ? k : best)).bar
         return [answer({ kind, at: trigger.at }, null, reason)]
       }
@@ -362,8 +356,14 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         return [answer({ kind }, null, gate ?? reason)]
       }
       // abilities.tex "Counterattack": a strike of their own, so it is open
-      // only to someone who can pay for one
+      // only to someone who can pay for one; "Archer's Reflexes": to a shot, a
+      // quick shot of their own
       case 'counterattack': {
+        if (open.kind === 'shoot') {
+          const quick = getFreeAttackOptions(state, c, 'shoot').filter((s) => s.variant === SHOTS.quickShot.variant)
+          const reason = quick.length === 0 ? 'no quick shot in hand' : quick.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged)) ? null : 'cannot afford a quick shot'
+          return [answer({ kind, mode: 'shoot' }, null, gate ?? reason)]
+        }
         const strikes = getFreeAttackOptions(state, c, 'strike')
         const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged)) ? null : 'cannot afford a strike'
         return [answer({ kind }, null, gate ?? reason)]

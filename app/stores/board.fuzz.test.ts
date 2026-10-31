@@ -4,7 +4,7 @@ import { rollD10, seededRng } from '../domain/play/dice'
 import { SceneStateSchema, type ActionDraft, type ChaseIntent, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import type { ModifierView } from '../domain/scene/projections/modifiers'
-import { getFootprint, getMeleeThreateners, getTerrainAt } from '../domain/scene/rules/board/board'
+import { getFootprint, getTerrainAt } from '../domain/scene/rules/board/board'
 import { isProne } from '../domain/scene/rules/board/ground'
 import { defRows } from '../domain/scene/rules/attack'
 import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
@@ -30,6 +30,7 @@ import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MAN
 import { CampaignCharacterSchema, SurgeKindSchema, type Character, type TerrainBrush } from '../domain/types'
 import { getAim } from '../domain/scene/rules/aim'
 import { hasGrant } from '../domain/character/rules/effects'
+import { hasAbility } from '../domain/abilities'
 import { JUMP_ATTACKS, type JumpAttackKey } from '../domain/scene/rules/jumpAttack'
 import { archer, bomber, crossbowman, brawler, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
@@ -163,35 +164,22 @@ function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only:
   h.send({ kind: 'amend', args: [{ trigger: { event: event.event, who: anyoneEntering ? null : pick(waits.who).id } }] })
 }
 
-// What an answer that strikes for itself (a counterattack, an opportunity
-// attack) is still asked for, from the reactor's own offers in the panel.
+// What an answer that strikes or shoots for itself (a counterattack, an
+// opportunity attack) is still asked for, from the reactor's own offers in the
+// panel: abilities.tex "Archer's Reflexes", a quick shot answering a shot, is
+// aimed at any target the panel offers and loaded from a stack.
 function answerWithAStrike(h: Harness, id: string, pick: Picker) {
   const strike = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
   if (!strike) return
+  if (strike.targets.length && pick([true, false])) h.send({ kind: 'amendReaction', args: [id, { targetId: pick(strike.targets).id }] })
   if (strike.options.length) { const { weaponKey, attack, variant } = pick(strike.options); h.send({ kind: 'amendReaction', args: [id, { weaponKey, attack, variant }] }) }
   const reactor = getActionPanel(h.state()).reactors.find((r) => r.id === id)
   const refreshed = reactor?.strike
+  if (refreshed?.ammo.length) h.send({ kind: 'amendReaction', args: [id, { ammoId: pick(refreshed.ammo).itemId }] })
   if (refreshed?.locations.length) { const { location, part } = pick(refreshed.locations); h.send({ kind: 'amendReaction', args: [id, { location, part }] }) }
   for (const m of reactor?.modifiers ?? []) if (pick([true, false])) h.send({ kind: 'amendReaction', args: [id, m.press] })
   const grapple = refreshed?.modes.find((m) => m.mode === 'grapple')
   if (grapple && refreshed?.maneuvers.length && pick([true, false])) h.send({ kind: 'amendReaction', args: [id, { ...grapple.press, maneuver: pick(refreshed.maneuvers) }] })
-  if (pick([true, false])) answerWithAQuickShot(h, id, pick)
-}
-
-// abilities.tex "Archer's Reflexes": an opportunity attack made as a quick
-// shot instead, its row, what it is loaded with and its aim picked from the
-// offers as they follow.
-function answerWithAQuickShot(h: Harness, id: string, pick: Picker) {
-  const shooting = () => getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
-  const shot = shooting()?.modes.find((m) => m.mode === 'shoot')
-  if (!shot) return
-  h.send({ kind: 'amendReaction', args: [id, shot.press] })
-  const rows = shooting()?.options ?? []
-  if (rows.length) { const { weaponKey, attack, variant } = pick(rows); h.send({ kind: 'amendReaction', args: [id, { weaponKey, attack, variant }] }) }
-  const ammo = shooting()?.ammo ?? []
-  if (ammo.length) h.send({ kind: 'amendReaction', args: [id, { ammoId: pick(ammo).itemId }] })
-  const locations = shooting()?.locations ?? []
-  if (locations.length) { const { location, part } = pick(locations); h.send({ kind: 'amendReaction', args: [id, { location, part }] }) }
 }
 
 function plays(): Play[] {
@@ -976,35 +964,31 @@ function steadyShotPlay(h: Harness): Play[] {
   }]
 }
 
-// abilities.tex "Archer's Reflexes": one who has learned it makes the focus
-// surge in a turn of their own, and in the same round, in the turn of someone
-// a melee weapon threatens where there is anyone, answers whatever draws an
-// opportunity attack with a quick shot, where one is offered. Played only
-// where someone has the ability, for the same reason as the shelter.
+// abilities.tex "Archer's Reflexes": someone shoots at one who has learned it,
+// who answers with a quick shot of their own, aimed where the panel offers.
+// Played only where someone has the ability, for the same reason as the
+// shelter.
 function reflexShotPlay(h: Harness): Play[] {
-  const able = () => Object.values(h.state().characters).filter((c) => hasGrant(c, 'reflexShot'))
+  const able = () => Object.values(h.state().characters).filter((c) => hasAbility(c, 'archer-s-reflexes'))
   if (!able().length) return []
   return [{
-    name: 'cover with a quick shot',
+    name: 'answer a shot with a quick shot',
     weight: 3,
     run: (h, pick) => {
-      startTurnOf(h, pick, able().map((c) => c.id))
+      const reflexes = able().map((c) => c.id)
+      const others = Object.keys(h.state().characters).filter((id) => !reflexes.includes(id))
+      if (!others.length) return
+      startTurnOf(h, pick, others)
       const shooter = h.active()!
-      h.send({ kind: 'surge', args: [shooter, 'focus'] })
-      h.send({ kind: 'endTurn', args: [] })
-      const others = Object.keys(h.state().characters).filter((id) => id !== shooter)
-      const threatened = others.filter((id) => getMeleeThreateners(h.state(), id).some((t) => t !== shooter))
-      h.select(h.state().characters[pick(threatened.length ? threatened : others)].name)
-      h.startTurn()
-      const every = ownOptions(h, h.active()!)
-      if (!every.length) return
-      const leaning = every.filter((o) => LEANING.includes(o.draft.kind))
-      h.declare(pick(leaning.length && pick([true, true, false]) ? leaning : every).draft as ActionDraft)
+      const shots = ownOptions(h, shooter).filter((o) => o.draft.kind === 'shoot')
+      if (!shots.length) return
+      h.declare(pick(shots).draft as ActionDraft)
       finishDeclaration(h, pick)
-      const offered = getAvailableActions(h.state(), shooter).filter((o) => o.available && o.draft.kind === 'opportunityAttack')
-      if (offered.length) {
-        h.send({ kind: 'react', args: [shooter, pick(offered).draft] })
-        answerWithAQuickShot(h, shooter, pick)
+      for (const id of reflexes) {
+        const offered = getAvailableActions(h.state(), id).filter((o) => o.available && o.draft.kind === 'counterattack')
+        if (!offered.length) continue
+        h.send({ kind: 'react', args: [id, pick(offered).draft] })
+        answerWithAStrike(h, id, pick)
       }
       answerOpen(h, pick, pick([0, 1, 2, 3, 4]))
       playOut(h, pick)
@@ -1038,6 +1022,8 @@ const DUELS = [
   { name: 'a brawler and an archer', a: brawler, b: archer, apart: 2 },
   { name: 'a spearman and an archer', a: spearman, b: archer, apart: 1 },
   { name: 'a spearman and a crossbowman', a: spearman, b: crossbowman, apart: 3 },
+  // abilities.tex "Archer's Reflexes": each answers the other's shot with a quick shot of their own
+  { name: 'two ranged-trained archers', a: (id: string) => rangedTrained(trained(archer(id))), b: (id: string) => rangedTrained(trained(archer(id))), apart: 3 },
   { name: 'a warden and a trained archer', a: warden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a tower warden and a trained archer', a: towerWarden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a warden and a trained brawler', a: warden, b: (id: string) => trained(brawler(id)), apart: 1 },
@@ -1051,7 +1037,7 @@ const DUELS = [
   { name: 'a brawler and a spearman', a: brawler, b: spearman, apart: 2 },
   { name: 'a melee-trained sword brawler and spearman', a: (id: string) => meleeTrained(swordBrawler(id)), b: (id: string) => meleeTrained(spearman(id)), apart: 2 },
   // a third, the warden, threatens the brawler from the other side, so that what the brawler does draws
-  // opportunity attacks the archer may answer too (abilities.tex "Archer's Reflexes")
+  // opportunity attacks the archer may answer too
   { name: 'a brawler between a warden and a ranged-trained archer', a: brawler, b: (id: string) => rangedTrained(trained(archer(id))), apart: 1, third: { make: warden, at: [-1, 0] as [number, number] } },
 ]
 

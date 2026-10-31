@@ -20,7 +20,7 @@ import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
 import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
-import { hasGrant, isSpellActive } from '../../character/rules/effects'
+import { isSpellActive } from '../../character/rules/effects'
 import { SHOTS } from '../../tables'
 import { answersByDetection, getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
@@ -40,7 +40,7 @@ import { canPickUp, getReachableFloor } from './floor'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
-import { getAttackVariant, getFreeAttackOptions, getOpportunityAction, explosionBlockRows, getOpportunityShot, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
+import { getAttackVariant, getFreeAttackOptions, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
 import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
@@ -48,7 +48,7 @@ import { isSidestepPlaced } from './sidestep'
 import { getPendingDisplacement } from './displace'
 import { canOverdraw } from '../../character/rules/rest'
 import { getIncomingAP } from './roundChange'
-import { getCounterStrike } from './counter'
+import { getCounterShot, getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
 import { allowsAlong, getRecipeCost } from './recipes'
@@ -81,19 +81,6 @@ export function getOpportunityCheck(state: SceneState, c: Character, action: Act
     if (!isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
     if (!getManeuversOf(c).includes(action.maneuver)) return fail(`${action.maneuver} not learned`, 1)
     return canAfford(c, getManeuverCost(c, action.maneuver), isCombatStarted(state)) ? { bar: null, stage: 3 } : fail('cannot afford a maneuver', 2)
-  }
-  // abilities.tex "Archer's Reflexes": "a quick shot at any visible target
-  // in range", from where the shooter stands when it is fought
-  if (action.mode === 'shoot') {
-    const shot = getOpportunityShot(action, '')
-    if (!hasGrant(c, 'reflexShot')) return fail("Archer's Reflexes not learned", 0)
-    if (shot.variant !== SHOTS.quickShot.variant || getAttackVariant(c, shot, isCombatStarted(state)) === null) return fail('that quick shot is not one they have in hand', 1)
-    const cost = getOwnCost(state, shot)
-    if (!cost || !isCampaignCharacter(c)) return fail('it cannot be priced as declared', 2)
-    if (!canAfford(c, cost, isCombatStarted(state))) return fail(`cannot afford ${cost.AP} AP${cost.STA ? ` and ${cost.STA} STA` : ''}`, 3)
-    if (!isShotLoaded(c, shot)) return fail('nothing to load it with', 4)
-    if (!getTargetIds(getOpportunityState(state, action), shot).includes(target)) return fail('out of sight or range from where it is shot', 5)
-    return isAimOnTarget(state, shot) ? { bar: null, stage: 7 } : fail('the aim is not on the target', 6)
   }
   const strike = getOpportunityStrike(action, '')
   const fought = getOpportunityState(state, action)
@@ -240,8 +227,14 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'fall':
     case 'swimTest':
       return true
-    // abilities.tex "Counterattack": "as long as you are within range"
+    // abilities.tex "Counterattack": "as long as you are within range";
+    // "Archer's Reflexes": a quick shot at a target in sight and range, from
+    // where the shooter stands
     case 'counterattack': {
+      if (action.mode === 'shoot') {
+        const shot = getCounterShot(action, '')
+        return shot.variant === SHOTS.quickShot.variant && getAttackVariant(c, shot, isCombatStarted(state)) !== null && isShotLoaded(c, shot) && getTargetIds(state, shot).includes(action.targetId ?? '') && isAimOnTarget(state, shot)
+      }
       const strike = getCounterStrike(action, '')
       return getAttackVariant(c, strike, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isInReach(state, strike, action.targetId ?? '') && isAimOnTarget(state, strike)
     }
@@ -320,8 +313,9 @@ export function areReactionsComplete(state: SceneState, root: Action): boolean {
 function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action): ActionCost | null {
   switch (action.kind) {
     case 'strike':
-    case 'counterattack':
       return getStrikeVariantCost(state, c, action)
+    case 'counterattack':
+      return action.mode === 'shoot' ? getVariantCost(c, getCounterShot(action, ''), isCombatStarted(state)) : getStrikeVariantCost(state, c, action)
     case 'shoot':
       return getVariantCost(c, action, isCombatStarted(state))
     // paid for by the throw, the cast or the detonation that opened it

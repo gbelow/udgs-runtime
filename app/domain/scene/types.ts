@@ -1063,11 +1063,9 @@ export const OpportunityAttackActionSchema = z.object({
   ...AttackAim,
   // combat.tex "Grapple Maneuvers": "can be used like opportunity attacks"
   // — against a grapple partner, what is opened is a maneuver instead of a
-  // strike; abilities.tex "Archer's Reflexes": a quick shot instead, loaded
-  // from `ammoId`
-  mode: z.enum(['strike', 'grapple', 'shoot']).default('strike'),
+  // strike
+  mode: z.enum(['strike', 'grapple']).default('strike'),
   maneuver: GrappleManeuverSchema.default('immobilize'),
-  ammoId: str.default(''),
   modifiers: StrikeModifiersSchema.extend({ gentle: z.boolean().default(false) }).prefault({}),
 }).strip()
 
@@ -1093,10 +1091,19 @@ export const JoinShotActionSchema = z.object({
   ...AttackAim,
 }).strip()
 
-// abilities.tex "Counterattack": the target's answer to a strike, declared
-// with the strike it opens in full. Its die is thrown with the attack's, and
-// the two results say which of them lands first (rules/counter.ts).
-export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.literal('counterattack'), ...StrikeDeclaration, ...AttackAim }).strip()
+// abilities.tex "Counterattack", "Archer's Reflexes": the target's answer to
+// an attack, declared with the attack it opens in full: a strike to a strike,
+// a shot (loaded from `ammoId`) to a shot, aimed at whoever the reactor
+// chooses. Its die is thrown with the attack's, and the two results say which
+// of them lands first (rules/counter.ts).
+export const CounterattackActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('counterattack'),
+  ...StrikeDeclaration,
+  ...AttackAim,
+  mode: z.enum(['strike', 'shoot']).default('strike'),
+  ammoId: str.default(''),
+}).strip()
 
 // combat.tex "Preparing a reaction": what a prepared action waits for. `enters`
 // is a character coming into the zone the action reaches, its own reach and
@@ -1516,7 +1523,8 @@ export type CutAction = z.infer<typeof CutActionSchema>
 export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // What an opportunity attack opens: a strike, or against a grapple partner a
-// maneuver (combat.tex "Grapple Maneuvers").
+// maneuver (combat.tex "Grapple Maneuvers"); a prepared reaction may open a
+// shot too.
 export type OpportunityAction = StrikeAction | GrappleAction | ShootAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
@@ -1554,6 +1562,11 @@ export type DeclarableKind = Exclude<ActionKind, ReactionKind | { [K in ActionKi
 export type ActionDraft = {
   [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
 }[ActionKind]
+
+// What a reactor may still say of the reaction they declared: the draft's
+// fields and, for a counterattack made as a shot, whom it is aimed at
+// (abilities.tex "Archer's Reflexes").
+export type ReactionAmend = Partial<ActionDraft> & { targetId?: string | null }
 
 // combat.tex "Morale": a character called to a morale test at the beginning of
 // the round, and — once it is made — what it was and whether it activated

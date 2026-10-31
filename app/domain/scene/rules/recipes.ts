@@ -1,7 +1,7 @@
 import { RecipeSchema, type Character, type Recipe, type RecipeCondition, type RecipeEvent } from '../../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import type { Term } from '../../character/rules/terms'
-import type { Action, SceneState, RootAction, StrikeAction } from '../types'
+import type { Action, AttackAction, SceneState, RootAction, StrikeAction } from '../types'
 import { ABILITIES, getLearnedAbilityKeys, hasAbility, isAbilityKey, type AbilityKey } from '../../abilities'
 import { makeAction } from '../factories'
 import { isDefense } from './actionCatalog'
@@ -185,11 +185,11 @@ function isSameFollowUp(a: Action, b: Action): boolean {
   return a.kind !== 'grapple' || (b.kind === 'grapple' && a.maneuver === b.maneuver)
 }
 
-// The recipe the fighter makes a contested strike with, if any
-// (abilities.tex "Counterattack"): the first they have, the one kind of
-// contested strike there is being the counterattack.
-export function getContestRecipe(c: Character): RecipeEntry | null {
-  return [...RULE_ENTRIES, ...getLearnedRecipes(c)].find((e) => e.recipe.type === 'contestedReaction') ?? null
+// The recipe the fighter answers an attack of the given kind with one of their
+// own by, if any (abilities.tex "Counterattack", "Archer's Reflexes"): the
+// first they have.
+export function getContestRecipe(c: Character, on: 'strike' | 'shoot'): RecipeEntry | null {
+  return [...RULE_ENTRIES, ...getLearnedRecipes(c)].find((e) => e.recipe.type === 'contestedReaction' && e.recipe.on === on) ?? null
 }
 
 // The recipe the action was made under, as its actor has it; null for an
@@ -210,8 +210,8 @@ function getRecipeContext(state: SceneState, action: Action): RecipeContext | nu
 }
 
 // What the recipe adds to the attack.
-export function getRecipeHitTerms(state: SceneState, strike: StrikeAction): Term[] {
-  const entry = getRecipeOf(state, strike)
+export function getRecipeHitTerms(state: SceneState, attack: AttackAction): Term[] {
+  const entry = getRecipeOf(state, attack)
   return entry && entry.recipe.hit !== 0 ? [{ label: entry.label, value: entry.recipe.hit }] : []
 }
 

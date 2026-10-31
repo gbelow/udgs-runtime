@@ -1120,9 +1120,10 @@ export const RecipeOpensSchema = z.discriminatedUnion('kind', [
 // gets: `hit` to its attack, `cost` (when `costWhen` holds, or always),
 // unresisted when `unresistedWhen` holds, and whether it draws opportunity
 // attacks.
-// `contestedReaction`: a strike of its holder's own in answer to a strike
-// aimed at them, its die thrown with the attack's and the higher landing
-// first (scene/rules/counter.ts); `hit` is what it gets.
+// `contestedReaction`: an attack of its holder's own in answer to an attack
+// aimed at them (`on`: a strike answers a strike, a shot a shot), its die
+// thrown with the attack's and the higher landing first
+// (scene/rules/counter.ts); `hit` is what it gets.
 export const RecipeSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('followUp'),
@@ -1137,6 +1138,7 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   }).strip(),
   z.object({
     type: z.literal('contestedReaction'),
+    on: z.enum(['strike', 'shoot']).default('strike'),
     hit: num.default(0),
   }).strip(),
 ])
@@ -1146,7 +1148,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'lunge', 'technicalLift', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'steadyArms', 'jumpShot', 'reflexShot', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'lunge', 'technicalLift', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'steadyArms', 'jumpShot', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks

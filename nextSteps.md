@@ -130,10 +130,6 @@ poison
 
 abilities that teach other abilities - magic theory, ferocity lv 4, 
 
-REBALANCE WEAPONS/ARMOR - bypassing armor is almost useless. non penetrating weapons are near useless. everything is extremelly deadly without metal.
-current test: cutting is only halved when does not cut. 
-
-
 After that, in my recommended order:
 
 1. Encounter templates. Today an encounter is a party you build by hand. A template would be a saved group: which characters, how many of each, and which party each goes in. Dropping one in would create a party with no timeline yet, ready to send to a scene. This builds directly on what we have: collections pick the characters, parties hold them, and scenes take them by party. It's also the piece behind "dropping a saved party into combat", which is only half done.
@@ -142,4 +138,5 @@ After that, in my recommended order:
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
 
 intercepting with bare hands - damage or not?
-review body - injuries are not dropdowns, but text
+
+trample displacement direction is bad

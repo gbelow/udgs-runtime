@@ -20,16 +20,18 @@ export function getInterruptionOf(landed: Action | null | undefined, victimId: s
   if (landed?.step !== 'done') return 'none'
   switch (landed.kind) {
     case 'strike': return landed.targetId === victimId ? landed.interruption : 'none'
+    // a counterattack made as a shot lands on the shooter it answers
+    case 'shoot': return landed.targetId === victimId ? landed.interruption : 'none'
     case 'grapple': return landed.targetId === victimId && isManeuverWon(landed) ? 'interrupted' : 'none'
     default: return 'none'
   }
 }
 
-// A counterattack's strike that tied the attack lands alongside it, and
-// neither breaks the other (the table's ruling) — though what it lands on
+// A counterattack's strike or shot that tied the attack lands alongside it,
+// and neither breaks the other (the table's ruling) — though what it lands on
 // the attacker still interrupts or stuns them.
 function isTiedCounterStrike(state: SceneState, landed: Action): boolean {
-  const counter = landed.kind === 'strike' ? getOpeningCounter(state, landed) : null
+  const counter = landed.kind === 'strike' || landed.kind === 'shoot' ? getOpeningCounter(state, landed) : null
   const root = counter ? getRootOf(state, counter) : null
   return !!counter && !!root && getCounterSlot(root, counter) === 'tie'
 }

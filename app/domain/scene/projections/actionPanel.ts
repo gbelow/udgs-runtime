@@ -7,10 +7,11 @@ import { getActionDef, isAttackAction, isReactionAction } from '../rules/actionC
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getAwaited, getGoBar } from '../rules/options'
-import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
+import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, getTargetIds, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
+import { getCounterShot } from '../rules/counter'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
-import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getOpportunityShot, getDLTerms, getRootTestTerms } from '../rules/attack'
+import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { EXTEND, PART_PRESETS, SHOTS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -104,18 +105,20 @@ export type ReactorOptions = {
     // why an opportunity attack cannot be fought as declared, when it cannot
     bar: string | null
     // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
-    // instead of the strike; abilities.tex "Archer's Reflexes": a quick shot;
-    // and what picking each declares (none of what another was declared with
-    // goes with it)
+    // instead of the strike; and what picking each declares (none of what
+    // another was declared with goes with it)
     mode: OpportunityMode
     modes: { mode: OpportunityMode; press: Partial<ActionDraft> }[]
     maneuvers: GrappleManeuver[]
     maneuver: GrappleManeuver
     // combat.tex "Coordinated Shots": a joined shot is picked among shooting
-    // rows and loaded from a stack
+    // rows and loaded from a stack; abilities.tex "Archer's Reflexes": so is
+    // a quick shot answering a shot, at any target it can reach
     shot: boolean
     ammo: AmmoOption[]
     ammoId: string
+    targets: { id: string; name: string }[]
+    targetId: string
     // combat.tex "Sweeping Attack": the way a sweep declared here turns;
     // null for any other attack
     sweepDirection: StrikeAction['sweepDirection'] | null
@@ -136,12 +139,10 @@ export type ReactorOptions = {
 type OpportunityMode = ActionOf<'opportunityAttack'>['mode']
 
 // The modes an opportunity attack may be declared in by its attacker: a
-// strike, a maneuver against a grapple partner, a quick shot by one who has
-// learned Archer's Reflexes and has one in hand.
+// strike, or a maneuver against a grapple partner.
 function getOpportunityModes(state: SceneState, c: Character, targetId: string): OpportunityMode[] {
   const partner = findGrapple(getGrapples(state), c.id, targetId) !== null
-  const shooter = hasGrant(c, 'reflexShot') && getFreeAttackOptions(state, c, 'shoot').some((o) => o.variant === SHOTS.quickShot.variant)
-  return ['strike', ...(partner ? ['grapple' as const] : []), ...(shooter ? ['shoot' as const] : [])]
+  return ['strike', ...(partner ? ['grapple' as const] : [])]
 }
 
 function getReactors(state: SceneState, open: Action): ReactorOptions[] {
@@ -150,17 +151,19 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
     .filter((c) => canAnswer(open, c.id))
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
-      const reflexShot = declared?.kind === 'opportunityAttack' && declared.mode === 'shoot'
+      const counterShot = declared?.kind === 'counterattack' && declared.mode === 'shoot'
       const strike = declared?.kind === 'opportunityAttack' || declared?.kind === 'counterattack' || declared?.kind === 'joinShot'
         ? {
             options: declared.kind === 'joinShot'
               ? getFreeAttackOptions(state, c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
-              : reflexShot
+              : counterShot
                 ? getFreeAttackOptions(state, c, 'shoot').filter((o) => o.variant === SHOTS.quickShot.variant)
                 : getFreeAttackOptions(state, c, 'strike').filter((o) => declared.kind === 'opportunityAttack' ? getOpportunityBar(state, c, { ...declared, mode: 'strike', weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }) === null : isVariantOpen(state, declared, o)),
-            shot: declared.kind === 'joinShot' || reflexShot,
-            ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : reflexShot ? getAmmoOptions(c, getOpportunityShot(declared, '')) : [],
-            ammoId: declared.kind === 'joinShot' || reflexShot ? declared.ammoId : '',
+            shot: declared.kind === 'joinShot' || counterShot,
+            ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : counterShot ? getAmmoOptions(c, getCounterShot(declared, '')) : [],
+            ammoId: declared.kind === 'joinShot' || counterShot ? declared.ammoId : '',
+            targets: counterShot ? getTargetIds(state, getCounterShot(declared, '')).map((id) => ({ id, name: getFightName(state, id) })) : [],
+            targetId: declared.targetId ?? '',
             locations: getLocationOptions(declared.targetId ? state.characters[declared.targetId] : undefined, declared),
             attack: declared.attack,
             variant: declared.variant,

@@ -8,7 +8,7 @@ import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView,
 import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
-import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
+import type { Action, ActionRoll, ReactionAmend, CostTerm, StrikeAction } from '../domain/scene/types'
 import { Check, CheckCheck, Dices, Footprints, Hourglass, Minus, Play, Plus, X } from 'lucide-react'
 import { ActionKey, Button, Closed, IconButton, Panel, SectionLabel, Segment, Segmented, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
@@ -459,7 +459,7 @@ function SweepDirections({ direction, onTurn }: { direction: SweepDirection, onT
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, onAmend: (fields: Partial<ActionDraft>) => void, onPass: () => void }){
+function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, onAmend: (fields: ReactionAmend) => void, onPass: () => void }){
   const strike = reactor.strike!
   const chosen = reactor.options.find((o) => o.chosen)
   return (
@@ -467,11 +467,11 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>{reactor.name}</SectionLabel>
         <Button size='xs' title='take the declared reaction back and answer with nothing' onClick={onPass}>nothing</Button>
-        <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'join shot' : 'opportunity attack')}</span>
+        <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'shot' : 'opportunity attack')}</span>
         {strike.modes.length > 1 ? (
           <Segmented label='what the opportunity attack is made as'>
             {strike.modes.map((m) =>
-              <Segment key={m.mode} selected={strike.mode === m.mode} onClick={() => onAmend(m.press)}>{m.mode === 'grapple' ? 'maneuver' : m.mode === 'shoot' ? 'quick shot' : 'strike'}</Segment>)}
+              <Segment key={m.mode} selected={strike.mode === m.mode} onClick={() => onAmend(m.press)}>{m.mode === 'grapple' ? 'maneuver' : 'strike'}</Segment>)}
           </Segmented>
         ) : null}
       </div>
@@ -501,6 +501,13 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>sweep</SectionLabel>
           <SweepDirections direction={strike.sweepDirection} onTurn={(sweepDirection) => onAmend({ sweepDirection })} />
+        </div>
+      ) : null}
+      {strike.targets.length > 1 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>at</SectionLabel>
+          {strike.targets.map((t) =>
+            <Button key={t.id} size='xs' selected={t.id === strike.targetId} onClick={() => onAmend({ targetId: t.id })}>{t.name}</Button>)}
         </div>
       ) : null}
       {strike.ammo.length > 0 ? (

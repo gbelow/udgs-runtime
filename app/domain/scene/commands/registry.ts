@@ -9,7 +9,7 @@ import type { ExplosionDraft } from '../rules/impose'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import { getMembers } from '../rules/fighters'
 import type { CalledKind } from '../rules/heldTest'
-import type { ActionDraft, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
+import type { ActionDraft, ReactionAmend, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
 import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
 import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, turnAround } from './chase'
@@ -70,7 +70,7 @@ export const sceneCommands = {
   amend: command((_, fields: Partial<ActionDraft>) => amendAction(fields)).by(panel('open')),
   target: command((_, targetId: string) => setTarget(targetId)).by(panel('open')),
   react: command((ctx, reactorId: string, draft: ActionDraft) => declareReaction(reactorId, draft, ctx.newId)).by(reactor),
-  amendReaction: command((_, reactorId: string, fields: Partial<ActionDraft>) => amendReaction(reactorId, fields)).by(reactor),
+  amendReaction: command((_, reactorId: string, fields: ReactionAmend) => amendReaction(reactorId, fields)).by(reactor),
   pass: command((_, reactorId: string) => passReaction(reactorId)).by(reactor),
   cancel: command(() => cancelAction()).by(panel('open')),
   roll: command((ctx) => rollAnswered(ctx.thrower, ctx.newId)).by(panel('open')),

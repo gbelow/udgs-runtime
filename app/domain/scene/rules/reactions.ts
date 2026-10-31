@@ -10,7 +10,6 @@ import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
-import { hasGrant } from '../../character/rules/effects'
 import { getRetargetOptions } from './fireAgain'
 import { getEnteringStep, getMovePlacements } from './board/waypoint'
 import { firstStep, getApproachStep, getPathDistances, getPathMeleeDistances } from './approach'
@@ -88,24 +87,9 @@ export function getReactorDetections(state: SceneState, root: RootAction): Detec
   })
 }
 
-// abilities.tex "Archer's Reflexes": "a quick shot at any visible target in
-// range as a reaction to any action of the target that triggers an
-// opportunity attack", "as long as the shooter has used focus surge that
-// round": where the action draws an opportunity attack from anyone, whoever
-// else has learned it and made the focus surge may answer it with one too,
-// at the first step it was drawn on, made as a quick shot.
-function reflexShotTriggers(state: SceneState, root: RootAction, triggers: Trigger[]): Trigger[] {
-  const drawn = triggers.find((t) => t.kind === 'opportunityAttack' && !t.catchOnly)
-  if (!drawn) return []
-  return Object.values(state.characters)
-    .filter((c) => c.id !== root.actorId && hasGrant(c, 'reflexShot') && isCampaignCharacter(c) && c.usedSurge === 'focus')
-    .filter((c) => !triggers.some((t) => t.characterId === c.id && t.kind === 'opportunityAttack'))
-    .map((c): Trigger => ({ characterId: c.id, kind: 'opportunityAttack', at: drawn.at, against: drawn.against }))
-}
-
 function getDrawnTriggers(state: SceneState, root: RootAction): Trigger[] {
   const own = getKindTriggers(state, root)
-  const triggers = [...own, ...reflexShotTriggers(state, root, own)]
+  const triggers = own
   const opportunity = getOpeningReaction(state, root) !== null
   const isOpportunity = (t: Trigger) => t.kind === 'opportunityAttack' || t.kind === 'retarget'
   // combat.tex "Concentration", "Opportunity Attack": the attacks an action
@@ -189,7 +173,8 @@ export function getTriggersFor(state: SceneState, root: RootAction, characterId:
 }
 
 // The trigger a reaction answers, or would: one of its kind, at the step it
-// names, and against whoever it is aimed at once it is. A reaction that
+// names, and against whoever it is aimed at once it is (a counterattack
+// aims where it chooses: abilities.tex "Archer's Reflexes"). A reaction that
 // names no step or no target yet matches on what it does name.
 export type TriggerKey = { kind: ActionKind; actorId: string; at?: number | null; targetId?: string | null; preparedId?: string }
 
@@ -198,7 +183,7 @@ export function findTrigger(state: SceneState, root: RootAction, reaction: Trigg
     t.kind === reaction.kind
     && (reaction.preparedId ?? '') === (t.preparedId ?? '')
     && (reaction.at === undefined || t.at === reaction.at)
-    && (reaction.targetId === undefined || (t.against ?? root.actorId) === reaction.targetId)) ?? null
+    && (reaction.targetId === undefined || reaction.kind === 'counterattack' || (t.against ?? root.actorId) === reaction.targetId)) ?? null
 }
 
 // combat.tex "Defend": the target may answer with any of the four defenses,
@@ -209,7 +194,7 @@ export function findTrigger(state: SceneState, root: RootAction, reaction: Trigg
 function strikeTriggers(state: SceneState, root: StrikeAction): Trigger[] {
   if (!root.targetId) return []
   const target = state.characters[root.targetId]
-  const contest = target ? getContestRecipe(target) : null
+  const contest = target ? getContestRecipe(target, 'strike') : null
   const defenses = (Object.keys(ACTIONS) as ActionKind[]).filter(isDefense)
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
   const flankers = getFlankers(state, root.actorId, root.targetId)
@@ -260,7 +245,7 @@ function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
   if (getJoinReaction(state, root)) return opportunities
   const own = (Object.keys(ACTIONS) as ActionKind[])
     .filter(isReaction)
-    .filter((kind) => reactsTo(kind, 'shoot') && kind !== 'joinShot')
+    .filter((kind) => reactsTo(kind, 'shoot') && kind !== 'joinShot' && kind !== 'counterattack')
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
   // combat.tex "Guard": each shot has its own angle, so one who guards any
   // of the shots — the lead's or a joiner's — may be declared
@@ -275,9 +260,14 @@ function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
   const joins = getOpeningReaction(state, root) !== null ? [] : Object.values(state.characters)
     .filter((c) => c.id !== root.actorId && c.id !== root.targetId && hasShootingRow(c, isCombatStarted(state)))
     .map((c): Trigger => ({ characterId: c.id, kind: 'joinShot', at: null, against: root.targetId! }))
+  // abilities.tex "Archer's Reflexes": the target answers a shot with a quick
+  // shot of their own, unless it was opened by a reaction
+  const target = state.characters[root.targetId]
+  const contest = target && getOpeningReaction(state, root) === null ? getContestRecipe(target, 'shoot') : null
+  const counters: Trigger[] = contest ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
   // combat.tex "Opportunity Attack": "Triggering actions include ... ranged
   // attacks"
-  return [...own, ...guards, ...joins, ...opportunities]
+  return [...own, ...counters, ...guards, ...joins, ...opportunities]
 }
 
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except

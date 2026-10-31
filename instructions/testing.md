@@ -152,8 +152,7 @@ click to what stands afterwards. It is admitted, under these terms.
   one who has learned to plant it plants it facing a cell the board offers. One who has learned a
   jump attack (Lunge, Jump Shot) jumps as one to a cell the board offers and attacks from there,
   one who has learned Steady Arms declares a shot on a careful path drawn on the board and fired from one of its steps,
-  and one who has learned Archer's Reflexes makes the focus surge and answers what draws an
-  opportunity attack in the turn after with a quick shot.
+  and one who has learned Archer's Reflexes answers a shot with a quick shot, at the shooter or at another target the panel offers.
   A chase is played with no board: three running from three, every button of the chase panel
   pressed in any order between exchanges (each closed one must be refused with the state left
   as it was), targets picked from the action panel's list since there are no tokens to click.

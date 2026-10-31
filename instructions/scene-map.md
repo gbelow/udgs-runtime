@@ -131,7 +131,7 @@ and `ActionDraft` (what a click declares).
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` (a block or intercept may be prepared for an ally: see `scene-map/mechanics.md`) |
 | Trample answers (to a move) | `evade` (opens the evader's block of basic movement out of the mover's way before the move lands, forced when the mover ends in their space, `rules/sidestep.ts`), `brace`; unanswered, or braced, it is a crash, and one the mover wins in the space it ends in is displaced first (`rules/displace.ts`) |
 | Reflexes | `evasion`, `guard` (to a shot, which may be prepared for an ally); `avoidExplosion` (to an explosion) |
-| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind; it opens a strike, a maneuver against a grapple partner, or, by one who has learned Archer's Reflexes, a quick shot, `mode: 'shoot'`, open to them wherever the root draws an opportunity attack from anyone while they have made the focus surge; nobody joins that shot), `retarget` (the same triggers as an opportunity attack, within a held spray's reach: opens a paint-only `fireAgain` before the root's effect), `counterattack` (strike), `prepared` (move: a preparation whose trigger came; it opens the movement it carries, then its action), `follow` (move), `joinShot` (shoot: a shot of the joiner's own at the same target) |
+| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind; it opens a strike or a maneuver against a grapple partner), `retarget` (the same triggers as an opportunity attack, within a held spray's reach: opens a paint-only `fireAgain` before the root's effect), `counterattack` (to a strike, a strike of the target's own; to a shot, by one who has learned Archer's Reflexes, a quick shot, `mode: 'shoot'`, aimed at any target in sight and range: the contested-reaction recipe's `on` says which), `prepared` (move: a preparation whose trigger came; it opens the movement it carries, then its action), `follow` (move), `joinShot` (shoot: a shot of the joiner's own at the same target) |
 | Flee | `flee` (move): the movement surge made as a reaction; opens no action, hands the turn over instead |
 | Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
 
@@ -234,9 +234,9 @@ resolveAction ─────────► land(top)
   landed strike offers: when it fires (`defended`, `struck`), what it opens (a strike, a
   maneuver), and what that gets (a hit term, a price added or set, unresisted under a
   condition, whether it draws opportunity attacks, whether its maneuver may be gone along
-  with). A `contestedReaction` lets its holder answer a strike aimed at them with the
+  with). A `contestedReaction` lets its holder answer a strike (or, by `on`, a shot) aimed at them with the
   `counterattack` reaction — the pipeline is `counter.ts` and its opener — and says what its
-  strike gets (a hit term). Every fighter has the rules' recipes (`RULE_RECIPES`:
+  strike or shot gets (a hit term). Every fighter has the rules' recipes (`RULE_RECIPES`:
   hook knockdown, intercept disarm); an ability adds its own in `abilities.json` (a stage's
   `recipes`: riposte, counterattack). The action carries the recipe's id (`recipe`): a
   follow-up from when it is opened, a counterattack from its trigger when it is declared,
@@ -359,7 +359,7 @@ app/domain/scene/
 │   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion, Technical Lift, Defensive Advance, Lunge, Jump Shot), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
-│   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike
+│   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike or shot
 │   ├── recipes.ts      follow-ups and contested strikes as data: who may make them, their hit, price and opportunity attacks
 │   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
 │   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps

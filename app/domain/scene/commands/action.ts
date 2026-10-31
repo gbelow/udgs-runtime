@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import { ActionSchema, type Action, type Coord, type ActionDraft, type CastAction, type SceneState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
+import { ActionSchema, type Action, type Coord, type ActionDraft, type ReactionAmend, type CastAction, type SceneState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
@@ -268,13 +268,15 @@ function getSurgeMade(before: SceneState, after: SceneState, actorId: string, ki
 // Fills in what the reactor's declared reaction still has to say — the
 // strike an opportunity attack opens — while the root is still waiting for
 // its die. The kind is not a declaration and cannot change.
-export function amendReaction(actorId: string, fields: Partial<ActionDraft>): Updater {
+export function amendReaction(actorId: string, fields: ReactionAmend): Updater {
   return (state) => {
     const open = getAnswerableOpen(state)
     if (!open) return state
     const reaction = getLiveReactionsTo(state, open.id).find((r) => r.actorId === actorId)
     if (!reaction || (fields.kind !== undefined && fields.kind !== reaction.kind)) return state
-    const amended = ActionSchema.parse({ ...reaction, ...fields, kind: reaction.kind })
+    const { targetId, ...declared } = fields
+    const aimed = reaction.kind === 'counterattack' && reaction.mode === 'shoot' && targetId !== undefined ? { targetId } : {}
+    const amended = ActionSchema.parse({ ...reaction, ...declared, ...aimed, kind: reaction.kind })
     const next = pruneReactions(replaceActions(state, [amended]))
     return amended.kind === 'opportunityAttack' && !canAffordOpportunity(next, amended) ? state : next
   }

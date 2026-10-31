@@ -109,7 +109,7 @@ export const ACTIONS = {
   fleeFollowUp: { label: 'flee', rule: 'combat.tex "Flee"',        type: 'action',   price: null,          reactsTo: [],         die: false, generated: true },
   // abilities.tex "Counterattack": a strike of the target's, rolled with the
   // attack it answers and priced by the strike it opens
-  counterattack: { label: 'counterattack', rule: 'abilities.tex "Counterattack"', type: 'reaction', price: null,      reactsTo: ['strike'], die: true },
+  counterattack: { label: 'counterattack', rule: 'abilities.tex "Counterattack", "Archer\'s Reflexes"', type: 'reaction', price: null,      reactsTo: ['strike', 'shoot'], die: true },
   // combat.tex "Grapple Maneuvers": a grapple test against the partner's
   grapple:     { label: 'grapple', rule: 'combat.tex "Grapple Maneuvers"',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, targeted: true, identity: { maneuver: 'escape' } },
   // combat.tex "Push and drag": "a force vs force comparison to be able to

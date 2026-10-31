@@ -39,12 +39,12 @@ import { isGuardPlaced } from './protect'
 import { isDefensePlaced, isPreparedCancelled } from './prepared'
 import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
 import { getLinkDL } from './link'
-import { getCounterStrike, getOpeningCounter } from './counter'
+import { getCounterAttack, getOpeningCounter } from './counter'
 import { getRecipeHitTerms } from './recipes'
 import { getChaseCoverTerms, getRoutingTerms } from './chase'
 import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
-import { pickAim, pickShotDeclaration, pickStrikeDeclaration } from './declaration'
+import { pickAim, pickStrikeDeclaration } from './declaration'
 import { getFiringState } from './steadyArms'
 
 // What an action is rolled with and against: the weapon rows and
@@ -113,20 +113,12 @@ export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id
   return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickStrikeDeclaration(reaction), ...pickAim(reaction), opportunity: true, spawnedBy: reaction.id, step: 'react' })
 }
 
-// abilities.tex "Archer's Reflexes": the quick shot an opportunity attack
-// declared as one opens, a shot of the shooter's own.
-export function getOpportunityShot(reaction: ActionOf<'opportunityAttack'>, id: string): ShootAction {
-  return makeAction('shoot', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickShotDeclaration(reaction), ...pickAim(reaction), spawnedBy: reaction.id, step: 'react' })
-}
-
 // What the opportunity attack opens, as declared on the reaction: a strike,
 // or against a grapple partner the maneuver it was declared as (combat.tex
-// "Grapple Maneuvers": "can be used like opportunity attacks"), or a quick
-// shot (abilities.tex "Archer's Reflexes").
+// "Grapple Maneuvers": "can be used like opportunity attacks").
 export function getOpportunityAction(state: SceneState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
   if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver, modifiers: { gentle: reaction.modifiers.gentle } })
-  if (reaction.mode === 'shoot') return getOpportunityShot(reaction, id)
   return getOpportunityStrike(reaction, id)
 }
 
@@ -271,7 +263,7 @@ function getAttackTerms(placed: SceneState, action: AttackAction): Term[] {
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     ...(shot && action.kind === 'shoot' ? [{ label: 'distance', value: -getDistancePenalty(getShotDistanceRate(shot, c), getShotDistance(state, action) ?? 0) }] : []),
     ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -getAimedPlace(action.targetId ? state.characters[action.targetId] : undefined, action).aimPenalty }]),
-    ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
+    ...(action.kind === 'strike' || action.kind === 'shoot' ? getAnswerTerms(state, action) : []),
     ...(skill === grapple ? [] : attackSensoryTerms(state, action, action.kind === 'strike' ? 'strike' : 'accuracy')),
     ...(skill === grapple ? [] : getRoutingTerms(state, action.actorId)),
   ]
@@ -297,14 +289,14 @@ function reactionSensoryTerms(state: SceneState, reaction: Action, skill: 'defen
   return answered ? getSensoryTerms(state, reaction.actorId, skill, answered, 'reactive') : []
 }
 
-// What the strike's recipe adds (rules/recipes.ts), and for a
-// counterattack's strike -2 more made in the middle of an action of one's
-// own (combat.tex "Interruption").
-function getAnswerTerms(state: SceneState, strike: StrikeAction): Term[] {
-  const counter = getOpeningCounter(state, strike)
+// What the attack's recipe adds (rules/recipes.ts), and for a
+// counterattack's strike or shot -2 more made in the middle of an action of
+// one's own (combat.tex "Interruption").
+function getAnswerTerms(state: SceneState, attack: StrikeAction | ShootAction): Term[] {
+  const counter = getOpeningCounter(state, attack)
   const countered = counter ? getRootOf(state, counter) : null
-  const midAction = countered ? getMidActionTerm(state, countered, strike.actorId) : null
-  return [...getRecipeHitTerms(state, strike), ...(midAction ? [midAction] : [])]
+  const midAction = countered ? getMidActionTerm(state, countered, attack.actorId) : null
+  return [...getRecipeHitTerms(state, attack), ...(midAction ? [midAction] : [])]
 }
 
 // combat.tex "Avoiding an Explosion": "make a reflex skill test against the
@@ -597,10 +589,10 @@ export function getClimbRedoTest(state: SceneState, root: MoveAction): Test | nu
 }
 
 // A reaction that is a test of its own, scored against the root's DL — but
-// a counterattack, which is its strike's test (abilities.tex
+// a counterattack, which is its strike's or shot's test (abilities.tex
 // "Counterattack").
 export function getReactionTest(state: SceneState, root: RootAction, reaction: Action): Test {
-  const counter = reaction.kind === 'counterattack' ? getRootTest(state, getCounterStrike(reaction, '')) : null
+  const counter = reaction.kind === 'counterattack' ? getRootTest(state, getCounterAttack(reaction, '')) : null
   if (counter) return counter
   const skill = getReactionTestTerms(state, reaction)
   const DL = getDLTerms(state, root)
