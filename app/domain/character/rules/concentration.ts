@@ -44,10 +44,19 @@ export function getLinkSpell(key: SpellKey): SpellKey | null {
   return getSustainingRequirements(key).find((held) => SPELLS[held].linkDL !== null) ?? null
 }
 
+// The linking spell a cast by this caster works through: the one the spell
+// requires, or for a spell that may be cast through a link, the one the
+// caster holds; null for a cast that works through no link.
+export function getCastLink(c: Character, key: SpellKey): SpellKey | null {
+  const required = getLinkSpell(key)
+  if (required !== null || !SPELLS[key].throughLink) return required
+  return getActiveSpellKeys(c).find((held) => SPELLS[held].linkDL !== null) ?? null
+}
+
 // What a concentrating caster may still cast: the linking spell they hold,
-// again, and the spells cast through what they hold.
+// again, the spells cast through what they hold, and those that may be.
 export function mayCastWhileConcentrating(c: Character, key: SpellKey): boolean {
   if (!isConcentrating(c)) return true
   if (SPELLS[key].linkDL !== null && isSpellActive(c, key)) return true
-  return getSustainingRequirements(key).some((held) => isSpellActive(c, held))
+  return (SPELLS[key].throughLink && getCastLink(c, key) !== null) || getSustainingRequirements(key).some((held) => isSpellActive(c, held))
 }

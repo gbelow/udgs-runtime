@@ -13,8 +13,7 @@ import { isVoided } from '../rules/opportunity'
 import { getFightName } from '../rules/fighters'
 import { getAction, getHistory } from '../rules/log'
 import { getDeliveries } from '../rules/deliveries'
-import { isSpellTestBeaten } from '../rules/cast'
-import { getLinkSpell } from '../../character/rules/concentration'
+import { getTestLink, isSpellTestBeaten } from '../rules/cast'
 import { getReadyItems } from '../../item/rules/containers'
 import { getSpiritBlow } from '../../character/rules/spirit'
 import { resisted } from '../rules/test'
@@ -33,7 +32,7 @@ export function getOutcomes(state: SceneState, settled: Action): { id: string; o
 // What an action did to a grapple, a line per character it changed:
 // grabbed, let go, knocked down, stood up, disarmed, pushed; or that the
 // action was cancelled before it could do any of it.
-export function getActionNotes(state: SceneState, root: Action): { target: string; text: string }[] {
+export function getActionNotes(state: SceneState, root: Action): { target: string; text: string; tone?: Tone }[] {
   const named = (id: string) => getFightName(state, id)
   const broke = getBrokenItems(root).map(({ ownerId, itemId, name }) => ({ target: state.characters[ownerId] ? named(ownerId) : 'floor', text: breakNote(state.characters[ownerId]?.worn?.id === itemId, name) }))
   return [...getRootNotes(state, root, named), ...broke]
@@ -59,7 +58,7 @@ function findItem(state: SceneState, ownerId: string, itemId: string): Item | un
   return carried.find((i) => i.id === itemId) ?? findFloorItem(state, itemId)?.item
 }
 
-function getRootNotes(state: SceneState, root: Action, named: (id: string) => string): { target: string; text: string }[] {
+function getRootNotes(state: SceneState, root: Action, named: (id: string) => string): { target: string; text: string; tone?: Tone }[] {
   if (isVoided(state, root)) return [{ target: named(root.actorId), text: `${getActionName(root)} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
@@ -86,9 +85,17 @@ function getRootNotes(state: SceneState, root: Action, named: (id: string) => st
 // spells.tex "Telepathic Link": whether the test left the target linked to
 // the caster, or broke the link; combat.tex "Morale": what a morale spell's
 // test left the target, and the limit stress action it compels.
-function spellTestNotes(root: Extract<Action, { kind: 'spellTest' }>, named: (id: string) => string): { target: string; text: string }[] {
+function spellTestNotes(root: Extract<Action, { kind: 'spellTest' }>, named: (id: string) => string): { target: string; text: string; tone?: Tone }[] {
+  return withDegree(spellTestLines(root, named), root.roll?.degree)
+}
+
+function withDegree(notes: { target: string; text: string }[], degree: Degree | undefined): { target: string; text: string; tone?: Tone }[] {
+  return degree ? notes.map((n) => ({ ...n, tone: toneOf(degree) })) : notes
+}
+
+function spellTestLines(root: Extract<Action, { kind: 'spellTest' }>, named: (id: string) => string): { target: string; text: string }[] {
   const morale = root.morale && root.targetId ? [{ target: named(root.targetId), text: getMoraleNote(root.morale, named(root.actorId)) }] : []
-  const link = isSpellKey(root.key) ? getLinkSpell(root.key) : null
+  const link = getTestLink(root)
   if (!root.targetId || (!root.roll && !root.accepted) || link === null) return morale
   if (isSpellTestBeaten(root)) return [...morale, { target: named(root.targetId), text: link === root.key ? 'resists the link' : 'breaks the link' }]
   return link === root.key ? [{ target: named(root.targetId), text: `linked to ${named(root.actorId)}` }] : morale
@@ -118,12 +125,20 @@ function dragNotes(facts: DragFacts, named: (id: string) => string): { target: s
 // whom — the injuries it caused, and a line for everything else it
 // delivered, including what is still waiting on the target's own die
 // (spells.tex "Casting spells": the caster's part ends at the production).
+// How the table should read a line: a hit is good news for the one who rolled,
+// a miss bad, and in between is mixed.
+export type Tone = 'good' | 'bad' | 'mixed'
+
+function toneOf(degree: Degree): Tone {
+  return degree === 'miss' ? 'bad' : degree === 'hit' || degree === 'critical' ? 'good' : 'mixed'
+}
+
 export type ActionReport = {
   label: string
   actor: string
   roll: ActionRoll | null
   outcomes: { target: string; outcome: Outcome; steps: OutcomeStep[] }[]
-  notes: { target: string; text: string; degree?: Degree }[]
+  notes: { target: string; text: string; tone?: Tone }[]
 }
 
 export function getLastReport(state: SceneState): ActionReport | null {
@@ -146,17 +161,18 @@ export function getActionReport(state: SceneState, id: string): ActionReport | n
     notes: delivered.flatMap(({ id, delivery }) => [delivery, ...delivery.then].map((d) => ({ id, delivery: d }))).flatMap(({ id, delivery }) => {
       if (delivery.effect.type === 'damage' && delivery.degree !== null) return []
       const waiting = delivery.test && delivery.degree === null ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
-      return [{ target: named(id), text: `${delivery.effect.name}${lossLabel(delivery.effect, delivery.degree)}${waiting}` }]
+      const loss = lossLabel(delivery.effect, delivery.degree)
+      return [{ target: named(id), text: `${delivery.effect.name}${loss}${waiting}`, ...(loss ? { tone: 'bad' as const } : delivery.degree ? { tone: toneOf(delivery.degree) } : {}) }]
     }).concat(getTestedNotes(root, named), getChargeNote(state, root), getSweepNote(state, root, named), getActionNotes(state, root)),
   }
 }
 
 // The test each target made against what the action delivered them, as it
 // landed (rules/tested.ts), and whether they beat it.
-function getTestedNotes(root: Action, named: (id: string) => string): { target: string; text: string; degree: Degree }[] {
+function getTestedNotes(root: Action, named: (id: string) => string): { target: string; text: string; tone: Tone }[] {
   return root.tested.map(({ targetId, name, roll }) => ({
     target: named(targetId),
-    degree: roll.degree,
+    tone: toneOf(roll.degree),
     text: `${name} test: ${roll.score} vs ${roll.DL}, ${roll.degree}${resisted(roll.degree) === 'miss' ? ', resisted' : ''}`,
   }))
 }

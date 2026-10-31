@@ -1368,6 +1368,9 @@ export const SpellSchema = z.object({
   // spells.tex "Telepathic Link": "until the maximum distance is exceeded" —
   // the metres a link holds over; absent for a spell that links nobody
   linkRange: num.optional(),
+  // a spell a caster holding a link may cast through it, at everyone linked,
+  // and anyone may cast the ordinary way
+  throughLink: z.boolean().default(false),
   castRange: str.default(''),
   castArea: str.default(''),
   // spells.tex "Charged": what releases the charge a charged spell leaves in

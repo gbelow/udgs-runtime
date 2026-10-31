@@ -298,7 +298,7 @@ function isRoot(action: Action): action is RootAction {
 }
 
 function isPerformable(state: SceneState, main: RootAction): boolean {
-  return !needsTarget(main) || getTargetIds(state, main).length > 0
+  return !needsTarget(state, main) || getTargetIds(state, main).length > 0
 }
 
 // Whether every reaction declared against the action has said all it must:
@@ -461,7 +461,7 @@ export function getFinishBar(state: SceneState, held: RootAction): string | null
   const c = state.characters[held.actorId]
   if (!c || isDead(c)) return 'gone'
   if (hasAffliction(c, 'unconscious')) return 'unconscious'
-  if (needsTarget(held) && !isTargetAimed(state, held)) return 'target out of reach'
+  if (needsTarget(state, held) && !isTargetAimed(state, held)) return 'target out of reach'
   switch (held.kind) {
     case 'cast':
       return isSpellKey(held.key) && isCastPossible(c, held.key) && getSpellBoardBar(state, c, held.key) === null && isSuggestionComplete(state, held) ? null : 'cannot be cast'
@@ -668,7 +668,7 @@ export function getNextStep(state: SceneState): ActionStep | null {
   const aimed = open.targetId !== null && getTargetIds(state, open).includes(open.targetId)
   if (open.kind === 'drag' && !aimed) return 'target'
   if (!isDeclarationComplete(state, actor, open)) return 'declare'
-  if (!needsTarget(open)) return 'commit'
+  if (!needsTarget(state, open)) return 'commit'
   if (!isTargetAimed(state, open)) return 'target'
   return 'commit'
 }
@@ -793,8 +793,8 @@ export function isTargetAimed(state: SceneState, open: RootAction): boolean {
 }
 
 // Whether the declaration has to be aimed at someone before it is committed.
-export function needsTarget(action: Action): boolean {
-  return getActionDef(action.kind).targeted === true && (action.kind !== 'cast' || isTargeted(action))
+export function needsTarget(state: SceneState, action: Action): boolean {
+  return getActionDef(action.kind).targeted === true && (action.kind !== 'cast' || isTargeted(state, action))
 }
 
 // Who can be aimed at: everyone in the fight but the actor, and for a strike
@@ -812,7 +812,7 @@ export function getTargetIds(state: SceneState, root: RootAction): string[] {
 }
 
 function getAimableIds(state: SceneState, root: RootAction): string[] {
-  if (!needsTarget(root)) return []
+  if (!needsTarget(state, root)) return []
   const others = Object.keys(state.characters).filter((id) => id !== root.actorId)
   switch (root.kind) {
     case 'strike': {

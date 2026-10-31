@@ -10,7 +10,7 @@ import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../t
 import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTest, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
 import { isSpellActive } from '../../character/rules/effects'
-import { getLinkSpell, mayCastWhileConcentrating } from '../../character/rules/concentration'
+import { getCastLink, mayCastWhileConcentrating } from '../../character/rules/concentration'
 import { getLinkDL, getLinkedTargets } from './link'
 import { skillTermGetters } from '../../character/rules/skills'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -44,7 +44,7 @@ export function getCastFacts(state: SceneState, root: CastAction): Deliveries {
   const enhanced = root.improved.enhance ?? 0
   const own = effects.filter((e) => e.target === 'self' && e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key, enhanced))
   if (own.length > 0) facts[root.actorId] = own
-  if (root.targetId && state.characters[root.targetId] && getLinkSpell(root.key) === null) {
+  if (root.targetId && state.characters[root.targetId] && getCastLink(caster, root.key) === null) {
     const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
     const theirs = getAimedDeliveries(state, caster, root.targetId, root.key, root.itemId, size, opener?.reactionTo ? 'reactive' : 'active', enhanced)
     if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
@@ -194,7 +194,7 @@ export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellO
       castable: !boardBar && canCastSpell(c, key, false, charged),
       quickenable: !boardBar && canCastSpell(c, key, true, charged),
       reason: boardBar ?? reasonAgainst(c, key, charged),
-      targeted: isTargetedSpell(key),
+      targeted: isTargetedSpell(c, key),
       conditions: getCastConditions(key),
     }
   })
@@ -277,18 +277,19 @@ function canDrawAmplified(caster: CampaignCharacter, root: CastAction, amplify: 
 // Whether the spell as declared aims at someone: it has an effect for one
 // target, and is not cast on an object (spells.tex "Charged": what it does
 // waits in the object, and is aimed when the charge is released).
-export function isTargeted(root: CastAction): boolean {
-  return isSpellKey(root.key) && isTargetedSpell(root.key)
+export function isTargeted(state: SceneState, root: CastAction): boolean {
+  const caster = state.characters[root.actorId]
+  return isSpellKey(root.key) && !!caster && isTargetedSpell(caster, root.key)
 }
 
 // A linking spell aims at the one it links; a spell cast through a link
 // aims at everyone linked, picked by nobody, and so does a morale spell that
 // reaches every mind the caster reaches (rules/moraleSpell.ts).
-function isTargetedSpell(key: SpellKey): boolean {
+function isTargetedSpell(c: CampaignCharacter, key: SpellKey): boolean {
+  const link = getCastLink(c, key)
+  if (link !== null) return link === key
   const morale = getMoraleSpell(key)
   if (morale) return morale.target === 'target'
-  const link = getLinkSpell(key)
-  if (link !== null) return link === key
   return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key].effects).length > 0
 }
 
@@ -328,7 +329,7 @@ export function isInSpellReach(state: SceneState, casterId: string, targetId: st
 export function getSpellTestTargets(state: SceneState, root: CastAction): string[] {
   const caster = state.characters[root.actorId]
   if (!caster || !takesEffect(state, root) || !isSpellKey(root.key) || getSpellTestRoll(root.key) === null) return []
-  const link = getLinkSpell(root.key)
+  const link = getCastLink(caster, root.key)
   const targets = getMoraleSpell(root.key) ? getMoraleSpellTargets(state, root)
     : link === null ? []
     : link === root.key ? (root.targetId ? [root.targetId] : []) : getLinkedTargets(state, root.actorId, link)
@@ -396,8 +397,12 @@ export function isSpellTestBeaten(action: SpellTestAction): boolean {
 // one who beat any test the link put them to.
 export type LinkOutcome = { made: Link | null; broken: { casterId: string; targetId: string; key: SpellKey } | null }
 
+export function getTestLink(action: SpellTestAction): SpellKey | null {
+  return isSpellKey(action.link) ? action.link : null
+}
+
 export function getLinkOutcome(state: SceneState, root: SpellTestAction): LinkOutcome {
-  const link = isSpellKey(root.key) ? getLinkSpell(root.key) : null
+  const link = getTestLink(root)
   const caster = state.characters[root.actorId]
   if (!caster || !root.targetId || link === null || !isSpellActive(caster, link)) return { made: null, broken: null }
   if (isSpellTestBeaten(root)) return { made: null, broken: { casterId: root.actorId, targetId: root.targetId, key: link } }
@@ -410,7 +415,7 @@ export function getLinkOutcome(state: SceneState, root: SpellTestAction): LinkOu
 // no link at all. Read once the cast's last test has landed, whatever order
 // the targets were tested in; the caster and spell to let go of, else null.
 export function getLinkSpent(state: SceneState, root: SpellTestAction): { casterId: string; key: SpellKey } | null {
-  const key = isSpellKey(root.key) ? getLinkSpell(root.key) : null
+  const key = getTestLink(root)
   const caster = state.characters[root.actorId]
   if (key === null || !caster || !isSpellActive(caster, key)) return null
   if (getLinkedTargets(state, root.actorId, key).length > 0) return null
@@ -421,5 +426,5 @@ export function getLinkSpent(state: SceneState, root: SpellTestAction): { caster
 // spells.tex "Telepathic Link": "or with anyone who allows the link" — a
 // willing target takes the test's effects without rolling for it.
 export function canAcceptSpellTest(action: SpellTestAction): boolean {
-  return action.step === 'react' && !action.accepted && isSpellKey(action.key) && getLinkSpell(action.key) !== null
+  return action.step === 'react' && !action.accepted && getTestLink(action) !== null
 }

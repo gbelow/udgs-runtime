@@ -886,6 +886,9 @@ export const SpellTestActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('spellTest'),
   key: str.default(''),
+  // the linking spell the test works through, empty for a test that is not
+  // part of a link
+  link: str.default(''),
   accepted: z.boolean().default(false),
   facts: DeliveriesSchema.nullable().default(null),
   morale: MoraleSpellOutcomeSchema.nullable().default(null),

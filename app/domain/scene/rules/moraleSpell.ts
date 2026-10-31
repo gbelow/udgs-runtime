@@ -2,7 +2,7 @@ import { LIMIT_STRESS_ACTIONS, type LimitStressAction } from '../../lists'
 import type { MoraleEffect, MoraleSpellEffect } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
-import { getLinkSpell } from '../../character/rules/concentration'
+import { getCastLink } from '../../character/rules/concentration'
 import type { CastAction, MoraleSpellOutcome, SceneState, SpellTestAction } from '../types'
 import { getAction } from './log'
 import { getDistanceBetween } from './board/board'
@@ -21,18 +21,19 @@ function isDeadIn(state: SceneState, id: string): boolean {
   return !!c && isDead(c)
 }
 
-// Who a cast of a morale spell puts to the test once it hits: the one aimed
-// at, or (spells.tex "Overwhelming Terror", "Provocative Mockery") "all
-// targets within range of active synesthesia or under the effect of
-// telepathic link", the link the spell is cast through.
+// Who a cast of a morale spell puts to the test once it hits: everyone the
+// link it is cast through holds, else the one aimed at, or (spells.tex
+// "Overwhelming Terror", "Provocative Mockery") "all targets within range of
+// active synesthesia".
 export function getMoraleSpellTargets(state: SceneState, root: CastAction): string[] {
   const spell = getMoraleSpell(root.key)
-  if (!spell || !isSpellKey(root.key)) return []
+  const caster = state.characters[root.actorId]
+  if (!spell || !caster || !isSpellKey(root.key)) return []
+  const link = getCastLink(caster, root.key)
+  if (link) return getLinkedTargets(state, root.actorId, link).filter((id) => !isDeadIn(state, id))
   if (spell.target === 'target') return root.targetId && !isDeadIn(state, root.targetId) ? [root.targetId] : []
-  const link = getLinkSpell(root.key)
-  const linked = link ? getLinkedTargets(state, root.actorId, link) : []
   return Object.keys(state.characters).filter((id) => id !== root.actorId && !isDeadIn(state, id)
-    && (linked.includes(id) || getSenseReaches(state, root.actorId, id).some((r) => r.sense === 'synesthesia' && r.active)))
+    && getSenseReaches(state, root.actorId, id).some((r) => r.sense === 'synesthesia' && r.active))
 }
 
 // spells.tex "Suggestion": "The limit stress actions triggered can be either

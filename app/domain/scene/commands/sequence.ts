@@ -3,6 +3,7 @@ import type { Action, AttackAction, CastAction, SceneState, ExplosionAction, Fei
 import { getOpenAction, isForgone } from '../rules/log'
 import { getOwedDice, getSettled } from '../rules/settle'
 import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
+import { getCastLink } from '../../character/rules/concentration'
 import { getDefaultAim, isStoppedByGuard } from '../rules/attack'
 import { canPayOpened, getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
@@ -367,7 +368,9 @@ function struckExplosion(state: SceneState, root: AttackAction, newId: () => str
 // only on the target's die.
 function openSpellTests(state: SceneState, root: RootAction, newId: () => string): Action[] {
   if (root.kind !== 'cast') return []
-  return getSpellTestTargets(state, root).map((targetId) => makeAction('spellTest', { id: newId(), actorId: root.actorId, targetId, key: root.key, spawnedBy: root.id, step: 'react' }))
+  const caster = state.characters[root.actorId]
+  const link = caster && isSpellKey(root.key) ? getCastLink(caster, root.key) ?? '' : ''
+  return getSpellTestTargets(state, root).map((targetId) => makeAction('spellTest', { id: newId(), actorId: root.actorId, targetId, key: root.key, link, spawnedBy: root.id, step: 'react' }))
 }
 
 // combat.tex "Escape": each escape a stun opens, as a maneuver of the held

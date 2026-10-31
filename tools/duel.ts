@@ -236,7 +236,7 @@ const UNSUPPORTED = 'the harness cannot declare this by itself (it needs choices
 // An action with nothing to pick but a target: declared and committed as it is.
 function plainChoices(base: Base | null, label: string, foes: string[], state: SceneState): Choice[] {
   if (!base) return [{ label, apply: () => null, unavailable: UNSUPPORTED }]
-  const targets = needsTarget(base.open) ? foes : [null]
+  const targets = needsTarget(state, base.open) ? foes : [null]
   return targets.map((target): Choice => ({
     label: target ? `${label} at ${getFightName(state, target)}` : label,
     apply: (e) => committing(base, e, (s) => (target ? setTarget(target)(s) : s)),

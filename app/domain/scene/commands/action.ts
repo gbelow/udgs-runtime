@@ -104,7 +104,7 @@ export function commitAction(thrown: Throw, newId: () => string): Updater {
     if (open.kind === 'fleeFollowUp' && !open.flee) return withdrawSpawnedAction(thrown, newId)(state)
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if (needsTarget(open) && !isTargetAimed(state, open)) return state
+    if (needsTarget(state, open) && !isTargetAimed(state, open)) return state
     const cost = getPayableCost(state, open)
     const hold = cost ? null : getHoldCost(state, open)
     if (!cost && !hold) return state
