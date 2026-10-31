@@ -68,7 +68,10 @@ export type Phase = 'roll' | 'save' | 'resolve'
 // them in (`getFireTouched`), read off the board the action put them on.
 export function reduceCharacter(action: Action, phase: Phase, charged: boolean, fire: FireTouched | null = null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    const reduced = reducePart(action, phase, charged)(c)
+    const part = reducePart(action, phase, charged)(c)
+    // abilities.json "Perfect Preparation": the AP its preparer receives for
+    // the test, once the die is thrown
+    const reduced = phase === 'roll' && action.preparationAP?.to === c.id ? refund(action.preparationAP.AP)(part) : part
     if (phase !== 'resolve') return reduced
     const damaged = deliverAll(getBreaks(action)[c.id] ?? [])(reduced)
     const touched = fire?.id === c.id ? touchFire(fire.fire)(damaged) : damaged

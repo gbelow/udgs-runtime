@@ -6,7 +6,7 @@ import { findTrigger } from '../rules/reactions'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
 import { getInterruptionsLanding, type StampedInterruption } from '../rules/interruption'
-import { getReactedWithin } from '../rules/prepared'
+import { getPreparationOf, getReactedWithin } from '../rules/prepared'
 import { isAnswerable } from '../rules/action'
 import { settleBinds } from './bind'
 import { dropFallenBalance, holdThrown } from './heldTest'
@@ -33,7 +33,8 @@ import { deliverAll } from '../../character/commands/deliver'
 // leaves the table. A move past its declaration carries the held
 // tests its mover had made when it got there, and the turn it was committed
 // in is noted as taken. What lands is noted in the round's registries: the
-// noise it made in its actor's own turn, the preparation it is.
+// noise it made in its actor's own turn, the preparation it is, the one it
+// is the prepared action of.
 export function setActions(state: SceneState, declared: Action[], pushed: string[] = []): SceneState {
   const stamped = declared.map((a) => noteParticipants(state, stampHeld(state, a.turn === null ? { ...a, turn: state.turn, round: state.round } : a)))
   const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
@@ -53,6 +54,7 @@ export function setActions(state: SceneState, declared: Action[], pushed: string
     turnsTaken: stamped.reduce(noteTurn, state.turnsTaken),
     stealthTurns: entering.reduce((turns, a) => noteNoise(state, turns, a), state.stealthTurns),
     prepared: [...state.prepared, ...entering.flatMap((a) => (a.kind === 'prepare' ? [a.id] : []))],
+    performed: entering.reduce((ids, a) => notePerformed(state, ids, a), state.performed),
     bodyCover: entering.reduce((cover, a) => noteCover(state, stamped, cover, a), state.bodyCover),
   }))
 }
@@ -119,6 +121,13 @@ function noteNoise(state: SceneState, turns: SceneState['stealthTurns'], action:
   if (action.turn !== state.turn) return turns
   const noise = getNoise(state, action, action.cost?.AP ?? 0)
   return turns.map((t) => (t.turn === action.turn && t.id === action.actorId ? { ...t, AP: t.AP + noise.AP, heardAP: t.heardAP + noise.heardAP } : t))
+}
+
+// abilities.json "Prepared": a preparation is performed once the action it
+// is for lands.
+function notePerformed(state: SceneState, ids: string[], action: Action): string[] {
+  const preparation = getPreparationOf(state, action)
+  return preparation && !ids.includes(preparation.id) ? [...ids, preparation.id] : ids
 }
 
 function stampHeld(state: SceneState, action: Action): Action {

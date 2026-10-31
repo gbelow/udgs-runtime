@@ -7,7 +7,8 @@ import { isCampaignCharacter } from '../../utils'
 import { defRows, getAmmoOptions, getFreeAttackOptions } from '../rules/attack'
 import { getSpellOptions } from '../rules/cast'
 import { getMovementOptions } from '../rules/move'
-import { getPrepared, getPreparedEvents, getPreparedMain, getPreparedZone, isDefenseMain, isPrepareComplete } from '../rules/prepared'
+import { getCommandBar, getPrepared, getPreparedEvents, getPreparedMain, getPreparedZone, isDefenseMain, isPrepareComplete } from '../rules/prepared'
+import { getPerformerId } from '../rules/performer'
 import { getFightName } from '../rules/fighters'
 import type { AttackOptionView, SpellOptionView } from './actionPanel'
 import { getModifierViews, type ModifierView } from './modifiers'
@@ -17,6 +18,9 @@ import { getModifierViews, type ModifierView } from './modifiers'
 // reaches grows with its own reach and the movement it carries.
 
 export type PrepareView = {
+  // abilities.json "Battle Commands": whom it may be prepared for, the
+  // preparer first; empty for one who has not learned to command
+  commands: { id: string; name: string; selected: boolean }[]
   mains: { kind: PreparableKind; selected: boolean; available: boolean; reason: string | null }[]
   attacks: AttackOptionView[]
   // what a prepared strike is declared as besides (rules/strikeDeclaration.ts)
@@ -37,8 +41,10 @@ export type PrepareView = {
 export type PreparedRow = { id: string; actor: string; text: string }
 
 export function getPrepareView(state: SceneState, open: PrepareAction): PrepareView | null {
-  const actor = state.characters[open.actorId]
-  if (!isCampaignCharacter(actor)) return null
+  const preparer = state.characters[open.actorId]
+  const actor = state.characters[getPerformerId(open)]
+  if (!isCampaignCharacter(preparer) || !isCampaignCharacter(actor)) return null
+  const commanded = Object.keys(state.characters).filter((id) => id !== preparer.id && getCommandBar(state, preparer, id) === null)
   const strikes = getFreeAttackOptions(state, actor, 'strike')
   const shots = getFreeAttackOptions(state, actor, 'shoot')
   const spells = getSpellOptions(state, actor)
@@ -58,6 +64,7 @@ export function getPrepareView(state: SceneState, open: PrepareAction): PrepareV
   const probe = getPreparedMain(open, '')
   const zone = open.main ? getPreparedZone(state, actor, open) : null
   return {
+    commands: commanded.length === 0 ? [] : [preparer.id, ...commanded].map((id) => ({ id: id === preparer.id ? '' : id, name: getFightName(state, id), selected: getPerformerId(open) === id })),
     mains: PREPARABLE_KINDS.map((kind) => ({ kind, selected: open.main === kind, available: reasons[kind] === null, reason: reasons[kind] })),
     attacks: rows.map((o) => ({ ...o, selected: o.weaponKey === open.weaponKey && o.attack === open.attack && o.variant === open.variant })),
     modifiers: open.main === 'strike' && open.attack ? getModifierViews(state, open) : [],
@@ -71,7 +78,7 @@ export function getPrepareView(state: SceneState, open: PrepareAction): PrepareV
       ...Object.keys(state.characters).filter((id) => id !== actor.id).map((id) => ({ id, name: getFightName(state, id), selected: open.trigger?.who === id })),
     ],
     zone,
-    complete: isPrepareComplete(state, actor, open),
+    complete: isPrepareComplete(state, preparer, open),
   }
 }
 
@@ -85,7 +92,7 @@ function getEventLabel(event: PreparedTrigger['event'], zone: number | null): st
 
 // What each character has prepared in the round, for the table to read.
 export function getPreparedRows(state: SceneState): PreparedRow[] {
-  return getPrepared(state).map((p) => ({ id: p.id, actor: getFightName(state, p.actorId), text: getPreparedText(state, p) }))
+  return getPrepared(state).map((p) => ({ id: p.id, actor: p.forId ? `${getFightName(state, p.actorId)}, for ${getFightName(state, p.forId)}` : getFightName(state, p.actorId), text: getPreparedText(state, p) }))
 }
 
 function getPreparedText(state: SceneState, p: PrepareAction): string {
@@ -95,7 +102,7 @@ function getPreparedText(state: SceneState, p: PrepareAction): string {
     : main?.kind === 'move' ? `${main.movement} move`
     : p.main === 'block' || p.main === 'intercept' || p.main === 'guard' ? `${p.main} with ${p.attack}`
     : ''
-  const actor = state.characters[p.actorId]
+  const actor = state.characters[getPerformerId(p)]
   const zone = isCampaignCharacter(actor) ? getPreparedZone(state, actor, p) : null
   const who = p.trigger?.who ? getFightName(state, p.trigger.who) : 'anyone'
   return `${what} when ${who} ${p.trigger ? getEventLabel(p.trigger.event, zone) : ''}`.trim()

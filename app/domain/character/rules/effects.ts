@@ -24,6 +24,18 @@ export function hasGrant(character: Character, grant: Grant): boolean {
   return getLearnedAbilityKeys(character).some((key) => ABILITIES[key].grants.includes(grant))
 }
 
+// How many learned stages give the grant: an ability whose every level gives
+// the same one (Deliberate I|II) is held at the level it is learned to.
+export function getGrantCount(character: Character, grant: Grant): number {
+  return getLearnedAbilityKeys(character).filter((key) => ABILITIES[key].grants.includes(grant)).length
+}
+
+// The learned ability that gives the grant, the highest stage first, for
+// what its catalog entry says it costs; null when none does.
+export function getGrantingAbility(character: Character, grant: Grant): AbilityKey | null {
+  return getLearnedAbilityKeys(character).filter((key) => ABILITIES[key].grants.includes(grant)).at(-1) ?? null
+}
+
 // The abilities in effect: every `active` entry of kind ability whose key is
 // still a learned toggle (switched on) or a learned active one (fired this
 // round, cleared at the round change). `active` comes through a permissive

@@ -13,7 +13,7 @@ import { sinkInArmor } from './swim'
 // Nobody holds the turn after it.
 export function closeTurn(state: SceneState, holder: string): SceneState {
   const fire = getHazardOf(state, holder).fire
-  const ended = { ...state, inTurnCharacter: '', fleeing: false, forcedSurge: '', contenders: [] }
+  const ended = { ...state, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', contenders: [] }
   const closed = updateCharacter(holder, (c) => ({ ...endSurge(c), runsFree: false }), 'turn ends')(ended)
   const burnt = updateCharacter(holder, (c) => burnScorch(touchFire(fire)(c)), 'fire touched in its turn burns')(closed)
   return sinkInArmor(holder)(burnt)

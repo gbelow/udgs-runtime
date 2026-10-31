@@ -25,6 +25,8 @@ import type { Trigger } from './reactions'
 import { pickShotDeclaration, pickStrikeDeclaration } from './declaration'
 import { getStrikeContext, getStrikePrice, isStrikeDeclarationOpen } from './strikeDeclaration'
 import { addModifierLines } from './modifiers'
+import { getPerformerId } from './performer'
+import { hasGrant } from '../../character/rules/effects'
 
 // combat.tex "Preparing a reaction": "Any action can be prepared on a player's
 // turn, but doing so costs 1 AP. This allows the player to create any trigger
@@ -62,7 +64,7 @@ export function getPreparedEvents(main: PreparableKind | null): PreparedTrigger[
 export function getPrepared(state: SceneState): PrepareAction[] {
   return state.prepared.flatMap((id) => {
     const a = getAction(state, id)
-    return a?.kind === 'prepare' && state.characters[a.actorId] ? [a] : []
+    return a?.kind === 'prepare' && state.characters[a.actorId] && state.characters[getPerformerId(a)] ? [a] : []
   })
 }
 
@@ -74,7 +76,7 @@ export function findPrepared(state: SceneState, id: string): PrepareAction | nul
 // what it is made with is the preparation's, what it is aimed at is still to be
 // declared.
 export function getPreparedMain(p: PrepareAction, id: string, spawnedBy: string | null = null): RootAction | null {
-  const base = { id, actorId: p.actorId, spawnedBy, preparedPart: 'main' as const }
+  const base = { id, actorId: getPerformerId(p), spawnedBy, preparedPart: 'main' as const }
   switch (p.main) {
     case 'strike': return makeAction('strike', { ...base, ...pickStrikeDeclaration(p) })
     case 'shoot': return makeAction('shoot', { ...base, ...pickShotDeclaration(p) })
@@ -88,9 +90,41 @@ export function getPreparedMain(p: PrepareAction, id: string, spawnedBy: string 
   }
 }
 
-// What the main action costs at the least, as the preparation made it; null
-// while the character cannot make it at all.
+// What the main action costs at the least, as the preparation made it, for
+// the character who makes it; null while they cannot make it at all.
 export function getMainCost(state: SceneState, c: CampaignCharacter, p: PrepareAction): ActionCost | null {
+  const cost = getUndiscountedMainCost(state, c, p)
+  return cost && { ...cost, AP: cost.AP - getPreparedDiscount(state, p, cost.AP) }
+}
+
+// abilities.json "Prepared": "The first time a prepared action is performed,
+// it costs 1 AP less": the AP its preparer's ability takes off the action it
+// is for, whoever makes it (the table's ruling: a command is made with its
+// commander's abilities), and never below nothing.
+export function getPreparedDiscount(state: SceneState, p: PrepareAction, AP: number): number {
+  const preparer = state.characters[p.actorId]
+  return preparer && hasGrant(preparer, 'prepared') && !state.performed.includes(p.id) ? Math.min(1, Math.max(0, AP)) : 0
+}
+
+// The preparation the action is the prepared action of: the action a
+// `prepared` reaction opened, or a defense made as one prepared.
+export function getPreparationOf(state: SceneState, action: Action): PrepareAction | null {
+  if (isPreparedDefense(action) && action.preparedId !== '') return findPrepared(state, action.preparedId)
+  const reaction = action.preparedPart === 'main' && action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  return reaction?.kind === 'prepared' ? findPrepared(state, reaction.preparedId) : null
+}
+
+// The preparation the action comes of: the prepared action itself, or
+// anything that action opened in turn.
+export function getPreparationWithin(state: SceneState, action: Action): PrepareAction | null {
+  for (const a of [action, ...getAncestry(state, action)]) {
+    if (a.kind === 'prepared') return findPrepared(state, a.preparedId)
+    if (isPreparedDefense(a) && a.preparedId !== '') return findPrepared(state, a.preparedId)
+  }
+  return null
+}
+
+function getUndiscountedMainCost(state: SceneState, c: CampaignCharacter, p: PrepareAction): ActionCost | null {
   if (isDefenseMain(p.main)) {
     const price = ACTIONS[p.main].price
     return price && defRows(c).some((row) => row.wielded.key === p.weaponKey && row.atk.name === p.attack) ? getActionCost(c, price) : null
@@ -135,14 +169,25 @@ export function getPreparedMoveBudget(state: SceneState, c: CampaignCharacter, p
   return Math.max(0, Math.min(PREPARED_MOVE_AP, spare))
 }
 
-// Whether the declaration is one that can be committed: an action the character
-// can make, and a trigger that is about someone else.
+// Whether the declaration is one that can be committed: an action whoever it
+// is for can make, and a trigger that is about someone else than them.
 export function isPrepareComplete(state: SceneState, c: Character, p: PrepareAction): boolean {
   if (!isCampaignCharacter(c) || p.main === null || p.trigger === null) return false
-  if (!state.board?.placements[c.id]) return false
-  if (p.trigger.who !== null && (p.trigger.who === c.id || !state.characters[p.trigger.who])) return false
+  if (getCommandBar(state, c, p.forId)) return false
+  const performer = state.characters[getPerformerId(p)]
+  if (!performer || !state.board?.placements[performer.id]) return false
+  if (p.trigger.who !== null && (p.trigger.who === performer.id || !state.characters[p.trigger.who])) return false
   if (!getPreparedEvents(p.main).includes(p.trigger.event)) return false
-  return getMainCost(state, c, p) !== null
+  return getMainCost(state, performer, p) !== null
+}
+
+// abilities.json "Battle Commands": why the preparer cannot prepare the
+// action for the one named, or null: they must have learned to command, and
+// command someone else in the fight.
+export function getCommandBar(state: SceneState, c: Character, forId: string): string | null {
+  if (forId === '') return null
+  if (!hasGrant(c, 'battleCommands')) return 'Battle Commands not learned'
+  return forId === c.id || !state.characters[forId] ? 'not someone else in the fight' : null
 }
 
 // ---------------------------------------------------------------------------
@@ -186,9 +231,9 @@ function getMoveTriggers(state: SceneState, root: RootAction): Trigger[] {
   if (!mover || !state.board.placements[root.actorId]) return []
   const placements = getMovePlacements(state, root)
   return getPrepared(state).flatMap((p): Trigger[] => {
-    const owner = state.characters[p.actorId]
-    const other = getPlacedFootprint(state, p.actorId)
-    if (!owner || !other || p.actorId === root.actorId || p.trigger === null) return []
+    const owner = state.characters[getPerformerId(p)]
+    const other = getPlacedFootprint(state, getPerformerId(p))
+    if (!owner || !other || owner.id === root.actorId || p.trigger === null) return []
     if (p.trigger.who !== null && p.trigger.who !== root.actorId) return []
     const step = getTriggerStep(state, mover, placements, other, owner, p)
     return step === null ? [] : [{ characterId: owner.id, kind: 'prepared', at: step + 1, against: root.actorId, preparedId: p.id }]
@@ -205,7 +250,7 @@ function getDefenseTriggers(state: SceneState, root: StrikeAction | ShootAction)
   if (!state.board || !target || isFromPrepared(state, root) || (root.kind === 'shoot' && getJoinReaction(state, root))) return []
   return getPrepared(state).flatMap((p): Trigger[] => {
     const kind = p.main
-    const owner = state.characters[p.actorId]
+    const owner = state.characters[getPerformerId(p)]
     if (!isDefenseMain(kind) || !isCampaignCharacter(owner) || p.trigger?.event !== 'attacked') return []
     if ((root.kind === 'shoot') !== (kind === 'guard') || owner.id === root.actorId || owner.id === target) return []
     if (p.trigger.who !== null && p.trigger.who !== target) return []

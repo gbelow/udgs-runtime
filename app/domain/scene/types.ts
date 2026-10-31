@@ -420,6 +420,9 @@ const ActionBase = {
   // Which part of a prepared reaction this action is, when a `prepared`
   // reaction opened it: the movement it may carry, or the action it is for.
   preparedPart: z.enum(['move', 'main']).nullable().default(null),
+  // abilities.json "Perfect Preparation": the AP its rolled test gave the one
+  // who prepared it, written as the die is thrown; null where it gave none
+  preparationAP: z.object({ to: str, AP: num }).strip().nullable().default(null),
   // The turn this action was declared in (`SceneState.turn`), stamped when it
   // enters the log; null until then.
   turn: num.nullable().default(null),
@@ -1145,6 +1148,9 @@ export const PrepareActionSchema = z.object({
   extend: num.default(0),
   movement: MoveKindSchema.default('basic'),
   trigger: PreparedTriggerSchema.nullable().default(null),
+  // abilities.json "Battle Commands": the ally it is prepared for, who makes it
+  // when it comes; '' for the preparer themselves
+  forId: str.default(''),
 }).strip()
 
 // A prepared action whose trigger has happened, answered by its preparer:
@@ -1857,6 +1863,14 @@ export const SceneStateSchema = z.object({
   // The preparations landed in the round, by id, lapsing at its end
   // (combat.tex "Preparing a reaction")
   prepared: z.array(str).default([]),
+  // The preparations whose action has been made in the round, by id
+  // (abilities.json "Prepared": "The first time a prepared action is
+  // performed")
+  performed: z.array(str).default([]),
+  // Who took the round's first turn, and its number (abilities.json
+  // "Strategist": "the first to take their turn in a round"); null before
+  // anyone has
+  firstTurn: z.object({ turn: num, id: str }).strip().nullable().default(null),
   // combat.tex "Follow": whom each character marked to follow, by id, lapsing
   // at the round's end
   following: z.record(str, str).default({}),
@@ -1884,6 +1898,9 @@ export const SceneStateSchema = z.object({
   // combat.tex "Feint": who a feint forced to take their turn and use an
   // action surge, '' for nobody; owed until that surge is used
   forcedSurge: z.string().default(''),
+  // who won the feint that forced it, '' when it was the feinter's own loss;
+  // kept for the turn it provoked (abilities.json "Improved Feint")
+  forcedBy: z.string().default(''),
   // gear.tex "Equipment Breakage": "The equipment breakage function is
   // optional" — whether blows put the objects they meet at risk; the
   // campaign's setting as the fight last took it

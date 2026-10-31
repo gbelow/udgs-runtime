@@ -19,6 +19,14 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
   const event = view.events.find((e) => e.selected)?.event ?? null
   return (
     <div className='flex flex-col gap-1'>
+      {view.commands.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>for</SectionLabel>
+          {view.commands.map((c) =>
+            <Button key={c.id || 'self'} size='xs' selected={c.selected}
+              onClick={() => onAmend({ forId: c.id, main: null, ...NO_MAIN, trigger: null })}>{c.name}</Button>)}
+        </div>
+      ) : null}
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>prepare</SectionLabel>
         <Segmented label='prepare'>

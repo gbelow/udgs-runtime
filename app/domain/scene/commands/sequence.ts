@@ -136,7 +136,7 @@ function forceSurge(state: SceneState, feint: FeintAction): SceneState {
   const holder = getTurnHolder(state)
   if (holder === feinted) return { ...state, forcedSurge: feinted }
   const ended = holder ? closeTurn(state, holder) : state
-  return { ...beginTurn(ended, feinted), forcedSurge: feinted }
+  return { ...beginTurn(ended, feinted), forcedSurge: feinted, forcedBy: feint.actorId }
 }
 
 // combat.tex "Compulsions": "They must occur immediately" — a limit stress
@@ -153,10 +153,12 @@ function handOverToCompelled(state: SceneState): SceneState {
 }
 
 // The character's turn begins: nobody has asked to contest it yet, and it
-// is numbered `turn` — a fresh one unless it is one resumed.
+// is numbered `turn`: a fresh one unless it is one resumed. The round's first
+// is noted as theirs.
 export function beginTurn(state: SceneState, id: string, { fleeing = false, turn = null }: { fleeing?: boolean; turn?: number | null } = {}): SceneState {
   const begun = turn === null ? state.turnsBegun + 1 : state.turnsBegun
-  return noteHiddenFrom({ ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null }, id)
+  const firstTurn = state.firstTurn ?? { turn: turn ?? begun, id }
+  return noteHiddenFrom({ ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null, firstTurn }, id)
 }
 
 // combat.tex "Actions in stealth": whom the holder begins the turn

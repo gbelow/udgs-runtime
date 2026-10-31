@@ -46,6 +46,7 @@ import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
 import { pickAim, pickStrikeDeclaration } from './declaration'
 import { getFiringState } from './steadyArms'
+import { getCunningReactionTerms, getCunningTestTerms } from './cunning'
 
 // What an action is rolled with and against: the weapon rows and
 // variations an attack can be made with, the opportunity attack a reaction
@@ -307,7 +308,7 @@ function getAnswerTerms(state: SceneState, attack: StrikeAction | ShootAction): 
 function getReactionTestTerms(state: SceneState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor || (reaction.kind !== 'avoidExplosion' && reaction.kind !== 'blockExplosion')) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : []), ...getChaseCoverTerms(state, reactor.id), ...reactionSensoryTerms(state, reaction, 'reflex')]
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : []), ...getChaseCoverTerms(state, reactor.id), ...reactionSensoryTerms(state, reaction, 'reflex'), ...getCunningReactionTerms(state, reaction)]
 }
 
 // combat.tex "Reflex": what one reaction to a shot puts up against it — the
@@ -317,7 +318,7 @@ function getReactionTestTerms(state: SceneState, reaction: Action): Term[] {
 function shotDefenseTerms(state: SceneState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...getChaseCoverTerms(state, reactor.id), ...reactionSensoryTerms(state, reaction, 'reflex')]
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...getChaseCoverTerms(state, reactor.id), ...reactionSensoryTerms(state, reaction, 'reflex'), ...getCunningReactionTerms(state, reaction)]
 }
 
 // combat.tex "Guard": "Shield Cover is added to guard as a bonus"; "Defend":
@@ -363,7 +364,7 @@ function strikeDefenseTerms(state: SceneState, root: StrikeAction, reaction: Act
   if (!reactor) return []
   const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction), ...reactionSensoryTerms(state, reaction, 'defend')]
   if (reaction.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(reactor) / 2) })
-  terms.push(...getModifierTerms(state, reaction))
+  terms.push(...getModifierTerms(state, reaction), ...getCunningReactionTerms(state, reaction))
   if (isHighGround(state, root.actorId, reactor.id)) terms.push({ label: 'high ground', value: 2 })
   return terms
 }
@@ -509,6 +510,12 @@ export type RootTestTerms = TestTerms & ({ scale: 'degrees' } | { scale: 'overfl
 // on the four degrees (combat.tex "Grapple Maneuvers": "on a critical", "on
 // a hit"), the grapple skill against the partner's.
 export function getRootTestTerms(state: SceneState, root: RootAction): RootTestTerms | null {
+  const terms = getOwnRootTestTerms(state, root)
+  // a spell test's die and skill are its target's, not the caster's
+  return terms && root.kind !== 'spellTest' ? { ...terms, skill: [...terms.skill, ...getCunningTestTerms(state, root)] } : terms
+}
+
+function getOwnRootTestTerms(state: SceneState, root: RootAction): RootTestTerms | null {
   const actor = state.characters[root.actorId]
   if (!actor) return null
   switch (root.kind) {

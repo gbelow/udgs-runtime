@@ -55,7 +55,8 @@ export function rollContest(thrown: Throw): Updater {
     const die = (id: string) => () => caller.die({ id: `contest:${id}`, roller: id, label: 'cunning, for the turn' }) ?? WAITING
     const rolls = [holder, ...getContenders(state)].map((id) => rollCunning(state, id, die(id)))
     const winner = getContestWinner(rolls) ?? holder
-    return { ...state, inTurnCharacter: winner, contenders: [], lastContest: { rolls, winner } }
+    const firstTurn = state.firstTurn?.turn === state.turn ? { ...state.firstTurn, id: winner } : state.firstTurn
+    return { ...state, inTurnCharacter: winner, contenders: [], lastContest: { rolls, winner }, firstTurn }
   })
 }
 

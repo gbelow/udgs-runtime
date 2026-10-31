@@ -1,7 +1,8 @@
 import { CampaignCharacter, Character, SurgeKind } from "../../types"
 import { RECOVERY_SURGE_SHORT, SURGES } from "../../tables"
 import { getAGI, getRecoveredSTA, getSTARegen } from "./characteristics"
-import { getBuffBonus } from "./effects"
+import { getBuffBonus, getGrantingAbility } from "./effects"
+import { ABILITIES } from "../../abilities"
 import { hasAffliction } from "./afflictions"
 import { getBled } from "./wounds"
 import { isCampaignCharacter } from "../../utils"
@@ -15,7 +16,29 @@ export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
 // flat amount. AGI here is the full characteristic — the injury exclusion in
 // "Afflictions" covers movement speeds, not the surge.
 export function getSurgeAP(kind: SurgeKind): (c: CampaignCharacter) => number {
-  return (c: CampaignCharacter) => SURGES[kind].AP(getAGI(c)) + getBuffBonus(c, `surge:${kind}`)
+  return (c: CampaignCharacter) => (isReactiveFighting(kind, c) ? 6 : SURGES[kind].AP(getAGI(c))) + getBuffBonus(c, `surge:${kind}`)
+}
+
+// The STA the surge costs: the table's, and what Reactive Fighting adds to
+// the reaction surge it betters.
+export function getSurgeSTA(kind: SurgeKind): (c: CampaignCharacter) => number {
+  return (c: CampaignCharacter) => SURGES[kind].STA + (isReactiveFighting(kind, c) ? getReactiveFightingSTA(c) ?? 0 : 0)
+}
+
+// abilities.json "Reactive Fighting": "Reaction surge gives 6 AP if the
+// character has 4 AP or more when they use the surge", for the ability's own
+// STA on top of the surge's. It is the same surge, bettered by itself
+// whenever it can be (the table's ruling); one who cannot pay the STA more
+// makes the plain one.
+function isReactiveFighting(kind: SurgeKind, c: CampaignCharacter): boolean {
+  if (kind !== 'reaction' || c.resources.AP < 4) return false
+  const extra = getReactiveFightingSTA(c)
+  return extra !== null && SURGES.reaction.STA + extra <= c.resources.STA
+}
+
+function getReactiveFightingSTA(c: CampaignCharacter): number | null {
+  const key = getGrantingAbility(c, 'reactiveFighting')
+  return key ? ABILITIES[key].cost.STA : null
 }
 
 // combat.tex "Action surge": one per round, so a surge already spent closes all
@@ -29,7 +52,7 @@ export function getSurgeAP(kind: SurgeKind): (c: CampaignCharacter) => number {
 export function canSurge(kind: SurgeKind, compelled = false): (c: CampaignCharacter) => boolean {
   return (c: CampaignCharacter) => {
     const surge = SURGES[kind]
-    if (c.usedSurge !== null || surge.STA > c.resources.STA) return false
+    if (c.usedSurge !== null || getSurgeSTA(kind)(c) > c.resources.STA) return false
     return compelled || !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
   }
 }
@@ -53,7 +76,8 @@ export function getSurgeRecovery(kind: SurgeKind): (c: CampaignCharacter) => num
 // recovery surge gives back.
 export function getSurged(kind: SurgeKind): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    const { STA, earmarked } = SURGES[kind]
+    const { earmarked } = SURGES[kind]
+    const STA = getSurgeSTA(kind)(c)
     const char = getBled(STA)(c)
     return {
       ...char,

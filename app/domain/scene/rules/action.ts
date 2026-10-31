@@ -58,7 +58,8 @@ import { canBeSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
 import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
-import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
+import { canReposition, findPrepared, getPreparationOf, getPreparedDiscount, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
+import { getStrategistDiscount } from './cunning'
 import { getOpeningJumpAttack, isJumpAttackLanding } from './jumpAttack'
 import { getFiringState, isSteadyPathLegal } from './steadyArms'
 import { getStrikeContext, isStrikeDeclarationOpen, isVariantOpen, type StrikeHolder } from './strikeDeclaration'
@@ -520,13 +521,28 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
   const { declared, label, added } = getOwnModifiedPrice(state, action, own)
   const recipe = getRecipeCost(state, action, declared)
   const modified = addModifierLines(recipe, added)
-  const priced = modified.reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), recipe)
+  const subtotal = modified.reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), recipe)
+  const discounts = getAbilityDiscounts(state, c, action, subtotal.AP)
+  const priced = discounts.reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), subtotal)
   const remaining = { AP: Math.max(0, priced.AP - action.carried.AP), STA: Math.max(0, priced.STA - action.carried.STA) }
   return [
     { label: label ?? getPriceLabel(action), ...declared },
     ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
     ...modified,
+    ...discounts,
     ...costChange('paid in the round before', remaining, priced),
+  ]
+}
+
+// What the abilities take off the price, line by line: Strategist off a
+// preparation, Prepared off the action it is for the first time it is made.
+function getAbilityDiscounts(state: SceneState, c: CampaignCharacter, action: Action, AP: number): CostTerm[] {
+  const strategist = action.kind === 'prepare' ? getStrategistDiscount(state, c, action.id, AP) : 0
+  const preparation = getPreparationOf(state, action)
+  const prepared = preparation ? getPreparedDiscount(state, preparation, AP) : 0
+  return [
+    ...(strategist > 0 ? [{ label: 'Strategist', AP: -strategist, STA: 0 }] : []),
+    ...(prepared > 0 ? [{ label: 'Prepared', AP: -prepared, STA: 0 }] : []),
   ]
 }
 

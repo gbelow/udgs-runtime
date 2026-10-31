@@ -2359,7 +2359,9 @@
         "description": "Prepared actions gain +1 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "deliberate"
+        ],
         "freeSpells": 0
       },
       {
@@ -2375,7 +2377,9 @@
         "description": "Prepared actions gain +2 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "deliberate"
+        ],
         "freeSpells": 0
       }
     ]
@@ -2478,10 +2482,12 @@
           }
         ],
         "requirements": [],
-        "description": "Whenever you win a cunning test to act before another character, you gain +1 in all skill tests against that character.",
+        "description": "Whenever you win a cunning test to act before another character, you gain +1 in all skill tests against that character on your turn.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "initiativeEdge"
+        ],
         "freeSpells": 0
       }
     ]
@@ -2510,10 +2516,12 @@
           }
         ],
         "requirements": [],
-        "description": "Receives +1 AP for each crit in the prepared action.",
+        "description": "Receives +1 AP for each crit in the prepared action, or when an attack has 5 HOPs or more.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "perfectPreparation"
+        ],
         "freeSpells": 0
       }
     ]
@@ -5642,7 +5650,9 @@
         "description": "Can prepare actions for allies that can understand the command. The ally is not forced to follow the command.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "battleCommands"
+        ],
         "freeSpells": 0
       }
     ]
@@ -5674,7 +5684,9 @@
         "description": "If the character is the first to take their turn in a round in combat, they can prepare an action for free.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "strategist"
+        ],
         "freeSpells": 0
       },
       {
@@ -5690,7 +5702,9 @@
         "description": "If the character is the first to take their turn in a round in combat, they can prepare two actions for free.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "strategist"
+        ],
         "freeSpells": 0
       }
     ]
@@ -5722,7 +5736,9 @@
         "description": "The first time a prepared action is performed, it costs 1 AP less.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "prepared"
+        ],
         "freeSpells": 0
       }
     ]
@@ -5754,7 +5770,9 @@
         "description": "Reaction surge gives 6 AP if the character has 4 AP or more when they use the surge.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "reactiveFighting"
+        ],
         "freeSpells": 0
       }
     ]
@@ -5783,10 +5801,12 @@
           }
         ],
         "requirements": [],
-        "description": "After feinting a character successfully, gains +1 in every reaction against them.",
+        "description": "After feinting a character successfully, gains +1 in every reaction against them on the provoked turn.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "improvedFeint"
+        ],
         "freeSpells": 0
       }
     ]

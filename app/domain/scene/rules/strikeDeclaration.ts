@@ -6,6 +6,7 @@ import { getCounterStrike } from './counter'
 import { getOpeningJumpAttack, isOpenedRow } from './jumpAttack'
 import { getAction, getRootOf } from './log'
 import { pickStrikeDeclaration } from './declaration'
+import { getPerformerId } from './performer'
 import { areModifiersOpen, getModifiedPrice, type ModifiedPrice, type ModifierContext } from './modifiers'
 
 // A strike is declared the same way whatever declares it (types.ts
@@ -37,8 +38,13 @@ function getHeldStrike(holder: StrikeHolder): StrikeAction {
     case 'strike': return holder
     case 'opportunityAttack': return getOpportunityStrike(holder, '')
     case 'counterattack': return getCounterStrike(holder, '')
-    case 'prepare': return makeAction('strike', { id: '', actorId: holder.actorId, ...pickStrikeDeclaration(holder) })
+    case 'prepare': return makeAction('strike', { id: '', actorId: getPerformerId(holder), ...pickStrikeDeclaration(holder) })
   }
+}
+
+// Who makes the strike: a preparation's is made by whoever it is for.
+function getStrikerId(holder: StrikeHolder): string {
+  return holder.kind === 'prepare' ? getPerformerId(holder) : holder.actorId
 }
 
 // The reaction the strike is declared on or opened by, if any.
@@ -49,7 +55,7 @@ function getDeclaringReaction(state: SceneState, holder: StrikeHolder): Action |
 }
 
 export function getStrikeContext(state: SceneState, holder: StrikeHolder): StrikeContext | null {
-  const actor = state.characters[holder.actorId]
+  const actor = state.characters[getStrikerId(holder)]
   if (!actor) return null
   const reaction = getDeclaringReaction(state, holder)
   const drawn = reaction?.kind === 'opportunityAttack' ? { braced: isBracedStep(state, reaction), hooked: isHookStep(state, reaction) } : null

@@ -139,14 +139,14 @@ click to what stands afterwards. It is admitted, under these terms.
   Some plays answer the open declaration from the panel's own offers (a row, a shot's ammo,
   a spell, a potion, a target clicked, a landing clicked) so that an action gets as far as being rolled.
   Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, archers across a pane of glass that breaks, an
-  archer trained to jump and shoot beside a brawler a warden threatens from the other side, a spearman, a trained warden with spear and shield, one with a body shield, a mage, a bomber with a potion, a netter, a brawler whose three cells bend behind its head, a bleeding medic) and a crowd of
+  archer trained to jump and shoot beside a brawler a warden threatens from the other side, a spearman, a trained warden with spear and shield, one trained in cunning as well, one with a body shield, a mage, a bomber with a potion, a netter, a brawler whose three cells bend behind its head, a bleeding medic) and a crowd of
   seven on ground with a pond and a cliff painted on it, once in the open and once with walls,
   glass, fog, dim and dark ground between them, a torch in one hand and the warden's
   shield a body shield, so that some begin out of the others' sight and stealth has someone to hide. In an exchange one declares something
   leaning to a grapple, a push, a shot, a throw or a spell, the others are answered with whatever
   defences are offered, and the roll runs on to its end, aiming what it opens. A walk, swim, climb
-  or jump is its own play, and so is an ambush: someone prepares a reaction and someone else is sent
-  walking at them, and a rescue: a shielded character prepares a defense of whoever is attacked and
+  or jump is its own play, and so is an ambush: someone prepares a reaction (for themselves or, where
+  they have learned Battle Commands, for someone else) and someone else is sent walking at them, and a rescue: a shielded character prepares a defense of whoever is attacked and
   someone attacks. Where someone holds a body shield, a shelter is played too: they are shot at and
   guard taking cover behind it, so that the shots after have a covered character to meet, and
   one who has learned to plant it plants it facing a cell the board offers. One who has learned a

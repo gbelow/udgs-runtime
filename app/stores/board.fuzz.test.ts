@@ -32,7 +32,7 @@ import { getAim } from '../domain/scene/rules/aim'
 import { hasGrant } from '../domain/character/rules/effects'
 import { hasAbility } from '../domain/abilities'
 import { JUMP_ATTACKS, type JumpAttackKey } from '../domain/scene/rules/jumpAttack'
-import { archer, bomber, crossbowman, brawler, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
+import { archer, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
@@ -147,6 +147,8 @@ function finishDeclaration(h: Harness, pick: Picker) {
 // it carries movement, and what it waits for, all from the panel's own offers.
 function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only: readonly string[] | null = null) {
   const view = () => getActionPanel(h.state()).prepare
+  const commands = view()?.commands ?? []
+  if (commands.length && pick([true, false])) h.send({ kind: 'amend', args: [{ forId: pick(commands).id, main: null, trigger: null }] })
   const mains = view()?.mains.filter((m) => m.available && (only === null || only.includes(m.kind))) ?? []
   if (!mains.length) return
   h.send({ kind: 'amend', args: [{ main: pick(mains).kind, weaponKey: '', attack: '', variant: '', ammoId: '', key: '', quicken: false, extend: 0, movement: 'basic' }] })
@@ -162,6 +164,13 @@ function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only:
   const waits = view()!
   const event = anyoneEntering ? waits.events.find((e) => e.event !== 'sighted') ?? waits.events[0] : pick(waits.events)
   h.send({ kind: 'amend', args: [{ trigger: { event: event.event, who: anyoneEntering ? null : pick(waits.who).id } }] })
+}
+
+// Who makes the preparation being declared: the one it is commanded for, or
+// its preparer (abilities.json "Battle Commands").
+function performerOf(h: Harness, preparer: string): string {
+  const open = getOpenAction(h.state())
+  return open?.kind === 'prepare' && open.forId ? open.forId : preparer
 }
 
 // What an answer that strikes or shoots for itself (a counterattack, an
@@ -789,10 +798,11 @@ function ambush(h: Harness, pick: Picker) {
   if (!ownOptions(h, preparer).some((o) => o.draft.kind === 'prepare')) return
   h.declare({ kind: 'prepare' })
   fillPreparation(h, pick, true)
+  const performer = performerOf(h, preparer)
   h.commit()
   if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
-  const at = h.state().board?.placements[preparer]?.cell
-  const mover = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer))
+  const at = h.state().board?.placements[performer]?.cell
+  const mover = pick(Object.values(h.state().characters).filter((c) => c.id !== performer && c.id !== preparer))
   if (!at || !mover) return
   h.select(mover.name)
   const [farthest] = h.view().cells.slice().sort((a, b) => distance(b.cell, at) - distance(a.cell, at))
@@ -819,10 +829,11 @@ function rescue(h: Harness, pick: Picker) {
   if (!ownOptions(h, preparer).some((o) => o.draft.kind === 'prepare')) return
   h.declare({ kind: 'prepare' })
   fillPreparation(h, pick, true, ['block', 'intercept', 'guard'])
+  const performer = performerOf(h, preparer)
   h.commit()
   if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
   h.send({ kind: 'endTurn', args: [] })
-  const attacker = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer))
+  const attacker = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer && c.id !== performer))
   if (!attacker) return
   h.select(attacker.name)
   h.startTurn()
@@ -830,8 +841,8 @@ function rescue(h: Harness, pick: Picker) {
   if (!attacks.length) return
   h.declare(pick(attacks).draft as ActionDraft)
   finishDeclaration(h, pick)
-  const defenses = answersOffered(h).filter((o) => o.id === preparer && 'preparedId' in o.draft && o.draft.preparedId)
-  if (defenses.length) h.send({ kind: 'react', args: [preparer, pick(defenses).draft] })
+  const defenses = answersOffered(h).filter((o) => o.id === performer && 'preparedId' in o.draft && o.draft.preparedId)
+  if (defenses.length) h.send({ kind: 'react', args: [performer, pick(defenses).draft] })
   playOut(h, pick)
 }
 
@@ -1027,6 +1038,7 @@ const DUELS = [
   { name: 'a warden and a trained archer', a: warden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a tower warden and a trained archer', a: towerWarden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a warden and a trained brawler', a: warden, b: (id: string) => trained(brawler(id)), apart: 1 },
+  { name: 'a cunning warden and a trained brawler', a: (id: string) => cunningTrained(warden(id)), b: (id: string) => trained(brawler(id)), apart: 1 },
   { name: 'two wardens', a: warden, b: warden, apart: 1 },
   { name: 'a mage and a warden', a: mage, b: warden, apart: 2 },
   { name: 'a bomber and a warden', a: bomber, b: warden, apart: 2 },
@@ -1095,7 +1107,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(walls.length ? towerWarden('Ann') : warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), walls.length ? torchbearer('Gus') : brawler('Gus'))
+  h.bring(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann')), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), walls.length ? torchbearer('Gus') : brawler('Gus'))
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
@@ -1384,7 +1396,7 @@ function openChase(seed: number, tier?: ChaseTier, table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(warden('Ann'), rangedTrained(trained(archer('Bob'))), brawler('Cy'), towerWarden('Dee'), crossbowman('Eve'), mage('Fay'))
+  h.bring(cunningTrained(warden('Ann')), rangedTrained(trained(archer('Bob'))), brawler('Cy'), towerWarden('Dee'), crossbowman('Eve'), mage('Fay'))
   h.send({ kind: 'splitOff', args: [h.idOf('Dee')] })
   const theirs = h.state().partyOf[h.idOf('Dee')]
   for (const name of ['Eve', 'Fay']) h.send({ kind: 'moveToParty', args: [h.idOf(name), theirs] })

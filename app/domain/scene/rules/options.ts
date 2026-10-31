@@ -50,6 +50,7 @@ import { getIncomingAP, getRoundChangeActBar, getRoundPhase } from './roundChang
 import { getChaseRestBar } from './chase'
 import { hasFightAffliction, isImmobile, isSuffocating } from './situational'
 import { getSidestepBar } from './sidestep'
+import { getPrepareCost } from './cunning'
 
 // What can be declared: every action and reaction open to a character right
 // now, each available or closed with the reason, so a command can refuse
@@ -513,10 +514,10 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     if (shields.length === 0) return [option({ kind: 'plant' }, cost, 'no body shield in hand')]
     return shields.map((shield) => option({ kind: 'plant', itemId: shield.id }, cost, !isPlaced(state, c) ? 'not on the board' : afford(state, c, cost)))
   },
-  // combat.tex "Preparing a reaction": 1 AP, whatever is prepared; it needs a
-  // board to be triggered on
+  // combat.tex "Preparing a reaction": 1 AP, whatever is prepared (free by
+  // Strategist); it needs a board to be triggered on
   prepare: (state, c) => {
-    const cost = getActionCost(c, 'prepare')
+    const cost = getPrepareCost(state, c)
     return [option({ kind: 'prepare' }, cost, !isPlaced(state, c) ? 'not on the board' : afford(state, c, cost))]
   },
   // combat.tex "Rest"

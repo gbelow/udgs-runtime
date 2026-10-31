@@ -217,3 +217,22 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   (`isRepositionPlaced`). `getStrikeDefense` / `getShotDefense` count a prepared defense only while
   it is placed and not cancelled. Nothing the movement opens triggers another prepared action
   (`isFromPrepared` reads a prepared defense as an ancestor).
+
+  **Who makes it** (abilities.json "Battle Commands", `rules/performer.ts`): a preparation may
+  name someone else, `forId`, anyone in the fight (the table's ruling), once its preparer has
+  learned to command (`getCommandBar`). The preparer declares and pays it; everything the
+  trigger and the action ask is then the performer's (`getPerformerId`): the zone, the trigger,
+  the reaction offered, what the action is made with and what it costs. Whatever an ability does
+  to a prepared action is its preparer's (the table's ruling: a command is made with its
+  commander's abilities).
+
+  **The Cunning abilities that work on it** (`rules/cunning.ts`, `rules/prepared.ts`): Deliberate's
+  +1|2 on the test of the prepared action (the main, or a prepared defense: `getPreparationOf`);
+  Prepared's 1 AP off that action the first time the preparation is carried out
+  (`getPreparedDiscount`, read by `getMainCost` and `getCostTerms`; `setActions` notes the
+  preparation in the round's `performed` registry once its action lands); Strategist's free
+  preparations for whoever took the round's first turn (`state.firstTurn`, noted by `beginTurn`
+  and moved to the winner of that turn's contest; `getPrepareCost`); Perfect Preparation's AP to
+  the preparer for each critical, or 5 HOP or more, among the tests its performer rolls in it
+  (`getPreparationWithin`), the held balance, climb and swim tests aside, stamped at the roll as
+  `preparationAP` and given by `reduceCharacter` there.

@@ -1,7 +1,7 @@
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SURGES, SURGE_ALLOWANCES, type SurgeAllowance } from '../../tables'
 import { surgeKinds } from '../../lists'
-import { canSurge, getSurgeAP } from '../rules/surge'
+import { canSurge, getSurgeAP, getSurgeSTA } from '../rules/surge'
 
 // View getter: which surge buttons are live, as a flat record of primitives the
 // store selector can shallow-compare.
@@ -25,7 +25,7 @@ export type SurgeOption = {
 export function getSurgeOptions(c: CampaignCharacter, compelled: SurgeKind | null = null): SurgeOption[] {
   return surgeKinds.map((kind) => ({
     kind,
-    title: `${SURGES[kind].STA} STA for ${getSurgeAP(kind)(c)} AP. ${getAllowanceLine(kind)}${SURGES[kind].restriction}`,
+    title: `${getSurgeSTA(kind)(c)} STA for ${getSurgeAP(kind)(c)} AP. ${getAllowanceLine(kind)}${SURGES[kind].restriction}`,
     available: canSurge(kind, kind === compelled)(c),
     used: c.usedSurge === kind,
   }))

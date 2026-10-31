@@ -70,7 +70,7 @@ export function nextRound(thrown: Throw): Updater {
     const receive = state.round === 0 ? startAP : receiveAP
     const moved = { ...state, chase: endChaseRound(state) }
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) || isParked(moved, id) ? c : receive(wake(state, c))]))
-    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
+    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })

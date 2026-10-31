@@ -103,6 +103,14 @@ export function meleeTrained(c: CampaignCharacter): CampaignCharacter {
   return (['gentle-art', 'clinch', 'charge', 'pikeman', 'blade-alignment', 'lunge', 'technical-lift', 'tackle', 'grappling-combat'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
+// The Cunning abilities (abilities.json): the bonuses a preparation, a turn
+// won by cunning and a won feint give, the AP back from a prepared crit,
+// commands, the free and the cheaper preparation, and the bettered reaction
+// surge.
+export function cunningTrained(c: CampaignCharacter): CampaignCharacter {
+  return (['deliberate-2', 'initiative-edge', 'perfect-preparation', 'battle-commands', 'strategist-2', 'prepared', 'desperate-action', 'improved-feint'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
+}
+
 // A brawler with a short sword in the other hand, which intercepts and is
 // bladed.
 export function swordBrawler(id: string): CampaignCharacter {
