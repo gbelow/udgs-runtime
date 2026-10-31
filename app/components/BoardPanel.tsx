@@ -303,9 +303,10 @@ export function SurfaceLayer({ view: whole, band }: { view: BoardView, band?: nu
         {view.arts.map((art, i) => !used.has(i) ? null : (
           <mask key={i} id={`${idPrefix}surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>{body(art, i)}</mask>
         ))}
-        <clipPath id={`${idPrefix}surface-board`}>
-          {view.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} />)}
-        </clipPath>
+        {/* a mask, not a clipPath: Chrome drops some hexes from a clip of many hexes that share edges */}
+        <mask id={`${idPrefix}surface-board`} maskUnits='userSpaceOnUse' {...region}>
+          {view.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={SEAM} />)}
+        </mask>
         {view.arts.map((art, i) => !used.has(i) || art.bank <= 0 ? null : (<Fragment key={i}>
           <filter id={`${idPrefix}surface-bank-${i}`} filterUnits='userSpaceOnUse' {...region}>
             <feMorphology in='SourceAlpha' operator='dilate' radius={art.bank} result='fat' />
@@ -328,7 +329,7 @@ export function SurfaceLayer({ view: whole, band }: { view: BoardView, band?: nu
           </mask>
         </Fragment>))}
       </defs>
-      <g clipPath={`url(#${idPrefix}surface-board)`}>
+      <g mask={`url(#${idPrefix}surface-board)`}>
         {view.arts.map((art, i) => !used.has(i) ? null : (<Fragment key={i}>
           <rect {...region} fill={`url(#${idPrefix}surface-${i})`} mask={`url(#${idPrefix}surface-mask-${i})`} />
           {art.bank > 0 ? (<>
@@ -347,8 +348,8 @@ export function SurfaceLayer({ view: whole, band }: { view: BoardView, band?: nu
 // that the dark falls off softly instead of in steps of whole hexes. A cell is
 // drawn in white a little past its edge and its level is the opacity of the
 // whole group, so that the blur fades from full colour at the board's rim and
-// cells of one level do not add up. The ground layer's clip keeps it on the
-// board.
+// cells of one level do not add up. The ground layer's mask of the board keeps
+// it on the board.
 const SHADE_BLUR = 0.35
 const SHADE_BLEED = 0.45
 const NIGHT_DIM = 0.6
@@ -381,7 +382,7 @@ export function ShadeLayer({ view: whole, band }: { view: BoardView, band?: numb
   ].filter((v) => v.levels.length > 0)
   if (veils.length === 0) return null
   return (
-    <g className='pointer-events-none' clipPath={`url(#${idPrefix}surface-board)`}>
+    <g className='pointer-events-none' mask={`url(#${idPrefix}surface-board)`}>
       <defs>
         <filter id={`${idPrefix}shade-soft`} filterUnits='userSpaceOnUse' {...region}>
           <feGaussianBlur stdDeviation={SHADE_BLUR} />
