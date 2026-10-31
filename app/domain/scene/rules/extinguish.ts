@@ -1,5 +1,5 @@
 import type { SceneState, Coord, ExtinguishAction, TerrainCell } from '../types'
-import { parseCoordKey, sameCell, setDistance } from './board/geometry'
+import { coordKey, disk, sameCell, setDistance } from './board/geometry'
 import { getPlacedFootprint } from './board/board'
 import { getCellHazard, isLayerLive } from './board/hazard'
 
@@ -8,14 +8,14 @@ import { getCellHazard, isLayerLive } from './board/hazard'
 
 const REACH = 1
 
-// Every burning space the actor stands in or is next to.
+// Every burning space the actor stands in or is next to, on the floor their
+// feet are on.
 export function getExtinguishCells(state: SceneState, actorId: string): Coord[] {
   const footprint = getPlacedFootprint(state, actorId)
+  const feet = state.board?.placements[actorId]?.elevation
   if (!state.board || !footprint) return []
-  return Object.keys(state.board.terrain).flatMap((key) => {
-    const cell = parseCoordKey(key)
-    return cell && getCellHazard(state, cell).fire > 0 && setDistance([cell], footprint) <= REACH ? [cell] : []
-  })
+  const near = new Map(footprint.flatMap((at) => disk(at, REACH)).map((cell) => [coordKey(cell), cell]))
+  return [...near.values()].filter((cell) => getCellHazard(state, cell, feet).fire > 0 && setDistance([cell], footprint) <= REACH)
 }
 
 export function isExtinguishCell(state: SceneState, action: ExtinguishAction): boolean {

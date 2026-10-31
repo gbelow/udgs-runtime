@@ -56,8 +56,13 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   step. A climb goes to the floor a cliff up or down in the next cell (`getClimbTarget`), never
   through a floor over the climber, and a climber hanging keeps the two floors of their face
   (`Placement.climb.floor`, `bound`). Melee reach counts the metres between two bodies up or
-  down as cells (`getMeleeGap`); every other distance is flat. Fire and gas on a storey
-  are not wired in yet. Light is: a floor with a solid storey a cliff or more over it (`getRoofs`)
+  down as cells (`getMeleeGap`), and so does a blast (below); every other distance is flat. Fire,
+  gas and fuel are kept on the floor they were left on (`getFloorTerrain`, `withFloorAt`) and read
+  through the height of someone's feet. A disk goes off on a floor (`floor` on the explosion, the
+  blast and the throw, picked by the height the screen looked from, `Click.height`, or the aimer's
+  own, `getAimedFloor`): a place is in the ring of the cells across or the metres up or down,
+  whichever is the farther, and a solid floor between the two heights in either cell shuts it off;
+  it paints each floor it reaches. Light is: a floor with a solid storey a cliff or more over it (`getRoofs`)
   is under a roof and has no light of its own; it takes the light of an open floor outside it sees
   through a window or a doorway, a step darker past `WINDOW_LIGHT.full` and none past `fading`, and a
   source's, which shines from its holder's eyes and never through a solid floor. A `lattice` storey cell (leaves, a grating) is stood on like a floor but

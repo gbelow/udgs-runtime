@@ -9,9 +9,11 @@ import { setTarget } from './action'
 import { paintTerrain, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
 import { pickFloorItem } from './floor'
 
-// What the board is clicked on.
+// What the board is clicked on. A cell is clicked as the screen looked at
+// the board: from a storey's height, from the ground (null), or with nothing
+// said, from the height of whoever aims.
 export type Click =
-  | { on: 'cell', cell: Coord }
+  | { on: 'cell', cell: Coord, height?: number | null }
   | { on: 'token', id: string }
   | { on: 'floor', itemId: string }
   | { on: 'turn' }
@@ -40,7 +42,7 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
   const open = getOpenAction(state)
   const actor = open ? { id: open.actorId } : null
   switch (click.on) {
-    case 'cell': return readCell(state, click.cell, ctx)
+    case 'cell': return readCell(state, click.cell, ctx, click.height)
     case 'token': return getDeclaredTargets(state, open).includes(click.id) ? { actor, apply: setTarget(click.id) } : { select: click.id }
     case 'floor': {
       if (getDeclaredFloorTargets(state, open).some((f) => f.item.id === click.itemId)) return { actor, apply: setTarget(click.itemId) }
@@ -59,11 +61,11 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
 
 const NOTHING = { actor: null, apply: (s: SceneState) => s }
 
-function readCell(state: SceneState, cell: Coord, ctx: ClickContext): ClickReading {
+function readCell(state: SceneState, cell: Coord, ctx: ClickContext, height?: number | null): ClickReading {
   if (ctx.brush) return { actor: 'gm', apply: paintTerrain(cell, ctx.brush, ctx.radius ?? 0) }
   const mode = getBoardMode(state)
   if (mode === 'path' || mode === 'jump' || mode === 'aim') {
-    const pick = readPick(state, cell, ctx.newId)
+    const pick = readPick(state, cell, ctx.newId, height)
     return pick ? { actor: { id: pick.actor }, apply: pick.apply } : NOTHING
   }
   if (mode === 'idle' && ctx.selected) {

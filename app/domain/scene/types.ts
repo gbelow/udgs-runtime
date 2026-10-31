@@ -766,6 +766,9 @@ export const ExplosionActionSchema = z.object({
   key: str.default(''),
   itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
+  // the height of the floor the centre is on, as it was aimed; null is the
+  // ground there
+  floor: num.nullable().default(null),
   // the area effects it goes off with, written at the resolve while what
   // carried them is still there to read
   effects: z.array(SpellEffectSchema).default([]),
@@ -792,12 +795,14 @@ export const BlastActionSchema = z.object({
   gm: z.boolean().default(false),
   effects: z.array(SpellEffectSchema).default([]),
   center: CoordSchema.nullable().default(null),
+  floor: num.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),
   facts: DeliveriesSchema.nullable().default(null),
   paintOnly: z.boolean().default(false),
   armorRolls: ArmorRolls,
-  // combat.tex "Gas", "Fire": what it leaves on the ground, cell by cell
-  paint: z.array(z.object({ cell: CoordSchema, hazard: HazardSchema })).default([]),
+  // combat.tex "Gas", "Fire": what it leaves on the ground, cell by cell,
+  // each on the floor of that cell `floor` high (the ground's when null)
+  paint: z.array(z.object({ cell: CoordSchema, floor: num.nullable().default(null), hazard: HazardSchema })).default([]),
 }).strip()
 
 // spells.tex "Casting spells": a spell cast in the fight. The caster's test
@@ -1300,6 +1305,9 @@ export const ThrowActionSchema = z.object({
   kind: z.literal('throw'),
   itemId: str.default(''),
   to: CoordSchema.nullable().default(null),
+  // the height of the floor it lands on there, as it was aimed; null is the
+  // ground
+  floor: num.nullable().default(null),
   // what was thrown, written at the resolve
   thrown: ItemSchema.nullable().default(null),
 }).strip()

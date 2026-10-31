@@ -70,12 +70,13 @@ const byRange: Impair = (state, o, t, range) => {
 // visibility is partial, none is nothing to target; "Fog and smoke": whoever
 // stands in it sees no further than its radius, and others inside within it
 // are in bad visibility.
-function seeInto(state: SceneState, from: Coord[], at: Coord[], dimSighted: () => boolean, feet?: number): Impairment {
+// `feet` and `own` are the heights the one looked at and the eye stand at.
+function seeInto(state: SceneState, from: Coord[], at: Coord[], dimSighted: () => boolean, feet?: number, own?: number): Impairment {
   const light = getLightAt(state, at, feet)
   if (light === 'dark') return 'total'
   const near = setDistance(from, at) <= FOG_VISION_RADIUS
-  const inFog = getHazardAt(state, from).visibility === 'zero'
-  const there = getHazardAt(state, at).visibility
+  const inFog = getHazardAt(state, from, own).visibility === 'zero'
+  const there = getHazardAt(state, at, feet).visibility
   if (there === 'zero') return inFog && near ? 'partial' : 'total'
   if (inFog && !near) return 'total'
   return there === 'bad' || (light === 'dim' && !dimSighted()) ? 'partial' : 'none'
@@ -94,7 +95,7 @@ const IMPAIRMENTS: Record<keyof Senses, Impair> = {
     const from = getPlacedFootprint(state, o)
     const at = getPlacedFootprint(state, t)
     const observer = state.characters[o]
-    const seen = from && at ? seeInto(state, from, at, () => !!observer && seesInDimLight(observer), state.board?.placements[t]?.elevation) : 'none'
+    const seen = from && at ? seeInto(state, from, at, () => !!observer && seesInDimLight(observer), state.board?.placements[t]?.elevation, state.board?.placements[o]?.elevation) : 'none'
     return seen === 'none' && isCamouflaged(state, t) ? 'partial' : seen
   },
   // combat.tex "Hearing": "triggered by a sound event"; nothing on the board
@@ -192,8 +193,8 @@ function getVisibilityTerm(state: SceneState, observer: CampaignCharacter, towar
   const target = typeof toward === 'string' ? state.characters[toward] : undefined
   const at = typeof toward === 'string' ? getPlacedFootprint(state, toward) ?? [] : [...toward]
   const camouflage = target ? getCamouflage(target) : null
-  const ground = getHazardAt(state, at).visibility
   const feet = typeof toward === 'string' ? state.board?.placements[toward]?.elevation : undefined
+  const ground = getHazardAt(state, at, feet).visibility
   const dim = getLightAt(state, at, feet) === 'dim' && !seesInDimLight(observer)
   const sources = [...(ground === 'bad' || ground === 'zero' || dim ? [BAD_VISIBILITY_PENALTY] : []), ...(camouflage === null ? [] : [-camouflage])]
   return sources.length === 0 ? 0 : Math.min(...sources)
@@ -204,7 +205,7 @@ function getVisibilityTerm(state: SceneState, observer: CampaignCharacter, towar
 function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from: Coord[], at: Coord[], sense: keyof Senses, eyes: Eyes = LEVEL_EYES, floor?: number): Impairment {
   if (sense !== 'vision') return TOTAL_INTO[sense](state, from, at, observer.senses[sense].range) ? 'total' : 'none'
   if (state.board && !seesAcross(state.board, from, at, eyes)) return 'total'
-  return seeInto(state, from, at, () => seesInDimLight(observer), floor)
+  return seeInto(state, from, at, () => seesInDimLight(observer), floor, state.board?.placements[observer.id]?.elevation)
 }
 
 // Whether an active sense of the observer takes in anything of a cell of the

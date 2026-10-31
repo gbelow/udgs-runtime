@@ -10,6 +10,7 @@ import { getSurface, pickArt } from '../rules/board/surface'
 import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
+import { getAimedFloor } from '../rules/explosion'
 import { CLIMB_EASY_DL, COVER_START_RES, FALL, SWIM_DEFAULT_DL } from '../../tables'
 import { getBeyondEdge, getFootprint, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
 import { getHeight } from '../../character/rules/size'
@@ -424,7 +425,7 @@ const unchanged: Updater = (s) => s
 // The pick `pickCell` makes, and whom it is made for: the open action's
 // actor, but for the step a guard takes and the landing of an evasive jump,
 // which are the guard's and the jumper's. Null with nothing open.
-export function readPick(state: SceneState, cell: Coord, newId: () => string): { actor: string, apply: Updater } | null {
+export function readPick(state: SceneState, cell: Coord, newId: () => string, height?: number | null): { actor: string, apply: Updater } | null {
   const open = getOpenAction(state)
   if (!open) return null
   const own = (apply: Updater) => ({ actor: open.actorId, apply })
@@ -439,7 +440,8 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string): {
   const aim = getAim(state, open)
   if (aim) {
     if (!aim.cells.some((c) => sameCell(c, cell))) return own(unchanged)
-    return own(aim.field === 'center' ? amendAction({ center: cell }) : aim.field === 'cell' ? aimAtCell(cell) : aim.field === 'displace' ? displaceTrampled(cell) : amendAction({ to: cell }))
+    const floor = open.kind === 'explosion' || open.kind === 'throw' ? { floor: getAimedFloor(state, open, cell, height) } : {}
+    return own(aim.field === 'center' ? amendAction({ center: cell, ...floor }) : aim.field === 'cell' ? aimAtCell(cell) : aim.field === 'displace' ? displaceTrampled(cell) : amendAction({ to: cell, ...floor }))
   }
   if (open.kind === 'blast' && open.step === 'post') {
     const from = state.board?.placements[open.actorId]

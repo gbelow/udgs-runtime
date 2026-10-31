@@ -110,6 +110,24 @@ export function getTerrainAt(board: Board, cell: Coord, height: number): Footing
     : floors.reduce((a, b) => (b.floor < a.floor ? b : a))
 }
 
+// The floor of the cell someone whose feet are at `feet` stands on, the
+// ground's when no height is given: where what lies on a floor (fire, gas,
+// fuel) is kept and read.
+export function getFloorTerrain(board: Board, cell: Coord, feet?: number): TerrainCell | undefined {
+  return feet === undefined ? board.terrain[coordKey(cell)] : getTerrainAt(board, cell, feet).terrain
+}
+
+// The board with that floor changed; a ground cell nothing was painted on
+// yet is a plain one.
+export function withFloorAt(board: Board, cell: Coord, feet: number | undefined, change: (t: TerrainCell) => TerrainCell): Board {
+  const key = coordKey(cell)
+  const level = feet === undefined ? null : getTerrainAt(board, cell, feet).level
+  if (level === null) return { ...board, terrain: { ...board.terrain, [key]: change(board.terrain[key] ?? TerrainCellSchema.parse({})) } }
+  const storey = board.levels[level]
+  const was = storey.terrain[key]
+  return { ...board, levels: board.levels.map((l, i) => (i === level ? { ...l, terrain: { ...l.terrain, [key]: { ...was, ...change(was) } } } : l)) }
+}
+
 // combat.tex "Climbing": the floor a climb from a floor `here` high in one
 // cell goes to in the next, a cliff above or below it. Up, the lowest such
 // floor, with nothing over the climber's own cell on the way; down, the
@@ -285,7 +303,7 @@ export type Eyes = { from: number; to: number }
 export const LEVEL_EYES: Eyes = { from: 0, to: 0 }
 
 // A character's eyes are as high as their feet and their height.
-function getEyeHeight(state: SceneState, id: string): number {
+export function getEyeHeight(state: SceneState, id: string): number {
   const c = state.characters[id]
   return (state.board?.placements[id]?.elevation ?? 0) + (c ? getHeight(c) : 0)
 }

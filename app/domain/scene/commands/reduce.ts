@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
-import { HazardLayerSchema, TerrainCellSchema, type Action, type AttackAction, type Board, type SceneState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type ShootAction, type Tether, type Trample } from '../types'
-import { getFootprint, placeAt } from '../rules/board/board'
+import { HazardLayerSchema, type Action, type AttackAction, type Board, type SceneState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type ShootAction, type Tether, type Trample } from '../types'
+import { getFootprint, placeAt, withFloorAt } from '../rules/board/board'
 import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
 import { woundPart } from '../../character/commands/wounds'
@@ -32,7 +32,6 @@ import { getNetTethers, isNetCut } from '../rules/cut'
 import { getArcMade } from '../rules/fireAgain'
 import { findSlipTether, getTethersMade, isTying } from '../rules/tether'
 import { isWon } from '../rules/test'
-import { coordKey } from '../rules/board/geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { SPELL_LIGHT, STUN_AP } from '../../tables'
 import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, getLinkOutcome, type LinkOutcome } from '../rules/cast'
@@ -356,8 +355,7 @@ function lightBurned(state: SceneState, attack: AttackAction, board: Board): Boa
   const ground = getGroundCell(state, attack)
   const burn = getBurnOf(state, attack)
   if (!ground || burn <= 0 || !attack.roll || attack.roll.degree === 'miss' || isVoided(state, attack) || isStoppedByGuard(state, attack)) return board
-  const key = coordKey(ground)
-  return board.terrain[key] ? { ...board, terrain: { ...board.terrain, [key]: igniteCell(state, board.terrain[key], burn) } } : board
+  return withFloorAt(board, ground, board.placements[attack.actorId]?.elevation, (cell) => igniteCell(state, cell, burn))
 }
 
 // combat.tex "Crash": who it stunned, and the target it knocked prone —
@@ -438,24 +436,18 @@ function landOnBoard(state: SceneState, action: Action, phase: Phase): (board: B
     if (action.kind === 'blast') {
       const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
       const heldBy = getHolderOf(state, action, opener)
-      const terrain = heldBy ? filterLayers(board.terrain, (l) => !isSupersededBy(l, heldBy)) : { ...board.terrain }
-      for (const { cell, hazard } of action.paint) {
-        const key = coordKey(cell)
-        const was = terrain[key] ?? TerrainCellSchema.parse({})
-        terrain[key] = igniteCell(state, { ...was, layers: [...was.layers, HazardLayerSchema.parse({ ...hazard, heldBy })] }, hazard.fire)
-      }
-      return { ...board, terrain }
+      const cleared = heldBy ? filterLayers(board, (l) => !isSupersededBy(l, heldBy)) : board
+      return action.paint.reduce((painted, { cell, floor, hazard }) => withFloorAt(painted, cell, floor ?? undefined, (was) =>
+        igniteCell(state, { ...was, layers: [...was.layers, HazardLayerSchema.parse({ ...hazard, heldBy })] }, hazard.fire)), cleared)
     }
     // combat.tex "Fire": what burned in the muffled space is out
     if (action.kind === 'extinguish' && action.to) {
-      const key = coordKey(action.to)
-      const was = board.terrain[key]
-      return was ? { ...board, terrain: { ...board.terrain, [key]: extinguishCell(state, was) } } : board
+      return withFloorAt(board, action.to, board.placements[action.actorId]?.elevation, (was) => extinguishCell(state, was))
     }
     // gear.tex "Special Items": a flask breaks where it lands and coats the space
     if (action.kind === 'throw' && action.thrown?.fuel && action.to) {
-      const key = coordKey(action.to)
-      return { ...board, terrain: { ...board.terrain, [key]: coatCell(state, board.terrain[key] ?? TerrainCellSchema.parse({}), action.thrown.fuel) } }
+      const fuel = action.thrown.fuel
+      return withFloorAt(board, action.to, board.placements[action.actorId]?.elevation, (was) => coatCell(state, was, fuel))
     }
     return lit
   }

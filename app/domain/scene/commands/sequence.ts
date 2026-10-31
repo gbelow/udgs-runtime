@@ -220,7 +220,7 @@ function openBefore(state: SceneState, root: RootAction, newId: () => string): S
 // once the escapes the reflexes that cleared it open have been walked — so
 // it goes beneath them.
 function goOff(root: ExplosionAction, newId: () => string): Action {
-  return makeAction('blast', { id: newId(), actorId: root.actorId, spawnedBy: root.id, key: root.key, gm: root.source === 'gm', effects: root.effects, center: root.center, paintOnly: root.paintOnly, armorRolls: root.armorRolls, step: 'post' })
+  return makeAction('blast', { id: newId(), actorId: root.actorId, spawnedBy: root.id, key: root.key, gm: root.source === 'gm', effects: root.effects, center: root.center, floor: root.floor, paintOnly: root.paintOnly, armorRolls: root.armorRolls, step: 'post' })
 }
 
 // The follow-ups the landed action generates, the last played out first:
@@ -347,7 +347,7 @@ function reaimedSpray(state: SceneState, root: FireAgainAction, newId: () => str
 function impactExplosion(state: SceneState, root: ThrowAction, newId: () => string): ExplosionAction[] {
   const tied = root.thrown ? null : findObject(state, root.itemId)
   const item = root.thrown ?? (tied && isTying(tied) ? tied : null)
-  const explosion = item && root.to ? getImpactExplosion(state, root.actorId, item, root.to, { id: newId(), spawnedBy: root.id, step: 'react' }) : null
+  const explosion = item && root.to ? getImpactExplosion(state, root.actorId, item, root.to, { id: newId(), spawnedBy: root.id, step: 'react', floor: root.floor }) : null
   return explosion ? [explosion] : []
 }
 

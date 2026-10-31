@@ -77,9 +77,10 @@ export function getFloorTargets(state: SceneState, attack: AttackAction): FloorI
 }
 
 // combat.tex "Fire": burning damage lights fuel, so the spaces within reach
-// that hold fuel not yet alight are worth aiming a burning attack at.
+// that hold fuel not yet alight, on the attacker's floor, are worth aiming a
+// burning attack at.
 export function getCellTargets(state: SceneState, attack: AttackAction): Coord[] {
   if (!mayAimAtGround(attack) || getBurnOf(state, attack) <= 0) return []
   const reach = attack.kind === 'shoot' ? getShotReachOf(state, attack) : getStrikeReach(state, attack)
-  return reach === null ? [] : getAimableCells(state, attack.actorId, reach, firesAcross).filter((cell) => hasUnlitFuel(state, cell))
+  return reach === null ? [] : getAimableCells(state, attack.actorId, reach, firesAcross).filter((cell) => hasUnlitFuel(state, cell, state.board?.placements[attack.actorId]?.elevation))
 }

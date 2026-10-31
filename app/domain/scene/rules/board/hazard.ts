@@ -3,8 +3,8 @@ import { HazardLayerSchema, type Action, type BlastAction, type Board, type Scen
 import { SPELLS, isSpellKey } from '../../../spells'
 import { FUEL_BURN } from '../../../tables'
 import { isSpellActive } from '../../../character/rules/effects'
-import { coordKey, sameCell } from './geometry'
-import { getFootprint, getPlacedFootprint } from './board'
+import { sameCell } from './geometry'
+import { getFloorTerrain, getFootprint, getPlacedFootprint } from './board'
 import { getMoveOrigin, getMoveWaypoint, touchesGround } from './waypoint'
 import { getTurnHolder } from '../turn'
 import { findOpenRoot } from '../log'
@@ -13,7 +13,9 @@ import { findOpenRoot } from '../log'
 // on it — the fire and the gas actions left on each cell, and the gas the
 // map was drawn with. A creature over several cells takes the worst of them
 // (combat.tex "Fire": "Creatures that take multiple spaces take the worst
-// space they touched").
+// space they touched"). What is left on a floor stays on it: each storey
+// keeps its own, and whoever stands somewhere is in what their floor holds,
+// read through the height of their feet (the ground's when none is given).
 
 const VISIBILITY_ORDER: Visibility[] = ['good', 'bad', 'zero']
 
@@ -59,10 +61,12 @@ export function isSupersededBy(layer: HazardLayer, heldBy: NonNullable<HazardLay
   return !!layer.heldBy && layer.heldBy.id === heldBy.id && layer.heldBy.key === heldBy.key && layer.heldBy.explosionId !== heldBy.explosionId
 }
 
-// The terrain with only the layers `keep` says stay; a cell that loses none
-// is the same cell.
-export function filterLayers(terrain: Board['terrain'], keep: (layer: HazardLayer) => boolean): Board['terrain'] {
-  return Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, cell.layers.every(keep) ? cell : { ...cell, layers: cell.layers.filter(keep) }]))
+// The board with only the layers `keep` says stay, on every floor; a cell
+// that loses none is the same cell.
+export function filterLayers(board: Board, keep: (layer: HazardLayer) => boolean): Board {
+  const filter = <T extends TerrainCell>(terrain: Record<string, T>): Record<string, T> =>
+    Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, cell.layers.every(keep) ? cell : { ...cell, layers: cell.layers.filter(keep) }]))
+  return { ...board, terrain: filter(board.terrain), levels: board.levels.map((l) => ({ ...l, terrain: filter(l.terrain) })) }
 }
 
 
@@ -82,46 +86,46 @@ export function coatCell(state: SceneState, cell: TerrainCell, fuel: Fuel): Terr
 }
 
 // What one cell does to whoever stands in it.
-export function getCellHazard(state: SceneState, cell: Coord): Hazard {
-  const terrain = state.board?.terrain[coordKey(cell)]
+export function getCellHazard(state: SceneState, cell: Coord, feet?: number): Hazard {
+  const terrain = state.board ? getFloorTerrain(state.board, cell, feet) : undefined
   if (!terrain) return NO_HAZARD
   const drawn: Hazard = { fire: 0, suffocating: terrain.suffocating, visibility: terrain.visibility === 'good' ? null : terrain.visibility }
   return terrain.layers.filter((l) => isLayerLive(state, l)).reduce<Hazard>(combineHazards, drawn)
 }
 
 // Whether the cell holds fuel that has not caught fire.
-export function hasUnlitFuel(state: SceneState, cell: Coord): boolean {
-  const layers = state.board?.terrain[coordKey(cell)]?.layers ?? []
+export function hasUnlitFuel(state: SceneState, cell: Coord, feet?: number): boolean {
+  const layers = (state.board ? getFloorTerrain(state.board, cell, feet) : undefined)?.layers ?? []
   return layers.some((l) => l.fuel && l.fire === 0 && isLayerLive(state, l))
 }
 
 // The fuels coating a cell, burning or not.
-export function getCellFuels(state: SceneState, cell: Coord): Fuel[] {
-  const layers = state.board?.terrain[coordKey(cell)]?.layers ?? []
+export function getCellFuels(state: SceneState, cell: Coord, feet?: number): Fuel[] {
+  const layers = (state.board ? getFloorTerrain(state.board, cell, feet) : undefined)?.layers ?? []
   return [...new Set(layers.filter((l) => isLayerLive(state, l)).flatMap((l) => (l.fuel ? [l.fuel] : [])))]
 }
 
 // The worst of the cells a footprint covers.
-export function getHazardAt(state: SceneState, cells: Coord[]): Hazard {
-  return cells.map((cell) => getCellHazard(state, cell)).reduce(combineHazards, NO_HAZARD)
+export function getHazardAt(state: SceneState, cells: Coord[], feet?: number): Hazard {
+  return cells.map((cell) => getCellHazard(state, cell, feet)).reduce(combineHazards, NO_HAZARD)
 }
 
 // What the character's footprint stands in; nothing off the board.
 export function getHazardOf(state: SceneState, id: string): Hazard {
   const footprint = getPlacedFootprint(state, id)
-  return footprint ? getHazardAt(state, footprint) : NO_HAZARD
+  return footprint ? getHazardAt(state, footprint, state.board?.placements[id]?.elevation) : NO_HAZARD
 }
 
-// The footprints a move `touchesGround` on, from where it set out to where
-// it landed.
-export function getWalkedFootprints(state: SceneState, action: MoveAction): Coord[][] {
+// The places a move `touchesGround` on, from where it set out to where it
+// landed: each footprint and the height of the feet on it.
+export function getWalkedFootprints(state: SceneState, action: MoveAction): { cells: Coord[]; feet: number }[] {
   const c = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
   if (!c || !from || !action.facts) return []
   const { path } = action.facts
   return [from, ...path.map((_, i) => getMoveWaypoint(state, action, i + 1))]
     .filter((p, i): p is Placement => p !== null && touchesGround(action.movement, i === path.length))
-    .map((p) => getFootprint(c, p))
+    .map((p) => ({ cells: getFootprint(c, p), feet: p.elevation }))
 }
 
 // combat.tex "Fire": "The fire damage taken at the end of the turn is the
@@ -141,6 +145,6 @@ export function getFireTouched(state: SceneState, action: Action): FireTouched |
   if (!holder || !state.characters[holder]) return null
   const moving = findOpenRoot(state, 'move', (m) => m.actorId === holder) !== null
   const walked = action.kind === 'move' && action.actorId === holder ? getWalkedFootprints(state, action) : []
-  const fire = Math.max(moving ? 0 : getHazardOf(state, holder).fire, ...walked.map((f) => getHazardAt(state, f).fire))
+  const fire = Math.max(moving ? 0 : getHazardOf(state, holder).fire, ...walked.map((f) => getHazardAt(state, f.cells, f.feet).fire))
   return fire > 0 ? { id: holder, fire } : null
 }

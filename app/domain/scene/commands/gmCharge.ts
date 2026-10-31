@@ -29,7 +29,7 @@ export function setOffItem(itemId: string, newId: () => string): Updater {
   return (state) => {
     const detonation = getItemDetonation(state, itemId)
     if (!detonation || getOpenAction(state)) return state
-    const { effects, dl, center } = detonation
-    return appendActions(state, [makeAction('explosion', { id: newId(), actorId: '', source: 'gm', itemId, dl, effects, center, step: 'react' })])
+    const { effects, dl, center, floor } = detonation
+    return appendActions(state, [makeAction('explosion', { id: newId(), actorId: '', source: 'gm', itemId, dl, effects, center, floor, step: 'react' })])
   }
 }

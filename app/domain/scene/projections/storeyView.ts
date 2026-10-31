@@ -42,7 +42,7 @@ export function getViewEye(state: SeenScene, picked: number | null | 'auto'): st
 }
 
 // What the cell looks like is the drawn floor's; what it offers is the view's.
-const DRAWN: (keyof BoardCellView)[] = ['terrain', 'strength', 'elevation', 'elevationLabel', 'fire', 'fuels', 'suffocating', 'visibility', 'noise', 'surface', 'art', 'bledInto']
+const DRAWN: (keyof BoardCellView)[] = ['terrain', 'strength', 'elevation', 'elevationLabel', 'fire', 'fuels', 'suffocating', 'visibility', 'noise', 'surface', 'art', 'bledInto', 'zone']
 
 const cache = new WeakMap<BoardView, Map<string, BoardView>>()
 

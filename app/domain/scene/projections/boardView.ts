@@ -318,7 +318,7 @@ function buildBoardView(state: SeenScene): BoardView {
   })
   const centers = new Set(aim ? aim.cells.map(coordKey) : [])
   const threatened = new Set(laid ? getThreatenedCells(state, laid).map(coordKey) : [])
-  const zones = new Map(laid ? getExplosionZones(state, laid).map((z) => [coordKey(z.cell), z.degree]) : [])
+  const zones = new Map(laid ? getExplosionZones(state, laid).filter((z) => z.floor === (board.terrain[coordKey(z.cell)]?.elevation ?? 0)).map((z) => [coordKey(z.cell), z.degree]) : [])
 
   // The drawn cells: those within the board's extent, plus anything placed,
   // painted or threatened beyond it.

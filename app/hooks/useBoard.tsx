@@ -43,7 +43,7 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
     else dispatch({ kind: "click", args: [c, brush, reposition, selected, radius] });
   };
 
-  const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean, radius: number) => click({ on: 'cell', cell }, brush, reposition, radius);
+  const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean, radius: number) => click({ on: 'cell', cell, height }, brush, reposition, radius);
   const clickToken = (id: string) => {
     if (useGmPickStore.getState().picking) useGmPickStore.getState().toggle(id);
     else click({ on: 'token', id });
