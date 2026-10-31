@@ -1,4 +1,4 @@
-import { type Character, type Race, type RaceDraft } from '../../types'
+import { type Character, type CreatureCategory, type Race, type RaceDraft } from '../../types'
 import { getRacedCharacter, withRaceDraft } from '../rules/race'
 import { withBody } from './body'
 
@@ -24,4 +24,9 @@ export function addRaceAbility(key: string): (c: Character) => Character {
 
 export function removeRaceAbility(key: string): (c: Character) => Character {
   return (c: Character) => (c.raceDraft?.abilities.includes(key) ? withRaceDraft(c, { abilities: c.raceDraft.abilities.filter((a) => a !== key) }) : c)
+}
+
+// The kind of creature the character is, which abilities may require.
+export function setCategory(category: CreatureCategory): (c: Character) => Character {
+  return (c: Character) => ({ ...c, category })
 }

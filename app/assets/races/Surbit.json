@@ -15,6 +15,7 @@
     "tail-1",
     "claws"
   ],
+  "category": "humanoid",
   "size": 2,
   "height": 2,
   "TGH": 0,

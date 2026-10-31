@@ -11,6 +11,7 @@
     "large-hands",
     "regenerative-reservoir"
   ],
+  "category": "humanoid",
   "size": 3,
   "height": 2,
   "TGH": 0,

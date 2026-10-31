@@ -172,6 +172,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   wearOff: (c) => characterCommands.wearOff(1)({ ...c, active: [{ kind: 'potion', key: 'Darkseeing', ETs: 2 }] }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
   applyRace: (c) => characterCommands.applyRace(RaceSchema.parse({ name: 'Surbit', size: 2, bonuses: { AGI: 2 }, abilities: ['fur'] }))(c),
+  setCategory: (c) => characterCommands.setCategory('beast')(c),
   editRace: (c) => characterCommands.editRace({ bonuses: { STR: 1 } })(drafting(c)),
   addRaceAbility: (c) => characterCommands.addRaceAbility('fur')(drafting(c)),
   removeRaceAbility: (c) => characterCommands.removeRaceAbility('fur')(characterCommands.addRaceAbility('fur')(drafting(c))),

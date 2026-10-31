@@ -126,6 +126,11 @@ export const MATERIALS = ['metal', 'rock', 'wood', 'bone', 'flesh', 'fiber', 'li
 
 export const ATTACK_TYPES = ['melee', 'ranged'] as const
 
+// The general kind of creature a race makes, which abilities may require: a
+// humanoid, or a beast (the furred, four-legged hunters, canines, felines,
+// mustelids and their like). A race has one.
+export const CREATURE_CATEGORIES = ['humanoid', 'beast'] as const
+
 // combat.tex "Localized damage": the kinds of place a body part can be — the
 // humanoid's four, in the book's order ("Each type of creature may have places
 // that can specifically be aimed at"), and `other` for whatever else a

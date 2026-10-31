@@ -14,6 +14,6 @@ export { learnSpell, forgetSpell, practiceSpell, releaseSpell, loseConcentration
 export { healWound, setWound } from "./wounds"
 export { takeDose, wearOff } from "./consume"
 export { setLimitStress } from "./limitStress"
-export { applyRace, editRace, addRaceAbility, removeRaceAbility } from "./race"
+export { applyRace, editRace, addRaceAbility, removeRaceAbility, setCategory } from "./race"
 export { addBodyPart, removeBodyPart, editBodyPart, addPartWound, editPartWound, removePartWound, editStance, editNaturalArmor, toggleFootprintCell, setFootprintPreset, type BodyPartEdit } from "./body"
 export { leaveFight } from "./leaveFight"

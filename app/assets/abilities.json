@@ -25,6 +25,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "condition",
               "name": "racial",
               "level": 0,
@@ -71,7 +80,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Receives -1 burden penalty. When Hunger reaches 30, the character loses this ability and their hunger resets to 15. Requires eating a lot.",
         "effect": [],
         "recipes": [],
@@ -103,7 +122,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Increases running speed by 1m.",
         "effect": [
           {
@@ -130,7 +159,17 @@
             "level": 5
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Increases running speed by 2m.",
         "effect": [
           {
@@ -173,7 +212,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Increases jump distance by 1m.",
         "effect": [
           {
@@ -200,7 +249,17 @@
             "level": 5
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Increases jump distance by 2m.",
         "effect": [
           {
@@ -243,6 +302,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Climbing",
               "level": 1,
@@ -266,6 +334,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Climbing",
               "level": 3,
@@ -287,6 +364,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -328,6 +414,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Balance",
               "level": 1,
@@ -349,6 +444,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Balance",
               "level": 3,
@@ -368,6 +472,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -409,6 +522,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Swimming",
               "level": 1,
@@ -430,6 +552,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Swimming",
               "level": 3,
@@ -449,6 +580,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -490,7 +630,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Learns to give commands to walk and run for mounts capable of understanding the command.",
         "effect": [],
         "recipes": [],
@@ -506,7 +656,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The rider can utilize the mount's jumping, standing, swimming, and climbing movements if it is capable of understanding the commands.",
         "effect": [],
         "recipes": [],
@@ -522,7 +682,17 @@
             "level": 5
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The rider can utilize the flight of their mount while riding.",
         "effect": [],
         "recipes": [],
@@ -555,6 +725,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -590,6 +769,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -643,6 +831,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "attribute",
               "name": "STR",
               "level": 10,
@@ -678,6 +875,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "attribute",
@@ -730,7 +936,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Learns to shoot with bows, removing the penalty and allowing quick shot and snipe.",
         "effect": [],
         "recipes": [],
@@ -765,6 +981,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -804,6 +1029,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "archer",
               "level": 0,
@@ -839,6 +1073,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -904,6 +1147,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "archer",
               "level": 0,
@@ -941,6 +1193,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "archer",
               "level": 0,
@@ -976,6 +1237,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -1028,7 +1298,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Allows the character to be in cover with a body shield while reloading a crossbow or arbalest. The shield is planted like a cover against everything in a 180 degree arc. Taking the shield back costs 1 standard action too.",
         "effect": [],
         "recipes": [],
@@ -1062,7 +1342,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Can move at careful movement speed while performing ranged attacks (except snipe), reutilizing the AP cost. It is considered that the attack came from any position that the attacker has been. Opportunity attacks are triggered at all positions along the path.",
         "effect": [],
         "recipes": [
@@ -1105,6 +1395,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "archer",
               "level": 0,
@@ -1140,6 +1439,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -1195,6 +1503,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "quick-shooter-1",
               "level": 0,
@@ -1240,7 +1557,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Reloads weapons 1 AP faster.",
         "effect": [
           {
@@ -1267,7 +1594,17 @@
             "level": 4
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Reloads weapons 2 AP faster.",
         "effect": [
           {
@@ -1310,7 +1647,17 @@
             "level": 4
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Spends 1 extra AP and 1 STA to jump backward and perform a quick shot or throw, avoiding opportunity attacks if the jump takes them out of range.",
         "effect": [],
         "recipes": [
@@ -1363,7 +1710,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Gains +2 to SD or reflex for the rest of the turn after using movement surge. Also works for approaching in skirmishes.",
         "effect": [],
         "recipes": [],
@@ -1397,7 +1754,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Increases the RES of bladed weapons, by 5xDM.",
         "effect": [],
         "recipes": [],
@@ -1431,7 +1798,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "You can take a -2 penalty on grapple tests in exchange for reducing the STA cost by 1.",
         "effect": [],
         "recipes": [],
@@ -1465,7 +1842,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "After an intercept that stops the attack, the character can perform a disarm, without requiring grapple.",
         "effect": [],
         "recipes": [
@@ -1527,7 +1914,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Grants attacks for grappling that cost 4AP+1STA and inflict wounds directly, without IL damage. Spending 5 HOP after a hit allows choosing one special effect: Suffocate the enemy, cause broken hand, and broken leg. Broken limbs take 10 IL to heal. Hits can immobilize both characters if the attacker so chooses.",
         "effect": [],
         "recipes": [],
@@ -1561,7 +1958,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "You can attack in response to an attack, as long as you are within range. Both attacks are made against the opponent's SD. The attack with the higher result hits first, having the chance to interrupt the opponent. The counterattack receives -2 to hit.",
         "effect": [],
         "recipes": [
@@ -1599,7 +2006,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Allows you to spend 1 STA to move 1 basic movement as a reaction to position yourself to defend someone.",
         "effect": [],
         "recipes": [
@@ -1653,7 +2070,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Spend 1 STA to move forward to get in range to intercept, adding shield cover to the defense.",
         "effect": [],
         "recipes": [
@@ -1706,7 +2133,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Sweeping attacks with two-handed weapons can cover up to 360 degrees.",
         "effect": [],
         "recipes": [],
@@ -1740,7 +2177,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Learns to perform one attack with the APs from a movement surge, and loses the rest of the AP from the surge, if there is any.",
         "effect": [],
         "recipes": [],
@@ -1774,7 +2221,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Learns to initiate a grapple and perform a knockdown in the same action.",
         "effect": [],
         "recipes": [
@@ -1838,6 +2295,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "riding-1",
               "level": 0,
@@ -1862,6 +2328,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -1903,7 +2378,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The character can spend 1 STA to perform an evasive jump and stand up in the same action, but takes -3 to defend while doing so.",
         "effect": [],
         "recipes": [
@@ -1956,7 +2441,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Combat surge gives +1 AP.",
         "effect": [
           {
@@ -1983,7 +2478,17 @@
             "level": 5
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Combat surge gives +2 AP.",
         "effect": [
           {
@@ -2026,7 +2531,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Allows you to jump for 1 STA while using an attack as an action and attack from the final position. This movement triggers opportunity attacks and braced attacks normally.",
         "effect": [],
         "recipes": [
@@ -2079,7 +2594,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Reduces the AP cost of using braced attack as a reaction by 1 AP.",
         "effect": [
           {
@@ -2122,7 +2647,17 @@
             "level": 4
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Learns to use evade with 1 AP, but takes -3 to defend in doing so.",
         "effect": [],
         "recipes": [],
@@ -2156,7 +2691,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "After defending a melee attack that misses or grazes, the character can make an attack with a +2 bonus to hit immediately after, if in range. The attack costs 1 AP less than the normal attack if made with an object different from the one used for defense. Riposte works like an opportunity attack.",
         "effect": [],
         "recipes": [
@@ -2212,6 +2757,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Adaptation",
               "level": 1,
@@ -2247,6 +2801,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2307,6 +2870,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Domination",
               "level": 2,
@@ -2342,6 +2914,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2381,6 +2962,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Domination",
               "level": 4,
@@ -2416,6 +3006,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2457,7 +3056,17 @@
             "property": "INT"
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Prepared actions gain +1 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
@@ -2475,7 +3084,17 @@
             "property": "INT"
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Prepared actions gain +2 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
@@ -2505,6 +3124,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2542,6 +3170,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2583,7 +3220,17 @@
             "property": "INT"
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Whenever you win a cunning test to act before another character, you gain +1 in all skill tests against that character on your turn.",
         "effect": [],
         "recipes": [],
@@ -2617,7 +3264,17 @@
             "property": "INT"
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Receives +1 AP for each crit in the prepared action, or when an attack has 5 HOPs or more.",
         "effect": [],
         "recipes": [],
@@ -2647,6 +3304,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2686,6 +3352,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Fatalism",
               "level": 2,
@@ -2716,6 +3391,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2766,6 +3450,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Fatalism",
               "level": 2,
@@ -2785,6 +3478,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2824,6 +3526,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Fatalism",
               "level": 3,
@@ -2859,6 +3570,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2898,6 +3618,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Ferocity",
               "level": 1,
@@ -2933,6 +3662,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -2972,6 +3710,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Ferocity",
               "level": 3,
@@ -2991,6 +3738,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3030,6 +3786,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Ferocity",
               "level": 4,
@@ -3065,6 +3830,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3106,6 +3880,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Guardian",
               "level": 0,
@@ -3143,6 +3926,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Guardian",
               "level": 2,
@@ -3162,6 +3954,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3201,6 +4002,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Guardian",
               "level": 3,
@@ -3238,6 +4048,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Guardian",
               "level": 3,
@@ -3257,6 +4076,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3296,6 +4124,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 1,
@@ -3317,6 +4154,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 3,
@@ -3336,6 +4182,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3375,6 +4230,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 2,
@@ -3394,6 +4258,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3433,6 +4306,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 2,
@@ -3452,6 +4334,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3491,6 +4382,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 2,
@@ -3510,6 +4410,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3549,6 +4458,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 2,
@@ -3568,6 +4486,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3607,6 +4534,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 2,
@@ -3626,6 +4562,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3665,6 +4610,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 2,
@@ -3684,6 +4638,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3723,6 +4686,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 3,
@@ -3758,6 +4730,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3797,6 +4778,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Hedonism",
               "level": 3,
@@ -3832,6 +4822,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3871,6 +4870,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Providentialism",
               "level": 1,
@@ -3906,6 +4914,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -3945,6 +4962,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Providentialism",
               "level": 1,
@@ -3980,6 +5006,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4019,6 +5054,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Providentialism",
               "level": 3,
@@ -4054,6 +5098,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4093,6 +5146,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Providentialism",
               "level": 5,
@@ -4128,6 +5190,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4169,6 +5240,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Devotion",
               "level": 3,
@@ -4204,6 +5284,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4243,6 +5332,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Devotion",
               "level": 5,
@@ -4277,7 +5375,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Penalty of -3 for morale tests if not intoxicated, bonus of +1 if intoxicated. Gains 1/2/3 Hedonism XP for entering combat while Intoxicated I/II/III, respectively.",
         "effect": [],
         "recipes": [],
@@ -4304,7 +5412,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "+1 Hedonism XP for each time successfully distracting or provoking someone and -1 if failing.",
         "effect": [],
         "recipes": [],
@@ -4331,7 +5449,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "May be compelled to steal something. Must make a will test with a difficulty of 5 to avoid being compelled. Loses 1 XP if not stealing and gains 1 Hedonism XP if attempting to steal.",
         "effect": [],
         "recipes": [],
@@ -4358,7 +5486,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Receives -3 to resist seduction tests. Gains 1 Hedonism XP each time they successfully seduce someone, but loses 1 XP whenever they fail.",
         "effect": [],
         "recipes": [],
@@ -4385,7 +5523,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Receives -3 mental if suffering any distress from hunger.",
         "effect": [],
         "recipes": [],
@@ -4412,7 +5560,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Receives -3 on any test to resist becoming angry or to calm down when already furious.",
         "effect": [],
         "recipes": [],
@@ -4439,7 +5597,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Choose the object of the phobia. Has a morale penalty when in the presence of the phobia's object. Gains 1 Ferocity XP if incapacitating the target of fear.",
         "effect": [],
         "recipes": [],
@@ -4466,7 +5634,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Receives -5 for morale tests when in high places, with a risk of falling.",
         "effect": [],
         "recipes": [],
@@ -4493,7 +5671,17 @@
         "XPcost": 0,
         "karma": -6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Receives -2 to health when trying to rest, but gains +2 to detection while unconscious.",
         "effect": [],
         "recipes": [],
@@ -4521,6 +5709,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4560,6 +5757,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Linguistics",
               "level": 0,
@@ -4595,6 +5801,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4634,6 +5849,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Linguistics",
               "level": 2,
@@ -4669,6 +5893,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4708,6 +5941,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Linguistics",
               "level": 2,
@@ -4743,6 +5985,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4782,6 +6033,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Medicine",
               "level": 1,
@@ -4819,6 +6079,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Medicine",
               "level": 1,
@@ -4854,6 +6123,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -4902,6 +6180,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Medicine",
               "level": 1,
@@ -4939,6 +6226,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Medicine",
               "level": 1,
@@ -4974,6 +6270,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5015,7 +6320,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Allows the character to attempt to pick locks and set or disarm traps using prestidigitation. Uses Mechanics knowledge as enabler.",
         "effect": [],
         "recipes": [],
@@ -5043,6 +6358,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5082,6 +6406,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Mechanics",
               "level": 1,
@@ -5117,6 +6450,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5156,6 +6498,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Smithing",
               "level": 1,
@@ -5191,6 +6542,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5230,6 +6590,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Navigation",
               "level": 4,
@@ -5265,6 +6634,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5304,6 +6682,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Navigation",
               "level": 2,
@@ -5323,6 +6710,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5362,6 +6758,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Survival",
               "level": 1,
@@ -5399,6 +6804,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Survival",
               "level": 1,
@@ -5434,6 +6848,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5476,6 +6899,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -5524,6 +6956,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Animal Handling",
               "level": 2,
@@ -5559,6 +7000,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5598,6 +7048,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Animal Handling",
               "level": 2,
@@ -5633,6 +7092,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5672,6 +7140,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Animal Handling",
               "level": 3,
@@ -5707,6 +7184,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -5748,7 +7234,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Can prepare actions for allies that can understand the command. The ally is not forced to follow the command.",
         "effect": [],
         "recipes": [],
@@ -5782,7 +7278,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "If the character is the first to take their turn in a round in combat, they can prepare an action for free.",
         "effect": [],
         "recipes": [],
@@ -5800,7 +7306,17 @@
             "level": 4
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "If the character is the first to take their turn in a round in combat, they can prepare two actions for free.",
         "effect": [],
         "recipes": [],
@@ -5834,7 +7350,17 @@
             "level": 4
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The first time a prepared action is performed, it costs 1 AP less.",
         "effect": [],
         "recipes": [],
@@ -5868,7 +7394,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Reaction surge gives 6 AP if the character has 4 AP or more when they use the surge.",
         "effect": [],
         "recipes": [],
@@ -5902,7 +7438,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "After feinting a character successfully, gains +1 in every reaction against them on the provoked turn.",
         "effect": [],
         "recipes": [],
@@ -5937,6 +7483,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -5980,7 +7535,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Allows the caster to use careful movement while concentrating, repurposing the same action points used for the spell.",
         "effect": [],
         "recipes": [
@@ -6011,7 +7576,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The character can defend actively while concentrating, with AP costs paid separately.",
         "effect": [],
         "recipes": [],
@@ -6029,7 +7604,17 @@
             "level": 5
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "When interrupted, instead of losing the spell, redo the spellcasting test with a penalty of -3 and choose the worst result between the original and this one.",
         "effect": [],
         "recipes": [],
@@ -6064,6 +7649,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "condition",
@@ -6105,7 +7699,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Learns to cast spells into grenades while throwing them, using the higher cost of AP between the throw and the spell.",
         "effect": [],
         "recipes": [],
@@ -6138,6 +7742,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "spell",
@@ -6179,7 +7792,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Range/Area: Animancy meters radius. Duration: instantaneous. Out of combat, costs 2 exhaustion per ET instead. Maintains an energy perimeter that amplifies perception. This character can see invisible things as if they were visible within a sphere around them. The volume of perception is filled as if it were gas. Solid impermeable objects block the radius of synesthesia.",
         "effect": [
           {
@@ -6208,7 +7831,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Range/Area: Animancy meters radius. Duration: instantaneous. Out of combat, costs 2 exhaustion per ET instead. Doubles the normal radius.",
         "effect": [
           {
@@ -6237,7 +7870,17 @@
             "level": 5
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Range/Area: Animancy meters radius. Duration: instantaneous. Out of combat, costs 2 exhaustion per ET instead. Triples the normal and increased radius.",
         "effect": [
           {
@@ -6285,6 +7928,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "synesthesia-1",
               "level": 0,
@@ -6325,6 +7977,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "spell",
@@ -6369,6 +8030,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "spell",
               "name": "spiritual-strike",
               "level": 0,
@@ -6409,6 +8079,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -6453,6 +8132,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "spell",
               "name": "possession",
               "level": 0,
@@ -6493,6 +8181,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "spell",
@@ -6546,6 +8243,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "synesthesia-1",
               "level": 0,
@@ -6585,7 +8291,17 @@
             "level": 2
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Allows asking yes or no questions to any creature with 3 INT or more. The questions must be simple enough for the creature to understand.",
         "effect": [],
         "recipes": [],
@@ -6618,6 +8334,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "spell",
@@ -6675,6 +8400,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "spell",
               "name": "telepathic-link",
               "level": 0,
@@ -6717,6 +8451,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Biomancy",
               "level": 1,
@@ -6757,6 +8500,15 @@
           }
         ],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -6814,6 +8566,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Biomancy",
               "level": 3,
@@ -6864,6 +8625,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Shamanism",
               "level": 1,
@@ -6901,6 +8671,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Shamanism",
               "level": 1,
@@ -6936,6 +8715,15 @@
         "karma": 16,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "attribute",
@@ -7006,6 +8794,15 @@
         "karma": 12,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -7085,6 +8882,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Biomancy",
               "level": 3,
@@ -7129,6 +8935,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Awareness",
               "level": 2,
@@ -7161,6 +8976,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Awareness",
               "level": 4,
@@ -7191,6 +9015,15 @@
         "karma": 4,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -7241,6 +9074,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Awareness",
               "level": 2,
@@ -7273,6 +9115,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Awareness",
               "level": 4,
@@ -7303,6 +9154,15 @@
         "karma": 4,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -7353,6 +9213,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Awareness",
               "level": 2,
@@ -7385,6 +9254,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Awareness",
               "level": 4,
@@ -7415,6 +9293,15 @@
         "karma": 4,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -7465,6 +9352,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "condition",
               "name": "racial",
               "level": 0,
@@ -7499,7 +9395,17 @@
         "XPcost": 0,
         "karma": -4,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Gets -1 on persuasion social actions and -3 on seduction attempts. Can be taken at creation for 4 extra karma.",
         "effect": [],
         "recipes": [],
@@ -7526,7 +9432,17 @@
         "XPcost": 0,
         "karma": 8,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The character has an internal reservoir that functions like a potion that heals 10 IL. The reservoir is filled by regular healing while they are resting and uninjured or when drinking a potion.",
         "effect": [],
         "recipes": [],
@@ -7554,6 +9470,15 @@
         "karma": 10,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -7611,6 +9536,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "condition",
               "name": "racial",
               "level": 0,
@@ -7655,6 +9589,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Biomancy",
               "level": 4,
@@ -7690,6 +9633,15 @@
         "karma": 8,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -7729,6 +9681,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Devotion",
               "level": 4,
@@ -7764,6 +9725,15 @@
         "karma": 6,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "ability",
@@ -7803,6 +9773,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "ability",
               "name": "fur",
               "level": 0,
@@ -7837,7 +9816,17 @@
         "XPcost": 0,
         "karma": 6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Gives an unarmed attack that uses claws, defined in gear. Also improves climbing by +1 if not wearing gloves.",
         "effect": [],
         "recipes": [],
@@ -7866,7 +9855,17 @@
         "XPcost": 0,
         "karma": 10,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Can rest with half the STA regeneration under water and does not lose STA due to suffocation under water.",
         "effect": [],
         "recipes": [],
@@ -7893,7 +9892,17 @@
         "XPcost": 0,
         "karma": 6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "+1|2 for balance and climbing.",
         "effect": [
           {
@@ -7925,7 +9934,17 @@
         "XPcost": 0,
         "karma": 6,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Can hold things and hang with the tail.",
         "effect": [
           {
@@ -8000,7 +10019,17 @@
         "XPcost": 0,
         "karma": 8,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Modifies the eyes to be able to see infrared light, allowing aiming at heat sources even through fog or in complete darkness.",
         "effect": [],
         "recipes": [],
@@ -8027,7 +10056,17 @@
         "XPcost": 0,
         "karma": 12,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Modifies the eyes to be able to see well at night, but not absolute darkness.",
         "effect": [],
         "recipes": [],
@@ -8054,7 +10093,17 @@
         "XPcost": 0,
         "karma": 12,
         "talent": [],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Turns ears into an active sense, but take -2 sensory penalty when doing so.",
         "effect": [],
         "recipes": [],
@@ -8082,6 +10131,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -8121,6 +10179,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Stoicism",
               "level": 2,
@@ -8156,6 +10223,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",
@@ -8195,6 +10271,15 @@
         "requirements": [
           [
             {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
               "kind": "trainable",
               "name": "Stoicism",
               "level": 3,
@@ -8214,6 +10299,15 @@
         "karma": 0,
         "talent": [],
         "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
           [
             {
               "kind": "trainable",

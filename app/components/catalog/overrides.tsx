@@ -4,7 +4,7 @@ import { inputClass } from '../ui'
 import { CatalogName } from '../../forms/catalogs'
 import { ABILITY_KEYS, ABILITY_SECTIONS } from '../../domain/abilities'
 import { SPELL_KEYS } from '../../domain/spells'
-import { BULK_NAMES, HEAVY_MAX_DEGREE, MIN_BULK, knowledges_list } from '../../domain/lists'
+import { BULK_NAMES, CREATURE_CATEGORIES, HEAVY_MAX_DEGREE, MIN_BULK, knowledges_list } from '../../domain/lists'
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
 import ammo from '../../assets/ammo.json'
@@ -57,11 +57,11 @@ const learningGains: Widget = ({ value, onChange }) => (
 
 // A requirement's name is a key into whichever catalog its kind points at —
 // spells.tex "Requirements": a gear item is the one the character has to
-// have on them, so the item list is offered; trainables and conditions stay
-// free words.
+// have on them, so the item list is offered, and a category is one of the
+// creature categories; trainables and conditions stay free words.
 const requirementName = suggesting((parent) => {
   const kind = String(parent.kind ?? '')
-  return kind === 'ability' || kind === 'active' ? ABILITY_KEYS : kind === 'spell' || kind === 'sustaining' ? SPELL_KEYS : kind === 'gear' ? Object.keys(items) : []
+  return kind === 'ability' || kind === 'active' ? ABILITY_KEYS : kind === 'spell' || kind === 'sustaining' ? SPELL_KEYS : kind === 'gear' ? Object.keys(items) : kind === 'category' ? [...CREATURE_CATEGORIES] : []
 })
 
 // An item's refId resolves in the catalog its type names.

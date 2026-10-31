@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, CREATURE_CATEGORIES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -1064,11 +1064,12 @@ export type Talent = z.infer<typeof TalentSchema>
 // it can be learned. `name` is a catalog key for an ability or spell, the
 // book's word for a trainable, gear or condition; `level` is the minimum for
 // a trainable and the threshold an attribute is compared against with `op`.
+// `category` names the kind of creature the character must be.
 // `sustaining` names a spell the caster must be holding to cast this one,
 // `active` an ability that must be in effect: a toggle switched on, or a
 // passive one learned.
 export const RequirementSchema = z.object({
-  kind: z.enum(['ability', 'spell', 'gear', 'trainable', 'attribute', 'condition', 'sustaining', 'active']),
+  kind: z.enum(['ability', 'spell', 'gear', 'trainable', 'attribute', 'condition', 'sustaining', 'active', 'category']),
   name: str.default(''),
   level: num.default(0),
   op: z.enum(['>', '<', '>=', '<=']).default('>='),
@@ -1495,11 +1496,15 @@ export type MoveKind = z.infer<typeof MoveKindSchema>
 export const TerrainBrushSchema = z.enum(TERRAIN_BRUSHES)
 export type TerrainBrush = z.infer<typeof TerrainBrushSchema>
 
-// creating.tex "Races": what a race sets of a creature — its size and how it
+export const CreatureCategorySchema = z.enum(CREATURE_CATEGORIES)
+export type CreatureCategory = z.infer<typeof CreatureCategorySchema>
+
+// creating.tex "Races": what a race sets of a creature — its category, its size and how it
 // sits on the grid, its height, its toughness, senses, base movement, natural armor and
 // body. Chosen only while the race is being made; picking a race copies them
 // onto the character, whose own they then are.
 const RaceBodyValues = {
+  category: CreatureCategorySchema.default('humanoid'),
   size: z.number().default(3),
   // creating.tex "Size and Space Occupation": the cells the creature covers,
   // as offsets from the cell it is placed by, facing direction 0; that cell

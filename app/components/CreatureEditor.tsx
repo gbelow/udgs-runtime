@@ -6,8 +6,8 @@ import { Button, IconButton, Combobox, NumberInput, Panel, Row, SectionLabel, St
 import { useNaturalWeapons } from '../hooks/useRace'
 import { useBodyEditor, useBodyView, useFootprintEditor } from '../hooks/useBodyEditor'
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens'
-import { AfflictionKeySchema, type AfflictionKey, type BodyPart, type HitLocation, type Material, type PartFlag, type WoundEffect } from '../domain/types'
-import { FOOTPRINT_PRESETS, HIT_LOCATIONS, MATERIALS, PART_FLAGS, WOUND_EFFECTS } from '../domain/lists'
+import { AfflictionKeySchema, type AfflictionKey, type BodyPart, type CreatureCategory, type HitLocation, type Material, type PartFlag, type WoundEffect } from '../domain/types'
+import { CREATURE_CATEGORIES, FOOTPRINT_PRESETS, HIT_LOCATIONS, MATERIALS, PART_FLAGS, WOUND_EFFECTS } from '../domain/lists'
 
 // What a race sets on a creature, edited the same way while the race is being
 // made and, in free creation, on the character afterwards.
@@ -18,12 +18,15 @@ function DataDial({ stat }: { stat: Parameters<typeof useActiveCharacterDataLens
 
 export function Creature() {
   const view = useBodyView()
-  const { editStance } = useBodyEditor()
+  const { editStance, setCategory } = useBodyEditor()
   if (!view) return null
   return (
     <div className='flex flex-col gap-1'>
       <SectionLabel>Creature</SectionLabel>
       <div className='flex flex-row flex-wrap gap-3 items-end'>
+        <select aria-label='creature category' className={selectClass} value={view.category} onChange={(e) => setCategory(e.target.value as CreatureCategory)}>
+          {CREATURE_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+        </select>
         <Tiles>
           <DataDial stat='size' />
           <DataDial stat='height' />

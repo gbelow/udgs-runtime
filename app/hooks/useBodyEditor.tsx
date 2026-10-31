@@ -1,14 +1,14 @@
 import type { BodyPartEdit } from "../domain/character/commands";
 import { getFootprintEditor } from "../domain/character/lenses/footprint";
 import type { FootprintPreset } from "../domain/lists";
-import type { Armor, BodyPart, Character, Coord, HitLocation, PartWound, Stance } from "../domain/types";
+import type { Armor, BodyPart, Character, Coord, CreatureCategory, HitLocation, PartWound, Stance } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
-type RaceBody = { body: BodyPart[]; stance: Stance; armor: Armor }
+type RaceBody = { category: CreatureCategory; body: BodyPart[]; stance: Stance; armor: Armor }
 
-const pickBody = (c: Character): RaceBody => ({ body: c.body, stance: c.stance, armor: c.armor });
+const pickBody = (c: Character): RaceBody => ({ category: c.category, body: c.body, stance: c.stance, armor: c.armor });
 
-// The race's side of the creature: its body, stance and natural armor, as the
+// The race's side of the creature: its category, body, stance and natural armor, as the
 // editors read it.
 export function useBodyView() {
   return useActiveCharacterDerived(pickBody, JSON.stringify);
@@ -31,6 +31,7 @@ export function useBodyEditor() {
     addWound: (id: string) => update({ kind: 'addPartWound', args: [id] }),
     editWound: (id: string, index: number, edit: Partial<PartWound>) => update({ kind: 'editPartWound', args: [id, index, edit] }),
     removeWound: (id: string, index: number) => update({ kind: 'removePartWound', args: [id, index] }),
+    setCategory: (category: CreatureCategory) => update({ kind: 'setCategory', args: [category] }),
     editStance: (edit: Partial<Stance>) => update({ kind: 'editStance', args: [edit] }),
     editArmor: (edit: Partial<Armor>) => update({ kind: 'editNaturalArmor', args: [edit] }),
     toggleCell: (cell: Coord) => update({ kind: 'toggleFootprintCell', args: [cell] }),

@@ -3,7 +3,7 @@ import { editsOver, toEdit, type EditOf } from '../../registry'
 import type { AbilityKey } from '../../abilities'
 import type { SpellKey } from '../../spells'
 import type { FootprintPreset, LimitStressAction } from '../../lists'
-import type { AfflictionKey, Armor, CampaignCharacter, Character, CharacterUpdater, Characteristics, Coord, HitLocation, Injuries, Item, Knowledges, Movement, PartWound, Race, Resources, Senses, SlotKind, SpellMethod, Stance, Skills, Trainables } from '../../types'
+import type { AfflictionKey, Armor, CampaignCharacter, Character, CharacterUpdater, Characteristics, Coord, CreatureCategory, HitLocation, Injuries, Item, Knowledges, Movement, PartWound, Race, Resources, Senses, SlotKind, SpellMethod, Stance, Skills, Trainables } from '../../types'
 import type { Grip } from '../../item/rules/hands'
 import type { Trade } from '../../item/rules/trade'
 import { isCampaignCharacter } from '../../utils'
@@ -16,7 +16,7 @@ import {
   removeItemFromContainer, slingShield, storeItem, takeOffContainer, throwOffShield, trade, unslingShield,
 } from '../../item/commands'
 import {
-  addAffliction, addBodyPart, addPartWound, addSpecificKnowledge, applyRace, doffArmor, editBodyPart, editNaturalArmor, editPartWound,
+  addAffliction, addBodyPart, addPartWound, addSpecificKnowledge, applyRace, setCategory, doffArmor, editBodyPart, editNaturalArmor, editPartWound,
   editStance, endSurge, equipArmor, forgetAbility, forgetSpell, healWound, learnAbility, learnSpell, practiceSpell, putGauntlets, putHelm,
   releaseSpell, removeBodyPart, removePartWound, removeSpecificKnowledge, resetAllSkills, resetSkill, resistCurse, resolvePending,
   setFootprintPreset, setLimitStress, toggleAbility, toggleFootprintCell, toggleVisor, updateIL, updateSTA, useAbility, wearFromContainer,
@@ -82,6 +82,7 @@ export const characterCommands = {
 
   // the creature: its race, body, stance and footprint
   applyRace: edit((_, race: Race) => applyRace(race)),
+  setCategory: edit((_, category: CreatureCategory) => setCategory(category)),
   addBodyPart: edit((_, location: HitLocation) => addBodyPart(location)),
   removeBodyPart: edit((_, id: string) => removeBodyPart(id)),
   editBodyPart: edit((_, id: string, change: BodyPartEdit) => editBodyPart(id, change)),

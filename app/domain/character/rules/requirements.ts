@@ -61,6 +61,7 @@ export function getRequiredLevel(c: Character, name: string): number | null | un
 export function holdsRequirement(c: Character, req: Requirement): boolean {
   switch (req.kind) {
     case 'ability': return hasAbility(c, req.name) !== req.not
+    case 'category': return (c.category === req.name) !== req.not
     case 'spell': return (req.name in c.spells) !== req.not
     case 'attribute': return compare(ATTRIBUTE[req.name as keyof typeof ATTRIBUTE]?.(c) ?? 0, req.op, req.level) !== req.not
     case 'trainable': {

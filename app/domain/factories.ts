@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, PartFlagSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type Character, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
+import { ArmorSchema, CreatureCategorySchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, PartFlagSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type Character, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { getPresetFootprint, isSoundFootprint, settleParts } from './character/rules/footprint'
@@ -274,6 +274,7 @@ const CharacterIngestValues = {
   trainables: z.record(z.string(), z.any()).optional(),
   specificKnowledges: z.record(z.string(), z.unknown()).optional().catch(undefined),
   knowledges: z.record(z.string(), z.unknown()).optional().catch(undefined), // the record both kinds shared before they were split
+  category: CreatureCategorySchema.optional().catch(undefined),
   size: z.number().optional(),
   footprint: z.unknown().optional(),
   height: z.number().int().nonnegative().optional().catch(undefined),

@@ -14,6 +14,7 @@ export function getRaceOf(c: Character): Race | null {
   if (!c.raceDraft) return null
   return RaceSchema.parse({
     ...c.raceDraft,
+    category: c.category,
     size: c.size,
     footprint: c.footprint,
     height: c.height,
@@ -32,13 +33,13 @@ export function withRaceDraft(c: Character, traits: Partial<RaceDraft>): Charact
 }
 
 // creating.tex "Races": the character with a race's traits on it. What it sets
-// of the creature — size, footprint, height, toughness, senses, base movement,
+// of the creature — category, size, footprint, height, toughness, senses, base movement,
 // natural armor, body and stance — replaces the character's; its bonuses join
 // the attributes and talents and its abilities join the ones the character
 // has. A part of the new body keeps the item the part with its id held.
 export function getRacedCharacter(race: Race): (c: Character) => Character {
   return (c: Character) => {
-    const { bonuses, size, footprint, height, TGH, senses, movement, armor, stance } = race
+    const { bonuses, category, size, footprint, height, TGH, senses, movement, armor, stance } = race
     const body = race.body.map((part) => ({ ...getBarePart(part), itemId: c.body.find((p) => p.id === part.id)?.itemId ?? '' }))
     const trainables = { ...c.trainables }
     for (const key of RACE_BONUS_KEYS) {
@@ -50,6 +51,6 @@ export function getRacedCharacter(race: Race): (c: Character) => Character {
       const family = ABILITY_FAMILY_OF[key]
       if (getAbilityLevel(c, family) < ABILITIES[key].stage) abilities[family] = heldAbility(family, ABILITIES[key].stage)
     }
-    return { ...c, size, footprint, height, TGH, senses, movement, armor, stance, trainables, abilities, body }
+    return { ...c, category, size, footprint, height, TGH, senses, movement, armor, stance, trainables, abilities, body }
   }
 }
