@@ -583,14 +583,15 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.swept ? 'fill-accent/20'
     : cell.zone ? ZONE_FILL[cell.zone]
-    : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/15'
+    : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/35'
     : cell.threatened ? 'fill-bad/10'
     : cell.fire > 0 ? 'fill-injury-2/30'
     : cell.fuels.length > 0 ? 'fill-accent/15'
     : cell.suffocating ? 'fill-fg/25'
     : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
-  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
+  const offered = cell.reachable || cell.jump || cell.step || cell.center
+  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : offered ? 'stroke-good' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
   const title = [
     cell.key,
     cell.unseen ? 'out of sight' : null,
@@ -620,7 +621,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>
-      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={cell.chosen ? 0.14 : 0.06} />
+      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={cell.chosen ? 0.14 : offered ? 0.12 : 0.06} />
       {cell.storey === 'roof' ? <polygon points={hex} className='fill-fg/10 stroke-none pointer-events-none' /> : null}
       {cell.storey === 'lattice' ? <polygon points={hex} className='fill-none stroke-good pointer-events-none' strokeWidth={0.08} strokeDasharray='0.1 0.1' /> : null}
       {cell.storey === 'air' || cell.storey === 'hole' ? <polygon points={hex} className={`fill-bg/55 pointer-events-none ${cell.storey === 'hole' ? 'stroke-accent' : 'stroke-none'}`} strokeWidth={0.1} strokeDasharray='0.2 0.12' /> : null}
