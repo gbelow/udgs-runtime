@@ -679,7 +679,7 @@ function BindLink({ link }: { link: BoardBindView }){
     <g>
       <title>{link.title}</title>
       <line x1={link.from.x} y1={link.from.y} x2={link.to.x} y2={link.to.y}
-        className={className} strokeWidth={0.08} strokeLinecap='round' strokeDasharray={dash}
+        className={`${className} pointer-events-none`} strokeWidth={0.08} strokeLinecap='round' strokeDasharray={dash}
         markerStart={link.back ? 'url(#grip)' : undefined} markerEnd={link.forward ? 'url(#grip)' : undefined} />
     </g>
   )
