@@ -681,7 +681,8 @@ function Report({ episode, open }: { episode: EpisodeEntry[], open: boolean }){
   )
 }
 
-const degreeClass = (degree: string) => degree === 'miss' ? 'text-bad' : degree === 'hit' || degree === 'critical' ? 'text-good' : 'text-muted'
+const TONE_CLASS = { good: 'text-good', bad: 'text-bad', mixed: 'text-accent' }
+const degreeClass = (degree: string) => degree === 'miss' ? 'text-bad' : degree === 'hit' || degree === 'critical' ? 'text-good' : 'text-accent'
 
 // One action as it was played: what was declared, what it cost, the test as
 // arithmetic, what came of it; whatever else explains it is folded away.
@@ -710,7 +711,7 @@ function ReportEntry({ entry, open }: { entry: EpisodeEntry, open: boolean }){
         </div>
       ))}
       {entry.notes.map((n, i) => (
-        <div key={i} className='text-sm'>{n.target}: <span className={n.degree ? `font-medium ${degreeClass(n.degree)}` : 'text-muted'}>{n.text}</span></div>
+        <div key={i} className='text-sm'>{n.target}: <span className={n.tone ? `font-medium ${TONE_CLASS[n.tone]}` : 'text-muted'}>{n.text}</span></div>
       ))}
       {entry.reactions.map((r, i) => (
         <div key={i} className='flex flex-col gap-0.5 border-l border-line/50 pl-3'>
