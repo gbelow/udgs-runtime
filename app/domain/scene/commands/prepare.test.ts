@@ -10,6 +10,7 @@ import { getBoardView } from '../projections/boardView'
 import { getHistory, getLog, getOpenAction } from '../rules/log'
 import { getTriggersFor } from '../rules/reactions'
 import { getPrepared, getPreparedZone } from '../rules/prepared'
+import { getMovementOptions } from '../rules/move'
 import { add, coordKey, disk, DIRECTIONS, sameCell } from '../rules/board/geometry'
 import { LEVEL_EYES, seesAcross } from '../rules/board/board'
 import { getReachableCells } from '../rules/board/reach'
@@ -391,6 +392,28 @@ describe('preparing a defense for an ally', () => {
     const move = getOpenAction(s)!
     expect(move.kind === 'move' && getReachableCells(s, move).some(({ cell }) => sameCell(cell, landing.cell))).toBe(false)
     expect(getOpenAction(toTheLine(s))).toMatchObject({ kind: 'move', step: 'define' })
+  })
+
+  // A block was offered for a line space only the attacker stood on, and the
+  // reposition it opened could reach no space of the line, nor be passed up
+  // (fuzz crowd at the table, seed 11).
+  it('is offered only where the movement it opens can put its preparer on the line', () => {
+    const crowd: Record<string, [number, number]> = { b1: [1, -1], b2: [1, 0], b3: [2, -1], b4: [0, -1] }
+    const taken = new Set([...Object.values(crowd), [0, 0], [2, 0]].map(([q, r]) => `${q},${r}`))
+    let offered = 0
+    for (const { q, r } of disk({ q: 1, r: 0 }, 4)) {
+      if (taken.has(`${q},${r}`)) continue
+      const start = thrust([q, r], crowd, Object.keys(crowd).map(fighter))
+      const offer = preparedDefense(start, 'p')
+      if (!offer?.available) continue
+      offered++
+      const s = rollAction(() => MISS, newId)(declareReaction('p', offer.draft, newId)(start))
+      const open = getOpenAction(s)
+      const reaches = open?.kind === 'move' && getMovementOptions(s, s.characters.p, open).some((o) => o.available && o.speed > 0 && getReachableCells(s, { ...open, movement: o.kind }).length > 0)
+      const stuck = isRepositioning(s) && !reaches && withdrawSpawnedAction(() => 5, newId)(s) === s
+      expect(stuck, `prepared at ${q},${r}`).toBe(false)
+    }
+    expect(offered).toBeGreaterThan(0)
   })
 
   // combat.tex "Preparing a reaction": the movement draws opportunity attacks

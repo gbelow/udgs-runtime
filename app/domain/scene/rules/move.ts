@@ -522,9 +522,12 @@ export function getStandingIn(state: SceneState, action: MoveAction, cell: Coord
 // Whether the move may be declared to end on the footprint: where the mover
 // may rest, or, for a move of the mover's own, in the space of anyone standing
 // there (combat.tex "Crash": the trample decides who stands there once it
-// lands). Never where someone hangs over it.
+// lands). Never where someone hangs over it. A move nothing opened is the
+// mover's own, but for the movement a preparation carries, which is reckoned
+// before anything has opened it.
 function canEndAt(state: SceneState, c: Character, action: MoveAction, footprint: Coord[], floor: Floor): boolean {
-  return canRest(state, c, footprint, floor, endsLying(c, action.movement)) || (action.spawnedBy === null && footprint.every((cell) => floor.heldFor(cell).length === 0))
+  const own = action.spawnedBy === null && action.preparedPart === null
+  return canRest(state, c, footprint, floor, endsLying(c, action.movement)) || (own && footprint.every((cell) => floor.heldFor(cell).length === 0))
 }
 
 // combat.tex "Movement": crawling "is the only usable movement speed while

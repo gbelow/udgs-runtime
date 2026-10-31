@@ -203,7 +203,10 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   `who` is the ally, null for anyone but the preparer. `getDefenseTriggers` offers it as a plain
   `block` / `intercept` / `guard` trigger carrying `preparedId`, when the preparer can be on the
   line from where they stand or from any space the movement they carry reaches
-  (`getDefensePlacements`: `getReachableCells` at the budget `getPreparedMoveBudget` leaves, each
+  (`getDefensePlacements`: the walk of the movement the defense will open, a preparation's
+  movement part, so it never ends in someone's space as a move of one's own may, at the budget
+  `getPreparedMoveBudget` leaves, only to spaces that leave the AP and STA to make the defense
+  (`leavesMainAffordable`, also read by `getUsableCells` for the move once opened), each
   tested with the same geometry the plain defense uses — `isOnProtectLine`, `isInInterceptRange`,
   `isOnShotLine` for a guard, anywhere along the arrow's way: the table's ruling, where the plain guard stays adjacent as the book has it). Declared at the react step like any defense, with `preparedId` among its
   identity fields. The die is scored against the defense as it stands, so the movement is walked

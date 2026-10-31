@@ -263,15 +263,29 @@ function getDefenseTriggers(state: SceneState, root: StrikeAction | ShootAction)
 // of the line between attacker and target" (a block), within short range of
 // the attacker too (an intercept), next to the target and nearer the shooter
 // (a guard).
+// The movement is reckoned as the one the defense will open: a preparation's
+// movement part, within its budget, ending only where its preparer may stand
+// and the defense may still be paid for, and tested as `getUsableCells` tests
+// the one opened.
 function getDefensePlacements(state: SceneState, root: StrikeAction | ShootAction, owner: CampaignCharacter, p: PrepareAction): Placement[] {
   const from = state.board?.placements[owner.id]
   if (!from) return []
   const budget = getPreparedMoveBudget(state, owner, p)
-  const probe = makeAction('move', { id: '', actorId: owner.id, budget })
+  const probe = makeAction('move', { id: '', actorId: owner.id, budget, preparedPart: 'move' })
   const reached = budget <= 0 ? [] : getMovementOptions(state, owner, probe)
     .filter((o) => o.available && o.speed > 0)
-    .flatMap((o) => getWalkableCells(state, { ...probe, movement: o.kind }).map(({ cell }): Placement => ({ ...from, cell })))
-  return [from, ...reached].filter((placement) => isPlacedToDefend(state, root, owner, p, placement))
+    .flatMap((o) => leavesMainAffordable(state, owner, p, getWalkableCells(state, { ...probe, movement: o.kind })).map(({ cell }): Placement => ({ ...from, cell })))
+  return [from, ...reached].filter((placement) => canRepositionTo(state, { root, owner, prepared: p }, placement))
+}
+
+// combat.tex "Preparing a reaction": "They must have enough AP to perform the
+// reaction when the trigger occurs" — of the spaces the movement a
+// preparation carries reaches, those it leaves the AP and the STA to make the
+// action from.
+function leavesMainAffordable<C extends { cost: ActionCost }>(state: SceneState, owner: CampaignCharacter, p: PrepareAction, cells: C[]): C[] {
+  const main = getMainCost(state, owner, p)
+  if (!main) return []
+  return cells.filter(({ cost }) => canAfford(owner, { AP: cost.AP + main.AP, STA: cost.STA + main.STA }, isCombatStarted(state)))
 }
 
 // A guard prepared for an ally stands anywhere along the arrow's way (the
@@ -448,12 +462,18 @@ function canRepositionTo(state: SceneState, setting: NonNullable<ReturnType<type
 }
 
 // Of the spaces a move can reach, the ones it is worth walking to: for the
-// reposition of a prepared defense, only those it can be made from; every other
-// move may go anywhere it reaches.
-export function getUsableCells<C extends { cell: Coord }>(state: SceneState, move: ActionOf<'move'>, cells: C[]): C[] {
+// movement a preparation carries, only those that leave its action payable,
+// and for the reposition of a prepared defense, only those it can be made
+// from besides; every other move may go anywhere it reaches.
+export function getUsableCells<C extends { cell: Coord; cost: ActionCost }>(state: SceneState, move: ActionOf<'move'>, cells: C[]): C[] {
   const reaction = move.preparedPart === 'move' && move.spawnedBy ? getAction(state, move.spawnedBy) : null
-  const setting = reaction && isPreparedDefense(reaction) && reaction.preparedId !== '' ? getDefenseSetting(state, reaction) : null
+  const preparedId = reaction?.kind === 'prepared' || (reaction && isPreparedDefense(reaction)) ? reaction.preparedId : ''
+  const prepared = preparedId ? findPrepared(state, preparedId) : null
+  const owner = state.characters[move.actorId]
+  if (!prepared || !owner) return cells
+  const payable = leavesMainAffordable(state, owner, prepared, cells)
+  const setting = reaction && isPreparedDefense(reaction) ? getDefenseSetting(state, reaction) : null
   const from = state.board?.placements[move.actorId]
-  if (!setting || !from) return cells
-  return cells.filter(({ cell }) => canRepositionTo(state, setting, { ...from, cell }))
+  if (!setting || !from) return payable
+  return payable.filter(({ cell }) => canRepositionTo(state, setting, { ...from, cell }))
 }

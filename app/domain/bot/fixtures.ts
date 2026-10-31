@@ -108,7 +108,7 @@ export function meleeTrained(c: CampaignCharacter): CampaignCharacter {
 // commands, the free and the cheaper preparation, and the bettered reaction
 // surge.
 export function cunningTrained(c: CampaignCharacter): CampaignCharacter {
-  return (['deliberate-2', 'initiative-edge', 'perfect-preparation', 'battle-commands', 'strategist-2', 'prepared', 'desperate-action', 'improved-feint'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
+  return (['deliberate-2', 'initiative-edge', 'perfect-preparation', 'battle-commands', 'strategist-2', 'prepared', 'reactive-fighting', 'improved-feint'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
 // A brawler with a short sword in the other hand, which intercepts and is
