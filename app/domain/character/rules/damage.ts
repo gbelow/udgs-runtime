@@ -361,7 +361,7 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
 
   const blockShare = measured ? getBlockShare(facts, degree, measured.value) : null
   if (blockShare !== null && measured) {
-    steps.push(step(`${facts.defense} value ${getBlockValue(facts, degree)} against ${measured.value} damage lets ${share(blockShare)} of it past`, 'combat.tex "Damage absorption"'))
+    steps.push(step(`${facts.defense} value ${getBlockValue(facts, degree)} against ${measured.value} damage lets ${share(blockShare)} of it past: ${facts.shield ? 'the shield' : 'the object'} absorbed ${measured.value - Math.floor(measured.value * blockShare)}`, 'combat.tex "Damage absorption"'))
   } else if (facts.defense === 'intercept' && (degree === 'graze' || degree === 'miss')) {
     steps.push(step('the intercept did not stop the blow: it comes through whole', 'combat.tex "Intercept"'))
   } else {

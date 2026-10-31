@@ -9,6 +9,7 @@ import { isInterruptedBy } from '../rules/interruption'
 import { rollCunning } from '../rules/turn'
 import { replaceActions, setActions, withdrawActions } from './log'
 import { canAfford } from '../../character/rules/cost'
+import { loseConcentration } from '../../character/commands/spells'
 import { isCombatStarted } from '../rules/started'
 
 // combat.tex "Concentration": an action held over to the next round, in play
@@ -27,6 +28,13 @@ export function giveUpHeld(state: SceneState, paid: Action[]): SceneState {
     const held = a.reactionTo !== null ? getHeldOf(s, a.actorId) : null
     return held && held.reactedWithin.includes(a.id) ? withdrawActions(s, [held.id], 'givenUp') : s
   }, state)
+}
+
+// combat.tex "Give up action": a caster holding a spell lets it go to react.
+export function giveUpSustained(state: SceneState, paid: Action[]): SceneState {
+  const reactors = paid.filter((a) => a.reactionTo !== null).map((a) => a.actorId)
+  const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, reactors.includes(id) ? loseConcentration(c) : c]))
+  return { ...state, characters }
 }
 
 // combat.tex "Interruption": "All AP and STA costs of the action or movement

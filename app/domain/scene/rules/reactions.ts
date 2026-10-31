@@ -221,8 +221,15 @@ function strikeTriggers(state: SceneState, root: StrikeAction): Trigger[] {
     ...getProtectors(state, root).map((id): Trigger => ({ characterId: id, kind: 'block', at: null })),
     ...getInterceptors(state, root, defRows).map((id): Trigger => ({ characterId: id, kind: 'intercept', at: null })),
   ]
-  const counters: Trigger[] = contest ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
+  // abilities.tex "Riposte" works like an opportunity attack: the strike
+  // either opens is met with defenses, never a contested strike
+  const counters: Trigger[] = contest && !isOpenedByReaction(state, root) ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
   return [...defenses, ...counters, ...protectors, ...flankers]
+}
+
+function isOpenedByReaction(state: SceneState, root: StrikeAction): boolean {
+  const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
+  return opener !== null && (opener.kind === 'opportunityAttack' || isDefense(opener.kind))
 }
 
 // combat.tex "Opportunity Attack": a triggering action is answered by

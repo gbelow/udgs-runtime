@@ -25,7 +25,7 @@ import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
-import { giveUpHeld } from './hold'
+import { giveUpHeld, giveUpSustained } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { isChargeStrike } from '../rules/surge'
@@ -495,7 +495,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, caller: Ca
     const stamped = a.kind === 'strike' ? { ...a, charge: isChargeStrike(state, a) } : a
     paid.push({ ...thrown(stamped), cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo) : 0, step: a.id === root.id ? 'post' : 'done' })
   }
-  return advance(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), newId, caller)
+  return advance(giveUpSustained(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), paid), newId, caller)
 }
 
 // Lands the rolled action on everyone it concerns and closes it, once

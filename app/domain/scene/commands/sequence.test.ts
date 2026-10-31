@@ -616,6 +616,20 @@ describe('a riposte', () => {
     expect(kinds(s)).not.toContain('opportunityAttack')
     expect(kinds(s)).toContain('evade')
   })
+
+  // Regression: the riposte's target, who knows Counterattack, was offered a
+  // contested strike against it, as against any strike.
+  it('is answered by defenses only, never a counterattack', () => {
+    const punch = { weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' } as const
+    const start = onBoard({ atk: [0, 0], def: [1, 0] }, spearman('atk', ['counterattack']), fighter('def', ['riposte']))
+    const [row] = getAttackOptions(start.characters.atk, 'strike', true)
+    let s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(start)
+    s = declareReaction('def', { kind: 'evade' }, newId)(commitAction(() => 5, newId)(setTarget('def')(s)))
+    s = commitAction(() => 5, newId)(amendAction(punch)(resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(s))))
+    const kinds = getTriggers(s, getOpenAction(s)!).map((t) => t.kind)
+    expect(kinds).toContain('evade')
+    expect(kinds).not.toContain('counterattack')
+  })
 })
 
 // combat.tex "Hook Attack": "a reaction against running targets that move

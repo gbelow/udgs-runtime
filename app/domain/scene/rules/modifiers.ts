@@ -12,6 +12,7 @@ import { isInLiquid } from './board/ground'
 import { canGrab, isGrappleRowOf } from './grapple'
 import { isSweepLink } from './sweep'
 import { JUMP_ATTACKS, canJumpAttack } from './jumpAttack'
+import { getPostureCost } from './move'
 import { canSteadyShot } from './steadyArms'
 import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
 
@@ -137,16 +138,17 @@ const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modif
       terms: () => [{ label: 'precise evasion', value: -3 }],
     },
   },
-  // abilities.tex "Technical Lift": "spend 1 STA to perform an evasive jump
-  // and stand up in the same action", taking "-3 to defend while doing so":
-  // from the ground, and the water's surface is no ground to stand up from
+  // abilities.tex "Technical Lift": "perform an evasive jump and stand up in
+  // the same action", taking "-3 to defend while doing so": a stand up, and
+  // priced as one; from the ground, and the water's surface is no ground to
+  // stand up from
   evasiveJump: {
     lift: {
       label: 'technical lift',
       offer: 'answer',
       requires: 'technicalLift',
       allowed: ({ state, actor }) => hasAffliction(actor, 'prone') && !isInLiquid(state, actor),
-      price: () => ({ add: { AP: 0, STA: 1 } }),
+      price: ({ actor }) => ({ set: getPostureCost(actor, 'stand') }),
       terms: () => [{ label: 'technical lift', value: -3 }],
     },
   },

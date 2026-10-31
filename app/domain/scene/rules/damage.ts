@@ -227,12 +227,13 @@ export function getStrikeLanding(state: SceneState, strike: StrikeAction, facts:
   const trample = getStrikeTrample(state, strike)
   const grabbed = (strike.grapples || strike.modifiers.tackle) && canGrapple(state, strike) ? getGrabFacts(state, strike) : null
   const jump = getReactionsTo(state, strike.id).find((r) => r.kind === 'evasiveJump' && r.actorId === strike.targetId)
+  const landed = grabbed && interruption === 'none' ? 'interrupted' : interruption
   return {
-    interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption,
+    interruption: landed,
     trample,
     grabbed,
     jumpedTo: jump?.kind === 'evasiveJump' ? jump.to : null,
-    lifted: jump?.kind === 'evasiveJump' && jump.modifiers.lift,
+    lifted: jump?.kind === 'evasiveJump' && jump.modifiers.lift && landed === 'none',
   }
 }
 

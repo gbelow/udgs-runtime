@@ -69,7 +69,7 @@ export function isPosture(kind: MoveKind): kind is Posture {
 
 // combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP +1STA",
 // never less than 1 AP (the table's ruling); going prone is free.
-function getPostureCost(c: Character, posture: Posture): ActionCost {
+export function getPostureCost(c: Character, posture: Posture): ActionCost {
   return posture === 'stand' ? { AP: Math.max(1, getStandMovement(c)), STA: c.movement.stand.STA } : NO_COST
 }
 

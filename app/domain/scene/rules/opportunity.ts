@@ -8,6 +8,8 @@ import { getFreeStep, getMoveFacts, getMoveOverride } from './move'
 import { getMoveWaypoint } from './board/waypoint'
 import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
 import { isGivingUpHeld } from './hold'
+import { isConcentrating } from '../../character/rules/concentration'
+import { isCampaignCharacter } from '../../utils'
 
 // combat.tex "Interruption": "If the character is in the middle of an
 // action that is not movement, it must interrupt itself in order to use a
@@ -103,8 +105,13 @@ export function getCancellableRoot(state: SceneState, fought: Action, defenderId
 // standing up get -2 penalty to the skill." The penalty on the reactor's
 // answer to the attack being fought, when answering it interrupts an action
 // of their own (`getCancellableRoot`) or comes while they stand up.
+function isGivingUpSpell(state: SceneState, reactorId: string): boolean {
+  const c = state.characters[reactorId]
+  return c !== undefined && isCampaignCharacter(c) && isConcentrating(c)
+}
+
 export function getMidActionTerm(state: SceneState, fought: Action, reactorId: string): Term | null {
-  if (getCancellableRoot(state, fought, reactorId) || isGivingUpHeld(state, reactorId, fought.id)) return { label: 'interrupting', value: -2 }
+  if (getCancellableRoot(state, fought, reactorId) || isGivingUpHeld(state, reactorId, fought.id) || isGivingUpSpell(state, reactorId)) return { label: 'interrupting', value: -2 }
   const reaction = getOpeningReaction(state, fought)
   const root = reaction ? getRootOf(state, reaction) : null
   return root?.kind === 'move' && root.movement === 'stand' && root.actorId === reactorId ? { label: 'standing up', value: -2 } : null

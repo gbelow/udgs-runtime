@@ -248,7 +248,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(state, c, closeIfImmobile(state, c, closeIfUnconscious(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
     const cost = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
@@ -386,7 +386,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         return [answer({ kind }, null, reason)]
       }
     }
-  })))))
+  }))))
 }
 
 // The actions a character may take on their own initiative, one entry per
@@ -572,9 +572,9 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 // the surge allows, and until it is, nothing else can be done.
 // spells.tex "Sustained Spells": a caster holding a spell does nothing but
 // cast what it lets them (rules/cast.ts `getSpellOptions` says which), or
-// fire what they hold again — no
-// moving, no answering (abilities.tex "Battle Mage" is what would allow
-// either).
+// fire what they hold again, and no moving (abilities.tex "Battle Mage"). A
+// reaction is their own to give the spell up for (combat.tex "Give up
+// action").
 function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
   return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' || o.draft.kind === 'fireAgain' || o.draft.kind === 'retarget' || o.draft.kind === 'releaseSpell' ? null : 'concentrating')) : options
 }
