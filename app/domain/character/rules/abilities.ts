@@ -5,6 +5,7 @@ import { LearningPrice, getTalentMultiplier } from './learning'
 import { canAfford } from './cost'
 import { getSurgeBar } from './surge'
 import { effectsOn } from './effects'
+import { getSTA } from './characteristics'
 
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
 // ability unless the requirements are met" and each is acquired once. Every
@@ -49,16 +50,17 @@ export function getAbilityTrainingPrice(family: FamilyKey): (c: Character) => Le
   }
 }
 
-// Whether a use that gives STA back has anything to give it to: STA is only
-// counted once a combat or chase has started (`charged`), so away from one
-// the use would pay its price for nothing.
+// Whether a use gives STA back. STA is only counted once a combat or chase
+// has started (`charged`), and none comes back past the character's STA, so
+// away from a fight or at full STA the use would pay its price for nothing.
 function restoresSTA(key: AbilityKey): boolean {
   return effectsOn(ABILITIES[key].effect, 'instant').some((e) => e.type === 'heal' && e.effect.of === 'STA')
 }
 
 // Whether a learned active ability can be fired right now: its price met,
-// no surge barring it, and a fight to give back STA in where that is what
-// it does.
+// no surge barring it, and, where it gives back STA, a fight to give it in
+// and room below the character's STA to give it to.
 export function canUseAbility(c: CampaignCharacter, key: AbilityKey, charged: boolean): boolean {
-  return canAfford(c, ABILITIES[key].cost, charged) && !getSurgeBar(c) && (charged || !restoresSTA(key))
+  return canAfford(c, ABILITIES[key].cost, charged) && !getSurgeBar(c)
+    && (!restoresSTA(key) || (charged && c.resources.STA < getSTA(c)))
 }
