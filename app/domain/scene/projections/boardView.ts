@@ -513,16 +513,25 @@ export function getResizeWarning(state: SceneState, extent: BoardExtent): string
 // their active senses reach are marked unseen, and only they and the
 // characters they detect are drawn, with what lies on cells they see and the
 // binds between characters drawn. The whole board when nobody placed is active.
+// A cell someone they detect stands in is taken in at that one's floor: on a
+// board with storeys, the floor the eye's own feet would reach there may be
+// out of sight under the one the character stands on.
 export const getBoardViewFrom = perState((state: SeenScene): BoardView => {
   const view = getBoardView(state)
   const eye = state.activeCharacterId
-  if (!view.present || !eye || !state.board?.placements[eye]) return view
+  const placements = state.board?.placements
+  if (!view.present || !eye || !placements?.[eye]) return view
   const sight = getSightOf(state, eye)
   const shown = (id: string) => id === eye || sight.has(id)
   const senses = getCellSenser(state, eye)
-  const cells = view.cells.map((c) => (senses(c.cell) ? c : { ...c, unseen: true }))
-  const unseen = new Set(cells.filter((c) => c.unseen).map((c) => c.key))
   const tokens = view.tokens.filter((t) => shown(t.id))
+  const standing = new Map(tokens.flatMap((t) => t.cells.map((c) => [c.key, placements[t.id]?.elevation] as const)))
+  const sensed = (c: BoardCellView) => {
+    const floor = standing.get(c.key)
+    return senses(c.cell) || (floor !== undefined && senses(c.cell, floor))
+  }
+  const cells = view.cells.map((c) => (sensed(c) ? c : { ...c, unseen: true }))
+  const unseen = new Set(cells.filter((c) => c.unseen).map((c) => c.key))
   const drawn = new Set(tokens.map((t) => t.id))
   return {
     ...view,
