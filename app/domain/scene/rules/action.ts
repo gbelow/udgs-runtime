@@ -418,7 +418,7 @@ export function getPayableCost(state: SceneState, action: Action): ActionCost | 
   const cost = getOwnCost(state, action)
   const actor = state.characters[action.actorId]
   if (!actor || !cost) return null
-  const c = action.reactionTo ? withRefund(state, actor, action.reactionTo) : actor
+  const c = action.reactionTo ? withRefund(state, actor, action.reactionTo, action.kind) : actor
   if (getActionDef(action.kind).rest) return canOverdraw(c, cost, isCombatStarted(state), getIncomingAP(state)) ? cost : null
   return canAfford(c, cost, isCombatStarted(state)) ? cost : null
 }
@@ -605,18 +605,18 @@ function getPriceLabel(action: Action): string {
 // refunded, but 1 AP is lost" — given back as the answer to the attack the
 // action was given up for is paid, and for that one only; the STA is lost.
 // An interruption from outside refunds nothing.
-export function getRefundedAP(state: SceneState, reactorId: string, rootId: string): number {
+export function getRefundedAP(state: SceneState, reactorId: string, rootId: string, kind?: ActionKind): number {
   if (!isCombatStarted(state)) return 0
   const fought = getAction(state, rootId)
-  const given = fought ? getCancellableRoot(state, fought, reactorId) : null
+  const given = fought ? getCancellableRoot(state, fought, reactorId, kind) : null
   if (given && getGivenUpFor(state, given)?.id === rootId) return Math.max(0, (given.cost?.AP ?? 0) + given.carried.AP - 1)
-  return getHeldRefund(state, reactorId, rootId)
+  return getHeldRefund(state, reactorId, rootId, kind)
 }
 
 // The character as they stand to pay for their answer to the attack: with the
 // AP the action given up for it refunds.
-export function withRefund(state: SceneState, c: CampaignCharacter, rootId: string): CampaignCharacter {
-  const AP = getRefundedAP(state, c.id, rootId)
+export function withRefund(state: SceneState, c: CampaignCharacter, rootId: string, kind?: ActionKind): CampaignCharacter {
+  const AP = getRefundedAP(state, c.id, rootId, kind)
   return AP > 0 ? { ...c, resources: { ...c.resources, AP: c.resources.AP + AP } } : c
 }
 

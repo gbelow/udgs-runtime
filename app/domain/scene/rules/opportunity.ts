@@ -1,4 +1,4 @@
-import type { Action, ActionOf, SceneState, InterruptibleAction, OpportunityAction } from '../types'
+import type { Action, ActionKind, ActionOf, SceneState, InterruptibleAction, OpportunityAction } from '../types'
 import type { Term } from '../../character/rules/terms'
 import { getActionDef, isRootAction } from './actionCatalog'
 import { getMeleeDistance, getMeleeRange, withPlacements } from './board/board'
@@ -10,6 +10,7 @@ import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
 import { isGivingUpHeld } from './hold'
 import { isConcentrating } from '../../character/rules/concentration'
 import { isCampaignCharacter } from '../../utils'
+import { keepsConcentrationOn } from './battleMage'
 
 // combat.tex "Interruption": "If the character is in the middle of an
 // action that is not movement, it must interrupt itself in order to use a
@@ -73,7 +74,12 @@ export function isFlankInReach(state: SceneState, reaction: ActionOf<'opportunit
 // attack's die keeps the action.
 export function getGivenUpFor(state: SceneState, action: InterruptibleAction): OpportunityAction | null {
   return getDrawnOpportunityAttacks(state, action).find(({ spawned }) =>
-    spawned !== null && getReactionsTo(state, spawned.id).some((r) => r.actorId === action.actorId))?.spawned ?? null
+    spawned !== null && getReactionsTo(state, spawned.id).some((r) => r.actorId === action.actorId && !keepsCastOn(state, action, r.kind)))?.spawned ?? null
+}
+
+// abilities.tex "Battle Mage II": a cast is kept through a defense.
+function keepsCastOn(state: SceneState, action: Action, kind: ActionKind | undefined): boolean {
+  return action.kind === 'cast' && keepsConcentrationOn(state, action.actorId, kind)
 }
 
 // An action comes to nothing once its actor gives it up (`getGivenUpFor`)
@@ -91,11 +97,12 @@ export function isVoided(state: SceneState, action: Action): boolean {
 // The action of the defender's that answering the opportunity attack being
 // fought with anything but the SD gives up (`getGivenUpFor`): theirs, not
 // movement, and not yet given up for another attack. Null when there is
-// none.
-export function getCancellableRoot(state: SceneState, fought: Action, defenderId: string): InterruptibleAction | null {
+// none, or when an answer of the kind given keeps it; with no kind, any
+// answer that would give it up.
+export function getCancellableRoot(state: SceneState, fought: Action, defenderId: string, kind?: ActionKind): InterruptibleAction | null {
   const reaction = getOpeningReaction(state, fought)
   const root = reaction ? getRootOf(state, reaction) : null
-  if (!root || !isInterruptible(root) || root.actorId !== defenderId) return null
+  if (!root || !isInterruptible(root) || root.actorId !== defenderId || keepsCastOn(state, root, kind)) return null
   const given = getGivenUpFor(state, root)
   return given === null || given.id === fought.id ? root : null
 }
@@ -105,13 +112,13 @@ export function getCancellableRoot(state: SceneState, fought: Action, defenderId
 // standing up get -2 penalty to the skill." The penalty on the reactor's
 // answer to the attack being fought, when answering it interrupts an action
 // of their own (`getCancellableRoot`) or comes while they stand up.
-function isGivingUpSpell(state: SceneState, reactorId: string): boolean {
+function isGivingUpSpell(state: SceneState, reactorId: string, kind: ActionKind | undefined): boolean {
   const c = state.characters[reactorId]
-  return c !== undefined && isCampaignCharacter(c) && isConcentrating(c)
+  return c !== undefined && isCampaignCharacter(c) && isConcentrating(c) && !keepsConcentrationOn(state, reactorId, kind)
 }
 
-export function getMidActionTerm(state: SceneState, fought: Action, reactorId: string): Term | null {
-  if (getCancellableRoot(state, fought, reactorId) || isGivingUpHeld(state, reactorId, fought.id) || isGivingUpSpell(state, reactorId)) return { label: 'interrupting', value: -2 }
+export function getMidActionTerm(state: SceneState, fought: Action, reactorId: string, kind?: ActionKind): Term | null {
+  if (getCancellableRoot(state, fought, reactorId, kind) || isGivingUpHeld(state, reactorId, fought.id, kind) || isGivingUpSpell(state, reactorId, kind)) return { label: 'interrupting', value: -2 }
   const reaction = getOpeningReaction(state, fought)
   const root = reaction ? getRootOf(state, reaction) : null
   return root?.kind === 'move' && root.movement === 'stand' && root.actorId === reactorId ? { label: 'standing up', value: -2 } : null

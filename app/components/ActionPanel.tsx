@@ -33,7 +33,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, sustainMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -43,6 +43,7 @@ export function ActionPanel(){
           <div className='flex flex-row flex-wrap gap-1'>
             {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
             {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
+            {view.sustainMove ? <ActionKey icon={Footprints} aria-label='careful move while holding a spell' onClick={sustainMove}>careful move (held spell)</ActionKey> : null}
           </div>
           {view.social.length > 0 ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -398,7 +399,7 @@ export function ActionPanel(){
           {open.grapple.map((n, i) => <div key={i} className='text-sm'>{n.target ? `${n.target}: ` : ''}<span className='text-muted'>{n.text}</span></div>)}
           {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
           <div className='flex flex-row gap-1.5'>
-            {view.restMove ? <ActionKey icon={Footprints} aria-label='move while resting' onClick={restMove}>move while resting</ActionKey> : null}
+            {view.restMove ? <ActionKey icon={Footprints} aria-label='careful move' onClick={restMove}>careful move</ActionKey> : null}
             <ActionKey look='go' icon={CheckCheck} aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</ActionKey>
           </div>
         </div>

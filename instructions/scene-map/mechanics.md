@@ -46,7 +46,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   (`countCharges`): a cast's is thrown at its roll and spent as it lands, at the size its
   amplifications brought it to. Letting go of the item lets go of the spell. Any interruption
   or stun ends every held spell: a won maneuver (`reduceCharacter`), a blow as it lands
-  (`deliver.ts`), a crash (`trampledBy`).
+  (`deliver.ts`), a crash (`trampledBy`), but for what a Battle Mage keeps (below).
 - **Concentration** (`rules/hold.ts`, `commands/hold.ts`; combat.tex "Concentration", "Focus
   surge", "Interruption") — `requiresConcentration` is the one classification: a shot and the
   reload that is part of one, a spell unless quickened, First Aid (the ability's `concentration`
@@ -69,6 +69,23 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   and from `advance` after each landing), unless
   `getFinishBar` finds what it needs gone, which fails it (`WithdrawalReason` `failed`) and
   spends none of the new round.
+- **Battle Mage** (`rules/battleMage.ts`; abilities.tex "Battle Mage", each stage a catalog
+  grant) — I (`castingMove`): a cast that requires concentration carries a careful move as
+  far as the AP it spent, made like the rest's (below), the farther of the two with
+  Effortless; and holding on at the round change notes on `state.concentration` the AP the
+  held spells' upkeep took (`upkeepAP`), a careful move with them prepaid that the caster
+  may open once in their turn with nothing open (`moveWhileSustaining`, `sustainMove` on the
+  panel), spent once the move is committed (`moveId`). II (`concentratedDefense`): a defense
+  (`isDefense`), evasion or guard gives up neither a cast it answers an opportunity attack for, a held cast,
+  nor a held spell (`keepsConcentrationOn`, read by `getGivenUpFor`, `getCancellableRoot`,
+  `getReactedWithin`, `giveUpSustained` and `getMidActionTerm`, each told the answer's kind),
+  and so refunds nothing and takes no -2. III (`castingRetest`): a cast is not broken by an
+  interruption (`isBroken`); once what interrupted it has landed, `advance` throws its
+  casting test again at -3 and keeps the worse (`retest`); a held cast an interruption
+  lands on is marked `shaken` instead of withdrawn (`breakHeld`) and tested again once
+  rolled. A held spell's caster the landing interrupts tests each spell at -3 as it lands
+  (`retestHeldSpells` in `land`, written as `retests` on the landed action), and
+  `reduceCharacter` puts back the spells a hit kept (`keepRetested`).
 - **Rest** — `rest` is a root with no die, priced by the action-cost table, and the one
   action of their own a character may declare outside their turn, in the round change's first step
   (paid out of both rounds' AP, with no careful move); it may take AP negative as long as the next round starts positive (`canAffordRest`, told the AP still to come by `getIncomingAP`), and lands as
@@ -77,7 +94,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   actor may make the rest's careful movement once, in their own turn (`moveWhileResting`,
   `rules/rest.ts`):
   a move opened over it, careful only, its 4 AP prepaid, played out before the rest or
-  the spell lands.
+  the spell lands. A Battle Mage's cast carries the same move (above).
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
   evasion a shot missed, it is a `fleeFollowUp` pushed beneath the other follow-ups
   (`getFleeFollowUps`), declared as flee or end (`flee`, end by default; committed as

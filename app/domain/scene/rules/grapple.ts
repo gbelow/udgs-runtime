@@ -245,7 +245,7 @@ export function getManeuverDLTerms(state: SceneState, root: GrappleAction): Term
     ...(resisted ? [] : [{ label: 'no resistance', value: -5 }]),
     ...(resist ? getModifierTerms(state, resist) : []),
   ]
-  const midAction = resisted ? getMidActionTerm(state, root, defender.id) : null
+  const midAction = resist ? getMidActionTerm(state, root, defender.id, resist.kind) : null
   return midAction ? [...terms, midAction] : terms
 }
 

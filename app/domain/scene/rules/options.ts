@@ -243,14 +243,17 @@ function closeIfPushUnpayable(state: SceneState, characterId: string, open: Root
 }
 
 function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootAction): ActionOption[] {
-  const c = withRefund(state, withoutReserve(state, answerer, open.id), open.id)
-  const characterId = c.id
+  const reserved = withoutReserve(state, answerer, open.id)
+  const refunded = withRefund(state, reserved, open.id)
+  const characterId = refunded.id
   const charged = isCombatStarted(state)
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return closeBySurge(state, c, closeIfImmobile(state, c, closeIfUnconscious(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(state, refunded, closeIfImmobile(state, refunded, closeIfUnconscious(refunded, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
+    // what giving up an action of their own refunds, for the answers that give it up
+    const c = withRefund(state, reserved, open.id, kind)
     const price = ACTIONS[kind].price
     const cost = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
     const gate = defenseGate(state, c, open, kind, cost)

@@ -5882,7 +5882,9 @@
         "description": "Allows the caster to use careful movement while concentrating, repurposing the same action points used for the spell.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "castingMove"
+        ],
         "freeSpells": 0
       },
       {
@@ -5898,7 +5900,9 @@
         "description": "The character can defend actively while concentrating, with AP costs paid separately.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "concentratedDefense"
+        ],
         "freeSpells": 0
       },
       {
@@ -5914,7 +5918,9 @@
         "description": "When interrupted, instead of losing the spell, redo the spellcasting test with a penalty of -3 and choose the worst result between the original and this one.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "castingRetest"
+        ],
         "freeSpells": 0
       }
     ]
@@ -6659,7 +6665,7 @@
     "section": "Biomancy",
     "activation": "active",
     "cost": {
-      "AP": 1,
+      "AP": 2,
       "STA": 1,
       "exhaustion": 0,
       "IL": 0,
@@ -6689,7 +6695,20 @@
           ]
         ],
         "description": "Reduces bleed by 1 in self.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "heal",
+            "effect": {
+              "of": "bleed",
+              "amount": 1,
+              "nutrition": 0,
+              "wound": null,
+              "part": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "freeSpells": 0

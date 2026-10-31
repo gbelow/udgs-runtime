@@ -1,4 +1,4 @@
-import type { Action, ActionDraft, SceneState, HOPPurchase } from '../types'
+import type { Action, ActionDraft, ActionKind, SceneState, HOPPurchase } from '../types'
 import { ACTIONS, getActionDef } from '../rules/actionCatalog'
 import type { ActionOption } from '../rules/options'
 import { getOpenAction } from '../rules/log'
@@ -94,8 +94,8 @@ function getOpportunityLabel(state: SceneState, actorId: string, at: number | nu
 // action of their own, that action is what defending actively gives up
 // (`getGivenUpFor`), named; so is the action they hold over for the round to
 // change.
-export function getCancellableLabel(state: SceneState, root: Action, defenderId: string): string | null {
-  const own = getCancellableRoot(state, root, defenderId) ?? (isGivingUpHeld(state, defenderId, root.id) ? getHeldOf(state, defenderId) : null)
+export function getCancellableLabel(state: SceneState, root: Action, defenderId: string, kind?: ActionKind): string | null {
+  const own = getCancellableRoot(state, root, defenderId, kind) ?? (isGivingUpHeld(state, defenderId, root.id, kind) ? getHeldOf(state, defenderId) : null)
   return own ? getActionNoun(own) : null
 }
 

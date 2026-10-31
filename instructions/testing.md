@@ -139,7 +139,7 @@ click to what stands afterwards. It is admitted, under these terms.
   Some plays answer the open declaration from the panel's own offers (a row, a shot's ammo,
   a spell, a potion, a target clicked, a landing clicked) so that an action gets as far as being rolled.
   Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, archers across a pane of glass that breaks, an
-  archer trained to jump and shoot beside a brawler a warden threatens from the other side, a spearman, a trained warden with spear and shield, one trained in cunning as well, one with a body shield, a mage, a bomber with a potion, a netter, a brawler whose three cells bend behind its head, a bleeding medic) and a crowd of
+  archer trained to jump and shoot beside a brawler a warden threatens from the other side, a spearman, a trained warden with spear and shield, one trained in cunning as well, one with a body shield, a mage who is a Battle Mage, a bomber with a potion, a netter, a brawler whose three cells bend behind its head, a bleeding medic) and a crowd of
   seven on ground with a pond and a cliff painted on it, once in the open and once with walls,
   glass, fog, dim and dark ground between them, a torch in one hand and the warden's
   shield a body shield, so that some begin out of the others' sight and stealth has someone to hide. In an exchange one declares something

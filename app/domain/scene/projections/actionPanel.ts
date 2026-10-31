@@ -32,6 +32,7 @@ import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
+import { canMoveWhileSustaining } from '../rules/battleMage'
 import { getFiringSteps, isSteadyShot } from '../rules/steadyArms'
 import { isRootAction } from '../rules/actionCatalog'
 import { getBreakableLimbs, getDisarmOptions, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
@@ -177,7 +178,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
           }
         : null
-      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -384,6 +385,8 @@ export type ActionPanelView = {
   // combat.tex "Rest": whether the careful move made while resting is still
   // to be had
   restMove: boolean
+  // abilities.tex "Battle Mage I": the careful move holding on bought, still to make
+  sustainMove: boolean
   // who still has to pick on the board where they step to block or
   // intercept; null when nobody does
   stepPending: string | null
@@ -417,7 +420,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, sustainMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -431,7 +434,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
 
   if (!open) {
     const own = active ? labelled(state, active.id, getAvailableActions(state, active.id)) : []
-    return { ...EMPTY, options: own.filter((o) => !getActionDef(o.draft.kind).group), social: own.filter((o) => getActionDef(o.draft.kind).group === 'social'), episodes, edits, prepared: getPreparedRows(state) }
+    return { ...EMPTY, sustainMove: !!active && canMoveWhileSustaining(state, active.id), options: own.filter((o) => !getActionDef(o.draft.kind).group), social: own.filter((o) => getActionDef(o.draft.kind).group === 'social'), episodes, edits, prepared: getPreparedRows(state) }
   }
 
   const actor = state.characters[open.actorId]
@@ -582,6 +585,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     goBar,
     canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
     restMove: isRootAction(open) && canMoveWhileResting(state, open),
+    sustainMove: false,
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
     stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,

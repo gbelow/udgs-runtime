@@ -497,7 +497,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, caller: Ca
     if (!cost) return state
     const stamped = a.kind === 'strike' ? { ...a, charge: isChargeStrike(state, a) } : a
     const rolled = thrown(stamped)
-    paid.push({ ...rolled, cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo) : 0, preparationAP: getPreparationAP(state, rolled), step: a.id === root.id ? 'post' : 'done' })
+    paid.push({ ...rolled, cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo, a.kind) : 0, preparationAP: getPreparationAP(state, rolled), step: a.id === root.id ? 'post' : 'done' })
   }
   return advance(giveUpSustained(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), paid), newId, caller)
 }

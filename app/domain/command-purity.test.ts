@@ -295,6 +295,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   refundImprovement: (s) => combatCommands.refundImprovement('enhance')(deepFreeze(combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))))),
   saveGraze: (s) => combatCommands.saveGraze()(deepFreeze(grazedCast(s))),
   moveWhileResting: (s) => combatCommands.moveWhileResting(newId)(deepFreeze(paidRest(s))),
+  moveWhileSustaining: (s) => combatCommands.moveWhileSustaining('a', newId)(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', concentration: [{ id: 'a', hold: true, upkeepAP: 2, moveId: null }] })),
   stepExtend: (s) => combatCommands.stepExtend(1)(deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))),
   chooseSpell: (s) => combatCommands.chooseSpell('sleep', true)(deepFreeze(combatCommands.declareAction('a', { kind: 'cast' }, newId)(deepFreeze(cleared(s))))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),

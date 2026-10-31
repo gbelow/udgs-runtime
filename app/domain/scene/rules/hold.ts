@@ -1,7 +1,8 @@
-import type { Action, RootAction, SceneState } from '../types'
+import type { Action, ActionKind, RootAction, SceneState } from '../types'
 import { isRootAction } from './actionCatalog'
 import { getAction, getLiveActions } from './log'
 import { isConcentrationAbility } from './medicine'
+import { keepsConcentrationOn } from './battleMage'
 
 // combat.tex "Concentration", "Focus surge": the actions that need the focus
 // surge, draw opportunity attacks as a triggering action, and may be held over
@@ -39,10 +40,16 @@ export function getHeldOf(state: SceneState, actorId: string): RootAction | null
 // combat.tex "Interruption": whether a reaction by the character to the
 // action being fought would interrupt the action they hold: the first they
 // make does, and it is that one only that is given up for. A reaction taken
-// back gives up nothing.
-export function isGivingUpHeld(state: SceneState, reactorId: string, foughtId: string): boolean {
+// back gives up nothing, and a Battle Mage's defense gives up no cast
+// (`keepsHeldOn`). With no kind, any reaction that would.
+export function isGivingUpHeld(state: SceneState, reactorId: string, foughtId: string, kind?: ActionKind): boolean {
   const held = getHeldOf(state, reactorId)
-  return held !== null && givesUpFor(state, held, foughtId)
+  return held !== null && !keepsHeldOn(state, held, kind) && givesUpFor(state, held, foughtId)
+}
+
+// abilities.tex "Battle Mage II": a held cast is kept through a defense.
+export function keepsHeldOn(state: SceneState, held: Action, kind: ActionKind | undefined): boolean {
+  return held.kind === 'cast' && keepsConcentrationOn(state, held.actorId, kind)
 }
 
 function givesUpFor(state: SceneState, held: Action, foughtId: string): boolean {
@@ -52,7 +59,7 @@ function givesUpFor(state: SceneState, held: Action, foughtId: string): boolean 
 
 // combat.tex "Interruption": "The AP from the interrupted action is
 // refunded, but 1 AP is lost" — what the held action had been paid.
-export function getHeldRefund(state: SceneState, reactorId: string, foughtId: string): number {
+export function getHeldRefund(state: SceneState, reactorId: string, foughtId: string, kind?: ActionKind): number {
   const held = getHeldOf(state, reactorId)
-  return held && givesUpFor(state, held, foughtId) ? Math.max(0, held.carried.AP - 1) : 0
+  return held && !keepsHeldOn(state, held, kind) && givesUpFor(state, held, foughtId) ? Math.max(0, held.carried.AP - 1) : 0
 }

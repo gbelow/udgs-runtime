@@ -46,6 +46,7 @@ import { extinguishCell } from '../rules/extinguish'
 import { coatCell, filterLayers, igniteCell, getHolderOf, isSupersededBy, type FireTouched } from '../rules/board/hazard'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { getPassingPlacement } from '../rules/sidestep'
+import { getKeptSpells } from '../rules/battleMage'
 
 // The moments an action touches a character: `roll`, when the die is thrown
 // and the price leaves the actor in the same step; `save`, when a graze is
@@ -64,9 +65,24 @@ export type Phase = 'roll' | 'save' | 'resolve'
 // ends with it (abilities.tex "Battle Mage": "When interrupted, instead of
 // losing the spell") — a won maneuver here; a blow that interrupts or stuns
 // ends it where it lands (character/commands/deliver.ts), as a crash does
-// (`trampledBy`). The holder of the turn touches the fire the landing left
+// (`trampledBy`), but for the spells a Battle Mage kept by testing again
+// (`keepRetested`). The holder of the turn touches the fire the landing left
 // them in (`getFireTouched`), read off the board the action put them on.
 export function reduceCharacter(action: Action, phase: Phase, charged: boolean, fire: FireTouched | null = null): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => keepRetested(action, c)(reduceOnce(action, phase, charged, fire)(c))
+}
+
+// abilities.tex "Battle Mage III": the held spells the caster's test kept
+// through what interrupted them, as they held them.
+function keepRetested(action: Action, before: CampaignCharacter): (c: CampaignCharacter) => CampaignCharacter {
+  const kept = getKeptSpells(action.retests, before.id)
+  return (c: CampaignCharacter) => {
+    const lost = before.active.filter((e) => e.kind === 'spell' && kept.includes(e.key) && !c.active.some((a) => a.kind === 'spell' && a.key === e.key))
+    return lost.length === 0 ? c : { ...c, active: [...c.active, ...lost] }
+  }
+}
+
+function reduceOnce(action: Action, phase: Phase, charged: boolean, fire: FireTouched | null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const part = reducePart(action, phase, charged)(c)
     // abilities.json "Perfect Preparation": the AP its preparer receives for

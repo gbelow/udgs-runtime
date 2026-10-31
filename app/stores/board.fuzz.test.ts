@@ -313,6 +313,7 @@ function plays(): Play[] {
     { name: 'take back an improvement', run: (h, pick) => { const options = getActionPanel(h.state()).castHOP.options; if (options.length) h.send({ kind: 'unimprove', args: [pick(options).name] }) } },
     { name: 'save a graze', run: (h) => h.send({ kind: 'grazeSave', args: [] }) },
     { name: 'move while resting', run: (h) => h.send({ kind: 'restMove', args: [] }) },
+    { name: 'move while holding a spell', run: (h) => { const id = h.state().activeCharacterId; if (id) h.send({ kind: 'sustainMove', args: [id] }) } },
     { name: 'boost a push', run: (h, pick) => h.send({ kind: 'boostPush', args: [pick([true, false])] }) },
     { name: 'take a segment back', run: (h) => h.send({ kind: 'backSegment', args: [] }) },
     { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.send({ kind: 'choose', args: [open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) }] }) } },

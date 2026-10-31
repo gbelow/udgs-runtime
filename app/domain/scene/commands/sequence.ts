@@ -38,6 +38,9 @@ import { getJumpAttack, getJumpAttackOpened } from '../rules/jumpAttack'
 import { openSteadyLeg } from '../rules/steadyArms'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
+import { getCastRetest, getHeldSpellRetest, getWorseRoll, retestsCasting } from '../rules/battleMage'
+import { getActiveSpellKeys } from '../../character/rules/effects'
+import { isConcentrating } from '../../character/rules/concentration'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -64,7 +67,11 @@ export function advance(state: SceneState, newId: () => string, caller: Caller):
   if (isForgone(state, top)) return advance(withdrawActions(state, [top.id], 'forgone'), newId, caller)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
-  if (opened !== state || hasPostChoice(state, top)) return opened
+  if (opened !== state) return opened
+  const retested = top.kind === 'cast' ? retestCast(state, top, caller) : state
+  if (caller.waiting()) return state
+  if (retested !== state) return advance(retested, newId, caller)
+  if (hasPostChoice(state, top)) return state
   // combat.tex "Concentration": the attacks an action held over drew are
   // fought; unless they came to nothing of it, it waits for the round to change
   return top.holding && !isVoided(state, top) ? advance(parkHeld(state, top), newId, caller) : land(state, top, newId, caller)
@@ -83,7 +90,7 @@ export function land(state: SceneState, open: RootAction, newId: () => string, c
   const thrown = throwTargetDice(state, open, caller)
   if (caller.waiting()) return state
   const settled = getSettled(state, thrown)
-  const resolved = { ...settled, results: getResults(state, settled) }
+  const resolved = retestHeldSpells(state, { ...settled, results: getResults(state, settled) }, caller)
   const redone = redoClimb(replaceActions(state, [resolved]), resolved, caller)
   if (caller.waiting()) return state
   const landed = breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved)
@@ -110,6 +117,33 @@ function redoClimb(state: SceneState, landed: RootAction, caller: Caller): Scene
   if (!climb || !test) return state
   const roll = caller.test({ id: `redo:${climb.move.id}:${climb.reactionId}`, roller: climb.move.actorId, label: 'climb again: an attack interrupted the climb', test, mode: climb.move.mode })
   return roll ? replaceActions(state, [{ ...climb.move, redos: { ...climb.move.redos, [climb.reactionId]: roll } }]) : state
+}
+
+// abilities.tex "Battle Mage III": "When interrupted, instead of losing the
+// spell, redo the spellcasting test with a penalty of -3 and choose the worst
+// result between the original and this one": thrown once what interrupted
+// the cast has landed and before its caster spends what it came to.
+function retestCast(state: SceneState, cast: CastAction, caller: Caller): SceneState {
+  const test = isVoided(state, cast) ? null : getCastRetest(state, cast)
+  if (!test || !cast.roll) return state
+  const again = caller.test({ id: `retest:${cast.id}`, roller: cast.actorId, label: 'cast again: interrupted while casting', test })
+  if (!again) return state
+  return replaceActions(state, [{ ...cast, roll: getWorseRoll(cast.roll, again), retest: { first: cast.roll, again } }])
+}
+
+// abilities.tex "Battle Mage III": a caster the landing interrupts tests
+// again for every spell they hold, and keeps those the test hits.
+function retestHeldSpells(state: SceneState, landed: RootAction, caller: Caller): RootAction {
+  const retests = Object.fromEntries(Object.values(state.characters).flatMap((c) => {
+    if (!retestsCasting(state, c.id) || !isConcentrating(c) || getInterruptionBy(state, landed, c.id) === 'none') return []
+    const rolls = getActiveSpellKeys(c).flatMap((key) => {
+      const test = getHeldSpellRetest(state, c.id, key)
+      const roll = test && caller.test({ id: `retest:${landed.id}:${c.id}:${key}`, roller: c.id, label: `keep ${SPELLS[key].name}: interrupted while holding it`, test })
+      return roll ? [{ key, roll }] : []
+    })
+    return [[c.id, rolls]]
+  }))
+  return Object.keys(retests).length === 0 ? landed : { ...landed, retests }
 }
 
 // What a landed action leaves on the fight beyond its characters, board,

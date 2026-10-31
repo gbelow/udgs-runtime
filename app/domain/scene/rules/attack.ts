@@ -296,7 +296,7 @@ function reactionSensoryTerms(state: SceneState, reaction: Action, skill: 'defen
 function getAnswerTerms(state: SceneState, attack: StrikeAction | ShootAction): Term[] {
   const counter = getOpeningCounter(state, attack)
   const countered = counter ? getRootOf(state, counter) : null
-  const midAction = countered ? getMidActionTerm(state, countered, attack.actorId) : null
+  const midAction = countered ? getMidActionTerm(state, countered, attack.actorId, 'counterattack') : null
   return [...getRecipeHitTerms(state, attack), ...(midAction ? [midAction] : [])]
 }
 
@@ -465,7 +465,7 @@ function getStrikeDLTerms(state: SceneState, root: StrikeAction): Term[] {
   const reaction = getDefendingReaction(state, root)
   const terms: Term[] = reaction ? strikeDefenseTerms(state, root, reaction) : [{ label: 'SD', value: getSD(defender, getSituationalAfflictions(state, defender.id)) }]
   if (!reaction && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
-  const midAction = reaction ? getMidActionTerm(state, root, defender.id) : null
+  const midAction = reaction ? getMidActionTerm(state, root, defender.id, reaction.kind) : null
   return midAction ? [...terms, midAction] : terms
 }
 
