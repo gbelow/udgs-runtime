@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
+import { useCombatStore } from './useCombatStore'
 import { brawler, fighter, spearman, warden } from '../domain/bot/fixtures'
 import type { CampaignCharacter } from '../domain/types'
 import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
@@ -117,12 +118,12 @@ describe('walking a move across the board', () => {
   // The view says which cells a move can reach; a click on one of them takes
   // the path there, and a click on any other leaves it empty.
   it('ends the path on every cell the view offers and nowhere else', () => {
-    const walls: [number, number][] = [[1, 0], [1, -1], [-1, 2]]
-    const keys = scene(walls).view().cells.map((c) => c.key)
-    for (const key of keys) {
+    const h = scene([[1, 0], [1, -1], [-1, 2]])
+    const start = useCombatStore.getState()
+    const offers = new Map(h.view().cells.map((c) => [c.key, c.reachable !== null]))
+    for (const [key, offered] of offers) {
       const [q, r] = key.split(',').map(Number)
-      const h = scene(walls)
-      const offered = h.view().cells.find((c) => c.key === key)!.reachable !== null
+      useCombatStore.setState(start, true)
       h.cell(q, r)
       expect(pathOf(h).at(-1) ?? null, `clicking ${key}`).toBe(offered ? key : null)
     }
