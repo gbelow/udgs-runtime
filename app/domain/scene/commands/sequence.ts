@@ -284,12 +284,15 @@ function openJumpAttack(state: SceneState, root: RootAction, newId: () => string
 }
 
 // combat.tex "Balance": a move that ended in a fall — down a jump, off a
-// climb that failed — has its mover make the fall test before anything else
-// is played out, committed as it opens: nobody answers it, and it waits only
-// on the faller's die.
+// climb that failed, off an edge a crash put them over — has its mover make
+// the fall test before anything else is played out, committed as it opens:
+// nobody answers it, and it waits only on the faller's die. So does everyone
+// a push or a drag took over an edge (the table's ruling).
 function openFall(root: RootAction, newId: () => string): Action[] {
-  const fall = root.kind === 'move' ? root.facts?.fall : null
-  return fall ? [makeAction('fall', { id: newId(), actorId: root.actorId, height: fall.height, to: fall.to, spawnedBy: root.id, step: 'react' })] : []
+  const falls = root.kind === 'move' && root.facts?.fall ? [{ ...root.facts.fall, id: root.actorId }]
+    : root.kind === 'drag' ? root.facts?.falls ?? []
+    : []
+  return falls.map((fall) => makeAction('fall', { id: newId(), actorId: fall.id, height: fall.height, to: fall.to, spawnedBy: root.id, step: 'react' }))
 }
 
 // combat.tex "Swimming": a move that left its mover in the water, who has not

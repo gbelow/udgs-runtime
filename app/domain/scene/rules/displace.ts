@@ -13,8 +13,8 @@ import { isInGrapple } from './partners'
 // as its target and wins, the defender is displaced by 1 space." The table's
 // rulings: a winner who passes on a difference under 5 has won too; the
 // attacker picks the space once the crash is known, one next to the
-// defender's, off the attacker's way, on ground as high as the defender's and
-// out of the water; with nowhere to put any of them, nobody is displaced and
+// defender's, off the attacker's way, on ground no higher than the defender's
+// (lower by a cliff or more, they fall there) and out of the water; with nowhere to put any of them, nobody is displaced and
 // the attacker stops short. The displacement is a movement forced on the
 // defender, made before the attacker comes to rest: it draws opportunity
 // attacks, costs nothing, and an interruption does not cancel it.
@@ -45,7 +45,7 @@ export function getCrashedAtEnd(state: SceneState, move: MoveAction): string[] {
 }
 
 // The spaces the attacker may put the defender in: next to where they stood,
-// off every space the attacker's way takes them over, as high, dry, and free
+// off every space the attacker's way takes them over, no higher, dry, and free
 // to rest on with the attacker at the end and the others put where they are
 // picked to go. None for one hanging, grappled or immobile.
 export function getDisplacementCells(state: SceneState, move: MoveAction, id: string): Coord[] {
@@ -64,7 +64,7 @@ export function getDisplacementCells(state: SceneState, move: MoveAction, id: st
   const height = floor.elevation(from.cell)
   return ring(from.cell, 1).filter((cell) => {
     const footprint = getFootprint(c, placeAt(board, from, cell))
-    return !footprint.some((f) => way.has(coordKey(f))) && floor.elevation(cell) === height && !footprint.some(floor.blocked) && !isWet(footprint, floor) && canRest(state, c, footprint, floor, false)
+    return !footprint.some((f) => way.has(coordKey(f))) && floor.elevation(cell) <= height && !footprint.some(floor.blocked) && !isWet(footprint, floor) && canRest(state, c, footprint, floor, false)
   })
 }
 

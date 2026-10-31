@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { type Action, type SceneState, type Coord } from '../types'
+import { TerrainCellSchema, type Action, type DragAction, type SceneState, type Coord } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
@@ -18,12 +18,16 @@ import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS, type SpellKey } from '../../spells'
-import { ROUND_AP } from '../../tables'
+import { FALL, ROUND_AP } from '../../tables'
 import { getItemArmor } from '../../item/rules/items'
 import { archer, board as onBoard } from '../../bot/fixtures'
 import { grantAbility } from '../../character/commands/abilities'
 import { ABILITIES, type AbilityKey } from '../../abilities'
-import { getTethers } from '../rules/partners'
+import { getPartners, getTethers } from '../rules/partners'
+import { getGroupSteps } from '../rules/drag'
+import { getMoveFall } from '../rules/board/cliff'
+import { makeAction } from '../factories'
+import { coordKey } from '../rules/board/geometry'
 import { getSpellOptions } from '../rules/cast'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
@@ -1388,5 +1392,51 @@ describe('a move cut short while passing through someone', () => {
     s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [1, 2, 3].map((q) => ({ q, r: 0 })) })(s))
     const { state } = playOut(s, 5)
     expect(state.board?.placements.o?.cell).toEqual({ q: 3, r: 0 })
+  })
+})
+
+// The table's ruling: a push that takes someone onto ground a cliff or more
+// below where they stood has them fall the rest of the way, out of the
+// grapple, and the block goes no further.
+describe('a push over an edge', () => {
+  const LEDGE = FALL.minHeight + 1
+
+  // A has grabbed B on a ledge whose edge is just past B, and pushes the
+  // block toward it along the way given.
+  function pushedToward(path: Coord[]): SceneState {
+    let s = onBoard({ a: [0, 0], b: [1, 0] }, fighter('a'), fighter('b'))
+    const terrain = Object.fromEntries([-1, 0, 1].map((q) => [coordKey({ q, r: 0 }), TerrainCellSchema.parse({ elevation: LEDGE })]))
+    const placements = Object.fromEntries(Object.entries(s.board!.placements).map(([id, p]) => [id, { ...p, elevation: LEDGE }]))
+    s = { ...s, board: { ...s.board!, terrain, placements } }
+    s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
+    s = resolveAction(newId, () => 5)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
+    s = declareAction('a', { kind: 'drag', movement: 'careful', boost: true }, newId)(s)
+    return amendAction({ path })(setTarget('b')(s))
+  }
+
+  it('drops the one pushed off it, who falls and leaves the grapple', () => {
+    const { state, landed } = playOut(commitAction(() => 5, newId)(pushedToward([{ q: 1, r: 0 }])), 5)
+    expect(landed.some((a) => a.kind === 'fall' && a.actorId === 'b')).toBe(true)
+    expect(state.board?.placements.b?.cell).toEqual({ q: 2, r: 0 })
+    expect(state.board?.placements.b?.elevation).toBe(0)
+    expect(getPartners(state, 'b')).toEqual([])
+  })
+
+  it('goes no further than the step someone falls from', () => {
+    const s = pushedToward([{ q: 1, r: 0 }, { q: 2, r: 0 }])
+    expect(getGroupSteps(s, getOpenAction(s) as DragAction)).toBeNull()
+  })
+})
+
+// The table's ruling: a crash may displace its defender onto ground a cliff
+// or more below theirs, and the forced step ends in their fall.
+describe("a crash's displacement over an edge", () => {
+  const LEDGE = FALL.minHeight + 1
+
+  it('ends in a fall from the ledge', () => {
+    const s = onBoard({ d: [0, 0] }, fighter('d'))
+    const ledge = { ...s, board: { ...s.board!, terrain: { [coordKey({ q: 0, r: 0 })]: TerrainCellSchema.parse({ elevation: LEDGE }) }, placements: { d: { ...s.board!.placements.d, elevation: LEDGE } } } }
+    const step = makeAction('move', { id: newId(), actorId: 'd', movement: 'basic', movements: ['basic'], path: [{ q: 1, r: 0 }], from: ledge.board.placements.d, forced: true, step: 'react' })
+    expect(getMoveFall(ledge, step, step.path, false)?.height).toBe(LEDGE)
   })
 })

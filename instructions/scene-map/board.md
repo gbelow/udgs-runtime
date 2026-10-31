@@ -43,7 +43,10 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   it began and where it was bound), and landing the move opens a `fall` root over it: the
   faller's own Balance test, whose degree `rules/fall.ts` turns into the damage and afflictions
   the landing delivers. Where the mover stands afterwards is read off the ground there, as for
-  any move. A displacement that ends in a fall (a push, a drag) is not wired in yet.
+  any move. A displacement over an edge is a fall too (the table's ruling): a crash may put its
+  defender on lower ground and the forced step ends in their fall (`getMoveFall`), and a push or a
+  drag that takes someone other than its actor a cliff down ends at that step, which they fall
+  from (`DragFacts.falls`) and leave the grapple; the actor never steps off one.
 - **Storeys.** A board's `levels` are storeys over the ground, each a terrain map with a floor
   height. Whoever stands in a cell stands on the highest floor there that is no cliff above
   their feet (`getTerrainAt`), so the storey is ground to whoever is on it and its walls are its

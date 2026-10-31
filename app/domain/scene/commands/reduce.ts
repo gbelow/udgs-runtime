@@ -294,10 +294,13 @@ function withTethers(binds: Bind[], made: Tether[]): Bind[] {
 
 function reduceGrapplesOf(action: Action, grapples: Grapple[]): Grapple[] {
   // combat.tex "Push and drag": one who let go "and leave[s] the grapple"
-  // instead of being moved
+  // instead of being moved; one who fell off its last step leaves it too
+  // (the table's ruling)
   if (action.kind === 'drag') {
     const released = action.facts?.released ?? []
-    return released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
+    const fell = (action.facts?.falls ?? []).map((f) => f.id)
+    const kept = fell.length === 0 ? grapples : grapples.filter((g) => !g.members.some((id) => fell.includes(id)))
+    return released.length === 0 ? kept : dropHolders(kept, (id) => released.includes(id))
   }
   const facts = getGrappleFacts(action)
   return facts ? replacePair(grapples, facts.pair, facts.grapple) : grapples

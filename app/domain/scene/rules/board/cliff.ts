@@ -259,9 +259,21 @@ export function getClimbHang(state: SceneState, action: MoveAction, fall: MoveFa
   return { to: action.path[0], covered: plan.covered, upright: hasGrant(c, 'climbUpright') && getClimbDegree(state, action) === 'critical', elevation: getClimbFeet(plan), floor: plan.face.floor, bound: plan.face.bound }
 }
 
+// A step forced on someone (a crash's displacement) that put them a cliff or
+// more below where they stood: they fall the rest of the way (the table's
+// ruling).
+function getForcedFall(state: SceneState, action: MoveAction, path: Coord[]): MoveFall | null {
+  const from = getMoveOrigin(state, action)
+  const end = getPathPlacements(state, action, path).at(-1)
+  if (!from || !end) return null
+  const height = from.elevation - end.elevation
+  return height >= FALL.minHeight ? { height, to: null } : null
+}
+
 // The fall a move as walked ends in, if any; `redoFell` is whether the test an
 // attack had the climber make on the way was failed.
 export function getMoveFall(state: SceneState, action: MoveAction, path: Coord[], redoFell: boolean): MoveFall | null {
+  if (action.forced) return getForcedFall(state, action, path)
   if (action.movement === 'jump') return getJumpFall(state, action, path)
   if (action.movement === 'climb' && !isTrivialClimb(state, action) && hasClimbFailed(state, action, redoFell)) return getClimbFall(state, action, redoFell)
   return null

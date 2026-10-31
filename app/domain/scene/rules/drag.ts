@@ -1,6 +1,6 @@
 import type { Action, SceneState, Coord, DragAction, DragFacts, Placement, PushMovement } from '../types'
 import type { CampaignCharacter } from '../../types'
-import { ASSIST } from '../../tables'
+import { ASSIST, FALL } from '../../tables'
 import { PUSH_MOVEMENTS } from '../../lists'
 import { getForce } from '../../character/rules/skills'
 import { hasAffliction } from '../../character/rules/afflictions'
@@ -325,18 +325,34 @@ function shiftedTo(state: SceneState, root: DragAction, movers: string[], cell: 
   return canGroupStand(state, placements) ? placements : null
 }
 
+// Who a step of the block put a cliff or more below where they stood before
+// it, and how far they fall (the table's ruling).
+function getStepFalls(before: Record<string, Placement>, after: Record<string, Placement>): DragFacts['falls'] {
+  return Object.entries(after).flatMap(([id, at]) => {
+    const height = (before[id]?.elevation ?? at.elevation) - at.elevation
+    return height >= FALL.minHeight ? [{ id, height, to: null }] : []
+  })
+}
+
 // Where everyone who moves stands after each step of the actor's way; null
 // when the way is not one the block allows — longer than the block, off the
-// line, or somewhere someone cannot stand.
+// line, somewhere someone cannot stand, over a cliff for the actor, or on
+// past the step someone else falls from.
 export function getGroupSteps(state: SceneState, root: DragAction): Record<string, Placement>[] | null {
   const from = getWalkerPlacement(state, root)
   if (!from || (root.pull && root.movement !== 'careful') || root.path.length > blockCells(state, root)) return null
+  const origin = getGroupOrigin(state, root)
+  const steps: Record<string, Placement>[] = []
+  const take = (at: Record<string, Placement> | null, last: boolean): boolean => {
+    if (!at) return false
+    const falls = getStepFalls(steps.at(-1) ?? origin, at)
+    if (falls.some((f) => f.id === root.actorId) || (falls.length > 0 && !last)) return false
+    steps.push(at)
+    return true
+  }
   if (root.movement === 'basic') {
-    const steps: Record<string, Placement>[] = []
-    for (const cell of root.path) {
-      const at = circledTo(withPlacements(state, steps.at(-1) ?? {}), root, cell)
-      if (!at) return null
-      steps.push(at)
+    for (const [i, cell] of root.path.entries()) {
+      if (!take(circledTo(withPlacements(state, steps.at(-1) ?? {}), root, cell), i === root.path.length - 1)) return null
     }
     return steps
   }
@@ -345,11 +361,9 @@ export function getGroupSteps(state: SceneState, root: DragAction): Record<strin
   const direction = axis ? getDirections(axis, root).find((d) => sameCell(add(from.cell, d), root.path[0])) : undefined
   if (!direction) return null
   const { movers } = getParties(state, root)
-  const steps: Record<string, Placement>[] = []
   for (const [i, cell] of root.path.entries()) {
     const at = sameCell(cell, add(from.cell, scale(direction, i + 1))) ? shiftedTo(state, root, movers, cell) : null
-    if (!at) return null
-    steps.push(at)
+    if (!take(at, i === root.path.length - 1)) return null
   }
   return steps
 }
@@ -397,10 +411,11 @@ export function getPushStop(state: SceneState, root: DragAction): number | null 
 }
 
 // What the block came to: who let go instead of being moved, how far it
-// went, and where everyone who moved ended.
+// went, where everyone who moved ended, and who fell from its last step.
 export function getDragFacts(state: SceneState, root: DragAction): DragFacts {
   const stop = getPushStop(state, root)
   const steps = getGroupSteps(state, root) ?? []
   const walked = stop === null ? steps : steps.slice(0, stop)
-  return { released: getParties(state, root).released, steps: walked.length, to: walked.at(-1) ?? {} }
+  const falls = walked.length === 0 ? [] : getStepFalls(walked.at(-2) ?? getGroupOrigin(state, root), walked[walked.length - 1])
+  return { released: getParties(state, root).released, steps: walked.length, to: walked.at(-1) ?? {}, falls }
 }

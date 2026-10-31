@@ -1200,6 +1200,10 @@ export const DragFactsSchema = z.object({
   released: z.array(str).default([]),
   steps: num.default(0),
   to: z.record(str, PlacementSchema).default({}),
+  // the table's ruling: whoever the block's last step put a cliff or more
+  // below where they stood, who falls the rest of the way and leaves the
+  // grapple
+  falls: z.array(MoveFallSchema.extend({ id: str })).default([]),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
 export const PushMovementSchema = z.enum(PUSH_MOVEMENTS)
