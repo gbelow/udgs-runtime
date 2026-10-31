@@ -23,7 +23,7 @@ import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
-import { getCellLight } from '../rules/board/light'
+import { getCellLighting } from '../rules/board/light'
 import { getCellArt, getCellBledInto, getCellSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
@@ -343,7 +343,7 @@ function buildBoardView(state: SeenScene): BoardView {
     const { x, y } = toPlane(cell)
     const there = reachableByKey.get(key)
     const hazard = getCellHazard(state, cell)
-    const light = getCellLight(state, cell)
+    const { light, lit } = getCellLighting(state, cell)
     return {
       key,
       cell,
@@ -363,7 +363,7 @@ function buildBoardView(state: SeenScene): BoardView {
       art: artIndex(getCellArt(board, key)),
       bledInto: getCellBledInto(board, key),
       light,
-      lit: light === 'bright' && (board.light !== 'bright' || !!terrain?.dark),
+      lit,
       unseen: false,
       occupants: occupancy[key] ?? [],
       storey: null,

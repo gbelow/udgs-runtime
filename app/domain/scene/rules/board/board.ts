@@ -79,6 +79,20 @@ export function getFloors(board: Board, cell: Coord): Footing[] {
   ]
 }
 
+// The solid floors over a floor `floor` high in the cell, a cliff or more
+// above it: what roofs it. A stairwell and a lattice roof nothing.
+export function getRoofs(board: Board, cell: Coord, floor: number): Footing[] {
+  const key = coordKey(cell)
+  return getFloors(board, cell).filter((f) => f.level !== null && !board.levels[f.level].terrain[key]?.lattice && f.floor - floor >= FALL.minHeight)
+}
+
+// Whether a solid floor of the cell lies between two heights, the lower left
+// out: what keeps light on one floor from another.
+export function isFloorBetween(board: Board, cell: Coord, a: number, b: number): boolean {
+  const key = coordKey(cell)
+  return getFloors(board, cell).some((f) => f.level !== null && !board.levels[f.level].terrain[key]?.lattice && f.floor > Math.min(a, b) && f.floor <= Math.max(a, b))
+}
+
 // The floor someone whose feet are at `height` stands on in the cell: the
 // highest there that is no cliff above them (combat.tex "Choosing Fall DL":
 // a cliff is a metre or more), or the lowest where every floor is. A walk up a

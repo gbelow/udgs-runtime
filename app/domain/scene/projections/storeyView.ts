@@ -1,14 +1,16 @@
 import type { Board, Coord, SeenScene } from '../types'
 import { FALL } from '../../tables'
 import { coordKey } from '../rules/board/geometry'
-import { getFloors, getTerrainAt, type Footing } from '../rules/board/board'
+import { getFloors, getRoofs, getTerrainAt, type Footing } from '../rules/board/board'
 import { getCellSenser } from '../rules/detection'
+import { getCellLighting } from '../rules/board/light'
 import { getBoardView, type BoardCellView, type BoardOverheadView, type BoardView } from './boardView'
 
 // The board looked at from a height: each cell drawn as the floor someone
 // whose feet are there stands on (`getTerrainAt`), the cells where they would
 // fall veiled as open air over the ground, and whoever stands on another
-// floor drawn apart. Looked at through someone's eyes, a floor they do not see
+// floor drawn apart. A wall of the ground stands as high as the floor looked
+// from, as it does to a line, up to a storey laid over it. Looked at through someone's eyes, a floor they do not see
 // with a storey over it is drawn as the highest solid floor there, its roof. A
 // lattice is seen through: the solid floor under it is drawn, and the lattice
 // over it at its own height. What the board offers and what a click means are
@@ -67,31 +69,38 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
     const floors = getFloors(board, c.cell)
     const lattice = isLattice(c.key)
     const stand = standing(c.cell)
-    const over = floors.filter((f) => !lattice(f) && f.floor - stand.floor >= FALL.minHeight)
+    const over = getRoofs(board, c.cell, stand.floor)
     const roof = senses && over.length > 0 && !senses(c.cell, stand.floor) ? highest(over) : undefined
     const top = roof ?? stand
-    const drawn = lattice(top) ? highest(floors.filter((f) => !lattice(f) && f.floor < top.floor)) ?? top : top
+    const ground = board.terrain[c.key]
+    const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[c.key]).map((l) => l.floor))
+    const wall = !roof && height !== null && stand.level === null && !!ground?.blocking && ceiling > height
+    const drawn = wall ? { terrain: ground, floor: height, level: null }
+      : lattice(top) ? highest(floors.filter((f) => !lattice(f) && f.floor < top.floor)) ?? top
+      : top
     const above = floors.filter((f) => lattice(f) && f.floor > drawn.floor && !floors.some((g) => !lattice(g) && g.floor > drawn.floor && g.floor < f.floor))
-    return [c.key, { stand, roof, top, drawn, above }]
+    return [c.key, { stand, roof, wall, top, drawn, above }]
   }))
 
   const terrain = { ...board.terrain }
-  for (const [key, { drawn }] of looks) if (drawn.level !== null && drawn.terrain) terrain[key] = { ...drawn.terrain, elevation: drawn.floor }
-  const redrawn = [...looks.values()].some((l) => l.drawn.level !== null)
+  const moved = (key: string, f: Footing) => f.level !== null || f.floor !== (board.terrain[key]?.elevation ?? 0)
+  for (const [key, { drawn }] of looks) if (moved(key, drawn) && drawn.terrain) terrain[key] = { ...drawn.terrain, elevation: drawn.floor }
+  const redrawn = [...looks].some(([key, l]) => moved(key, l.drawn))
   const flat = redrawn ? getBoardView({ ...state, board: { ...board, terrain, levels: [] } }) : view
   const byKey = new Map(flat.cells.map((c) => [c.key, c]))
 
   const cells = view.cells.map((c): BoardCellView => {
     const d = byKey.get(c.key)
-    const { stand, roof } = looks.get(c.key)!
+    const { stand, roof, wall, drawn } = looks.get(c.key)!
     const hole = height !== null && board.levels.some((level) => Math.abs(level.floor - height) < FALL.minHeight && level.terrain[c.key]?.hole)
     const storey = roof ? 'roof'
+      : wall ? null
       : stand.level !== null ? (board.levels[stand.level].terrain[c.key]?.lattice ? 'lattice' : 'floor')
       : hole ? 'hole'
       : height !== null && height - stand.floor >= FALL.minHeight ? 'air'
       : null
     const unseen = c.unseen && !(roof && senses?.(c.cell, roof.floor))
-    return { ...c, ...(d && redrawn ? Object.fromEntries(DRAWN.map((k) => [k, d[k]])) : {}), storey, unseen }
+    return { ...c, ...(d && redrawn ? Object.fromEntries(DRAWN.map((k) => [k, d[k]])) : {}), ...getCellLighting(state, c.cell, drawn.floor), storey, unseen }
   })
   const overhead: BoardOverheadView[] = view.cells.flatMap((c) => [...new Set(looks.get(c.key)!.above.map((f) => f.floor))].map((elevation) => ({ key: c.key, x: c.x, y: c.y, elevation })))
   const tokens = view.tokens.map((t) => {

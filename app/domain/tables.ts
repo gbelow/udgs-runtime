@@ -198,6 +198,12 @@ export const SPELL_LIGHT: Record<string, number> = {
   'revealing-light': 10,
 }
 
+// The table's ruling: a floor under a roof takes the light outside through
+// whatever a line passes (a window, a doorway), as bright as outside within
+// `full` metres of an open floor outside it sees, a step darker within
+// `fading`, and dark beyond. The line is drawn `height` metres over the floor.
+export const WINDOW_LIGHT = { full: 3, fading: 6, height: 1.5 }
+
 // combat.tex "Fog and smoke": "Opaque gases reduce vision radius of anyone
 // inside of it to 2m by default".
 export const FOG_VISION_RADIUS = 2

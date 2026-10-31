@@ -53,13 +53,17 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   step. A climb goes to the floor a cliff up or down in the next cell (`getClimbTarget`), never
   through a floor over the climber, and a climber hanging keeps the two floors of their face
   (`Placement.climb.floor`, `bound`). Melee reach counts the metres between two bodies up or
-  down as cells (`getMeleeGap`); every other distance is flat. Fire, gas and light on a storey
-  are not wired in yet. A `lattice` storey cell (leaves, a grating) is stood on like a floor but
+  down as cells (`getMeleeGap`); every other distance is flat. Fire and gas on a storey
+  are not wired in yet. Light is: a floor with a solid storey a cliff or more over it (`getRoofs`)
+  is under a roof and has no light of its own; it takes the light of an open floor outside it sees
+  through a window or a doorway, a step darker past `WINDOW_LIGHT.full` and none past `fading`, and a
+  source's, which shines from its holder's eyes and never through a solid floor. A `lattice` storey cell (leaves, a grating) is stood on like a floor but
   closes nothing under it: a line passes it, and a climb from under it is not stopped by it. The move search reaches each cell once, the first way it comes there,
   so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).
   The fight's board is looked at from a height (`projections/storeyView.ts`): the cells are drawn
   as the floor someone there stands on, open air veiled, others on another floor drawn apart;
-  what the board offers and what a click means do not change with it. Through the active
+  what the board offers and what a click means do not change with it. A wall of the ground is
+  drawn as high as the floor looked from, up to a storey over it, as a line meets it. Through the active
   character's eyes (the "theirs" pick), a floor they do not see with a solid storey over it is
   drawn as the highest such storey, its roof, so a room is drawn as far as their sight reaches
   into it (`getCellSenser` takes the line from their eyes to someone as tall on that floor). A

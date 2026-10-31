@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { SceneStateSchema, PlacementSchema, type SceneState } from '../../types'
+import { BoardSchema, SceneStateSchema, PlacementSchema, type Coord, type SceneState } from '../../types'
+import { WINDOW_LIGHT } from '../../../tables'
+import { coordKey, disk, ring, sameCell } from './geometry'
 import { makeCampaignCharacter } from '../../../factories'
 import { type CampaignCharacter } from '../../../types'
 import { holdItem } from '../../../item/commands/hands'
@@ -60,5 +62,50 @@ describe('a Darkseeing potion', () => {
     expect(getOpenAction(s)).toBeNull()
     expect(s.characters.d.held.some((i) => i.id === potion.id)).toBe(false)
     expect(visionOf(s)).toBe('none')
+  })
+})
+
+// The table's ruling: a floor under a roof is dark but for the light outside
+// that comes in through a window or a doorway, fading with distance from it,
+// and a source's; a floor between keeps a source to its own storey.
+describe('light under a roof', () => {
+  const ROOM = WINDOW_LIGHT.fading + 2
+  const FLOOR = 3
+  const WINDOW = { q: ROOM + 1, r: 0 }
+  const OUTSIDE = ROOM + 2
+  const along = (q: number): Coord => ({ q, r: 0 })
+
+  function house(window: boolean): SceneState {
+    const terrain = Object.fromEntries(ring({ q: 0, r: 0 }, ROOM + 1).map((c) => [coordKey(c), window && sameCell(c, WINDOW) ? { blocking: true, transparent: true } : { blocking: true }]))
+    const roof = Object.fromEntries(disk({ q: 0, r: 0 }, ROOM).map((c) => [coordKey(c), {}]))
+    const board = BoardSchema.parse({ light: 'bright', extent: { q: ROOM + 4, r: ROOM + 4, s: ROOM + 4 }, terrain, levels: [{ floor: FLOOR, height: 3, terrain: roof }] })
+    return { ...SceneStateSchema.parse({}), board }
+  }
+
+  function holding(state: SceneState, elevation: number): SceneState {
+    const base = makeCampaignCharacter({ name: 't' })
+    const t = { ...holdItem(getCatalogItem('Torch')!)(base), id: 't' }
+    const placements = { t: PlacementSchema.parse({ cell: { q: 0, r: 0 }, elevation }) }
+    return { ...state, characters: { t }, board: { ...state.board!, placements } }
+  }
+
+  it('is dark in a closed room under a bright sky, and bright on the roof', () => {
+    const s = house(false)
+    expect(getCellLight(s, along(0))).toBe('dark')
+    expect(getCellLight(s, along(0), FLOOR)).toBe('bright')
+  })
+
+  it('takes the light outside through a window, fading away from it', () => {
+    const s = house(true)
+    expect(getCellLight(s, along(OUTSIDE - WINDOW_LIGHT.full))).toBe('bright')
+    expect(getCellLight(s, along(OUTSIDE - WINDOW_LIGHT.fading))).toBe('dim')
+    expect(getCellLight(s, along(OUTSIDE - WINDOW_LIGHT.fading - 1))).toBe('dark')
+  })
+
+  it('is lit by a source in the room, and not by one on the floor above', () => {
+    const torch = Math.min(getCatalogItem('Torch')!.light!, ROOM)
+    expect(getCellLight(holding(house(false), 0), along(torch))).toBe('bright')
+    expect(getCellLight(holding(house(false), FLOOR), along(0))).toBe('dark')
+    expect(getCellLight(holding(house(false), FLOOR), along(torch))).toBe('dark')
   })
 })
