@@ -2329,7 +2329,7 @@
   },
   "deliberate": {
     "family": "Deliberate",
-    "section": "Stoicism",
+    "section": "Cunning",
     "activation": "passive",
     "cost": {
       "AP": 0,
@@ -2342,20 +2342,15 @@
     "target": "self",
     "stages": [
       {
-        "XPcost": 0,
+        "XPcost": 6,
         "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "trainable",
-              "name": "Stoicism",
-              "level": 1,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "talent": [
+          {
+            "level": 2,
+            "property": "INT"
+          }
         ],
+        "requirements": [],
         "description": "Prepared actions gain +1 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
@@ -2363,20 +2358,15 @@
         "freeSpells": 0
       },
       {
-        "XPcost": 0,
+        "XPcost": 6,
         "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "trainable",
-              "name": "Stoicism",
-              "level": 3,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "talent": [
+          {
+            "level": 4,
+            "property": "INT"
+          }
         ],
+        "requirements": [],
         "description": "Prepared actions gain +2 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
@@ -2408,71 +2398,13 @@
             {
               "kind": "trainable",
               "name": "Stoicism",
-              "level": 2,
+              "level": 1,
               "op": ">=",
               "not": false
             }
           ]
         ],
         "description": "Can learn with conviction XP everything in the section on Cunning. When doing so, the XP also increases the progress of Stoicism.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "freeSpells": 0
-      }
-    ]
-  },
-  "prepared-casting": {
-    "family": "★ Prepared Casting",
-    "section": "Stoicism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "trainable",
-              "name": "Stoicism",
-              "level": 2,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +1 to cast any prepared spells.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "freeSpells": 0
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "trainable",
-              "name": "Stoicism",
-              "level": 4,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +2 to cast any prepared spells.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -2509,7 +2441,7 @@
             }
           ]
         ],
-        "description": "Gains +1 to all skill tests when the character is the first to take their turn in a round.",
+        "description": "Gains +1 AP when the character is the first to take their turn in a round.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -2519,7 +2451,7 @@
   },
   "initiative-edge": {
     "family": "Initiative Edge",
-    "section": "Stoicism",
+    "section": "Cunning",
     "activation": "passive",
     "cost": {
       "AP": 0,
@@ -2532,20 +2464,15 @@
     "target": "self",
     "stages": [
       {
-        "XPcost": 0,
+        "XPcost": 6,
         "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "trainable",
-              "name": "Stoicism",
-              "level": 4,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "talent": [
+          {
+            "level": 3,
+            "property": "INT"
+          }
         ],
+        "requirements": [],
         "description": "Whenever you win a cunning test to act before another character, you gain +1 in all skill tests against that character.",
         "effect": [],
         "recipes": [],
@@ -2556,7 +2483,7 @@
   },
   "perfect-preparation": {
     "family": "Perfect Preparation",
-    "section": "Stoicism",
+    "section": "Cunning",
     "activation": "passive",
     "cost": {
       "AP": 0,
@@ -2569,20 +2496,15 @@
     "target": "self",
     "stages": [
       {
-        "XPcost": 0,
+        "XPcost": 6,
         "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "trainable",
-              "name": "Stoicism",
-              "level": 5,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "talent": [
+          {
+            "level": 5,
+            "property": "INT"
+          }
         ],
+        "requirements": [],
         "description": "Receives +1 AP for each crit in the prepared action.",
         "effect": [],
         "recipes": [],
@@ -5712,7 +5634,7 @@
           }
         ],
         "requirements": [],
-        "description": "Prepares an action for an ally that can understand the command. The ally is not forced to follow the command.",
+        "description": "Can prepare actions for allies that can understand the command. The ally is not forced to follow the command.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -5744,7 +5666,7 @@
           }
         ],
         "requirements": [],
-        "description": "If the character is the first to take their turn in a round in combat, they get back up to 1 AP that were unspent in the previous round.",
+        "description": "If the character is the first to take their turn in a round in combat, they can prepare an action for free.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -5760,23 +5682,7 @@
           }
         ],
         "requirements": [],
-        "description": "If the character is the first to take their turn in a round in combat, they get back up to 2 AP that were unspent in the previous round.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "freeSpells": 0
-      },
-      {
-        "XPcost": 4,
-        "karma": 0,
-        "talent": [
-          {
-            "property": "INT",
-            "level": 5
-          }
-        ],
-        "requirements": [],
-        "description": "If the character is the first to take their turn in a round in combat, they get back up to 3 AP that were unspent in the previous round.",
+        "description": "If the character is the first to take their turn in a round in combat, they can prepare two actions for free.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -5817,7 +5723,7 @@
     ]
   },
   "desperate-action": {
-    "family": "Desperate Action",
+    "family": "Reactive Fighting",
     "section": "Cunning",
     "activation": "active",
     "cost": {
@@ -5840,7 +5746,7 @@
           }
         ],
         "requirements": [],
-        "description": "Can perform a defend, or reflex action even without sufficient AP, but must spend +1 STA over the normal cost of the action to do so. Cannot end up with less than -2 AP.",
+        "description": "Reaction surge gives 6 AP if the character has 4 AP or more when they use the surge.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -7978,6 +7884,175 @@
         "talent": [],
         "requirements": [],
         "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Turns ears into an active sense, but take -2 sensory penalty when doing so.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "freeSpells": 0
+      }
+    ]
+  },
+  "reserve-clause": {
+    "family": "Reserve Clause",
+    "section": "Stoicism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "trainable",
+              "name": "Stoicism",
+              "level": 4,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": " When they give up an action, they get back all of its AP instead of AP−1.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "freeSpells": 0
+      }
+    ]
+  },
+  "measured": {
+    "family": "Measured",
+    "section": "Stoicism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "trainable",
+              "name": "Stoicism",
+              "level": 2,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Can make any cunning, will or insight test safely.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "freeSpells": 0
+      }
+    ]
+  },
+  "contemplation": {
+    "family": "Contemplation",
+    "section": "Stoicism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "trainable",
+              "name": "Stoicism",
+              "level": 1,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Increases defense against  any compulsions by 1.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "freeSpells": 0
+      }
+    ]
+  },
+  "flow-state": {
+    "family": "Flow State",
+    "section": "Stoicism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "trainable",
+              "name": "Stoicism",
+              "level": 3,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Gains 1 AP when maintaining concentration from one round to the other.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "freeSpells": 0
+      },
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "trainable",
+              "name": "Stoicism",
+              "level": 5,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Focus surge gives 1 AP.",
         "effect": [],
         "recipes": [],
         "grants": [],
