@@ -22,7 +22,6 @@ Improve Chase UI/ playability
 - layering in UI for height. is it doable?
 
 ### combat abilities/spells
-- morale spells -- must test
 - terrain altering spells
 
 ### Content primitives for combat
@@ -35,6 +34,11 @@ Improve Chase UI/ playability
 ### sequence
 - corrosive damage
 - curse at beginning of round
+
+### convictions
+- promoted actions
+- limit actions and compulsions
+
 
 ### knowledge actions
 
@@ -138,5 +142,3 @@ After that, in my recommended order:
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
 
 intercepting with bare hands - damage or not?
-
-trample displacement direction is bad

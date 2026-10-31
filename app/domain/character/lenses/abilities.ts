@@ -2,9 +2,7 @@ import { requirementsLabel } from '../rules/requirements'
 import type { Character, Cost } from '../../types'
 import { ABILITIES, ABILITY_FAMILY_OF, ABILITY_KEYS, AbilityKey, FamilyKey, hasAbility } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
-import { canLearnAbility, getAbilityXPCost, getUnmetAbilityRequirements } from '../rules/abilities'
-import { canAfford } from '../rules/cost'
-import { getSurgeBar } from '../rules/surge'
+import { canLearnAbility, canUseAbility, getAbilityXPCost, getUnmetAbilityRequirements } from '../rules/abilities'
 import { getDrain, isAbilityActive } from '../rules/effects'
 
 export type AbilityStageView = {
@@ -121,7 +119,7 @@ export function getAbilityCatalogRows(c: Character, charged: boolean): AbilityFa
       const usable = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'active')
       if (usable) {
         const { cost } = ABILITIES[usable.key]
-        row.use = { key: usable.key, name: usable.name, price: priceLabel(cost), affordable: canAfford(c, cost, charged) && !getSurgeBar(c) }
+        row.use = { key: usable.key, name: usable.name, price: priceLabel(cost), affordable: canUseAbility(c, usable.key, charged) }
       }
     }
     // A conviction's stages are its levels and may start at 0, so progress

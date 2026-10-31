@@ -6772,13 +6772,13 @@
           {
             "name": "",
             "trigger": "instant",
-            "type": "cost",
+            "type": "heal",
             "effect": {
-              "AP": 0,
-              "STA": -1,
-              "exhaustion": 0,
-              "IL": 0,
-              "ET": 0
+              "of": "STA",
+              "amount": 1,
+              "nutrition": 0,
+              "wound": null,
+              "part": null
             }
           }
         ],

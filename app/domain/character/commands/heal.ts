@@ -1,5 +1,6 @@
 import type { CampaignCharacter, HealEffect } from "../../types"
 import { getDeathIL } from "../rules/afflictions"
+import { getRecoveredSTA } from "../rules/characteristics"
 import { healWound, reattachPart } from "./wounds"
 
 // survival.tex "Hunger": "cannot be increased further than 30" — the band's
@@ -65,6 +66,8 @@ export function mend(effect: HealEffect): (c: CampaignCharacter) => CampaignChar
         return amount > c.injuries.potion ? { ...c, injuries: { ...c.injuries, potion: amount } } : c
       case 'revive':
         return { ...c, injuries: { ...c.injuries, injuryLevel: Math.min(c.injuries.injuryLevel, getDeathIL(c) - 1) } }
+      case 'STA':
+        return { ...c, resources: { ...c.resources, STA: getRecoveredSTA(c, c.resources.STA, amount) } }
     }
   }
 }

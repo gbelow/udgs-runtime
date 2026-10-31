@@ -1,11 +1,9 @@
 import { CampaignCharacter, Character } from "../../types"
 import { ABILITIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getLearnedAbilityKeys, hasAbility, heldAbility, isAbilityKey } from "../../abilities"
 import { isCampaignCharacter } from "../../utils"
-import { canLearnAbility } from "../rules/abilities"
+import { canLearnAbility, canUseAbility } from "../rules/abilities"
 import { effectsOn, isAbilityActive, lingers } from "../rules/effects"
 import { applyEffects } from "./effects"
-import { canAfford } from "../rules/cost"
-import { getSurgeBar } from "../rules/surge"
 import { payCost } from "./cost"
 
 // A family set to a level; the training toward the next starts over. Level 0
@@ -82,7 +80,8 @@ export function expireUsedAbilities(c: CampaignCharacter): CampaignCharacter {
 }
 
 // Fires an active ability. Its `cost` is the price: refused when the
-// character cannot afford it, like an attack. Its instant effects are then
+// character cannot afford it, like an attack, or when what it gives back
+// only counts in a fight that has not started. Its instant effects are then
 // processed — a cost there is a drain that lands regardless — and whatever
 // else it lists, a buff or a cost due at the round change, is in effect
 // until the round ends. The rest of what it does is a combat procedure the
@@ -93,7 +92,7 @@ export function useAbility(key: AbilityKey): (c: Character, charged?: boolean) =
     if (!isCampaignCharacter(c) || !hasAbility(c, key)) return c
     const ability = ABILITIES[key]
     if (ability.activation !== 'active') return c
-    if (!canAfford(c, ability.cost, charged) || getSurgeBar(c)) return c
+    if (!canUseAbility(c, key, charged)) return c
     const fired = applyEffects(effectsOn(ability.effect, 'instant'))(payCost(ability.cost, charged)(c))
     return lingers(ability) ? { ...fired, active: [...fired.active, { kind: 'ability', key }] } : fired
   }

@@ -874,8 +874,10 @@ export const AfflictionEffectSchema = z.object({
 // 4"); the bleed; a lost part put back, carrying a wound of `amount` IL
 // ("Reattach Limb"); healing banked as a potion's is, spent over the next
 // ET, a share of the nutrition of the food it is charged into ("Healing
-// Food"); a body brought back to one IL short of death ("Revitalize").
-export const HEAL_KINDS = ['injury', 'bleed', 'limb', 'potion', 'revive'] as const
+// Food"); a body brought back to one IL short of death ("Revitalize"); STA
+// given back, never past the character's STA (abilities.tex "Muscular
+// Autophagy").
+export const HEAL_KINDS = ['injury', 'bleed', 'limb', 'potion', 'revive', 'STA'] as const
 export const HealEffectSchema = z.object({
   of: z.enum(HEAL_KINDS).default('injury'),
   amount: num.default(0),

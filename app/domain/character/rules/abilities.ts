@@ -1,7 +1,10 @@
-import { Character } from '../../types'
+import { CampaignCharacter, Character } from '../../types'
 import { ABILITIES, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, hasAbility } from '../../abilities'
 import { getUnmetRequirements, holdsRequirement } from './requirements'
 import { LearningPrice, getTalentMultiplier } from './learning'
+import { canAfford } from './cost'
+import { getSurgeBar } from './surge'
+import { effectsOn } from './effects'
 
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
 // ability unless the requirements are met" and each is acquired once. Every
@@ -44,4 +47,18 @@ export function getAbilityTrainingPrice(family: FamilyKey): (c: Character) => Le
     const { karma } = ABILITIES[next]
     return karma ? { currency: 'karma', amount: karma } : { currency: 'XP', amount: getAbilityXPCost(next)(c) }
   }
+}
+
+// Whether a use that gives STA back has anything to give it to: STA is only
+// counted once a combat or chase has started (`charged`), so away from one
+// the use would pay its price for nothing.
+function restoresSTA(key: AbilityKey): boolean {
+  return effectsOn(ABILITIES[key].effect, 'instant').some((e) => e.type === 'heal' && e.effect.of === 'STA')
+}
+
+// Whether a learned active ability can be fired right now: its price met,
+// no surge barring it, and a fight to give back STA in where that is what
+// it does.
+export function canUseAbility(c: CampaignCharacter, key: AbilityKey, charged: boolean): boolean {
+  return canAfford(c, ABILITIES[key].cost, charged) && !getSurgeBar(c) && (charged || !restoresSTA(key))
 }
