@@ -1,6 +1,6 @@
 import type { Board, Coord, SeenScene } from '../types'
 import { FALL } from '../../tables'
-import { coordKey } from '../rules/board/geometry'
+import { coordKey, disk } from '../rules/board/geometry'
 import { getFloors, getRoofs, getTerrainAt, type Footing } from '../rules/board/board'
 import { getCellSenser } from '../rules/detection'
 import { getCellLighting } from '../rules/board/light'
@@ -25,14 +25,19 @@ export function getStoreyChoices(board: Board | null): StoreyChoice[] {
 }
 
 // The height picked, or with 'auto' the floor the active character stands
-// on when it is a storey's; null for the ground.
+// on when it is a storey's, or, on ground (a stair's step), the lowest
+// storey's floor within a step above their feet in their cell or the next;
+// null for the ground.
 export function getViewHeight(state: SeenScene, picked: number | null | 'auto'): number | null {
   if (picked !== 'auto') return picked
   const board = state.board
   const placement = state.activeCharacterId ? board?.placements[state.activeCharacterId] : undefined
   if (!board || !placement) return null
   const footing = getTerrainAt(board, placement.cell, placement.elevation)
-  return footing.level === null ? null : footing.floor
+  if (footing.level !== null) return footing.floor
+  const near = disk(placement.cell, 1).flatMap((cell) => getFloors(board, cell))
+    .filter((f) => f.level !== null && f.floor >= placement.elevation && f.floor - placement.elevation < FALL.minHeight)
+  return near.length > 0 ? Math.min(...near.map((f) => f.floor)) : null
 }
 
 // Whose eyes the board is looked at through: the active character's with
@@ -99,7 +104,9 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
       : hole ? 'hole'
       : height !== null && height - stand.floor >= FALL.minHeight ? 'air'
       : null
-    const unseen = c.unseen && !(roof && senses?.(c.cell, roof.floor))
+    // a wall standing up through the floor looked from is seen there, not at
+    // its foot
+    const unseen = wall && senses && height !== null ? !senses(c.cell, height) : c.unseen && !(roof && senses?.(c.cell, roof.floor))
     return { ...c, ...(d && redrawn ? Object.fromEntries(DRAWN.map((k) => [k, d[k]])) : {}), ...getCellLighting(state, c.cell, drawn.floor), storey, unseen }
   })
   const overhead: BoardOverheadView[] = view.cells.flatMap((c) => [...new Set(looks.get(c.key)!.above.map((f) => f.floor))].map((elevation) => ({ key: c.key, x: c.x, y: c.y, elevation })))
