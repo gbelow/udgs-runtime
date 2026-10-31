@@ -318,6 +318,8 @@ export function useCampaignFiles() {
 
   return {
     file, campaigns, saved, fighting, copiedFrom,
+    // played but never saved: its autosave is not reached again once another is opened
+    unsavedPlay: !saved && hasPlay(getInPlay()),
     savedText: file.savedAt ? stamp(file.savedAt) : null,
     autosavedText: autosavedAt ? stamp(autosavedAt) : null,
     saveBar, deleteBar, setName, create, open, restart, save, saveAsCopy, lock, unlock, remove,

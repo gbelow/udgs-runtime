@@ -44,8 +44,7 @@ export function CampaignEditor() {
             </div>
           )} />
         {replacing !== null ?
-          <ConfirmRow text={`${replacing ? 'opening' : 'beginning'} a campaign replaces the one in play, fight and all; the autosave on this screen keeps it until it is opened again`}
-            confirm={replacing ? 'open' : 'begin'} tone='accent' onConfirm={() => { if (replacing) open(replacing); else create(); setReplacing(null) }} onCancel={() => setReplacing(null)} />
+          <ReplaceConfirm opening={!!replacing} onConfirm={() => { if (replacing) open(replacing); else create(); setReplacing(null) }} onCancel={() => setReplacing(null)} />
           : null}
         <SectionLabel>Join a campaign</SectionLabel>
         <JoinCampaign />
@@ -61,6 +60,24 @@ export function CampaignEditor() {
         {tab === 'journal' ? <CampaignJournal /> : null}
       </div>
     </div>
+  )
+}
+
+// Replacing the campaign in play, asked first: one never saved is lost with
+// it, and a fight in one saved is kept only on this screen, so saving it
+// before is offered beside going on.
+function ReplaceConfirm({ opening, onConfirm, onCancel }: { opening: boolean, onConfirm: () => void, onCancel: () => void }) {
+  const { file, saveBar, fighting, unsavedPlay, save } = useCampaignFiles()
+  const verb = opening ? 'opening' : 'beginning'
+  const confirm = opening ? 'open' : 'begin'
+  const text = unsavedPlay
+    ? `${verb} a campaign replaces the one in play, fight and all; it was never saved, so it is lost unless it is saved first${saveBar ? ` (${saveBar} to save it)` : ''}`
+    : `${verb} a campaign replaces the one in play, fight and all; the autosave on this screen keeps it until it is opened again${fighting ? ', but the fight reaches another computer only once the campaign is saved' : ''}`
+  const offerSave = (unsavedPlay || fighting) && saveBar === null && !file.locked
+  return (
+    <ConfirmRow text={text} confirm={confirm} tone={unsavedPlay ? 'bad' : 'accent'} onConfirm={onConfirm} onCancel={onCancel}>
+      {offerSave ? <Button size='xs' weight='solid' tone='accent' icon={Save} onClick={async () => { if (await save()) onConfirm() }}>save, then {confirm}</Button> : null}
+    </ConfirmRow>
   )
 }
 
@@ -103,7 +120,7 @@ function CampaignFileBar() {
         {saved && gmTools ? (deleteBar ? <Tooltip text={deleteBar}><Button tone='bad' icon={Trash2} disabled>delete</Button></Tooltip> : <ConfirmDelete remove={() => remove(file.id)} />) : null}
       </div>
       {pending === 'copy' ? (
-        <ConfirmRow text={`save what is in play as a new campaign, now in play; ${file.name || 'this one'} stays as it was saved`} confirm='save copy' tone='accent'
+        <ConfirmRow text={`save what is in play as a new campaign, now in play; what was played since ${file.name || 'this one'} was saved goes into the copy, and ${file.name || 'this one'} goes back to its save`} confirm='save copy' tone='accent'
           disabled={!copyName.trim()} onConfirm={() => { saveAsCopy(copyName); cancel() }} onCancel={cancel}>
           <TextInput className='w-48' aria-label='copy name' value={copyName} onChange={(e) => setCopyName(e.target.value)} />
         </ConfirmRow>
