@@ -327,7 +327,6 @@
     }
   },
   "specificKnowledges": {},
-  "bodyPlan": "humanoid",
   "size": 3,
   "footprint": [
     {
@@ -751,7 +750,38 @@
       "bulk": 2
     }
   },
-  "abilities": {},
+  "abilities": {
+    "riposte": {
+      "value": 1,
+      "name": "riposte",
+      "XP": 0,
+      "type": "ability"
+    },
+    "pikeman": {
+      "value": 1,
+      "name": "pikeman",
+      "XP": 0,
+      "type": "ability"
+    },
+    "lunge": {
+      "value": 1,
+      "name": "lunge",
+      "XP": 0,
+      "type": "ability"
+    },
+    "technical-lift": {
+      "value": 1,
+      "name": "technical-lift",
+      "XP": 0,
+      "type": "ability"
+    },
+    "defender": {
+      "value": 1,
+      "name": "defender",
+      "XP": 0,
+      "type": "ability"
+    }
+  },
   "spells": {},
   "raceDraft": null,
   "attributeBalanceBase": 10,

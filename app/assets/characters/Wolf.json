@@ -350,7 +350,7 @@
     "hearing": {
       "name": "Hearing",
       "rangePenalty": 5,
-      "bonus": 2,
+      "bonus": 0,
       "active": false,
       "reactive": true,
       "penalty": 3,
@@ -360,11 +360,11 @@
     "smell": {
       "name": "Smell",
       "rangePenalty": 5,
-      "bonus": 2,
+      "bonus": 0,
       "active": true,
       "reactive": false,
       "penalty": 5,
-      "range": 30,
+      "range": 0,
       "hasSense": true
     },
     "touch": {
@@ -645,6 +645,12 @@
     "bear-nose": {
       "value": 1,
       "name": "bear-nose",
+      "XP": 0,
+      "type": "ability"
+    },
+    "tactical-movement": {
+      "value": 1,
+      "name": "tactical-movement",
       "XP": 0,
       "type": "ability"
     }

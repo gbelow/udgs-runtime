@@ -4,6 +4,7 @@
     "giant"
   ],
   "type": "base",
+  "startingWealth": null,
   "name": "Ogre",
   "token": "/tokens/ogre.svg",
   "trainables": {
@@ -11,285 +12,387 @@
       "value": 1,
       "name": "Strike",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "defend": {
       "value": 0,
       "name": "Defend",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "reflex": {
       "value": 0,
       "name": "Reflex",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "accuracy": {
       "value": 0,
       "name": "Accuracy",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "grapple": {
       "value": 0,
       "name": "Grapple",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "SD": {
       "value": 0,
       "name": "SD",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "stealth": {
       "value": 0,
       "name": "Stealth",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "prestidigitation": {
       "value": 0,
       "name": "Prestidigitation",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "balance": {
       "value": 0,
       "name": "Balance",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "detection": {
       "value": 0,
       "name": "Detection",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "health": {
       "value": 0,
       "name": "Health",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "force": {
       "value": 0,
       "name": "Force",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "swim": {
-      "value": 0,
+      "value": 1,
       "name": "Swim",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "climb": {
       "value": 0,
       "name": "Climb",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "explore": {
       "value": 0,
       "name": "Explore",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "cunning": {
       "value": 0,
       "name": "Cunning",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "will": {
       "value": 0,
       "name": "Will",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "persuasion": {
       "value": 0,
       "name": "Persuasion",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "deception": {
       "value": 0,
       "name": "Deception",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "insight": {
       "value": 0,
       "name": "Insight",
       "XP": 0,
-      "talent": "",
-      "type": "skill"
+      "type": "skill",
+      "talent": ""
     },
     "STR": {
       "value": 13,
       "name": "Strength",
       "XP": 0,
-      "talent": "",
-      "type": "attribute"
+      "type": "attribute",
+      "talent": ""
     },
     "AGI": {
       "value": 10,
       "name": "Agility",
       "XP": 0,
-      "talent": "",
-      "type": "attribute"
+      "type": "attribute",
+      "talent": ""
     },
     "STA": {
       "value": 12,
       "name": "Stamina",
       "XP": 0,
-      "talent": "",
-      "type": "attribute"
+      "type": "attribute",
+      "talent": ""
     },
     "CON": {
       "value": 3,
       "name": "Constitution",
       "XP": 0,
-      "talent": "",
-      "type": "talent"
+      "type": "talent",
+      "talent": ""
     },
     "INT": {
       "value": 0,
       "name": "Intelligence",
       "XP": 0,
-      "talent": "",
-      "type": "talent"
+      "type": "talent",
+      "talent": ""
     },
     "SPI": {
       "value": 2,
       "name": "Spirit",
       "XP": 0,
-      "talent": "",
-      "type": "talent"
+      "type": "talent",
+      "talent": ""
     },
     "DEX": {
       "value": 1,
       "name": "Dexterity",
       "XP": 0,
-      "talent": "",
-      "type": "talent"
+      "type": "talent",
+      "talent": ""
     },
     "melee": {
       "value": 0,
       "name": "Melee",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
     },
     "ranged": {
       "value": 0,
       "name": "Ranged",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
     },
     "awareness": {
       "value": 1,
       "name": "Awareness",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
     },
     "sorcery": {
       "value": 0,
       "name": "Sorcery",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
     },
     "conviction1": {
       "value": 0,
       "name": "Temperament",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
     },
     "conviction2": {
       "value": 0,
       "name": "Worldview",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
     },
     "devotion": {
       "value": 0,
       "name": "Devotion",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
     },
     "charisma": {
       "value": 0,
       "name": "Charisma",
       "XP": 0,
-      "talent": "",
-      "type": "proficiency"
+      "type": "proficiency",
+      "talent": ""
+    },
+    "alchemy": {
+      "value": 0,
+      "name": "alchemy",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "animancy": {
+      "value": 0,
+      "name": "animancy",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "biomancy": {
+      "value": 0,
+      "name": "biomancy",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "shamanism": {
+      "value": 0,
+      "name": "shamanism",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "mechanics": {
+      "value": 0,
+      "name": "mechanics",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "smithing": {
+      "value": 0,
+      "name": "smithing",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "chemistry": {
+      "value": 0,
+      "name": "chemistry",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "medicine": {
+      "value": 0,
+      "name": "medicine",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "linguistics": {
+      "value": 0,
+      "name": "linguistics",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "navigation": {
+      "value": 0,
+      "name": "navigation",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "survival": {
+      "value": 0,
+      "name": "survival",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "animal handling": {
+      "value": 0,
+      "name": "animal handling",
+      "XP": 0,
+      "type": "knowledge"
     }
   },
   "specificKnowledges": {},
   "size": 5,
+  "footprint": [
+    {
+      "q": 0,
+      "r": 0
+    },
+    {
+      "q": 1,
+      "r": 0
+    },
+    {
+      "q": 0,
+      "r": 1
+    }
+  ],
+  "height": 2,
   "TGH": 0,
   "senses": {
     "vision": {
       "name": "Vision",
-      "active": true,
       "rangePenalty": 3,
       "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": null,
       "hasSense": true
     },
     "hearing": {
       "name": "Hearing",
-      "active": false,
       "rangePenalty": 5,
       "bonus": 0,
+      "active": false,
+      "reactive": true,
+      "penalty": 3,
+      "range": null,
       "hasSense": true
     },
     "smell": {
       "name": "Smell",
-      "active": true,
       "rangePenalty": 5,
       "bonus": 0,
+      "active": true,
+      "reactive": false,
+      "penalty": 5,
+      "range": 0,
       "hasSense": true
     },
     "touch": {
       "name": "Touch",
-      "active": true,
       "rangePenalty": 100,
       "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 3,
+      "range": 0,
       "hasSense": true
     },
     "synesthesia": {
       "name": "Synesthesia",
-      "active": true,
       "rangePenalty": 100,
       "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": 0,
       "hasSense": false
     }
   },
@@ -340,9 +443,6 @@
       "distance": 0
     }
   },
-  "hasGauntlets": 0,
-  "hasHelm": 0,
-  "visorOpen": false,
   "armor": {
     "name": "Skin",
     "material": "flesh",
@@ -354,6 +454,201 @@
     "properties": [],
     "notes": ""
   },
+  "body": [
+    {
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": null,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "shocked",
+          "tier": 4,
+          "blunt": true,
+          "effect": "disable",
+          "heal": 5,
+          "affliction": "immobile",
+          "consequence": "immobile"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 5,
+      "maxTier": null,
+      "flags": [
+        "stunUnconscious"
+      ],
+      "wounds": [
+        {
+          "name": "death",
+          "tier": 4,
+          "blunt": false,
+          "effect": "kill",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "instant death"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "handL",
+      "name": "left hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "1c6311a3-9117-47cf-9700-7faf252dede0",
+      "naturalWeapon": "Unarmed",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [
+        "bareWithoutGauntlets"
+      ],
+      "wounds": [
+        {
+          "name": "broken hand",
+          "tier": 2,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 10,
+          "affliction": null,
+          "consequence": "useless hand"
+        },
+        {
+          "name": "amputated hand",
+          "tier": 4,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses hand"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "handR",
+      "name": "right hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "a28a0603-1e04-4d09-8fb5-e0896614ecb7",
+      "naturalWeapon": "Unarmed",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [
+        "bareWithoutGauntlets"
+      ],
+      "wounds": [
+        {
+          "name": "broken hand",
+          "tier": 2,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 10,
+          "affliction": null,
+          "consequence": "useless hand"
+        },
+        {
+          "name": "amputated hand",
+          "tier": 4,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses hand"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "legL",
+      "name": "left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "legR",
+      "name": "right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    }
+  ],
+  "stance": {
+    "lameAt": 1,
+    "proneAt": 2
+  },
+  "hasGauntlets": 0,
+  "hasHelm": 0,
+  "visorOpen": false,
   "worn": {
     "id": "d239a0fe-7f1e-4c52-95ba-25c0ebf15d20",
     "name": "Fur Coat",
@@ -364,67 +659,15 @@
     "refId": "FurCoat",
     "charge": null,
     "source": null,
-    "broken": false
-  },
-  "body": [
-    {
-      "id": "chest",
-      "name": "chest",
-      "location": "chest",
-      "grip": false,
-      "itemId": "",
-      "naturalWeapon": "",
-      "lost": false
-    },
-    {
-      "id": "head",
-      "name": "head",
-      "location": "head",
-      "grip": false,
-      "itemId": "",
-      "naturalWeapon": "",
-      "lost": false
-    },
-    {
-      "id": "handL",
-      "name": "left hand",
-      "location": "hand",
-      "grip": true,
-      "itemId": "1c6311a3-9117-47cf-9700-7faf252dede0",
-      "naturalWeapon": "Unarmed",
-      "lost": false
-    },
-    {
-      "id": "handR",
-      "name": "right hand",
-      "location": "hand",
-      "grip": true,
-      "itemId": "a28a0603-1e04-4d09-8fb5-e0896614ecb7",
-      "naturalWeapon": "Unarmed",
-      "lost": false
-    },
-    {
-      "id": "legL",
-      "name": "left leg",
-      "location": "leg",
-      "grip": false,
-      "itemId": "",
-      "naturalWeapon": "",
-      "lost": false
-    },
-    {
-      "id": "legR",
-      "name": "right leg",
-      "location": "leg",
-      "grip": false,
-      "itemId": "",
-      "naturalWeapon": "",
-      "lost": false
-    }
-  ],
-  "stance": {
-    "lameAt": 1,
-    "proneAt": 2
+    "broken": false,
+    "edge": null,
+    "fuel": null,
+    "camouflage": null,
+    "muffles": false,
+    "loaded": null,
+    "light": null,
+    "consume": null,
+    "food": null
   },
   "held": [
     {
@@ -437,7 +680,15 @@
       "refId": "Mace",
       "charge": null,
       "source": null,
-      "broken": false
+      "broken": false,
+      "edge": null,
+      "fuel": null,
+      "camouflage": null,
+      "muffles": false,
+      "loaded": null,
+      "light": null,
+      "consume": null,
+      "food": null
     },
     {
       "id": "a28a0603-1e04-4d09-8fb5-e0896614ecb7",
@@ -449,12 +700,42 @@
       "refId": "Wooden Shield",
       "charge": null,
       "source": null,
-      "broken": false
+      "broken": false,
+      "edge": null,
+      "fuel": null,
+      "camouflage": null,
+      "muffles": false,
+      "loaded": null,
+      "light": null,
+      "consume": null,
+      "food": null
     }
   ],
   "onBack": null,
   "containers": {},
-  "abilities": [],
+  "abilities": {
+    "counterattack": {
+      "value": 1,
+      "name": "counterattack",
+      "XP": 0,
+      "type": "ability"
+    },
+    "charge": {
+      "value": 1,
+      "name": "charge",
+      "XP": 0,
+      "type": "ability"
+    },
+    "swimmer": {
+      "value": 1,
+      "name": "swimmer",
+      "XP": 0,
+      "type": "ability"
+    }
+  },
   "spells": {},
+  "raceDraft": null,
+  "attributeBalanceBase": 10,
+  "limitStress": null,
   "notes": ""
 }

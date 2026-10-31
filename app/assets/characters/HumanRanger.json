@@ -100,7 +100,7 @@
       "talent": ""
     },
     "climb": {
-      "value": 0,
+      "value": 2,
       "name": "Climb",
       "XP": 0,
       "type": "skill",
@@ -830,6 +830,42 @@
     "archer-s-muscles": {
       "value": 1,
       "name": "archer-s-muscles",
+      "XP": 0,
+      "type": "ability"
+    },
+    "climber": {
+      "value": 1,
+      "name": "climber",
+      "XP": 0,
+      "type": "ability"
+    },
+    "sprinter": {
+      "value": 1,
+      "name": "sprinter",
+      "XP": 0,
+      "type": "ability"
+    },
+    "elite-sniper": {
+      "value": 1,
+      "name": "elite-sniper",
+      "XP": 0,
+      "type": "ability"
+    },
+    "steady-arms": {
+      "value": 1,
+      "name": "steady-arms",
+      "XP": 0,
+      "type": "ability"
+    },
+    "archer-s-reflexes": {
+      "value": 1,
+      "name": "archer-s-reflexes",
+      "XP": 0,
+      "type": "ability"
+    },
+    "jump-shot": {
+      "value": 1,
+      "name": "jump-shot",
       "XP": 0,
       "type": "ability"
     }

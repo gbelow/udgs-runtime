@@ -327,7 +327,6 @@
     }
   },
   "specificKnowledges": {},
-  "bodyPlan": "humanoid",
   "size": 3,
   "footprint": [
     {
@@ -746,6 +745,30 @@
     "riposte": {
       "value": 1,
       "name": "riposte",
+      "XP": 0,
+      "type": "ability"
+    },
+    "tackle": {
+      "value": 1,
+      "name": "tackle",
+      "XP": 0,
+      "type": "ability"
+    },
+    "charge": {
+      "value": 1,
+      "name": "charge",
+      "XP": 0,
+      "type": "ability"
+    },
+    "lunge": {
+      "value": 1,
+      "name": "lunge",
+      "XP": 0,
+      "type": "ability"
+    },
+    "technical-lift": {
+      "value": 1,
+      "name": "technical-lift",
       "XP": 0,
       "type": "ability"
     }
