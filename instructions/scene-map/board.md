@@ -62,7 +62,9 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   blast and the throw, picked by the height the screen looked from, `Click.height`, or the aimer's
   own, `getAimedFloor`): a place is in the ring of the cells across or the metres up or down,
   whichever is the farther, and a solid floor between the two heights in either cell shuts it off;
-  it paints each floor it reaches. Light is: a floor with a solid storey a cliff or more over it (`getRoofs`)
+  it paints each floor it reaches. A cone is aimed at a space at a height (`pitch`, toward the floor
+  of the clicked cell the screen looked from, `getSprayPitch`) and opens as far up and down as across
+  about it, seen from the attacker's feet; a body is in it when some of it, feet to head, is. Light is: a floor with a solid storey a cliff or more over it (`getRoofs`)
   is under a roof and has no light of its own; it takes the light of an open floor outside it sees
   through a window or a doorway, a step darker past `WINDOW_LIGHT.full` and none past `fading`, and a
   source's, which shines from its holder's eyes and never through a solid floor. A `lattice` storey cell (leaves, a grating) is stood on like a floor but

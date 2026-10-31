@@ -5,6 +5,7 @@ import { getUndefendedDamage } from '../../character/rules/damage'
 import { getSpellEffects, produceEffects, produceSpellEffect, produceUnownedEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
 import { getCastSize, hasChargeTrigger, resolveDL } from '../../character/rules/spells'
+import { getHeight } from '../../character/rules/size'
 import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { explodes } from '../../weaponProperties'
@@ -33,14 +34,14 @@ export type ZoneCell = { cell: Coord; floor: number; degree: Degree }
 // An area laid out on the board: who set it off, where it was aimed, and
 // the effects that cover it — an explosion as declared, before it goes off,
 // or the blast it goes off as. A spray is pointed only on the blast.
-export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'floor' | 'direction' | 'effects' | 'paintOnly' | 'armorRolls' | 'gm'>
+export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'floor' | 'direction' | 'pitch' | 'effects' | 'paintOnly' | 'armorRolls' | 'gm'>
 
 export function getBlastOf(state: SceneState, action: ExplosionAction): BlastShape {
   return toBlast(action, getExplosionPayload(state, action))
 }
 
 function toBlast(action: ExplosionAction, payload: Payload | null): BlastShape {
-  return { actorId: action.actorId, center: action.center, floor: action.floor, direction: null, effects: payload?.effects ?? [], paintOnly: action.paintOnly, armorRolls: action.armorRolls, gm: action.source === 'gm' }
+  return { actorId: action.actorId, center: action.center, floor: action.floor, direction: null, pitch: 0, effects: payload?.effects ?? [], paintOnly: action.paintOnly, armorRolls: action.armorRolls, gm: action.source === 'gm' }
 }
 
 type Payload = { effects: SpellEffect[]; producer: CampaignCharacter | null }
@@ -220,20 +221,31 @@ function getDiskZones(state: SceneState, center: Coord, from: number, radius: nu
 }
 
 // combat.tex "Sprays": "the same damage progression based on distance from
-// the origin" — a cone from the attacker's cell, the length long, opening
-// the angle either side of the direction; the first ring is the critical
-// zone, the last the graze, the rings between a hit. A cell on the cone's
-// edge is in it.
-function getConeZones(origin: Coord, direction: number, length: number, angle: number): Omit<ZoneCell, 'floor'>[] {
-  const from = toPlane(origin)
-  const heading = angleBetween(from, toPlane(add(origin, DIRECTIONS[direction])))
-  const half = (angle / 2) * (Math.PI / 180) + 1e-9
-  return disk(origin, length)
-    .filter((cell) => !sameCell(cell, origin) && angularGap(heading, angleBetween(from, toPlane(cell))) <= half)
-    .map((cell): Omit<ZoneCell, 'floor'> => {
-      const d = distance(origin, cell)
-      return { cell, degree: d === 1 ? 'critical' : d === length ? 'graze' : 'hit' }
-    })
+// the origin" — a cone from the attacker, the length long, opening the angle
+// either side of the direction and, the table's ruling, as far up and down
+// about the tilt it was aimed at (`pitch`, in degrees up from level). What
+// stands in a cell from `low` to `high` metres (a floor, or a body from its
+// feet to its head) is in it when the cell is within the angle of the
+// direction and some of it within the angle of the tilt, seen from the
+// attacker's feet; its ring counts the cells across or the metres up or down
+// to its nearest part, whichever is the farther, the first the critical zone,
+// the last the graze, those between a hit, and a solid floor between shuts it
+// off. A cell on the cone's edge is in it.
+function getConeDegree(state: SceneState, action: BlastShape, area: Extract<Area, { shape: 'spray' }>, cell: Coord, low: number, high: number): Degree | null {
+  const board = state.board
+  const from = board?.placements[action.actorId]
+  if (!board || !from || action.direction === null || sameCell(from.cell, cell)) return null
+  const half = (area.angle / 2) * (Math.PI / 180) + 1e-9
+  const origin = toPlane(from.cell)
+  const heading = angleBetween(origin, toPlane(add(from.cell, DIRECTIONS[action.direction])))
+  if (angularGap(heading, angleBetween(origin, toPlane(cell))) > half) return null
+  const d = distance(from.cell, cell)
+  const pitch = action.pitch * (Math.PI / 180)
+  if (Math.atan2(high - from.elevation, d) < pitch - half || Math.atan2(low - from.elevation, d) > pitch + half) return null
+  if (isFloorBetween(board, from.cell, from.elevation, low) || isFloorBetween(board, cell, from.elevation, low)) return null
+  const gap = low > from.elevation ? low - from.elevation : high < from.elevation ? from.elevation - high : 0
+  const k = Math.max(d, Math.floor(gap))
+  return k > area.length ? null : k === 1 ? 'critical' : k === area.length ? 'graze' : 'hit'
 }
 
 // The zones of one area, once the explosion is fixed where it lands: a disk
@@ -245,19 +257,25 @@ function getAreaZones(state: SceneState, action: BlastShape, area: Area): ZoneCe
   const from = board?.placements[action.actorId]
   const own = getPlacedFootprint(state, action.actorId) ?? []
   if (!board || !from || action.direction === null) return []
-  return getConeZones(from.cell, action.direction, area.length, area.angle)
-    .filter((z) => !own.some((o) => sameCell(o, z.cell)))
-    .map((z) => ({ ...z, floor: getTerrainAt(board, z.cell, from.elevation).floor }))
+  return disk(from.cell, area.length)
+    .filter((cell) => !own.some((o) => sameCell(o, cell)))
+    .flatMap((cell) => getFloors(board, cell).flatMap(({ floor }) => {
+      const degree = getConeDegree(state, action, area, cell, floor, floor)
+      return degree ? [{ cell, floor, degree }] : []
+    }))
 }
 
-// The zone of one area a body stands in, feet `feet` high on a cell of its
+// The zone of one area the character's body is in on a cell of its
 // footprint; null outside it.
-function getBodyDegree(state: SceneState, action: BlastShape, area: Area, cell: Coord, feet: number): Degree | null {
+function getBodyDegree(state: SceneState, action: BlastShape, area: Area, cell: Coord, id: string): Degree | null {
+  const feet = state.board?.placements[id]?.elevation ?? 0
   if (area.shape === 'explosion') {
     const k = action.center ? getRing(state, action.center, getBlastFloor(state, action), cell, feet) : null
     return k === null ? null : getDiskDegree(k, area.radius, area.grazes)
   }
-  return getAreaZones(state, action, area).find((z) => sameCell(z.cell, cell))?.degree ?? null
+  const own = getPlacedFootprint(state, action.actorId) ?? []
+  const c = state.characters[id]
+  return own.some((o) => sameCell(o, cell)) || !c ? null : getConeDegree(state, action, area, cell, feet, feet + getHeight(c))
 }
 
 // Every cell the explosion may reach as declared: the disks about its
@@ -304,11 +322,12 @@ export function getExplosionZones(state: SceneState, action: BlastShape): ZoneCe
 function getZoneOf(state: SceneState, action: BlastShape, id: string, area: Area): { degree: Degree; wall: Damage['wall'] } | null {
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return null
-  const feet = state.board?.placements[id]?.elevation ?? 0
-  const degree = worstOf(footprint.map((cell) => getBodyDegree(state, action, area, cell, feet)))
+  const degree = worstOf(footprint.map((cell) => getBodyDegree(state, action, area, cell, id)))
   if (!degree) return null
   const origin = getBlastOrigin(state, action, area.shape === 'spray')
-  const eyes = area.shape === 'explosion' && state.board?.levels.length ? { from: getBlastFloor(state, action), to: getEyeHeight(state, id) } : LEVEL_EYES
+  const eyes = !state.board?.levels.length ? LEVEL_EYES
+    : area.shape === 'explosion' ? { from: getBlastFloor(state, action), to: getEyeHeight(state, id) }
+    : { from: getEyeHeight(state, action.actorId), to: getEyeHeight(state, id) }
   const cover = origin ? getCover(state, origin, id, eyes) : null
   return cover?.kind === 'total' ? null : { degree, wall: toDamageWall(cover) }
 }
@@ -326,8 +345,7 @@ export function getThreatenedIds(state: SceneState, action: BlastShape): string[
   const threatened = new Set(getThreatenedCells(state, action).map(coordKey))
   const areas = getExplosionAreas(action)
   return Object.keys(state.characters).filter((id) => {
-    const feet = state.board?.placements[id]?.elevation ?? 0
-    const reaches = (cell: Coord) => areas.some((a) => a.shape === 'spray' || getBodyDegree(state, action, a, cell, feet) !== null)
+    const reaches = (cell: Coord) => areas.some((a) => a.shape === 'spray' || getBodyDegree(state, action, a, cell, id) !== null)
     return (getPlacedFootprint(state, id) ?? []).some((cell) => threatened.has(coordKey(cell)) && reaches(cell))
   })
 }
@@ -491,6 +509,19 @@ export function getAimedFloor(state: SceneState, open: ExplosionAction | ThrowAc
   }
   const from = height === undefined ? board.placements[open.actorId]?.elevation ?? null : height
   return from === null ? null : getTerrainAt(board, cell, from).floor
+}
+
+// The tilt a spray aimed at a cell is pointed at, in degrees up from level:
+// toward someone as tall as its attacker standing on the floor of that cell
+// the screen looked at the board from (`height`, null for the ground), or the
+// one the attacker's feet reach there when no screen said.
+export function getSprayPitch(state: SceneState, actorId: string, cell: Coord, height?: number | null): number {
+  const board = state.board
+  const from = board?.placements[actorId]
+  if (!board || !from || sameCell(from.cell, cell)) return 0
+  const at = height === undefined ? from.elevation : height
+  const floor = at === null ? board.terrain[coordKey(cell)]?.elevation ?? 0 : getTerrainAt(board, cell, at).floor
+  return Math.atan2(floor - from.elevation, distance(from.cell, cell)) * (180 / Math.PI)
 }
 
 // Whether the area is still its actor's to point, and can be pointed

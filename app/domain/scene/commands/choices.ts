@@ -66,11 +66,11 @@ function takeOne<K extends string>(tally: Partial<Record<K, number>>, key: K): P
 // Points a rolled spray where the attacker chooses, now that the reactions
 // have moved (combat.tex "Sprays": "The attacker can choose the exact
 // direction of the cone after the movement").
-export function aimExplosion(direction: Direction): Updater {
+export function aimExplosion(direction: Direction, pitch = 0): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['blast'])
     if (!open || !isSpray(open)) return state
-    return replaceActions(state, [{ ...open, direction }])
+    return replaceActions(state, [{ ...open, direction, pitch }])
   }
 }
 

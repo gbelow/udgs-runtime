@@ -10,7 +10,7 @@ import { getSurface, pickArt } from '../rules/board/surface'
 import { isOffGrid } from '../rules/parked'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
-import { getAimedFloor } from '../rules/explosion'
+import { getAimedFloor, getSprayPitch } from '../rules/explosion'
 import { CLIMB_EASY_DL, COVER_START_RES, FALL, SWIM_DEFAULT_DL } from '../../tables'
 import { getBeyondEdge, getFootprint, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
 import { getHeight } from '../../character/rules/size'
@@ -445,7 +445,7 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
   }
   if (open.kind === 'blast' && open.step === 'post') {
     const from = state.board?.placements[open.actorId]
-    return own(from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell)) : unchanged)
+    return own(from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell), getSprayPitch(state, open.actorId, cell, height)) : unchanged)
   }
   if (open.kind === 'drag' && open.step === 'define') {
     const path = pickWayCell(getWalkerPlacement(state, open)?.cell ?? null, open.path, getDragReach(state, open), cell)

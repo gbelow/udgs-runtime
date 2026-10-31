@@ -797,6 +797,9 @@ export const BlastActionSchema = z.object({
   center: CoordSchema.nullable().default(null),
   floor: num.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),
+  // the table's ruling: how far up from level a cone is tilted, in degrees,
+  // toward the space at a height it was aimed at
+  pitch: num.default(0),
   facts: DeliveriesSchema.nullable().default(null),
   paintOnly: z.boolean().default(false),
   armorRolls: ArmorRolls,
