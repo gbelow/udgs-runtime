@@ -8,7 +8,7 @@ import { getAfflictedSense } from '../../character/rules/afflictions'
 import { getCamouflage } from '../../item/rules/items'
 import { getSituationalAfflictions } from './situational'
 import { directionTo, disk, parseCoordKey, sameCell, setDistance } from './board/geometry'
-import { getDistanceBetween, getPlacedFootprint, hasLineOfSight, LEVEL_EYES, seesAcross } from './board/board'
+import { getDistanceBetween, getEyesToward, getPlacedFootprint, getTerrainAt, hasLineOfSight, LEVEL_EYES, seesAcross, type Eyes } from './board/board'
 import { getCellHazard, getHazardAt } from './board/hazard'
 import { getPartners } from './partners'
 import { getMoveOrigin } from './board/waypoint'
@@ -199,23 +199,28 @@ function getVisibilityTerm(state: SceneState, observer: CampaignCharacter, towar
 }
 
 // How much of cells of the ground a sense of the observer takes in from where
-// they stand: `IMPAIRMENTS` of a place, line of sight kept.
-function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from: Coord[], at: Coord[], sense: keyof Senses): Impairment {
+// they stand: `IMPAIRMENTS` of a place, line of sight kept along `eyes`.
+function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from: Coord[], at: Coord[], sense: keyof Senses, eyes: Eyes = LEVEL_EYES): Impairment {
   if (sense !== 'vision') return TOTAL_INTO[sense](state, from, at, observer.senses[sense].range) ? 'total' : 'none'
-  if (state.board && !seesAcross(state.board, from, at, LEVEL_EYES)) return 'total'
+  if (state.board && !seesAcross(state.board, from, at, eyes)) return 'total'
   return seeInto(state, from, at, () => seesInDimLight(observer))
 }
 
 // Whether an active sense of the observer takes in anything of a cell of the
-// ground from where they stand — what the board shows of it to their eyes.
-// Their own cells are always taken in; off the board, every cell is. Which
-// senses the observer can use is settled once, for all the cells asked of.
-export function getCellSenser(state: SceneState, observerId: string): (cell: Coord) => boolean {
+// ground from where they stand, what the board shows of it to their eyes: of
+// someone as tall as they are standing on the cell's floor `floor` high, by
+// default the one their feet would reach there. Their own cells are always
+// taken in; off the board, every cell is. Which senses the observer can use is
+// settled once, for all the cells asked of.
+export function getCellSenser(state: SceneState, observerId: string): (cell: Coord, floor?: number) => boolean {
   const c = state.characters[observerId]
   const from = getPlacedFootprint(state, observerId)
-  if (!c || !from) return () => true
+  const board = state.board
+  if (!c || !from || !board) return () => true
+  const feet = board.placements[observerId]?.elevation ?? 0
   const senses = (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).filter((sense) => c.senses[sense].active && canUse(state, c, sense))
-  return (cell) => from.some((own) => sameCell(own, cell)) || senses.some((sense) => getImpairmentInto(state, c, from, [cell], sense) !== 'total')
+  return (cell, floor = getTerrainAt(board, cell, feet).floor) => from.some((own) => sameCell(own, cell))
+    || senses.some((sense) => getImpairmentInto(state, c, from, [cell], sense, getEyesToward(state, observerId, floor)) !== 'total')
 }
 
 function getImpairment(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses): Impairment {

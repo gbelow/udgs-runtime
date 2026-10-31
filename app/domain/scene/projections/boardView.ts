@@ -76,9 +76,9 @@ export type BoardCellView = {
   unseen: boolean
   occupants: string[]
   // the storey the board is drawn at: a floor laid in the cell, a lattice
-  // floor, a stairwell over the ground, or open air over it; null for the
-  // ground
-  storey: 'floor' | 'lattice' | 'hole' | 'air' | null
+  // floor, a stairwell over the ground, open air over it, or a roof over a
+  // floor the one looking does not see; null for the ground
+  storey: 'floor' | 'lattice' | 'hole' | 'air' | 'roof' | null
   // the piece laid on the board the cell is part of, on the ground or a
   // storey, and whether it is the one picked in the editor
   piece: string | null
@@ -205,6 +205,10 @@ export type BoardGhostView = {
 // What a click on a cell does right now.
 export type { BoardMode }
 
+// A see-through floor (a lattice) over the floor a cell is drawn as, drawn
+// over it at its own height.
+export type BoardOverheadView = { key: string; x: number; y: number; elevation: number }
+
 export type BoardView = {
   present: boolean
   extent: BoardExtent
@@ -224,6 +228,7 @@ export type BoardView = {
   arts: CellArt[]
   cells: BoardCellView[]
   ridges: BoardRidgeView[]
+  overhead: BoardOverheadView[]
   // the pictures the cliffs are drawn with, which a ridge's `art` indexes
   faces: SurfaceArt[]
   // how many bands the cells are drawn in, and whether they are seen from the
@@ -255,7 +260,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], faces: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], overhead: [], faces: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -452,6 +457,7 @@ function buildBoardView(state: SeenScene): BoardView {
     hex: HEX_POINTS,
     cells,
     ...getRidges(board, cells),
+    overhead: [],
     bands: 1,
     front: false,
     tokens,

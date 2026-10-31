@@ -3,7 +3,7 @@ import { EXPLOSION_DRAFT, EXPLOSION_EFFECTS, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_K
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
 import { getFrontView } from "../domain/scene/projections/frontView";
-import { getStoreyChoices, getStoreyView, getViewHeight } from "../domain/scene/projections/storeyView";
+import { getStoreyChoices, getStoreyView, getViewEye, getViewHeight } from "../domain/scene/projections/storeyView";
 import type { BoardLook } from "./useBoardLook";
 import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -27,7 +27,7 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
   useCombatStore(fromActive ? getBoardViewFromDigest : getBoardViewDigest);
   const state = useCombatStore.getState();
   const height = getViewHeight(state, storey);
-  const flat: BoardView = getStoreyView(state, (fromActive ? getBoardViewFrom : getBoardView)(state), height);
+  const flat: BoardView = getStoreyView(state, (fromActive ? getBoardViewFrom : getBoardView)(state), height, getViewEye(state, storey));
   const view = look.front ? getFrontView(flat, look.lift) : flat;
   const storeys = getStoreyChoices(state.board);
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);

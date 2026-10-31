@@ -59,7 +59,13 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).
   The fight's board is looked at from a height (`projections/storeyView.ts`): the cells are drawn
   as the floor someone there stands on, open air veiled, others on another floor drawn apart;
-  what the board offers and what a click means do not change with it.
+  what the board offers and what a click means do not change with it. Through the active
+  character's eyes (the "theirs" pick), a floor they do not see with a solid storey over it is
+  drawn as the highest such storey, its roof, so a room is drawn as far as their sight reaches
+  into it (`getCellSenser` takes the line from their eyes to someone as tall on that floor). A
+  lattice is drawn see-through: the solid floor under it, and the lattice over it at its own
+  height (`overhead`), lifted like the ground in the front view, where a roofed house stands as
+  a block.
 - **Pieces.** A structure (a house, a tree) is laid on the board as one piece
   (`rules/board/piece.ts`): its cells are written into `terrain` and its storeys into `levels`,
   marked with the piece's id, turned about its anchor, and its heights raised by the ground under

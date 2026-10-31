@@ -1,5 +1,5 @@
 import { frameHexes, hexBounds } from '../rules/board/geometry'
-import type { BoardBindView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardRidgeView, BoardTokenView, BoardView } from './boardView'
+import type { BoardBindView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardOverheadView, BoardRidgeView, BoardTokenView, BoardView } from './boardView'
 
 // The board seen from the front rather than from above: ground that is higher
 // is drawn higher up the screen by so much a metre, and a cell is drawn over
@@ -90,6 +90,7 @@ function build(view: BoardView, lift: number): BoardView {
   })
 
   const lifted = new Map(view.tokens.map((t) => [t.id, rise(t.elevation)]))
+  const overhead: BoardOverheadView[] = view.overhead.map((o) => ({ ...o, y: o.y - rise(o.elevation) }))
   const floor: BoardFloorItemView[] = view.floor.map((f) => ({ ...f, y: f.y - rise(elevationOf.get(f.cell) ?? 0) }))
   const binds: BoardBindView[] = view.binds.map((b) => ({
     ...b,
@@ -101,5 +102,5 @@ function build(view: BoardView, lift: number): BoardView {
     return { ...g, y: g.y - dy, cells: g.cells.map((c) => ({ ...c, y: c.y - dy })) }
   })
 
-  return { ...view, front: true, bands: levels.length, cells, ridges, tokens, floor, binds, ghosts, frame: hexBounds(cells), viewBox: frameHexes(cells) }
+  return { ...view, front: true, bands: levels.length, cells, ridges, overhead, tokens, floor, binds, ghosts, frame: hexBounds(cells), viewBox: frameHexes(cells) }
 }

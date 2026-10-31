@@ -70,7 +70,7 @@ export function getOccupancy(board: Board, characters: Record<string, Character>
 export type Footing = { terrain: TerrainCell | undefined; floor: number; level: number | null }
 
 // Every floor of the cell: the ground, and each storey's that is not a hole.
-function getFloors(board: Board, cell: Coord): Footing[] {
+export function getFloors(board: Board, cell: Coord): Footing[] {
   const key = coordKey(cell)
   const ground = board.terrain[key]
   return [
@@ -279,6 +279,13 @@ function getEyeHeight(state: SceneState, id: string): number {
 // The line from one character's eyes to another's.
 export function getEyes(state: SceneState, a: string, b: string): Eyes {
   return state.board?.levels.length ? { from: getEyeHeight(state, a), to: getEyeHeight(state, b) } : LEVEL_EYES
+}
+
+// The line from a character's eyes to the eyes of someone as tall standing on
+// a floor `floor` high.
+export function getEyesToward(state: SceneState, id: string, floor: number): Eyes {
+  const c = state.characters[id]
+  return state.board?.levels.length ? { from: getEyeHeight(state, id), to: floor + (c ? getHeight(c) : 0) } : LEVEL_EYES
 }
 
 // What a floor is to a line that goes through it: a wall nothing breaks.

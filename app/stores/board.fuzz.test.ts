@@ -12,7 +12,7 @@ import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getSeenBy } from '../domain/scene/rules/seen'
 import { getBoardViewFrom } from '../domain/scene/projections/boardView'
-import { getStoreyChoices, getStoreyView } from '../domain/scene/projections/storeyView'
+import { getStoreyChoices, getStoreyView, getViewEye } from '../domain/scene/projections/storeyView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
 import { coordKey, distance, ring, sameCell } from '../domain/scene/rules/board/geometry'
 import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renameBoardMap, setLevelBoardMap } from '../domain/scene/commands/boardMapEdit'
@@ -409,12 +409,16 @@ function assertSound(h: Harness, storage: boolean) {
     }
   }
   expect(view.tokens.map((t) => t.id).sort(), 'the board draws every placed character').toEqual(Object.keys(placements).filter((id) => s.characters[id]).sort())
-  // looked at from any storey, the board draws the same characters and
+  // looked at from any storey, and through the active character's eyes with
+  // the roofs they do not see under, the board draws the same characters and
   // offers the same cells; only the drawing changes
   for (const { height } of getStoreyChoices(s.board)) {
-    const seen = getStoreyView(s, view, height)
-    expect(seen.tokens.map((t) => t.id), `the board at ${height ?? 'the ground'} draws every placed character`).toEqual(view.tokens.map((t) => t.id))
-    expect(seen.cells.map((c) => [c.key, c.reachable]), `the board at ${height ?? 'the ground'} offers what the board offers`).toEqual(view.cells.map((c) => [c.key, c.reachable]))
+    for (const eye of [null, getViewEye(s, 'auto')]) {
+      const seen = getStoreyView(s, view, height, eye)
+      const at = `${height ?? 'the ground'}${eye ? ' through their eyes' : ''}`
+      expect(seen.tokens.map((t) => t.id), `the board at ${at} draws every placed character`).toEqual(view.tokens.map((t) => t.id))
+      expect(seen.cells.map((c) => [c.key, c.reachable]), `the board at ${at} offers what the board offers`).toEqual(view.cells.map((c) => [c.key, c.reachable]))
+    }
   }
 
   // the board from the active character's eyes draws them, and anyone it
