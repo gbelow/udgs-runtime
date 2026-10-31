@@ -37,14 +37,15 @@ export function withoutLastSegment(action: MoveAction): { path: Coord[]; turns: 
 // out: a walk takes each step onto the floor its feet reach from the step
 // before (`placeAt`), so it keeps to its storey or goes up a stair; a jump,
 // which touches nothing between, lands on the floor it reaches from where it
-// set out; a climb comes to the floor its face is bound for.
+// set out; a climb comes to the floor it is bound for (`getClimbTarget`), in
+// whichever cell that is.
 export function getPathPlacements(state: SceneState, action: MoveAction, path: Coord[]): Placement[] {
   const from = getMoveOrigin(state, action)
   if (!from) return []
   let feet = from
   return path.map((cell) => {
-    const bound = action.movement === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
-    const at = bound ? { ...placeAt(state.board, from, cell), elevation: bound.floor } : placeAt(state.board, feet, cell)
+    const bound = action.movement === 'climb' && state.board ? getClimbTarget(state.board, from, cell, action.ledge) : null
+    const at = bound ? { ...placeAt(state.board, from, bound.cell), elevation: bound.floor } : placeAt(state.board, feet, cell)
     if (action.movement !== 'jump') feet = at
     return at
   })

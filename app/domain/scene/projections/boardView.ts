@@ -60,6 +60,15 @@ export type BoardCellView = {
   // and the noise its ground makes per AP (combat.tex "Actions in stealth")
   visibility: Visibility | null
   noise: number
+  // combat.tex "Climbing": the DL of climbing up to this cell, null for a face
+  // with nothing to hold
+  climbDL: number | null
+  // the test the cell's ground asks of whoever crosses it, and its DL:
+  // swimming in water (combat.tex "Swimming"), balance on difficult ground
+  // (combat.tex "Balance"); null for neither
+  test: { kind: 'swim' | 'balance'; DL: number } | null
+  // combat.tex "Fall damage": ground that halves a fall onto it
+  soft: boolean
   // what the ground is made of: its name in the surfaces catalog, and the
   // texture it is drawn with; null for ground with none
   surface: string | null
@@ -139,6 +148,10 @@ export type BoardTokenView = {
   // combat.tex "Cover": in total cover behind a body shield, which faces
   // this way, in degrees; null out of it
   shieldAngle: number | null
+  // combat.tex "Climbing": hanging on a face partway up, the cell it climbs
+  // to, which way that is in degrees, and the metres of it climbed out of all
+  // of them; null for one not hanging
+  hanging: { to: string; angle: number; covered: number; height: number } | null
 }
 
 // Something lying on a cell, drawn over whoever stands there, and whether a
@@ -359,6 +372,9 @@ function buildBoardView(state: SeenScene): BoardView {
       suffocating: hazard.suffocating,
       visibility: hazard.visibility === 'good' ? null : hazard.visibility,
       noise: terrain?.noise ?? 0,
+      climbDL: terrain?.climbDL ?? null,
+      test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: terrain.DL } : null,
+      soft: terrain?.soft ?? false,
       surface: terrain?.surface ?? board.surface,
       art: artIndex(getCellArt(board, key)),
       bledInto: getCellBledInto(board, key),
@@ -419,6 +435,7 @@ function buildBoardView(state: SeenScene): BoardView {
       awaited: awaited.has(id),
       elsewhere: false,
       shieldAngle: facing === null ? null : (facing * 180) / Math.PI,
+      hanging: placement.climb ? { to: coordKey(placement.climb.to), angle: (angleBetween(anchor, toPlane(placement.climb.to)) * 180) / Math.PI, covered: placement.climb.covered, height: Math.abs(placement.climb.bound - placement.climb.floor) } : null,
     }]
   })
 

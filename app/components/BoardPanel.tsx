@@ -599,6 +599,9 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     cell.surface,
     cell.strength,
     cell.elevation ? `${cell.elevation} m` : null,
+    cell.climbDL !== null ? `climbing up here: DL ${cell.climbDL}` : null,
+    cell.test ? `${cell.test.kind} DL ${cell.test.DL}` : null,
+    cell.soft ? 'soft ground' : null,
     cell.fire > 0 ? `fire ${cell.fire}` : null,
     cell.fuels.length > 0 ? `coated in ${cell.fuels.join(' and ')}` : null,
     cell.suffocating ? 'suffocating gas' : null,
@@ -624,6 +627,7 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
       {cell.fire > 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-injury-2 pointer-events-none' fontSize={0.35}>{`🔥${cell.fire}`}</text> : null}
       {cell.noise > 0 && cell.fire === 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.35}>{`♪${cell.noise}`}</text> : null}
+      {cell.climbDL !== null && !cell.unseen ? <text x={0.5} y={0.05} textAnchor='middle' dominantBaseline='central' className='fill-good pointer-events-none' fontSize={0.3}>{`⇡${cell.climbDL}`}</text> : null}
       {cell.pathStep !== null ? <text x={0} y={0.45} textAnchor='middle' className='fill-fg pointer-events-none' fontSize={0.4}>{cell.pathStep}</text> : null}
     </g>
   )
@@ -635,7 +639,7 @@ function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: st
   const clip = `token-clip-${token.id}`
   return (
     <g className='cursor-pointer' onClick={onClick} opacity={token.elsewhere ? 0.35 : token.hidden ? 0.6 : 1}>
-      <title>{`${token.name}${token.elsewhere ? ' · on another floor' : ''}${token.hidden ? ' · behind higher ground' : ''}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
+      <title>{`${token.name}${token.elsewhere ? ' · on another floor' : ''}${token.hidden ? ' · behind higher ground' : ''}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}${token.hanging ? ` · hanging on the face to ${token.hanging.to}, ${token.hanging.covered} of ${token.hanging.height} m` : ''}`}</title>
       {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
       {token.shadow ? <ellipse cx={token.shadow.x} cy={token.shadow.y + 0.5} rx={0.55} ry={0.2} className='fill-fg/30 pointer-events-none' /> : null}
       <g transform={`translate(${token.x} ${token.y})`}>
@@ -650,6 +654,8 @@ function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: st
         ) : <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>}
         <text y={0.95} textAnchor='middle' className='fill-fg stroke-bg font-semibold pointer-events-none' fontSize={0.32} strokeWidth={0.16} strokeLinejoin='round' paintOrder='stroke'>{token.name}</text>
         {token.shieldAngle !== null ? <rect x={0.72} y={-0.45} width={0.16} height={0.9} rx={0.05} transform={`rotate(${token.shieldAngle})`} className='fill-accent pointer-events-none' /> : null}
+        {token.hanging ? <path d='M 0.7 -0.4 L 0.95 0 L 0.7 0.4' transform={`rotate(${token.hanging.angle})`} className='fill-none stroke-good pointer-events-none' strokeWidth={0.1} strokeLinecap='round' strokeLinejoin='round' /> : null}
+        {token.hanging ? <text y={-0.8} x={0.75} textAnchor='middle' className='fill-good pointer-events-none' fontSize={0.32}>{`⇡${token.hanging.covered}/${token.hanging.height}`}</text> : null}
         {token.depth > 0 ? <text y={-0.8} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.35}>{`↓${token.depth}`}</text> : null}
       </g>
     </g>

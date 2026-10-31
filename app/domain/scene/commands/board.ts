@@ -431,7 +431,7 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
   const own = (apply: Updater) => ({ actor: open.actorId, apply })
   if (open.kind === 'move' && open.step === 'define') {
     const drawn = pickPathCell(state, open, cell)
-    return own(drawn ? amendAction(drawn) : unchanged)
+    return own(drawn ? amendAction(open.movement === 'climb' ? { ...drawn, ledge: null } : drawn) : unchanged)
   }
   if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(open)) {
     const drawn = pickPathCell(state, getSteadyPath(state, open), cell)

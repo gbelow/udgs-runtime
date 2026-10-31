@@ -191,7 +191,7 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>movement</SectionLabel>
-          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, modifiers: { lunge: false, jumpShot: false }, metres: null })} />)}
+          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, modifiers: { lunge: false, jumpShot: false }, metres: null, ledge: null })} />)}
         </div>
       ) : null}
       {open.climbModes.length > 1 ? (
@@ -199,6 +199,14 @@ export function ActionPanel(){
           <SectionLabel>climb</SectionLabel>
           <Segmented label='climb mode'>
             {open.climbModes.map((mode) => <Segment key={mode} selected={mode === open.mode} onClick={() => amend({ mode })}>{mode}</Segment>)}
+          </Segmented>
+        </div>
+      ) : null}
+      {open.climbStops ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>climb to</SectionLabel>
+          <Segmented label='where the climb stops'>
+            {open.climbStops.map((s) => <Segment key={`${s.key}@${s.floor}`} selected={s.chosen} title={`the floor at ${s.floor} m in ${s.key}`} onClick={() => amend({ ledge: { cell: s.cell, floor: s.floor }, metres: null })}>{`${s.floor} m · ${s.key}`}</Segment>)}
           </Segmented>
         </div>
       ) : null}

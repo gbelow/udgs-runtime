@@ -778,6 +778,11 @@ function travel(h: Harness, pick: Picker) {
     if (pick([true, false, false, false])) h.send({ kind: 'backSegment', args: [] })
   }
   if (pick([true, false])) h.send({ kind: 'amend', args: [{ dive: pick([-1, 1, 2]) }] })
+  const stops = getActionPanel(h.state()).open?.climbStops ?? []
+  if (stops.length && pick([true, false])) {
+    const stop = pick(stops)
+    h.send({ kind: 'amend', args: [{ ledge: { cell: stop.cell, floor: stop.floor }, metres: null }] })
+  }
   const climb = getActionPanel(h.state()).open?.climbSteps
   if (climb && pick([true, false])) h.send({ kind: 'amend', args: [{ metres: 1 + Math.floor(pick([0, 1, 2]) % climb.metres) }] })
   const modes = getActionPanel(h.state()).open?.climbModes ?? []

@@ -136,7 +136,7 @@ export const PlacementSchema = z.object({
   // covered, the height they started at included; `elevation` is how high
   // their feet are; `floor` the height of the floor they set out from and
   // `bound` of the one they climb to
-  climb: z.object({ to: CoordSchema, covered: num.default(0), upright: z.boolean().default(false), floor: num.default(0), bound: num.default(0) }).strip().nullable().default(null),
+  climb: z.object({ to: CoordSchema, covered: num.default(0), floor: num.default(0), bound: num.default(0) }).strip().nullable().default(null),
 }).strip()
 export type Placement = z.infer<typeof PlacementSchema>
 
@@ -960,7 +960,7 @@ export const MoveFactsSchema = z.object({
   finish: z.enum(['prone', 'standing']).nullable().default(null),
   // combat.tex "Climbing": where a climb that stopped short of the top left its
   // climber, hanging on the face
-  hang: z.object({ to: CoordSchema, covered: num, upright: z.boolean(), elevation: num, floor: num, bound: num }).strip().nullable().default(null),
+  hang: z.object({ to: CoordSchema, covered: num, elevation: num, floor: num, bound: num }).strip().nullable().default(null),
 }).strip()
 export type MoveFacts = z.infer<typeof MoveFactsSchema>
 
@@ -1004,6 +1004,9 @@ export const MoveActionSchema = z.object({
   // combat.tex "Climbing": how many metres of the face the climb goes, null
   // for all that is left of it
   metres: num.nullable().default(null),
+  // combat.tex "Climbing": the floor met on the face the climb stops on
+  // (`getClimbStops`), in the cell it is in; null for the end of the face
+  ledge: z.object({ cell: CoordSchema, floor: num }).strip().nullable().default(null),
   // the most AP it may cost, for a move a reaction opened (combat.tex
   // "Follow": "cannot cost more AP than" the move it answers; "Evasion":
   // "use up to 2 AP to move"); null is no cap

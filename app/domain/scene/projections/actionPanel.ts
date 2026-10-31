@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import type { Action, ActionDraft, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
+import type { Action, ActionDraft, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, MoveAction, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
@@ -25,7 +25,8 @@ import { MovementOption, ReachableCell, getMovementOptions } from '../rules/move
 import { getReachableCells } from '../rules/board/reach'
 import { getMoraleSpell, getSuggestible } from '../rules/moraleSpell'
 import type { LimitStressAction } from '../../lists'
-import { getClimbModes, getClimbSteps } from '../rules/board/cliff'
+import { getClimbChoices, getClimbModes, getClimbSteps } from '../rules/board/cliff'
+import { coordKey } from '../rules/board/geometry'
 import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
@@ -62,6 +63,12 @@ export type ItemAim = { id: string; name: string; penalty: number; selected: boo
 // combat.tex "Localized damage", as a picker: each place the attack can be
 // aimed at and what aiming there costs the attack test — the target's own
 // parts still there, or, with no target yet, the humanoid's kinds of place.
+// The stops of a climb, offered only where there is more than one.
+function getClimbStopOffers(state: SceneState, move: MoveAction): OpenActionView['climbStops'] {
+  const stops = getClimbChoices(state, move)
+  return stops && stops.length > 1 ? stops.map((s) => ({ ...s, key: coordKey(s.cell) })) : null
+}
+
 function getLocationOptions(target: Character | undefined, aim: { location: HitLocation; part: string | null; object?: string }): LocationOption[] {
   const places = target
     ? target.body.filter((part) => !part.lost).map((part) => ({ location: part.location, part: part.id, name: part.name, penalty: part.aimPenalty }))
@@ -242,6 +249,10 @@ export type OpenActionView = {
   // left of it, and the climb a metre shorter or longer would be (null where
   // the face allows no fewer or no more)
   climbSteps: { metres: number; remaining: number; less: number | null; more: number | null } | null
+  // combat.tex "Climbing": the floors met on the face the climb may stop on,
+  // nearest first, the last the end of it, and the one it goes to; null where
+  // there is no choice
+  climbStops: { cell: Coord; key: string; floor: number; chosen: boolean }[] | null
   leap: boolean
   // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
   // swim ends, and the dive a metre nearer the surface or the floor would be
@@ -482,6 +493,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       mode: open.kind === 'move' ? open.mode : 'normal',
       climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor, isCombatStarted(state)) : [],
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
+      climbStops: open.kind === 'move' ? getClimbStopOffers(state, open) : null,
       canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),
       leap: open.kind === 'move' && open.leap,
       dive: open.kind === 'move' ? open.dive : 0,

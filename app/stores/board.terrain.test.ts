@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { fighter } from '../domain/bot/fixtures'
+import { getActionPanel } from '../domain/scene/projections/actionPanel'
+import { addLevel, paintTerrain } from '../domain/scene/commands/board'
+import { hasAffliction } from '../domain/character/rules/afflictions'
 
 // Water and cliffs, painted with the brushes a player holds. Expected values
 // are what the painting and the clicks asked for: where the walker ends, how
@@ -124,5 +127,123 @@ describe('climbing', () => {
       h.cell(q, r)
       expect(pathOf(h).at(-1) ?? null, `clicking ${key}`).toBe(offered ? key : null)
     }
+  })
+})
+
+// A tree drawn as raised ground TREE metres high at (1, 0) with branches on
+// the trunk as storeys at BRANCHES, painted with the brushes the battle map's
+// editor holds, Ann beside it on the ground; `beside` puts lattice branches
+// with something to hold in her own cell at those heights. Broke as: a climb always ended on
+// the lowest branch, and nothing went on up from there.
+const TRUNK = { q: 1, r: 0 }
+const TREE = 9
+const BRANCHES = [3, 6]
+
+function tree(beside: number[] = []): Harness {
+  const h = openHarness()
+  h.bring(strong('Ann'))
+  h.createBoard(6)
+  h.select('Ann')
+  h.cell(0, 0)
+  h.paint('raise', [[TRUNK.q, TRUNK.r]], TREE)
+  h.paint('grip', [[TRUNK.q, TRUNK.r]])
+  BRANCHES.forEach((floor, level) => {
+    h.press(addLevel(floor, BRANCHES[level + 1] === undefined ? TREE - floor : BRANCHES[level + 1] - floor))
+    h.press(paintTerrain(TRUNK, 'floor', 0, level))
+    h.press(paintTerrain(TRUNK, 'grip', 0, level))
+    if (beside.includes(floor)) {
+      h.press(paintTerrain({ q: 0, r: 0 }, 'lattice', 0, level))
+      h.press(paintTerrain({ q: 0, r: 0 }, 'grip', 0, level))
+    }
+  })
+  return h
+}
+
+// Declares a climb onto the face at `to`, stopping where the panel offers
+// `floor` in `cell` (the end of the face when none is given), and plays it out.
+function climb(h: Harness, to: [number, number], stop?: { floor: number; cell: [number, number] }) {
+  h.startTurn()
+  h.declare({ kind: 'move' })
+  h.amend({ movement: 'climb' })
+  h.cell(...to)
+  if (stop) {
+    const offer = getActionPanel(h.state()).open?.climbStops?.find((s) => s.floor === stop.floor && s.key === `${stop.cell[0]},${stop.cell[1]}`)
+    expect(offer, `a stop at ${stop.floor} m in ${stop.cell}`).toBeDefined()
+    h.amend({ ledge: { cell: offer!.cell, floor: offer!.floor } })
+  }
+  h.commit()
+  for (const kind of ['roll', 'pay', 'resolve', 'skip'] as const) h.send({ kind, args: [] })
+}
+
+describe('climbing a tree with branches', () => {
+  it('goes up the trunk to its top when no stop is picked', () => {
+    const h = tree()
+    climb(h, [1, 0])
+    expect(placement(h, 'Ann')).toMatchObject({ cell: TRUNK, elevation: TREE, climb: null })
+  })
+
+  for (const floor of BRANCHES) {
+    it(`stops on the trunk's branch at ${floor} m`, () => {
+      const h = tree()
+      climb(h, [1, 0], { floor, cell: [1, 0] })
+      expect(placement(h, 'Ann')).toMatchObject({ cell: TRUNK, elevation: floor, climb: null })
+    })
+  }
+
+  it('goes on up the trunk from a branch on it', () => {
+    const h = tree()
+    climb(h, [1, 0], { floor: BRANCHES[0], cell: [1, 0] })
+    climb(h, [1, 0])
+    expect(placement(h, 'Ann')).toMatchObject({ cell: TRUNK, elevation: TREE, climb: null })
+  })
+
+  it('stops on a branch beside the trunk, and goes on up the trunk from it', () => {
+    const h = tree([BRANCHES[0]])
+    climb(h, [1, 0], { floor: BRANCHES[0], cell: [0, 0] })
+    expect(placement(h, 'Ann')).toMatchObject({ cell: { q: 0, r: 0 }, elevation: BRANCHES[0], climb: null })
+    climb(h, [1, 0])
+    expect(placement(h, 'Ann')).toMatchObject({ cell: TRUNK, elevation: TREE, climb: null })
+  })
+})
+
+describe('climbing down a tree', () => {
+  // Broke as: a climber on a lattice branch beside the trunk could not climb
+  // down through it to the ground of their own cell, and a climb down ended
+  // prone where the table rules it ends standing.
+  it('climbs down from a branch beside the trunk to the ground under it, standing', () => {
+    const h = tree([BRANCHES[0]])
+    climb(h, [1, 0], { floor: BRANCHES[0], cell: [0, 0] })
+    climb(h, [0, 0])
+    expect(placement(h, 'Ann')).toMatchObject({ cell: { q: 0, r: 0 }, elevation: 0, climb: null })
+    expect(hasAffliction(h.state().characters[h.idOf('Ann')], 'prone')).toBe(false)
+  })
+})
+
+describe('jumping off a face', () => {
+  // Broke as: a climber hanging on a face could only climb.
+  it('lands where the jump was clicked, hanging no more', () => {
+    const h = openHarness()
+    h.bring(strong('Ann'))
+    h.createBoard(6)
+    h.select('Ann')
+    h.cell(0, 0)
+    h.paint('raise', [[1, 0]], 6)
+    h.paint('grip', [[1, 0]])
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    h.amend({ movement: 'climb' })
+    h.cell(1, 0)
+    h.amend({ metres: 1 })
+    h.commit()
+    for (const kind of ['roll', 'pay', 'resolve', 'skip'] as const) h.send({ kind, args: [] })
+    expect(placement(h, 'Ann').climb).not.toBeNull()
+    h.declare({ kind: 'move' })
+    h.amend({ movement: 'jump' })
+    const landing = h.view().cells.find((c) => c.reachable !== null)
+    expect(landing, 'a cell to jump to').toBeDefined()
+    h.cell(landing!.cell.q, landing!.cell.r)
+    h.commit()
+    for (const kind of ['roll', 'pay', 'resolve', 'skip'] as const) h.send({ kind, args: [] })
+    expect(placement(h, 'Ann')).toMatchObject({ cell: landing!.cell, climb: null })
   })
 })

@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Item } from '../../types'
-import type { Change, SceneState } from '../types'
+import type { Change, Placement, SceneState } from '../types'
 import { getPendingRows, type PendingRow } from '../../character/lenses/pending'
 import { getFightName } from './fighters'
 
@@ -103,13 +103,24 @@ function getItemChanges(before: SceneState, after: SceneState, phase: Phase): Ch
 function getPlacementChanges(before: SceneState, after: SceneState, phase: Phase): Change[] {
   if (!after.board) return []
   return Object.entries(after.board.placements).flatMap(([id, placed]): Change[] => {
-    const from = before.board?.placements[id]?.cell
-    const to = placed.cell
-    if (!from || (from.q === to.q && from.r === to.r)) return []
-    return [{ kind: 'move', phase, id, what: 'character', name: getFightName(after, id), from: cellText(from), to: cellText(to) }]
+    const was = before.board?.placements[id]
+    if (!was) return []
+    const from = placementText(was)
+    const to = placementText(placed)
+    return from === to ? [] : [{ kind: 'move', phase, id, what: 'character', name: getFightName(after, id), from, to }]
   })
 }
 
 function cellText(cell: { q: number; r: number }): string {
   return `(${cell.q}, ${cell.r})`
+}
+
+// Where someone is on the board: the cell, and how high their feet are, how
+// far up the face they hang on (combat.tex "Climbing") or how deep they swim
+// (combat.tex "Swimming").
+function placementText(placement: Placement): string {
+  const { climb, depth, elevation } = placement
+  const at = cellText(placement.cell)
+  if (climb) return `${at} hanging on the face to ${cellText(climb.to)}, ${climb.covered} of ${Math.abs(climb.bound - climb.floor)} m`
+  return [at, elevation ? `at ${elevation} m` : null, depth ? `${depth} m deep` : null].filter((s) => s !== null).join(' ')
 }
