@@ -247,3 +247,19 @@ describe('jumping off a face', () => {
     expect(placement(h, 'Ann')).toMatchObject({ cell: landing!.cell, climb: null })
   })
 })
+
+// Broke as: two storeys at one height in a cell (pieces laid over each other)
+// offered the same stop twice, which the panel cannot draw.
+it('offers each floor on the way as one stop, however many storeys lie at its height', () => {
+  const h = tree()
+  h.press(addLevel(BRANCHES[0], BRANCHES[1] - BRANCHES[0]))
+  h.press(paintTerrain(TRUNK, 'floor', 0, BRANCHES.length))
+  h.press(paintTerrain(TRUNK, 'grip', 0, BRANCHES.length))
+  h.startTurn()
+  h.declare({ kind: 'move' })
+  h.amend({ movement: 'climb' })
+  h.cell(TRUNK.q, TRUNK.r)
+  const stops = (getActionPanel(h.state()).open?.climbStops ?? []).map((s) => `${s.key}@${s.floor}`)
+  expect(stops).toContain(`${TRUNK.q},${TRUNK.r}@${BRANCHES[0]}`)
+  expect(new Set(stops).size).toBe(stops.length)
+})

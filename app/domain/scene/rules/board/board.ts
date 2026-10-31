@@ -152,8 +152,13 @@ function isLedge(board: Board, cell: Coord, f: Footing): boolean {
 // and its top, and down through the floor they stand on where it is a ledge
 // or a lattice, to every floor under it as far as the first solid one; its
 // stops up come before those down. A ledge closes nothing on the way. Up
-// before down.
+// before down. Storeys of a cell at one height (pieces laid over each other)
+// are one stop, the first met.
 export function getClimbStops(board: Board, from: Coord, here: number, to: Coord): ClimbStop[] {
+  return listClimbStops(board, from, here, to).filter((s, i, all) => all.findIndex((t) => sameCell(t.cell, s.cell) && t.floor === s.floor) === i)
+}
+
+function listClimbStops(board: Board, from: Coord, here: number, to: Coord): ClimbStop[] {
   const at = (cell: Coord, climbDL?: number | null) => (f: Footing): ClimbStop => ({ ...f, cell, climbDL: climbDL === undefined ? f.terrain?.climbDL ?? null : climbDL })
   const solid = (cell: Coord) => (f: Footing) => !isLedge(board, cell, f) && (f.level === null || !board.levels[f.level].terrain[coordKey(cell)]?.lattice)
   const above = (f: Footing) => f.floor - here >= FALL.minHeight
