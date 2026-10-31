@@ -123,7 +123,7 @@ export type ActionReport = {
   actor: string
   roll: ActionRoll | null
   outcomes: { target: string; outcome: Outcome; steps: OutcomeStep[] }[]
-  notes: { target: string; text: string }[]
+  notes: { target: string; text: string; degree?: Degree }[]
 }
 
 export function getLastReport(state: SceneState): ActionReport | null {
@@ -153,9 +153,10 @@ export function getActionReport(state: SceneState, id: string): ActionReport | n
 
 // The test each target made against what the action delivered them, as it
 // landed (rules/tested.ts), and whether they beat it.
-function getTestedNotes(root: Action, named: (id: string) => string): { target: string; text: string }[] {
+function getTestedNotes(root: Action, named: (id: string) => string): { target: string; text: string; degree: Degree }[] {
   return root.tested.map(({ targetId, name, roll }) => ({
     target: named(targetId),
+    degree: roll.degree,
     text: `${name} test: ${roll.score} vs ${roll.DL}, ${roll.degree}${resisted(roll.degree) === 'miss' ? ', resisted' : ''}`,
   }))
 }

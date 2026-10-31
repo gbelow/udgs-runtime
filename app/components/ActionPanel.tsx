@@ -709,7 +709,9 @@ function ReportEntry({ entry, open }: { entry: EpisodeEntry, open: boolean }){
           ) : null}
         </div>
       ))}
-      {entry.notes.map((n, i) => <div key={i} className='text-sm'>{n.target}: <span className='text-muted'>{n.text}</span></div>)}
+      {entry.notes.map((n, i) => (
+        <div key={i} className='text-sm'>{n.target}: <span className={n.degree ? `font-medium ${degreeClass(n.degree)}` : 'text-muted'}>{n.text}</span></div>
+      ))}
       {entry.reactions.map((r, i) => (
         <div key={i} className='flex flex-col gap-0.5 border-l border-line/50 pl-3'>
           <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
