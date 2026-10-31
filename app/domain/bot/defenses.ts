@@ -46,7 +46,7 @@ export function getStrikeDefenses(state: SceneState, targetId: string, attackerI
       cost: { AP: jump.cost?.AP ?? 0, STA: jump.cost?.STA ?? 0 },
       landing: to,
       declare: (s, open, newId) => {
-        const declared = declareReaction(targetId, { kind: 'evasiveJump', modifiers: jump.draft.kind === 'evasiveJump' ? jump.draft.modifiers : undefined, to }, newId)(s)
+        const declared = declareReaction(targetId, { kind: 'evasiveJump', recipe: jump.draft.recipe ?? null, to }, newId)(s)
         return getLiveReactionsTo(declared, open.id).some((r) => r.actorId === targetId) ? declared : null
       },
     })),

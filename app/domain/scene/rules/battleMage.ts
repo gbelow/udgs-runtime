@@ -4,12 +4,12 @@ import { SPELLS, isSpellKey, getSpellUpkeep } from '../../spells'
 import { getActiveSpellKeys, hasGrant } from '../../character/rules/effects'
 import { getHeldEntry, isConcentrating } from '../../character/rules/concentration'
 import { isDefense } from './actionCatalog'
-import { requiresConcentration } from './hold'
 import { getRootTestTerms } from './attack'
 import { getInterruptions } from './interruption'
 import { isInTurn } from './turn'
 import { getOpenAction } from './log'
 import { makeAction } from '../factories'
+import { hasUpkeepMove } from './carriedMove'
 import { sumTerms } from '../../character/rules/terms'
 
 // abilities.tex "Battle Mage": a caster who keeps a spell going through what
@@ -20,18 +20,13 @@ import { sumTerms } from '../../character/rules/terms'
 export const RETEST_PENALTY = 3
 
 // "I. Allows the caster to use careful movement while concentrating,
-// repurposing the same action points used for the spell": the AP a cast that
-// needs concentration spent, as far as its careful move reaches.
-export function getCastMoveAP(state: SceneState, cast: CastAction, spentAP: number): number {
-  const c = state.characters[cast.actorId]
-  return c && hasGrant(c, 'castingMove') && requiresConcentration(cast) ? spentAP : 0
-}
-
-// What holding on to the held spells pays at the round change, the careful
-// move it buys a Battle Mage in their turn; none for anyone else.
+// repurposing the same action points used for the spell" (its recipes,
+// rules/carriedMove.ts): what holding on to the held spells pays at the round
+// change, the careful move it buys a Battle Mage in their turn; none for
+// anyone else.
 export function getUpkeepMoveAP(state: SceneState, id: string): number {
   const c = state.characters[id]
-  if (!c || !hasGrant(c, 'castingMove')) return 0
+  if (!c || !hasUpkeepMove(c)) return 0
   return getActiveSpellKeys(c).reduce((sum, key) => sum + (isSpellKey(key) ? getSpellUpkeep(SPELLS[key]).AP : 0), 0)
 }
 

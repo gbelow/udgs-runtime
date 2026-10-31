@@ -26,7 +26,8 @@ import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getOpportunityBar, getOpportunityCheck, getOwnCost, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withoutReserve, withRefund } from './action'
 import { getAnswerDrafts } from './modifiers'
-import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
+import { isGuardPlaced } from './protect'
+import { getCombinedOf } from './combinedMove'
 import { makeAction } from '../factories'
 import { perState } from '../../perState'
 import { getFightName } from './fighters'
@@ -95,17 +96,15 @@ function defenseGate(state: SceneState, defender: CampaignCharacter, root: Actio
 }
 
 // A block or an intercept as it may be made against a strike: whether it
-// can be made from where its defender stands, or from a step they can
-// still take (`needsGuardStep`), and its price with that step. Against
-// anything else, as it stands.
+// can be made from where its defender stands, or from where the move it
+// carries before its die will take them (rules/combinedMove.ts), and its
+// price. Against anything else, as it stands.
 function guardOption(state: SceneState, c: CampaignCharacter, root: Action, guard: ActionOf<'block'> | ActionOf<'intercept'>, gate: string | null): { cost: ActionCost; reason: string | null } {
   const cost = getOwnCost(state, guard) ?? getActionCost(c, guard.kind)
   if (root.kind !== 'strike') return { cost, reason: gate }
-  const stepping = needsGuardStep(state, root, guard)
-  const placed = stepping || isGuardPlaced(state, root, guard)
-  const priced = stepping ? getOwnCost(state, { ...guard, to: getGuardSteps(state, root, guard)[0] ?? null }) ?? cost : cost
-  const reason = gate ?? (!canAfford(c, priced, isCombatStarted(state)) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
-  return { cost: priced, reason }
+  const placed = getCombinedOf(c, guard)?.recipe.order === 'before' || isGuardPlaced(state, root, guard)
+  const reason = gate ?? (!canAfford(c, cost, isCombatStarted(state)) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
+  return { cost, reason }
 }
 
 // Whether anyone, among `ids` (everyone by default), has an answer open to
@@ -263,7 +262,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
     // (rules/modifiers.ts)
     const modified = (plain: ActionDraft): ActionOption[] => getAnswerDrafts(state, c.id, open.id, plain).map((draft) => {
       const own = getOwnCost(state, makeAction(draft.kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id } as Parameters<typeof makeAction>[1])) ?? cost
-      return answer(draft, own, defenseGate(state, c, open, kind, own, draft.kind === 'evasiveJump' && !!draft.modifiers?.lift))
+      return answer(draft, own, defenseGate(state, c, open, kind, own, getCombinedOf(c, draft)?.recipe.movement === 'stand'))
     })
     // combat.tex "Protect", "Guard": a defense prepared for an ally, made with
     // the row it was prepared with, from where the movement it carries has put

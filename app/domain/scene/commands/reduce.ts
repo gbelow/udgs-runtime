@@ -41,7 +41,7 @@ import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { takeDose } from '../../character/commands/consume'
 import { getInterruptionOf } from '../rules/interruption'
 import { loseConcentration, releaseSpell } from '../../character/commands/spells'
-import { getAction, getReactionsTo } from '../rules/log'
+import { getAction } from '../rules/log'
 import { extinguishCell } from '../rules/extinguish'
 import { coatCell, filterLayers, igniteCell, getHolderOf, isSupersededBy, type FireTouched } from '../rules/board/hazard'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
@@ -226,8 +226,7 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
           return action.trample ? trampledBy([action.trample], paid, charged) : paid
         }
         if (c.id !== action.targetId || !action.facts) return c
-        // abilities.tex "Technical Lift": the jump stood its jumper up
-        const struck = deliver(action.facts)(action.kind === 'strike' && action.lifted ? standUp(c) : c)
+        const struck = deliver(action.facts)(c)
         return action.kind === 'strike' && action.trample ? trampledBy([action.trample], struck, charged) : struck
     }
   }
@@ -433,13 +432,9 @@ function landOnBoard(state: SceneState, action: Action, phase: Phase): (board: B
       return { ...board, placements: destination ? { ...placements, [action.actorId]: settleDepth(state, action, destination) } : placements }
     }
     if (action.kind === 'strike') {
-      // abilities.tex "Defender", "Defensive Advance": whoever stepped to
-      // block or intercept stands where they stepped
-      const stepped = Object.fromEntries(getReactionsTo(state, action.id).flatMap((r) => ((r.kind === 'block' || r.kind === 'intercept') && r.to ? [[r.actorId, r.to]] : [])))
-      const placements = { ...board.placements, ...stepped }
       // combat.tex "Evasive Jump": the defender lands where the jump said
-      if (!action.jumpedTo || !action.targetId) return { ...lit, placements }
-      return { ...lit, placements: { ...placements, [action.targetId]: action.jumpedTo } }
+      if (!action.jumpedTo || !action.targetId) return lit
+      return { ...lit, placements: { ...lit.placements, [action.targetId]: action.jumpedTo } }
     }
     // combat.tex "Balance": the faller lands where the fall took them, at the
     // height of the ground there

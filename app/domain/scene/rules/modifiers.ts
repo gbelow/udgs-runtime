@@ -4,16 +4,15 @@ import { getActionCost, type ActionCost } from '../../character/rules/actionCost
 import type { Term } from '../../character/rules/terms'
 import { ABILITIES, hasAbility } from '../../abilities'
 import { produceSpiritAttack } from '../../character/rules/spirit'
-import { hasAffliction } from '../../character/rules/afflictions'
 import { hasGrant } from '../../character/rules/effects'
 import { makeAction } from '../factories'
 import { getRootOf } from './log'
-import { isInLiquid } from './board/ground'
 import { canGrab, isGrappleRowOf } from './grapple'
 import { isSweepLink } from './sweep'
-import { JUMP_ATTACKS, canJumpAttack } from './jumpAttack'
-import { getPostureCost } from './move'
-import { canSteadyShot } from './steadyArms'
+import { ACTIONS, isReaction } from './actionCatalog'
+import { getRecipeLabel } from './recipes'
+import { canCarryStep, canDeclareOnMove, getCombinedMoves, getCombinedPrice, getCombinedTerms, type CombinedDefense } from './combinedMove'
+import { canDeclareCarried, getDeclaredCarriedMoves } from './carriedMove'
 import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
 
 // Every yes-or-no an action is declared with besides what it is (types.ts,
@@ -138,61 +137,6 @@ const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modif
       terms: () => [{ label: 'precise evasion', value: -3 }],
     },
   },
-  // abilities.tex "Technical Lift": "perform an evasive jump and stand up in
-  // the same action", taking "-3 to defend while doing so": a stand up, and
-  // priced as one; from the ground, and the water's surface is no ground to
-  // stand up from
-  evasiveJump: {
-    lift: {
-      label: 'technical lift',
-      offer: 'answer',
-      requires: 'technicalLift',
-      allowed: ({ state, actor }) => hasAffliction(actor, 'prone') && !isInLiquid(state, actor),
-      price: ({ actor }) => ({ set: getPostureCost(actor, 'stand') }),
-      terms: () => [{ label: 'technical lift', value: -3 }],
-    },
-  },
-  // abilities.tex "Defensive Advance": an intercept made with the step its
-  // defender takes towards the attack, priced in place of the defender's step
-  // (rules/protect.ts)
-  intercept: {
-    advance: {
-      label: 'defensive advance',
-      offer: 'answer',
-      requires: 'advancingIntercept',
-      allowed: ({ action }) => action.kind === 'intercept' && action.preparedId === '',
-      price: ({ actor }) => ({ add: getActionCost(actor, 'defensiveAdvance') }),
-    },
-  },
-  // abilities.tex "Steady Arms": a careful move bought with the shot's own AP
-  // (rules/steadyArms.ts)
-  shoot: {
-    steadyArms: {
-      label: 'steady arms',
-      offer: 'toggle',
-      requires: 'steadyArms',
-      allowed: ({ state, action }) => action.kind === 'shoot' && canSteadyShot(state, action),
-      price: () => ({ add: { AP: 0, STA: 0 } }),
-    },
-  },
-  // abilities.tex "Lunge": "jump for 1 STA"; "Jump Shot": "Spends 1 extra
-  // AP and 1 STA to jump backward" (rules/jumpAttack.ts)
-  move: {
-    lunge: {
-      label: 'lunge',
-      offer: 'toggle',
-      requires: 'lunge',
-      allowed: ({ state, action }) => action.kind === 'move' && canJumpAttack(state, action, 'lunge'),
-      price: () => ({ set: JUMP_ATTACKS.lunge.price }),
-    },
-    jumpShot: {
-      label: 'jump shot',
-      offer: 'toggle',
-      requires: 'jumpShot',
-      allowed: ({ state, action }) => action.kind === 'move' && canJumpAttack(state, action, 'jumpShot'),
-      price: () => ({ set: JUMP_ATTACKS.jumpShot.price }),
-    },
-  },
 }
 
 // The modifiers, open only where the action is the one they go with.
@@ -201,16 +145,56 @@ function when<C extends ModifierContext, K extends string>(modifiers: Record<K, 
   return Object.fromEntries(entries) as Record<K, Modifier<C>>
 }
 
-type Entry = { key: string; modifier: Modifier }
+// A modifier as an action is declared with it: a yes-or-no of its own kind's
+// `modifiers`, or a recipe its actor has learned (rules/combinedMove.ts,
+// rules/carriedMove.ts), which the action names as its `recipe`.
+type Entry = { key: string; modifier: Modifier; recipe: boolean }
 
-function getEntries(action: { kind: Action['kind'] }): Entry[] {
+function getFlagEntries(action: { kind: Action['kind'] }): Entry[] {
   if (!(action.kind in DECLARATION_MODIFIERS)) return []
   const table = DECLARATION_MODIFIERS[action.kind as ModifierKind] as unknown as Record<string, Modifier>
-  return Object.entries(table).map(([key, modifier]) => ({ key, modifier }))
+  return Object.entries(table).map(([key, modifier]) => ({ key, modifier, recipe: false }))
 }
 
-function isDeclared(action: Action, key: string): boolean {
-  return 'modifiers' in action && (action.modifiers as Record<string, boolean>)[key] === true
+function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'actorId'>): Entry[] {
+  const actor = state.characters[action.actorId]
+  if (!actor) return []
+  const offer = isReaction(action.kind) ? 'answer' : 'toggle'
+  const combined = getCombinedMoves(actor, action.kind).map((entry): Entry => ({
+    key: entry.id,
+    recipe: true,
+    modifier: {
+      label: entry.label,
+      offer,
+      allowed: ({ state, action, answering }) => (action.kind === 'move' ? canDeclareOnMove(state, action, entry) : isCombinedDefense(action) && canCarryStep(state, answering, action, entry)),
+      price: ({ actor }) => getCombinedPrice(actor, entry.recipe),
+      terms: () => getCombinedTerms(entry),
+    },
+  }))
+  const carried = getDeclaredCarriedMoves(actor, action.kind).map((entry): Entry => ({
+    key: entry.id,
+    recipe: true,
+    modifier: {
+      label: entry.label,
+      offer,
+      allowed: ({ state, action }) => canDeclareCarried(state, action, entry),
+      price: () => ({ add: { AP: 0, STA: 0 } }),
+    },
+  }))
+  return [...combined, ...carried]
+}
+
+function isCombinedDefense(action: Action): action is CombinedDefense {
+  return action.kind === 'block' || action.kind === 'intercept' || action.kind === 'evasiveJump'
+}
+
+function getEntries(state: SceneState, action: Pick<Action, 'kind' | 'actorId'>): Entry[] {
+  return [...getFlagEntries(action), ...getRecipeEntries(state, action)]
+}
+
+function isDeclared(action: Action, entry: Entry): boolean {
+  if (entry.recipe) return action.recipe === entry.key
+  return 'modifiers' in action && (action.modifiers as Record<string, boolean>)[entry.key] === true
 }
 
 function getContext(state: SceneState, action: Action): ModifierContext | null {
@@ -232,7 +216,7 @@ function isOpen(modifier: Modifier, ctx: ModifierContext): boolean {
 }
 
 function getDeclared(state: SceneState, action: Action): { entries: Entry[]; ctx: ModifierContext } | null {
-  const entries = getEntries(action).filter((e) => isDeclared(action, e.key))
+  const entries = getEntries(state, action).filter((e) => isDeclared(action, e))
   if (entries.length === 0) return null
   const ctx = getContext(state, action)
   return ctx && { entries, ctx }
@@ -290,41 +274,47 @@ export function getModifierRiders(state: SceneState, action: Action): Delivery[]
 // The answers a modifier offered as an answer of its own makes of the draft:
 // the draft with each such modifier open to the answerer declared.
 export function getAnswerDrafts(state: SceneState, actorId: string, rootId: string, draft: ActionDraft): ActionDraft[] {
-  const answers = getEntries(draft).filter((e) => e.modifier.offer === 'answer')
-  if (answers.length === 0) return []
   const probe = makeAction(draft.kind, { ...draft, id: '', actorId, reactionTo: rootId } as Parameters<typeof makeAction>[1])
+  const answers = getEntries(state, probe).filter((e) => e.modifier.offer === 'answer')
+  if (answers.length === 0) return []
   const ctx = getContext(state, probe)
-  if (!ctx || !('modifiers' in probe)) return []
+  if (!ctx) return []
+  const flags = 'modifiers' in probe ? (probe.modifiers as Record<string, boolean>) : {}
   return answers
     .filter((e) => isOpen(e.modifier, ctx))
-    .map((e) => ({ ...draft, modifiers: { ...probe.modifiers, [e.key]: true } }) as ActionDraft)
+    .map((e) => (e.recipe ? { ...draft, recipe: e.key } : { ...draft, modifiers: { ...flags, [e.key]: true } }) as ActionDraft)
 }
 
-// What the answer is called for the modifier it was offered as, if any.
+// What the answer is called for the modifier it was offered as, if any: a
+// recipe's beside the action it goes with.
 export function getAnswerLabel(draft: ActionDraft): string | null {
+  const recipe = draft.recipe ? getRecipeLabel(draft.recipe) : null
+  if (recipe) return `${ACTIONS[draft.kind].label} (${recipe})`
   const modifiers = 'modifiers' in draft ? (draft.modifiers as Record<string, boolean> | undefined) : undefined
-  return getEntries(draft).find((e) => e.modifier.offer === 'answer' && modifiers?.[e.key])?.modifier.label ?? null
+  return getFlagEntries(draft).find((e) => e.modifier.offer === 'answer' && modifiers?.[e.key])?.modifier.label ?? null
 }
 
-export type ModifierToggle = { key: string; label: string; on: boolean; allowed: boolean; price: { set: ActionCost } | { add: ActionCost }; terms: Term[]; modifiers: Record<string, boolean> }
+export type ModifierToggle = { key: string; label: string; on: boolean; allowed: boolean; price: { set: ActionCost } | { add: ActionCost }; terms: Term[]; press: Partial<ActionDraft> }
 
 // The modifiers offered as a toggle on the action as it is being declared:
 // each open where it stands, or declared already so it can be taken back,
-// and the modifiers pressing it declares.
+// and what pressing it declares.
 export function getModifierToggles(state: SceneState, action: Action): ModifierToggle[] {
   const ctx = getContext(state, action)
-  if (!ctx || !('modifiers' in action)) return []
-  const modifiers = action.modifiers as Record<string, boolean>
-  return getEntries(action).filter((e) => e.modifier.offer === 'toggle').flatMap(({ key, modifier }) => {
-    const on = modifiers[key] === true
+  if (!ctx) return []
+  const flags = 'modifiers' in action ? (action.modifiers as Record<string, boolean>) : {}
+  return getEntries(state, action).filter((e) => e.modifier.offer === 'toggle').flatMap((entry) => {
+    const { key, modifier } = entry
+    const on = isDeclared(action, entry)
     const allowed = isOpen(modifier, ctx)
     if (!on && !allowed) return []
-    return [{ key, label: modifier.label, on, allowed, price: modifier.price(ctx), terms: modifier.terms?.(ctx) ?? [], modifiers: { ...modifiers, [key]: !on } }]
+    const press = (entry.recipe ? { recipe: on ? null : key } : { modifiers: { ...flags, [key]: !on } }) as Partial<ActionDraft>
+    return [{ key, label: modifier.label, on, allowed, price: modifier.price(ctx), terms: modifier.terms?.(ctx) ?? [], press }]
   })
 }
 
 // The action's modifiers, none declared: what a change that leaves none of
 // them open declares.
 export function getModifiersOff(action: { kind: Action['kind'] }): Record<string, boolean> {
-  return Object.fromEntries(getEntries(action).map((e) => [e.key, false]))
+  return Object.fromEntries(getFlagEntries(action).map((e) => [e.key, false]))
 }

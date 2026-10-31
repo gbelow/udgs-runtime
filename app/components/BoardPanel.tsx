@@ -583,14 +583,14 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.swept ? 'fill-accent/20'
     : cell.zone ? ZONE_FILL[cell.zone]
-    : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/35'
+    : cell.reachable || cell.jump || cell.center ? 'fill-good/35'
     : cell.threatened ? 'fill-bad/10'
     : cell.fire > 0 ? 'fill-injury-2/30'
     : cell.fuels.length > 0 ? 'fill-accent/15'
     : cell.suffocating ? 'fill-fg/25'
     : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
-  const offered = cell.reachable || cell.jump || cell.step || cell.center
+  const offered = cell.reachable || cell.jump || cell.center
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : offered ? 'stroke-good' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
   const title = [
     cell.key,
@@ -613,7 +613,6 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
     cell.swept ? 'on the way of the move' : null,
     cell.jump ? 'evasive jump' : null,
-    cell.step ? 'step here' : null,
     cell.center ? 'aim here' : null,
     cell.zone ? `explosion: ${cell.zone}` : cell.threatened ? 'in reach of the explosion' : null,
     cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,

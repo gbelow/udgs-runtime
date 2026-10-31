@@ -1141,14 +1141,58 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     on: z.enum(['strike', 'shoot']).default('strike'),
     hit: num.default(0),
   }).strip(),
+  // `combinedMove`: a movement of the actor's own made with an action, at a
+  // price of its own (scene/rules/combinedMove.ts). `with` is the actions it
+  // goes with: an attack is declared on the move it follows, a defense
+  // carries the move itself. `order`: the move is made `before` the action,
+  // which is made from where it ends, or `after` it has landed, which an
+  // interruption cancels. `reach`: as far as the movement goes (a jump's
+  // length, a block of basic movement), one space, or the run the reaction
+  // surge's AP buy. `toward`: anywhere, away from everyone threatening the
+  // actor, or nearer the attacker; a defense's move always ends where the
+  // defense can be made from, and `defends: 'ally'` makes it one for someone
+  // else. `rows`: the rows the attack may be made with. `cost`: added to the
+  // price of what carries it, set in its place, or (`movement`) the AP its
+  // movement costs, the movement paying its own STA. `hit`: to the test of
+  // what carries it; `cover`: a shield's cover added to the defense.
+  // `openWhen`: open only while the condition holds.
+  z.object({
+    type: z.literal('combinedMove'),
+    with: z.array(z.enum(['strike', 'shoot', 'block', 'intercept', 'evasiveJump'])).default([]),
+    movement: z.enum(['jump', 'basic', 'run', 'stand']).default('jump'),
+    order: z.enum(['before', 'after']).default('before'),
+    reach: z.enum(['movement', 'oneSpace', 'reactionSurge']).default('movement'),
+    toward: z.enum(['any', 'awayFromThreateners', 'towardAttacker']).default('any'),
+    defends: z.enum(['any', 'ally']).default('any'),
+    rows: z.enum(['any', 'quickShotOrThrow']).default('any'),
+    cost: z.object({ operation: z.enum(['+', 'set', 'movement']).default('+'), AP: num.default(0), STA: num.default(0) }).prefault({}),
+    hit: num.default(0),
+    cover: z.boolean().default(false),
+    openWhen: z.enum(['martyrGuard']).nullable().default(null),
+  }).strip(),
+  // `carriedMove`: a careful move an action carries, bought with AP already
+  // paid (scene/rules/carriedMove.ts). `on`: the action it goes with, or the
+  // upkeep held spells pay at the round change; `when`: the condition the
+  // action must meet; `budget`: the AP the action itself cost, or what a
+  // rest costs; `path`: walked once the action is rolled and waits to land,
+  // or declared with the action and walked around the step it is made from.
+  z.object({
+    type: z.literal('carriedMove'),
+    on: z.enum(['rest', 'cast', 'shoot', 'upkeep']),
+    when: z.enum(['concentration', 'effortless', 'notSnipe']).nullable().default(null),
+    budget: z.enum(['action', 'rest']).default('action'),
+    path: z.enum(['afterRoll', 'declared']).default('afterRoll'),
+  }).strip(),
 ])
 export type Recipe = z.infer<typeof RecipeSchema>
+export type CombinedMoveRecipe = Extract<Recipe, { type: 'combinedMove' }>
+export type CarriedMoveRecipe = Extract<Recipe, { type: 'carriedMove' }>
 
 // A capability a rule in the domain asks for by name, which an ability gives
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'lunge', 'technicalLift', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'steadyArms', 'jumpShot', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'castingMove', 'concentratedDefense', 'castingRetest'])
+export const GrantSchema = z.enum(['preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'castingRetest'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks

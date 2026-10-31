@@ -45,7 +45,6 @@ import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { canThrowItem, getThrowables } from '../rules/throw'
-import { getPendingGuardStep } from '../rules/protect'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { isSweepVariant } from '../../character/rules/gear'
 import { GRAPPLING_EFFECTS, HUMANOID_LOCATIONS } from '../../lists'
@@ -387,9 +386,6 @@ export type ActionPanelView = {
   restMove: boolean
   // abilities.tex "Battle Mage I": the careful move holding on bought, still to make
   sustainMove: boolean
-  // who still has to pick on the board where they step to block or
-  // intercept; null when nobody does
-  stepPending: string | null
   // at `react`: a reaction has been declared and can be taken back
   canBack: boolean
   // at `react`: who the die, the payment or the acceptance still waits on,
@@ -420,7 +416,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, sustainMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, sustainMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -495,7 +491,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       suggestion: cast && getMoraleSpell(cast.key)?.effect.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
-      steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(open) ? { steps: getFiringSteps(open) } : null,
+      steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? { steps: getFiringSteps(open) } : null,
       mode: open.kind === 'move' ? open.mode : 'normal',
       climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor, isCombatStarted(state)) : [],
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
@@ -587,7 +583,6 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     restMove: isRootAction(open) && canMoveWhileResting(state, open),
     sustainMove: false,
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
-    stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor, move) : [],
     reachable: move ? getReachableCells(state, move) : [],
@@ -637,8 +632,3 @@ function getPushView(state: SceneState, drag: DragAction): PushView {
   }
 }
 
-// Who still has to pick where they step to block or intercept the strike.
-function stepPendingName(state: SceneState, open: StrikeAction): string | null {
-  const guard = getPendingGuardStep(state, open)
-  return guard ? getFightName(state, guard.reaction.actorId) : null
-}

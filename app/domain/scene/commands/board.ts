@@ -8,7 +8,6 @@ import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
 import { getSurface, pickArt } from '../rules/board/surface'
 import { isOffGrid } from '../rules/parked'
-import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
 import { getAimedFloor, getSprayPitch } from '../rules/explosion'
 import { CLIMB_EASY_DL, COVER_START_RES, FALL, SWIM_DEFAULT_DL } from '../../tables'
@@ -21,7 +20,7 @@ import { findOpenJump } from '../rules/options'
 import { getReachableCells } from '../rules/board/reach'
 import { canStandAt } from '../rules/board/ground'
 import { getMoveOrigin, getPathTurns, withoutLastSegment } from '../rules/board/waypoint'
-import { aimAtCell, amendAction, amendReaction, declareReaction } from './action'
+import { aimAtCell, amendAction, declareReaction } from './action'
 import { aimExplosion, displaceTrampled } from './choices'
 import { getDragReach, getWalkerPlacement } from '../rules/drag'
 import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
@@ -423,8 +422,7 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
 const unchanged: Updater = (s) => s
 
 // The pick `pickCell` makes, and whom it is made for: the open action's
-// actor, but for the step a guard takes and the landing of an evasive jump,
-// which are the guard's and the jumper's. Null with nothing open.
+// actor, but for the landing of an evasive jump, which is the jumper's. Null with nothing open.
 export function readPick(state: SceneState, cell: Coord, newId: () => string, height?: number | null): { actor: string, apply: Updater } | null {
   const open = getOpenAction(state)
   if (!open) return null
@@ -433,7 +431,7 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
     const drawn = pickPathCell(state, open, cell)
     return own(drawn ? amendAction(open.movement === 'climb' ? { ...drawn, ledge: null } : drawn) : unchanged)
   }
-  if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(open)) {
+  if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) {
     const drawn = pickPathCell(state, getSteadyPath(state, open), cell)
     return own(drawn ? amendAction({ ...drawn, firedAt: null }) : unchanged)
   }
@@ -451,16 +449,10 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
     const path = pickWayCell(getWalkerPlacement(state, open)?.cell ?? null, open.path, getDragReach(state, open), cell)
     return own(path ? amendAction({ path }) : unchanged)
   }
-  const guard = open.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null
-  if (guard) {
-    const to = guard.steps.find((p) => sameCell(p.cell, cell))
-    return { actor: guard.reaction.actorId, apply: to ? amendReaction(guard.reaction.actorId, { to }) : unchanged }
-  }
   if (open.kind === 'strike' && open.step === 'react' && open.targetId) {
     const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))
-    const offered = findOpenJump(state, open.targetId)?.draft
-    const modifiers = offered?.kind === 'evasiveJump' ? offered.modifiers : undefined
-    return { actor: open.targetId, apply: to ? declareReaction(open.targetId, { kind: 'evasiveJump', modifiers, to }, newId) : unchanged }
+    const recipe = findOpenJump(state, open.targetId)?.draft.recipe ?? null
+    return { actor: open.targetId, apply: to ? declareReaction(open.targetId, { kind: 'evasiveJump', recipe, to }, newId) : unchanged }
   }
   return own(unchanged)
 }
@@ -488,7 +480,7 @@ export function backSegment(): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.step !== 'define') return state
-    if (open.kind === 'shoot' && isSteadyShot(open) && open.path.length > 0) return amendAction({ ...withoutLastSegment(getSteadyPath(state, open)), firedAt: null })(state)
+    if (open.kind === 'shoot' && isSteadyShot(state, open) && open.path.length > 0) return amendAction({ ...withoutLastSegment(getSteadyPath(state, open)), firedAt: null })(state)
     if (open.kind !== 'move' || open.path.length === 0) return state
     return amendAction(withoutLastSegment(open))(state)
   }

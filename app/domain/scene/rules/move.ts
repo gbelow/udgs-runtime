@@ -28,6 +28,7 @@ import { isKnockedDownByHook } from './grapple'
 import { findOpenRoot, getAction, getAncestry, getDrawnOpportunityAttacks, getReactionsTo } from './log'
 import { getFleeStep } from './flee'
 import { withDisplaced } from './displace'
+import { isBackwardMove } from './combinedMove'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -279,10 +280,11 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
 }
 
 // combat.tex "Movement": "If performed backwards, the horizontal distance is
-// halved", and abilities.tex "Jump Shot" jumps backward (rules/jumpAttack.ts).
+// halved", as a move declared to take its mover away from everyone
+// threatening them is (rules/combinedMove.ts: abilities.tex "Jump Shot").
 function getJumpSpeed(c: Character, action: MoveAction): number {
   const speed = getMovementSpeed(c, 'jump')
-  return action.modifiers.jumpShot ? Math.floor(speed / 2) : speed
+  return isBackwardMove(c, action) ? Math.floor(speed / 2) : speed
 }
 
 // combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
@@ -619,13 +621,12 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
   return placements
 }
 
-// Where everyone but `except` answering the strike comes to rest when it
-// lands: a Defender's or a Defensive Advance's step, an evasive jump's
-// landing. They land together, so a step or a jump picked for the same
+// Where everyone but `except` answering the strike with an evasive jump
+// lands when it lands. They land together, so a jump picked for the same
 // strike may not be put down on any of them.
 export function getStrikeLandings(state: SceneState, strikeId: string, except: string): Record<string, Placement> {
   return Object.fromEntries(getReactionsTo(state, strikeId).flatMap((r) =>
-    (r.kind === 'block' || r.kind === 'intercept' || r.kind === 'evasiveJump') && r.to && r.actorId !== except ? [[r.actorId, r.to]] : []))
+    r.kind === 'evasiveJump' && r.to && r.actorId !== except ? [[r.actorId, r.to]] : []))
 }
 
 export function hasJumpSpace(state: SceneState, defenderId: string, attackerId: string): boolean {

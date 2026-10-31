@@ -25,6 +25,7 @@ import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
+import { getModifierToggles } from '../rules/modifiers'
 import { giveUpHeld, giveUpSustained } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
@@ -53,12 +54,14 @@ export function declareAction(actorId: string, draft: ActionDraft, newId: () => 
 }
 
 // Fills in or changes what the open action declares, while it is still only
-// declared. The kind is not a declaration and cannot change.
+// declared. The kind is not a declaration and cannot change, and the recipe
+// changes only as a toggle the action offers (rules/modifiers.ts).
 export function amendAction(fields: Partial<ActionDraft>): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open) return state
     if (fields.kind !== undefined && fields.kind !== open.kind) return state
+    if (fields.recipe !== undefined && fields.recipe !== open.recipe && !getModifierToggles(state, open).some((t) => t.press.recipe === fields.recipe)) return state
     return replaceActions(state, [ActionSchema.parse({ ...open, ...fields, kind: open.kind })])
   }
 }
@@ -248,7 +251,7 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     if (!chosen?.available) return state
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined, preparedId: 'preparedId' in draft ? draft.preparedId : undefined })
     const targetId = trigger?.against ?? open.actorId
-    const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? null })
+    const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? draft.recipe ?? null })
     const aimed = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
     const paid = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), `${chosen.surge} surge for a reaction`)(state) : state
     const reaction = { ...aimed, surged: getSurgeMade(state, paid, actorId, chosen.surge) }

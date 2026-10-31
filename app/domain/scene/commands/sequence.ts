@@ -34,7 +34,7 @@ import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 import { getInterruptedClimb } from '../rules/move'
 import { getNextDisplacement } from '../rules/displace'
-import { getJumpAttack, getJumpAttackOpened } from '../rules/jumpAttack'
+import { getLapsedSteps, getMoveAttack, getMoveAttackOpened, getPendingStep, openStepsAfter } from '../rules/combinedMove'
 import { openSteadyLeg } from '../rules/steadyArms'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
@@ -230,16 +230,21 @@ export function takeQueuedTurn(state: SceneState): SceneState {
 // from the line its preparer has walked to, and the die is scored against the
 // defense as it stands, so the movement each carries is played out first — the
 // next of them opened, a move of the preparer's own to make or pass up, which
-// draws opportunity attacks like any other — and the die waits. Once every
-// movement has been walked, the defenses it left off the line, or cancelled by
-// what the movement drew, come to nothing.
+// draws opportunity attacks like any other — and the die waits. So does the
+// move a defense carries before its die (rules/combinedMove.ts: abilities.tex
+// "Defender", "Defensive Advance"). Once every movement has been walked, the
+// defenses it left off the line, or cancelled by what the movement drew, and
+// those whose move was passed up, come to nothing.
 export function repositionDefenders(state: SceneState, root: RootAction, newId: () => string): { state: SceneState; waiting: boolean } {
   const pending = getPendingReposition(state, root)
   if (pending) {
     const { reaction, budget } = pending
     return { state: appendActions(state, [makeAction('move', { id: newId(), actorId: reaction.actorId, spawnedBy: reaction.id, preparedPart: 'move', budget })]), waiting: true }
   }
-  return { state: withdrawActions(state, getLapsedDefenses(state, root).map((r) => r.id), 'noLongerTriggered'), waiting: false }
+  const step = getPendingStep(state, root)
+  if (step) return { state: appendActions(state, [makeAction('move', { id: newId(), actorId: step.defense.actorId, spawnedBy: step.defense.id, ...step.move })]), waiting: true }
+  const lapsed = [...getLapsedDefenses(state, root), ...getLapsedSteps(state, root)]
+  return { state: withdrawActions(state, lapsed.map((r) => r.id), 'noLongerTriggered'), waiting: false }
 }
 
 // What the root's reactions open before its effect, the next of them once
@@ -263,14 +268,16 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // The follow-ups the landed action generates, the last played out first:
 // the blast an explosion goes off as, beneath everything else; the flees it
 // leaves, decided once everything else is; what its reactions open after
-// it (rules/openers.ts), in the order they were declared; the escapes a stun
+// it (rules/openers.ts), in the order they were declared, and the moves its
+// defenses carry after it (rules/combinedMove.ts); the escapes a stun
 // opens, the tests a cast worked through a link puts its targets to, the
 // explosion a cast that hit with an area to it goes off as,
 // aimed and played out on its own (the caster's part is done), the one a
 // thrown object goes off as where it lands, what
 // the strike's recipes open (rules/recipes.ts: a hook's knockdown, an
 // intercept's disarm, a riposte); the sweep's next target, so the swing is
-// finished first; and on top, the fall a move ended in.
+// finished first; the fall a move ended in; and on top, the attack a move
+// opens and the steps a steady shot walks after it.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`, and none
 // is offered to one the action interrupted (`isInterruptedBy`), nor to one
@@ -291,6 +298,7 @@ function generateFollowUps(state: SceneState, root: RootAction, newId: () => str
     ...blast,
     ...openFlees(state, root, newId),
     ...opened,
+    ...openStepsAfter(state, root, newId),
     ...escapesOnStun(state, root, newId),
     ...openSpellTests(state, root, newId),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
@@ -301,7 +309,7 @@ function generateFollowUps(state: SceneState, root: RootAction, newId: () => str
     ...openSweepLink(state, root, newId),
     ...openSwimTest(state, root, newId),
     ...openFall(root, newId),
-    ...openJumpAttack(state, root, newId),
+    ...openMoveAttack(state, root, newId),
     ...openSteadyAfter(state, root, newId),
   ]
 }
@@ -313,11 +321,12 @@ function openSteadyAfter(state: SceneState, root: RootAction, newId: () => strin
   return walk ? [walk] : []
 }
 
-// abilities.tex "Lunge", "Jump Shot": the attack from where the jump
-// landed, once the fall it may have ended in is played out.
-function openJumpAttack(state: SceneState, root: RootAction, newId: () => string): Action[] {
-  const key = root.kind === 'move' ? getJumpAttack(state, root) : null
-  return root.kind === 'move' && key ? [getJumpAttackOpened(root, key, newId())] : []
+// abilities.tex "Lunge", "Jump Shot": the attack from where the move
+// landed, once the fall it may have ended in is played out
+// (rules/combinedMove.ts).
+function openMoveAttack(state: SceneState, root: RootAction, newId: () => string): Action[] {
+  const entry = root.kind === 'move' ? getMoveAttack(state, root) : null
+  return root.kind === 'move' && entry ? [getMoveAttackOpened(root, entry, newId())] : []
 }
 
 // combat.tex "Balance": a move that ended in a fall — down a jump, off a

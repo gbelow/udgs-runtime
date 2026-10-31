@@ -31,7 +31,8 @@ import { CampaignCharacterSchema, SurgeKindSchema, type Character, type TerrainB
 import { getAim } from '../domain/scene/rules/aim'
 import { hasGrant } from '../domain/character/rules/effects'
 import { hasAbility } from '../domain/abilities'
-import { JUMP_ATTACKS, type JumpAttackKey } from '../domain/scene/rules/jumpAttack'
+import { getCombinedMoves } from '../domain/scene/rules/combinedMove'
+import { getDeclaredCarriedMoves } from '../domain/scene/rules/carriedMove'
 import { archer, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
@@ -64,7 +65,7 @@ type Picker = <T>(from: readonly T[]) => T
 // The first of whatever is offered, for a scenario that plays one fixed way
 const firstOf: Picker = (from) => from[0]
 
-const highlighted = (h: Harness) => h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center)
+const highlighted = (h: Harness) => h.view().cells.filter((c) => c.reachable !== null || c.jump || c.center)
 
 // What the character may declare of their own now.
 const ownOptions = (h: Harness, id: string) => getAvailableActions(h.state(), id).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
@@ -917,24 +918,25 @@ function grapplingPlay(h: Harness): Play[] {
   }]
 }
 
-// abilities.tex "Lunge", "Jump Shot": a jump of one's own declared as a jump
-// attack, landed where the board offers, and the attack it opens played out.
-// Played only where someone has the ability, for the same reason as the
-// shelter.
+// abilities.tex "Lunge", "Jump Shot": a move of one's own declared with a
+// recipe that opens an attack from where it lands, landed where the board
+// offers, and the attack it opens played out. Played for every such recipe
+// someone has, for the same reason as the shelter.
 function jumpAttackPlay(h: Harness): Play[] {
-  return (Object.keys(JUMP_ATTACKS) as JumpAttackKey[]).flatMap((key): Play[] => {
-    const able = () => Object.values(h.state().characters).filter((c) => hasGrant(c, JUMP_ATTACKS[key].grant))
+  const recipes = [...new Map(Object.values(h.state().characters).flatMap((c) => getCombinedMoves(c, 'move')).map((e) => [e.id, e])).values()]
+  return recipes.flatMap((entry): Play[] => {
+    const able = () => Object.values(h.state().characters).filter((c) => getCombinedMoves(c, 'move').some((e) => e.id === entry.id))
     if (!able().length) return []
     return [{
-      name: key,
+      name: entry.label,
       weight: 3,
       run: (h, pick) => {
         h.select(pick(able().map((c) => c.name)))
         h.startTurn()
         const jump = ownOptions(h, h.active()!).find((o) => o.draft.kind === 'move')
         if (!jump) return
-        h.declare({ kind: 'move', movement: 'jump' })
-        const toggle = getActionPanel(h.state()).open?.modifiers.find((m) => m.key === key)
+        h.declare({ kind: 'move', movement: entry.recipe.movement })
+        const toggle = getActionPanel(h.state()).open?.modifiers.find((m) => m.key === entry.id)
         if (!toggle?.allowed) return
         h.send({ kind: 'amend', args: [toggle.press] })
         const there = highlighted(h)
@@ -951,7 +953,7 @@ function jumpAttackPlay(h: Harness): Play[] {
 // Played only where someone has the ability, for the same reason as the
 // shelter.
 function steadyShotPlay(h: Harness): Play[] {
-  const able = () => Object.values(h.state().characters).filter((c) => hasGrant(c, 'steadyArms'))
+  const able = () => Object.values(h.state().characters).filter((c) => getDeclaredCarriedMoves(c, 'shoot').length > 0)
   if (!able().length) return []
   return [{
     name: 'steady shot',
@@ -965,7 +967,7 @@ function steadyShotPlay(h: Harness): Play[] {
       const panel = () => getActionPanel(h.state())
       const row = panel().attacks.length ? pick(panel().attacks) : null
       if (row) h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
-      const toggle = panel().open?.modifiers.find((m) => m.key === 'steadyArms')
+      const toggle = pick(panel().open?.modifiers.filter((m) => getDeclaredCarriedMoves(h.state().characters[h.active()!], 'shoot').some((e) => e.id === m.key)) ?? [])
       if (!toggle?.allowed) return
       h.send({ kind: 'amend', args: [toggle.press] })
       for (let i = pick([1, 2, 3]); i > 0 && highlighted(h).length; i--) h.click({ on: 'cell', cell: pick(highlighted(h)).cell })

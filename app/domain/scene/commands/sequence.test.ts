@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TerrainCellSchema, type Action, type DragAction, type SceneState, type Coord } from '../types'
+import { TerrainCellSchema, type Action, type ActionDraft, type DragAction, type SceneState, type Coord } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
@@ -10,6 +10,7 @@ import { getLastReport } from '../projections/outcomes'
 import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
 import { getOwnCost, isDeclarationComplete, needsDie } from '../rules/action'
+import { getEvasiveJumpPlacements } from '../rules/move'
 import { getChargeOptions } from '../rules/explosion'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 import { aimExplosion, chooseGrapple, spendHOP } from './choices'
@@ -717,12 +718,13 @@ describe('protecting the target of a strike', () => {
   }
   const shieldOption = (s: SceneState, id: string, label: string) => getAvailableActions(s, id).find((o) => getOptionLabel(s, id, o) === `${label} with Wooden Shield`)
   const kinds = (s: SceneState, id: string) => [...new Set(getAvailableActions(s, id).map((o) => o.draft.kind))]
-  // The step open to the one declared, picked on the board: the first cell
-  // a click there takes.
-  function pickStep(s: SceneState): SceneState {
+  // The move the declared defense carries, opened as the die is called for,
+  // drawn to the first cell a click on the board takes and committed.
+  function takeStep(declared: SceneState): SceneState {
+    const s = rollAction(() => MISS, newId)(declared)
     for (let q = -3; q <= 3; q++) for (let r = -3; r <= 3; r++) {
       const picked = pickCell({ q, r }, newId)(s)
-      if (picked !== s) return picked
+      if (picked !== s) return commitAction(() => 5, newId)(picked)
     }
     return s
   }
@@ -747,9 +749,10 @@ describe('protecting the target of a strike', () => {
   it('closes an intercept out of short range, but for a Defensive Advance a step closer, with cover', () => {
     const start = thrustPastBystanders()
     expect(shieldOption(start, 'def', 'intercept')?.reason).toBe('out of short range')
-    const advance = shieldOption(start, 'def', 'defensive advance')!
+    const advance = shieldOption(start, 'def', 'intercept (defensive advance)')!
     expect(advance.cost).toEqual({ AP: 3, STA: 1 })
-    const s = pickStep(declareReaction('def', advance.draft, newId)(start))
+    const s = takeStep(declareReaction('def', advance.draft, newId)(start))
+    expect(getOpenAction(s)).toMatchObject({ kind: 'strike', step: 'react' })
     expect(getDLTerms(s, getOpenAction(s)!).map((t) => t.label)).toContain('cover')
     const { state } = playOut(s, MISS)
     expect(state.board?.placements.def?.cell).toEqual({ q: 1, r: 0 })
@@ -759,13 +762,59 @@ describe('protecting the target of a strike', () => {
   // movement as a reaction to position yourself to defend someone."
   it('lets one who knows Defender step onto the line to block, for 1 STA more', () => {
     const start = thrustPastBystanders()
-    const block = shieldOption(start, 'd', 'block')!
+    expect(shieldOption(start, 'd', 'block')?.reason).toBe('off the line')
+    const block = shieldOption(start, 'd', 'block (defender)')!
     expect(block.cost).toEqual({ AP: 2, STA: 1 })
     const declared = declareReaction('d', block.draft, newId)(start)
-    const s = pickStep(declared)
+    const s = takeStep(declared)
     expect(s).not.toBe(declared)
     const { state } = playOut(s, MISS)
     expect(state.board?.placements.d?.cell).toEqual({ q: 0, r: -1 })
+  })
+
+  // The table's ruling: a move a reaction opens draws no opportunity attack
+  // from the one whose action the reaction answers.
+  it('draws no opportunity attack from the attacker with the step a Defensive Advance takes towards them', () => {
+    const start = thrustPastBystanders()
+    const declared = declareReaction('def', shieldOption(start, 'def', 'intercept (defensive advance)')!.draft, newId)(start)
+    const s = pickCell({ q: 1, r: 0 }, newId)(rollAction(() => MISS, newId)(declared))
+    const step = getOpenAction(s)!
+    expect(step).toMatchObject({ kind: 'move', actorId: 'def', path: [{ q: 1, r: 0 }] })
+    expect(getTriggers(s, step).map((t) => t.characterId)).not.toContain('atk')
+  })
+})
+
+// abilities.tex "Technical Lift": "The character can spend 1 STA to perform an
+// evasive jump and stand up in the same action, but takes -3 to defend while
+// doing so." The table's rulings: the stand up comes once the strike has
+// landed, and an interruption cancels it.
+describe('an evasive jump made as a Technical Lift', () => {
+  function proneUnderAStrike(attacker = fighter('atk')): SceneState {
+    let s = onBoard({ atk: [0, 0], def: [1, 0] }, attacker, { ...fighter('def', ['technical-lift']), afflictions: ['prone' as const] })
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
+    s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
+    const lift = getAvailableActions(s, 'def').find((o) => getOptionLabel(s, 'def', o) === 'evasive jump (technical lift)')!
+    expect(lift.available).toBe(true)
+    const [to] = getEvasiveJumpPlacements(s, 'def', 'atk')
+    return declareReaction('def', { ...lift.draft, to } as ActionDraft, newId)(s)
+  }
+  const landed = (s: SceneState, face: number) => resolveAction(newId, () => 5)(rollAction(() => face, newId)(s))
+
+  it('stands the jumper up once the strike misses', () => {
+    const s = landed(proneUnderAStrike(), MISS)
+    expect(getOpenAction(s)).toMatchObject({ kind: 'move', actorId: 'def', movement: 'stand' })
+    const { state } = playOut(commitAction(() => 5, newId)(s), MISS)
+    expect(state.characters.def.afflictions).not.toContain('prone')
+  })
+
+  // The scenario's premise: a greatsword's hit on the top face lands an
+  // interruption or worse.
+  it('offers no stand up to a jumper the strike interrupted', () => {
+    const s = landed(proneUnderAStrike(wielder('atk', 'Greatsword')), 20)
+    expect(getLog(s).find((a) => a.kind === 'strike')).not.toMatchObject({ interruption: 'none' })
+    expect(getLog(s).some((a) => a.kind === 'move' && a.actorId === 'def')).toBe(false)
+    expect(s.characters.def.afflictions).toContain('prone')
   })
 })
 

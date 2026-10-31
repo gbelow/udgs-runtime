@@ -222,7 +222,7 @@ export function canGrapple(state: SceneState, strike: StrikeAction): boolean {
   return !strike.modifiers.catch || getStrikeTrample(state, strike)?.result === 'blocked' || getHitHOP(state, strike).total >= CATCH_HOP
 }
 
-export function getStrikeLanding(state: SceneState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo' | 'lifted'> {
+export function getStrikeLanding(state: SceneState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo'> {
   const interruption = getInterruption(state, strike, facts)
   const trample = getStrikeTrample(state, strike)
   const grabbed = (strike.grapples || strike.modifiers.tackle) && canGrapple(state, strike) ? getGrabFacts(state, strike) : null
@@ -233,7 +233,6 @@ export function getStrikeLanding(state: SceneState, strike: StrikeAction, facts:
     trample,
     grabbed,
     jumpedTo: jump?.kind === 'evasiveJump' ? jump.to : null,
-    lifted: jump?.kind === 'evasiveJump' && jump.modifiers.lift && landed === 'none',
   }
 }
 

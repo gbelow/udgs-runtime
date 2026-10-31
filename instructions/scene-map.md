@@ -178,7 +178,7 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 - **react** — triggers are read off the locked action (`getTriggers`, `rules/reactions.ts`);
   each character gets one answer, and a new one replaces the old. `pruneReactions` drops
   answers the declaration no longer triggers.
-- **roll / pay** (`payAll`) — first, a prepared defense's reposition is walked (`repositionDefenders`) and the die waits; then prices the root and every reaction off their actors as they
+- **roll / pay** (`payAll`) — first, a prepared defense's reposition, and the move a defense carries before its die (`rules/combinedMove.ts`), are walked (`repositionDefenders`) and the die waits; then prices the root and every reaction off their actors as they
   stand, throws the root's die and each reaction's own die (in declaration order), and
   takes every price, all in one update: no state exists where a die is known and its price
   unpaid. A cast, a held spell fired again and a strike (or counterattack) declared with
@@ -220,17 +220,18 @@ resolveAction ─────────► land(top)
 - **After the effect** — `getFollowUps` builds the list pushed over the landed action; the
   **last pushed is played first**. Bottom to top: the blast (under everything), whatever
   reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
-  counterattack), escapes a stun opens, the spell tests a linked cast opens, the explosion
+  counterattack), the moves defenses carry after the strike (a Technical Lift's stand up), escapes a stun opens, the spell tests a linked cast opens, the explosion
   a cast opens, the explosion a thrown object goes off as where it lands, what the strike's
   recipes open (a hook's knockdown, an intercept's disarm, then the abilities': a riposte),
-  a sweep's next target, and on top the fall a move ended in. A voided root generates only what an
+  a sweep's next target, the fall a move ended in, and on top the attack a move declared
+  with a combined move opens and the steps a steady shot walks after it. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
   nothing). Follow-ups no reaction opens (blast, cast and impact explosions, stun escapes)
   live in `getFollowUps` itself.
 - **Recipes** (`rules/recipes.ts`) — actions the rules give a fighter only by a recipe,
-  written as data (`RecipeSchema`, `domain/types.ts`), of two types. A `followUp` is what a
+  written as data (`RecipeSchema`, `domain/types.ts`), of four types. A `followUp` is what a
   landed strike offers: when it fires (`defended`, `struck`), what it opens (a strike, a
   maneuver), and what that gets (a hit term, a price added or set, unresisted under a
   condition, whether it draws opportunity attacks, whether its maneuver may be gone along
@@ -243,6 +244,21 @@ resolveAction ─────────► land(top)
   passed on to the strike it opens. The hit terms, the price, the triggers and the panel
   label read it from there. A new event, condition or opened kind is a word added to the
   schema and read here; the `Record`s over them do not compile until it is.
+  The other two are moves. A `combinedMove` (`rules/combinedMove.ts`) is a movement of the
+  actor's own made with an action at a price of its own: declared on a move, it opens an
+  attack from where the move lands (Lunge, Jump Shot); carried by a block, intercept or
+  evasive jump, it is a move made before the die, opened by `repositionDefenders` like a
+  prepared defense's reposition and ending only where the defense can be made (Defender,
+  Defensive Advance, the martyr's run, a rule recipe), or after the strike has landed, which an
+  interruption cancels (Technical Lift's stand up). A `carriedMove` (`rules/carriedMove.ts`)
+  is a careful move bought with AP the action already paid: made once the action is rolled
+  (Rest and Effortless Spell, rule recipes; Battle Mage I's cast and upkeep), or declared
+  with the shot and walked around the step it is fired from (Steady Arms). Both are
+  declared through the action's `recipe`, offered by `rules/modifiers.ts` as a toggle on an
+  action of one's own or as an answer of its own, with the price and the test terms they
+  give; `amendAction` sets the recipe only to a toggle the action offers. A move a reaction
+  opens draws no opportunity attack from the one whose action the reaction answers (the
+  table's ruling, `rules/reactions.ts`).
 - **One follow-up each** — `land` stamps every follow-up still to be declared with
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
   others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
@@ -356,13 +372,13 @@ app/domain/scene/
 │   ├── tested.ts       the tests a landing action's instant deliveries leave their targets (and what follows a strike's blow), rolled with the dice they threw with it
 │   ├── declaration.ts  the declarations an attack is made with (`StrikeDeclaration`, `ShotDeclaration` in types.ts), copied whole by picks read off the schema
 │   ├── strikeDeclaration.ts one strike declaration, whatever declares it (a turn, an opportunity attack, a counterattack, a preparation, a recipe, a sweep): its context (what it answers, the step that drew it) and the variations open there
-│   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion, Technical Lift, Defensive Advance, Lunge, Jump Shot), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
+│   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion), and every move recipe its actor has learned that goes with it (`recipe`: rules/combinedMove.ts, rules/carriedMove.ts), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike or shot
 │   ├── recipes.ts      follow-ups and contested strikes as data: who may make them, their hit, price and opportunity attacks
 │   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
-│   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
+│   ├── protect.ts      protecting another: the line, intercept range, who may protect (from where they stand or after a move a defense carries), where a defense can be made from
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
 │   ├── test.ts         isWon and resisted: what a test's degree means for an action
 │   ├── breakage.ts     the blow a block met: what it broke, the dice it needs, the setting's bar
@@ -384,9 +400,10 @@ app/domain/scene/
 │   ├── displace.ts     a won crash in the space the move ends in: who is displaced, the spaces the attacker may put them in (`getAim` 'displace', picked by `displaceTrampled`), the forced movement each is made into before the move lands (`land`), and where the move reads them meanwhile (`withDisplaced`)
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
-│   ├── jumpAttack.ts   a jump declared as Lunge or Jump Shot (abilities.tex): what each costs and opens, where it may land (a jump shot backward, at half the jump), and the attack it opens from there
+│   ├── combinedMove.ts a movement made with an action at its own price (RecipeSchema `combinedMove`): a move that opens an attack from where it lands (Lunge, Jump Shot: where it may land, a jump shot backward at half the jump, the rows the attack may use), the move a defense carries before its die (Defender, Defensive Advance, the martyr's run: its reach, where it may end, pending and lapsed) or after the strike (Technical Lift's stand up)
+│   ├── carriedMove.ts  a careful move an action carries, bought with AP already paid (RecipeSchema `carriedMove`): the AP a rolled rest, cast rested through or Battle Mage's cast carries, the upkeep move, the moves declared with an action (Steady Arms)
 │   ├── plant.ts        a body shield planted (abilities.tex "Crossbow and Shield"): the shields one may plant, the cells it may face
-│   ├── steadyArms.ts   a shot declared on a careful path (abilities.tex "Steady Arms"): the path and the step it is fired from are part of the shoot declaration; the steps before it are walked first as a move of their own (opened committed by `commitAction`), the shot is made from where they end, the steps after it are offered as a move once it has landed; the declaration reads the shooter as standing at the firing step (`getFiringState`). Both moves are bought with the shot's AP (`getCarriedMove`, shared with the move a rest allows)
+│   ├── steadyArms.ts   a shot declared with a carried move on a path (abilities.tex "Steady Arms", rules/carriedMove.ts): the path and the step it is fired from are part of the shoot declaration; the steps before it are walked first as a move of their own (opened committed by `commitAction`), the shot is made from where they end, the steps after it are offered as a move once it has landed; the declaration reads the shooter as standing at the firing step (`getFiringState`). Both moves are bought with the shot's AP (`getCarriedMove`, shared with the move a rest allows)
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes (of whoever a landed action stunned), grapple facts
 │   ├── partners.ts     who is grappled with whom
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
@@ -396,7 +413,7 @@ app/domain/scene/
 │   ├── heldTest.ts     held tests, the registry of called kinds (`HELD_DEFS`, typed over `CALLED_TESTS`): who the round calls, the skill terms, the DL of a call, the ways it may be rolled
 │   ├── swim.ts         the water a footprint stands in (surface, floor, DL), depth, the swim test's terms, each metre's degree off the held score, the dive, the prone a swim out of the water ends in
 │   ├── social.ts       who hears a social action (`getHeard`), and why each one, a taunt included, is closed beside what closes any own action
-│   ├── stress.ts       limit stress actions: what each compels (`STRESS_DUTIES`), the substitutions, the owed order (worst morale test first), the bars that keep the turn open until the duty is done or cannot be, `isMartyrGuard` (a martyr holding the surge may run onto the protect line: `getDefenderSteps`), and what a spell binds the compelled turn to: `isCompelledTarget` (read by `getTargetIds`), `isCompelledAway` (read by `getReachableCells` and the move's completeness)
+│   ├── stress.ts       limit stress actions: what each compels (`STRESS_DUTIES`), the substitutions, the owed order (worst morale test first), the bars that keep the turn open until the duty is done or cannot be, `isMartyrGuard` (a martyr holding the surge may run onto the protect line: the `martyrGuard` rule recipe, rules/recipes.ts), and what a spell binds the compelled turn to: `isCompelledTarget` (read by `getTargetIds`), `isCompelledAway` (read by `getReachableCells` and the move's completeness)
 │   ├── moraleSpell.ts  morale spells (`MORALE_SPELLS`, tables.ts): whom a cast tests (the target, or every mind the caster's synesthesia or link reaches), what Suggestion may suggest, the outcome a test settles to (`getMoraleOutcome`, written on the spell test as `morale`)
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack, one broken
@@ -405,7 +422,7 @@ app/domain/scene/
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── medicine.ts     First Aid and Cauterization: who may be tended, the bar, the price off the ability, the test, what lands
 │   ├── hold.ts         concentration: which actions require it (`requiresConcentration`), the held ones (`getHeldOf`), whether a reaction gives one up and what it gets back (`isGivingUpHeld`, `getHeldRefund`)
-│   ├── battleMage.ts   abilities.tex "Battle Mage": the careful move a cast or a held spell's upkeep buys, the defenses that keep concentration, the casting test thrown again at -3
+│   ├── battleMage.ts   abilities.tex "Battle Mage": the careful move a held spell's upkeep buys (the cast's is rules/carriedMove.ts), the defenses that keep concentration, the casting test thrown again at -3
 │   ├── reload.ts       reloads: the rows in hand that are reloaded, why one cannot be, the stack it takes and what it leaves in the weapon (`Item.loaded`)
 │   ├── detection.ts    senses: how impaired each of an observer's senses is against a target (`none`, `partial`, `total`: line of sight, darkness no light reaches, bad and zero visibility, fog's radius, a sense's range, touch and smell at 0 m being a grapple partner, camouflage carried, the afflictions that blind, deafen or worsen a sense), and what each detects at; `getActionHeading`, the way a landed action leaves a one-cell token facing, drawn only (written by `reduceBoard`)
 │   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test

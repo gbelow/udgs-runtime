@@ -60,7 +60,7 @@ import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparationOf, getPreparedDiscount, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
 import { getStrategistDiscount } from './cunning'
-import { getOpeningJumpAttack, isJumpAttackLanding } from './jumpAttack'
+import { getCombinedOf, getOpeningMove, isCombinedLanding } from './combinedMove'
 import { getFiringState, isSteadyPathLegal } from './steadyArms'
 import { getStrikeContext, isStrikeDeclarationOpen, isVariantOpen, type StrikeHolder } from './strikeDeclaration'
 import { addModifierLines, areModifiersOpen, getModifiedPrice, type ModifiedPrice } from './modifiers'
@@ -128,13 +128,13 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'releaseSpell':
       return isSpellKey(action.key) && isSpellActive(c, action.key)
     case 'move':
-      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1)) && isJumpAttackLanding(state, action, action.path.at(-1))
+      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isSidestepPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1)) && isCombinedLanding(state, action, action.path.at(-1))
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
       const root = getRootOf(state, action)
       // a prepared defense is placed by the movement it carries, before the die
-      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row) && (root?.kind !== 'strike' || action.preparedId !== '' || isGuardPlaced(state, root, action))
+      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row) && (root?.kind !== 'strike' || action.preparedId !== '' || getCombinedOf(c, action)?.recipe.order === 'before' || isGuardPlaced(state, root, action))
     }
     case 'guard': {
       const root = getRootOf(state, action)
@@ -275,7 +275,7 @@ export function isPreparedRequired(state: SceneState, action: Action): boolean {
   if (action.kind === 'move' && action.forced && action.step === 'define') return true
   // abilities.tex "Lunge": the jump was made "while using an attack";
   // "Jump Shot": to "perform a quick shot or throw"
-  if ((action.kind === 'strike' || action.kind === 'shoot') && action.step === 'define' && getOpeningJumpAttack(state, action) !== null) return isPerformable(state, action)
+  if ((action.kind === 'strike' || action.kind === 'shoot') && action.step === 'define' && getOpeningMove(state, action) !== null) return isPerformable(state, action)
   if (action.preparedPart === null || action.step !== 'define') return false
   if (action.preparedPart === 'main') return isRoot(action) && isPerformable(state, action)
   const reaction = action.spawnedBy ? getAction(state, action.spawnedBy) : null
@@ -352,7 +352,6 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
       return isSpellKey(action.key) ? getRepeatCost(action.key) : null
     case 'block':
     case 'intercept':
-      return withGuardStep(c, action, getActionCost(c, action.kind))
     case 'evade':
     case 'evasiveJump':
       return getActionCost(c, action.kind)
@@ -620,13 +619,6 @@ export function withRefund(state: SceneState, c: CampaignCharacter, rootId: stri
   return AP > 0 ? { ...c, resources: { ...c.resources, AP: c.resources.AP + AP } } : c
 }
 
-// A block's or an intercept's price, and the STA of the step it is made
-// with: a Defender's. A Defensive Advance's step is priced as the modifier
-// it is declared as (rules/modifiers.ts), in place of this one.
-export function withGuardStep(c: CampaignCharacter, action: ActionOf<'block'> | ActionOf<'intercept'>, cost: ActionCost): ActionCost {
-  const step = action.to && !(action.kind === 'intercept' && action.modifiers.advance) ? getActionCost(c, 'defenderStep') : null
-  return step ? { AP: cost.AP + step.AP, STA: cost.STA + step.STA } : cost
-}
 
 // ---------------------------------------------------------------------------
 // Where the open action stands

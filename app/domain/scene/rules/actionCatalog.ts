@@ -39,7 +39,7 @@ export type ActionDef<K extends ActionKind = ActionKind> = {
   generated?: true
   // the declared fields that tell two options of the kind apart, each with
   // the value it reads as when left out
-  identity?: Partial<Omit<Extract<ActionDraft, { kind: K }>, 'kind'>>
+  identity?: K extends ActionKind ? Partial<Omit<Extract<ActionDraft, { kind: K }>, 'kind'>> : never
   // the heading the panel lists its options under, when not the actions'
   group?: 'social'
   // counts as a rest: open at the round's rest step outside the turn, and may
@@ -77,9 +77,9 @@ export const ACTIONS = {
   evade:       { label: 'evade', rule: 'combat.tex "Defend", "Evade"',        type: 'reaction', price: 'evade',       reactsTo: ['strike', 'move'], die: false, identity: { modifiers: { precise: false } } },
   // combat.tex "Crash": standing firm against the mover, +3 to the Force
   brace:       { label: 'brace', rule: 'combat.tex "Crash"',        type: 'reaction', price: 'brace',       reactsTo: ['move'],   die: false },
-  evasiveJump: { label: 'evasive jump', rule: 'combat.tex "Evasive Jump"', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false, identity: { modifiers: { lift: false } } },
-  block:       { label: 'block', rule: 'combat.tex "Defend", "Block"',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', preparedId: '' } },
-  intercept:   { label: 'intercept', rule: 'combat.tex "Defend", "Intercept"',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', modifiers: { advance: false }, preparedId: '' } },
+  evasiveJump: { label: 'evasive jump', rule: 'combat.tex "Evasive Jump"', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false, identity: { recipe: null } },
+  block:       { label: 'block', rule: 'combat.tex "Defend", "Block"',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', preparedId: '', recipe: null } },
+  intercept:   { label: 'intercept', rule: 'combat.tex "Defend", "Intercept"',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', preparedId: '', recipe: null } },
   // combat.tex "Reflex": "Evasion" and "Guard", the two reactions to a shot
   evasion:     { label: 'evasion', rule: 'combat.tex "Reflex", "Evasion"',      type: 'reaction', price: 'reflex',      reactsTo: ['shoot'],  die: false },
   guard:       { label: 'guard', rule: 'combat.tex "Reflex", "Guard"',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false, identity: { weaponKey: '', attack: '', preparedId: '', cover: false } },

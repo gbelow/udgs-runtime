@@ -10,7 +10,7 @@ import type { Coord } from '../domain/scene/types'
 // it, over the real combat store. Expected values are what was clicked and
 // pressed: the path drawn, the step it is fired from, where the shooter stands.
 
-// Ann with a bow and Steady Arms, a shot declared with the grant's toggle on,
+// Ann with a bow and Steady Arms, a shot declared with its toggle on,
 // and Bob in range.
 function scene(): Harness {
   const h = openHarness()
@@ -27,7 +27,8 @@ function scene(): Harness {
   const quick = panel().attacks.find((a) => a.variant === 'quick') ?? panel().attacks[0]
   h.amend({ weaponKey: quick.weaponKey, attack: quick.attack, variant: quick.variant })
   h.amend({ ammoId: panel().ammo[0].itemId })
-  h.amend({ modifiers: { steadyArms: true } })
+  const steady = panel().open?.modifiers.find((m) => m.label === 'steady arms')
+  if (steady) h.amend(steady.press)
   return h
 }
 

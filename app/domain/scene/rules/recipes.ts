@@ -13,10 +13,12 @@ import { canTakeHold, getDisarmOptions } from './grapple'
 import { findGrapple, getGrapples } from './partners'
 
 // Actions as data. A recipe (RecipeSchema) says when a fighter may make an
-// action the rules give nobody else — a follow-up a landed strike offers, a
-// strike contested with the one aimed at them — and what that action gets;
-// this file is the one reader of every word a recipe can be written in. A
-// fighter has the rules' recipes and those of the abilities they know.
+// action the rules give nobody else (a follow-up a landed strike offers, a
+// strike contested with the one aimed at them, a move made with an action or
+// carried by one) and what that action gets. This file reads the follow-ups
+// and the contested strikes, and finds every recipe a fighter has: the
+// rules' and those of the abilities they know. The moves are read in
+// combinedMove.ts and carriedMove.ts.
 
 type FollowUpRecipe = Extract<Recipe, { type: 'followUp' }>
 export type RecipeEntry<R extends Recipe = Recipe> = { id: string; label: string; recipe: R }
@@ -75,6 +77,25 @@ const RULE_RECIPES = {
       opens: { kind: 'grab' },
     }),
   },
+  // creating.tex "Limit Stress Actions": a martyr "can use their reaction
+  // surge to protect an ally and reposition", running as far as the surge's
+  // AP buy onto where they can block or intercept for them (the table's
+  // ruling); the run pays its STA as any movement a reaction opens does
+  martyrGuard: {
+    label: 'martyr',
+    recipe: RecipeSchema.parse({ type: 'combinedMove', with: ['block', 'intercept'], movement: 'run', reach: 'reactionSurge', defends: 'ally', openWhen: 'martyrGuard' }),
+  },
+  // combat.tex "Rest": "The character is allowed to move 4 AP worth of
+  // careful movement while resting during their own turn"
+  rest: {
+    label: 'rest',
+    recipe: RecipeSchema.parse({ type: 'carriedMove', on: 'rest', budget: 'rest' }),
+  },
+  // spells.tex "Effortless Spell": a cast rested through
+  effortlessSpell: {
+    label: 'effortless spell',
+    recipe: RecipeSchema.parse({ type: 'carriedMove', on: 'cast', when: 'effortless', budget: 'rest' }),
+  },
 } satisfies Record<string, Omit<RecipeEntry, 'id'>>
 export type RuleRecipeId = keyof typeof RULE_RECIPES
 
@@ -93,6 +114,27 @@ function getAbilityEntry(key: AbilityKey, i: number): RecipeEntry | null {
 // The recipes of the abilities the fighter knows.
 function getLearnedRecipes(c: Character): RecipeEntry[] {
   return getLearnedAbilityKeys(c).flatMap((key) => ABILITIES[key].recipes.flatMap((_, i) => getAbilityEntry(key, i) ?? []))
+}
+
+// Every recipe of the type the fighter has: the rules' first, then those of
+// the abilities they know.
+export function getRecipesOf<T extends Recipe['type']>(c: Character, type: T): RecipeEntry<Extract<Recipe, { type: T }>>[] {
+  return [...RULE_ENTRIES, ...getLearnedRecipes(c)].filter((e): e is RecipeEntry<Extract<Recipe, { type: T }>> => e.recipe.type === type)
+}
+
+// The recipe of that id as the fighter has it; null for one they do not.
+export function getRecipeEntry(c: Character, id: string | null): RecipeEntry | null {
+  if (!id) return null
+  if (isRuleRecipeId(id)) return { id, ...RULE_RECIPES[id] }
+  const [key, i] = id.split('.')
+  return isAbilityKey(key) && hasAbility(c, key) ? getAbilityEntry(key, Number(i)) : null
+}
+
+// What the recipe of that id is called, whoever has it.
+export function getRecipeLabel(id: string): string | null {
+  if (isRuleRecipeId(id)) return RULE_RECIPES[id].label
+  const [key] = id.split('.')
+  return isAbilityKey(key) ? ABILITIES[key].name.toLowerCase() : null
 }
 
 // What a condition a recipe names asks of the fight: the strike the opener
@@ -194,13 +236,9 @@ export function getContestRecipe(c: Character, on: 'strike' | 'shoot'): RecipeEn
 
 // The recipe the action was made under, as its actor has it; null for an
 // action no recipe gave, or one whose recipe its actor has since lost.
-export function getRecipeOf(state: SceneState, action: Action): RecipeEntry | null {
-  const id = action.recipe
-  if (!id) return null
-  if (isRuleRecipeId(id)) return { id, ...RULE_RECIPES[id] }
-  const [key, i] = id.split('.')
+export function getRecipeOf(state: SceneState, action: Pick<Action, 'actorId' | 'recipe'>): RecipeEntry | null {
   const actor = state.characters[action.actorId]
-  return isAbilityKey(key) && actor && hasAbility(actor, key) ? getAbilityEntry(key, Number(i)) : null
+  return actor ? getRecipeEntry(actor, action.recipe) : null
 }
 
 function getRecipeContext(state: SceneState, action: Action): RecipeContext | null {
@@ -212,7 +250,8 @@ function getRecipeContext(state: SceneState, action: Action): RecipeContext | nu
 // What the recipe adds to the attack.
 export function getRecipeHitTerms(state: SceneState, attack: AttackAction): Term[] {
   const entry = getRecipeOf(state, attack)
-  return entry && entry.recipe.hit !== 0 ? [{ label: entry.label, value: entry.recipe.hit }] : []
+  const hit = entry?.recipe.type === 'followUp' || entry?.recipe.type === 'contestedReaction' ? entry.recipe.hit : 0
+  return entry && hit !== 0 ? [{ label: entry.label, value: hit }] : []
 }
 
 // The follow-up's price as its recipe makes it: added to what it would

@@ -1,14 +1,10 @@
 import type { ActionOf, SceneState, Placement, StrikeAction } from '../types'
 import type { CampaignCharacter } from '../../types'
-import { disk, line, ring, sameCell, setDistance } from './board/geometry'
+import { line, setDistance } from './board/geometry'
 import { getFootprint, getPlacedFootprint, getReach } from './board/board'
-import { getMoveBlockCells, getStrikeLandings } from './move'
-import { canStandAt } from './board/ground'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
-import { getReactionsTo } from './log'
-import { hasGrant } from '../../character/rules/effects'
-import { getSurgeAP } from '../../character/rules/surge'
-import { isMartyrGuard } from './stress'
+import { makeAction } from '../factories'
+import { canCarryStep, getCombinedMoves } from './combinedMove'
 
 // The block or intercept someone meets a strike with, their own or made for
 // someone else (combat.tex "Protect").
@@ -32,52 +28,33 @@ export function isOnProtectLine(state: SceneState, root: StrikeAction, id: strin
 }
 
 // Who may block for the strike's target: anyone else placed on the line, or
-// able to step onto it (`getDefenderSteps`).
+// able to get onto it with a move a block carries (rules/combinedMove.ts).
 export function getProtectors(state: SceneState, root: StrikeAction): string[] {
   return Object.keys(state.characters).filter((id) => {
     const at = state.board?.placements[id]
     if (id === root.actorId || id === root.targetId || !at) return false
-    return isOnProtectLine(state, root, id, at) || getDefenderSteps(state, root, id).length > 0
+    return isOnProtectLine(state, root, id, at) || canStepToGuard(state, root, makeAction('block', { id: '', actorId: id, reactionTo: root.id }))
   })
 }
 
 // combat.tex "Protect", "Intercept": whoever else could intercept for the
 // strike's target, which asks only for the weapon's short range of the
-// attacker, from where they stand or after a step they may take
-// (`getDefenderSteps`, `getAdvanceSteps`).
+// attacker, from where they stand or after a move an intercept carries.
 export function getInterceptors(state: SceneState, root: StrikeAction, rowsOf: (c: CampaignCharacter) => WeaponRow[]): string[] {
   return Object.keys(state.characters).filter((id) => {
     const c = state.characters[id]
     const at = state.board?.placements[id]
     if (id === root.actorId || id === root.targetId || !at) return false
     return rowsOf(c).some((row) => {
-      const key = row.wielded.key
-      const inRange = (p: Placement) => isInInterceptRange(state, root, id, p, key, row.atk.name)
-      return inRange(at) || getDefenderSteps(state, root, id, inRange).length > 0 || getAdvanceSteps(state, root, id, key, row.atk.name).length > 0
+      const intercept = makeAction('intercept', { id: '', actorId: id, reactionTo: root.id, weaponKey: row.wielded.key, attack: row.atk.name })
+      return isGuardPlacedAt(state, root, intercept, at) || canStepToGuard(state, root, intercept)
     })
   })
 }
 
-// abilities.tex "Defender": "Allows you to spend 1 STA to move 1 basic
-// movement as a reaction to position yourself to defend someone" — where a
-// protector who knows it may step to before they block or intercept: any
-// place they can stand within one AP of basic movement, on the line (the
-// table's ruling). A martyr holding the reaction surge their limit stress
-// action made may run as far as that surge's AP buys (creating.tex "Limit
-// Stress Actions": "to protect an ally and reposition"), the table's ruling.
-// `placed` is where the step may end: on the line, for a block; an intercept
-// asks only for its own range (`isInInterceptRange`).
-export function getDefenderSteps(state: SceneState, root: StrikeAction, id: string, placed: (p: Placement) => boolean = (p) => isOnProtectLine(state, root, id, p)): Placement[] {
-  const c = state.characters[id]
-  const from = state.board?.placements[id]
-  const martyr = isMartyrGuard(state, id)
-  if (!c || !from || (!martyr && !hasGrant(c, 'protectStep'))) return []
-  const basic = Math.floor(getMoveBlockCells(c, 'basic', 1))
-  const reach = martyr ? Math.max(basic, Math.floor(getMoveBlockCells(c, 'run', getSurgeAP('reaction')(c)))) : basic
-  return disk(from.cell, reach)
-    .filter((cell) => !sameCell(cell, from.cell))
-    .map((cell) => ({ ...from, cell }))
-    .filter((p) => canStandAt(state, id, p, getStrikeLandings(state, root.id, id)) && placed(p))
+function canStepToGuard(state: SceneState, root: StrikeAction, guard: GuardingReaction): boolean {
+  const c = state.characters[guard.actorId]
+  return !!c && getCombinedMoves(c, guard.kind).some((entry) => entry.recipe.order === 'before' && canCarryStep(state, root, { ...guard, recipe: entry.id }, entry))
 }
 
 // combat.tex "Intercept": "It requires the defender to be in short range" —
@@ -90,58 +67,17 @@ export function isInInterceptRange(state: SceneState, root: StrikeAction, id: st
   return !attacker || setDistance(getFootprint(c, placement), attacker) <= getReach(row.weapon, 'short')
 }
 
-// abilities.tex "Defensive Advance": "Spend 1 STA to move forward to get in
-// range to intercept, adding shield cover to the defense" — one space
-// towards the attacker (the table's ruling), to where the intercept reaches
-// them.
-export function getAdvanceSteps(state: SceneState, root: StrikeAction, id: string, weaponKey: string, attack: string): Placement[] {
-  const c = state.characters[id]
-  const from = state.board?.placements[id]
-  const attacker = getPlacedFootprint(state, root.actorId)
-  if (!c || !from || !attacker || !hasGrant(c, 'advancingIntercept')) return []
-  const before = setDistance(getFootprint(c, from), attacker)
-  return ring(from.cell, 1)
-    .map((cell) => ({ ...from, cell }))
-    .filter((p) => canStandAt(state, id, p, getStrikeLandings(state, root.id, id)) && setDistance(getFootprint(c, p), attacker) < before)
-    .filter((p) => isInInterceptRange(state, root, id, p, weaponKey, attack))
-}
-
-// Where the step the block or intercept is declared with may go: a
-// Defensive Advance's, or a Defender's.
-export function getGuardSteps(state: SceneState, root: StrikeAction, reaction: GuardingReaction): Placement[] {
-  if (reaction.kind === 'intercept' && reaction.modifiers.advance) return getAdvanceSteps(state, root, reaction.actorId, reaction.weaponKey, reaction.attack)
-  if (reaction.actorId === root.targetId) return []
-  return reaction.kind === 'intercept'
-    ? getDefenderSteps(state, root, reaction.actorId, (p) => isInInterceptRange(state, root, reaction.actorId, p, reaction.weaponKey, reaction.attack))
-    : getDefenderSteps(state, root, reaction.actorId)
-}
-
-// Whether the block or intercept stands where it may be made from, once it
-// has taken the step it names: the step one it may take — and a Defensive
-// Advance always takes one — an intercept within short range of the
-// attacker, wherever it stands, a block made for someone else from the line.
-// Anywhere, on a fight without a board.
-export function isGuardPlaced(state: SceneState, root: StrikeAction, reaction: GuardingReaction): boolean {
-  const here = state.board?.placements[reaction.actorId]
-  if (!here) return true
-  if (reaction.to && !getGuardSteps(state, root, reaction).some((p) => sameCell(p.cell, reaction.to!.cell))) return false
-  if (!reaction.to && reaction.kind === 'intercept' && reaction.modifiers.advance) return false
-  const at = reaction.to ?? here
+// Whether the block or intercept can be made from the placement: an
+// intercept within short range of the attacker, wherever it stands, a block
+// made for someone else from the line.
+export function isGuardPlacedAt(state: SceneState, root: StrikeAction, reaction: GuardingReaction, at: Placement): boolean {
   if (reaction.kind === 'block' && reaction.actorId !== root.targetId && !isOnProtectLine(state, root, reaction.actorId, at)) return false
   return reaction.kind !== 'intercept' || isInInterceptRange(state, root, reaction.actorId, at, reaction.weaponKey, reaction.attack)
 }
 
-// Whether the block or intercept is still waiting on the step it has to
-// take before it can be made.
-export function needsGuardStep(state: SceneState, root: StrikeAction, reaction: GuardingReaction): boolean {
-  return reaction.to === null && !isGuardPlaced(state, root, reaction) && getGuardSteps(state, root, reaction).length > 0
-}
-
-// The block or intercept to the strike still waiting on its step, and where
-// that step may go: what a click on the board picks.
-export function getPendingGuardStep(state: SceneState, root: StrikeAction): { reaction: GuardingReaction; steps: Placement[] } | null {
-  for (const r of getReactionsTo(state, root.id)) {
-    if ((r.kind === 'block' || r.kind === 'intercept') && needsGuardStep(state, root, r)) return { reaction: r, steps: getGuardSteps(state, root, r) }
-  }
-  return null
+// Whether the block or intercept stands where it may be made from. Anywhere,
+// on a fight without a board.
+export function isGuardPlaced(state: SceneState, root: StrikeAction, reaction: GuardingReaction): boolean {
+  const here = state.board?.placements[reaction.actorId]
+  return !here || isGuardPlacedAt(state, root, reaction, here)
 }

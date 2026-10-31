@@ -36,6 +36,7 @@ import { getSensoryTerms, getSensoryTermsHere } from './detection'
 import { isDefense } from './actionCatalog'
 import { getModifierTerms } from './modifiers'
 import { isGuardPlaced } from './protect'
+import { getCombinedOf, isStepPending } from './combinedMove'
 import { isDefensePlaced, isPreparedCancelled } from './prepared'
 import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
 import { getLinkDL } from './link'
@@ -326,7 +327,7 @@ function shotDefenseTerms(state: SceneState, reaction: Action): Term[] {
 // "Defensive Advance": an intercept made with one, "adding shield cover to
 // the defense".
 function coverTerms(reactor: Character, reaction: Action): Term[] {
-  if (reaction.kind !== 'block' && reaction.kind !== 'guard' && reaction.kind !== 'blockExplosion' && !(reaction.kind === 'intercept' && reaction.modifiers.advance)) return []
+  if (reaction.kind !== 'block' && reaction.kind !== 'guard' && reaction.kind !== 'blockExplosion' && !(reaction.kind === 'intercept' && getCombinedOf(reactor, reaction)?.recipe.cover)) return []
   const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
   return row?.weapon.shield ? [{ label: 'cover', value: row.weapon.shield.cover }] : []
 }
@@ -350,7 +351,8 @@ function getStrikeDefense(state: SceneState, root: StrikeAction): Action | null 
     .filter((r) => (r.actorId === root.targetId && isDefense(r.kind)) || (r.actorId !== root.targetId && (r.kind === 'block' || r.kind === 'intercept')))
     // combat.tex "Preparing a reaction": a defense prepared for an ally holds
     // only from the line it has been walked to, and until its preparer reacts
-    // to anything else
+    // to anything else; one carrying a move before its die, once it is made
+    .filter((r) => !isStepPending(state, r))
     .filter((r) => (r.kind !== 'block' && r.kind !== 'intercept') || r.preparedId === '' || (isGuardPlaced(state, root, r) && !isPreparedCancelled(state, r)))
     .reduce<Action | null>((best, r) => (best === null || sumTerms(strikeDefenseTerms(state, root, r)) > sumTerms(strikeDefenseTerms(state, root, best)) ? r : best), null)
 }

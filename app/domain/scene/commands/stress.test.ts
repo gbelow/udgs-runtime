@@ -5,7 +5,7 @@ import { SceneStateSchema, type SceneState, type MoraleRoll } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
 import { getEndTurnBar, getStartTurnBar } from '../rules/turn'
-import { getDefenderSteps } from '../rules/protect'
+import { getProtectors } from '../rules/protect'
 import { makeAction } from '../factories'
 import { SURGES } from '../../tables'
 
@@ -80,7 +80,7 @@ describe('limit stress turns', () => {
     const owed = oweStress({ ...tested([fighter('a', { limitStress: 'martyr' })], [1]), board: SceneStateSchema.parse({ board }).board })
     const before = { ...owed, characters: { ...owed.characters, a: { ...owed.characters.a, usedSurge: null } } }
 
-    expect(getDefenderSteps(owed, strike, 'a').length).toBeGreaterThan(0)
-    expect(getDefenderSteps(before, strike, 'a')).toEqual([])
+    expect(getProtectors(owed, strike)).toContain('a')
+    expect(getProtectors(before, strike)).not.toContain('a')
   })
 })

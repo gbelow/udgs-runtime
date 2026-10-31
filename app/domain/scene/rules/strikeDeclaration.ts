@@ -3,7 +3,7 @@ import type { Action, ActionOf, SceneState, StrikeAction } from '../types'
 import { makeAction } from '../factories'
 import { getAttackVariant, getOpportunityStrike, isBracedStep, isHookStep } from './attack'
 import { getCounterStrike } from './counter'
-import { getOpeningJumpAttack, isOpenedRow } from './jumpAttack'
+import { getOpeningMove, isOpenedRow } from './combinedMove'
 import { getAction, getRootOf } from './log'
 import { pickStrikeDeclaration } from './declaration'
 import { getPerformerId } from './performer'
@@ -83,11 +83,11 @@ function isVariantOpenTo(ctx: StrikeContext, variant: string): boolean {
 }
 
 // The same, for any action and the row it is made with: what is not a
-// strike's declaration has every variation it has open, but for the attack a
-// jump attack opened (rules/jumpAttack.ts).
+// strike's declaration has every variation it has open, but an attack a move
+// opened has only the rows its recipe allows (rules/combinedMove.ts).
 export function isVariantOpen(state: SceneState, action: Action, row: { weaponKey: string; attack: string; variant: string }): boolean {
   const actor = state.characters[action.actorId]
-  if (actor && !isOpenedRow(actor, getOpeningJumpAttack(state, action), row)) return false
+  if (actor && !isOpenedRow(actor, getOpeningMove(state, action), row)) return false
   const ctx = isStrikeHolder(action) ? getStrikeContext(state, action) : null
   return !ctx || isVariantOpenTo(ctx, row.variant)
 }

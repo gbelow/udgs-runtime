@@ -69,10 +69,10 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   and from `advance` after each landing), unless
   `getFinishBar` finds what it needs gone, which fails it (`WithdrawalReason` `failed`) and
   spends none of the new round.
-- **Battle Mage** (`rules/battleMage.ts`; abilities.tex "Battle Mage", each stage a catalog
-  grant) — I (`castingMove`): a cast that requires concentration carries a careful move as
-  far as the AP it spent, made like the rest's (below), the farther of the two with
-  Effortless; and holding on at the round change notes on `state.concentration` the AP the
+- **Battle Mage** (`rules/battleMage.ts`; abilities.tex "Battle Mage") — I (two
+  `carriedMove` recipes, `rules/carriedMove.ts`): a cast that requires concentration carries a
+  careful move as far as the AP it spent, made like the rest's (below), the farther of the two
+  with Effortless; and holding on at the round change notes on `state.concentration` the AP the
   held spells' upkeep took (`upkeepAP`), a careful move with them prepaid that the caster
   may open once in their turn with nothing open (`moveWhileSustaining`, `sustainMove` on the
   panel), spent once the move is committed (`moveId`). II (`concentratedDefense`): a defense
@@ -92,7 +92,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   `restCharacter` (STA back). Effortless is the same rest landing with the cast
   (`restWhileCasting`), the AP raised to the rest's. While either waits at `post`, its
   actor may make the rest's careful movement once, in their own turn (`moveWhileResting`,
-  `rules/rest.ts`):
+  `rules/rest.ts`, its AP the rule recipes' in `rules/carriedMove.ts`):
   a move opened over it, careful only, its 4 AP prepaid, played out before the rest or
   the spell lands. A Battle Mage's cast carries the same move (above).
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
@@ -236,7 +236,13 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   the line; a reposition is complete only when it ends where the defense can be made
   (`isRepositionPlaced`). `getStrikeDefense` / `getShotDefense` count a prepared defense only while
   it is placed and not cancelled. Nothing the movement opens triggers another prepared action
-  (`isFromPrepared` reads a prepared defense as an ancestor).
+  (`isFromPrepared` reads a prepared defense as an ancestor). The move a block or intercept
+  carries before its die (a `combinedMove` recipe: Defender, Defensive Advance, the martyr's run)
+  is opened the same way after the repositions (`getPendingStep`), within the recipe's reach and
+  only to where the defense can be made from (`isCombinedLanding`, read by `getReachableCells`);
+  the move may be passed up, and a defense whose move was passed up or ended off its place is
+  withdrawn with the lapsed ones (`getLapsedSteps`). `getStrikeDefense` counts it once the move
+  is made.
 
   **Who makes it** (abilities.json "Battle Commands", `rules/performer.ts`): a preparation may
   name someone else, `forId`, anyone in the fight (the table's ruling), once its preparer has

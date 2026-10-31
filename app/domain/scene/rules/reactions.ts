@@ -14,7 +14,7 @@ import { getRetargetOptions } from './fireAgain'
 import { getEnteringStep, getMovePlacements } from './board/waypoint'
 import { firstStep, getApproachStep, getPathDistances, getPathMeleeDistances } from './approach'
 import { getPreparedTriggers } from './prepared'
-import { getAction, getOpeningReaction, getReactionsTo } from './log'
+import { getAction, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { getJoinReaction } from './coordinated'
 import { defRows, hasShootingRow } from './attack'
 import { getGroundCell } from './floorAttack'
@@ -120,7 +120,7 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     case 'strike': return strikeTriggers(state, root)
     case 'shoot': return shootTriggers(state, root)
     case 'explosion': return explosionTriggers(state, root)
-    case 'move': return moveTriggers(state, root)
+    case 'move': return withoutAnswered(state, root, moveTriggers(state, root))
     case 'cast': return castTriggers(state, root)
     case 'pickUp': return pickUpTriggers(state, root)
     // combat.tex "Opportunity Attack": a standard action, as drinking is
@@ -358,6 +358,15 @@ function pickUpTriggers(state: SceneState, root: PickUpAction): Trigger[] {
 // weapon while within its attack range" — the first step taken from a cell
 // already within someone's melee range to one closer to them. Stepping into
 // range is not yet moving towards the weapon while within it.
+// The table's ruling: a move a reaction opened is part of that reaction, and
+// the one whose action the reaction answers has no answer to it; anyone else
+// answers it as any move.
+function withoutAnswered(state: SceneState, root: MoveAction, triggers: Trigger[]): Trigger[] {
+  const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
+  const answered = opener && isReaction(opener.kind) ? getRootOf(state, opener) : null
+  return answered ? triggers.filter((t) => t.characterId !== answered.actorId) : triggers
+}
+
 // combat.tex "Opportunity Attack": "standing up in melee range" is a
 // triggering action; the attack is fought before the mover is up, at step 0.
 // Going prone triggers nothing.

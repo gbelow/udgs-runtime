@@ -15,7 +15,7 @@ export function getModifierViews(state: SceneState, action: Action): ModifierVie
     on: t.on,
     allowed: t.allowed,
     title: t.allowed ? [priceText(t.price), ...t.terms.map((term) => `${signed(term.value)} to the test`)].filter((s) => s !== '').join(', ') : 'cannot be declared here',
-    press: { modifiers: t.modifiers } as Partial<ActionDraft>,
+    press: t.press,
   }))
 }
 

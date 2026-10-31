@@ -543,11 +543,6 @@ export const ACTION_COSTS = {
   // combat.tex "Crash": "The target can spend 2AP+1STA to get +3 in this
   // comparison"
   brace:       { AP: 2, STA: 1 },
-  // abilities.tex "Defender": "spend 1 STA to move 1 basic movement";
-  // "Defensive Advance": "Spend 1 STA to move forward" — on top of the
-  // defense they are taken for
-  defenderStep:     { AP: 0, STA: 1 },
-  defensiveAdvance: { AP: 0, STA: 1 },
   // ranged reactions — combat.tex "Reflex"
   reflex:         { AP: 3, STA: 0 },
   guard:          { AP: 2, STA: 0 },

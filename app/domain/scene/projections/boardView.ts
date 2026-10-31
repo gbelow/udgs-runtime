@@ -8,7 +8,6 @@ import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '.
 import { getPieceAt } from '../rules/board/piece'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
-import { getPendingGuardStep } from '../rules/protect'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/fighters'
 import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells } from '../rules/explosion'
@@ -105,10 +104,6 @@ export type BoardCellView = {
   // landing it has picked
   jump: boolean
   isJumpTo: boolean
-  // where a block or intercept against the open strike may step first
-  // (abilities.tex "Defender", "Defensive Advance"), while its step is
-  // still to be picked
-  step: boolean
   // the explosion in play: where it may be aimed, where it is aimed, what
   // it may still reach, and the degree of effect where it goes off
   center: boolean
@@ -284,7 +279,7 @@ function buildBoardView(state: SeenScene): BoardView {
   // so does the way a push takes its block (combat.tex "Push and drag")
   const walking = findOpenRoot(state, 'drag')
   // abilities.tex "Steady Arms": the careful path drawn with a shot being declared
-  const steady = open?.kind === 'shoot' && open.step === 'define' && isSteadyShot(open) ? getSteadyPath(state, open) : null
+  const steady = open?.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? getSteadyPath(state, open) : null
   const pending = findOpenRoot(state, 'move') ?? walking ?? steady
   const move = open?.kind === 'move' && open.step === 'define' ? open : null
   const group = open?.kind === 'drag' && open.step === 'define' ? open : null
@@ -306,8 +301,6 @@ function buildBoardView(state: SeenScene): BoardView {
   const landings = new Set(jumper && open ? getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => coordKey(p.cell)) : [])
   const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
   const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
-  const guard = open?.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null
-  const steps = new Set(guard ? guard.steps.map((p) => coordKey(p.cell)) : [])
 
   // the explosion in play: the centres it may be aimed at, what it
   // threatens, and its zones once it is pointed. It stays aimable for as
@@ -391,7 +384,6 @@ function buildBoardView(state: SeenScene): BoardView {
       isDestination: destination !== null && sameCell(destination, cell),
       jump: landings.has(key),
       isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
-      step: steps.has(key),
       center: centers.has(key),
       isCenter: aimedAt !== null && sameCell(aimedAt, cell),
       threatened: threatened.has(key),

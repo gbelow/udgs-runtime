@@ -1065,10 +1065,16 @@
         "requirements": [],
         "description": "Can move at careful movement speed while performing ranged attacks (except snipe), reutilizing the AP cost. It is considered that the attack came from any position that the attacker has been. Opportunity attacks are triggered at all positions along the path.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "steadyArms"
+        "recipes": [
+          {
+            "type": "carriedMove",
+            "on": "shoot",
+            "when": "notSnipe",
+            "budget": "action",
+            "path": "declared"
+          }
         ],
+        "grants": [],
         "freeSpells": 0
       }
     ]
@@ -1307,10 +1313,29 @@
         "requirements": [],
         "description": "Spends 1 extra AP and 1 STA to jump backward and perform a quick shot or throw, avoiding opportunity attacks if the jump takes them out of range.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "jumpShot"
+        "recipes": [
+          {
+            "type": "combinedMove",
+            "with": [
+              "shoot"
+            ],
+            "movement": "jump",
+            "order": "before",
+            "reach": "movement",
+            "toward": "awayFromThreateners",
+            "defends": "any",
+            "rows": "quickShotOrThrow",
+            "cost": {
+              "operation": "set",
+              "AP": 1,
+              "STA": 1
+            },
+            "hit": 0,
+            "cover": false,
+            "openWhen": null
+          }
         ],
+        "grants": [],
         "freeSpells": 0
       }
     ]
@@ -1577,10 +1602,30 @@
         "requirements": [],
         "description": "Allows you to spend 1 STA to move 1 basic movement as a reaction to position yourself to defend someone.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "protectStep"
+        "recipes": [
+          {
+            "type": "combinedMove",
+            "with": [
+              "block",
+              "intercept"
+            ],
+            "movement": "basic",
+            "order": "before",
+            "reach": "movement",
+            "toward": "any",
+            "defends": "ally",
+            "rows": "any",
+            "cost": {
+              "operation": "+",
+              "AP": 0,
+              "STA": 1
+            },
+            "hit": 0,
+            "cover": false,
+            "openWhen": null
+          }
         ],
+        "grants": [],
         "freeSpells": 0
       }
     ]
@@ -1611,10 +1656,29 @@
         "requirements": [],
         "description": "Spend 1 STA to move forward to get in range to intercept, adding shield cover to the defense.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "advancingIntercept"
+        "recipes": [
+          {
+            "type": "combinedMove",
+            "with": [
+              "intercept"
+            ],
+            "movement": "basic",
+            "order": "before",
+            "reach": "oneSpace",
+            "toward": "towardAttacker",
+            "defends": "any",
+            "rows": "any",
+            "cost": {
+              "operation": "+",
+              "AP": 0,
+              "STA": 1
+            },
+            "hit": 0,
+            "cover": true,
+            "openWhen": null
+          }
         ],
+        "grants": [],
         "freeSpells": 0
       }
     ]
@@ -1842,10 +1906,29 @@
         "requirements": [],
         "description": "The character can spend 1 STA to perform an evasive jump and stand up in the same action, but takes -3 to defend while doing so.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "technicalLift"
+        "recipes": [
+          {
+            "type": "combinedMove",
+            "with": [
+              "evasiveJump"
+            ],
+            "movement": "stand",
+            "order": "after",
+            "reach": "movement",
+            "toward": "any",
+            "defends": "any",
+            "rows": "any",
+            "cost": {
+              "operation": "movement",
+              "AP": 0,
+              "STA": 0
+            },
+            "hit": -3,
+            "cover": false,
+            "openWhen": null
+          }
         ],
+        "grants": [],
         "freeSpells": 0
       }
     ]
@@ -1946,10 +2029,29 @@
         "requirements": [],
         "description": "Allows you to jump for 1 STA while using an attack as an action and attack from the final position. This movement triggers opportunity attacks and braced attacks normally.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "lunge"
+        "recipes": [
+          {
+            "type": "combinedMove",
+            "with": [
+              "strike"
+            ],
+            "movement": "jump",
+            "order": "before",
+            "reach": "movement",
+            "toward": "any",
+            "defends": "any",
+            "rows": "any",
+            "cost": {
+              "operation": "set",
+              "AP": 0,
+              "STA": 1
+            },
+            "hit": 0,
+            "cover": false,
+            "openWhen": null
+          }
         ],
+        "grants": [],
         "freeSpells": 0
       }
     ]
@@ -5881,10 +5983,23 @@
         "requirements": [],
         "description": "Allows the caster to use careful movement while concentrating, repurposing the same action points used for the spell.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "castingMove"
+        "recipes": [
+          {
+            "type": "carriedMove",
+            "on": "cast",
+            "when": "concentration",
+            "budget": "action",
+            "path": "afterRoll"
+          },
+          {
+            "type": "carriedMove",
+            "on": "upkeep",
+            "when": null,
+            "budget": "action",
+            "path": "afterRoll"
+          }
         ],
+        "grants": [],
         "freeSpells": 0
       },
       {
@@ -6653,7 +6768,20 @@
           ]
         ],
         "description": "Trade 2 IL for 1 STA.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "cost",
+            "effect": {
+              "AP": 0,
+              "STA": -1,
+              "exhaustion": 0,
+              "IL": 0,
+              "ET": 0
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "freeSpells": 0

@@ -402,8 +402,8 @@ const ActionBase = {
   // take or pass up; null for anything else.
   followUpOf: str.nullable().default(null),
   // The recipe this action was made under, by id (rules/recipes.ts): the
-  // follow-up it opened, or the contested strike it was declared as; null
-  // for one no recipe gave.
+  // follow-up it opened, the contested strike it was declared as, or the
+  // move it was declared with or carries; null for one no recipe gave.
   recipe: str.nullable().default(null),
   // `held`: combat.tex "Concentration" — committed without the AP for it,
   // paid as far as the AP went and waiting for the round to change; in play
@@ -703,10 +703,8 @@ export const StrikeActionSchema = z.object({
   grapples: z.boolean().default(false),
   grabbed: GrappleFactsSchema.nullable().default(null),
   // combat.tex "Evasive Jump": where the target's jump landed them, written
-  // at the resolve, and whether it stood them up (abilities.tex "Technical
-  // Lift")
+  // at the resolve
   jumpedTo: PlacementSchema.nullable().default(null),
-  lifted: z.boolean().default(false),
   // combat.tex "Sweeping Attack": who the sweep still reaches after this
   // target, in order, written on a board when it is committed or opened;
   // and what is left of the blow when it comes to this target (combat.tex
@@ -738,10 +736,8 @@ export const ShootActionSchema = z.object({
   // combat.tex "Throw": what left the hand, one of it, to land where the
   // throw was aimed; written at the resolve, null for a shot
   thrown: ItemSchema.nullable().default(null),
-  // abilities.tex "Steady Arms": a shot made on a careful move, declared whole
-  // (rules/steadyArms.ts)
-  modifiers: z.object({ steadyArms: z.boolean().default(false) }).prefault({}),
-  // the careful path walked while shooting, as a move draws one
+  // abilities.tex "Steady Arms": the careful path walked while shooting, as a
+  // move draws one, for a shot declared with its recipe (rules/steadyArms.ts)
   path: z.array(CoordSchema).default([]),
   turns: z.array(num).default([]),
   // how many steps of the path are walked before the shot is fired; null is all of it
@@ -915,19 +911,13 @@ export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evad
 // can spend 2AP+1STA to get +3 in this comparison"
 export const BraceActionSchema = z.object({ ...ActionBase, kind: z.literal('brace') }).strip()
 // An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
-// away from the attack"); null on a fight without a board. One made from
-// the ground as a `lift` stands its jumper up (abilities.tex "Technical
-// Lift").
-export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null), modifiers: z.object({ lift: z.boolean().default(false) }).prefault({}) }).strip()
-// A block or an intercept names where its defender steps before they make
-// it, if they do (abilities.tex "Defender", "Defensive Advance"); an
-// intercept made as a Defensive Advance is `advance`.
-const GuardStep = { to: PlacementSchema.nullable().default(null) }
+// away from the attack"); null on a fight without a board.
+export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null) }).strip()
 // combat.tex "Preparing a reaction": the preparation a defense was prepared as,
 // by id; '' for one made on the spot. Its reposition is walked before the die.
 const PreparedGuard = { preparedId: str.default('') }
-export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef, ...GuardStep, ...PreparedGuard }).strip()
-export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef, ...GuardStep, ...PreparedGuard, modifiers: z.object({ advance: z.boolean().default(false) }).prefault({}) }).strip()
+export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef, ...PreparedGuard }).strip()
+export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef, ...PreparedGuard }).strip()
 
 // combat.tex "Reflex": the two reactions to a shot. Evasion is the reflex
 // test; where it lets the evader move, the move is opened after the shot. A
@@ -1014,9 +1004,6 @@ export const MoveActionSchema = z.object({
   // abilities.tex "Jumper II": the climber spends a jump to start the climb
   // higher
   leap: z.boolean().default(false),
-  // abilities.tex "Lunge", "Jump Shot": a jump that opens a strike, or a
-  // quick shot or throw, from where it lands (rules/jumpAttack.ts)
-  modifiers: z.object({ lunge: z.boolean().default(false), jumpShot: z.boolean().default(false) }).prefault({}),
   // combat.tex "Climbing": how many metres of the face the climb goes, null
   // for all that is left of it
   metres: num.nullable().default(null),
@@ -1574,9 +1561,9 @@ export type DeclarableKind = Exclude<ActionKind, ReactionKind | { [K in ActionKi
 // The declaration a click makes: an action minus everything the commands fill
 // in (identity, step, the roll, the facts). What is left is the kind and its
 // own declared fields, each optional so a bare kind can be declared and
-// completed step by step.
+// completed step by step, and the recipe it is declared with, if any.
 export type ActionDraft = {
-  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
+  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>> & { recipe?: string | null }
 }[ActionKind]
 
 // What a reactor may still say of the reaction they declared: the draft's
