@@ -79,7 +79,7 @@
           "layers": [],
           "piece": null,
           "hole": false,
-          "lattice": false
+          "lattice": true
         },
         "0,-1": {
           "blocking": false,
