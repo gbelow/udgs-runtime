@@ -369,6 +369,34 @@
       }
     ]
   },
+  "Bark": {
+    "name": "Bark",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "liquid": false,
+    "visibility": "good",
+    "randomize": false,
+    "bleed": 0,
+    "roughness": 0,
+    "bledInto": 0,
+    "priority": 0,
+    "arts": [
+      {
+        "src": "/walls/bark_1.webp",
+        "tile": 2,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ],
+    "face": {
+      "src": "/walls/bark_1.webp",
+      "tile": 2,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  },
   "Snow": {
     "name": "Snow",
     "difficult": false,
@@ -517,7 +545,13 @@
         "offsetX": 0,
         "offsetY": 0
       }
-    ]
+    ],
+    "face": {
+      "src": "/walls/Horror_Brick_14-256x256.png",
+      "tile": 3,
+      "offsetX": 0,
+      "offsetY": 0
+    }
   },
   "Blue water": {
     "name": "Blue water",

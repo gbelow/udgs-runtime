@@ -213,6 +213,17 @@ export function hexSide(direction: Direction): [{ x: number; y: number }, { x: n
   return [corner(-direction), corner(1 - direction)]
 }
 
+// The grain of a picture drawn over a wall, as the first four numbers of an SVG
+// matrix: the picture's across runs along the ridge from `a` to `b`, and its
+// down runs from the ridge to the foot, so that courses lie along the top of
+// the wall and fall away from it whichever way the wall faces.
+export function getFaceGrain(a: { x: number; y: number }, b: { x: number; y: number }, foot: { x: number; y: number }): string {
+  const across = Math.hypot(b.x - a.x, b.y - a.y)
+  const [mx, my] = [(a.x + b.x) / 2, (a.y + b.y) / 2]
+  const down = Math.hypot(foot.x - mx, foot.y - my)
+  return [(b.x - a.x) / across, (b.y - a.y) / across, (foot.x - mx) / down, (foot.y - my) / down].map((n) => n.toFixed(4)).join(' ')
+}
+
 // The SVG viewBox that frames hexes centred on the points, with a margin.
 export function hexBounds(points: readonly { x: number; y: number }[]): { x: number; y: number; width: number; height: number } {
   const xs = points.map((p) => p.x)

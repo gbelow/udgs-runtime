@@ -1,4 +1,4 @@
-import { frameHexes, hexBounds } from '../rules/board/geometry'
+import { frameHexes, getFaceGrain, hexBounds } from '../rules/board/geometry'
 import type { BoardBindView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardOverheadView, BoardRidgeView, BoardTokenView, BoardView } from './boardView'
 
 // The board seen from the front rather than from above: ground that is higher
@@ -65,7 +65,8 @@ function build(view: BoardView, lift: number): BoardView {
     const [a, b] = [{ x: r.a.x, y: r.a.y - top }, { x: r.b.x, y: r.b.y - top }]
     const [c, d] = [{ x: r.b.x, y: r.b.y - bottom }, { x: r.a.x, y: r.a.y - bottom }]
     const face = [a, b, c, d].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
-    return { ...r, band: bandOf.get(r.cell) ?? 0, a, b, foot: { x: (c.x + d.x) / 2, y: (c.y + d.y) / 2 }, face }
+    const foot = { x: (c.x + d.x) / 2, y: (c.y + d.y) / 2 }
+    return { ...r, band: bandOf.get(r.cell) ?? 0, a, b, foot, face, grain: getFaceGrain(a, b, foot) }
   })
 
   // What is drawn over a place on the screen: a cell of a higher band, or the

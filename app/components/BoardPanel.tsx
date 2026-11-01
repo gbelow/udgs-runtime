@@ -208,14 +208,20 @@ const FACE_SHADE = 0.45
 export function RidgeLayer({ view: whole, band }: { view: BoardView, band?: number }){
   const idPrefix = band === undefined ? '' : `b${band}-`
   const view = band === undefined ? whole : { ...whole, ridges: whole.ridges.filter((r) => r.band === band) }
+  const looks = new Map<string, { art: number, grain: string }>()
+  view.ridges.forEach((r) => { if (r.art !== null) looks.set(`${r.art}|${r.grain}`, { art: r.art, grain: r.grain }) })
+  const looksIn = [...looks.keys()]
   return (
     <g className='pointer-events-none'>
       <defs>
-        {view.faces.map((face, i) => (
-          <pattern key={i} id={`${idPrefix}face-${i}`} patternUnits='userSpaceOnUse' width={face.tile} height={face.tile} patternTransform={`translate(${face.offsetX} ${face.offsetY})`}>
-            <image href={face.src} width={face.tile} height={face.tile} />
-          </pattern>
-        ))}
+        {[...looks.values()].map(({ art, grain }, i) => {
+          const face = view.faces[art]
+          return (
+            <pattern key={i} id={`${idPrefix}face-${i}`} patternUnits='userSpaceOnUse' width={face.tile} height={face.tile} patternTransform={`matrix(${grain} 0 0) translate(${face.offsetX} ${face.offsetY})`}>
+              <image href={face.src} width={face.tile} height={face.tile} />
+            </pattern>
+          )
+        })}
         {view.ridges.map((r) => (
           <linearGradient key={r.key} id={`${idPrefix}face-shade-${r.key}`} gradientUnits='userSpaceOnUse' x1={(r.a.x + r.b.x) / 2} y1={(r.a.y + r.b.y) / 2} x2={r.foot.x} y2={r.foot.y}>
             <stop offset='0' stopColor='black' stopOpacity={0} />
@@ -225,7 +231,7 @@ export function RidgeLayer({ view: whole, band }: { view: BoardView, band?: numb
       </defs>
       {view.ridges.map((r) => (
         <g key={r.key}>
-          {r.art === null ? <polygon points={r.face} className='fill-fg/30 stroke-none' /> : <polygon points={r.face} fill={`url(#${idPrefix}face-${r.art})`} className='stroke-none' />}
+          {r.art === null ? <polygon points={r.face} className='fill-fg/30 stroke-none' /> : <polygon points={r.face} fill={`url(#${idPrefix}face-${looksIn.indexOf(`${r.art}|${r.grain}`)})`} className='stroke-none' />}
           <polygon points={r.face} fill={`url(#${idPrefix}face-shade-${r.key})`} className='stroke-none' />
           <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />
         </g>

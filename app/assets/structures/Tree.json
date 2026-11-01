@@ -16,7 +16,7 @@
       "climbDL": 4,
       "noise": 0,
       "dark": false,
-      "surface": null,
+      "surface": "Bark",
       "art": null,
       "layers": [],
       "piece": null

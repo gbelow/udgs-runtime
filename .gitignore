@@ -52,5 +52,8 @@ __pycache__/
 # surface art, hosted elsewhere
 /public/surfaces/
 
+# wall and bark art, kept local
+/public/walls/
+
 # token art found online, kept local
 /public/tokens/*.webp

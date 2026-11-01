@@ -2,7 +2,7 @@ import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, Li
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { DIRECTIONS, HEX_POINTS, ROTATIONS, add, angleBetween, coordKey, extentCells, frameHexes, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { DIRECTIONS, HEX_POINTS, ROTATIONS, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
@@ -199,6 +199,8 @@ export type BoardRidgeView = {
   foot: { x: number; y: number }
   face: string
   art: number | null
+  // how the picture lies on the face (`getFaceGrain`)
+  grain: string
   height: number
 }
 
@@ -559,8 +561,8 @@ function rimToRim(from: { x: number; y: number }, to: { x: number; y: number }):
 
 // How far a cliff's face is drawn over the lower ground, in board units: so
 // much a metre of the drop, up to a most.
-const FACE_PER_METRE = 0.15
-const FACE_MOST = 0.5
+const FACE_PER_METRE = 0.03
+const FACE_MOST = 0.12
 
 // Every side where ground drops a cliff's height or more to the neighbour, read
 // off the two elevations, so that nothing marks which way a cliff faces: the
@@ -588,7 +590,7 @@ function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeVi
     const [dx, dy] = [away.x * depth, away.y * depth]
     const face = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
     const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
-    return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), height }]
+    return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), grain: getFaceGrain(a, b, foot), height }]
   }))
   return { ridges, faces }
 }
