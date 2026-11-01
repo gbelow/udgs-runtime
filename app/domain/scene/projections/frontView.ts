@@ -50,11 +50,19 @@ export function getFrontView(view: BoardView, lift: number): BoardView {
 
 function build(view: BoardView, lift: number): BoardView {
   const rise = (metres: number) => metres * lift
-  const levels = [...new Set(view.cells.map((c) => c.elevation))].sort((a, b) => a - b)
+  // a wall is drawn standing above its ground, so its top is what is lifted
+  const standing = (c: BoardCellView) => c.elevation + c.wall
+  // What is lifted is drawn back to front, a band to each row it stands on, so
+  // that a tall cell covers what is behind it and never what is in front; the
+  // ground at its own height is the first band, under all of it.
+  const rowOf = (y: number) => Math.round(y * 1000)
+  const rows = [...new Set(view.cells.filter((c) => standing(c) > 0).map((c) => rowOf(c.y)))].sort((a, b) => a - b)
+  const bandAt = (y: number) => rows.filter((row) => row <= rowOf(y)).length
   const elevationOf = new Map(view.cells.map((c) => [c.key, c.elevation]))
-  const bandOf = new Map(view.cells.map((c) => [c.key, levels.indexOf(c.elevation)]))
+  const topOf = new Map(view.cells.map((c) => [c.key, standing(c)]))
+  const bandOf = new Map(view.cells.map((c) => [c.key, standing(c) > 0 ? bandAt(c.y) : 0]))
 
-  const cells: BoardCellView[] = view.cells.map((c) => ({ ...c, y: c.y - rise(c.elevation), band: bandOf.get(c.key) ?? 0, base: { x: c.x, y: c.y }, group: c.piece ?? `ground:${bandOf.get(c.key) ?? 0}` }))
+  const cells: BoardCellView[] = view.cells.map((c) => ({ ...c, y: c.y - rise(standing(c)), band: bandOf.get(c.key) ?? 0, base: { x: c.x, y: c.y }, group: c.piece ?? (standing(c) > 0 ? 'ground:raised' : 'ground:flat') }))
 
   const groupOf = new Map(cells.map((c) => [c.key, c.group]))
 
@@ -62,7 +70,7 @@ function build(view: BoardView, lift: number): BoardView {
   // higher cell down to the same edge at the height of the lower ground; the
   // other drops are hidden behind their own cell.
   const ridges: BoardRidgeView[] = view.ridges.filter((r) => FRONT_SIDES.includes(r.side)).map((r) => {
-    const top = rise(elevationOf.get(r.cell) ?? 0)
+    const top = rise(topOf.get(r.cell) ?? 0)
     const bottom = top - rise(r.height)
     const [a, b] = [{ x: r.a.x, y: r.a.y - top }, { x: r.b.x, y: r.b.y - top }]
     const [c, d] = [{ x: r.b.x, y: r.b.y - bottom }, { x: r.a.x, y: r.a.y - bottom }]
@@ -113,14 +121,14 @@ function build(view: BoardView, lift: number): BoardView {
       key: `${s.key}:${i}`,
       group: s.key,
       src: s.art.src,
-      band: Math.max(0, levels.findLastIndex((elevation) => elevation <= Math.max(s.base + low, s.top))),
+      band: bandAt(s.y),
       box,
       clip: { x: box.x, y: foot.y - rise(edges[i + 1]), width: box.width, height: rise(edges[i + 1] - low) },
     }))
   })
   const framed = [...cells, ...sprites.flatMap((s) => [{ x: s.box.x, y: s.box.y }, { x: s.box.x + s.box.width, y: s.box.y + s.box.height }])]
 
-  return { ...view, front: true, bands: levels.length, cells, ridges, overhead, tokens, floor, binds, ghosts, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) }
+  return { ...view, front: true, bands: rows.length + 1, cells, ridges, overhead, tokens, floor, binds, ghosts, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) }
 }
 
 // The groups of what is drawn over the middle of any of these cells, seen from

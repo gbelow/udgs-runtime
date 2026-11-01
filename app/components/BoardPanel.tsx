@@ -271,7 +271,7 @@ export function BandLayers({ view, band, veiled }: { view: BoardView, band: numb
   }
   const draw = (v: BoardView, tag?: string) => (
     <>
-      <SurfaceLayer view={v} band={band} tag={tag} />
+      <SurfaceLayer view={v} band={band} tag={tag} crisp={band > 0} />
       {v.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
       <RidgeLayer view={v} band={band} tag={tag} />
       <SpriteLayer view={v} band={band} tag={tag} />
@@ -314,13 +314,15 @@ export function BaseLayer({ view, lit, setLit }: { view: BoardView, lit: string 
   )
 }
 
-export function SurfaceLayer({ view: whole, band, tag = '' }: { view: BoardView, band?: number, tag?: string }){
+export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { view: BoardView, band?: number, tag?: string, crisp?: boolean }){
   const idPrefix = band === undefined ? '' : `b${band}-${tag}`
   const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
+  // what is lifted keeps its own edge: no spreading, no noise, no bank
+  const arts = crisp ? whole.arts.map((art) => ({ ...art, bleed: 0, bank: 0 })) : whole.arts
   const { frame, hex } = view
   const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
   const used = new Set(view.cells.map((c) => c.art))
-  const taking = view.cells.filter((c) => c.bledInto < 1)
+  const taking = crisp ? [] : view.cells.filter((c) => c.bledInto < 1)
   const shut = taking.filter((c) => c.bledInto === 0)
   const depths = [...new Set(taking.map((c) => c.bledInto))].filter((b) => b > 0)
   const takesFrom = (i: number) => taking.some((c) => c.art !== i)
@@ -349,12 +351,12 @@ export function SurfaceLayer({ view: whole, band, tag = '' }: { view: BoardView,
   return (
     <g className='pointer-events-none'>
       <defs>
-        {view.arts.map((art, i) => !used.has(i) ? null : (
+        {arts.map((art, i) => !used.has(i) ? null : (
           <pattern key={i} id={`${idPrefix}surface-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile} patternTransform={`translate(${art.offsetX} ${art.offsetY})`}>
             <image href={art.src} width={art.tile} height={art.tile} />
           </pattern>
         ))}
-        {view.arts.map((art, i) => !used.has(i) || art.bleed <= 0 ? null : (
+        {arts.map((art, i) => !used.has(i) || art.bleed <= 0 ? null : (
           <filter key={i} id={`${idPrefix}surface-rough-${i}`} filterUnits='userSpaceOnUse' {...region}>
             {art.roughness > 0 ? (<>
               <feTurbulence type='fractalNoise' baseFrequency={ROUGH_FREQUENCY} numOctaves={1} seed={ROUGH_SEED} result='noise' />
@@ -363,7 +365,7 @@ export function SurfaceLayer({ view: whole, band, tag = '' }: { view: BoardView,
             </>) : <feGaussianBlur in='SourceGraphic' stdDeviation={FEATHER} />}
           </filter>
         ))}
-        {view.arts.map((_, i) => !used.has(i) || !takesFrom(i) ? null : (
+        {arts.map((_, i) => !used.has(i) || !takesFrom(i) ? null : (
           <mask key={i} id={`${idPrefix}surface-take-${i}`} maskUnits='userSpaceOnUse' {...region}>
             <rect {...region} fill='white' />
             {taking.filter((c) => c.art !== i).map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='black' />)}
@@ -380,14 +382,14 @@ export function SurfaceLayer({ view: whole, band, tag = '' }: { view: BoardView,
             {shut.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='black' />)}
           </mask>
         ) : null}
-        {view.arts.map((art, i) => !used.has(i) ? null : (
+        {arts.map((art, i) => !used.has(i) ? null : (
           <mask key={i} id={`${idPrefix}surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>{body(art, i)}</mask>
         ))}
         {/* a mask, not a clipPath: Chrome drops some hexes from a clip of many hexes that share edges */}
         <mask id={`${idPrefix}surface-board`} maskUnits='userSpaceOnUse' {...region}>
           {view.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={SEAM} />)}
         </mask>
-        {view.arts.map((art, i) => !used.has(i) || art.bank <= 0 ? null : (<Fragment key={i}>
+        {arts.map((art, i) => !used.has(i) || art.bank <= 0 ? null : (<Fragment key={i}>
           <filter id={`${idPrefix}surface-bank-${i}`} filterUnits='userSpaceOnUse' {...region}>
             <feMorphology in='SourceAlpha' operator='dilate' radius={art.bank} result='fat' />
             <feComposite in='fat' in2='SourceAlpha' operator='out' result='ring' />
@@ -410,7 +412,7 @@ export function SurfaceLayer({ view: whole, band, tag = '' }: { view: BoardView,
         </Fragment>))}
       </defs>
       <g mask={`url(#${idPrefix}surface-board)`}>
-        {view.arts.map((art, i) => !used.has(i) ? null : (<Fragment key={i}>
+        {arts.map((art, i) => !used.has(i) ? null : (<Fragment key={i}>
           <rect {...region} fill={`url(#${idPrefix}surface-${i})`} mask={`url(#${idPrefix}surface-mask-${i})`} />
           {art.bank > 0 ? (<>
             <rect {...region} fill='black' opacity={BANK_TINT} mask={`url(#${idPrefix}surface-bank-mask-${i})`} />

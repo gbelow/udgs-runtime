@@ -23,6 +23,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLighting } from '../rules/board/light'
+import { WALL_DRAWN_HEIGHT } from '../../lists'
 import { getCellArt, getCellBledInto, getCellSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
@@ -44,6 +45,9 @@ export type BoardCellView = {
   // the order the board is drawn in, back to front: a cell is drawn over every
   // cell of a lower band (all in band 0 where the board is seen from above)
   band: number
+  // metres a wall in the cell is drawn standing above its ground, 0 for none:
+  // up to the lowest storey laid over it, else a standard height
+  wall: number
   // seen from the front, where the cell stands on the ground whatever its
   // height: the space a click there picks; null where the board is seen from
   // above and the cell is picked where it is drawn
@@ -400,6 +404,7 @@ function buildBoardView(state: SeenScene): BoardView {
       x,
       y,
       band: 0,
+      wall: terrain?.blocking ? getWallHeight(board, key, terrain.elevation) : 0,
       base: null,
       group: '',
       terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
@@ -610,6 +615,13 @@ function rimToRim(from: { x: number; y: number }, to: { x: number; y: number }):
 const FACE_PER_METRE = 0.03
 const FACE_MOST = 0.12
 
+// How tall a wall is drawn: up to the lowest storey laid over it, or the
+// standard height where there is none.
+function getWallHeight(board: Board, key: string, elevation: number): number {
+  const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[key] && l.floor > elevation).map((l) => l.floor))
+  return Number.isFinite(ceiling) ? ceiling - elevation : WALL_DRAWN_HEIGHT
+}
+
 // Every side where ground drops a cliff's height or more to the neighbour, read
 // off the two elevations, so that nothing marks which way a cliff faces: the
 // higher cell is the ridge. Each is drawn with the face of the higher cell's
@@ -623,11 +635,13 @@ function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeVi
     faces.push(face)
     return faces.length - 1
   }
+  const standsAt = new Map(cells.map((c) => [c.key, c.elevation + c.wall]))
   const ridges = cells.flatMap((c) => ROTATIONS.flatMap((d) => {
     const next = add(c.cell, DIRECTIONS[d])
-    const low = board.terrain[coordKey(next)]?.elevation ?? 0
-    if (!isCliff(low, c.elevation) || low > c.elevation) return []
-    const height = c.elevation - low
+    const low = standsAt.get(coordKey(next)) ?? board.terrain[coordKey(next)]?.elevation ?? 0
+    const high = c.elevation + c.wall
+    if (!isCliff(low, high) || low > high) return []
+    const height = high - low
     const [p, q] = hexSide(d)
     const a = { x: c.x + p.x, y: c.y + p.y }
     const b = { x: c.x + q.x, y: c.y + q.y }

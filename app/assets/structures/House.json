@@ -720,6 +720,26 @@
       "art": "/surfaces/stone_tile_1.webp",
       "layers": [],
       "piece": null
+    },
+    "3,-2": {
+      "blocking": false,
+      "transparent": false,
+      "RES": null,
+      "difficult": false,
+      "liquid": false,
+      "depth": 0,
+      "elevation": 0,
+      "soft": false,
+      "visibility": "good",
+      "suffocating": false,
+      "DL": -5,
+      "climbDL": null,
+      "noise": 0,
+      "dark": false,
+      "surface": "Stone tiles",
+      "art": "/surfaces/stone_tile_1.webp",
+      "layers": [],
+      "piece": null
     }
   },
   "levels": [
@@ -1544,5 +1564,7 @@
       },
       "piece": null
     }
-  ]
+  ],
+  "art": null,
+  "extent": null
 }

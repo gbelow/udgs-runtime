@@ -292,3 +292,8 @@ export const COMPULSION_CONSTRAINTS = ['attack', 'flee'] as const
 // story.tex "Cost of Living": the living standards, poorest first.
 export const LIVING_LEVELS = ['miserable', 'poor', 'medium', 'rich', 'lavish'] as const
 export type LivingLevel = (typeof LIVING_LEVELS)[number]
+
+// How tall a wall is drawn when nothing is laid over it. The rules give a wall
+// no height of its own (it stops what passes at any height); where a storey
+// lies over it, it is drawn up to that floor instead.
+export const WALL_DRAWN_HEIGHT = 3
