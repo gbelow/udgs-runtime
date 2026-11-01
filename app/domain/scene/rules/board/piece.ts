@@ -54,7 +54,7 @@ export function layPiece(board: Board, id: string, structure: Structure, anchor:
     ...board,
     terrain: { ...board.terrain, ...Object.fromEntries(laid) },
     levels: [...board.levels, ...levels.map(({ level, cells }): Level => ({ ...level, floor: level.floor + elevation, piece: id, terrain: Object.fromEntries(cells) }))],
-    pieces: { ...board.pieces, [id]: { name: structure.name, cell: anchor, rotation, elevation, under } },
+    pieces: { ...board.pieces, [id]: { name: structure.name, cell: anchor, rotation, elevation, under, art: structure.art } },
   }
 }
 
@@ -88,6 +88,8 @@ export function getStructureAt(piece: Piece, terrain: Record<string, TerrainCell
   const unplace = (cell: Coord) => rotate(subtract(cell, piece.cell), 6 - piece.rotation)
   return {
     name: piece.name,
+    art: piece.art,
+    extent: null,
     terrain: Object.fromEntries(rekey(terrain, unplace).map(([key, cell]): [string, TerrainCell] => [key, { ...cell, piece: null, layers: [] }])),
     levels: levels.map((level) => ({
       ...level,

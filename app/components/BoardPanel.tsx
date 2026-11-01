@@ -160,6 +160,7 @@ export function BoardPanel(){
             <SurfaceLayer view={view} band={band} />
             {view.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
             <RidgeLayer view={view} band={band} />
+            <SpriteLayer view={view} band={band} />
             <ShadeLayer view={view} band={band} />
           </Fragment>
         ))}
@@ -236,6 +237,21 @@ export function RidgeLayer({ view: whole, band }: { view: BoardView, band?: numb
           <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />
         </g>
       ))}
+    </g>
+  )
+}
+
+// The pictures of the structures seen from the front, a slice to each storey,
+// drawn over the piece's own cells so that what is higher covers what is lower
+// and behind it. Each slice is the whole picture cut to the part it shows.
+export function SpriteLayer({ view, band }: { view: BoardView, band: number }){
+  const slices = view.sprites.filter((s) => s.band === band)
+  return (
+    <g className='pointer-events-none'>
+      <defs>
+        {slices.map((s) => <clipPath key={s.key} id={`b${band}-slice-${s.key}`}><rect {...s.clip} /></clipPath>)}
+      </defs>
+      {slices.map((s) => <image key={s.key} href={s.src} {...s.box} preserveAspectRatio='none' clipPath={`url(#b${band}-slice-${s.key})`} />)}
     </g>
   )
 }
@@ -594,10 +610,10 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     : cell.fire > 0 ? 'fill-injury-2/30'
     : cell.fuels.length > 0 ? 'fill-accent/15'
     : cell.suffocating ? 'fill-fg/25'
-    : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
+    : cell.art !== null && (cell.terrain === 'open' || cell.terrain === 'wall') ? 'fill-surface/0'
     : TERRAIN_FILL[cell.terrain]
   const offered = cell.reachable || cell.jump || cell.center
-  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : offered ? 'stroke-good' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
+  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : offered ? 'stroke-good' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null && cell.terrain !== 'wall' ? 'stroke-line/30' : 'stroke-line'
   const title = [
     cell.key,
     cell.unseen ? 'out of sight' : null,

@@ -1,5 +1,5 @@
 import { frameHexes, getFaceGrain, hexBounds } from '../rules/board/geometry'
-import type { BoardBindView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardOverheadView, BoardRidgeView, BoardTokenView, BoardView } from './boardView'
+import type { BoardBindView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from './boardView'
 
 // The board seen from the front rather than from above: ground that is higher
 // is drawn higher up the screen by so much a metre, and a cell is drawn over
@@ -103,5 +103,19 @@ function build(view: BoardView, lift: number): BoardView {
     return { ...g, y: g.y - dy, cells: g.cells.map((c) => ({ ...c, y: c.y - dy })) }
   })
 
-  return { ...view, front: true, bands: levels.length, cells, ridges, overhead, tokens, floor, binds, ghosts, frame: hexBounds(cells), viewBox: frameHexes(cells) }
+  const sprites: BoardSpriteView[] = view.standing.flatMap((s) => {
+    const foot = { x: s.x + s.art.offsetX, y: s.y - rise(s.base) + s.art.offsetY }
+    const box = { x: foot.x - s.art.width / 2, y: foot.y - rise(s.art.height), width: s.art.width, height: rise(s.art.height) }
+    const edges = [0, ...s.cuts, s.art.height]
+    return edges.slice(0, -1).map((low, i) => ({
+      key: `${s.key}:${i}`,
+      src: s.art.src,
+      band: Math.max(0, levels.findLastIndex((elevation) => elevation <= Math.max(s.base + low, s.top))),
+      box,
+      clip: { x: box.x, y: foot.y - rise(edges[i + 1]), width: box.width, height: rise(edges[i + 1] - low) },
+    }))
+  })
+  const framed = [...cells, ...sprites.flatMap((s) => [{ x: s.box.x, y: s.box.y }, { x: s.box.x + s.box.width, y: s.box.y + s.box.height }])]
+
+  return { ...view, front: true, bands: levels.length, cells, ridges, overhead, tokens, floor, binds, ghosts, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) }
 }

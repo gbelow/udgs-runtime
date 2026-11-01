@@ -1,11 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { RotateCcw, RotateCw, Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput, selectClass } from '../ui'
-import { BRUSH_LABEL, BrushSize, Cell, GroundGenerator, RidgeLayer, ShadeLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, BrushSize, Cell, GroundGenerator, RidgeLayer, ShadeLayer, SpriteLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
+import { useBoardLook, type BoardLook } from '../../hooks/useBoardLook'
 import { useBoardMapEditor, useStructureEditor } from '../../hooks/useBoardMaps'
-import { GROUND_BRUSHES, LIGHT_LEVELS, PIECE_TURNS, STOREY_BRUSHES } from '../../domain/lists'
+import { GROUND_BRUSHES, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, PIECE_TURNS, STOREY_BRUSHES } from '../../domain/lists'
 import type { TerrainBrush } from '../../domain/types'
 
 type Editor = ReturnType<typeof useBoardMapEditor>
@@ -19,22 +20,24 @@ const TURN_LABEL = ['0°', '60°', '120°', '180°', '240°', '300°']
 export function BoardMapsEditor() {
   const [storeyAt, setStoreyAt] = useState(0)
   const [chosen, setChosen] = useState<string | null>(null)
-  const editor = useBoardMapEditor(storeyAt, chosen)
-  return <KeptBoardEditor label='Battle maps' editor={editor} setStoreyAt={setStoreyAt} chosen={chosen} choose={(id) => { setChosen(id); setStoreyAt(0) }} />
+  const look = useBoardLook()
+  const editor = useBoardMapEditor(storeyAt, chosen, look)
+  return <KeptBoardEditor label='Battle maps' editor={editor} look={look} setStoreyAt={setStoreyAt} chosen={chosen} choose={(id) => { setChosen(id); setStoreyAt(0) }} />
 }
 
 // The structures kept, a house or a tree each, made the way a battle map is
 // around the anchor at the board's middle.
 export function StructuresEditor() {
   const [storeyAt, setStoreyAt] = useState(0)
-  return <KeptBoardEditor label='Structures' editor={useStructureEditor(storeyAt)} setStoreyAt={setStoreyAt} chosen={null} choose={null} />
+  const look = useBoardLook()
+  return <KeptBoardEditor label='Structures' editor={useStructureEditor(storeyAt, look)} look={look} setStoreyAt={setStoreyAt} chosen={null} choose={null} />
 }
 
 // What a click on the board does: paint (or lay the surface held), lay the
 // structure held as a piece, pick the piece there, or move the piece picked.
 type Tool = 'paint' | 'place' | 'pick' | 'move'
 
-function KeptBoardEditor({ label, editor, setStoreyAt, chosen, choose }: { label: string, editor: Editor, setStoreyAt: (at: number) => void, chosen: string | null, choose: ((id: string | null) => void) | null }) {
+function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: { label: string, editor: Editor, look: BoardLook, setStoreyAt: (at: number) => void, chosen: string | null, choose: ((id: string | null) => void) | null }) {
   const { rows, view, map, openId, devServer, storeys, storey, piece, open, create, remove, save, setName, paint, light, laySurface, generateGround, resize, addStorey, removeStorey, setStorey } = editor
   const [brush, setBrush] = useState<TerrainBrush | null>('wall')
   const [laying, setLaying] = useState<string | null>(null)
@@ -83,6 +86,7 @@ function KeptBoardEditor({ label, editor, setStoreyAt, chosen, choose }: { label
           {!opened && devServer ? <Button size='xs' disabled={!map.name.trim()} onClick={() => save(true)}>save for all</Button> : null}
           {opened && mine ? <ConfirmDelete remove={() => remove(opened.id)} /> : null}
         </div>
+        {label === 'Structures' ? <ArtRow art={map.art} setArt={editor.setArt} /> : null}
         {choose ? <PieceRow editor={editor} tool={tool} setTool={setTool} held={held} setHeld={setHeld} turns={turns} setTurns={setTurns} choose={choose} /> : null}
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>{piece ? `storey of ${editor.pieces.find((p) => p.id === chosen)?.name ?? 'the piece'}` : 'storey'}</SectionLabel>
@@ -113,17 +117,50 @@ function KeptBoardEditor({ label, editor, setStoreyAt, chosen, choose }: { label
             {LIGHT_LEVELS.map((l) => <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
           </Segmented>
           <span className='grow' />
+          <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
+          {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
           <ZoomButtons zoomPan={zoomPan} />
         </div>
         <SurfaceRow surfaces={view.surfaces} laying={tool === 'paint' ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setTool('paint') }} />
         {storey.level === null && !piece ? <GroundGenerator surfaces={view.surfaces} generate={generateGround} /> : null}
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label={label} onClick={click}>
-          <SurfaceLayer view={view} />
-          {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
-          <RidgeLayer view={view} />
-          <ShadeLayer view={view} />
+          {Array.from({ length: view.bands }, (_, band) => (
+            <Fragment key={band}>
+              <SurfaceLayer view={view} band={band} />
+              {view.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
+              <RidgeLayer view={view} band={band} />
+              <SpriteLayer view={view} band={band} />
+              <ShadeLayer view={view} band={band} />
+            </Fragment>
+          ))}
         </svg>
       </div>
+    </div>
+  )
+}
+
+// The one picture a structure is drawn with from the front: a path under
+// `public/`, how many board units across it stands and how many metres tall,
+// and how far it is moved from the anchor. Each storey shows its slice.
+function ArtRow({ art, setArt }: { art: Editor['map']['art'], setArt: Editor['setArt'] }) {
+  const field = (name: 'width' | 'height' | 'offsetX' | 'offsetY', title: string) => (
+    <label key={name} className='flex flex-row items-center gap-1 text-xs'>{title}
+      <TextInput className='w-16' type='number' step={0.5} aria-label={`picture ${title}`} value={art?.[name] ?? 0} onChange={(e) => setArt({ [name]: Number(e.target.value) })} />
+    </label>
+  )
+  return (
+    <div className='flex flex-row flex-wrap gap-2 items-center'>
+      <SectionLabel>picture</SectionLabel>
+      <input type='checkbox' aria-label='structure has a picture' checked={art !== null} onChange={(e) => setArt(e.target.checked ? {} : null)} />
+      {art ?
+        <>
+          <TextInput className='w-64' aria-label='picture path' placeholder='/structures/tree.png' value={art.src} onChange={(e) => setArt({ src: e.target.value })} />
+          {field('width', 'across')}
+          {field('height', 'metres tall')}
+          {field('offsetX', 'shift x')}
+          {field('offsetY', 'shift y')}
+        </>
+        : <span className='text-xs text-muted'>none</span>}
     </div>
   )
 }

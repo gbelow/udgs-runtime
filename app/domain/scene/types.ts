@@ -302,6 +302,19 @@ export const LevelSchema = z.object({
 }).strip()
 export type Level = z.infer<typeof LevelSchema>
 
+// The one picture a structure is drawn with, seen from the front: its foot
+// stands on the ground under the anchor, `width` board units across and
+// `height` metres tall, moved by the offsets (board units) from there. Each
+// storey of the structure shows the slice of it between its own heights.
+export const StructureArtSchema = z.object({
+  src: str.default(''),
+  width: num.default(4),
+  height: num.default(6),
+  offsetX: num.default(0),
+  offsetY: num.default(0),
+}).strip()
+export type StructureArt = z.infer<typeof StructureArtSchema>
+
 // What is built to be laid on a board as one (a house, a tree): ground and
 // storeys around its anchor at { q: 0, r: 0 }, every elevation and floor
 // measured from the ground under the anchor.
@@ -309,6 +322,9 @@ export const StructureSchema = z.object({
   name: z.string().default(''),
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
   levels: z.array(LevelSchema).default([]),
+  art: StructureArtSchema.nullable().default(null),
+  // how far the editor's board reached when it was kept; none fits the cells
+  extent: BoardExtentSchema.nullable().default(null),
 }).strip()
 export type Structure = z.infer<typeof StructureSchema>
 
@@ -321,6 +337,7 @@ export const PieceSchema = z.object({
   rotation: z.number().int().min(0).max(5).default(0),
   elevation: num.default(0),
   under: z.record(z.string(), TerrainCellSchema).default({}),
+  art: StructureArtSchema.nullable().default(null),
 }).strip()
 export type Piece = z.infer<typeof PieceSchema>
 
@@ -350,6 +367,8 @@ export type Board= z.infer<typeof BoardSchema>
 // standing on it and nothing an action left there.
 export const BoardMapSchema = BoardSchema.omit({ placements: true }).extend({
   name: z.string().default(''),
+  // the picture of a structure being edited as a map
+  art: StructureArtSchema.nullable().default(null),
 }).strip()
 export type BoardMap = z.infer<typeof BoardMapSchema>
 

@@ -1,5 +1,5 @@
 import type { TerrainBrush } from '../../types'
-import { BoardMapSchema, type BoardExtent, type BoardMap, type Coord, type GroundRecipe, type LightLevel, type Structure, type Updater } from '../types'
+import { BoardMapSchema, StructureArtSchema, type BoardExtent, type BoardMap, type Coord, type GroundRecipe, type LightLevel, type Structure, type StructureArt, type Updater } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
 import { addLevel, editPiece, generateGround, laySurface, movePiece, paintTerrain, placePiece, removeLevel, removePiece, resizeBoard, setLevel, setSurface, turnPiece } from './board'
 import { getPieceLevel } from '../rules/board/piece'
@@ -16,11 +16,17 @@ export function newBoardMap(radius = 6): BoardMap {
 
 function viaScene(map: BoardMap, change: (scene: ReturnType<typeof sceneOfMap>) => ReturnType<typeof sceneOfMap>): BoardMap {
   const board = change(sceneOfMap(map)).board
-  return board ? makeBoardMap({ ...board, name: map.name }) : map
+  return board ? makeBoardMap({ ...board, name: map.name, art: map.art }) : map
 }
 
 export function renameBoardMap(name: string): BoardMapUpdater {
   return (map) => ({ ...map, name })
+}
+
+// The picture of the structure being edited: none, or the picture it has (a
+// fresh one if it had none) with these fields changed.
+export function artBoardMap(change: Partial<StructureArt> | null): BoardMapUpdater {
+  return (map) => ({ ...map, art: change === null ? null : StructureArtSchema.parse({ ...map.art, ...change }) })
 }
 
 // A change to the map's own ground and storeys, or with a `piece` picked, to

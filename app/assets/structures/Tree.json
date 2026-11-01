@@ -16,7 +16,7 @@
       "climbDL": 4,
       "noise": 0,
       "dark": false,
-      "surface": "Bark",
+      "surface": null,
       "art": null,
       "layers": [],
       "piece": null
@@ -81,5 +81,17 @@
       },
       "piece": null
     }
-  ]
+  ],
+  "art": {
+    "src": "/structures/tree_1.png",
+    "width": 5,
+    "height": 15,
+    "offsetX": 0,
+    "offsetY": 0
+  },
+  "extent": {
+    "q": 1,
+    "r": 1,
+    "s": 1
+  }
 }

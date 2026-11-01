@@ -41,4 +41,12 @@ describe('reading a structure', () => {
   it('is kept as it was by an editor that changes nothing', () => {
     expect(structureOfMap(mapOfStructure(house()))).toEqual(house())
   })
+
+  // a structure resized in the editor and kept came back at the size its cells
+  // fit, not the size it was kept at
+  it('reopens at the size it was kept at', () => {
+    const open = mapOfStructure(house())
+    const wider = { ...open, extent: { q: open.extent.q + 4, r: open.extent.r + 2, s: open.extent.s + 3 } }
+    expect(mapOfStructure(structureOfMap(wider)).extent).toEqual(wider.extent)
+  })
 })

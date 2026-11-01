@@ -1,4 +1,4 @@
-import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, SurfaceArt } from '../types'
+import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, StructureArt, SurfaceArt } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -204,6 +204,33 @@ export type BoardRidgeView = {
   height: number
 }
 
+// A piece with a picture of its own, as the front view draws it: the picture,
+// where its foot stands (the anchor's cell, on the ground the piece was laid
+// on, `base` metres up) and the heights in metres above that foot at which a
+// storey of the piece begins, which the picture is sliced at.
+export type BoardStandingView = {
+  key: string
+  art: StructureArt
+  x: number
+  y: number
+  base: number
+  // the height in metres of the highest ground of the piece itself, which its
+  // picture is drawn over
+  top: number
+  cuts: number[]
+}
+
+// One slice of such a picture, drawn in the band of the piece's highest ground
+// so that it lies over the piece's own cells: the whole picture's box, and the
+// part of it this slice shows.
+export type BoardSpriteView = {
+  key: string
+  src: string
+  band: number
+  box: { x: number; y: number; width: number; height: number }
+  clip: { x: number; y: number; width: number; height: number }
+}
+
 export type BoardGhostView = {
   id: string
   name: string
@@ -241,6 +268,10 @@ export type BoardView = {
   overhead: BoardOverheadView[]
   // the pictures the cliffs are drawn with, which a ridge's `art` indexes
   faces: SurfaceArt[]
+  // the pieces drawn with a picture of their own, and (from the front only)
+  // the slices of those pictures
+  standing: BoardStandingView[]
+  sprites: BoardSpriteView[]
   // how many bands the cells are drawn in, and whether they are seen from the
   // front, the raised ones lifted up the screen
   bands: number
@@ -270,7 +301,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], overhead: [], faces: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -371,7 +402,7 @@ function buildBoardView(state: SeenScene): BoardView {
       test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: terrain.DL } : null,
       soft: terrain?.soft ?? false,
       surface: terrain?.surface ?? board.surface,
-      art: artIndex(getCellArt(board, key)),
+      art: terrain?.blocking && !terrain.surface ? null : artIndex(getCellArt(board, key)),
       bledInto: getCellBledInto(board, key),
       light,
       lit,
@@ -468,6 +499,8 @@ function buildBoardView(state: SeenScene): BoardView {
     hex: HEX_POINTS,
     cells,
     ...getRidges(board, cells),
+    standing: getStanding(board, cells),
+    sprites: [],
     overhead: [],
     bands: 1,
     front: false,
@@ -593,6 +626,24 @@ function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeVi
     return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), grain: getFaceGrain(a, b, foot), height }]
   }))
   return { ridges, faces }
+}
+
+// A picture standing on the cell at its anchor, cut where the floors (in
+// metres above its foot) begin inside the picture's height; none for a picture
+// with no file or no cell to stand on.
+export function getStandingOf(key: string, art: StructureArt | null, anchor: Pick<BoardCellView, 'x' | 'y'> | undefined, base: number, top: number, floors: number[]): BoardStandingView[] {
+  if (!art || !art.src || !anchor) return []
+  const cuts = [...new Set(floors)].filter((h) => h > 0 && h < art.height).sort((a, b) => a - b)
+  return [{ key, art, x: anchor.x, y: anchor.y, base, top: Math.max(base, top), cuts }]
+}
+
+// Every piece that has a picture, at its anchor.
+function getStanding(board: Board, cells: BoardCellView[]): BoardStandingView[] {
+  return Object.entries(board.pieces).flatMap(([id, piece]) => getStandingOf(
+    id, piece.art, cells.find((c) => c.key === coordKey(piece.cell)), piece.elevation,
+    Math.max(0, ...Object.values(board.terrain).filter((cell) => cell.piece === id).map((cell) => cell.elevation)),
+    board.levels.filter((l) => l.piece === id).map((l) => l.floor - piece.elevation),
+  ))
 }
 
 function elevationLabel(elevation: number): string {

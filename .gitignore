@@ -56,4 +56,5 @@ __pycache__/
 /public/walls/
 
 # token art found online, kept local
-/public/tokens/*.webp
+/public/tokens/
+/public/structures/
