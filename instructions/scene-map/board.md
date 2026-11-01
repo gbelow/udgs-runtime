@@ -68,7 +68,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   is under a roof and has no light of its own; it takes the light of an open floor outside it sees
   through a window or a doorway, a step darker past `WINDOW_LIGHT.full` and none past `fading`, and a
   source's, which shines from its holder's eyes and never through a solid floor. A `lattice` storey cell (leaves, a grating) is stood on like a floor but
-  closes nothing under it: a line passes it, and a climb from under it is not stopped by it. The move search reaches each cell once, the first way it comes there,
+  closes nothing under it: a line passes it, and a climb up a face beside it is not stopped by it. One with neither raised ground nor a wall under it (a canopy over open ground) has nothing to climb, so it is reached only within the climber's start, as a stand up (`Face.overhead`). The move search reaches each cell once, the first way it comes there,
   so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).
   The fight's board is looked at from a height (`projections/storeyView.ts`): the cells are drawn
   as the floor someone there stands on, open air veiled, others on another floor drawn apart;
@@ -111,7 +111,11 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   fall, the price of standing up (or of the jump), and the climber is left standing. A move that
   stops short leaves the climber hanging (`Placement.climb`, `elevation` their feet): prone, with
   no high ground, able to climb on or let go (a declared `fall` from where they hang, DL by
-  height). A graze costs 5 AP a metre and a climber who cannot pay gives up (`gaveUp`) and falls
+  height). A climb setting out down the climber's own cell (from a lattice or a ledge) may go
+  0 metres, which only lowers them to hang at their start under the floor (`ClimbPlan.hang`):
+  the price of standing up and no test (the table's ruling). A climber hanging partway down within
+  their height of the floor they set out from may climb back onto it the same way (`getClimbBack`,
+  `Face.back`), offered first among the climb's stops. A graze costs 5 AP a metre and a climber who cannot pay gives up (`gaveUp`) and falls
   like a miss, from the height the declared metres reached; a critical costs no STA, and 1 AP a
   metre when risky. An attack that interrupts a climber has them make a new −3 test (one die per
   attack drawn, thrown with the climb in `redos`); a miss cancels the move and they fall from the

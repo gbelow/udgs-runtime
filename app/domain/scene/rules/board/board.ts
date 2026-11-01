@@ -149,7 +149,9 @@ function isLedge(board: Board, cell: Coord, f: Footing): boolean {
 // floor of it between, its higher floors and the ledges of the climber's own
 // cell met on the way. A climb in the climber's own cell (`to` is `from`)
 // goes up the face of raised ground they stand on a ledge of, to its ledges
-// and its top, and down through the floor they stand on where it is a ledge
+// and its top, or, with none, to the first floor over them where it is a
+// lattice (a canopy's branches, only reached from within the climber's start:
+// cliff.ts `isClimbable`), and down through the floor they stand on where it is a ledge
 // or a lattice, to every floor under it as far as the first solid one; its
 // stops up come before those down. A ledge closes nothing on the way. Up
 // before down. Storeys of a cell at one height (pieces laid over each other)
@@ -166,7 +168,9 @@ function listClimbStops(board: Board, from: Coord, here: number, to: Coord): Cli
   const own = getFloors(board, from)
   if (sameCell(from, to)) {
     const top = board.terrain[coordKey(from)]?.elevation ?? 0
-    const up = own.filter((f) => above(f) && f.floor <= top).sort((a, b) => a.floor - b.floor).map(at(from))
+    const column = own.filter((f) => above(f) && f.floor <= top).sort((a, b) => a.floor - b.floor).map(at(from))
+    const over = own.filter(above).sort((a, b) => a.floor - b.floor)[0]
+    const up = column.length > 0 || !over || solid(from)(over) ? column : [at(from)(over)]
     const standing = getTerrainAt(board, from, here)
     const under = standing.level === null || solid(from)(standing) ? [] : own.filter(below).sort((a, b) => b.floor - a.floor)
     const floor = under.findIndex(solid(from))
@@ -203,12 +207,22 @@ export function getClimbBound(board: Board, from: Coord, here: number, to: Coord
   return getFaceEnd(getClimbStops(board, from, here, to), here)
 }
 
+// The floor a climber hanging partway down a face set out from, which they
+// may climb back onto (cliff.ts says from how far); null for anyone else.
+export function getClimbBack(board: Board, from: Placement): ClimbStop | null {
+  if (!from.climb || from.climb.bound >= from.climb.floor) return null
+  const floor = getTerrainAt(board, from.cell, from.climb.floor)
+  return { ...floor, cell: from.cell, climbDL: floor.terrain?.climbDL ?? null }
+}
+
 // The floor a climber hanging on a face, or setting out on one from where they
 // stand, is bound for: the stop the move names (`ledge`), or else where a
 // hanging climber was bound, or else the end of the face.
 export function getClimbTarget(board: Board, from: Placement, to: Coord, ledge: { cell: Coord; floor: number } | null = null): ClimbStop | null {
   if (from.climb && !sameCell(from.climb.to, to)) return null
   const here = from.climb ? from.climb.floor : getTerrainAt(board, from.cell, from.elevation).floor
+  const back = getClimbBack(board, from)
+  if (back && ledge && sameCell(back.cell, ledge.cell) && back.floor === ledge.floor) return back
   const stops = getClimbStops(board, from.cell, here, to)
   const chosen = ledge ? stops.find((s) => sameCell(s.cell, ledge.cell) && s.floor === ledge.floor) : null
   if (ledge) return chosen ?? null

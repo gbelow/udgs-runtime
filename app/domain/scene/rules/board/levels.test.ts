@@ -8,9 +8,9 @@ import { coordKey } from './geometry'
 import { firesAcross, getCoverAcross, getMeleeGap, hasLineOfSight, seesAcross, type Eyes } from './board'
 import { getHeight } from '../../../character/rules/size'
 import { canStandAt } from './ground'
-import { getClimbPlan, getMoveFall } from './cliff'
+import { getClimbPlan, getMoveFall, needsClimbTest } from './cliff'
 import { getMoveDestination } from './waypoint'
-import { isPathLegal } from '../move'
+import { getMoveFacts, getMovePrice, getPostureCost, isPathLegal } from '../move'
 
 // combat.tex "Cover": a space containing a blocking object stops what passes
 // through it; "cover blocks vision unless it is transparent". A house is drawn
@@ -193,9 +193,9 @@ describe('standing and walking on a storey', () => {
   })
 
   // The table's ruling: a lattice (leaves, a grating) is a floor stood on that
-  // closes nothing under it, and is climbed up through from below.
-  it('climbs up through a lattice over the climber onto the lattice beside them', () => {
-    const canopy = { ...board, levels: [{ ...board.levels[0], terrain: { ...board.levels[0].terrain, [coordKey(cell(0))]: LevelCellSchema.parse({ lattice: true }), [coordKey(cell(1))]: LevelCellSchema.parse({ lattice: true }) } }] }
+  // closes nothing under it, and a climb up a face beside it goes on through it.
+  it('climbs up through a lattice over the climber onto the lattice over the wall beside them', () => {
+    const canopy = { ...board, terrain: { ...board.terrain, [coordKey(cell(1))]: board.terrain[coordKey(cell(2))] }, levels: [{ ...board.levels[0], terrain: { ...board.levels[0].terrain, [coordKey(cell(0))]: LevelCellSchema.parse({ lattice: true }), [coordKey(cell(1))]: LevelCellSchema.parse({ lattice: true }) } }] }
     const under = { ...scene({ a: { cell: cell(0), elevation: 0 } }), board: { ...canopy, placements: { a: PlacementSchema.parse({ cell: cell(0), elevation: 0 }) } } }
     const climb = walk([cell(1)], 'climb')
     expect(getMoveDestination(under, climb, climb.path)?.elevation).toBe(FLOOR)
@@ -223,5 +223,63 @@ describe('melee reaches up and down', () => {
 
   it('adds nothing up or down between bodies side by side in height', () => {
     expect(getMeleeGap(striker, body(3, HEIGHT / 2))).toBe(3)
+  })
+})
+
+// The table's ruling: a canopy over open ground has nothing to climb, so it is
+// climbed onto only by whoever reaches it, and that is a stand up
+// (combat.tex "Climbing": "Any climb with height equal or lower than the
+// character's height can be done by just standing up in the new location").
+// A climber setting out down from one may stop at their start, hanging under
+// it, for the price of standing up and with no test, and stand back up on it
+// the same way.
+describe('climbing a canopy', () => {
+  const cell = (q: number): Coord => ({ q, r: 0 })
+  const climber = { ...makeCampaignCharacter({ name: 'a' }), id: 'a' }
+  const HEIGHT = getHeight(climber)
+  const LOW = HEIGHT
+  const HIGH = HEIGHT + 2 * FALL.minHeight
+  const board = BoardSchema.parse({ levels: [
+    { floor: LOW, terrain: { [coordKey(cell(0))]: { lattice: true } } },
+    { floor: HIGH, terrain: { [coordKey(cell(1))]: { lattice: true } } },
+  ] })
+  const scene = (at: Coord, elevation: number): SceneState => ({
+    ...SceneStateSchema.parse({ board: { ...board, placements: { a: PlacementSchema.parse({ cell: at, elevation }) } } }),
+    characters: { a: climber },
+  })
+  const climb = (to: Coord, metres: number | null = null) => makeAction('move', { id: 'climb', actorId: 'a', movement: 'climb', path: [to], metres })
+  const stand = getPostureCost(climber, 'stand')
+
+  it('climbs onto a canopy within reach overhead for the price of standing up', () => {
+    const under = scene(cell(0), 0)
+    const up = climb(cell(0))
+    expect(isPathLegal(under, up)).toBe(true)
+    expect(getMoveDestination(under, up, up.path)?.elevation).toBe(LOW)
+    expect(getMovePrice(under, climber, up, 1)).toEqual(stand)
+  })
+
+  it('climbs onto no canopy out of reach, overhead or beside', () => {
+    expect(isPathLegal(scene(cell(1), 0), climb(cell(1)))).toBe(false)
+    expect(isPathLegal(scene(cell(0), 0), climb(cell(1)))).toBe(false)
+  })
+
+  it('hangs under the canopy, feet a climber height below it, for the price of standing up', () => {
+    const on = scene(cell(1), HIGH)
+    const hang = climb(cell(1), 0)
+    expect(isPathLegal(on, hang)).toBe(true)
+    expect(needsClimbTest(on, hang)).toBe(false)
+    expect(getMovePrice(on, climber, hang, 0)).toEqual(stand)
+    expect(getMoveFacts(on, hang).hang?.elevation).toBe(HIGH - HEIGHT)
+  })
+
+  it('climbs back onto the canopy from hanging under it for the price of standing up', () => {
+    const on = scene(cell(1), HIGH)
+    const hang = getMoveFacts(on, climb(cell(1), 0)).hang!
+    const hanging = { ...on, board: { ...on.board!, placements: { a: PlacementSchema.parse({ cell: cell(1), elevation: hang.elevation, climb: hang }) } } }
+    const back = { ...climb(cell(1)), ledge: { cell: cell(1), floor: HIGH } }
+    expect(isPathLegal(hanging, back)).toBe(true)
+    expect(needsClimbTest(hanging, back)).toBe(false)
+    expect(getMovePrice(hanging, climber, back, 1)).toEqual(stand)
+    expect(getMoveDestination(hanging, back, getMoveFacts(hanging, back).path)).toMatchObject({ elevation: HIGH, climb: null })
   })
 })

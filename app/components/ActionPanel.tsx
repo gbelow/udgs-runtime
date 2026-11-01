@@ -215,7 +215,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>metres</SectionLabel>
           <IconButton icon={Minus} aria-label='climb less' disabled={open.climbSteps.less === null} onClick={() => amend({ metres: open.climbSteps?.less ?? null })} />
-          <span className='font-mono text-xs'>{open.climbSteps.metres} / {open.climbSteps.remaining}</span>
+          <span className='font-mono text-xs'>{open.climbSteps.hang ? 'hang' : `${open.climbSteps.metres} / ${open.climbSteps.remaining}`}</span>
           <IconButton icon={Plus} aria-label='climb more' disabled={open.climbSteps.more === null} onClick={() => amend({ metres: open.climbSteps?.more ?? null })} />
         </div>
       ) : null}

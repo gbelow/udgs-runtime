@@ -11,9 +11,9 @@ import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
-import { getClimbBound, getClimbTarget, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
+import { getClimbBack, getClimbBound, getClimbTarget, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
-import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb } from './board/cliff'
+import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
 import { getModifiedTotal } from './modifiers'
 import { canRest, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
@@ -80,12 +80,18 @@ export function getPostureCost(c: Character, posture: Posture): ActionCost {
 export function getMovePrice(state: SceneState, c: Character, action: MoveAction, cells: number): ActionCost {
   // a movement the rules force on its mover is not theirs to pay for
   if (action.forced) return NO_COST
-  const plan = action.movement === 'climb' && cells > 0 ? getClimbPlan(state, action) : null
+  const climb = action.movement === 'climb' ? getClimbPlan(state, action) : null
+  // the table's ruling: lowering oneself to hang is the standing up undone
+  if (climb?.hang) {
+    const price = getPostureCost(c, 'stand')
+    return { AP: Math.max(0, price.AP - action.prepaid), STA: price.STA }
+  }
+  const plan = cells > 0 ? climb : null
   const leap = plan?.first && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
   // combat.tex "Climbing": a climb no taller than the climber costs the
   // standing up it is, or the jump that started it
   if (plan?.trivial) {
-    const price = action.leap ? leap : getPostureCost(c, 'stand')
+    const price = plan.first && action.leap ? leap : getPostureCost(c, 'stand')
     return { AP: Math.max(0, price.AP - action.prepaid), STA: price.STA }
   }
   const climbed = action.movement === 'climb' ? getClimbDegree(state, action) : null
@@ -246,7 +252,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
   if (action.movement === 'jump' && cells > getJumpSpeed(c, action)) return false
   if (!withinBudget(getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
-  if (action.movement === 'climb' && !(isClimbable(state, action) && (isTrivialClimb(state, action) || cells >= 1 || !!getClimbPlan(state, action)?.top))) return false
+  if (action.movement === 'climb' && !(isClimbable(state, action) && (isUntestedClimb(state, action) || cells >= 1 || !!getClimbPlan(state, action)?.top))) return false
   if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
   if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c, isCombatStarted(state)).includes(action.mode))) return false
 
@@ -430,7 +436,7 @@ export function getMoveOverride(state: SceneState, action: MoveAction): { step: 
 // the climb (`redos`, thrown as each attack lands) — the path step the first
 // of them failed at, or null.
 function getClimbFailedAt(state: SceneState, action: MoveAction): number | null {
-  if (action.movement !== 'climb' || isTrivialClimb(state, action)) return null
+  if (action.movement !== 'climb' || isUntestedClimb(state, action)) return null
   const failed = getDrawnOpportunityAttacks(state, action).find(({ reaction, spawned }) =>
     spawned?.kind === 'strike' && spawned.step === 'done' && getInterruptionOf(spawned, action.actorId) !== 'none' && action.redos[reaction.id]?.degree === 'miss')
   return failed ? failed.reaction.at! - 1 : null
@@ -443,7 +449,7 @@ export function getInterruptedClimb(state: SceneState, landed: Action): { move: 
   if (landed.kind !== 'strike' || !landed.targetId || getInterruptionOf(landed, landed.targetId) === 'none') return null
   const found = getAncestry(state, landed).find((a) => a.kind === 'opportunityAttack' || a.kind === 'prepared')
   const move = found?.reactionTo ? getAction(state, found.reactionTo) : null
-  if (!found || move?.kind !== 'move' || move.movement !== 'climb' || move.actorId !== landed.targetId || isTrivialClimb(state, move)) return null
+  if (!found || move?.kind !== 'move' || move.movement !== 'climb' || move.actorId !== landed.targetId || isUntestedClimb(state, move)) return null
   return { move, reactionId: found.id }
 }
 
@@ -700,6 +706,10 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   // a climb may also go on up the raised ground the climber stands on a ledge
   // of, which is their own cell
   const column = kind === 'climb' ? [{ cell: from.cell, path: [from.cell] }] : []
+  // one hanging may climb back onto the floor they hang from, offered on the
+  // cell they climb towards
+  const hung = kind === 'climb' && state.board ? getClimbBack(state.board, from) : null
+  const back = hung ? { cell: hung.cell, floor: hung.floor } : null
   return [...walked, ...column]
     .filter(({ cell, path }) => {
       const own = sameCell(cell, from.cell)
@@ -707,7 +717,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
       if (own && !rise) return false
       const footprint = getFootprint(c, { ...from, cell })
       const floor = rise ? ground.at(rise.floor) : floorAt(cell)
-      return (own || !onPath.has(coordKey(cell))) && isCrossable(footprint, floor, kind, wetAt(stepFrom(path))) && canEndAt(state, c, action, footprint, floor) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path, ledge: null })))
+      return (own || !onPath.has(coordKey(cell))) && isCrossable(footprint, floor, kind, wetAt(stepFrom(path))) && canEndAt(state, c, action, footprint, floor) && (kind !== 'climb' || (path.length === 1 && [null, back].some((ledge) => isClimbable(state, { ...action, path, ledge }))))
     })
     .map(({ cell, path }) => ({ cell, path: [...drawn, ...path] }))
     .map(({ cell, path }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres, ledge: null }, path.length), path }))

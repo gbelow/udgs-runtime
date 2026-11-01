@@ -250,8 +250,9 @@ export type OpenActionView = {
   canLeap: boolean
   // combat.tex "Climbing": the metres of the face the climb goes, how many are
   // left of it, and the climb a metre shorter or longer would be (null where
-  // the face allows no fewer or no more)
-  climbSteps: { metres: number; remaining: number; less: number | null; more: number | null } | null
+  // the face allows no fewer or no more), and whether it only lowers the
+  // climber to hang (at 0 metres)
+  climbSteps: { metres: number; remaining: number; less: number | null; more: number | null; hang: boolean } | null
   // combat.tex "Climbing": the floors met on the face the climb may stop on,
   // nearest first, the last the end of it, and the one it goes to; null where
   // there is no choice
