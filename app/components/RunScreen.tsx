@@ -247,15 +247,14 @@ function SheetTabs({ own }: { own: boolean }){
 }
 
 // What the active character has to spend and what weighs on them; the
-// resources, the injuries and the afflictions are the GM's to edit, and the
-// pending tests the character's to roll, by whoever plays them.
+// resources, the injury dials and the pending tests are the character's,
+// edited and rolled by whoever plays them, while the kill button, the wounds
+// and the afflictions are the GM's.
 function Status({ resource, needs, injuryAction }: { resource?: ReactNode, needs: boolean, injuryAction?: ReactNode }){
   return(
     <>
-      <GmLocked>
-        <ResourceTiles needs={needs}>{resource}</ResourceTiles>
-        <InjuryDials action={injuryAction} />
-      </GmLocked>
+      <ControlLocked><ResourceTiles needs={needs}>{resource}</ResourceTiles></ControlLocked>
+      <ControlLocked><InjuryDials action={injuryAction ? <GmLocked>{injuryAction}</GmLocked> : undefined} /></ControlLocked>
       <ActiveConditions />
       <ControlLocked><PendingPanel /></ControlLocked>
     </>
