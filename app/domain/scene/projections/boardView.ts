@@ -44,6 +44,13 @@ export type BoardCellView = {
   // the order the board is drawn in, back to front: a cell is drawn over every
   // cell of a lower band (all in band 0 where the board is seen from above)
   band: number
+  // seen from the front, where the cell stands on the ground whatever its
+  // height: the space a click there picks; null where the board is seen from
+  // above and the cell is picked where it is drawn
+  base: { x: number; y: number } | null
+  // seen from the front, what the cell is drawn as part of: the piece it
+  // belongs to, else the plain ground of its band; empty seen from above
+  group: string
   terrain: CellTerrain
   // combat.tex "Damage absorption": how sturdy the wall or cover in the cell
   // is, its RES or unbreakable; null for ground with neither
@@ -199,6 +206,8 @@ export type BoardRidgeView = {
   foot: { x: number; y: number }
   face: string
   art: number | null
+  // what the wall is drawn as part of: that of the cell it drops from
+  group: string
   // how the picture lies on the face (`getFaceGrain`)
   grain: string
   height: number
@@ -225,6 +234,8 @@ export type BoardStandingView = {
 // part of it this slice shows.
 export type BoardSpriteView = {
   key: string
+  // the piece it is the picture of
+  group: string
   src: string
   band: number
   box: { x: number; y: number; width: number; height: number }
@@ -389,6 +400,8 @@ function buildBoardView(state: SeenScene): BoardView {
       x,
       y,
       band: 0,
+      base: null,
+      group: '',
       terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
       strength: terrain?.blocking ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
       elevation: terrain?.elevation ?? 0,
@@ -402,7 +415,7 @@ function buildBoardView(state: SeenScene): BoardView {
       test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: terrain.DL } : null,
       soft: terrain?.soft ?? false,
       surface: terrain?.surface ?? board.surface,
-      art: terrain?.blocking && !terrain.surface ? null : artIndex(getCellArt(board, key)),
+      art: artIndex(getCellArt(board, key)),
       bledInto: getCellBledInto(board, key),
       light,
       lit,
@@ -623,7 +636,7 @@ function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeVi
     const [dx, dy] = [away.x * depth, away.y * depth]
     const face = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
     const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
-    return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), grain: getFaceGrain(a, b, foot), height }]
+    return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), grain: getFaceGrain(a, b, foot), group: '', height }]
   }))
   return { ridges, faces }
 }

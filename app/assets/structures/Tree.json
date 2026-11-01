@@ -16,8 +16,8 @@
       "climbDL": 4,
       "noise": 0,
       "dark": false,
-      "surface": null,
-      "art": null,
+      "surface": "Bark",
+      "art": "/walls/bark_1.webp",
       "layers": [],
       "piece": null
     }
@@ -82,13 +82,7 @@
       "piece": null
     }
   ],
-  "art": {
-    "src": "/structures/tree_1.png",
-    "width": 5,
-    "height": 15,
-    "offsetX": 0,
-    "offsetY": 0
-  },
+  "art": null,
   "extent": {
     "q": 1,
     "r": 1,

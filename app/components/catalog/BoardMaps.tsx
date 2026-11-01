@@ -1,10 +1,11 @@
 'use client'
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { RotateCcw, RotateCw, Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput, selectClass } from '../ui'
-import { BRUSH_LABEL, BrushSize, Cell, GroundGenerator, RidgeLayer, ShadeLayer, SpriteLayer, SurfaceLayer, SurfaceRow, ZoomButtons, cellAt } from '../BoardPanel'
+import { BRUSH_LABEL, BandLayers, BaseLayer, BrushSize, GroundGenerator, SurfaceRow, VeilFilter, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardLook, type BoardLook } from '../../hooks/useBoardLook'
+import { useBoardVeil } from '../../hooks/useBoardVeil'
 import { useBoardMapEditor, useStructureEditor } from '../../hooks/useBoardMaps'
 import { GROUND_BRUSHES, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, PIECE_TURNS, STOREY_BRUSHES } from '../../domain/lists'
 import type { TerrainBrush } from '../../domain/types'
@@ -47,6 +48,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
   const [held, setHeld] = useState<string | null>(null)
   const [turns, setTurns] = useState(0)
   const zoomPan = useZoomPan(view.viewBox)
+  const veil = useBoardVeil(view)
   const opened = rows.find((r) => r.id === openId)
   const mine = opened ? !opened.shared || devServer : true
   const brushes = storey.level === null ? GROUND_BRUSHES : STOREY_BRUSHES
@@ -124,15 +126,9 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
         <SurfaceRow surfaces={view.surfaces} laying={tool === 'paint' ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setTool('paint') }} />
         {storey.level === null && !piece ? <GroundGenerator surfaces={view.surfaces} generate={generateGround} /> : null}
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label={label} onClick={click}>
-          {Array.from({ length: view.bands }, (_, band) => (
-            <Fragment key={band}>
-              <SurfaceLayer view={view} band={band} />
-              {view.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
-              <RidgeLayer view={view} band={band} />
-              <SpriteLayer view={view} band={band} />
-              <ShadeLayer view={view} band={band} />
-            </Fragment>
-          ))}
+          <defs><VeilFilter /></defs>
+          {Array.from({ length: view.bands }, (_, band) => <BandLayers key={band} view={view} band={band} veiled={veil.veiled} />)}
+          <BaseLayer view={view} lit={veil.lit} setLit={veil.setLit} />
         </svg>
       </div>
     </div>

@@ -54,7 +54,9 @@ function build(view: BoardView, lift: number): BoardView {
   const elevationOf = new Map(view.cells.map((c) => [c.key, c.elevation]))
   const bandOf = new Map(view.cells.map((c) => [c.key, levels.indexOf(c.elevation)]))
 
-  const cells: BoardCellView[] = view.cells.map((c) => ({ ...c, y: c.y - rise(c.elevation), band: bandOf.get(c.key) ?? 0 }))
+  const cells: BoardCellView[] = view.cells.map((c) => ({ ...c, y: c.y - rise(c.elevation), band: bandOf.get(c.key) ?? 0, base: { x: c.x, y: c.y }, group: c.piece ?? `ground:${bandOf.get(c.key) ?? 0}` }))
+
+  const groupOf = new Map(cells.map((c) => [c.key, c.group]))
 
   // Each drop on a side that faces the viewer is a wall from the top edge of the
   // higher cell down to the same edge at the height of the lower ground; the
@@ -66,7 +68,7 @@ function build(view: BoardView, lift: number): BoardView {
     const [c, d] = [{ x: r.b.x, y: r.b.y - bottom }, { x: r.a.x, y: r.a.y - bottom }]
     const face = [a, b, c, d].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
     const foot = { x: (c.x + d.x) / 2, y: (c.y + d.y) / 2 }
-    return { ...r, band: bandOf.get(r.cell) ?? 0, a, b, foot, face, grain: getFaceGrain(a, b, foot) }
+    return { ...r, band: bandOf.get(r.cell) ?? 0, group: groupOf.get(r.cell) ?? '', a, b, foot, face, grain: getFaceGrain(a, b, foot) }
   })
 
   // What is drawn over a place on the screen: a cell of a higher band, or the
@@ -109,6 +111,7 @@ function build(view: BoardView, lift: number): BoardView {
     const edges = [0, ...s.cuts, s.art.height]
     return edges.slice(0, -1).map((low, i) => ({
       key: `${s.key}:${i}`,
+      group: s.key,
       src: s.art.src,
       band: Math.max(0, levels.findLastIndex((elevation) => elevation <= Math.max(s.base + low, s.top))),
       box,
@@ -118,4 +121,19 @@ function build(view: BoardView, lift: number): BoardView {
   const framed = [...cells, ...sprites.flatMap((s) => [{ x: s.box.x, y: s.box.y }, { x: s.box.x + s.box.width, y: s.box.y + s.box.height }])]
 
   return { ...view, front: true, bands: levels.length, cells, ridges, overhead, tokens, floor, binds, ghosts, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) }
+}
+
+// The groups of what is drawn over the middle of any of these cells, seen from
+// the front: higher ground, the walls of higher ground and the pictures of what
+// stands on it, each as part of the piece it belongs to. Nothing when the board
+// is seen from above.
+export function getVeiledGroups(view: BoardView, keys: readonly string[]): string[] {
+  if (!view.front || keys.length === 0) return []
+  const covers: { band: number; group: string; polygon: Point[] }[] = [
+    ...view.cells.map((c) => ({ band: c.band, group: c.group, polygon: CORNERS.map((p) => ({ x: c.x + p.x, y: c.y + p.y })) })),
+    ...view.ridges.map((r) => ({ band: r.band, group: r.group, polygon: parsePoints(r.face) })),
+    ...view.sprites.map((s) => ({ band: s.band, group: s.group, polygon: [{ x: s.clip.x, y: s.clip.y }, { x: s.clip.x + s.clip.width, y: s.clip.y }, { x: s.clip.x + s.clip.width, y: s.clip.y + s.clip.height }, { x: s.clip.x, y: s.clip.y + s.clip.height }] })),
+  ]
+  const groups = view.cells.filter((c) => keys.includes(c.key)).flatMap((t) => covers.filter((o) => o.band > t.band && inside(t, o.polygon)).map((o) => o.group))
+  return [...new Set(groups)]
 }

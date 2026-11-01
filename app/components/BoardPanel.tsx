@@ -2,6 +2,7 @@
 import { Fragment, memo, useState, type MouseEvent } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useBoardMaps } from '../hooks/useBoardMaps'
+import { useBoardVeil } from '../hooks/useBoardVeil'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
@@ -61,6 +62,7 @@ export function BoardPanel(){
   const look = useBoardLook()
   const [storey, setStorey] = useState<number | null | 'auto'>('auto')
   const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning } = useBoard(fromActive, look, storey)
+  const veil = useBoardVeil(view)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
@@ -151,19 +153,13 @@ export function BoardPanel(){
       <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
         onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}>
         <defs>
+          <VeilFilter />
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
           </marker>
         </defs>
-        {Array.from({ length: view.bands }, (_, band) => (
-          <Fragment key={band}>
-            <SurfaceLayer view={view} band={band} />
-            {view.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={view.hex} />)}
-            <RidgeLayer view={view} band={band} />
-            <SpriteLayer view={view} band={band} />
-            <ShadeLayer view={view} band={band} />
-          </Fragment>
-        ))}
+        {Array.from({ length: view.bands }, (_, band) => <BandLayers key={band} view={view} band={band} veiled={veil.veiled} />)}
+        <BaseLayer view={view} lit={veil.lit} setLit={veil.setLit} />
         {view.overhead.map((o) => <polygon key={`${o.key}@${o.elevation}`} points={view.hex} transform={`translate(${o.x} ${o.y})`} className='fill-good/20 stroke-good pointer-events-none' strokeWidth={0.08} strokeDasharray='0.1 0.1' />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
@@ -206,8 +202,8 @@ const LIP_OPACITY = 0.5
 // places on the higher cell's side.
 const FACE_SHADE = 0.45
 
-export function RidgeLayer({ view: whole, band }: { view: BoardView, band?: number }){
-  const idPrefix = band === undefined ? '' : `b${band}-`
+export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardView, band?: number, tag?: string }){
+  const idPrefix = band === undefined ? '' : `b${band}-${tag}`
   const view = band === undefined ? whole : { ...whole, ridges: whole.ridges.filter((r) => r.band === band) }
   const looks = new Map<string, { art: number, grain: string }>()
   view.ridges.forEach((r) => { if (r.art !== null) looks.set(`${r.art}|${r.grain}`, { art: r.art, grain: r.grain }) })
@@ -234,7 +230,7 @@ export function RidgeLayer({ view: whole, band }: { view: BoardView, band?: numb
         <g key={r.key}>
           {r.art === null ? <polygon points={r.face} className='fill-fg/30 stroke-none' /> : <polygon points={r.face} fill={`url(#${idPrefix}face-${looksIn.indexOf(`${r.art}|${r.grain}`)})`} className='stroke-none' />}
           <polygon points={r.face} fill={`url(#${idPrefix}face-shade-${r.key})`} className='stroke-none' />
-          <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />
+          {view.front ? null : <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />}
         </g>
       ))}
     </g>
@@ -244,20 +240,82 @@ export function RidgeLayer({ view: whole, band }: { view: BoardView, band?: numb
 // The pictures of the structures seen from the front, a slice to each storey,
 // drawn over the piece's own cells so that what is higher covers what is lower
 // and behind it. Each slice is the whole picture cut to the part it shows.
-export function SpriteLayer({ view, band }: { view: BoardView, band: number }){
+export function SpriteLayer({ view, band, tag = '' }: { view: BoardView, band: number, tag?: string }){
   const slices = view.sprites.filter((s) => s.band === band)
   return (
     <g className='pointer-events-none'>
       <defs>
-        {slices.map((s) => <clipPath key={s.key} id={`b${band}-slice-${s.key}`}><rect {...s.clip} /></clipPath>)}
+        {slices.map((s) => <clipPath key={s.key} id={`b${band}-${tag}slice-${s.key}`}><rect {...s.clip} /></clipPath>)}
       </defs>
-      {slices.map((s) => <image key={s.key} href={s.src} {...s.box} preserveAspectRatio='none' clipPath={`url(#b${band}-slice-${s.key})`} />)}
+      {slices.map((s) => <image key={s.key} href={s.src} {...s.box} preserveAspectRatio='none' clipPath={`url(#b${band}-${tag}slice-${s.key})`} />)}
     </g>
   )
 }
 
-export function SurfaceLayer({ view: whole, band }: { view: BoardView, band?: number }){
-  const idPrefix = band === undefined ? '' : `b${band}-`
+// What is drawn over the cell the pointer is on, or over a cell picked, is
+// blurred and faded so that the cell can be seen through it.
+const VEIL_BLUR = 0.15
+const VEIL_OPACITY = 0.45
+
+export function VeilFilter(){
+  return <filter id='veil' x='-5%' y='-5%' width='110%' height='110%'><feGaussianBlur stdDeviation={VEIL_BLUR} /></filter>
+}
+
+// What is drawn in one band. The pieces drawn over a cell the pointer is on,
+// or a cell picked, are drawn apart, blurred and faded, so that the cell can be
+// seen through them and nothing else is.
+export function BandLayers({ view, band, veiled }: { view: BoardView, band: number, veiled: string[] }){
+  const part = (behind: boolean): BoardView => {
+    const keep = (group: string) => veiled.includes(group) === behind
+    return { ...view, cells: view.cells.filter((c) => keep(c.group)), ridges: view.ridges.filter((r) => keep(r.group)), sprites: view.sprites.filter((s) => keep(s.group)) }
+  }
+  const draw = (v: BoardView, tag?: string) => (
+    <>
+      <SurfaceLayer view={v} band={band} tag={tag} />
+      {v.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
+      <RidgeLayer view={v} band={band} tag={tag} />
+      <SpriteLayer view={v} band={band} tag={tag} />
+      <ShadeLayer view={v} band={band} tag={tag} />
+    </>
+  )
+  const behind = veiled.length > 0 ? part(true) : null
+  if (!behind || !(behind.cells.some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view)}</g>
+  return (
+    <g>
+      {draw(part(false))}
+      <g filter='url(#veil)' opacity={VEIL_OPACITY}>{draw(behind, 'veiled')}</g>
+    </g>
+  )
+}
+
+// Seen from the front, a space is picked where it stands on the ground, as if
+// there were no heights: a hex over everything that is drawn, clear until the
+// pointer is on it, one to each cell. What is lifted can be reached at its foot,
+// and nothing drawn over a cell can keep it from being picked. While the
+// pointer is on one, the whole surface of the cell lights up where it is drawn:
+// its top and the walls under it.
+export function BaseLayer({ view, lit, setLit }: { view: BoardView, lit: string | null, setLit: (key: string | null) => void }){
+  const cell = lit === null ? undefined : view.cells.find((c) => c.key === lit)
+  return (
+    <>
+      {cell ? (
+        <g className='pointer-events-none'>
+          {view.ridges.filter((r) => r.cell === cell.key).map((r) => <polygon key={r.key} points={r.face} className='fill-accent/25 stroke-accent' strokeWidth={0.08} />)}
+          <polygon points={view.hex} transform={`translate(${cell.x} ${cell.y})`} className='fill-accent/25 stroke-accent' strokeWidth={0.1} />
+        </g>
+      ) : null}
+      {view.cells.filter((c) => c.base !== null).map((c) => (
+        <g key={c.key} transform={`translate(${c.base!.x} ${c.base!.y})`} className='cursor-pointer' data-q={c.cell.q} data-r={c.cell.r} onMouseEnter={() => setLit(c.key)} onMouseLeave={() => setLit(null)}>
+          <title>{cellTitle(c)}</title>
+          <polygon points={view.hex} className='fill-transparent stroke-transparent hover:stroke-fg' strokeWidth={0.1} />
+        </g>
+      ))}
+    </>
+  )
+}
+
+export function SurfaceLayer({ view: whole, band, tag = '' }: { view: BoardView, band?: number, tag?: string }){
+  const idPrefix = band === undefined ? '' : `b${band}-${tag}`
   const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
   const { frame, hex } = view
   const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
@@ -392,8 +450,8 @@ function levelsOf(cells: BoardCellView[], levelOf: (c: BoardCellView) => number)
   return [...levels.entries()].sort(([a], [b]) => a - b).map(([level, at]) => ({ level, cells: at }))
 }
 
-export function ShadeLayer({ view: whole, band }: { view: BoardView, band?: number }){
-  const idPrefix = band === undefined ? '' : `b${band}-`
+export function ShadeLayer({ view: whole, band, tag = '' }: { view: BoardView, band?: number, tag?: string }){
+  const idPrefix = band === undefined ? '' : `b${band}-${tag}`
   const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
   const { frame, hex } = view
   const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
@@ -600,21 +658,9 @@ function sameCellDrawing(a: { cell: BoardCellView, hex: string }, b: { cell: Boa
   return a.hex === b.hex && (Object.keys(a.cell) as (keyof BoardCellView)[]).every((k) => k === 'cell' || sameValue(a.cell[k], b.cell[k]))
 }
 
-export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex: string }){
-  const fill = cell.isJumpTo ? 'fill-good/40'
-    : cell.pathStep !== null ? 'fill-accent/40'
-    : cell.swept ? 'fill-accent/20'
-    : cell.zone ? ZONE_FILL[cell.zone]
-    : cell.reachable || cell.jump || cell.center ? 'fill-good/35'
-    : cell.threatened ? 'fill-bad/10'
-    : cell.fire > 0 ? 'fill-injury-2/30'
-    : cell.fuels.length > 0 ? 'fill-accent/15'
-    : cell.suffocating ? 'fill-fg/25'
-    : cell.art !== null && (cell.terrain === 'open' || cell.terrain === 'wall') ? 'fill-surface/0'
-    : TERRAIN_FILL[cell.terrain]
-  const offered = cell.reachable || cell.jump || cell.center
-  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : offered ? 'stroke-good' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null && cell.terrain !== 'wall' ? 'stroke-line/30' : 'stroke-line'
-  const title = [
+// What the cell says of itself when the pointer rests on it.
+function cellTitle(cell: BoardCellView): string {
+  return [
     cell.key,
     cell.unseen ? 'out of sight' : null,
     cell.piece !== null ? (cell.chosen ? 'the piece picked' : 'part of a piece') : null,
@@ -639,6 +685,23 @@ export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex
     cell.zone ? `explosion: ${cell.zone}` : cell.threatened ? 'in reach of the explosion' : null,
     cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,
   ].filter((s) => s !== null).join(' · ')
+}
+
+export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex: string }){
+  const fill = cell.isJumpTo ? 'fill-good/40'
+    : cell.pathStep !== null ? 'fill-accent/40'
+    : cell.swept ? 'fill-accent/20'
+    : cell.zone ? ZONE_FILL[cell.zone]
+    : cell.reachable || cell.jump || cell.center ? 'fill-good/35'
+    : cell.threatened ? 'fill-bad/10'
+    : cell.fire > 0 ? 'fill-injury-2/30'
+    : cell.fuels.length > 0 ? 'fill-accent/15'
+    : cell.suffocating ? 'fill-fg/25'
+    : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
+    : TERRAIN_FILL[cell.terrain]
+  const offered = cell.reachable || cell.jump || cell.center
+  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : offered ? 'stroke-good' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
+  const title = cellTitle(cell)
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
       <title>{title}</title>

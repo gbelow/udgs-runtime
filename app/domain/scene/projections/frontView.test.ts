@@ -22,8 +22,8 @@ describe('the board seen from the front', () => {
     const front = getFrontView(view, 0.3)
     expect(front.cells.map((c) => c.key)).toEqual(view.cells.map((c) => c.key))
     front.cells.forEach((c, i) => {
-      const { x, y, band, ...same } = c
-      const { x: x0, y: y0, band: band0, ...was } = view.cells[i]
+      const { x, y, band, base, group, ...same } = c
+      const { x: x0, y: y0, band: band0, base: base0, group: group0, ...was } = view.cells[i]
       expect(same).toEqual(was)
     })
   })
@@ -31,6 +31,13 @@ describe('the board seen from the front', () => {
   it('moves nothing when a metre lifts nothing', () => {
     const front = getFrontView(view, 0)
     expect(front.cells.map((c) => [c.x, c.y])).toEqual(view.cells.map((c) => [c.x, c.y]))
+  })
+
+  // a plateau drawn over the cells behind it left them with nothing to click
+  it('picks every space where it stands on the ground, whatever its height', () => {
+    const front = getFrontView(view, 0.6)
+    front.cells.forEach((c, i) => expect(c.base).toEqual({ x: view.cells[i].x, y: view.cells[i].y }))
+    expect(view.cells.every((c) => c.base === null)).toBe(true)
   })
 
   it('draws a wall only for a drop that exists', () => {
