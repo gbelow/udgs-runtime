@@ -288,7 +288,7 @@ export type BoardExtent = z.infer<typeof BoardExtentSchema>
 // `lattice` is a floor stood on that closes nothing under it (leaves, a
 // grating): it is seen and shot through, a climb up a face beside it goes on
 // through it, and one with nothing under it to climb is reached only from
-// within the climber's start.
+// within the climber's start and left only by hanging from it.
 export const LevelCellSchema = TerrainCellSchema.extend({
   hole: z.boolean().default(false),
   lattice: z.boolean().default(false),

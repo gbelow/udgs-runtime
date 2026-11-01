@@ -68,7 +68,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   is under a roof and has no light of its own; it takes the light of an open floor outside it sees
   through a window or a doorway, a step darker past `WINDOW_LIGHT.full` and none past `fading`, and a
   source's, which shines from its holder's eyes and never through a solid floor. A `lattice` storey cell (leaves, a grating) is stood on like a floor but
-  closes nothing under it: a line passes it, and a climb up a face beside it is not stopped by it. One with neither raised ground nor a wall under it (a canopy over open ground) has nothing to climb, so it is reached only within the climber's start, as a stand up (`Face.overhead`). The move search reaches each cell once, the first way it comes there,
+  closes nothing under it: a line passes it, and a climb up a face beside it is not stopped by it. One with neither raised ground nor a wall under it (a canopy over open ground) has nothing to climb, so it is reached only within the climber's start, as a stand up (`Face.overhead`), and a climb down from it goes no further than the hang (`Face.bare`): the climber then jumps off or lets go. The move search reaches each cell once, the first way it comes there,
   so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).
   The fight's board is looked at from a height (`projections/storeyView.ts`): the cells are drawn
   as the floor someone there stands on, open air veiled, others on another floor drawn apart;

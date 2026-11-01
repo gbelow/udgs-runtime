@@ -207,12 +207,10 @@ describe('climbing a tree with branches', () => {
 })
 
 describe('climbing down a tree', () => {
-  // Broke as: a climber on a lattice branch beside the trunk could not climb
-  // down through it to the ground of their own cell, and a climb down ended
-  // prone where the table rules it ends standing.
-  it('climbs down from a branch beside the trunk to the ground under it, standing', () => {
-    const h = tree([BRANCHES[0]])
-    climb(h, [1, 0], { floor: BRANCHES[0], cell: [0, 0] })
+  // Broke as: a climb down ended prone where the table rules it ends standing.
+  it('climbs down from a branch of the trunk to the ground beside it, standing', () => {
+    const h = tree()
+    climb(h, [1, 0], { floor: BRANCHES[0], cell: [1, 0] })
     climb(h, [0, 0])
     expect(placement(h, 'Ann')).toMatchObject({ cell: { q: 0, r: 0 }, elevation: 0, climb: null })
     expect(hasAffliction(h.state().characters[h.idOf('Ann')], 'prone')).toBe(false)

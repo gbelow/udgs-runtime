@@ -10,7 +10,7 @@ import { getDegree } from '../../../play/test'
 import { isCampaignCharacter } from '../../../utils'
 import { getHangingLanding } from './ground'
 import { getMoveOrigin, getPathPlacements } from './waypoint'
-import { getClimbBack, getClimbStops, getClimbTarget, getTerrainAt } from './board'
+import { getClimbBack, getClimbStops, getClimbTarget, getTerrainAt, type Footing } from './board'
 import { getMoveHeld } from '../heldRoll'
 
 // Where the ground drops or rises too far to be walked: the cliffs of a move,
@@ -60,9 +60,10 @@ export function getClimbStart(c: Character, leap: boolean): number {
 // gripped as the face's higher side says. `passes` are how far from the floor
 // set out from each floor met on the way is. `own` is a climb up or down the
 // climber's own cell, and `overhead` one up to a lattice with neither raised
-// ground nor a wall under it to climb (a canopy over open ground). `back` is
+// ground nor a wall under it to climb (a canopy over open ground), and
+// `bare` one down from such a lattice, which has nothing to climb down. `back` is
 // a climber hanging partway down going back onto the floor they set out from.
-type Face = { from: Placement; height: number; up: boolean; low: Coord; high: Coord; floor: number; bound: number; climbDL: number | null; passes: number[]; own: boolean; overhead: boolean; back: boolean }
+type Face = { from: Placement; height: number; up: boolean; low: Coord; high: Coord; floor: number; bound: number; climbDL: number | null; passes: number[]; own: boolean; overhead: boolean; bare: boolean; back: boolean }
 
 function getFace(state: SceneState, action: MoveAction): Face | null {
   const from = getMoveOrigin(state, action)
@@ -76,10 +77,13 @@ function getFace(state: SceneState, action: MoveAction): Face | null {
   const height = Math.abs(bound.floor - here)
   const passes = [...new Set(getClimbStops(board, from.cell, here, to).filter((s) => (s.floor > here) === up).map((s) => Math.abs(s.floor - here)).filter((d) => d > 0 && d < height))].sort((a, b) => a - b)
   const own = sameCell(from.cell, to)
-  const ground = board.terrain[coordKey(to)]
-  const lattice = bound.level !== null && !!board.levels[bound.level].terrain[coordKey(bound.cell)]?.lattice
-  const overhead = up && lattice && !ground?.blocking && bound.floor > (ground?.elevation ?? 0)
-  return { from, height, up, low: up ? from.cell : bound.cell, high: up ? bound.cell : from.cell, floor: here, bound: bound.floor, climbDL: bound.climbDL, passes, own, overhead, back: from.climb !== null && bound.floor === here && sameCell(bound.cell, from.cell) }
+  const unheld = (cell: Coord, floor: Footing) => {
+    const ground = board.terrain[coordKey(cell)]
+    return floor.level !== null && !!board.levels[floor.level].terrain[coordKey(cell)]?.lattice && !ground?.blocking && floor.floor > (ground?.elevation ?? 0)
+  }
+  const overhead = up && unheld(to, bound)
+  const bare = own && !up && unheld(from.cell, getTerrainAt(board, from.cell, here))
+  return { from, height, up, low: up ? from.cell : bound.cell, high: up ? bound.cell : from.cell, floor: here, bound: bound.floor, climbDL: bound.climbDL, passes, own, overhead, bare, back: from.climb !== null && bound.floor === here && sameCell(bound.cell, from.cell) }
 }
 
 // How a climb goes along its face, in metres from the floor it set out from:
@@ -151,7 +155,7 @@ export function getClimbPlan(state: SceneState, action: MoveAction): ClimbPlan |
   const height = getHeight(c)
   const trivial = (first && face.height <= credit) || (face.back && lead <= height)
   const whole = climbFace(face, height, lead, feet, Infinity)
-  const course = trivial ? { ...whole, metres: 0, stands: 0 } : climbFace(face, height, lead, feet, action.metres ?? Infinity)
+  const course = trivial ? { ...whole, metres: 0, stands: 0 } : climbFace(face, height, lead, feet, face.bare ? 0 : action.metres ?? Infinity)
   const along = (d: number) => (face.up ? face.floor + d : face.floor - d)
   const hang = canHang(face, first, trivial) && course.metres === 0
   return {
@@ -199,7 +203,7 @@ export function getClimbSteps(state: SceneState, action: MoveAction): { metres: 
     remaining: plan.remaining,
     hang: plan.hang,
     less: plan.metres > least ? plan.metres - 1 : null,
-    more: plan.metres < plan.remaining ? plan.metres + 1 : null,
+    more: !plan.face.bare && plan.metres < plan.remaining ? plan.metres + 1 : null,
   }
 }
 
@@ -239,11 +243,13 @@ export function getClimbDL(state: SceneState, action: MoveAction): number | null
 // down one face with something to hold, unless it is no taller than the
 // climber, and one already under way goes on up the face it is on.
 // The table's ruling: a lattice with nothing under it to climb is reached
-// only from within the climber's start.
+// only from within the climber's start, and left only by hanging from it
+// (then jumping off or letting go), or where the ground is within that start.
 export function isClimbable(state: SceneState, action: MoveAction): boolean {
   const plan = getClimbPlan(state, action)
   const hanging = plan?.face.from.climb
   if (plan?.face.overhead) return plan.trivial
+  if (plan?.face.bare) return plan.trivial || plan.hang
   if (plan?.face.back) return plan.trivial
   return !!plan && (!hanging || sameCell(hanging.to, action.path[0])) && (plan.trivial || plan.hang || getClimbDL(state, action) !== null)
 }

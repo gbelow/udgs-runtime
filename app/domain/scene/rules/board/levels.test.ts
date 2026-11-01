@@ -8,7 +8,7 @@ import { coordKey } from './geometry'
 import { firesAcross, getCoverAcross, getMeleeGap, hasLineOfSight, seesAcross, type Eyes } from './board'
 import { getHeight } from '../../../character/rules/size'
 import { canStandAt } from './ground'
-import { getClimbPlan, getMoveFall, needsClimbTest } from './cliff'
+import { getClimbPlan, getClimbSteps, getMoveFall, needsClimbTest } from './cliff'
 import { getMoveDestination } from './waypoint'
 import { getMoveFacts, getMovePrice, getPostureCost, isPathLegal } from '../move'
 
@@ -230,9 +230,9 @@ describe('melee reaches up and down', () => {
 // climbed onto only by whoever reaches it, and that is a stand up
 // (combat.tex "Climbing": "Any climb with height equal or lower than the
 // character's height can be done by just standing up in the new location").
-// A climber setting out down from one may stop at their start, hanging under
-// it, for the price of standing up and with no test, and stand back up on it
-// the same way.
+// It has nothing to climb down either: a climber setting out down from one
+// stops at their start, hanging under it (then jumps off or lets go), for the
+// price of standing up and with no test, and stands back up on it the same way.
 describe('climbing a canopy', () => {
   const cell = (q: number): Coord => ({ q, r: 0 })
   const climber = { ...makeCampaignCharacter({ name: 'a' }), id: 'a' }
@@ -270,6 +270,15 @@ describe('climbing a canopy', () => {
     expect(needsClimbTest(on, hang)).toBe(false)
     expect(getMovePrice(on, climber, hang, 0)).toEqual(stand)
     expect(getMoveFacts(on, hang).hang?.elevation).toBe(HIGH - HEIGHT)
+  })
+
+  it('climbs no further down from the canopy than the hang, nor on down from hanging', () => {
+    const on = scene(cell(1), HIGH)
+    expect(getMoveFacts(on, climb(cell(1))).hang?.elevation).toBe(HIGH - HEIGHT)
+    expect(getClimbSteps(on, climb(cell(1)))?.more).toBeNull()
+    const hang = getMoveFacts(on, climb(cell(1), 0)).hang!
+    const hanging = { ...on, board: { ...on.board!, placements: { a: PlacementSchema.parse({ cell: cell(1), elevation: hang.elevation, climb: hang }) } } }
+    expect(isPathLegal(hanging, climb(cell(1)))).toBe(false)
   })
 
   it('climbs back onto the canopy from hanging under it for the price of standing up', () => {
