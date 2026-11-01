@@ -267,7 +267,11 @@ export type { BoardMode }
 
 // A see-through floor (a lattice) over the floor a cell is drawn as, drawn
 // over it at its own height.
-export type BoardOverheadView = { key: string; x: number; y: number; elevation: number }
+// A lattice over the floor a cell is drawn as (`below` metres up),
+// `elevation` metres up, and the picture of the surface laid on it, null for
+// none; the middle of the shadow it casts on that floor; and, seen from the
+// front, the sides of its leaves facing the viewer, each a polygon's points.
+export type BoardOverheadView = { key: string; cell: Coord; x: number; y: number; elevation: number; below: number; art: CellArt | null; shadow: { x: number; y: number }; slab: string[] }
 
 export type BoardView = {
   present: boolean

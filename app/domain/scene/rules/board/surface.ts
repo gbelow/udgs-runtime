@@ -64,8 +64,17 @@ export type CellArt = SurfaceArt & { bleed: number; roughness: number; bank: num
 // board's surface is drawn with that surface's first.
 export function getCellArt(board: Board, key: string): CellArt | null {
   const surface = getCellSurface(board, key)
-  if (!surface) return null
-  const laid = getSurfaceSource(board, key)?.art ?? null
+  return surface ? withArt(surface, getSurfaceSource(board, key)?.art ?? null) : null
+}
+
+// The picture a storey's cell is drawn with: that of the surface laid on it,
+// none where none was.
+export function getFloorArt(cell: TerrainCell | undefined): CellArt | null {
+  const surface = cell?.surface ? getSurface(cell.surface) : null
+  return surface ? withArt(surface, cell?.art ?? null) : null
+}
+
+function withArt(surface: Surface, laid: string | null): CellArt | null {
   const art = surface.arts.find((a) => a.src === laid) ?? surface.arts[0]
   return art ? { ...art, bleed: surface.bleed, roughness: surface.roughness, bank: surface.bank, priority: surface.priority } : null
 }

@@ -1,4 +1,5 @@
-import { frameHexes, getFaceGrain, hexBounds } from '../rules/board/geometry'
+import { DIRECTIONS, add, coordKey, frameHexes, getFaceGrain, hexBounds, hexSide } from '../rules/board/geometry'
+import type { Direction } from '../types'
 import type { BoardBindView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from './boardView'
 
 // The board seen from the front rather than from above: ground that is higher
@@ -9,7 +10,12 @@ import type { BoardBindView, BoardCellView, BoardFloorItemView, BoardGhostView, 
 
 // The sides of a flat-top hex that face the viewer, by direction: south-east,
 // south-west and south.
-const FRONT_SIDES: readonly number[] = [0, 4, 5]
+const FRONT_SIDES: readonly Direction[] = [0, 4, 5]
+const isFrontSide = (side: number) => (FRONT_SIDES as readonly number[]).includes(side)
+
+// The metres of leaves a lattice is drawn with under its floor, no more than
+// the height it is over the floor under it.
+const LEAVES_DEPTH = 1
 
 type Point = { x: number; y: number }
 
@@ -77,7 +83,7 @@ function build(view: BoardView, lift: number): BoardView {
   // Each drop on a side that faces the viewer is a wall from the top edge of the
   // higher cell down to the same edge at the height of the lower ground; the
   // other drops are hidden behind their own cell.
-  const ridges: BoardRidgeView[] = view.ridges.filter((r) => FRONT_SIDES.includes(r.side)).map((r) => {
+  const ridges: BoardRidgeView[] = view.ridges.filter((r) => isFrontSide(r.side)).map((r) => {
     const top = rise(topOf.get(r.cell) ?? 0)
     const bottom = top - rise(r.height)
     const [a, b] = [{ x: r.a.x, y: r.a.y - top }, { x: r.b.x, y: r.b.y - top }]
@@ -109,7 +115,20 @@ function build(view: BoardView, lift: number): BoardView {
   })
 
   const lifted = new Map(view.tokens.map((t) => [t.id, rise(t.elevation)]))
-  const overhead: BoardOverheadView[] = view.overhead.map((o) => ({ ...o, y: o.y - rise(o.elevation) }))
+  // a lattice is lifted to its height, its shadow left on the floor under it,
+  // and the sides of its leaves facing the viewer hang under its edge where
+  // no lattice at its height is beside it
+  const layered = new Set(view.overhead.map((o) => `${o.key}@${o.elevation}`))
+  const overhead: BoardOverheadView[] = view.overhead.map((o) => {
+    const top = rise(o.elevation)
+    const bottom = rise(o.elevation - Math.min(LEAVES_DEPTH, o.elevation - o.below))
+    const slab = FRONT_SIDES.filter((d) => !layered.has(`${coordKey(add(o.cell, DIRECTIONS[d]))}@${o.elevation}`)).map((d) => {
+      const [a, b] = hexSide(d)
+      return [{ x: a.x, y: a.y - top }, { x: b.x, y: b.y - top }, { x: b.x, y: b.y - bottom }, { x: a.x, y: a.y - bottom }]
+        .map((p) => `${(o.x + p.x).toFixed(4)},${(o.y + p.y).toFixed(4)}`).join(' ')
+    })
+    return { ...o, y: o.y - top, shadow: { x: o.x, y: o.y - rise(o.below) }, slab }
+  })
   const floor: BoardFloorItemView[] = view.floor.map((f) => ({ ...f, y: f.y - rise(elevationOf.get(f.cell) ?? 0) }))
   const binds: BoardBindView[] = view.binds.map((b) => ({
     ...b,

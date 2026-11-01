@@ -78,7 +78,12 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   drawn as the highest such storey, its roof, so a room is drawn as far as their sight reaches
   into it (`getCellSenser` takes the line from their eyes to someone as tall on that floor). A
   lattice is drawn see-through: the solid floor under it, and the lattice over it at its own
-  height (`overhead`), lifted like the ground in the front view, where a roofed house stands as
+  height (`overhead`, with the surface laid on it, faded, one at the top of raised ground
+  included, casting a shadow on the floor under it, set aside by its height from above and left
+  on that floor from the front, where the sides of its leaves facing the viewer hang under it), and from its own height one with a surface laid on it is drawn as that surface,
+  full width, even on top of raised ground; a bare one inside raised ground (a ledge) is drawn as
+  that ground. A storey's floor is drawn only with a surface laid on it, never the board's or the
+  ground a piece covers, lifted like the ground in the front view, where a roofed house stands as
   a block.
 - **Pieces.** A structure (a house, a tree) is laid on the board as one piece
   (`rules/board/piece.ts`): its cells are written into `terrain` and its storeys into `levels`,

@@ -162,7 +162,7 @@ export function BoardPanel(){
         </defs>
         {Array.from({ length: view.bands }, (_, band) => <BandLayers key={band} view={view} band={band} veiled={veil.veiled} />)}
         <BaseLayer view={view} lit={veil.lit} setLit={veil.setLit} />
-        {view.overhead.map((o) => <polygon key={`${o.key}@${o.elevation}`} points={view.hex} transform={`translate(${o.x} ${o.y})`} className='fill-good/20 stroke-good pointer-events-none' strokeWidth={0.08} strokeDasharray='0.1 0.1' />)}
+        <OverheadLayer view={view} />
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
@@ -250,6 +250,44 @@ export function SpriteLayer({ view, band, tag = '' }: { view: BoardView, band: n
         {slices.map((s) => <clipPath key={s.key} id={`b${band}-${tag}slice-${s.key}`}><rect {...s.clip} /></clipPath>)}
       </defs>
       {slices.map((s) => <image key={s.key} href={s.src} {...s.box} preserveAspectRatio='none' clipPath={`url(#b${band}-${tag}slice-${s.key})`} />)}
+    </g>
+  )
+}
+
+// The lattices over the floors drawn: the shadow each casts on the floor under
+// it, then, seen from the front, the sides of its leaves, darker, and its top:
+// the surface laid on it, faded so that what is under it shows, or a dashed
+// outline where none was laid.
+const OVERHEAD_OPACITY = 0.6
+const OVERHEAD_SHADOW_BLUR = 0.25
+
+export function OverheadLayer({ view }: { view: BoardView }){
+  const arts = [...new Map(view.overhead.flatMap((o) => (o.art ? [[o.art.src, o.art] as const] : []))).values()]
+  const patternOf = (src: string) => `overhead-${arts.findIndex((a) => a.src === src)}`
+  return (
+    <g className='pointer-events-none'>
+      <defs>
+        {arts.map((art, i) => (
+          <pattern key={art.src} id={`overhead-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile} patternTransform={`translate(${art.offsetX} ${art.offsetY})`}>
+            <image href={art.src} width={art.tile} height={art.tile} />
+          </pattern>
+        ))}
+        <filter id='overhead-shadow' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation={OVERHEAD_SHADOW_BLUR} /></filter>
+      </defs>
+      <g filter='url(#overhead-shadow)'>
+        {view.overhead.map((o) => <polygon key={`${o.key}@${o.elevation}:shadow`} points={view.hex} transform={`translate(${o.shadow.x} ${o.shadow.y})`} className='fill-black/35' />)}
+      </g>
+      <g opacity={OVERHEAD_OPACITY}>
+        {view.overhead.flatMap((o) => o.slab.map((points, i) => (
+          <g key={`${o.key}@${o.elevation}:slab${i}`}>
+            <polygon points={points} fill={o.art ? `url(#${patternOf(o.art.src)})` : undefined} className={o.art ? undefined : 'fill-good/20'} />
+            <polygon points={points} className='fill-black/40' />
+          </g>
+        )))}
+      </g>
+      {view.overhead.map((o) => o.art
+        ? <polygon key={`${o.key}@${o.elevation}`} points={view.hex} transform={`translate(${o.x} ${o.y})`} fill={`url(#${patternOf(o.art.src)})`} opacity={OVERHEAD_OPACITY} />
+        : <polygon key={`${o.key}@${o.elevation}`} points={view.hex} transform={`translate(${o.x} ${o.y})`} className='fill-good/20 stroke-good' strokeWidth={0.08} strokeDasharray='0.1 0.1' />)}
     </g>
   )
 }
