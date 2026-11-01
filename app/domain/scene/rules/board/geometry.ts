@@ -197,11 +197,17 @@ export function toPlane(c: Coord): { x: number; y: number } {
   return { x: 1.5 * c.q, y: Math.sqrt(3) * (c.r + c.q / 2) }
 }
 
+// The corners of a hex about its centre, `scale` times a unit hex, as SVG
+// polygon points.
+export function getHexPoints(scale: number): string {
+  return Array.from({ length: 6 }, (_, i) => {
+    const angle = (Math.PI / 180) * 60 * i
+    return `${(scale * Math.cos(angle)).toFixed(4)},${(scale * Math.sin(angle)).toFixed(4)}`
+  }).join(' ')
+}
+
 // The corners of a unit hex about its centre, as SVG polygon points.
-export const HEX_POINTS = Array.from({ length: 6 }, (_, i) => {
-  const angle = (Math.PI / 180) * 60 * i
-  return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
-}).join(' ')
+export const HEX_POINTS = getHexPoints(1)
 
 // The two corners of the side of a unit hex about its centre that faces the
 // neighbour in `direction`.

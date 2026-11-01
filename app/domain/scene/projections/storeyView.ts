@@ -47,7 +47,7 @@ export function getViewEye(state: SeenScene, picked: number | null | 'auto'): st
 }
 
 // What the cell looks like is the drawn floor's; what it offers is the view's.
-const DRAWN: (keyof BoardCellView)[] = ['terrain', 'strength', 'elevation', 'wall', 'elevationLabel', 'fire', 'fuels', 'suffocating', 'visibility', 'noise', 'climbDL', 'test', 'soft', 'surface', 'art', 'bledInto', 'zone']
+const DRAWN: (keyof BoardCellView)[] = ['terrain', 'strength', 'elevation', 'wall', 'width', 'around', 'hex', 'elevationLabel', 'fire', 'fuels', 'suffocating', 'visibility', 'noise', 'climbDL', 'test', 'soft', 'surface', 'art', 'bledInto', 'zone']
 
 const cache = new WeakMap<BoardView, Map<string, BoardView>>()
 
@@ -120,7 +120,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
     const elsewhere = !!placement && !!look && Math.abs(getTerrainAt(board, placement.cell, placement.elevation).floor - look.top.floor) >= FALL.minHeight
     return { ...t, elsewhere }
   })
-  const seen = { ...view, cells, tokens, overhead, arts: flat.arts, ridges: flat.ridges, faces: flat.faces, bands: flat.bands }
+  const seen = { ...view, cells, tokens, overhead, arts: flat.arts, ridges: flat.ridges, rims: flat.rims, faces: flat.faces, bands: flat.bands }
   cache.set(view, (cache.get(view) ?? new Map()).set(memo, seen))
   return seen
 }

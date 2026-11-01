@@ -3,7 +3,7 @@ import type { TerrainBrush } from '../../types'
 import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
-import { BRUSH_RADIUS_MOST, GROUND_ONLY_BRUSHES } from '../../lists'
+import { BRUSH_RADIUS_MOST, DRAWN_WIDTH_LEAST, DRAWN_WIDTH_STEP, GROUND_ONLY_BRUSHES } from '../../lists'
 import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
 import { getSurface, pickArt } from '../rules/board/surface'
@@ -219,7 +219,8 @@ const TOGGLED: Partial<Record<TerrainBrush, (cell: TerrainCell) => boolean>> = {
 // `louder` and `quieter` step its noise (combat.tex "Actions in stealth"); the others set what the cell is, and `clear` returns it to
 // open ground by forgetting it, putting out whatever burns or hangs there. A
 // cell of a piece is left alone. `rise` and `sink` step the elevation half a
-// metre, a stair's step, under a cliff. With a `level`, the brush paints that
+// metre, a stair's step, under a cliff. `thinner` and `wider` step how much of
+// its hex the cell's raised ground is drawn across. With a `level`, the brush paints that
 // storey instead (`paintStorey`).
 export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0, level: number | null = null): Updater {
   return (state) => {
@@ -391,6 +392,8 @@ function paintedCell<T extends TerrainCell>(current: T, brush: TerrainBrush): T 
     case 'lower': return { ...current, elevation: current.elevation - 1 }
     case 'rise': return { ...current, elevation: current.elevation + 0.5 }
     case 'sink': return { ...current, elevation: current.elevation - 0.5 }
+    case 'thinner': return { ...current, width: Math.max(DRAWN_WIDTH_LEAST, current.width - DRAWN_WIDTH_STEP) }
+    case 'wider': return { ...current, width: Math.min(1, current.width + DRAWN_WIDTH_STEP) }
     case 'floor': case 'hole': case 'lattice': return current
     case 'deepen': return { ...current, depth: current.depth + 1 }
     case 'shoal': return { ...current, depth: Math.max(0, current.depth - 1) }

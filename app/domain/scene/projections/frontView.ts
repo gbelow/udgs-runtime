@@ -28,6 +28,11 @@ function inside(p: Point, polygon: readonly Point[]): boolean {
   return true
 }
 
+// The corners a cell is drawn with, where it is drawn.
+function outline(c: BoardCellView): Point[] {
+  return CORNERS.map((p) => ({ x: c.x + p.x * c.width, y: c.y + p.y * c.width }))
+}
+
 function parsePoints(points: string): Point[] {
   return points.split(' ').map((pair) => {
     const [x, y] = pair.split(',').map(Number)
@@ -63,6 +68,9 @@ function build(view: BoardView, lift: number): BoardView {
   const bandOf = new Map(view.cells.map((c) => [c.key, standing(c) > 0 ? bandAt(c.y) : 0]))
 
   const cells: BoardCellView[] = view.cells.map((c) => ({ ...c, y: c.y - rise(standing(c)), band: bandOf.get(c.key) ?? 0, base: { x: c.x, y: c.y }, group: c.piece ?? (standing(c) > 0 ? 'ground:raised' : 'ground:flat') }))
+  // the ground around the foot of a thinner top, at its own height, in the
+  // band of the top's row unless it is the ground at its own height
+  const rims: BoardCellView[] = view.rims.map((c) => ({ ...c, y: c.y - rise(c.around), band: c.around > 0 ? bandAt(c.y) : 0, group: c.piece ?? (c.around > 0 ? 'ground:raised' : 'ground:flat') }))
 
   const groupOf = new Map(cells.map((c) => [c.key, c.group]))
 
@@ -82,7 +90,7 @@ function build(view: BoardView, lift: number): BoardView {
   // What is drawn over a place on the screen: a cell of a higher band, or the
   // wall under one.
   const covers: { band: number; polygon: Point[] }[] = [
-    ...cells.map((c) => ({ band: c.band, polygon: CORNERS.map((p) => ({ x: c.x + p.x, y: c.y + p.y })) })),
+    ...[...rims, ...cells].map((c) => ({ band: c.band, polygon: outline(c) })),
     ...ridges.map((r) => ({ band: r.band, polygon: parsePoints(r.face) })),
   ]
   const tokens: BoardTokenView[] = view.tokens.map((t) => {
@@ -128,7 +136,7 @@ function build(view: BoardView, lift: number): BoardView {
   })
   const framed = [...cells, ...sprites.flatMap((s) => [{ x: s.box.x, y: s.box.y }, { x: s.box.x + s.box.width, y: s.box.y + s.box.height }])]
 
-  return { ...view, front: true, bands: rows.length + 1, cells, ridges, overhead, tokens, floor, binds, ghosts, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) }
+  return { ...view, front: true, bands: rows.length + 1, cells, rims, ridges, overhead, tokens, floor, binds, ghosts, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) }
 }
 
 // The groups of what is drawn over the middle of any of these cells, seen from
@@ -138,7 +146,7 @@ function build(view: BoardView, lift: number): BoardView {
 export function getVeiledGroups(view: BoardView, keys: readonly string[]): string[] {
   if (!view.front || keys.length === 0) return []
   const covers: { band: number; group: string; polygon: Point[] }[] = [
-    ...view.cells.map((c) => ({ band: c.band, group: c.group, polygon: CORNERS.map((p) => ({ x: c.x + p.x, y: c.y + p.y })) })),
+    ...[...view.rims, ...view.cells].map((c) => ({ band: c.band, group: c.group, polygon: outline(c) })),
     ...view.ridges.map((r) => ({ band: r.band, group: r.group, polygon: parsePoints(r.face) })),
     ...view.sprites.map((s) => ({ band: s.band, group: s.group, polygon: [{ x: s.clip.x, y: s.clip.y }, { x: s.clip.x + s.clip.width, y: s.clip.y }, { x: s.clip.x + s.clip.width, y: s.clip.y + s.clip.height }, { x: s.clip.x, y: s.clip.y + s.clip.height }] })),
   ]

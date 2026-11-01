@@ -181,6 +181,9 @@ export const TerrainCellSchema = z.object({
   // metres of water below the surface, which is the cell's elevation
   depth: num.default(0),
   elevation: num.default(0),
+  // how much of its hex the cell's raised ground is drawn across, 1 the whole
+  // of it: a pillar, a trunk. Only a way of drawing it; the rules read none of it.
+  width: num.min(0).max(1).default(1),
   // combat.tex "Fall damage": "Soft surfaces, like sand or water halve the
   // damage"; water is soft whatever this says
   soft: z.boolean().default(false),

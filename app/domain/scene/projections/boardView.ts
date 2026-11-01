@@ -2,7 +2,7 @@ import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, Li
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { DIRECTIONS, HEX_POINTS, ROTATIONS, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { DIRECTIONS, HEX_POINTS, ROTATIONS, getHexPoints, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
@@ -48,6 +48,14 @@ export type BoardCellView = {
   // metres a wall in the cell is drawn standing above its ground, 0 for none:
   // up to the lowest storey laid over it, else a standard height
   wall: number
+  // how much of its hex the cell's top is drawn across, 1 for the whole of it:
+  // less only for raised ground painted thinner that stands over the lowest
+  // ground beside it, `around` metres up, which is drawn around its foot
+  // (`BoardView.rims`); `hex` is the corners of that thinner top, null for the
+  // board's own `hex`
+  width: number
+  around: number
+  hex: string | null
   // seen from the front, where the cell stands on the ground whatever its
   // height: the space a click there picks; null where the board is seen from
   // above and the cell is picked where it is drawn
@@ -280,6 +288,10 @@ export type BoardView = {
   arts: CellArt[]
   cells: BoardCellView[]
   ridges: BoardRidgeView[]
+  // the ground around the foot of every cell drawn thinner than its hex, one
+  // to each such cell under its key and `:rim`, at the height `around` and
+  // drawn before it; plain ground, with nothing offered on it
+  rims: BoardCellView[]
   overhead: BoardOverheadView[]
   // the pictures the cliffs are drawn with, which a ridge's `art` indexes
   faces: SurfaceArt[]
@@ -316,7 +328,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -405,6 +417,9 @@ function buildBoardView(state: SeenScene): BoardView {
       y,
       band: 0,
       wall: terrain?.blocking ? getWallHeight(board, key, terrain.elevation) : 0,
+      width: terrain?.width ?? 1,
+      around: 0,
+      hex: null,
       base: null,
       group: '',
       terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
@@ -449,7 +464,7 @@ function buildBoardView(state: SeenScene): BoardView {
   const drawing = found.map((_, i) => i).sort((a, b) => compareArts(found[a], found[b]))
   const arts = drawing.map((i) => found[i])
   const place = new Map(drawing.map((from, to) => [from, to]))
-  const cells: BoardCellView[] = unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null }))
+  const cells: BoardCellView[] = getThinTops(unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null })))
 
   const awaited = new Set(getAwaited(state))
   const tokens: BoardTokenView[] = Object.entries(board.placements).flatMap(([id, placement]) => {
@@ -517,6 +532,7 @@ function buildBoardView(state: SeenScene): BoardView {
     hex: HEX_POINTS,
     cells,
     ...getRidges(board, cells),
+    rims: getRims(cells),
     standing: getStanding(board, cells),
     sprites: [],
     overhead: [],
@@ -622,6 +638,29 @@ function getWallHeight(board: Board, key: string, elevation: number): number {
   return Number.isFinite(ceiling) ? ceiling - elevation : WALL_DRAWN_HEIGHT
 }
 
+// Each cell's top: drawn thinner than its hex where it is painted so and stands
+// over the lowest ground beside it on the board, which is drawn around its
+// foot; else across its whole hex, its edge as high as its top.
+function getThinTops(cells: BoardCellView[]): BoardCellView[] {
+  const groundAt = new Map(cells.map((c) => [c.key, c.elevation]))
+  return cells.map((c) => {
+    const top = c.elevation + c.wall
+    const beside = ROTATIONS.flatMap((d) => groundAt.get(coordKey(add(c.cell, DIRECTIONS[d]))) ?? [])
+    const around = Math.min(top, ...beside)
+    return c.width < 1 && around < top ? { ...c, around, hex: getHexPoints(c.width) } : { ...c, width: 1, around: top }
+  })
+}
+
+// The ground around the foot of every cell drawn thinner than its hex: the
+// cell's own ground at the height beside it, with nothing on it.
+function getRims(cells: BoardCellView[]): BoardCellView[] {
+  return cells.filter((c) => c.width < 1).map((c) => ({
+    ...c, key: `${c.key}:rim`, wall: 0, width: 1, hex: null, elevation: c.around, elevationLabel: '', terrain: 'open', strength: null,
+    fire: 0, fuels: [], suffocating: false, noise: 0, climbDL: null, test: null, occupants: [], reachable: null, pathStep: null, swept: false,
+    isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, items: [], chosen: false, storey: null,
+  }))
+}
+
 // Every side where ground drops a cliff's height or more to the neighbour, read
 // off the two elevations, so that nothing marks which way a cliff faces: the
 // higher cell is the ridge. Each is drawn with the face of the higher cell's
@@ -635,16 +674,16 @@ function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeVi
     faces.push(face)
     return faces.length - 1
   }
-  const standsAt = new Map(cells.map((c) => [c.key, c.elevation + c.wall]))
+  const edgeAt = new Map(cells.map((c) => [c.key, c.around]))
   const ridges = cells.flatMap((c) => ROTATIONS.flatMap((d) => {
     const next = add(c.cell, DIRECTIONS[d])
-    const low = standsAt.get(coordKey(next)) ?? board.terrain[coordKey(next)]?.elevation ?? 0
     const high = c.elevation + c.wall
+    const low = c.width < 1 ? c.around : edgeAt.get(coordKey(next)) ?? board.terrain[coordKey(next)]?.elevation ?? 0
     if (!isCliff(low, high) || low > high) return []
     const height = high - low
     const [p, q] = hexSide(d)
-    const a = { x: c.x + p.x, y: c.y + p.y }
-    const b = { x: c.x + q.x, y: c.y + q.y }
+    const a = { x: c.x + p.x * c.width, y: c.y + p.y * c.width }
+    const b = { x: c.x + q.x * c.width, y: c.y + q.y * c.width }
     const away = toPlane(DIRECTIONS[d])
     const depth = Math.min(FACE_MOST, FACE_PER_METRE * height) / Math.hypot(away.x, away.y)
     const [dx, dy] = [away.x * depth, away.y * depth]

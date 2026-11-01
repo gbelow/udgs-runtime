@@ -35,6 +35,8 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   lower: '−1 m',
   rise: '+½ m',
   sink: '−½ m',
+  thinner: 'thinner',
+  wider: 'wider',
   deepen: 'deeper',
   shoal: 'shallower',
   harder: 'DL +1',
@@ -267,19 +269,23 @@ export function VeilFilter(){
 export function BandLayers({ view, band, veiled }: { view: BoardView, band: number, veiled: string[] }){
   const part = (behind: boolean): BoardView => {
     const keep = (group: string) => veiled.includes(group) === behind
-    return { ...view, cells: view.cells.filter((c) => keep(c.group)), ridges: view.ridges.filter((r) => keep(r.group)), sprites: view.sprites.filter((s) => keep(s.group)) }
+    return { ...view, cells: view.cells.filter((c) => keep(c.group)), rims: view.rims.filter((c) => keep(c.group)), ridges: view.ridges.filter((r) => keep(r.group)), sprites: view.sprites.filter((s) => keep(s.group)) }
   }
-  const draw = (v: BoardView, tag?: string) => (
-    <>
-      <SurfaceLayer view={v} band={band} tag={tag} crisp={band > 0} />
-      {v.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
-      <RidgeLayer view={v} band={band} tag={tag} />
-      <SpriteLayer view={v} band={band} tag={tag} />
-      <ShadeLayer view={v} band={band} tag={tag} />
-    </>
-  )
+  // the ground around the foot of a thinner top is drawn as a cell before it
+  const draw = (v: BoardView, tag?: string) => {
+    const ground = { ...v, cells: [...v.rims, ...v.cells] }
+    return (
+      <>
+        <SurfaceLayer view={ground} band={band} tag={tag} crisp={band > 0} />
+        {ground.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
+        <RidgeLayer view={v} band={band} tag={tag} />
+        <SpriteLayer view={v} band={band} tag={tag} />
+        <ShadeLayer view={ground} band={band} tag={tag} />
+      </>
+    )
+  }
   const behind = veiled.length > 0 ? part(true) : null
-  if (!behind || !(behind.cells.some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view)}</g>
+  if (!behind || !([...behind.cells, ...behind.rims].some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view)}</g>
   return (
     <g>
       {draw(part(false))}
@@ -301,7 +307,7 @@ export function BaseLayer({ view, lit, setLit }: { view: BoardView, lit: string 
       {cell ? (
         <g className='pointer-events-none'>
           {view.ridges.filter((r) => r.cell === cell.key).map((r) => <polygon key={r.key} points={r.face} className='fill-accent/25 stroke-accent' strokeWidth={0.08} />)}
-          <polygon points={view.hex} transform={`translate(${cell.x} ${cell.y})`} className='fill-accent/25 stroke-accent' strokeWidth={0.1} />
+          <polygon points={cell.hex ?? view.hex} transform={`translate(${cell.x} ${cell.y})`} className='fill-accent/25 stroke-accent' strokeWidth={0.1} />
         </g>
       ) : null}
       {view.cells.filter((c) => c.base !== null).map((c) => (
@@ -327,7 +333,7 @@ export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { v
   const depths = [...new Set(taking.map((c) => c.bledInto))].filter((b) => b > 0)
   const takesFrom = (i: number) => taking.some((c) => c.art !== i)
   const ownHexes = (i: number, width: number) => view.cells.filter((c) => c.art === i).map((c) => (
-    <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={width} strokeLinejoin='round' />
+    <polygon key={c.key} points={c.hex ?? hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={width} strokeLinejoin='round' />
   ))
   // The picture's own hexes grown by its spreading, cut off at the hexes that
   // let none of it in, plus its hexes grown by the part of it each depth of
@@ -387,7 +393,7 @@ export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { v
         ))}
         {/* a mask, not a clipPath: Chrome drops some hexes from a clip of many hexes that share edges */}
         <mask id={`${idPrefix}surface-board`} maskUnits='userSpaceOnUse' {...region}>
-          {view.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={SEAM} />)}
+          {view.cells.map((c) => <polygon key={c.key} points={c.hex ?? hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={SEAM} />)}
         </mask>
         {arts.map((art, i) => !used.has(i) || art.bank <= 0 ? null : (<Fragment key={i}>
           <filter id={`${idPrefix}surface-bank-${i}`} filterUnits='userSpaceOnUse' {...region}>
@@ -474,7 +480,7 @@ export function ShadeLayer({ view: whole, band, tag = '' }: { view: BoardView, b
             <g filter={`url(#${idPrefix}shade-soft)`}>
               {v.levels.map(({ level, cells }) => (
                 <g key={level} opacity={level}>
-                  {cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={2 * SHADE_BLEED} strokeLinejoin='round' />)}
+                  {cells.map((c) => <polygon key={c.key} points={c.hex ?? hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={2 * SHADE_BLEED} strokeLinejoin='round' />)}
                 </g>
               ))}
             </g>
@@ -689,7 +695,8 @@ function cellTitle(cell: BoardCellView): string {
   ].filter((s) => s !== null).join(' · ')
 }
 
-export const Cell = memo(function Cell({ cell, hex }: { cell: BoardCellView, hex: string }){
+export const Cell = memo(function Cell({ cell, hex: board }: { cell: BoardCellView, hex: string }){
+  const hex = cell.hex ?? board
   const fill = cell.isJumpTo ? 'fill-good/40'
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.swept ? 'fill-accent/20'
