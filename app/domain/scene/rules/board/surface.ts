@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import surfaceCatalog from '../../../../assets/surfaces.json'
-import { SurfaceSchema, type Board, type Surface, type SurfaceArt } from '../../types'
+import { SurfaceSchema, type Board, type Surface, type SurfaceArt, type TerrainCell } from '../../types'
 
 // The surfaces kept outside any board, by name.
 const SURFACES: Record<string, Surface> = z.record(z.string(), SurfaceSchema).parse(surfaceCatalog)
@@ -13,10 +13,26 @@ export function getSurface(name: string): Surface | null {
   return SURFACES[name] ?? null
 }
 
-// What a cell is made of: its own surface, else the board's. A name gone from
-// the catalog is no surface.
+// Where a cell's surface is drawn from: its own where it names one; for the
+// ground of a piece that names none and is no wall, the board's ground the
+// piece covers there; else nothing, and the board's surface is drawn. Only the
+// picture is taken: the values a surface lays are the cell's own.
+function getSurfaceSource(board: Board, key: string): TerrainCell | null {
+  const cell = board.terrain[key]
+  if (cell?.surface) return cell
+  const under = cell?.piece && !cell.blocking ? board.pieces[cell.piece]?.under[key] : undefined
+  return under?.surface ? under : null
+}
+
+// The name of the surface a cell is drawn with, null for none.
+export function getCellSurfaceName(board: Board, key: string): string | null {
+  return getSurfaceSource(board, key)?.surface ?? board.surface
+}
+
+// What a cell is made of, as it is drawn (`getCellSurfaceName`). A name gone
+// from the catalog is no surface.
 export function getCellSurface(board: Board, key: string): Surface | null {
-  const name = board.terrain[key]?.surface ?? board.surface
+  const name = getCellSurfaceName(board, key)
   return name ? getSurface(name) : null
 }
 
@@ -43,13 +59,13 @@ export function getCellBledInto(board: Board, key: string): number {
 // A picture with how its surface meets the next one.
 export type CellArt = SurfaceArt & { bleed: number; roughness: number; bank: number; priority: number }
 
-// The picture a cell is drawn with: the one it was laid with while its surface
-// still lists it, else the surface's first. A cell that names no surface is
-// the board's, drawn with that surface's first.
+// The picture a cell is drawn with: the one its surface was laid with while
+// that surface still lists it, else the surface's first. A cell drawn with the
+// board's surface is drawn with that surface's first.
 export function getCellArt(board: Board, key: string): CellArt | null {
   const surface = getCellSurface(board, key)
   if (!surface) return null
-  const laid = board.terrain[key]?.surface ? board.terrain[key]?.art : null
+  const laid = getSurfaceSource(board, key)?.art ?? null
   const art = surface.arts.find((a) => a.src === laid) ?? surface.arts[0]
   return art ? { ...art, bleed: surface.bleed, roughness: surface.roughness, bank: surface.bank, priority: surface.priority } : null
 }

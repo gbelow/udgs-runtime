@@ -24,7 +24,7 @@ import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLighting } from '../rules/board/light'
 import { WALL_DRAWN_HEIGHT } from '../../lists'
-import { getCellArt, getCellBledInto, getCellSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
+import { getCellArt, getCellBledInto, getCellSurface, getCellSurfaceName, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -434,7 +434,7 @@ function buildBoardView(state: SeenScene): BoardView {
       climbDL: terrain?.climbDL ?? null,
       test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: terrain.DL } : null,
       soft: terrain?.soft ?? false,
-      surface: terrain?.surface ?? board.surface,
+      surface: getCellSurfaceName(board, key),
       art: artIndex(getCellArt(board, key)),
       bledInto: getCellBledInto(board, key),
       light,
