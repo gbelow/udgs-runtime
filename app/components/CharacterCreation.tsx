@@ -257,17 +257,17 @@ function Choices() {
     <Section title='Spirit'>
       <ChoiceSelect label='temperament' value={view.temperament} options={Object.values(TEMPERAMENT_CONVICTIONS).map((c) => c.name)} onChange={(name) => chooseConviction('conviction1', name)} />
       <ChoiceSelect label='worldview' value={view.worldview} options={Object.values(WORLDVIEW_CONVICTIONS).map((c) => c.name)} onChange={(name) => chooseConviction('conviction2', name)} />
-      <ChoiceSelect label='limit stress' value={view.limitStress ?? ''} options={[...LIMIT_STRESS_ACTIONS]} onChange={(action) => chooseLimitStress((action || null) as LimitStressAction | null)} />
+      <ChoiceSelect label='limit stress' value={view.limitStress} options={[...LIMIT_STRESS_ACTIONS]} required onChange={(action) => chooseLimitStress(action as LimitStressAction)} />
     </Section>
   )
 }
 
-function ChoiceSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+function ChoiceSelect({ label, value, options, required = false, onChange }: { label: string; value: string; options: string[]; required?: boolean; onChange: (value: string) => void }) {
   return (
     <div className='flex flex-row items-center gap-2'>
       <span className='w-24 text-xs'>{label}</span>
       <select aria-label={label} className={selectClass} value={options.includes(value) ? value : ''} onChange={(e) => onChange(e.target.value)}>
-        <option value=''>—</option>
+        {required ? null : <option value=''>—</option>}
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     </div>

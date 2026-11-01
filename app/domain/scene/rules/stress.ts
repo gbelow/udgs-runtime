@@ -33,7 +33,7 @@ const STRESS_DUTIES: Partial<Record<LimitStressAction, StressDuty>> = {
 // who is enraged cannot make the reaction surge, so is violent instead.
 export function getStressAction(state: SceneState, id: string): LimitStressAction | null {
   const c = state.characters[id]
-  if (!c || c.limitStress === null) return null
+  if (!c) return null
   if (c.limitStress !== 'martyr') return c.limitStress
   return getAfflictions(c, getSituationalAfflictions(state, id)).includes('enraged') ? 'violent' : 'martyr'
 }
@@ -99,11 +99,15 @@ function hasRestedThisTurn(state: SceneState, id: string): boolean {
   return state.turnsTaken.some((t) => t.turn === state.turn && t.rested.includes(id))
 }
 
+// What the holder's owed turn still makes them do before it may end: the
+// surge (after a rest, when only a rest makes it payable), or the social
+// action. Null once it is done or cannot be.
+export type StressDue = { kind: 'surge'; surge: SurgeKind; restFirst: boolean } | { kind: 'social'; say: 'insult' | 'negotiate' }
+
 // creating.tex "Limit Stress Actions" and combat.tex "Compulsions": "They
 // must occur immediately if there are enough AP. If not, they force action
-// surges. If even that is not possible, ... the compulsion ends" — why the
-// holder's owed turn cannot end yet, or null once it is done or cannot be.
-export function getStressEndBar(state: SceneState): string | null {
+// surges. If even that is not possible, ... the compulsion ends".
+export function getStressDue(state: SceneState): StressDue | null {
   const turn = getStressTurn(state)
   const c = turn ? state.characters[turn.id] : undefined
   if (!turn || !c) return null
@@ -111,16 +115,24 @@ export function getStressEndBar(state: SceneState): string | null {
   switch (duty?.kind) {
     case 'surge': {
       if (c.usedSurge !== null) return null
-      if (canSurge(duty.surge, true)(c)) return `forced to use the ${duty.surge} surge`
+      if (canSurge(duty.surge, true)(c)) return { ...duty, restFirst: false }
       const short = SURGES[duty.surge].STA > c.resources.STA
       const restHelps = short && c.resources.STA + getSTARegen(c) >= SURGES[duty.surge].STA
-      return restHelps && canAffordRest(c, 'rest', isCombatStarted(state)) && !isSuffocating(state, c) && !hasRestedThisTurn(state, c.id) ? `forced to rest, then use the ${duty.surge} surge` : null
+      return restHelps && canAffordRest(c, 'rest', isCombatStarted(state)) && !isSuffocating(state, c) && !hasRestedThisTurn(state, c.id) ? { ...duty, restFirst: true } : null
     }
     case 'social':
-      return turn.acted || !canAffordRest(c, 'socialAction', isCombatStarted(state)) ? null : `forced to ${duty.say}`
+      return turn.acted || !canAffordRest(c, 'socialAction', isCombatStarted(state)) ? null : duty
     default:
       return null
   }
+}
+
+// Why the holder's owed turn cannot end yet, or null.
+export function getStressEndBar(state: SceneState): string | null {
+  const due = getStressDue(state)
+  if (!due) return null
+  if (due.kind === 'social') return `forced to ${due.say}`
+  return due.restFirst ? `forced to rest, then use the ${due.surge} surge` : `forced to use the ${due.surge} surge`
 }
 
 // Whether the character holds the reaction surge a martyr's limit stress

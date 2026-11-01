@@ -37,7 +37,7 @@ const counted = (record: Partial<Record<string, number>>, key: string, count: nu
 
 // creating.tex "Limit Stress Actions": "Each character must choose a limit
 // stress action."
-export function setCreationLimitStress(action: LimitStressAction | null): (d: CreationDraft) => CreationDraft {
+export function setCreationLimitStress(action: LimitStressAction): (d: CreationDraft) => CreationDraft {
   return (d: CreationDraft) => ({ ...d, character: { ...d.character, limitStress: action } })
 }
 

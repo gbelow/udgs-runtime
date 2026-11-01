@@ -2,6 +2,7 @@ import type { SceneState } from '../scene/types'
 import type { Dice } from '../play/dice'
 import { getAction, getHistory, getOpenAction } from '../scene/rules/log'
 import { getTurnHolder, hasAgreedToEnd } from '../scene/rules/turn'
+import { getStressDue } from '../scene/rules/stress'
 import { stepOpen, type Answerer } from './open'
 import { findParty, getLiveFoes, isMember, type Party } from './party'
 import { stepRoundChange } from './table'
@@ -21,6 +22,20 @@ export type Policy = { turn: TurnChooser; answer: Answerer }
 export function hold(state: SceneState, id: string): Played | null {
   const ended = play(state, [{ kind: 'endTurn', args: [] }], () => 0, () => '')
   return ended.state === state ? null : andThen(ended, play(ended.state, [{ kind: 'toggleAgreeToEnd', args: [id] }], () => 0, () => ''))
+}
+
+// What an owed limit stress turn makes the holder do before anything of their
+// own choosing (`getStressDue`): the rest, the surge, or the social action. A
+// social action that cannot be declared defaults to coward, as the table
+// would rule. Null when nothing is owed.
+function takeCompelled(state: SceneState, id: string, dice: Dice, newId: () => string): Played | null {
+  const due = getStressDue(state)
+  if (!due) return null
+  if (due.kind === 'surge') {
+    return ifChanged(state, play(state, [due.restFirst ? { kind: 'declare', args: [id, { kind: 'rest' }] } : { kind: 'surge', args: [id, due.surge] }], dice, newId))
+  }
+  return ifChanged(state, play(state, [{ kind: 'declare', args: [id, { kind: 'social', say: due.say }] }], dice, newId))
+    ?? ifChanged(state, play(state, [{ kind: 'defaultToCoward', args: [id] }], dice, newId))
 }
 
 // One step of the parties under the policy: what the character holding the
@@ -51,7 +66,7 @@ function stepIdle(policy: Policy, state: SceneState, parties: readonly Party[], 
   const holder = getTurnHolder(state)
   if (holder) {
     const party = findParty(parties, holder)
-    return party ? (policy.turn(state, parties, party, holder, dice, newId) ?? hold(state, holder)) : null
+    return party ? (takeCompelled(state, holder, dice, newId) ?? policy.turn(state, parties, party, holder, dice, newId) ?? hold(state, holder)) : null
   }
 
   for (const party of startOrder(state, parties, dice)) {

@@ -7,7 +7,7 @@ export function useCharacterCommands() {
 
   const update = useActiveCharacterUpdate()
 
-  const chooseLimitStress = (action: LimitStressAction | null) => {
+  const chooseLimitStress = (action: LimitStressAction) => {
     update({ kind: 'setLimitStress', args: [action] })
   }
 

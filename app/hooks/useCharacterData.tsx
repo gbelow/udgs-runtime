@@ -22,7 +22,7 @@ export function useActiveCharacterData() {
   const notes = useActiveCharacterSelector((c: Character) => c.notes) ?? '';
   const name = useActiveCharacterSelector((c: Character) => c.name) ?? '';
 
-  const limitStress = useActiveCharacterSelector((c: Character) => c.limitStress) ?? null;
+  const limitStress = useActiveCharacterSelector((c: Character) => c.limitStress);
 
   return { tableName, notes, name, limitStress };
 }

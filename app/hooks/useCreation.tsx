@@ -38,7 +38,7 @@ export function useCreation() {
   const rename = (name: string) => update(setCreationName(name));
   const annotate = (notes: string) => update(setCreationNotes(notes));
   const setPriority = (focus: Focus, priority: Priority) => update(setCreationPriority(focus, priority));
-  const chooseLimitStress = (action: LimitStressAction | null) => update(setCreationLimitStress(action));
+  const chooseLimitStress = (action: LimitStressAction) => update(setCreationLimitStress(action));
   const chooseConviction = (slot: 'conviction1' | 'conviction2', name: string) => update(setCreationConviction(slot, name));
   const buyLevel = (key: keyof Trainables, change: 1 | -1) => update(buyCreationLevel(key, change));
   const setProgress = (key: keyof Trainables, XP: number) => update(setCreationProgress(key, XP));

@@ -57,7 +57,7 @@ export const characterCommands = {
   setResource: edit((_, key: keyof Resources, value: number) => campaign((c) => makeResourceLens(key).set(c, value))),
 
   // the turn's state and the body's
-  setLimitStress: edit((_, action: LimitStressAction | null) => setLimitStress(action)),
+  setLimitStress: edit((_, action: LimitStressAction) => setLimitStress(action)),
   endSurge: edit(() => campaign(endSurge)),
   addAffliction: edit((_, affliction: AfflictionKey) => campaign(addAffliction(affliction))),
   updateIL: edit((_, IL: number) => campaign(updateIL(IL))),

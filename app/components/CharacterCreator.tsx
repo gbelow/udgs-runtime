@@ -395,8 +395,7 @@ function LimitStressPicker(){
   return(
     <div className='flex flex-row gap-2 items-center'>
       <SectionLabel>Limit stress action</SectionLabel>
-      <select aria-label='limitStress' className={`${inputClass} bg-surface text-sm`} value={limitStress ?? ''} onChange={(e) => chooseLimitStress((e.target.value || null) as LimitStressAction | null)}>
-        <option value=''>none</option>
+      <select aria-label='limitStress' className={`${inputClass} bg-surface text-sm`} value={limitStress ?? ''} onChange={(e) => chooseLimitStress(e.target.value as LimitStressAction)}>
         {LIMIT_STRESS_ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
       </select>
     </div>

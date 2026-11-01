@@ -154,11 +154,11 @@ describe('karma at creation', () => {
   })
 })
 
-// creating.tex "Limit Stress Actions" and "Convictions": every character
-// chooses a limit stress action, a temperament and a worldview.
+// creating.tex "Convictions": every character chooses a temperament and a
+// worldview, and is named.
 describe('the choices the book requires', () => {
   it('keep a character from being made until they are made', () => {
-    expect(problemsBesidesUnspent(makeCreationDraft())).toHaveLength(4)
+    expect(problemsBesidesUnspent(makeCreationDraft())).toHaveLength(3)
     expect(problemsBesidesUnspent(chosen())).toEqual([])
   })
 })

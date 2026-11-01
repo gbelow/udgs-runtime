@@ -288,8 +288,8 @@ function rowRaise(d: CreationDraft, raised: CreationDraft, row: string, pool: Cr
 // budget, or an XP pool not spent in full (Steps 4–7 give XP "to distribute"),
 // gear bought past the gold or coins kept past the tenth that may be
 // spared (Step 3), a stage bought whose requirements the build no longer meets, or a
-// choice the book requires not made — the limit stress action ("Limit Stress
-// Actions") the two convictions ("Convictions") and a name.
+// choice the book requires not made: the two convictions ("Convictions") and
+// a name.
 export function getCreationProblems(d: CreationDraft): string[] {
   const balances = getCreationBalances(d)
   const build = getCreationBuild(d)
@@ -305,10 +305,9 @@ export function getCreationProblems(d: CreationDraft): string[] {
       : [])
   const { total, left } = getCreationFreeSpells(d, build)
   const overclaimed = left < 0 ? [`free spells: ${total - left} claimed of ${total}`] : []
-  const { name, limitStress, trainables } = d.character
+  const { name, trainables } = d.character
   const unchosen = [
     ...(name.trim() ? [] : ['name the character']),
-    ...(limitStress ? [] : ['choose a limit stress action']),
     ...(getConvictionSlot(trainables.conviction1.name) === 'conviction1' ? [] : ['choose a temperament']),
     ...(getConvictionSlot(trainables.conviction2.name) === 'conviction2' ? [] : ['choose a worldview']),
   ]

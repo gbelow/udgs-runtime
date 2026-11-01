@@ -1585,8 +1585,9 @@ const CharacterValues = {
   // attributes may reach before raising them costs more
   attributeBalanceBase: num.default(10),
 
-  // creating.tex "Limit Stress Actions": chosen once, null while unchosen
-  limitStress: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),
+  // creating.tex "Limit Stress Actions": "Each character must choose a limit
+  // stress action"; a coward until another is chosen
+  limitStress: z.enum(LIMIT_STRESS_ACTIONS).catch('coward').default('coward'),
 
   notes: z.string().default(''),
 }

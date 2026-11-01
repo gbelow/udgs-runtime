@@ -7,6 +7,7 @@ import { isBaseCharacter } from './utils'
 import { isFormalKnowledge, isSpecificKnowledgeName, knowledgeName } from './character/rules/knowledge'
 import { heldAbility } from './abilities'
 import { CREATION_ATTRIBUTE } from './tables'
+import { LIMIT_STRESS_ACTIONS } from './lists'
 
 // A trainable's `name` and `type` are authored by the schema group it belongs to,
 // never by the incoming data: an ingested trainable supplies a value, not an
@@ -296,7 +297,8 @@ const CharacterIngestValues = {
   abilities: z.record(z.string(), z.unknown()).optional().catch(undefined),
   spells: z.record(z.string(), z.any()).optional(),
 
-  notes: z.string().optional(), 
+  limitStress: z.enum(LIMIT_STRESS_ACTIONS).optional().catch(undefined),
+  notes: z.string().optional(),
 }
 
 export const CharacterIngestSchema = z.object({

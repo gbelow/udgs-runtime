@@ -55,7 +55,7 @@ export type CreationPanelView = {
   name: string
   notes: string
   race: CreationRaceView | null
-  limitStress: LimitStressAction | null
+  limitStress: LimitStressAction
   temperament: string
   worldview: string
   priorities: { focus: Focus; priority: Priority; talent: CreationTalent | null }[] // the talent a focus ends with; none for wealth
