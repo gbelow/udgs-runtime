@@ -16,7 +16,7 @@ import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
 import { getModifiedTotal } from './modifiers'
-import { canRest, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
+import { canRest, crossesThinWall, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
 import { getMoveDestination, getMoveOrigin, getMovePlacements, getMoveSweep, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
 import { getDegree } from '../../play/test'
@@ -275,6 +275,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
     const footprint = sweep[i]
     const floor = ground.at(action.movement === 'jump' ? from.elevation : steps[action.movement === 'climb' ? i + 1 : i].elevation)
     if (!canPass(action.movement, footprint, floor, last, ceiling, wet)) return false
+    if (!column && crossesThinWall(footprint, floor, cursor, cell)) return false
     if (action.movement !== 'climb' && !canStepOver(action.movement, floor.elevation(cursor), floor.elevation(cell))) return false
     if (!isTetherKept(state, c.id, footprint)) return false
     if (last && !canEndAt(state, c, action, footprint, floor)) return false
@@ -690,7 +691,8 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
     const bound = kind === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
     const floor = bound ? ground.at(bound.floor) : floorAt(before)
     const crosses = kind === 'climb' ? bound !== null : canStepOver(kind, floor.elevation(before), floor.elevation(cell))
-    const ok = crosses && canPass(kind, getFootprint(c, { ...from, cell }), floor, false, ceiling, wetAt(before))
+    const footprint = getFootprint(c, { ...from, cell })
+    const ok = crosses && canPass(kind, footprint, floor, false, ceiling, wetAt(before)) && (sameCell(before, cell) || !crossesThinWall(footprint, floor, before, cell))
     if (ok && !feet.has(coordKey(cell))) feet.set(coordKey(cell), floor.elevation(cell))
     entered.set(key, ok)
     return ok

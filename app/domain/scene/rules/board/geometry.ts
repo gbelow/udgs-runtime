@@ -229,6 +229,27 @@ export function getChordEnds(corner: number): [{ x: number; y: number }, { x: nu
   return [hexCorner(corner - 1), hexCorner(corner + 1)]
 }
 
+// The chord that cuts `corner` off a cell, where it lies in the plane.
+export function getChordAt(cell: Coord, corner: number): [{ x: number; y: number }, { x: number; y: number }] {
+  const centre = toPlane(cell)
+  const [a, b] = getChordEnds(corner)
+  return [{ x: centre.x + a.x, y: centre.y + a.y }, { x: centre.x + b.x, y: centre.y + b.y }]
+}
+
+// Where the segment from `p` to `q` meets the segment from `a` to `b`, as the
+// share of the way from `p` to `q`, both ends of each included; null where
+// they do not meet or run side by side.
+export function crossingAt(p: { x: number; y: number }, q: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number | null {
+  const [rx, ry, sx, sy] = [q.x - p.x, q.y - p.y, b.x - a.x, b.y - a.y]
+  const den = rx * sy - ry * sx
+  if (Math.abs(den) < 1e-12) return null
+  const [wx, wy] = [a.x - p.x, a.y - p.y]
+  const t = (wx * sy - wy * sx) / den
+  const u = (wx * ry - wy * rx) / den
+  const eps = 1e-9
+  return t >= -eps && t <= 1 + eps && u >= -eps && u <= 1 + eps ? t : null
+}
+
 // A corner of a cell turned `steps` times about the cell's centre, as
 // `rotate` turns an offset.
 export function turnCorner(corner: number, steps: number): number {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SceneStateSchema, StrikeActionSchema, type Board, type SceneState } from '../../types'
+import { BoardSchema, SceneStateSchema, StrikeActionSchema, TerrainCellSchema, type Board, type SceneState } from '../../types'
 import { makeCampaignCharacter } from '../../../factories'
 import type { CampaignCharacter } from '../../../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
@@ -8,7 +8,8 @@ import { getAvailableActions } from '../options'
 import { getDLTerms } from '../attack'
 import { getTargetIds } from '../action'
 import { getOpenAction } from '../log'
-import { getStrikeReach } from './board'
+import { LEVEL_EYES, firesAcross, getStrikeReach, isStepWalled, seesAcross } from './board'
+import { DIRECTIONS, add, hexCorner, toPlane } from './geometry'
 import { declareAction as declareOwnAction, setTarget } from '../../commands/action'
 import { getCatalogItem, getItemScale } from '../../../item/rules/items'
 import { getWieldedWeapons } from '../../../item/rules/hands'
@@ -93,4 +94,33 @@ describe('reach never falls under a cell', () => {
     expect(reach).not.toBeNull()
     expect(reach!).toBeGreaterThanOrEqual(1)
   })
+})
+
+// The chord-wall rulings: a cell with a thin wall is stood in from its open
+// side, and a line is checked against the chord itself, so whatever lies past
+// the chord's line, on the side of the corner it cuts off, is walled off from
+// the cell, and nothing else is. Glass is seen through and stops a shot.
+describe('a thin wall closes its cell to the side of the corner it cuts', () => {
+  const centre = { q: 0, r: 0 }
+  const beyond = (corner: number, cell: typeof centre) => {
+    const [at, to] = [toPlane(cell), hexCorner(corner)]
+    return at.x * to.x + at.y * to.y > 0.5
+  }
+  for (const corner of [0, 1, 2, 3, 4, 5]) {
+    for (const transparent of [false, true]) {
+      const wall = TerrainCellSchema.parse({ chords: [corner], transparent })
+      const board = BoardSchema.parse({ terrain: { '0,0': wall } })
+      for (const way of DIRECTIONS) {
+        const near = add(centre, way)
+        const far = add(near, way)
+        const closed = beyond(corner, near)
+        it(`corner ${corner}${transparent ? ', glass,' : ''} toward ${near.q},${near.r}`, () => {
+          expect(isStepWalled((cell) => board.terrain[`${cell.q},${cell.r}`], near, centre)).toBe(closed)
+          expect(isStepWalled((cell) => board.terrain[`${cell.q},${cell.r}`], centre, near)).toBe(closed)
+          expect(seesAcross(board, [far], [centre], LEVEL_EYES)).toBe(!closed || transparent)
+          expect(firesAcross(board, [far], [centre], LEVEL_EYES)).toBe(!closed)
+        })
+      }
+    }
+  }
 })

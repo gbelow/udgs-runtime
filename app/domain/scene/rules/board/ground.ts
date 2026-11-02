@@ -1,9 +1,9 @@
 import type { Character } from '../../../types'
-import type { SceneState, Coord, MoveAction, Placement } from '../../types'
+import type { SceneState, Coord, MoveAction, Placement, TerrainCell } from '../../types'
 import { hasAffliction } from '../../../character/rules/afflictions'
-import { coordKey } from './geometry'
+import { coordKey, subtract } from './geometry'
 import { FALL } from '../../../tables'
-import { getFootprint, getOccupancy, getTerrainAt } from './board'
+import { getFootprint, getOccupancy, getTerrainAt, isStepWalled } from './board'
 
 // The table's ruling on creating.tex "Size and Space Occupation": a footprint
 // may be walked through anyone's cells, but two characters rest on one cell
@@ -15,6 +15,8 @@ import { getFootprint, getOccupancy, getTerrainAt } from './board'
 // them, which nobody a cliff above or below is.
 export type Floor = {
   blocked: (cell: Coord) => boolean
+  // what the floor of the cell is, its thin walls among it
+  terrain: (cell: Coord) => TerrainCell | undefined
   liquid: (cell: Coord) => boolean
   elevation: (cell: Coord) => number
   sharedBy: (cell: Coord) => string[]
@@ -43,6 +45,7 @@ export function readGround(state: SceneState, mover: string, landing: Record<str
     const near = (cell: Coord) => (id: string) => id !== mover && Math.abs(feetOf(id) - footing(cell).floor) < FALL.minHeight
     return {
       blocked: (cell) => !!footing(cell).terrain?.blocking,
+      terrain: (cell) => footing(cell).terrain,
       liquid: (cell) => !!footing(cell).terrain?.liquid,
       elevation: (cell) => footing(cell).floor,
       sharedBy: (cell) => [...new Set([...(occupancy[coordKey(cell)] ?? []), ...(bound[coordKey(cell)] ?? [])])].filter(near(cell)),
@@ -76,6 +79,14 @@ export function isCrossable(footprint: Coord[], floor: Floor, movement: MoveActi
   if (footprint.some(floor.blocked)) return false
   if (movement === 'swim') return footprint.some(floor.liquid) || fromWater
   return !fromWater || movement === 'climb' || movement === 'jump'
+}
+
+// The chord-wall rulings: a step is closed where a thin wall of the floor
+// stands across it, for any cell of the footprint taking it from where that
+// cell was a step before.
+export function crossesThinWall(footprint: Coord[], floor: Floor, from: Coord, to: Coord): boolean {
+  const step = subtract(to, from)
+  return footprint.some((cell) => isStepWalled(floor.terrain, subtract(cell, step), cell))
 }
 
 export function isWet(footprint: Coord[], floor: Floor): boolean {
