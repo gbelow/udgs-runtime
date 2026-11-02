@@ -211,18 +211,18 @@ describe('melee reaches up and down', () => {
   const striker = body(0, 0)
 
   it('reaches anything as high as the striker with a cell of reach, and a metre higher with two', () => {
-    expect(getMeleeGap(striker, body(1, HEIGHT))).toBeLessThanOrEqual(1)
-    expect(getMeleeGap(striker, body(1, HEIGHT + 0.5))).toBeGreaterThan(1)
-    expect(getMeleeGap(striker, body(1, HEIGHT + 1))).toBeLessThanOrEqual(2)
+    expect(getMeleeGap(null, striker, body(1, HEIGHT))).toBeLessThanOrEqual(1)
+    expect(getMeleeGap(null, striker, body(1, HEIGHT + 0.5))).toBeGreaterThan(1)
+    expect(getMeleeGap(null, striker, body(1, HEIGHT + 1))).toBeLessThanOrEqual(2)
   })
 
   it('reaches down the same way, from the feet of the striker to the head below', () => {
-    expect(getMeleeGap(body(0, HEIGHT), body(1, 0))).toBeLessThanOrEqual(1)
-    expect(getMeleeGap(body(0, HEIGHT + 1), body(1, 0))).toBeGreaterThan(1)
+    expect(getMeleeGap(null, body(0, HEIGHT), body(1, 0))).toBeLessThanOrEqual(1)
+    expect(getMeleeGap(null, body(0, HEIGHT + 1), body(1, 0))).toBeGreaterThan(1)
   })
 
   it('adds nothing up or down between bodies side by side in height', () => {
-    expect(getMeleeGap(striker, body(3, HEIGHT / 2))).toBe(3)
+    expect(getMeleeGap(null, striker, body(3, HEIGHT / 2))).toBe(3)
   })
 })
 

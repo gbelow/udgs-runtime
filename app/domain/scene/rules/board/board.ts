@@ -5,7 +5,7 @@ import { getHeight } from '../../../character/rules/size'
 import { FALL, REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, crossingAt, disk, getChordAt, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, crossingAt, disk, distance, getChordAt, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 import { without } from '../../../utils'
@@ -286,14 +286,36 @@ export function getBody(state: SceneState, id: string): Body | null {
   return placement && c ? getBodyAt(c, placement) : null
 }
 
-// How far a melee weapon has to reach from one body to the other: the cells
-// across, or the metres up or down between them counted as cells are, bodies
-// that touch a cell apart and bodies side by side in height none, whichever
-// is the farther. A character reaches as high as their feet and their height,
-// and a weapon a metre more for every cell of reach past the first.
-export function getMeleeGap(a: Body, b: Body): number {
+// The chord-wall rulings: the fewest cells across from one body to the other
+// along a line from a cell of one to a cell of the other that crosses nothing
+// a blow cannot pass (what stops a shot, `firesAcross`), drawn from the
+// middle of one body's height to the other's; Infinity when every line is
+// stopped.
+const blows = new WeakMap<Board, Map<string, boolean>>()
+function getOpenDistance(board: Board | null, a: Body, b: Body): number {
+  if (!board) return setDistance(a.footprint, b.footprint)
+  const eyes = board.levels.length ? { from: a.feet + a.height / 2, to: b.feet + b.height / 2 } : LEVEL_EYES
+  const known = blows.get(board) ?? new Map<string, boolean>()
+  blows.set(board, known)
+  const stopped = (x: Coord, y: Coord) => {
+    const key = `${coordKey(x)}|${coordKey(y)}|${eyes.from}|${eyes.to}`
+    const met = known.get(key) ?? stoppedBetween(board, x, y, eyes, (t) => t.blocking)
+    known.set(key, met)
+    return met
+  }
+  const pairs = a.footprint.flatMap((x) => b.footprint.map((y) => ({ x, y, cells: distance(x, y) }))).sort((p, q) => p.cells - q.cells)
+  return pairs.find((p) => !stopped(p.x, p.y))?.cells ?? Infinity
+}
+
+// How far a melee weapon has to reach from one body to the other on the
+// board: the cells across along a line no wall stops (`getOpenDistance`), or
+// the metres up or down between them counted as cells are, bodies that touch
+// a cell apart and bodies side by side in height none, whichever is the
+// farther. A character reaches as high as their feet and their height, and a
+// weapon a metre more for every cell of reach past the first.
+export function getMeleeGap(board: Board | null, a: Body, b: Body): number {
   const gap = Math.max(a.feet - (b.feet + b.height), b.feet - (a.feet + a.height))
-  return Math.max(setDistance(a.footprint, b.footprint), gap < 0 ? 0 : gap + 1)
+  return Math.max(getOpenDistance(board, a, b), gap < 0 ? 0 : gap + 1)
 }
 
 // The melee distance between two characters as they stand, or what a chase
@@ -302,14 +324,18 @@ export function getMeleeDistance(state: SceneState, a: string, b: string): numbe
   const apart = getChaseDistance(state, a, b)
   if (apart !== null) return apart
   const [ba, bb] = [getBody(state, a), getBody(state, b)]
-  return ba && bb ? getMeleeGap(ba, bb) : null
+  return ba && bb ? getMeleeGap(state.board, ba, bb) : null
 }
 
-// Everyone standing next to the character: within a cell, edge to edge.
+// Everyone standing next to the character: within a cell, edge to edge, with
+// no wall between (`getOpenDistance`), or a metre apart in a chase.
 export function getAdjacentIds(state: SceneState, id: string): string[] {
+  const body = getBody(state, id)
   return Object.keys(state.characters).filter((other) => {
     if (other === id) return false
-    const distance = getDistanceBetween(state, id, other)
+    const apart = getChaseDistance(state, id, other)
+    const near = getBody(state, other)
+    const distance = apart ?? (body && near ? getOpenDistance(state.board, body, near) : null)
     return distance !== null && distance <= 1
   })
 }
@@ -682,7 +708,7 @@ export function getFlankers(state: SceneState, attackerId: string, targetId: str
     if (id === attackerId || id === targetId) return false
     const other = state.characters[id]
     const body = getBody(state, id)
-    if (!body || getMeleeGap(body, attacker) > getMeleeRange(other)) return false
+    if (!body || getMeleeGap(state.board, body, attacker) > getMeleeRange(other)) return false
     return angularGap(toTarget, angleBetween(center, centroid(body.footprint))) > Math.PI / 2 + 1e-9
   })
 }
@@ -696,6 +722,6 @@ export function getMeleeThreateners(state: SceneState, id: string, reachOf: (c: 
   return Object.keys(state.characters).filter((other) => {
     if (other === id) return false
     const otherBody = getBody(state, other)
-    return !!otherBody && getMeleeGap(otherBody, body) <= reachOf(state.characters[other])
+    return !!otherBody && getMeleeGap(state.board, otherBody, body) <= reachOf(state.characters[other])
   })
 }

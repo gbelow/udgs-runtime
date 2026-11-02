@@ -16,7 +16,7 @@ import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
 import { getModifiedTotal } from './modifiers'
-import { canRest, crossesThinWall, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
+import { canRest, crossesThinWall, getCrowdedBy, isCrossable, isFootprintOpen, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
 import { getMoveDestination, getMoveOrigin, getMovePlacements, getMoveSweep, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
 import { getDegree } from '../../play/test'
@@ -309,7 +309,7 @@ function clears(footprint: Coord[], floor: Floor, ceiling: number): boolean {
 
 function canPass(kind: MoveKind, footprint: Coord[], floor: Floor, lands: boolean, ceiling: number, fromWater: boolean): boolean {
   if (kind === 'jump' && !clears(footprint, floor, ceiling)) return false
-  return touchesGround(kind, lands) ? isCrossable(footprint, floor, kind, fromWater) : !footprint.some(floor.blocked)
+  return touchesGround(kind, lands) ? isCrossable(footprint, floor, kind, fromWater) : isFootprintOpen(footprint, floor)
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -622,7 +622,7 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
     for (const orientation of ROTATIONS) {
       const to = { ...placeAt(state.board, from, cell), orientation }
       const footprint = getFootprint(defender, to)
-      if (!footprint.some(floor.blocked) && clears(footprint, floor, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, floor, false) && setDistance(footprint, attacker) > before) placements.push(to)
+      if (isFootprintOpen(footprint, floor) && clears(footprint, floor, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, floor, false) && setDistance(footprint, attacker) > before) placements.push(to)
     }
   }
   return placements

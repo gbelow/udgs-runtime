@@ -8,7 +8,7 @@ import { getAvailableActions } from '../options'
 import { getDLTerms } from '../attack'
 import { getTargetIds } from '../action'
 import { getOpenAction } from '../log'
-import { LEVEL_EYES, firesAcross, getStrikeReach, isStepWalled, seesAcross } from './board'
+import { LEVEL_EYES, firesAcross, getMeleeGap, getStrikeReach, isStepWalled, seesAcross } from './board'
 import { DIRECTIONS, add, hexCorner, toPlane } from './geometry'
 import { declareAction as declareOwnAction, setTarget } from '../../commands/action'
 import { getCatalogItem, getItemScale } from '../../../item/rules/items'
@@ -99,7 +99,8 @@ describe('reach never falls under a cell', () => {
 // The chord-wall rulings: a cell with a thin wall is stood in from its open
 // side, and a line is checked against the chord itself, so whatever lies past
 // the chord's line, on the side of the corner it cuts off, is walled off from
-// the cell, and nothing else is. Glass is seen through and stops a shot.
+// the cell, and nothing else is: steps, sight, shots and blows. Glass is seen
+// through and stops a shot and a blow.
 describe('a thin wall closes its cell to the side of the corner it cuts', () => {
   const centre = { q: 0, r: 0 }
   const beyond = (corner: number, cell: typeof centre) => {
@@ -119,6 +120,8 @@ describe('a thin wall closes its cell to the side of the corner it cuts', () => 
           expect(isStepWalled((cell) => board.terrain[`${cell.q},${cell.r}`], centre, near)).toBe(closed)
           expect(seesAcross(board, [far], [centre], LEVEL_EYES)).toBe(!closed || transparent)
           expect(firesAcross(board, [far], [centre], LEVEL_EYES)).toBe(!closed)
+          const body = (cell: typeof centre) => ({ footprint: [cell], feet: 0, height: 2 })
+          expect(getMeleeGap(board, body(near), body(centre)) <= 1).toBe(!closed)
         })
       }
     }

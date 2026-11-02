@@ -1,7 +1,7 @@
 import type { Character } from '../../../types'
 import type { SceneState, Coord, MoveAction, Placement, TerrainCell } from '../../types'
 import { hasAffliction } from '../../../character/rules/afflictions'
-import { coordKey, subtract } from './geometry'
+import { coordKey, distance, subtract } from './geometry'
 import { FALL } from '../../../tables'
 import { getFootprint, getOccupancy, getTerrainAt, isStepWalled } from './board'
 
@@ -76,9 +76,17 @@ export function getHangingLanding(placement: Placement): Coord | null {
 // nothing between where it sets out and where it lands, so water it passes over
 // does not stop it.
 export function isCrossable(footprint: Coord[], floor: Floor, movement: MoveAction['movement'], fromWater = false): boolean {
-  if (footprint.some(floor.blocked)) return false
+  if (!isFootprintOpen(footprint, floor)) return false
   if (movement === 'swim') return footprint.some(floor.liquid) || fromWater
   return !fromWater || movement === 'climb' || movement === 'jump'
+}
+
+// Whether the floor takes the footprint at all: none of its cells a wall, and
+// no thin wall standing between two of them (the chord-wall rulings: a body
+// is never on both sides of one).
+export function isFootprintOpen(footprint: Coord[], floor: Floor): boolean {
+  if (footprint.some(floor.blocked)) return false
+  return !footprint.some((a, i) => footprint.slice(i + 1).some((b) => distance(a, b) === 1 && isStepWalled(floor.terrain, a, b)))
 }
 
 // The chord-wall rulings: a step is closed where a thin wall of the floor
@@ -87,6 +95,15 @@ export function isCrossable(footprint: Coord[], floor: Floor, movement: MoveActi
 export function crossesThinWall(footprint: Coord[], floor: Floor, from: Coord, to: Coord): boolean {
   const step = subtract(to, from)
   return footprint.some((cell) => isStepWalled(floor.terrain, subtract(cell, step), cell))
+}
+
+// Whether a character carried a step from one placement to the next, as a
+// push or a drag carries them, crosses a thin wall on the floor they set out
+// on.
+export function isCarriedAcrossThinWall(state: SceneState, id: string, from: Placement, to: Placement): boolean {
+  const c = state.characters[id]
+  const floor = readGround(state, id)?.at(from.elevation)
+  return !!c && !!floor && distance(from.cell, to.cell) === 1 && crossesThinWall(getFootprint(c, to), floor, from.cell, to.cell)
 }
 
 export function isWet(footprint: Coord[], floor: Floor): boolean {
@@ -117,7 +134,7 @@ export function canStandAt(state: SceneState, id: string, placement: Placement, 
   const floor = readGround(state, id, landing)?.at(placement.elevation)
   if (!c || !floor) return false
   const footprint = getFootprint(c, placement)
-  return !footprint.some(floor.blocked) && canRest(state, c, footprint, floor, isProne(state, id))
+  return isFootprintOpen(footprint, floor) && canRest(state, c, footprint, floor, isProne(state, id))
 }
 
 // Someone stands in the space the character lies in, so they may not stand up

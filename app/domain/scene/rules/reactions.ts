@@ -318,7 +318,7 @@ function dragApproaches(state: SceneState, root: DragAction, reachOf: (c: Charac
       const c = state.characters[m]
       const from = start(m)
       if (!c || !from) return []
-      const at = getApproachStep(getPathMeleeDistances(c, [from, ...steps.map((step) => step[m])], other), range)
+      const at = getApproachStep(getPathMeleeDistances(state.board, c, [from, ...steps.map((step) => step[m])], other), range)
       return at === null ? [] : [{ at, against: m }]
     }).sort((a, b) => a.at - b.at)[0]
     if (hit) triggers.push({ id, ...hit })
@@ -394,7 +394,7 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     const placements = getMovePlacements(state, root)
     const distances = getPathDistances(mover, placements, other)
     const body = getBody(state, id)
-    const reaches = body ? getPathMeleeDistances(mover, placements, body) : distances
+    const reaches = body ? getPathMeleeDistances(state.board, mover, placements, body) : distances
     // combat.tex "Flee": "to prevent them from entering a 4m perimeter from
     // the character" — the step that first brings the mover within it. The
     // flee "interrupts the opponents turn", so it is never open to the one

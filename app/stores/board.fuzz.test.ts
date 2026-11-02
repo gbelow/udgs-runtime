@@ -1104,8 +1104,9 @@ describe('two characters grappling, pushing, shooting and defending', () => {
 // to join, and a walk may end in the water or on the rock. With `walls`,
 // those cells are painted as walls too, with fog, dim and dark ground beside
 // them and a torch in one hand, so that some begin out of the others' sight
-// and stealth has someone to hide; with panes of glass, and the warden's
-// shield a body shield to take cover behind.
+// and stealth has someone to hide; with panes of glass, thin walls between
+// some who stand side by side (one of them glass), and the warden's shield a
+// body shield to take cover behind.
 function playCrowd(seed: number, walls: [number, number][] = [], table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
@@ -1122,6 +1123,9 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
     h.paint('dim', [[1, 1], [2, 1]])
     h.paint('dark', [[0, 2], [1, 2], [2, 2], [-1, 2], [-4, 2], [-4, 3]])
     h.paint('glass', [[1, -2], [-1, -2]])
+    h.paint('chord3', [[1, 0]])
+    h.paint('chord1', [[0, -1]])
+    h.paint('glass', [[0, -1]])
   }
   for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
     h.select(name)

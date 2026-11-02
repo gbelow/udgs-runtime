@@ -1,5 +1,5 @@
 import type { Character } from '../../types'
-import type { Coord, Placement } from '../types'
+import type { Board, Coord, Placement } from '../types'
 import { setDistance } from './board/geometry'
 import { getBodyAt, getFootprint, getMeleeGap, type Body } from './board/board'
 
@@ -13,8 +13,8 @@ export function getPathDistances(mover: Character, placements: Placement[], othe
 
 // The same as a melee weapon has to reach it (`getMeleeGap`), up or down
 // included.
-export function getPathMeleeDistances(mover: Character, placements: Placement[], other: Body): number[] {
-  return placements.map((p) => getMeleeGap(getBodyAt(mover, p), other))
+export function getPathMeleeDistances(board: Board | null, mover: Character, placements: Placement[], other: Body): number[] {
+  return placements.map((p) => getMeleeGap(board, getBodyAt(mover, p), other))
 }
 
 // combat.tex "Opportunity Attack": "moving towards a melee weapon while
