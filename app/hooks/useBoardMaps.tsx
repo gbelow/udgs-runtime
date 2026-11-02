@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { deleteBoardMap, deleteStructure, saveBoardMap, saveStructure, type ActionResult } from "../actions";
 import type { TerrainBrush } from "../domain/types";
-import type { BoardExtent, BoardMap, Coord, GroundRecipe, LightLevel, StructureArt } from "../domain/scene/types";
+import type { BoardExtent, BoardMap, Coord, GroundRecipe, LightLevel, StructureArt, SurfaceTarget } from "../domain/scene/types";
 import type { BoardView } from "../domain/scene/projections/boardView";
 import { getBoardMap, getBoardMapView, getPieceRows, getStoreyRows } from "../domain/scene/projections/boardMap";
 import { getFrontView } from "../domain/scene/projections/frontView";
@@ -169,7 +169,7 @@ function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, storeyAt: nu
     paint: (cell: Coord, brush: TerrainBrush, radius: number) => edit(paintBoardMap(cell, brush, radius, level, piece)),
     light: (level: LightLevel) => edit(lightBoardMap(level)),
     surface: (name: string | null) => edit(surfaceBoardMap(name)),
-    laySurface: (cell: Coord, name: string, frozen: string | null, radius: number) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius, level, piece)),
+    laySurface: (cell: Coord, name: string, frozen: string | null, radius: number, onto: SurfaceTarget) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius, level, piece, onto)),
     generateGround: (recipe: GroundRecipe, seed: number) => edit(generateGroundBoardMap(recipe, seed)),
     resize: (extent: BoardExtent) => edit(resizeBoardMap(extent)),
     addStorey: () => edit(addLevelBoardMap(piece)),

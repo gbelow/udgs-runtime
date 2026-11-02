@@ -6,10 +6,10 @@ import { useBoardVeil } from '../hooks/useBoardVeil'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
-import type { BoardExtent, Coord, GroundRecipe } from '../domain/scene/types'
-import type { BoardView, BrushIcon, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
+import type { BoardExtent, Coord, GroundRecipe, SurfaceTarget } from '../domain/scene/types'
+import type { BoardView, BrushIcon, BoardCellView, BoardChordView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
-import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES } from '../domain/lists'
+import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES, SURFACE_TARGETS } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
@@ -61,6 +61,8 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   chord5: 'thin wall',
 }
 
+const SURFACE_TARGET_LABEL: Record<SurfaceTarget, string> = { ground: 'ground', chords: 'thin wall' }
+
 // A brush's button face: what it paints drawn small where there is a picture
 // of it, else its name.
 export function BrushFace({ brush, icons }: { brush: TerrainBrush, icons: Partial<Record<TerrainBrush, BrushIcon>> }) {
@@ -87,6 +89,7 @@ export function BoardPanel(){
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
+  const [onto, setOnto] = useState<SurfaceTarget>('ground')
   const [radius, setRadius] = useState(0)
   const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
@@ -158,7 +161,7 @@ export function BoardPanel(){
             <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
         </Segmented>
       </div>
-      <SurfaceRow surfaces={view.surfaces} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
+      <SurfaceRow surfaces={view.surfaces} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} onto={onto} setOnto={setOnto} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
       <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
       <SizeRow key={`${view.extent.q},${view.extent.r},${view.extent.s}`} extent={view.extent} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
       <MapsRow canSave />
@@ -172,7 +175,7 @@ export function BoardPanel(){
       ) : null}
 
       <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
-        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}>
+        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}>
         <defs>
           <VeilFilter />
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
@@ -265,14 +268,26 @@ export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardView, b
 }
 
 // The thin walls cutting corners off cells: seen from the front, the outline
-// of the whole wall shaded, then its top; from above, its top alone, glass
-// tinted.
-export function ChordLayer({ view, band }: { view: BoardView, band: number }){
+// of the whole wall shaded, or covered by its picture laid along it, then its
+// top; from above, its top alone, glass tinted.
+export function ChordLayer({ view, band, tag = '' }: { view: BoardView, band: number, tag?: string }){
+  const walls = view.chords.filter((w) => w.band === band)
+  const id = (i: number) => `b${band}-${tag}chord-face-${i}`
+  const pictured = (w: BoardChordView) => !w.glass && w.face !== null && w.grain !== null
   return (
     <g className='pointer-events-none'>
-      {view.chords.filter((w) => w.band === band).map((w) => (
+      <defs>
+        {walls.map((w, i) => (pictured(w) ? (
+          <pattern key={w.key} id={id(i)} patternUnits='userSpaceOnUse' width={w.face!.tile} height={w.face!.tile} patternTransform={`matrix(${w.grain} 0 0) translate(${w.face!.offsetX} ${w.face!.offsetY})`}>
+            <image href={w.face!.src} width={w.face!.tile} height={w.face!.tile} />
+          </pattern>
+        ) : null))}
+      </defs>
+      {walls.map((w, i) => (
         <g key={w.key}>
-          {w.side !== null ? <polygon points={w.side} className={w.glass ? 'fill-accent/25 stroke-accent/50' : 'fill-fg/60 stroke-fg/70'} strokeWidth={0.02} /> : null}
+          {w.side === null ? null
+            : pictured(w) ? <polygon points={w.side} fill={`url(#${id(i)})`} className='stroke-fg/70' strokeWidth={0.02} />
+            : <polygon points={w.side} className={w.glass ? 'fill-accent/25 stroke-accent/50' : 'fill-fg/60 stroke-fg/70'} strokeWidth={0.02} />}
           <polygon points={w.top} className={w.glass ? 'fill-accent/40 stroke-accent' : 'fill-fg stroke-fg'} strokeWidth={0.02} />
         </g>
       ))}
@@ -358,7 +373,7 @@ export function BandLayers({ view, band, veiled }: { view: BoardView, band: numb
         <SurfaceLayer view={ground} band={band} tag={tag} crisp={band > 0} />
         {ground.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
         <RidgeLayer view={v} band={band} tag={tag} />
-        <ChordLayer view={v} band={band} />
+        <ChordLayer view={v} band={band} tag={tag} />
         <SpriteLayer view={v} band={band} tag={tag} />
         <ShadeLayer view={ground} band={band} tag={tag} />
       </>
@@ -620,11 +635,14 @@ export function BrushSize({ radius, setRadius }: { radius: number, setRadius: (r
 }
 
 // The board's own surface, and the one laid cell by cell with a click.
-export function SurfaceRow({ surfaces, laying, lay, frozen, freeze }: { surfaces: BoardView['surfaces'], laying: string | null, lay: (name: string) => void, frozen: string | null, freeze: (art: string | null) => void }){
-  const arts = surfaces.find((s) => s.name === laying)?.arts ?? []
+export function SurfaceRow({ surfaces, laying, lay, frozen, freeze, onto, setOnto }: { surfaces: BoardView['surfaces'], laying: string | null, lay: (name: string) => void, frozen: string | null, freeze: (art: string | null) => void, onto: SurfaceTarget, setOnto: (onto: SurfaceTarget) => void }){
+  const arts = onto === 'ground' ? surfaces.find((s) => s.name === laying)?.arts ?? [] : []
   return (<>
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>surface</SectionLabel>
+      <Segmented label='lay onto'>
+        {SURFACE_TARGETS.map((t) => <Segment key={t} selected={onto === t} title={t === 'ground' ? 'lay the surface on the ground of the cell' : 'draw only the thin walls of the cell with the wall picture of the surface'} onClick={() => setOnto(t)}>{SURFACE_TARGET_LABEL[t]}</Segment>)}
+      </Segmented>
       {surfaces.map(({ name }) => <Button key={name} size='xs' selected={laying === name} onClick={() => lay(name)}>{name}</Button>)}
     </div>
     {arts.length > 0 ? (

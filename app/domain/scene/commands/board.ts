@@ -1,6 +1,6 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type TerrainCell, type Updater } from '../types'
+import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type SurfaceTarget, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
 import { BRUSH_RADIUS_MOST, CHORD_BRUSH_CORNER, DRAWN_WIDTH_LEAST, DRAWN_WIDTH_STEP, GROUND_ONLY_BRUSHES } from '../../lists'
@@ -87,14 +87,24 @@ export function setSurface(surface: string | null): Updater {
 // those of a piece left alone, each drawing its own picture from the roll.
 // With a `level`, it lays that storey of the board's own instead, a floor
 // under the surface where the storey had open air; a storey holds no water,
-// so a surface of water lays none there.
-export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0, level: number | null = null): Updater {
+// so a surface of water lays none there. Laid `onto` the thin walls, it only
+// draws the thin walls of the cells that stand any with its wall picture, and
+// leaves their ground as it was.
+export function laySurface(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0, level: number | null = null, onto: SurfaceTarget = 'ground'): Updater {
   return (state) => {
     const surface = getSurface(name)
     const board = state.board
     if (!board || !surface || getOpenAction(state)) return state
     const reach = Number.isInteger(radius) ? Math.max(0, Math.min(BRUSH_RADIUS_MOST, radius)) : 0
     const cells = disk(cell, reach).filter((c) => sameCell(c, cell) || inExtent(board.origin, board.extent, c))
+    if (onto === 'chords') {
+      const keys = new Set(cells.map(coordKey))
+      const faced = <T extends TerrainCell>(t: T, key: string): T => (keys.has(key) && hasThinWalls(t) ? { ...t, chordSurface: name } : t)
+      if (level === null) return { ...state, board: { ...board, terrain: Object.fromEntries(Object.entries(board.terrain).map(([key, t]) => [key, t.piece ? t : faced(t, key)])) } }
+      const storey = board.levels[level]
+      if (!storey || storey.piece !== null) return state
+      return { ...state, board: { ...board, levels: board.levels.map((l, i) => (i === level ? { ...l, terrain: Object.fromEntries(Object.entries(l.terrain).map(([key, t]) => [key, faced(t, key)])) } : l)) } }
+    }
     if (level !== null) {
       const storey = board.levels[level]
       if (!storey || storey.piece !== null || surface.liquid) return state

@@ -279,9 +279,11 @@ export type BoardGhostView = {
 export type { BoardMode }
 
 // A thin wall cutting a corner off its cell: the cell it stands in (`x`, `y`
-// its centre), on ground `elevation` metres up and `height` metres tall,
-// whether it is glass, and where it is drawn: its top, and seen from the front
-// the wall under that top as the viewer sees it (null from above).
+// its centre), its chord's `ends`, on ground `elevation` metres up and
+// `height` metres tall, whether it is glass, and where it is drawn: its top,
+// and seen from the front the wall under that top as the viewer sees it (null
+// from above), with the picture of the cell's `chordSurface` laid along it as
+// `grain` says (`getFaceGrain`; null from above).
 export type BoardChordView = {
   key: string
   cell: string
@@ -292,6 +294,9 @@ export type BoardChordView = {
   glass: boolean
   elevation: number
   height: number
+  ends: [{ x: number; y: number }, { x: number; y: number }]
+  face: SurfaceArt | null
+  grain: string | null
   top: string
   side: string | null
 }
@@ -688,7 +693,8 @@ function getChords(board: Board, cells: BoardCellView[]): BoardChordView[] {
       const [nx, ny] = [-(q.y - p.y) / length * half, (q.x - p.x) / length * half]
       const top = [{ x: p.x - nx, y: p.y - ny }, { x: q.x - nx, y: q.y - ny }, { x: q.x + nx, y: q.y + ny }, { x: p.x + nx, y: p.y + ny }]
         .map((v) => `${v.x.toFixed(4)},${v.y.toFixed(4)}`).join(' ')
-      return { key: `${c.key}:${key}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, elevation: terrain.elevation, height, top, side: null }
+      const face = terrain.chordSurface ? getSurface(terrain.chordSurface)?.face ?? null : null
+      return { key: `${c.key}:${key}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, elevation: terrain.elevation, height, ends: [p, q], face, grain: null, top, side: null }
     })
   })
 }

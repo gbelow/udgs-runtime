@@ -9,6 +9,7 @@ import { useBoardVeil } from '../../hooks/useBoardVeil'
 import { useBoardMapEditor, useStructureEditor } from '../../hooks/useBoardMaps'
 import { GROUND_BRUSHES, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, PIECE_TURNS, STOREY_BRUSHES } from '../../domain/lists'
 import type { TerrainBrush } from '../../domain/types'
+import type { SurfaceTarget } from '../../domain/scene/types'
 
 type Editor = ReturnType<typeof useBoardMapEditor>
 
@@ -43,6 +44,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
   const [brush, setBrush] = useState<TerrainBrush | null>('wall')
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
+  const [onto, setOnto] = useState<SurfaceTarget>('ground')
   const [radius, setRadius] = useState(0)
   const [tool, setTool] = useState<Tool>('paint')
   const [held, setHeld] = useState<string | null>(null)
@@ -60,7 +62,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
     if (tool === 'place' && held) editor.placePiece(held, cell, turns)
     else if (tool === 'pick' && choose) { choose(editor.pieceAt(cell)); setTool('paint') }
     else if (tool === 'move' && piece) { editor.movePiece(piece, cell); setTool('paint') }
-    else if (tool === 'paint' && laying) laySurface(cell, laying, frozen, radius)
+    else if (tool === 'paint' && laying) laySurface(cell, laying, frozen, radius, onto)
     else if (tool === 'paint' && brush && brushes.includes(brush)) paint(cell, brush, radius)
   }
 
@@ -124,7 +126,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
           {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
           <ZoomButtons zoomPan={zoomPan} />
         </div>
-        <SurfaceRow surfaces={view.surfaces} laying={tool === 'paint' ? laying : null} frozen={frozen} freeze={setFrozen} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setTool('paint') }} />
+        <SurfaceRow surfaces={view.surfaces} laying={tool === 'paint' ? laying : null} frozen={frozen} freeze={setFrozen} onto={onto} setOnto={setOnto} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setTool('paint') }} />
         {storey.level === null && !piece ? <GroundGenerator surfaces={view.surfaces} generate={generateGround} /> : null}
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label={label} onClick={click}>
           <defs><VeilFilter /></defs>

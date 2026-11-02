@@ -120,12 +120,16 @@ function build(view: BoardView, lift: number): BoardView {
   })
 
   // A thin wall stands from its ground to its top: the top lifted, and the
-  // outline of the whole of it as the viewer sees it drawn under that.
+  // outline of the whole of it as the viewer sees it drawn under that, its
+  // picture lying along its top and down to its foot.
   const chords: BoardChordView[] = view.chords.map((w) => {
     const strip = parsePoints(w.top)
-    const at = (metres: number) => strip.map((p) => ({ x: p.x, y: p.y - rise(metres) }))
+    const lift = (metres: number) => (p: Point) => ({ x: p.x, y: p.y - rise(metres) })
+    const at = (metres: number) => strip.map(lift(metres))
     const top = at(w.elevation + w.height)
-    return { ...w, band: w.elevation + w.height > 0 ? bandAt(w.y) : 0, group: groupOf.get(w.cell) ?? '', top: toPoints(top), side: toPoints(hull([...top, ...at(w.elevation)])) }
+    const [a, b] = w.ends.map(lift(w.elevation + w.height))
+    const foot = lift(w.elevation)({ x: (w.ends[0].x + w.ends[1].x) / 2, y: (w.ends[0].y + w.ends[1].y) / 2 })
+    return { ...w, band: w.elevation + w.height > 0 ? bandAt(w.y) : 0, group: groupOf.get(w.cell) ?? '', top: toPoints(top), side: toPoints(hull([...top, ...at(w.elevation)])), grain: rise(w.height) > 0 ? getFaceGrain(a, b, foot) : null }
   })
 
   // What is drawn over a place on the screen: a cell of a higher band, or the

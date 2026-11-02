@@ -9,7 +9,7 @@ import type { ExplosionDraft } from '../rules/impose'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import { getMembers } from '../rules/fighters'
 import type { CalledKind } from '../rules/heldTest'
-import type { ActionDraft, ReactionAmend, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, Updater } from '../types'
+import type { ActionDraft, ReactionAmend, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, SurfaceTarget, Updater } from '../types'
 import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
 import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, turnAround } from './chase'
@@ -106,7 +106,7 @@ export const sceneCommands = {
   resizeBoard: command((_, extent: BoardExtent) => resizeBoard(extent)).by(gm),
   light: command((_, level: LightLevel) => setLight(level)).by(gm),
   surface: command((_, surface: string | null) => setSurface(surface)).by(gm),
-  laySurface: command((_, cell: Coord, surface: string, roll: number, frozen: string | null, radius: number) => laySurface(cell, surface, roll, frozen, radius)).by(gm),
+  laySurface: command((_, cell: Coord, surface: string, roll: number, frozen: string | null, radius: number, onto: SurfaceTarget = 'ground') => laySurface(cell, surface, roll, frozen, radius, null, onto)).by(gm),
   generateGround: command((_, recipe: GroundRecipe, seed: number) => generateGround(recipe, seed)).by(gm),
   // a kept board, with everyone off it
   loadBoardMap: command((_, raw: unknown) => loadBoardMap(raw)).by(gm),

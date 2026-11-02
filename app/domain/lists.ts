@@ -222,6 +222,9 @@ export const PIECE_TURNS = [0, 1, 2, 3, 4, 5] as const
 // combat.tex "Darkness and light": how much light the fight has where no
 // light source reaches, brightest first.
 export const LIGHT_LEVELS = ['bright', 'dim', 'dark'] as const
+// What a surface laid by hand draws: the ground of the cell, or only its thin
+// walls, with the surface's wall picture.
+export const SURFACE_TARGETS = ['ground', 'chords'] as const
 
 // survival.tex "Exploration": "Exploration Action: are Traveling, Searching,
 // Preparing"

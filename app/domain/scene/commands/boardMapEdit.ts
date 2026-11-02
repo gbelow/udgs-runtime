@@ -1,5 +1,5 @@
 import type { TerrainBrush } from '../../types'
-import { BoardMapSchema, StructureArtSchema, type BoardExtent, type BoardMap, type Coord, type GroundRecipe, type LightLevel, type Structure, type StructureArt, type Updater } from '../types'
+import { BoardMapSchema, StructureArtSchema, type BoardExtent, type BoardMap, type Coord, type GroundRecipe, type LightLevel, type Structure, type StructureArt, type SurfaceTarget, type Updater } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
 import { addLevel, editPiece, generateGround, laySurface, movePiece, paintTerrain, placePiece, removeLevel, removePiece, resizeBoard, setLevel, setSurface, turnPiece } from './board'
 import { getPieceLevel } from '../rules/board/piece'
@@ -76,8 +76,8 @@ export function surfaceBoardMap(surface: string | null): BoardMapUpdater {
   return (map) => viaScene(map, setSurface(surface))
 }
 
-export function laySurfaceBoardMap(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0, level: number | null = null, piece: string | null = null): BoardMapUpdater {
-  return onOwner(piece, level, (at) => laySurface(cell, name, roll, frozen, radius, at))
+export function laySurfaceBoardMap(cell: Coord, name: string, roll: number, frozen: string | null, radius = 0, level: number | null = null, piece: string | null = null, onto: SurfaceTarget = 'ground'): BoardMapUpdater {
+  return onOwner(piece, level, (at) => laySurface(cell, name, roll, frozen, radius, at, onto))
 }
 
 export function generateGroundBoardMap(recipe: GroundRecipe, seed: number): BoardMapUpdater {

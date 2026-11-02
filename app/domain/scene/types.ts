@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS, SURFACE_TARGETS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { DIE_SOURCES, ROLL_MODES } from '../play/dice'
@@ -189,6 +189,10 @@ export const TerrainCellSchema = z.object({
   // that the cell is stood in from the open side. It is glass where the cell
   // is `transparent`, and absorbs by the cell's `RES`.
   chords: z.array(z.number().int().min(0).max(5)).default([]),
+  // the surface whose wall picture its thin walls are drawn with, by its name
+  // in the surfaces catalog; null draws them plain. Only a picture: it lays
+  // none of the surface's values, which are the ground's (`surface`).
+  chordSurface: str.nullable().default(null),
   // combat.tex "Fall damage": "Soft surfaces, like sand or water halve the
   // damage"; water is soft whatever this says
   soft: z.boolean().default(false),
@@ -273,6 +277,8 @@ export const GroundRecipeSchema = z.object({
 export type GroundRecipe = z.infer<typeof GroundRecipeSchema>
 
 export const LightLevelSchema = z.enum(LIGHT_LEVELS)
+export const SurfaceTargetSchema = z.enum(SURFACE_TARGETS)
+export type SurfaceTarget = z.infer<typeof SurfaceTargetSchema>
 export type LightLevel = z.infer<typeof LightLevelSchema>
 
 // The spatial facts of a fight, in game units: what the domain
