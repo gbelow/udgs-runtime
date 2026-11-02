@@ -36,18 +36,25 @@ export function getCellSurface(board: Board, key: string): Surface | null {
   return name ? getSurface(name) : null
 }
 
+// A surface's pictures; one with no path is none, and a surface with none is
+// drawn as the floor under it (`getCellArt`).
+function getArts(surface: Surface): SurfaceArt[] {
+  return surface.arts.filter((a) => a.src)
+}
+
 // The picture a laying draws: the one asked for by its path when the surface
 // lists it, else one of the surface's own by the roll when it randomizes, else
 // its first; none for a surface with no pictures. A roll that is not a whole
 // number draws the first.
 export function pickArt(surface: Surface, roll: number, frozen: string | null): SurfaceArt | null {
-  if (surface.arts.length === 0) return null
-  return surface.arts.find((a) => a.src === frozen) ?? surface.arts[surface.randomize && Number.isInteger(roll) ? Math.abs(roll) % surface.arts.length : 0]
+  const arts = getArts(surface)
+  if (arts.length === 0) return null
+  return arts.find((a) => a.src === frozen) ?? arts[surface.randomize && Number.isInteger(roll) ? Math.abs(roll) % arts.length : 0]
 }
 
 // A surface and the pictures it may be laid with, by their paths.
 export function getSurfaceChoices(): { name: string; arts: string[] }[] {
-  return getSurfaceNames().map((name) => ({ name, arts: SURFACES[name].arts.map((a) => a.src) }))
+  return getSurfaceNames().map((name) => ({ name, arts: getArts(SURFACES[name]).map((a) => a.src) }))
 }
 
 // How much of a neighbour's spreading the ground of a cell lets in: all of it
@@ -60,11 +67,20 @@ export function getCellBledInto(board: Board, key: string): number {
 export type CellArt = SurfaceArt & { bleed: number; roughness: number; bank: number; priority: number }
 
 // The picture a cell is drawn with: the one its surface was laid with while
-// that surface still lists it, else the surface's first. A cell drawn with the
-// board's surface is drawn with that surface's first.
+// that surface still lists it, else the surface's first. A surface with no
+// picture (or gone from the catalog) shows the floor under it: for the ground
+// of a piece that is no wall, the ground the piece covers there, then the
+// board's surface, drawn with that surface's first.
 export function getCellArt(board: Board, key: string): CellArt | null {
-  const surface = getCellSurface(board, key)
-  return surface ? withArt(surface, getSurfaceSource(board, key)?.art ?? null) : null
+  const cell = board.terrain[key]
+  const under = cell?.piece && !cell.blocking ? board.pieces[cell.piece]?.under[key] : undefined
+  for (const source of [cell, under]) {
+    const surface = source?.surface ? getSurface(source.surface) : null
+    const art = surface ? withArt(surface, source?.art ?? null) : null
+    if (art) return art
+  }
+  const ground = board.surface ? getSurface(board.surface) : null
+  return ground ? withArt(ground, null) : null
 }
 
 // The picture a storey's cell is drawn with: that of the surface laid on it,
@@ -75,6 +91,7 @@ export function getFloorArt(cell: TerrainCell | undefined): CellArt | null {
 }
 
 function withArt(surface: Surface, laid: string | null): CellArt | null {
-  const art = surface.arts.find((a) => a.src === laid) ?? surface.arts[0]
+  const arts = getArts(surface)
+  const art = arts.find((a) => a.src === laid) ?? arts[0]
   return art ? { ...art, bleed: surface.bleed, roughness: surface.roughness, bank: surface.bank, priority: surface.priority } : null
 }

@@ -6,7 +6,7 @@ import { holdItem } from '../../item/commands/hands'
 import { pickThrowItem } from '../commands/floor'
 import { laySurface } from '../commands/board'
 import { extentCells } from '../rules/board/geometry'
-import { getSurfaceChoices, getSurfaceNames } from '../rules/board/surface'
+import { getSurface, getSurfaceChoices, getSurfaceNames } from '../rules/board/surface'
 import { getBoardView } from './boardView'
 
 // A throw was declared with the board locked, so where it lands could never
@@ -37,7 +37,7 @@ describe('the pictures of a board', () => {
     for (const cell of view.cells) {
       if (cell.art !== null) expect(view.arts[cell.art]).toBeDefined()
     }
-    expect(view.cells.filter((c) => c.art !== null).length).toBe(names.length)
+    expect(view.cells.filter((c) => c.art !== null).length).toBe(names.filter((name) => getSurface(name)!.arts.some((a) => a.src)).length)
   })
 
   // Pictures of equal priority were drawn in the order their first cell was

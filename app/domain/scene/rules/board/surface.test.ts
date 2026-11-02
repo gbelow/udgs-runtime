@@ -6,6 +6,7 @@ import { getCellArt, getSurface, getSurfaceNames, pickArt } from './surface'
 
 const ROLLS = [0, 1, 2, 7, 1e12, -3, 2.5, NaN, Infinity]
 const CELL = { q: 1, r: 0 }
+const pictures = (surface: Surface) => surface.arts.filter((a) => a.src)
 
 describe('a laid cell is drawn with a picture its surface lists', () => {
   const state = SceneStateSchema.parse({ board: BoardSchema.parse({}) })
@@ -13,7 +14,7 @@ describe('a laid cell is drawn with a picture its surface lists', () => {
   for (const name of getSurfaceNames()) {
     it(name, () => {
       const surface = getSurface(name)!
-      const listed = surface.arts.map((a) => a.src)
+      const listed = pictures(surface).map((a) => a.src)
       for (const roll of ROLLS) {
         const laid = laySurface(CELL, name, roll, null)(state)
         const stored = laid.board!.terrain[coordKey(CELL)].art
@@ -26,13 +27,13 @@ describe('a laid cell is drawn with a picture its surface lists', () => {
   it('lays the frozen picture whatever the roll, and falls back to the roll for one it does not list', () => {
     for (const name of getSurfaceNames()) {
       const surface = getSurface(name)!
-      for (const art of surface.arts) {
+      for (const art of pictures(surface)) {
         for (const roll of ROLLS) {
           const laid = laySurface(CELL, name, roll, art.src)(state)
           expect(laid.board!.terrain[coordKey(CELL)].art).toBe(art.src)
         }
       }
-      const listed = surface.arts.map((a) => a.src)
+      const listed = pictures(surface).map((a) => a.src)
       const stored = laySurface(CELL, name, 0, '/surfaces/not-listed.webp')(state).board!.terrain[coordKey(CELL)].art
       expect(stored === null ? listed.length === 0 : listed.includes(stored)).toBe(true)
     }
@@ -41,7 +42,7 @@ describe('a laid cell is drawn with a picture its surface lists', () => {
   it('a surface that does not randomize always lays its first', () => {
     for (const name of getSurfaceNames()) {
       const surface: Surface = { ...getSurface(name)!, randomize: false }
-      for (const roll of ROLLS) expect(pickArt(surface, roll, null)).toBe(surface.arts[0] ?? null)
+      for (const roll of ROLLS) expect(pickArt(surface, roll, null)).toBe(pictures(surface)[0] ?? null)
     }
   })
 })
