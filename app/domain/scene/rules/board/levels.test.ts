@@ -292,3 +292,26 @@ describe('climbing a canopy', () => {
     expect(getMoveDestination(hanging, back, getMoveFacts(hanging, back).path)).toMatchObject({ elevation: HIGH, climb: null })
   })
 })
+
+// A stair from one storey to the next is that storey's floor raised a step at
+// a time under a stairwell of the next, as one from the ground is the ground.
+describe('walking up a stair from a storey to the next', () => {
+  const STEP = FALL.minHeight * 0.75
+  const FIRST = 4 * STEP
+  const SECOND = FIRST + 4 * STEP
+  const cell = (q: number): Coord => ({ q, r: 0 })
+  const stair = [3, 2, 1].map((n, i) => [coordKey(cell(-n)), { elevation: (i + 1) * STEP }] as const)
+  const board = BoardSchema.parse({
+    levels: [
+      { floor: FIRST, height: SECOND - FIRST, terrain: { [coordKey(cell(-4))]: {}, ...Object.fromEntries(stair) } },
+      { floor: SECOND, terrain: { ...Object.fromEntries([0, 1].map((q) => [coordKey(cell(q)), {}])), ...Object.fromEntries(stair.map(([k]) => [k, { hole: true }])) } },
+    ],
+  })
+  const placed = { ...SceneStateSchema.parse({ board: { ...board, placements: { a: PlacementSchema.parse({ cell: cell(-4), elevation: FIRST }) } } }), characters: { a: { ...makeCampaignCharacter({ name: 'a' }), id: 'a' } } }
+
+  it('walks up the stair onto the storey above', () => {
+    const up = makeAction('move', { id: 'walk', actorId: 'a', movement: 'basic', path: [cell(-3), cell(-2), cell(-1), cell(0), cell(1)] })
+    expect(isPathLegal(placed, up)).toBe(true)
+    expect(getMoveDestination(placed, up, up.path)?.elevation).toBe(SECOND)
+  })
+})

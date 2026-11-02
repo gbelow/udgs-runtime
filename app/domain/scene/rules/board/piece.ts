@@ -42,7 +42,7 @@ export function layPiece(board: Board, id: string, structure: Structure, anchor:
   const others = board.levels.filter((level) => level.piece !== null)
   const clashes = (key: string, floor: number, cell: LevelCell) => others.some((level) => {
     const there = level.terrain[key]
-    return there && Math.abs(level.floor - floor) < FALL.minHeight && !(there.lattice && cell.lattice)
+    return there && Math.abs(level.floor + there.elevation - (floor + cell.elevation)) < FALL.minHeight && !(there.lattice && cell.lattice)
   })
   const ground = rekey(structure.terrain, place)
   const levels = structure.levels.map((level) => ({ level, cells: rekey(level.terrain, place) }))

@@ -11,7 +11,7 @@ import { isOffGrid } from '../rules/parked'
 import { getAim } from '../rules/aim'
 import { getAimedFloor, getSprayPitch } from '../rules/explosion'
 import { CLIMB_EASY_DL, COVER_START_RES, FALL, SWIM_DEFAULT_DL } from '../../tables'
-import { getBeyondEdge, getFootprint, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
+import { getBeyondEdge, getFootprint, getStoreyFloor, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
 import { getHeight } from '../../character/rules/size'
 import { getPieceStructure, getStructureAt, layPiece, liftPiece } from '../rules/board/piece'
 import { without } from '../../utils'
@@ -248,8 +248,9 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush, radius = 0, level
 // a solid floor there (closing a stairwell), `hole` opens or closes a
 // stairwell, `lattice` makes the floor one that closes nothing under it, a
 // wall or anything else stands on a floor it lays, and `clear` takes the cell
-// back to open air. The brushes that change a height or lay water paint no
-// storey, and a piece's storey is left alone.
+// back to open air. A height brush raises the cell's floor over the storey's
+// (a stair's step) and never lowers it under; the brushes that lay water paint
+// no storey, and a piece's storey is left alone.
 function paintStorey(board: Board, level: number, clicked: Coord, cells: Coord[], brush: TerrainBrush): Board {
   const storey = board.levels[level]
   if (!storey || storey.piece !== null || (GROUND_ONLY_BRUSHES as readonly string[]).includes(brush)) return board
@@ -264,7 +265,10 @@ function paintStorey(board: Board, level: number, clicked: Coord, cells: Coord[]
     else if (brush === 'floor') terrain[key] = { ...current, hole: false, lattice: false }
     else if (brush === 'hole') terrain[key] = { ...current, hole: target === true }
     else if (brush === 'lattice') terrain[key] = { ...current, hole: false, lattice: target === true }
-    else if (!flag || flag(current) !== target) terrain[key] = { ...(paintedCell(current, brush) ?? LevelCellSchema.parse({})), hole: current.hole }
+    else if (!flag || flag(current) !== target) {
+      const painted = paintedCell(current, brush) ?? LevelCellSchema.parse({})
+      terrain[key] = { ...painted, elevation: Math.max(0, painted.elevation), hole: current.hole }
+    }
   }
   return { ...board, levels: board.levels.map((l, i) => (i === level ? { ...l, terrain } : l)) }
 }
@@ -295,7 +299,10 @@ function withPiece(state: SceneState, board: Board | null, id: string): SceneSta
     const top = placement.elevation + getHeight(c)
     return getFootprint(c, placement).some((cell) => {
       const key = coordKey(cell)
-      return board.terrain[key]?.piece === id || floors.some((level) => level.terrain[key] && !level.terrain[key].hole && level.floor > placement.elevation - FALL.minHeight && level.floor < top)
+      return board.terrain[key]?.piece === id || floors.some((level) => {
+        const there = level.terrain[key]
+        return there && !there.hole && getStoreyFloor(level, there) > placement.elevation - FALL.minHeight && getStoreyFloor(level, there) < top
+      })
     })
   })
   return caught ? state : { ...state, board }

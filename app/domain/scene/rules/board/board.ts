@@ -1,5 +1,5 @@
 import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../../types'
-import type { Board, BoardExtent, SceneState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../../types'
+import type { Board, BoardExtent, SceneState, Coord, Level, LevelCell, Placement, ShootAction, StrikeAction, TerrainCell } from '../../types'
 import { TerrainCellSchema } from '../../types'
 import { getHeight } from '../../../character/rules/size'
 import { FALL, REACH, RMArr } from '../../../tables'
@@ -69,13 +69,19 @@ export function getOccupancy(board: Board, characters: Record<string, Character>
 // ground).
 export type Footing = { terrain: TerrainCell | undefined; floor: number; level: number | null }
 
+// How high a storey's floor is in a cell: the storey's floor, raised by the
+// cell's own elevation (a stair's step up to the storey above).
+export function getStoreyFloor(level: Level, cell: LevelCell): number {
+  return level.floor + cell.elevation
+}
+
 // Every floor of the cell: the ground, and each storey's that is not a hole.
 export function getFloors(board: Board, cell: Coord): Footing[] {
   const key = coordKey(cell)
   const ground = board.terrain[key]
   return [
     { terrain: ground, floor: ground?.elevation ?? 0, level: null },
-    ...board.levels.flatMap((l, level) => (l.terrain[key] && !l.terrain[key].hole ? [{ terrain: l.terrain[key], floor: l.floor, level }] : [])),
+    ...board.levels.flatMap((l, level) => (l.terrain[key] && !l.terrain[key].hole ? [{ terrain: l.terrain[key], floor: getStoreyFloor(l, l.terrain[key]), level }] : [])),
   ]
 }
 
@@ -406,13 +412,14 @@ const FLOOR: TerrainCell = TerrainCellSchema.parse({ blocking: true })
 // gone through, which a cell with a wall has no floor of its own to be.
 function holds(board: Board, key: string, centre: number, reach: number, stops: (t: TerrainCell) => boolean): boolean {
   const ground = board.terrain[key]
-  const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[key]).map((l) => l.floor))
+  const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[key]).map((l) => getStoreyFloor(l, l.terrain[key])))
   if (ground && centre < ceiling && stops(ground)) return true
   return board.levels.some((level) => {
     const here = level.terrain[key]
     if (!here) return false
-    const goesThrough = !here.hole && !here.lattice && !here.blocking && Math.abs(level.floor - centre) <= reach
-    return (goesThrough && stops(FLOOR)) || (level.floor <= centre && centre < level.floor + level.height && stops(here))
+    const floor = getStoreyFloor(level, here)
+    const goesThrough = !here.hole && !here.lattice && !here.blocking && Math.abs(floor - centre) <= reach
+    return (goesThrough && stops(FLOOR)) || (floor <= centre && centre < level.floor + level.height && stops(here))
   })
 }
 

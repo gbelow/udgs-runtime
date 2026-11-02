@@ -200,9 +200,9 @@ export const LIFT_MOST = 1
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
 export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'rise', 'sink', 'thinner', 'wider', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'floor', 'hole', 'lattice', 'clear'] as const
-// A storey's floor is at one height and holds no water, and only a storey has
-// a floor to lay or a stairwell to open.
-export const GROUND_ONLY_BRUSHES = ['raise', 'lower', 'rise', 'sink', 'thinner', 'wider', 'water', 'deepen', 'shoal'] as const
+// A storey's floor holds no water, and only a storey has a floor to lay or a
+// stairwell to open.
+export const GROUND_ONLY_BRUSHES = ['water', 'deepen', 'shoal'] as const
 // How much of its hex a brush stroke takes from or gives to the width raised
 // ground is drawn across, and the thinnest it is drawn.
 export const DRAWN_WIDTH_STEP = 0.25

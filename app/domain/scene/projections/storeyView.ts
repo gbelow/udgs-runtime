@@ -1,7 +1,7 @@
 import type { Board, Coord, SeenScene } from '../types'
 import { FALL } from '../../tables'
 import { coordKey, disk } from '../rules/board/geometry'
-import { getFloors, getRoofs, getTerrainAt, type Footing } from '../rules/board/board'
+import { getFloors, getRoofs, getStoreyFloor, getTerrainAt, type Footing } from '../rules/board/board'
 import { getCellSenser } from '../rules/detection'
 import { getCellLighting } from '../rules/board/light'
 import { getFloorArt } from '../rules/board/surface'
@@ -33,20 +33,19 @@ export function getStoreyChoices(board: Board | null): StoreyChoice[] {
   return [{ height: null, label: 'ground' }, ...floors.map((floor) => ({ height: floor, label: `${floor} m` }))]
 }
 
-// The height picked, or with 'auto' the floor the active character stands
-// on when it is a storey's, or, on ground (a stair's step), the lowest
-// storey's floor within a step above their feet in their cell or the next;
-// null for the ground.
+// The height picked, or with 'auto' the lowest floor of another storey within
+// a step above the active character's feet in their cell or the next (a
+// stair's top), else the floor of the storey they stand on; null for the
+// ground.
 export function getViewHeight(state: SeenScene, picked: number | null | 'auto'): number | null {
   if (picked !== 'auto') return picked
   const board = state.board
   const placement = state.activeCharacterId ? board?.placements[state.activeCharacterId] : undefined
   if (!board || !placement) return null
   const footing = getTerrainAt(board, placement.cell, placement.elevation)
-  if (footing.level !== null) return footing.floor
   const near = disk(placement.cell, 1).flatMap((cell) => getFloors(board, cell))
-    .filter((f) => f.level !== null && f.floor >= placement.elevation && f.floor - placement.elevation < FALL.minHeight)
-  return near.length > 0 ? Math.min(...near.map((f) => f.floor)) : null
+    .flatMap((f) => (f.level !== null && f.level !== footing.level && f.floor >= placement.elevation && f.floor - placement.elevation < FALL.minHeight ? [board.levels[f.level].floor] : []))
+  return near.length > 0 ? Math.min(...near) : footing.level === null ? null : board.levels[footing.level].floor
 }
 
 // Whose eyes the board is looked at through: the active character's with
@@ -73,8 +72,14 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
   const feet = eye ? board.placements[eye] : undefined
   const outside = !!feet && getRoofs(board, feet.cell, feet.elevation).length === 0
   const isLattice = (key: string) => (f: Footing) => f.level !== null && !!board.levels[f.level].terrain[key]?.lattice
+  // a storey looked at from its own floor shows its raised cells (a stair's
+  // steps) however high they rise
   const standing = (cell: Coord): Footing => {
-    if (height !== null) return getTerrainAt(board, cell, height)
+    if (height !== null) {
+      const met = getTerrainAt(board, cell, height)
+      const step = highest(getFloors(board, cell).filter((f) => f.level !== null && board.levels[f.level].floor === height))
+      return step && step.floor > met.floor ? step : met
+    }
     const ground = board.terrain[coordKey(cell)]
     return { terrain: ground, floor: ground?.elevation ?? 0, level: null }
   }
@@ -97,7 +102,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
     const over = getRoofs(board, c.cell, stand.floor)
     const roof = !!senses && over.length > 0 && (outside || !senses(c.cell, stand.floor)) ? highest(over) : undefined
     const top = roof ?? stand
-    const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[c.key]).map((l) => l.floor))
+    const ceiling = Math.min(Infinity, ...board.levels.flatMap((l) => (l.terrain[c.key] ? [getStoreyFloor(l, l.terrain[c.key])] : [])))
     const wall = !roof && height !== null && stand.level === null && !!ground?.blocking && ceiling > height
     const drawn = wall ? { terrain: ground, floor: height, level: null }
       : lattice(top) && !getFloorArt(top.terrain) ? highest(floors.filter((f) => !lattice(f) && f.floor < top.floor)) ?? floors[0]

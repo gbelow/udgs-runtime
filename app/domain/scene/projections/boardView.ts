@@ -4,7 +4,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { DIRECTIONS, HEX_POINTS, ROTATIONS, getHexPoints, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
-import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board/board'
+import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -651,7 +651,7 @@ const FACE_MOST = 0.12
 // How tall a wall is drawn: up to the lowest storey laid over it, or the
 // standard height where there is none.
 function getWallHeight(board: Board, key: string, elevation: number): number {
-  const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[key] && l.floor > elevation).map((l) => l.floor))
+  const ceiling = Math.min(Infinity, ...board.levels.flatMap((l) => (l.terrain[key] ? [getStoreyFloor(l, l.terrain[key])] : [])).filter((floor) => floor > elevation))
   return Number.isFinite(ceiling) ? ceiling - elevation : WALL_DRAWN_HEIGHT
 }
 
@@ -690,7 +690,7 @@ function getFaceLayers(board: Board, key: string): FaceLayer[] {
     !t || !t.blocking || t.hole || t.lattice ? null : t.transparent ? 'glass' as const : 'solid' as const
   const floors = [
     { floor: ground?.elevation ?? 0, face: faceOf(ground?.surface), paints: paints(ground) },
-    ...board.levels.flatMap((l) => (l.terrain[key] ? [{ floor: l.floor, face: faceOf(l.terrain[key].surface), paints: paints(l.terrain[key]) }] : [])),
+    ...board.levels.flatMap((l) => (l.terrain[key] ? [{ floor: getStoreyFloor(l, l.terrain[key]), face: faceOf(l.terrain[key].surface), paints: paints(l.terrain[key]) }] : [])),
   ].sort((a, b) => a.floor - b.floor)
   return [
     { from: -Infinity, to: floors[0].floor, face: faceOf(ground?.surface), paints: 'solid' },
