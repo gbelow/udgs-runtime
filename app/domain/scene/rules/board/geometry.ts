@@ -212,11 +212,27 @@ export const HEX_POINTS = getHexPoints(1)
 // The two corners of the side of a unit hex about its centre that faces the
 // neighbour in `direction`.
 export function hexSide(direction: Direction): [{ x: number; y: number }, { x: number; y: number }] {
-  const corner = (k: number) => {
-    const angle = (Math.PI / 180) * 60 * (((k % 6) + 6) % 6)
-    return { x: Math.cos(angle), y: Math.sin(angle) }
-  }
-  return [corner(-direction), corner(1 - direction)]
+  return [hexCorner(-direction), hexCorner(1 - direction)]
+}
+
+// A corner of a unit hex about its centre: corner 0 to the right, each next
+// one a sixth of a turn further, clockwise as drawn. Side `direction` runs
+// between corners `-direction` and `1 - direction` (`hexSide`).
+export function hexCorner(corner: number): { x: number; y: number } {
+  const angle = (Math.PI / 180) * 60 * (((corner % 6) + 6) % 6)
+  return { x: Math.cos(angle), y: Math.sin(angle) }
+}
+
+// The ends of the chord that cuts `corner` off a unit hex about its centre:
+// the two corners beside it.
+export function getChordEnds(corner: number): [{ x: number; y: number }, { x: number; y: number }] {
+  return [hexCorner(corner - 1), hexCorner(corner + 1)]
+}
+
+// A corner of a cell turned `steps` times about the cell's centre, as
+// `rotate` turns an offset.
+export function turnCorner(corner: number, steps: number): number {
+  return (((corner - steps) % 6) + 6) % 6
 }
 
 // The grain of a picture drawn over a wall, as the first four numbers of an SVG

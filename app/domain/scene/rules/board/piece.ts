@@ -1,5 +1,5 @@
 import type { Board, Coord, Level, LevelCell, Piece, Structure, TerrainCell } from '../../types'
-import { add, coordKey, inExtent, parseCoordKey, rotate, subtract } from './geometry'
+import { add, coordKey, inExtent, parseCoordKey, rotate, subtract, turnCorner } from './geometry'
 import { FALL } from '../../../tables'
 
 // A structure is laid as one piece: its cells are written onto the board
@@ -8,10 +8,12 @@ import { FALL } from '../../../tables'
 // Pieces never share a cell of ground, nor a cell of storey within a cliff of
 // each other's floor, unless both are lattice (two canopies grown together).
 
-function rekey<T>(cells: Record<string, T>, move: (cell: Coord) => Coord): [string, T][] {
+// The cells moved to where `move` puts them, each turned `steps` times about
+// its own centre, so that the corners its thin walls cut turn with the piece.
+function rekey<T extends TerrainCell>(cells: Record<string, T>, move: (cell: Coord) => Coord, steps: number): [string, T][] {
   return Object.entries(cells).flatMap(([key, cell]) => {
     const at = parseCoordKey(key)
-    return at ? [[coordKey(move(at)), cell] as [string, T]] : []
+    return at ? [[coordKey(move(at)), { ...cell, chords: cell.chords.map((c) => turnCorner(c, steps)) }] as [string, T]] : []
   })
 }
 
@@ -44,8 +46,8 @@ export function layPiece(board: Board, id: string, structure: Structure, anchor:
     const there = level.terrain[key]
     return there && Math.abs(level.floor + there.elevation - (floor + cell.elevation)) < FALL.minHeight && !(there.lattice && cell.lattice)
   })
-  const ground = rekey(structure.terrain, place)
-  const levels = structure.levels.map((level) => ({ level, cells: rekey(level.terrain, place) }))
+  const ground = rekey(structure.terrain, place, rotation)
+  const levels = structure.levels.map((level) => ({ level, cells: rekey(level.terrain, place, rotation) }))
   if (!ground.every(([key]) => onBoard(key) && !board.terrain[key]?.piece)) return null
   if (!levels.every(({ level, cells }) => cells.every(([key, cell]) => onBoard(key) && !clashes(key, level.floor + elevation, cell)))) return null
   const under = Object.fromEntries(ground.flatMap(([key]) => (board.terrain[key] ? [[key, board.terrain[key]]] : [])))
@@ -90,11 +92,11 @@ export function getStructureAt(piece: Piece, terrain: Record<string, TerrainCell
     name: piece.name,
     art: piece.art,
     extent: null,
-    terrain: Object.fromEntries(rekey(terrain, unplace).map(([key, cell]): [string, TerrainCell] => [key, { ...cell, piece: null, layers: [] }])),
+    terrain: Object.fromEntries(rekey(terrain, unplace, 6 - piece.rotation).map(([key, cell]): [string, TerrainCell] => [key, { ...cell, piece: null, layers: [] }])),
     levels: levels.map((level) => ({
       ...level,
       piece: null,
-      terrain: Object.fromEntries(rekey(level.terrain, unplace).map(([key, cell]): [string, LevelCell] => [key, { ...cell, layers: [] }])),
+      terrain: Object.fromEntries(rekey(level.terrain, unplace, 6 - piece.rotation).map(([key, cell]): [string, LevelCell] => [key, { ...cell, layers: [] }])),
     })),
   }
 }

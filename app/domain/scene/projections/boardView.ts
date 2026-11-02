@@ -2,7 +2,7 @@ import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, Li
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { DIRECTIONS, HEX_POINTS, ROTATIONS, getHexPoints, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { DIRECTIONS, HEX_POINTS, ROTATIONS, getChordEnds, getHexPoints, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
@@ -23,7 +23,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLighting } from '../rules/board/light'
-import { WALL_DRAWN_HEIGHT } from '../../lists'
+import { CHORD_BRUSH_CORNER, CHORD_DRAWN_THICKNESS, WALL_DRAWN_HEIGHT } from '../../lists'
 import { getCellArt, getCellBledInto, getCellSurfaceName, getSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
@@ -60,8 +60,8 @@ export type BoardCellView = {
   // height: the space a click there picks; null where the board is seen from
   // above and the cell is picked where it is drawn
   base: { x: number; y: number } | null
-  // seen from the front, what the cell is drawn as part of: the piece it
-  // belongs to, else the plain ground of its band; empty seen from above
+  // seen from the front, what the cell is veiled with: its own top, walls and
+  // thin walls, the cell's key; empty seen from above
   group: string
   terrain: CellTerrain
   // combat.tex "Damage absorption": how sturdy the wall or cover in the cell
@@ -278,6 +278,24 @@ export type BoardGhostView = {
 // What a click on a cell does right now.
 export type { BoardMode }
 
+// A thin wall cutting a corner off its cell: the cell it stands in (`x`, `y`
+// its centre), on ground `elevation` metres up and `height` metres tall,
+// whether it is glass, and where it is drawn: its top, and seen from the front
+// the wall under that top as the viewer sees it (null from above).
+export type BoardChordView = {
+  key: string
+  cell: string
+  x: number
+  y: number
+  band: number
+  group: string
+  glass: boolean
+  elevation: number
+  height: number
+  top: string
+  side: string | null
+}
+
 // A see-through floor (a lattice) over the floor a cell is drawn as, drawn
 // over it at its own height.
 // A lattice over the floor a cell is drawn as (`below` metres up),
@@ -305,6 +323,7 @@ export type BoardView = {
   arts: CellArt[]
   cells: BoardCellView[]
   ridges: BoardRidgeView[]
+  chords: BoardChordView[]
   // the ground around the foot of every cell drawn thinner than its hex, one
   // to each such cell under its key and `:rim`, at the height `around` and
   // drawn before it; plain ground, with nothing offered on it
@@ -345,7 +364,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -440,7 +459,7 @@ function buildBoardView(state: SeenScene): BoardView {
       base: null,
       group: '',
       terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
-      strength: terrain?.blocking ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
+      strength: terrain?.blocking || terrain?.chords.length ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
       elevation: terrain?.elevation ?? 0,
       elevationLabel: elevationLabel(terrain?.elevation ?? 0),
       fire: hazard.fire,
@@ -549,6 +568,7 @@ function buildBoardView(state: SeenScene): BoardView {
     hex: HEX_POINTS,
     cells,
     ...getRidges(board, cells, board),
+    chords: getChords(board, cells),
     rims: getRims(cells),
     standing: getStanding(board, cells),
     sprites: [],
@@ -654,6 +674,32 @@ function getWallHeight(board: Board, key: string, elevation: number): number {
   const ceiling = Math.min(Infinity, ...board.levels.flatMap((l) => (l.terrain[key] ? [getStoreyFloor(l, l.terrain[key])] : [])).filter((floor) => floor > elevation))
   return Number.isFinite(ceiling) ? ceiling - elevation : WALL_DRAWN_HEIGHT
 }
+
+// The thin walls cutting corners off the cells, each drawn as a strip along
+// its chord, standing as high as a wall in the cell would.
+function getChords(board: Board, cells: BoardCellView[]): BoardChordView[] {
+  const half = CHORD_DRAWN_THICKNESS / 2
+  return cells.flatMap((c) => {
+    const terrain = board.terrain[c.key]
+    if (!terrain?.chords.length) return []
+    const height = getWallHeight(board, c.key, terrain.elevation)
+    return terrain.chords.map((corner) => {
+      const [p, q] = getChordEnds(corner)
+      const length = Math.hypot(q.x - p.x, q.y - p.y)
+      const [nx, ny] = [-(q.y - p.y) / length * half, (q.x - p.x) / length * half]
+      const top = [{ x: p.x - nx, y: p.y - ny }, { x: q.x - nx, y: q.y - ny }, { x: q.x + nx, y: q.y + ny }, { x: p.x + nx, y: p.y + ny }]
+        .map((v) => `${(c.x + v.x).toFixed(4)},${(c.y + v.y).toFixed(4)}`).join(' ')
+      return { key: `${c.key}:chord${corner}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, elevation: terrain.elevation, height, top, side: null }
+    })
+  })
+}
+
+// What each thin-wall brush paints, drawn on its button: a unit hex and the
+// chord it lays, as SVG points.
+export type BrushIcon = { hex: string; chord: string }
+export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon> = Object.fromEntries(
+  Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]) => [brush, { hex: HEX_POINTS, chord: getChordEnds(corner).map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ') }]),
+) as Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon>
 
 // Each cell's top: drawn thinner than its hex where it is painted so and stands
 // over the lowest ground beside it on the board, which is drawn around its

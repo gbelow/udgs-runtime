@@ -184,6 +184,11 @@ export const TerrainCellSchema = z.object({
   // how much of its hex the cell's raised ground is drawn across, 1 the whole
   // of it: a pillar, a trunk. Only a way of drawing it; the rules read none of it.
   width: num.min(0).max(1).default(1),
+  // the corners of its hex a thin wall cuts off (`getChordEnds`), each wall
+  // standing on the chord between the two corners beside the one it cuts, so
+  // that the cell is stood in from the open side. It is glass where the cell
+  // is `transparent`, and absorbs by the cell's `RES`.
+  chords: z.array(z.number().int().min(0).max(5)).default([]),
   // combat.tex "Fall damage": "Soft surfaces, like sand or water halve the
   // damage"; water is soft whatever this says
   soft: z.boolean().default(false),

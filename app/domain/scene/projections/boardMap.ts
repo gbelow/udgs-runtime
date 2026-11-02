@@ -3,6 +3,9 @@ import { makeBoardMap, sceneOfMap } from '../factories'
 import { getBoardView, getStandingOf, type BoardView } from './boardView'
 import { coordKey } from '../rules/board/geometry'
 import { getPieceAt } from '../rules/board/piece'
+import { getCellLighting } from '../rules/board/light'
+import { getStoreyFloor } from '../rules/board/board'
+import { WINDOW_LIGHT } from '../../tables'
 
 // The board as it would be kept under `name`, or nothing while the fight has
 // no grid.
@@ -12,13 +15,18 @@ export function getBoardMap(state: SceneState, name: string): BoardMap | null {
 
 // The map drawn as the fight's board is, for the editor that paints it. At a
 // storey (`level`), the cells it lays a floor in are drawn as that floor and
-// the rest as the ground seen through a stairwell or open air. The cells of
-// the piece `chosen` are marked.
-export function getBoardMapView(map: BoardMap, level: number | null = null, chosen: string | null = null): BoardView {
+// the rest as the ground seen through a stairwell or open air. Each floor is
+// lit as it would be in a fight, under the storeys over it; a structure
+// (`open`) stands in the open, so the ground past the map's edge is lit under
+// the sky and shines in through its windows and doorways. The cells of the
+// piece `chosen` are marked.
+export function getBoardMapView(map: BoardMap, level: number | null = null, chosen: string | null = null, open = false): BoardView {
   const storey = level === null ? undefined : map.levels[level]
   const floors = Object.entries(storey?.terrain ?? {}).filter(([, cell]) => !cell.hole)
   const seen = storey ? { ...map, levels: [], terrain: { ...map.terrain, ...Object.fromEntries(floors.map(([key, cell]) => [key, { ...cell, elevation: storey.floor + cell.elevation }])) } } : map
   const view = getBoardView({ ...sceneOfMap(seen), activeCharacterId: null })
+  const beyond = open ? WINDOW_LIGHT.fading : 0
+  const lighting = sceneOfMap({ ...map, extent: { q: map.extent.q + beyond, r: map.extent.r + beyond, s: map.extent.s + beyond } })
   // the picture of the structure being edited stands on the map's anchor
   const own = getStandingOf('structure', map.art, view.cells.find((c) => c.key === coordKey(map.origin)), 0, Math.max(0, ...Object.values(map.terrain).filter((cell) => cell.piece === null).map((cell) => cell.elevation)), map.levels.filter((l) => l.piece === null).map((l) => l.floor))
   return {
@@ -26,7 +34,9 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
     standing: [...view.standing, ...own],
     cells: view.cells.map((c) => {
       const piece = getPieceAt(map, c.key)
-      return { ...c, piece, chosen: piece !== null && piece === chosen, storey: !storey ? null : storey.terrain[c.key] ? (storey.terrain[c.key].hole ? 'hole' : storey.terrain[c.key].lattice ? 'lattice' : 'floor') : 'air' }
+      const floor = storey?.terrain[c.key]
+      const { light, lit } = getCellLighting(lighting, c.cell, storey && floor && !floor.hole ? getStoreyFloor(storey, floor) : undefined)
+      return { ...c, light, lit, piece, chosen: piece !== null && piece === chosen, storey: !storey ? null : storey.terrain[c.key] ? (storey.terrain[c.key].hole ? 'hole' : storey.terrain[c.key].lattice ? 'lattice' : 'floor') : 'air' }
     }),
   }
 }

@@ -6,6 +6,7 @@ import type { BoardExtent, BoardMap, Coord, GroundRecipe, LightLevel, StructureA
 import type { BoardView } from "../domain/scene/projections/boardView";
 import { getBoardMap, getBoardMapView, getPieceRows, getStoreyRows } from "../domain/scene/projections/boardMap";
 import { getFrontView } from "../domain/scene/projections/frontView";
+import { CHORD_BRUSH_ICONS } from "../domain/scene/projections/boardView";
 import type { BoardLook } from "./useBoardLook";
 import { getPieceAt, getPieceStructure } from "../domain/scene/rules/board/piece";
 import { coordKey } from "../domain/scene/rules/board/geometry";
@@ -73,6 +74,7 @@ export function useBoardMapEditor(storeyAt: number, chosen: string | null, look:
   return useKeptBoardEditor(useBoardMapDraftStore, storeyAt, chosen, look, {
     rows, devServer, refresh, remove,
     noun: "Battle map",
+    inOpen: false,
     stored: (id) => boardMaps[id] && { map: boardMaps[id].map, shared: boardMaps[id].owner === null },
     keep: saveBoardMap,
     drop: deleteBoardMap,
@@ -99,6 +101,7 @@ export function useStructureEditor(storeyAt: number, look: Look) {
   return useKeptBoardEditor(useStructureDraftStore, storeyAt, null, look, {
     rows, devServer, refresh, remove,
     noun: "Structure",
+    inOpen: true,
     stored: (id) => structures[id] && { map: mapOfStructure(structures[id].structure), shared: structures[id].owner === null },
     keep: (map, shared) => saveStructure(structureOfMap(map), shared),
     drop: deleteStructure,
@@ -112,6 +115,8 @@ type KeptBoards = {
   refresh: () => void;
   remove: (id: string) => Promise<void>;
   noun: string;
+  // whether what is made stands in the open, lit past the map's edge
+  inOpen: boolean;
   stored: (id: string) => { map: BoardMap; shared: boolean } | undefined;
   keep: (map: BoardMap, shared: boolean) => Promise<ActionResult>;
   drop: (id: string) => Promise<ActionResult>;
@@ -132,9 +137,9 @@ function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, storeyAt: nu
   const storey = storeys[storeyAt] ?? storeys[0];
   const level = storey.level;
   const view: BoardView = useMemo(() => {
-    const flat = getBoardMapView(map, level, piece);
+    const flat = getBoardMapView(map, level, piece, kept.inOpen);
     return look.front ? getFrontView(flat, look.lift) : flat;
-  }, [map, level, piece, look.front, look.lift]);
+  }, [map, level, piece, kept.inOpen, look.front, look.lift]);
   const pieces = useMemo(() => getPieceRows(map), [map]);
   const structures: BoardMapRow[] = useMemo(
     () => Object.values(structureList).map((b) => ({ id: b.id, name: b.structure.name, shared: b.owner === null })).sort((a, b) => a.name.localeCompare(b.name)),
@@ -153,7 +158,7 @@ function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, storeyAt: nu
   };
 
   return {
-    rows: kept.rows, devServer: kept.devServer, view, map, openId, storeys, storey, pieces, piece, structures, save,
+    rows: kept.rows, devServer: kept.devServer, brushIcons: CHORD_BRUSH_ICONS, view, map, openId, storeys, storey, pieces, piece, structures, save,
     open: (id: string) => { const stored = kept.stored(id); if (stored) open(id, stored.map); },
     create: () => open(null, kept.fresh()),
     // a copy of what is open, not yet kept, under a name of its own

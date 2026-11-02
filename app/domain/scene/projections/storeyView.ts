@@ -159,7 +159,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
   // each drop painted by what stands in its cell on the board as it is, not
   // on the flattened copy it is drawn from
   const cliffs = redrawn ? getRidges(flatBoard, flat.cells, board) : view
-  const seen = { ...view, cells, tokens, overhead, arts: flat.arts, ridges: cliffs.ridges, rims: flat.rims, faces: cliffs.faces, bands: flat.bands }
+  const seen = { ...view, cells, tokens, overhead, arts: flat.arts, ridges: cliffs.ridges, chords: flat.chords, rims: flat.rims, faces: cliffs.faces, bands: flat.bands }
   cache.set(view, (cache.get(view) ?? new Map()).set(memo, seen))
   return seen
 }

@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { RotateCcw, RotateCw, Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput, selectClass } from '../ui'
-import { BRUSH_LABEL, BandLayers, BaseLayer, BrushSize, GroundGenerator, SurfaceRow, VeilFilter, ZoomButtons, cellAt } from '../BoardPanel'
+import { BrushFace, BandLayers, BaseLayer, BrushSize, GroundGenerator, SurfaceRow, VeilFilter, ZoomButtons, cellAt } from '../BoardPanel'
 import { useZoomPan } from '../../hooks/useZoomPan'
 import { useBoardLook, type BoardLook } from '../../hooks/useBoardLook'
 import { useBoardVeil } from '../../hooks/useBoardVeil'
@@ -111,7 +111,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
         </div>
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>paint</SectionLabel>
-          {brushes.map((b) => <Button key={b} size='xs' selected={tool === 'paint' && brush === b} onClick={() => { setBrush(b); setLaying(null); setTool('paint') }}>{BRUSH_LABEL[b]}</Button>)}
+          {brushes.map((b) => <Button key={b} size='xs' selected={tool === 'paint' && brush === b} onClick={() => { setBrush(b); setLaying(null); setTool('paint') }}><BrushFace brush={b} icons={editor.brushIcons} /></Button>)}
         </div>
         <BrushSize radius={radius} setRadius={setRadius} />
         <div className='flex flex-row flex-wrap gap-1 items-center'>

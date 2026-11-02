@@ -7,7 +7,7 @@ import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
 import type { BoardExtent, Coord, GroundRecipe } from '../domain/scene/types'
-import type { BoardView, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
+import type { BoardView, BrushIcon, BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
@@ -53,6 +53,25 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   hole: 'stairwell',
   lattice: 'lattice',
   clear: 'clear',
+  chord0: 'thin wall',
+  chord1: 'thin wall',
+  chord2: 'thin wall',
+  chord3: 'thin wall',
+  chord4: 'thin wall',
+  chord5: 'thin wall',
+}
+
+// A brush's button face: what it paints drawn small where there is a picture
+// of it, else its name.
+export function BrushFace({ brush, icons }: { brush: TerrainBrush, icons: Partial<Record<TerrainBrush, BrushIcon>> }) {
+  const icon = icons[brush]
+  if (!icon) return <>{BRUSH_LABEL[brush]}</>
+  return (
+    <svg viewBox='-1.15 -1.15 2.3 2.3' className='h-4 w-4' role='img' aria-label={BRUSH_LABEL[brush]}>
+      <polygon points={icon.hex} className='fill-none stroke-muted' strokeWidth={0.12} />
+      <polyline points={icon.chord} className='stroke-fg' strokeWidth={0.3} strokeLinecap='round' />
+    </svg>
+  )
 }
 
 // The simulated grid: a hex field the GM paints, lights and repositions
@@ -63,7 +82,7 @@ export function BoardPanel(){
   const [fromActive, setFromActive] = useState(false)
   const look = useBoardLook()
   const [storey, setStorey] = useState<number | null | 'auto'>('auto')
-  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning } = useBoard(fromActive, look, storey)
+  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning, brushIcons } = useBoard(fromActive, look, storey)
   const veil = useBoardVeil(view)
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
@@ -127,7 +146,7 @@ export function BoardPanel(){
           onClick={() => { setBrush(null); setLaying(null); setFloorTool(null) }}>control</Button>
         {GROUND_BRUSHES.map((b) =>
           <Button key={b} size='xs' selected={brush === b}
-            onClick={() => { setBrush(brush === b ? null : b); setLaying(null); setReposition(false); setFloorTool(null) }}>{BRUSH_LABEL[b]}</Button>)}
+            onClick={() => { setBrush(brush === b ? null : b); setLaying(null); setReposition(false); setFloorTool(null) }}><BrushFace brush={b} icons={brushIcons} /></Button>)}
       </div>
 
       <BrushSize radius={radius} setRadius={setRadius} />
@@ -245,6 +264,22 @@ export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardView, b
   )
 }
 
+// The thin walls cutting corners off cells: seen from the front, the outline
+// of the whole wall shaded, then its top; from above, its top alone, glass
+// tinted.
+export function ChordLayer({ view, band }: { view: BoardView, band: number }){
+  return (
+    <g className='pointer-events-none'>
+      {view.chords.filter((w) => w.band === band).map((w) => (
+        <g key={w.key}>
+          {w.side !== null ? <polygon points={w.side} className={w.glass ? 'fill-accent/25 stroke-accent/50' : 'fill-fg/60 stroke-fg/70'} strokeWidth={0.02} /> : null}
+          <polygon points={w.top} className={w.glass ? 'fill-accent/40 stroke-accent' : 'fill-fg stroke-fg'} strokeWidth={0.02} />
+        </g>
+      ))}
+    </g>
+  )
+}
+
 // The pictures of the structures seen from the front, a slice to each storey,
 // drawn over the piece's own cells so that what is higher covers what is lower
 // and behind it. Each slice is the whole picture cut to the part it shows.
@@ -307,13 +342,13 @@ export function VeilFilter(){
   return <filter id='veil' x='-5%' y='-5%' width='110%' height='110%'><feGaussianBlur stdDeviation={VEIL_BLUR} /></filter>
 }
 
-// What is drawn in one band. The pieces drawn over a cell the pointer is on,
-// or a cell picked, are drawn apart, blurred and faded, so that the cell can be
-// seen through them and nothing else is.
+// What is drawn in one band. What is drawn over a cell the pointer is on, or
+// a cell picked, is drawn apart, blurred and faded, so that the cell can be
+// seen through it and nothing else is.
 export function BandLayers({ view, band, veiled }: { view: BoardView, band: number, veiled: string[] }){
   const part = (behind: boolean): BoardView => {
     const keep = (group: string) => veiled.includes(group) === behind
-    return { ...view, cells: view.cells.filter((c) => keep(c.group)), rims: view.rims.filter((c) => keep(c.group)), ridges: view.ridges.filter((r) => keep(r.group)), sprites: view.sprites.filter((s) => keep(s.group)) }
+    return { ...view, cells: view.cells.filter((c) => keep(c.group)), rims: view.rims.filter((c) => keep(c.group)), ridges: view.ridges.filter((r) => keep(r.group)), chords: view.chords.filter((w) => keep(w.group)), sprites: view.sprites.filter((s) => keep(s.group)) }
   }
   // the ground around the foot of a thinner top is drawn as a cell before it
   const draw = (v: BoardView, tag?: string) => {
@@ -323,13 +358,14 @@ export function BandLayers({ view, band, veiled }: { view: BoardView, band: numb
         <SurfaceLayer view={ground} band={band} tag={tag} crisp={band > 0} />
         {ground.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
         <RidgeLayer view={v} band={band} tag={tag} />
+        <ChordLayer view={v} band={band} />
         <SpriteLayer view={v} band={band} tag={tag} />
         <ShadeLayer view={ground} band={band} tag={tag} />
       </>
     )
   }
   const behind = veiled.length > 0 ? part(true) : null
-  if (!behind || !([...behind.cells, ...behind.rims].some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view)}</g>
+  if (!behind || !([...behind.cells, ...behind.rims].some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.chords.some((w) => w.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view)}</g>
   return (
     <g>
       {draw(part(false))}

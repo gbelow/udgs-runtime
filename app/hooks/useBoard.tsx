@@ -1,7 +1,7 @@
 import type { BoardExtent, Coord, GroundRecipe, LightLevel } from "../domain/scene/types";
 import { EXPLOSION_DRAFT, EXPLOSION_EFFECTS, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_KINDS, type ExplosionDraft } from "../domain/scene/rules/impose";
 import type { TerrainBrush } from "../domain/types";
-import { BoardView, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
+import { BoardView, CHORD_BRUSH_ICONS, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
 import { getFrontView } from "../domain/scene/projections/frontView";
 import { getStoreyChoices, getStoreyView, getViewEye, getViewHeight } from "../domain/scene/projections/storeyView";
 import type { BoardLook } from "./useBoardLook";
@@ -65,7 +65,7 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
   const resize = (extent: BoardExtent) => dispatch({ kind: "resizeBoard", args: [extent] });
   const resizeWarning = (extent: BoardExtent) => getResizeWarning(useCombatStore.getState(), extent);
 
-  return { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, setExplosion, explosionOptions, turn, light, surface, laySurface, generateGround, resize, resizeWarning } as const;
+  return { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, setExplosion, explosionOptions, turn, light, surface, laySurface, generateGround, resize, resizeWarning, brushIcons: CHORD_BRUSH_ICONS } as const;
 }
 
 // The GM's floor tool and the explosion it carries, shared by the buttons that
