@@ -13,10 +13,11 @@ import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMove
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
 import { getClimbBack, getClimbBound, getClimbTarget, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
-import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
+import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
 import { hasGrant } from '../../character/rules/effects'
 import { getModifiedTotal } from './modifiers'
-import { canRest, crossesThinWall, getCrowdedBy, isCrossable, isFootprintOpen, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
+import { canRest, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
+import { mayStep, type Stepping } from './board/step'
 import { getMoveDestination, getMoveOrigin, getMovePlacements, getMoveSweep, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
 import { getDegree } from '../../play/test'
@@ -274,9 +275,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
     const last = i === action.path.length - 1
     const footprint = sweep[i]
     const floor = ground.at(action.movement === 'jump' ? from.elevation : steps[action.movement === 'climb' ? i + 1 : i].elevation)
-    if (!canPass(action.movement, footprint, floor, last, ceiling, wet)) return false
-    if (!column && crossesThinWall(footprint, floor, cursor, cell)) return false
-    if (action.movement !== 'climb' && !canStepOver(action.movement, floor.elevation(cursor), floor.elevation(cell))) return false
+    if (!mayStep(footprint, floor, cursor, cell, { movement: action.movement, lands: last, fromWater: wet, ceiling })) return false
     if (!isTetherKept(state, c.id, footprint)) return false
     if (last && !canEndAt(state, c, action, footprint, floor)) return false
     cursor = cell
@@ -301,15 +300,6 @@ function getJumpSpeed(c: Character, action: MoveAction): number {
 // above where it sets out, so a 2m jump goes up a metre.
 function getJumpCeiling(c: Character, from: Placement): number {
   return from.elevation + getMovementSpeed(c, 'jump') / 2
-}
-
-function clears(footprint: Coord[], floor: Floor, ceiling: number): boolean {
-  return footprint.every((cell) => floor.elevation(cell) <= ceiling)
-}
-
-function canPass(kind: MoveKind, footprint: Coord[], floor: Floor, lands: boolean, ceiling: number, fromWater: boolean): boolean {
-  if (kind === 'jump' && !clears(footprint, floor, ceiling)) return false
-  return touchesGround(kind, lands) ? isCrossable(footprint, floor, kind, fromWater) : isFootprintOpen(footprint, floor)
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -615,14 +605,20 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
   const hop = Math.floor(getJumpMovement(defender) / 2)
   const leap = heading === null ? hop : Math.max(hop, Math.floor(getRunningJumpMovement(defender)))
   const reaches = (cell: Coord) => distance(cell, from.cell) <= hop || (heading !== null && isWithinCone(subtract(cell, from.cell), heading))
+  const ceiling = getJumpCeiling(defender, from)
+  const jump = (lands: boolean): Stepping => ({ movement: 'jump', lands, fromWater: false, ceiling })
   const placements: Placement[] = []
   for (const cell of disk(from.cell, leap)) {
     if (sameCell(cell, from.cell) || !reaches(cell)) continue
     if (floor.elevation(from.cell) - floor.elevation(cell) >= FALL.minHeight) continue
+    // a jump like any other, in a straight line, over every cell on the way
+    const path = getJumpPath(from.cell, cell)
+    const stepFrom = (i: number) => (i === 0 ? from.cell : path[i - 1])
+    if (!path.slice(0, -1).every((at, i) => mayStep(getFootprint(defender, { ...from, cell: at }), floor, stepFrom(i), at, jump(false)))) continue
     for (const orientation of ROTATIONS) {
       const to = { ...placeAt(state.board, from, cell), orientation }
       const footprint = getFootprint(defender, to)
-      if (isFootprintOpen(footprint, floor) && clears(footprint, floor, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, floor, false) && setDistance(footprint, attacker) > before) placements.push(to)
+      if (mayStep(footprint, floor, stepFrom(path.length - 1), cell, jump(true)) && canRest(state, defender, footprint, floor, false) && setDistance(footprint, attacker) > before) placements.push(to)
     }
   }
   return placements
@@ -690,9 +686,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
     if (known !== undefined) return known
     const bound = kind === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
     const floor = bound ? ground.at(bound.floor) : floorAt(before)
-    const crosses = kind === 'climb' ? bound !== null : canStepOver(kind, floor.elevation(before), floor.elevation(cell))
-    const footprint = getFootprint(c, { ...from, cell })
-    const ok = crosses && canPass(kind, footprint, floor, false, ceiling, wetAt(before)) && (sameCell(before, cell) || !crossesThinWall(footprint, floor, before, cell))
+    const ok = (kind !== 'climb' || bound !== null) && mayStep(getFootprint(c, { ...from, cell }), floor, before, cell, { movement: kind, lands: false, fromWater: wetAt(before), ceiling })
     if (ok && !feet.has(coordKey(cell))) feet.set(coordKey(cell), floor.elevation(cell))
     entered.set(key, ok)
     return ok

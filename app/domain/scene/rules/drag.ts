@@ -12,7 +12,8 @@ import { getOpeningReaction, getReactionsTo } from './log'
 import { getPartners, getGrapples, getTethers, isHeld, getGrappleGroup } from './partners'
 import { getFightName } from './fighters'
 import { getMoveBlockCells, getMoveCost, isLameBarred } from './move'
-import { canStandAt, isCarriedAcrossThinWall } from './board/ground'
+import { canStandAt } from './board/ground'
+import { mayBeCarried } from './board/step'
 import { getInterruptions } from './interruption'
 import { dropHolders } from './bind'
 
@@ -346,7 +347,7 @@ export function getGroupSteps(state: SceneState, root: DragAction): Record<strin
   const take = (at: Record<string, Placement> | null, last: boolean): boolean => {
     if (!at) return false
     const before = steps.at(-1) ?? origin
-    if (Object.entries(at).some(([id, p]) => before[id] && isCarriedAcrossThinWall(state, id, before[id], p))) return false
+    if (Object.entries(at).some(([id, p]) => before[id] && !mayBeCarried(state, id, before[id], p))) return false
     const falls = getStepFalls(before, at)
     if (falls.some((f) => f.id === root.actorId) || (falls.length > 0 && !last)) return false
     steps.push(at)

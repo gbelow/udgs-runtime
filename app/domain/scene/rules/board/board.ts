@@ -5,7 +5,7 @@ import { getHeight } from '../../../character/rules/size'
 import { FALL, REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, crossingAt, disk, distance, getChordAt, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, crossingAt, disk, distance, getChordAt, getSideAt, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 import { without } from '../../../utils'
@@ -449,6 +449,22 @@ function holds(board: Board, key: string, centre: number, reach: number, stops: 
   })
 }
 
+// The thin walls a cell stands, each where it lies in the plane: on the
+// chords that cut its corners off, and on its sides. Everything that meets a
+// thin wall, and the drawing of one, reads them here.
+export function getThinWallsOf(cell: Coord, t: TerrainCell | undefined): { key: string; ends: [{ x: number; y: number }, { x: number; y: number }] }[] {
+  if (!t) return []
+  return [
+    ...t.chords.map((corner) => ({ key: `chord${corner}`, ends: getChordAt(cell, corner) })),
+    ...t.sides.map((side) => ({ key: `side${side}`, ends: getSideAt(cell, side) })),
+  ]
+}
+
+// Whether the cell stands a thin wall.
+export function hasThinWalls(t: TerrainCell | undefined): boolean {
+  return !!t && (t.chords.length > 0 || t.sides.length > 0)
+}
+
 // A thin wall where it stands: its chord in the plane, the heights it rises
 // between, and what a line meets in it, a wall of its cell's stuff.
 type ThinWall = { ends: [{ x: number; y: number }, { x: number; y: number }]; low: number; high: number; wall: TerrainCell }
@@ -462,17 +478,17 @@ function getThinWalls(board: Board): ThinWall[] {
   if (known) return known
   const walls: ThinWall[] = []
   const lay = (cell: Coord, t: TerrainCell, low: number, high: number) => {
-    for (const corner of t.chords) walls.push({ ends: getChordAt(cell, corner), low, high, wall: { ...t, blocking: true } })
+    for (const { ends } of getThinWallsOf(cell, t)) walls.push({ ends, low, high, wall: { ...t, blocking: true } })
   }
   for (const [key, ground] of Object.entries(board.terrain)) {
     const cell = parseCoordKey(key)
-    if (!cell || ground.chords.length === 0) continue
+    if (!cell || !hasThinWalls(ground)) continue
     lay(cell, ground, -Infinity, Math.min(Infinity, ...board.levels.filter((l) => l.terrain[key]).map((l) => getStoreyFloor(l, l.terrain[key]))))
   }
   for (const level of board.levels) {
     for (const [key, here] of Object.entries(level.terrain)) {
       const cell = parseCoordKey(key)
-      if (cell && here.chords.length > 0) lay(cell, here, getStoreyFloor(level, here), level.floor + level.height)
+      if (cell && hasThinWalls(here)) lay(cell, here, getStoreyFloor(level, here), level.floor + level.height)
     }
   }
   thinWalls.set(board, walls)
@@ -504,10 +520,7 @@ function stoppedBetween(board: Board, a: Coord, b: Coord, eyes: Eyes, stops: (t:
 // standing on the floor it is taken on (`floor` gives the footing of each).
 export function isStepWalled(floor: (cell: Coord) => TerrainCell | undefined, from: Coord, to: Coord): boolean {
   const [p, q] = [toPlane(from), toPlane(to)]
-  return [from, to].some((cell) => (floor(cell)?.chords ?? []).some((corner) => {
-    const [a, b] = getChordAt(cell, corner)
-    return crossingAt(p, q, a, b) !== null
-  }))
+  return [from, to].some((cell) => getThinWallsOf(cell, floor(cell)).some(({ ends: [a, b] }) => crossingAt(p, q, a, b) !== null))
 }
 
 // Whether some cell of one set sees some cell of the other: a line between

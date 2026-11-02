@@ -189,6 +189,9 @@ export const TerrainCellSchema = z.object({
   // that the cell is stood in from the open side. It is glass where the cell
   // is `transparent`, and absorbs by the cell's `RES`.
   chords: z.array(z.number().int().min(0).max(5)).default([]),
+  // the sides of its hex a thin wall stands on, each by the direction of the
+  // neighbour it faces (`hexSide`), of the same stuff as its chords.
+  sides: z.array(DirectionSchema).default([]),
   // combat.tex "Fall damage": "Soft surfaces, like sand or water halve the
   // damage"; water is soft whatever this says
   soft: z.boolean().default(false),

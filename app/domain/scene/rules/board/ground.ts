@@ -97,15 +97,6 @@ export function crossesThinWall(footprint: Coord[], floor: Floor, from: Coord, t
   return footprint.some((cell) => isStepWalled(floor.terrain, subtract(cell, step), cell))
 }
 
-// Whether a character carried a step from one placement to the next, as a
-// push or a drag carries them, crosses a thin wall on the floor they set out
-// on.
-export function isCarriedAcrossThinWall(state: SceneState, id: string, from: Placement, to: Placement): boolean {
-  const c = state.characters[id]
-  const floor = readGround(state, id)?.at(from.elevation)
-  return !!c && !!floor && distance(from.cell, to.cell) === 1 && crossesThinWall(getFootprint(c, to), floor, from.cell, to.cell)
-}
-
 export function isWet(footprint: Coord[], floor: Floor): boolean {
   return footprint.some(floor.liquid)
 }
@@ -134,7 +125,14 @@ export function canStandAt(state: SceneState, id: string, placement: Placement, 
   const floor = readGround(state, id, landing)?.at(placement.elevation)
   if (!c || !floor) return false
   const footprint = getFootprint(c, placement)
-  return isFootprintOpen(footprint, floor) && canRest(state, c, footprint, floor, isProne(state, id))
+  return mayRestOn(state, c, footprint, floor, isProne(state, id))
+}
+
+// May be here: the footprint on this floor, none of its cells a wall and no
+// thin wall between two of them, with room to come to rest (`canRest`),
+// lying down or not. How it may get there is `mayStep` (step.ts).
+export function mayRestOn(state: SceneState, c: Character, footprint: Coord[], floor: Floor, lying: boolean): boolean {
+  return isFootprintOpen(footprint, floor) && canRest(state, c, footprint, floor, lying)
 }
 
 // Someone stands in the space the character lies in, so they may not stand up

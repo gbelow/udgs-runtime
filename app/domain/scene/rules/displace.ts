@@ -2,7 +2,8 @@ import type { Coord, MoveAction, Placement, SceneState } from '../types'
 import { makeAction } from '../factories'
 import { coordKey, ring } from './board/geometry'
 import { getFootprint, placeAt, withPlacements } from './board/board'
-import { canRest, crossesThinWall, isFootprintOpen, isWet, readGround } from './board/ground'
+import { isWet, mayRestOn, readGround } from './board/ground'
+import { CARRIED, mayStep } from './board/step'
 import { getMoveDestination, getMoveOrigin, getMoveSweep } from './board/waypoint'
 import { getSpawned } from './log'
 import { getWalkedPath } from './move'
@@ -64,7 +65,7 @@ export function getDisplacementCells(state: SceneState, move: MoveAction, id: st
   const height = floor.elevation(from.cell)
   return ring(from.cell, 1).filter((cell) => {
     const footprint = getFootprint(c, placeAt(board, from, cell))
-    return !footprint.some((f) => way.has(coordKey(f))) && floor.elevation(cell) <= height && isFootprintOpen(footprint, floor) && !crossesThinWall(footprint, floor, from.cell, cell) && !isWet(footprint, floor) && canRest(state, c, footprint, floor, false)
+    return !footprint.some((f) => way.has(coordKey(f))) && floor.elevation(cell) <= height && mayStep(footprint, floor, from.cell, cell, CARRIED) && !isWet(footprint, floor) && mayRestOn(state, c, footprint, floor, false)
   })
 }
 

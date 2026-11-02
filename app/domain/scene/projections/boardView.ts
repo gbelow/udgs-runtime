@@ -4,7 +4,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { DIRECTIONS, HEX_POINTS, ROTATIONS, getChordEnds, getHexPoints, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
-import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor } from '../rules/board/board'
+import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor, getThinWallsOf, hasThinWalls } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -23,7 +23,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLighting } from '../rules/board/light'
-import { CHORD_BRUSH_CORNER, CHORD_DRAWN_THICKNESS, WALL_DRAWN_HEIGHT } from '../../lists'
+import { CHORD_BRUSH_CORNER, CHORD_DRAWN_THICKNESS, SIDE_BRUSH_DIRECTION, WALL_DRAWN_HEIGHT } from '../../lists'
 import { getCellArt, getCellBledInto, getCellSurfaceName, getSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
@@ -459,7 +459,7 @@ function buildBoardView(state: SeenScene): BoardView {
       base: null,
       group: '',
       terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
-      strength: terrain?.blocking || terrain?.chords.length ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
+      strength: terrain && (terrain.blocking || hasThinWalls(terrain)) ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
       elevation: terrain?.elevation ?? 0,
       elevationLabel: elevationLabel(terrain?.elevation ?? 0),
       fire: hazard.fire,
@@ -675,31 +675,32 @@ function getWallHeight(board: Board, key: string, elevation: number): number {
   return Number.isFinite(ceiling) ? ceiling - elevation : WALL_DRAWN_HEIGHT
 }
 
-// The thin walls cutting corners off the cells, each drawn as a strip along
-// its chord, standing as high as a wall in the cell would.
+// The thin walls of the cells (`getThinWallsOf`), on a chord or a side, each
+// drawn as a strip along it, standing as high as a wall in the cell would.
 function getChords(board: Board, cells: BoardCellView[]): BoardChordView[] {
   const half = CHORD_DRAWN_THICKNESS / 2
   return cells.flatMap((c) => {
     const terrain = board.terrain[c.key]
-    if (!terrain?.chords.length) return []
+    if (!terrain || !hasThinWalls(terrain)) return []
     const height = getWallHeight(board, c.key, terrain.elevation)
-    return terrain.chords.map((corner) => {
-      const [p, q] = getChordEnds(corner)
+    return getThinWallsOf(c.cell, terrain).map(({ key, ends: [p, q] }) => {
       const length = Math.hypot(q.x - p.x, q.y - p.y)
       const [nx, ny] = [-(q.y - p.y) / length * half, (q.x - p.x) / length * half]
       const top = [{ x: p.x - nx, y: p.y - ny }, { x: q.x - nx, y: q.y - ny }, { x: q.x + nx, y: q.y + ny }, { x: p.x + nx, y: p.y + ny }]
-        .map((v) => `${(c.x + v.x).toFixed(4)},${(c.y + v.y).toFixed(4)}`).join(' ')
-      return { key: `${c.key}:chord${corner}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, elevation: terrain.elevation, height, top, side: null }
+        .map((v) => `${v.x.toFixed(4)},${v.y.toFixed(4)}`).join(' ')
+      return { key: `${c.key}:${key}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, elevation: terrain.elevation, height, top, side: null }
     })
   })
 }
 
 // What each thin-wall brush paints, drawn on its button: a unit hex and the
-// chord it lays, as SVG points.
+// chord or side it lays, as SVG points.
 export type BrushIcon = { hex: string; chord: string }
-export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon> = Object.fromEntries(
-  Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]) => [brush, { hex: HEX_POINTS, chord: getChordEnds(corner).map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ') }]),
-) as Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon>
+const iconOf = (ends: { x: number; y: number }[]): BrushIcon => ({ hex: HEX_POINTS, chord: ends.map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ') })
+export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER | keyof typeof SIDE_BRUSH_DIRECTION, BrushIcon> = {
+  ...Object.fromEntries(Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]) => [brush, iconOf(getChordEnds(corner))])),
+  ...Object.fromEntries(Object.entries(SIDE_BRUSH_DIRECTION).map(([brush, side]) => [brush, iconOf(hexSide(side))])),
+} as Record<keyof typeof CHORD_BRUSH_CORNER | keyof typeof SIDE_BRUSH_DIRECTION, BrushIcon>
 
 // Each cell's top: drawn thinner than its hex where it is painted so and stands
 // over the lowest ground beside it on the board, which is drawn around its

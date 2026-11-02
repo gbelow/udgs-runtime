@@ -3,7 +3,7 @@ import type { TerrainBrush } from '../../types'
 import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
-import { BRUSH_RADIUS_MOST, CHORD_BRUSH_CORNER, DRAWN_WIDTH_LEAST, DRAWN_WIDTH_STEP, GROUND_ONLY_BRUSHES } from '../../lists'
+import { BRUSH_RADIUS_MOST, CHORD_BRUSH_CORNER, DRAWN_WIDTH_LEAST, DRAWN_WIDTH_STEP, GROUND_ONLY_BRUSHES, SIDE_BRUSH_DIRECTION } from '../../lists'
 import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
 import { getSurface, pickArt } from '../rules/board/surface'
@@ -11,7 +11,7 @@ import { isOffGrid } from '../rules/parked'
 import { getAim } from '../rules/aim'
 import { getAimedFloor, getSprayPitch } from '../rules/explosion'
 import { CLIMB_EASY_DL, COVER_START_RES, FALL, SWIM_DEFAULT_DL } from '../../tables'
-import { getBeyondEdge, getFootprint, getStoreyFloor, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
+import { getBeyondEdge, getFootprint, getStoreyFloor, hasThinWalls, placeAt, withPlacements, withoutPlacements } from '../rules/board/board'
 import { getHeight } from '../../character/rules/size'
 import { getPieceStructure, getStructureAt, layPiece, liftPiece } from '../rules/board/piece'
 import { without } from '../../utils'
@@ -196,7 +196,7 @@ export function turnCharacter(id: string): Updater {
 // some cells on and others off.
 const TOGGLED: Partial<Record<TerrainBrush, (cell: TerrainCell) => boolean>> = {
   wall: (c) => c.blocking,
-  glass: (c) => (c.chords.length > 0 ? c.transparent : c.blocking && c.transparent),
+  glass: (c) => (hasThinWalls(c) ? c.transparent : c.blocking && c.transparent),
   water: (c) => c.liquid,
   rough: (c) => c.difficult,
   soft: (c) => c.soft,
@@ -204,6 +204,7 @@ const TOGGLED: Partial<Record<TerrainBrush, (cell: TerrainCell) => boolean>> = {
   fog: (c) => c.visibility === 'zero',
   dark: (c) => c.dark,
   ...Object.fromEntries(Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]) => [brush, (c: TerrainCell) => c.chords.includes(corner)])),
+  ...Object.fromEntries(Object.entries(SIDE_BRUSH_DIRECTION).map(([brush, side]) => [brush, (c: TerrainCell) => c.sides.includes(side)])),
 }
 
 // Paints the cell, and every cell within `radius` steps of it, as the brush does
@@ -219,7 +220,7 @@ const TOGGLED: Partial<Record<TerrainBrush, (cell: TerrainCell) => boolean>> = {
 // `dim` and `fog` toggle bad and zero visibility (combat.tex "Visibility"),
 // `louder` and `quieter` step its noise (combat.tex "Actions in stealth"), a
 // chord brush cuts its corner off the cell with a thin wall or takes that wall
-// away, and `glass` makes a cell's thin walls clear or opaque; the others set what the cell is, and `clear` returns it to
+// away, a side brush does the same on the side facing its neighbour, and `glass` makes a cell's thin walls clear or opaque; the others set what the cell is, and `clear` returns it to
 // open ground by forgetting it, putting out whatever burns or hangs there. A
 // cell of a piece is left alone. `rise` and `sink` step the elevation half a
 // metre, a stair's step, under a cliff. `thinner` and `wider` step how much of
@@ -388,9 +389,9 @@ export function setLevel(level: number, change: { floor?: number, height?: numbe
 
 function paintedCell<T extends TerrainCell>(current: T, brush: TerrainBrush): T | null {
   switch (brush) {
-    case 'wall': return { ...current, blocking: !current.blocking, transparent: false, liquid: false, difficult: false, chords: [] }
+    case 'wall': return { ...current, blocking: !current.blocking, transparent: false, liquid: false, difficult: false, chords: [], sides: [] }
     case 'glass': {
-      if (current.chords.length > 0) return { ...current, transparent: !current.transparent }
+      if (hasThinWalls(current)) return { ...current, transparent: !current.transparent }
       const glass = current.blocking && current.transparent
       return { ...current, blocking: !glass, transparent: !glass, liquid: false, difficult: false }
     }
@@ -422,7 +423,12 @@ function paintedCell<T extends TerrainCell>(current: T, brush: TerrainBrush): T 
     case 'chord0': case 'chord1': case 'chord2': case 'chord3': case 'chord4': case 'chord5': {
       const corner = CHORD_BRUSH_CORNER[brush]
       const chords = current.chords.includes(corner) ? current.chords.filter((c) => c !== corner) : [...current.chords, corner].sort((a, b) => a - b)
-      return { ...current, chords, blocking: false, transparent: chords.length > 0 && current.transparent, liquid: false }
+      return { ...current, chords, blocking: false, transparent: hasThinWalls({ ...current, chords }) && current.transparent, liquid: false }
+    }
+    case 'side0': case 'side1': case 'side2': case 'side3': case 'side4': case 'side5': {
+      const side = SIDE_BRUSH_DIRECTION[brush]
+      const sides = current.sides.includes(side) ? current.sides.filter((d) => d !== side) : [...current.sides, side].sort((a, b) => a - b)
+      return { ...current, sides, blocking: false, transparent: hasThinWalls({ ...current, sides }) && current.transparent, liquid: false }
     }
   }
 }

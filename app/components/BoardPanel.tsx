@@ -59,6 +59,12 @@ export const BRUSH_LABEL: Record<TerrainBrush, string> = {
   chord3: 'thin wall',
   chord4: 'thin wall',
   chord5: 'thin wall',
+  side0: 'edge wall',
+  side1: 'edge wall',
+  side2: 'edge wall',
+  side3: 'edge wall',
+  side4: 'edge wall',
+  side5: 'edge wall',
 }
 
 // A brush's button face: what it paints drawn small where there is a picture
