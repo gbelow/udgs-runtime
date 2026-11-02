@@ -547,11 +547,34 @@
       }
     ],
     "face": {
-      "src": "/walls/Horror_Brick_14-256x256.png",
+      "src": "/walls/Horror_Brick_14-256x256.webp",
       "tile": 3,
       "offsetX": 0,
       "offsetY": 0
     }
+  },
+  "Brown roof": {
+    "name": "Brown roof",
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "liquid": false,
+    "visibility": "good",
+    "randomize": false,
+    "bleed": 0,
+    "roughness": 0,
+    "bledInto": 0,
+    "priority": 0,
+    "arts": [
+      {
+        "src": "/surfaces/roof_brown_06.webp",
+        "tile": 2,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    ],
+    "face": null
   },
   "Blue water": {
     "name": "Blue water",
@@ -658,5 +681,27 @@
         "offsetY": 0
       }
     ]
+  },
+  "brick wall orange": {
+    "difficult": false,
+    "DL": -5,
+    "noise": 0,
+    "soft": false,
+    "liquid": false,
+    "visibility": "good",
+    "name": "brick wall orange",
+    "randomize": true,
+    "bleed": 0.5,
+    "roughness": 1,
+    "bledInto": 1,
+    "bank": 0,
+    "priority": 0,
+    "arts": [],
+    "face": {
+      "src": "/walls/brick_wall_orange.webp",
+      "tile": 3,
+      "offsetX": 0,
+      "offsetY": 0
+    }
   }
 }

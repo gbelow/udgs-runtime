@@ -156,6 +156,8 @@ function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, storeyAt: nu
     rows: kept.rows, devServer: kept.devServer, view, map, openId, storeys, storey, pieces, piece, structures, save,
     open: (id: string) => { const stored = kept.stored(id); if (stored) open(id, stored.map); },
     create: () => open(null, kept.fresh()),
+    // a copy of what is open, not yet kept, under a name of its own
+    duplicate: () => open(null, renameBoardMap(`${map.name} copy`)(map)),
     remove: async (id: string) => { await kept.remove(id); if (id === openId) open(null, kept.fresh()); },
     setName: (name: string) => edit(renameBoardMap(name)),
     setArt: (change: Partial<StructureArt> | null) => edit(artBoardMap(change)),

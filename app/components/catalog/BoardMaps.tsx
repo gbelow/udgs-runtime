@@ -86,6 +86,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
           <span className='grow' />
           <Button size='xs' weight='solid' tone='accent' icon={Save} disabled={!map.name.trim() || !mine} onClick={() => save(opened ? opened.shared : false)}>{opened?.shared ? 'save for all' : 'save mine'}</Button>
           {!opened && devServer ? <Button size='xs' disabled={!map.name.trim()} onClick={() => save(true)}>save for all</Button> : null}
+          {opened ? <Button size='xs' title='open a copy to save under another name' onClick={editor.duplicate}>duplicate</Button> : null}
           {opened && mine ? <ConfirmDelete remove={() => remove(opened.id)} /> : null}
         </div>
         {label === 'Structures' ? <ArtRow art={map.art} setArt={editor.setArt} /> : null}
