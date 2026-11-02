@@ -148,6 +148,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   removeSpecificKnowledge: characterCommands.removeSpecificKnowledge('the old town'),
   addTrainingXP: characterCommands.addTrainingXP('strike', 4),
   addAbilityXP: characterCommands.addAbilityXP('jumper', 4),
+  meetAttitudes: characterCommands.meetAttitudes({ event: 'limitStress' }),
   raiseSpecificKnowledge: characterCommands.raiseSpecificKnowledge('the old town', 3),
   grantAbility: characterCommands.grantAbility('keen-eyes-2'),
   learnAbility: characterCommands.learnAbility('sprinter-2'),

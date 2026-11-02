@@ -22,6 +22,10 @@ const COUNTERS: { what: string; read: (c: CampaignCharacter) => number }[] = [
   { what: 'burning', read: (c) => c.injuries.burning },
   { what: 'scorch', read: (c) => c.injuries.scorch },
   { what: 'potion', read: (c) => c.injuries.potion },
+  { what: 'temperament', read: (c) => c.trainables.conviction1.value },
+  { what: 'temperament XP', read: (c) => c.trainables.conviction1.XP },
+  { what: 'worldview', read: (c) => c.trainables.conviction2.value },
+  { what: 'worldview XP', read: (c) => c.trainables.conviction2.XP },
 ]
 
 export function getChanges(before: SceneState, after: SceneState, phase: Phase): Change[] {

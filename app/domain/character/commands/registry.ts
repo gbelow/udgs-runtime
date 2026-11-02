@@ -16,7 +16,7 @@ import {
   removeItemFromContainer, slingShield, storeItem, takeOffContainer, throwOffShield, trade, unslingShield,
 } from '../../item/commands'
 import {
-  addAffliction, addBodyPart, addPartWound, addSpecificKnowledge, applyRace, setCategory, doffArmor, editBodyPart, editNaturalArmor, editPartWound,
+  addAffliction, addBodyPart, addPartWound, addSpecificKnowledge, addTrainingXP, applyRace, setCategory, doffArmor, editBodyPart, editNaturalArmor, editPartWound,
   editStance, endSurge, equipArmor, forgetAbility, forgetSpell, healWound, learnAbility, learnSpell, practiceSpell, putGauntlets, putHelm,
   releaseSpell, removeBodyPart, removePartWound, removeSpecificKnowledge, resetAllSkills, resetSkill, resistCurse, resolvePending,
   setFootprintPreset, setLimitStress, toggleAbility, toggleFootprintCell, toggleVisor, updateIL, updateSTA, useAbility, wearFromContainer,
@@ -78,6 +78,7 @@ export const characterCommands = {
   practiceSpell: edit((_, key: SpellKey, delta: number) => practiceSpell(key, delta)),
   releaseSpell: edit((_, key: SpellKey) => releaseSpell(key)),
   addSpecificKnowledge: edit((_, name: string) => addSpecificKnowledge(name)),
+  addTrainingXP: edit((_, key: keyof Trainables, amount: number) => addTrainingXP(key, amount)),
   removeSpecificKnowledge: edit((_, name: string) => removeSpecificKnowledge(name)),
 
   // the creature: its race, body, stance and footprint

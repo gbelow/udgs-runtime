@@ -53,6 +53,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -95,6 +96,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -148,6 +150,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -185,6 +188,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -238,6 +242,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -277,6 +282,7 @@
         "grants": [
           "climbLeap"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -325,6 +331,7 @@
         "grants": [
           "safeClimb"
         ],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -357,6 +364,7 @@
         "grants": [
           "riskyClimb"
         ],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -389,6 +397,7 @@
         "grants": [
           "climbUpright"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -435,6 +444,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -465,6 +475,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -497,6 +508,7 @@
         "grants": [
           "softLanding"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -543,6 +555,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -573,6 +586,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -603,6 +617,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -645,6 +660,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -671,6 +687,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -697,6 +714,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -757,6 +775,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -801,6 +820,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -863,6 +883,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -909,6 +930,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -953,6 +975,7 @@
         "grants": [
           "bowTraining"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1015,6 +1038,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -1061,6 +1085,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -1117,6 +1142,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1179,6 +1205,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -1225,6 +1252,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -1271,6 +1299,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1315,6 +1344,7 @@
         "grants": [
           "plantShield"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1365,6 +1395,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1427,6 +1458,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -1473,6 +1505,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1530,6 +1563,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1583,6 +1617,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -1620,6 +1655,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1683,6 +1719,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1727,6 +1764,7 @@
         "grants": [
           "tacticalMovement"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1771,6 +1809,7 @@
         "grants": [
           "bladeAlignment"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1815,6 +1854,7 @@
         "grants": [
           "gentleArt"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1887,6 +1927,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1931,6 +1972,7 @@
         "grants": [
           "grapplingCombat"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -1979,6 +2021,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2043,6 +2086,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2106,6 +2150,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2150,6 +2195,7 @@
         "grants": [
           "fullCircleSweep"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2194,6 +2240,7 @@
         "grants": [
           "charge"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2265,6 +2312,7 @@
         "grants": [
           "tackle"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2316,6 +2364,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -2351,6 +2400,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2414,6 +2464,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2467,6 +2518,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -2504,6 +2556,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2567,6 +2620,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2620,6 +2674,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2664,6 +2719,7 @@
         "grants": [
           "preciseEvade"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2732,6 +2788,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2778,6 +2835,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2845,6 +2903,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2891,6 +2950,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2937,6 +2997,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -2983,6 +3044,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3029,6 +3091,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3073,6 +3136,7 @@
         "grants": [
           "deliberate"
         ],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -3101,6 +3165,7 @@
         "grants": [
           "deliberate"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3147,6 +3212,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3193,6 +3259,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3237,6 +3304,7 @@
         "grants": [
           "initiativeEdge"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3280,6 +3348,88 @@
         "recipes": [],
         "grants": [
           "perfectPreparation"
+        ],
+        "attitudes": [],
+        "freeSpells": 0
+      }
+    ]
+  },
+  "fatalists-attitudes": {
+    "family": "Fatalist's Attitudes",
+    "section": "Fatalism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Fatalism",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Promoted: gains 1 XP each time they hit on a will test with a DL greater than or equal to the character's will, or 2 XP if the DL is 3 or more higher. Prohibited: loses 2 XP each time they trigger their limit stress action.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "attitudes": [
+          {
+            "on": {
+              "event": "test",
+              "skill": "will",
+              "degrees": [
+                "hit",
+                "critical"
+              ],
+              "DLOverSkill": 0
+            },
+            "conviction": "Fatalism",
+            "XP": 1
+          },
+          {
+            "on": {
+              "event": "test",
+              "skill": "will",
+              "degrees": [
+                "hit",
+                "critical"
+              ],
+              "DLOverSkill": 3
+            },
+            "conviction": "Fatalism",
+            "XP": 2
+          },
+          {
+            "on": {
+              "event": "limitStress"
+            },
+            "conviction": "Fatalism",
+            "XP": -2
+          }
         ],
         "freeSpells": 0
       }
@@ -3327,6 +3477,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3384,6 +3535,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -3425,6 +3577,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3471,6 +3624,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -3501,6 +3655,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3547,6 +3702,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3593,6 +3749,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3639,6 +3796,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3685,6 +3843,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3731,6 +3890,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -3761,6 +3921,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3807,6 +3968,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3855,6 +4017,7 @@
         "grants": [
           "spiritOfBattle"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3901,6 +4064,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -3947,6 +4111,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -3977,6 +4142,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4023,6 +4189,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4069,6 +4236,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4099,6 +4267,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4145,6 +4314,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4175,6 +4345,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4205,6 +4376,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4251,6 +4423,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4281,6 +4454,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4327,6 +4501,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4357,6 +4532,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4403,6 +4579,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4433,6 +4610,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4479,6 +4657,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4509,6 +4688,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4555,6 +4735,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4585,6 +4766,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4631,6 +4813,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -4661,6 +4844,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4707,6 +4891,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4753,6 +4938,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4799,6 +4985,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4845,6 +5032,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4891,6 +5079,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4937,6 +5126,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -4983,6 +5173,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5029,6 +5220,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5075,6 +5267,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5121,6 +5314,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5167,6 +5361,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5215,6 +5410,7 @@
         "grants": [
           "clericSpells"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5261,6 +5457,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5307,6 +5504,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5353,6 +5551,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5390,6 +5589,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5427,6 +5627,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5464,6 +5665,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5501,6 +5703,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5538,6 +5741,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5575,6 +5779,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5612,6 +5817,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5649,6 +5855,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5686,6 +5893,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5732,6 +5940,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5778,6 +5987,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5824,6 +6034,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5870,6 +6081,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5916,6 +6128,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -5962,6 +6175,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6008,6 +6222,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6054,6 +6269,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6100,6 +6316,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6155,6 +6372,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6201,6 +6419,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6247,6 +6466,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6293,6 +6513,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6335,6 +6556,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6381,6 +6603,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6427,6 +6650,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6473,6 +6697,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6519,6 +6744,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6565,6 +6791,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6611,6 +6838,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6657,6 +6885,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6703,6 +6932,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -6733,6 +6963,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6779,6 +7010,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6825,6 +7057,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6871,6 +7104,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6931,6 +7165,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -6977,6 +7212,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7023,6 +7259,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7069,6 +7306,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7115,6 +7353,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7161,6 +7400,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7207,6 +7447,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7251,6 +7492,7 @@
         "grants": [
           "battleCommands"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7295,6 +7537,7 @@
         "grants": [
           "strategist"
         ],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -7323,6 +7566,7 @@
         "grants": [
           "strategist"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7367,6 +7611,7 @@
         "grants": [
           "prepared"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7411,6 +7656,7 @@
         "grants": [
           "reactiveFighting"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7455,6 +7701,7 @@
         "grants": [
           "improvedFeint"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7508,6 +7755,7 @@
         "grants": [
           "wizardSpells"
         ],
+        "attitudes": [],
         "freeSpells": 2
       }
     ]
@@ -7565,6 +7813,7 @@
           }
         ],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -7593,6 +7842,7 @@
         "grants": [
           "concentratedDefense"
         ],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -7621,6 +7871,7 @@
         "grants": [
           "castingRetest"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7672,6 +7923,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7714,6 +7966,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7765,6 +8018,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7820,6 +8074,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -7859,6 +8114,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -7898,6 +8154,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -7949,6 +8206,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8000,6 +8258,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8051,6 +8310,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8102,6 +8362,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8153,6 +8414,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8213,6 +8475,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8264,6 +8527,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8306,6 +8570,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8370,6 +8635,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8421,6 +8687,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8472,6 +8739,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8536,6 +8804,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8600,6 +8869,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8646,6 +8916,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8692,6 +8963,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8771,6 +9043,7 @@
         "grants": [
           "humanoidHeight"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8857,6 +9130,7 @@
         "grants": [
           "humanoidHeight"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8910,6 +9184,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -8967,6 +9242,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -9008,6 +9284,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -9049,6 +9326,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9106,6 +9384,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -9147,6 +9426,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -9188,6 +9468,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9245,6 +9526,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -9286,6 +9568,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -9327,6 +9610,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9373,6 +9657,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9410,6 +9695,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9447,6 +9733,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9511,6 +9798,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9564,6 +9852,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9610,6 +9899,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9656,6 +9946,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9702,6 +9993,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9748,6 +10040,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9794,6 +10087,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9833,6 +10127,7 @@
         "grants": [
           "clawGrip"
         ],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9870,6 +10165,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9928,6 +10224,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -9970,6 +10267,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -9997,6 +10295,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -10034,6 +10333,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -10071,6 +10371,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -10108,6 +10409,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -10154,6 +10456,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -10200,6 +10503,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -10246,6 +10550,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]
@@ -10292,6 +10597,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       },
       {
@@ -10322,6 +10628,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "attitudes": [],
         "freeSpells": 0
       }
     ]

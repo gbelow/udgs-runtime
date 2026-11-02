@@ -6,6 +6,7 @@ import { getNextStress, getStressTurns, isStressAutomatic } from '../rules/stres
 import { getTurnHolder } from '../rules/turn'
 import { updateCharacter } from './characters'
 import { beginTurn } from './sequence'
+import { meetAttitudes } from '../../character/commands/attitudes'
 
 // creating.tex "Limit Stress Actions": once every test of the round is made,
 // the actions they activated are owed, the worst test first, and the first of
@@ -38,7 +39,8 @@ export function compelByTest(state: SceneState, test: SpellTestAction): SceneSta
   if (outcome.pacified) return { ...state, compulsions: others }
   if (!outcome.compel) return state
   const owed: Compulsion = { id, action: outcome.compel, acted: false, taken: isStressAutomatic(state, id, outcome.compel), by: test.actorId, constraint: outcome.constraint }
-  return makeAutomatic({ ...state, compulsions: [...others, owed] }, owed.taken ? [owed] : [])
+  const activated = updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')(state)
+  return makeAutomatic({ ...activated, compulsions: [...others, owed] }, owed.taken ? [owed] : [])
 }
 
 // The next owed turn begins, once nothing else holds or waits for the turn.

@@ -21,6 +21,7 @@ import { useWoundLens } from '../hooks/useWoundLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
+import { useConvictionXP } from '../hooks/useConvictionXP';
 import { useFormalKnowledgeLens, useKnowledgeTerms, useSpecificKnowledges } from '../hooks/useKnowledgeLens';
 import { knowledges_list } from '../domain/lists';
 
@@ -134,6 +135,25 @@ export function CharacteristicTiles(){
       <SectionLabel>Characteristics</SectionLabel>
       <Tiles>{ATTRIBUTES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
       <Tiles>{TRAINABLES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
+      <div className='flex flex-row flex-wrap gap-2'>
+        <ConvictionXP slot='conviction1' />
+        <ConvictionXP slot='conviction2' />
+      </div>
+    </div>
+  )
+}
+
+// A conviction's XP, raised or lowered by hand for the attitudes the table
+// judges (abilities.tex "Promoted Attitudes").
+function ConvictionXP({slot}: {slot: 'conviction1' | 'conviction2'}){
+  const { name, XP, adopted, addXP } = useConvictionXP(slot)
+  if (!adopted) return null
+  return(
+    <div className='flex flex-row items-center gap-1.5 rounded border border-line bg-surface px-1.5 py-1 text-sm'>
+      <span className='text-muted'>{name} XP</span>
+      <span className='tabular-nums'>{XP}</span>
+      <IconButton icon={Plus} aria-label={`give ${name} XP`} title='give 1 XP' onClick={() => addXP(1)} />
+      <IconButton icon={Minus} aria-label={`take ${name} XP`} title='take 1 XP' onClick={() => addXP(-1)} />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, CREATURE_CATEGORIES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, CREATURE_CATEGORIES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TEMPERAMENT_CONVICTIONS, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WORLDVIEW_CONVICTIONS, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -1198,6 +1198,33 @@ export type CarriedMoveRecipe = Extract<Recipe, { type: 'carriedMove' }>
 export const GrantSchema = z.enum(['preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'castingRetest'])
 export type Grant = z.infer<typeof GrantSchema>
 
+// abilities.tex "Promoted Attitudes", "Prohibited Attitudes": what moves a
+// conviction's XP in play, as data, read by character/rules/attitudes.ts.
+// `test`: the holder's test of `skill` came to one of `degrees` (any when
+// empty) against a DL at least `DLOverSkill` above that skill. `limitStress`:
+// the holder's limit stress action was activated.
+export const AttitudeEventSchema = z.discriminatedUnion('event', [
+  z.object({
+    event: z.literal('test'),
+    skill: z.enum(['will']).default('will'),
+    degrees: z.array(DegreeSchema).default([]),
+    DLOverSkill: num.default(0),
+  }).strip(),
+  z.object({ event: z.literal('limitStress') }).strip(),
+])
+export type AttitudeEvent = z.infer<typeof AttitudeEventSchema>
+
+export const CONVICTION_NAMES = [...Object.values(TEMPERAMENT_CONVICTIONS), ...Object.values(WORLDVIEW_CONVICTIONS)].map((c) => c.name) as [string, ...string[]]
+
+// One attitude: the conviction whose XP it moves when its event happens, and
+// by how much (negative for a prohibited one).
+export const AttitudeSchema = z.object({
+  on: AttitudeEventSchema,
+  conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]),
+  XP: num.default(1),
+}).strip()
+export type Attitude = z.infer<typeof AttitudeSchema>
+
 // What one level of an ability states for itself: its price, what it asks
 // for, what it does. Shared between the stored family shape and the
 // expanded per-stage catalog entry.
@@ -1210,6 +1237,7 @@ const AbilityStageValues = {
   effect: z.array(EffectSchema).default([]), // this stage's delta over the one before
   recipes: z.array(RecipeSchema).default([]), // the actions this stage gives in a fight
   grants: z.array(GrantSchema).default([]), // the capabilities this stage gives while learned
+  attitudes: z.array(AttitudeSchema).default([]), // what moves a conviction's XP in play while learned
   freeSpells: num.default(0), // spells learned with the stage, at no cost, among those the character has the knowledge for
 }
 

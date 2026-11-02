@@ -7,6 +7,7 @@ export { wearFromContainer, wearFromHands, equipArmor, doffArmor, putGauntlets, 
 export { resetSkill, resetAllSkills } from "./resetSkills"
 export { removeSpecificKnowledge, addSpecificKnowledge } from "./knowledge"
 export { addTrainingXP, addAbilityXP, raiseSpecificKnowledge } from "./learning"
+export { meetAttitudes } from "./attitudes"
 export { learnAbility, grantAbility, forgetAbility, toggleAbility, useAbility, expireUsedAbilities } from "./abilities"
 export { applyEffects, applyTrigger } from "./effects"
 export { deliver, deliverAll, resolvePending, resistCurse } from "./deliver"

@@ -14,8 +14,8 @@ function train(t: Trainable, amount: number, price: LearningPrice | null): Train
   return { ...t, value: t.value + 1, XP: 0 }
 }
 
-export function addTrainingXP(key: keyof Trainables, amount: number): (c: Character) => Character {
-  return (c: Character) => ({
+export function addTrainingXP(key: keyof Trainables, amount: number): <C extends Character>(c: C) => C {
+  return <C extends Character>(c: C): C => ({
     ...c,
     trainables: { ...c.trainables, [key]: train(c.trainables[key], amount, getTrainableRaisePrice(key)(c)) },
   })
