@@ -236,14 +236,6 @@ export function getChordAt(cell: Coord, corner: number): [{ x: number; y: number
   return [{ x: centre.x + a.x, y: centre.y + a.y }, { x: centre.x + b.x, y: centre.y + b.y }]
 }
 
-// The side of a cell that faces the neighbour in `direction`, where it lies
-// in the plane.
-export function getSideAt(cell: Coord, direction: Direction): [{ x: number; y: number }, { x: number; y: number }] {
-  const centre = toPlane(cell)
-  const [a, b] = hexSide(direction)
-  return [{ x: centre.x + a.x, y: centre.y + a.y }, { x: centre.x + b.x, y: centre.y + b.y }]
-}
-
 // Where the segment from `p` to `q` meets the segment from `a` to `b`, as the
 // share of the way from `p` to `q`, both ends of each included; null where
 // they do not meet or run side by side.

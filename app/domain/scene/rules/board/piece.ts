@@ -1,5 +1,5 @@
 import type { Board, Coord, Level, LevelCell, Piece, Structure, TerrainCell } from '../../types'
-import { ROTATIONS, add, coordKey, inExtent, parseCoordKey, rotate, subtract, turnCorner } from './geometry'
+import { add, coordKey, inExtent, parseCoordKey, rotate, subtract, turnCorner } from './geometry'
 import { FALL } from '../../../tables'
 
 // A structure is laid as one piece: its cells are written onto the board
@@ -9,12 +9,11 @@ import { FALL } from '../../../tables'
 // each other's floor, unless both are lattice (two canopies grown together).
 
 // The cells moved to where `move` puts them, each turned `steps` times about
-// its own centre, so that the corners its thin walls cut and the sides they
-// stand on turn with the piece, a side as the neighbour it faces does.
+// its own centre, so that the corners its thin walls cut turn with the piece.
 function rekey<T extends TerrainCell>(cells: Record<string, T>, move: (cell: Coord) => Coord, steps: number): [string, T][] {
   return Object.entries(cells).flatMap(([key, cell]) => {
     const at = parseCoordKey(key)
-    return at ? [[coordKey(move(at)), { ...cell, chords: cell.chords.map((c) => turnCorner(c, steps)), sides: cell.sides.map((d) => ROTATIONS[(((d + steps) % 6) + 6) % 6]) }] as [string, T]] : []
+    return at ? [[coordKey(move(at)), { ...cell, chords: cell.chords.map((c) => turnCorner(c, steps)) }] as [string, T]] : []
   })
 }
 

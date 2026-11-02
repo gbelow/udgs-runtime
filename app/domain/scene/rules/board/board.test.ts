@@ -9,7 +9,7 @@ import { getDLTerms } from '../attack'
 import { getTargetIds } from '../action'
 import { getOpenAction } from '../log'
 import { LEVEL_EYES, firesAcross, getMeleeGap, getStrikeReach, isStepWalled, seesAcross } from './board'
-import { DIRECTIONS, add, hexCorner, sameCell, toPlane } from './geometry'
+import { DIRECTIONS, add, hexCorner, toPlane } from './geometry'
 import { declareAction as declareOwnAction, setTarget } from '../../commands/action'
 import { getCatalogItem, getItemScale } from '../../../item/rules/items'
 import { getWieldedWeapons } from '../../../item/rules/hands'
@@ -99,9 +99,8 @@ describe('reach never falls under a cell', () => {
 // The chord-wall rulings: a cell with a thin wall is stood in from its open
 // side, and a line is checked against the wall itself, so whatever lies past
 // a chord's line, on the side of the corner it cuts off, is walled off from
-// the cell, and a wall on a side shuts the neighbour that side faces; nothing
-// else is: steps, sight, shots and blows. Glass is seen through and stops a
-// shot and a blow.
+// the cell, and nothing else is: steps, sight, shots and blows. Glass is
+// seen through and stops a shot and a blow.
 describe('a thin wall closes its cell to the side it stands on', () => {
   const centre = { q: 0, r: 0 }
   const beyond = (corner: number, cell: typeof centre) => {
@@ -110,7 +109,6 @@ describe('a thin wall closes its cell to the side it stands on', () => {
   }
   const walls = [
     ...[0, 1, 2, 3, 4, 5].map((corner) => ({ name: `corner ${corner}`, wall: { chords: [corner] }, shuts: (cell: typeof centre) => beyond(corner, cell) })),
-    ...[0, 1, 2, 3, 4, 5].map((side) => ({ name: `side ${side}`, wall: { sides: [side] }, shuts: (cell: typeof centre) => sameCell(cell, add(centre, DIRECTIONS[side])) })),
   ]
   for (const { name, wall: painted, shuts } of walls) {
     for (const transparent of [false, true]) {

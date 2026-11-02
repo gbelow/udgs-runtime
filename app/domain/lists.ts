@@ -199,14 +199,11 @@ export const LIFT_MOST = 1
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
-export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'rise', 'sink', 'thinner', 'wider', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'floor', 'hole', 'lattice', 'clear', 'chord0', 'chord1', 'chord2', 'chord3', 'chord4', 'chord5', 'side0', 'side1', 'side2', 'side3', 'side4', 'side5'] as const
+export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'rise', 'sink', 'thinner', 'wider', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'floor', 'hole', 'lattice', 'clear', 'chord0', 'chord1', 'chord2', 'chord3', 'chord4', 'chord5'] as const
 // The brushes that cut a corner off a cell with a thin wall, each the corner
 // it cuts (`getChordEnds`): a wall stands on the chord between the two corners
 // beside it, and the cell is stood in from the open side.
 export const CHORD_BRUSH_CORNER = { chord0: 0, chord1: 1, chord2: 2, chord3: 3, chord4: 4, chord5: 5 } as const
-// The brushes that stand a thin wall on a side of a cell, each the direction
-// of the neighbour that side faces (`hexSide`).
-export const SIDE_BRUSH_DIRECTION = { side0: 0, side1: 1, side2: 2, side3: 3, side4: 4, side5: 5 } as const
 // A storey's floor holds no water, and only a storey has a floor to lay or a
 // stairwell to open.
 export const GROUND_ONLY_BRUSHES = ['water', 'deepen', 'shoal'] as const

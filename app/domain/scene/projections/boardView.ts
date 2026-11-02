@@ -23,7 +23,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLighting } from '../rules/board/light'
-import { CHORD_BRUSH_CORNER, CHORD_DRAWN_THICKNESS, SIDE_BRUSH_DIRECTION, WALL_DRAWN_HEIGHT } from '../../lists'
+import { CHORD_BRUSH_CORNER, CHORD_DRAWN_THICKNESS, WALL_DRAWN_HEIGHT } from '../../lists'
 import { getCellArt, getCellBledInto, getCellSurfaceName, getSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
@@ -675,7 +675,7 @@ function getWallHeight(board: Board, key: string, elevation: number): number {
   return Number.isFinite(ceiling) ? ceiling - elevation : WALL_DRAWN_HEIGHT
 }
 
-// The thin walls of the cells (`getThinWallsOf`), on a chord or a side, each
+// The thin walls of the cells (`getThinWallsOf`), each on a chord,
 // drawn as a strip along it, standing as high as a wall in the cell would.
 function getChords(board: Board, cells: BoardCellView[]): BoardChordView[] {
   const half = CHORD_DRAWN_THICKNESS / 2
@@ -694,13 +694,11 @@ function getChords(board: Board, cells: BoardCellView[]): BoardChordView[] {
 }
 
 // What each thin-wall brush paints, drawn on its button: a unit hex and the
-// chord or side it lays, as SVG points.
+// chord it lays, as SVG points.
 export type BrushIcon = { hex: string; chord: string }
-const iconOf = (ends: { x: number; y: number }[]): BrushIcon => ({ hex: HEX_POINTS, chord: ends.map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ') })
-export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER | keyof typeof SIDE_BRUSH_DIRECTION, BrushIcon> = {
-  ...Object.fromEntries(Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]) => [brush, iconOf(getChordEnds(corner))])),
-  ...Object.fromEntries(Object.entries(SIDE_BRUSH_DIRECTION).map(([brush, side]) => [brush, iconOf(hexSide(side))])),
-} as Record<keyof typeof CHORD_BRUSH_CORNER | keyof typeof SIDE_BRUSH_DIRECTION, BrushIcon>
+export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon> = Object.fromEntries(
+  Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]) => [brush, { hex: HEX_POINTS, chord: getChordEnds(corner).map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ') }]),
+) as Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon>
 
 // Each cell's top: drawn thinner than its hex where it is painted so and stands
 // over the lowest ground beside it on the board, which is drawn around its
