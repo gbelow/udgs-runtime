@@ -198,17 +198,17 @@ const BANK_SOFT = 0.3
 const LIP = 0.3
 const LIP_OPACITY = 0.5
 
-// The drop of every cliff: a strip over the lower ground, drawn with the
-// picture of the higher ground's surface (shaded plain where it has none) and
-// darkening towards the foot, and a dark line along the ridge, which the view
-// places on the higher cell's side.
+// The drop of every cliff: a strip over the lower ground, each band of it drawn
+// with the picture of the face that paints it (shaded plain where it has none,
+// tinted where it is glass) and darkening towards the foot, and a dark line
+// along the ridge, which the view places on the higher cell's side.
 const FACE_SHADE = 0.45
 
 export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardView, band?: number, tag?: string }){
   const idPrefix = band === undefined ? '' : `b${band}-${tag}`
   const view = band === undefined ? whole : { ...whole, ridges: whole.ridges.filter((r) => r.band === band) }
   const looks = new Map<string, { art: number, grain: string }>()
-  view.ridges.forEach((r) => { if (r.art !== null) looks.set(`${r.art}|${r.grain}`, { art: r.art, grain: r.grain }) })
+  view.ridges.forEach((r) => r.bands.forEach((b) => { if (b.art !== null && b.face !== null) looks.set(`${b.art}|${r.grain}`, { art: b.art, grain: r.grain }) }))
   const looksIn = [...looks.keys()]
   return (
     <g className='pointer-events-none'>
@@ -230,8 +230,14 @@ export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardView, b
       </defs>
       {view.ridges.map((r) => (
         <g key={r.key}>
-          {r.art === null ? <polygon points={r.face} className='fill-fg/30 stroke-none' /> : <polygon points={r.face} fill={`url(#${idPrefix}face-${looksIn.indexOf(`${r.art}|${r.grain}`)})`} className='stroke-none' />}
-          <polygon points={r.face} fill={`url(#${idPrefix}face-shade-${r.key})`} className='stroke-none' />
+          {r.bands.map((b) => b.face === null ? null : (
+            <g key={b.key}>
+              {b.art !== null ? <polygon points={b.face} fill={`url(#${idPrefix}face-${looksIn.indexOf(`${b.art}|${r.grain}`)})`} className='stroke-none' />
+                : b.glass ? <polygon points={b.face} className='fill-accent/25 stroke-none' />
+                : <polygon points={b.face} className='fill-fg/30 stroke-none' />}
+              {b.glass ? null : <polygon points={b.face} fill={`url(#${idPrefix}face-shade-${r.key})`} className='stroke-none' />}
+            </g>
+          ))}
           {view.front ? null : <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />}
         </g>
       ))}
@@ -344,7 +350,7 @@ export function BaseLayer({ view, lit, setLit }: { view: BoardView, lit: string 
     <>
       {cell ? (
         <g className='pointer-events-none'>
-          {view.ridges.filter((r) => r.cell === cell.key).map((r) => <polygon key={r.key} points={r.face} className='fill-accent/25 stroke-accent' strokeWidth={0.08} />)}
+          {view.ridges.filter((r) => r.cell === cell.key).flatMap((r) => r.bands).map((b) => b.face === null ? null : <polygon key={b.key} points={b.face} className='fill-accent/25 stroke-accent' strokeWidth={0.08} />)}
           <polygon points={cell.hex ?? view.hex} transform={`translate(${cell.x} ${cell.y})`} className='fill-accent/25 stroke-accent' strokeWidth={0.1} />
         </g>
       ) : null}

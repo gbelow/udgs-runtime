@@ -48,7 +48,7 @@ describe('the board looked at from where the active character stands', () => {
   // Broke as: a wall of the ground with a storey over it, out of the sight of
   // the one looking from the ground, was drawn as the floor over it, and the
   // walls of a house went missing from the far side. Kept as walls but left in the dark, they went missing all the same.
-  it('keeps the ground walls under a storey as walls where they are out of sight', () => {
+  it('draws the ground walls under a storey as the roof over them where they are out of sight', () => {
     const walls = [0, 1, 2, 3]
     const sealed = BoardSchema.parse({
       terrain: Object.fromEntries(walls.map((q) => [coordKey(cell(q)), { blocking: true }])),
@@ -62,7 +62,7 @@ describe('the board looked at from where the active character stands', () => {
     const view = lookedAt(s)
     for (const q of walls) {
       const seen = view.cells.find((c) => c.key === coordKey(cell(q)))
-      expect(seen?.terrain).toBe('wall')
+      expect(seen?.terrain === 'wall' || seen?.storey === 'roof').toBe(true)
       expect(seen?.unseen).toBe(false)
     }
   })

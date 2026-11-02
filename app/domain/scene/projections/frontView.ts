@@ -46,6 +46,11 @@ function parsePoints(points: string): Point[] {
   })
 }
 
+// Where the bands of a drop are drawn.
+function getBandFaces(ridge: BoardRidgeView): string[] {
+  return ridge.bands.flatMap((b) => (b.face === null ? [] : [b.face]))
+}
+
 const cache = new WeakMap<BoardView, Map<number, BoardView>>()
 
 // The same board from the front, `lift` board units to the metre. Memoized per
@@ -81,23 +86,24 @@ function build(view: BoardView, lift: number): BoardView {
   const groupOf = new Map(cells.map((c) => [c.key, c.group]))
 
   // Each drop on a side that faces the viewer is a wall from the top edge of the
-  // higher cell down to the same edge at the height of the lower ground; the
-  // other drops are hidden behind their own cell.
+  // higher cell down to the same edge at the height of the lower ground, each
+  // band of it standing at its own heights; the other drops are hidden behind
+  // their own cell.
   const ridges: BoardRidgeView[] = view.ridges.filter((r) => isFrontSide(r.side)).map((r) => {
-    const top = rise(topOf.get(r.cell) ?? 0)
-    const bottom = top - rise(r.height)
-    const [a, b] = [{ x: r.a.x, y: r.a.y - top }, { x: r.b.x, y: r.b.y - top }]
-    const [c, d] = [{ x: r.b.x, y: r.b.y - bottom }, { x: r.a.x, y: r.a.y - bottom }]
-    const face = [a, b, c, d].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
+    const top = topOf.get(r.cell) ?? 0
+    const at = (metres: number) => [{ x: r.a.x, y: r.a.y - rise(metres) }, { x: r.b.x, y: r.b.y - rise(metres) }]
+    const [a, b] = at(top)
+    const [c, d] = at(top - r.height).reverse()
     const foot = { x: (c.x + d.x) / 2, y: (c.y + d.y) / 2 }
-    return { ...r, band: bandOf.get(r.cell) ?? 0, group: groupOf.get(r.cell) ?? '', a, b, foot, face, grain: getFaceGrain(a, b, foot) }
+    const bands = r.bands.map((band) => ({ ...band, face: [...at(band.to), ...at(band.from).reverse()].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ') }))
+    return { ...r, band: bandOf.get(r.cell) ?? 0, group: groupOf.get(r.cell) ?? '', a, b, foot, bands, grain: getFaceGrain(a, b, foot) }
   })
 
   // What is drawn over a place on the screen: a cell of a higher band, or the
   // wall under one.
   const covers: { band: number; polygon: Point[] }[] = [
     ...[...rims, ...cells].map((c) => ({ band: c.band, polygon: outline(c) })),
-    ...ridges.map((r) => ({ band: r.band, polygon: parsePoints(r.face) })),
+    ...ridges.flatMap((r) => getBandFaces(r).map((face) => ({ band: r.band, polygon: parsePoints(face) }))),
   ]
   const tokens: BoardTokenView[] = view.tokens.map((t) => {
     const ground = t.cells.find((c) => c.x === t.x && c.y === t.y) ?? t.cells[0]
@@ -166,7 +172,7 @@ export function getVeiledGroups(view: BoardView, keys: readonly string[]): strin
   if (!view.front || keys.length === 0) return []
   const covers: { band: number; group: string; polygon: Point[] }[] = [
     ...[...view.rims, ...view.cells].map((c) => ({ band: c.band, group: c.group, polygon: outline(c) })),
-    ...view.ridges.map((r) => ({ band: r.band, group: r.group, polygon: parsePoints(r.face) })),
+    ...view.ridges.flatMap((r) => getBandFaces(r).map((face) => ({ band: r.band, group: r.group, polygon: parsePoints(face) }))),
     ...view.sprites.map((s) => ({ band: s.band, group: s.group, polygon: [{ x: s.clip.x, y: s.clip.y }, { x: s.clip.x + s.clip.width, y: s.clip.y }, { x: s.clip.x + s.clip.width, y: s.clip.y + s.clip.height }, { x: s.clip.x, y: s.clip.y + s.clip.height }] })),
   ]
   const groups = view.cells.filter((c) => keys.includes(c.key)).flatMap((t) => covers.filter((o) => o.band > t.band && inside(t, o.polygon)).map((o) => o.group))

@@ -24,7 +24,7 @@ import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLighting } from '../rules/board/light'
 import { WALL_DRAWN_HEIGHT } from '../../lists'
-import { getCellArt, getCellBledInto, getCellSurface, getCellSurfaceName, getSurfaceChoices, type CellArt } from '../rules/board/surface'
+import { getCellArt, getCellBledInto, getCellSurfaceName, getSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
@@ -202,10 +202,24 @@ export type BoardBindView = {
   title: string
 }
 
+// A stretch of a cliff's drop, `from` to `to` metres high, painted by the
+// layer of the cell standing there: a wall or solid ground with its surface's
+// face (`art` in the board's `faces`, null for one with none), or glass. Where
+// the layer is open (a floor with nothing on it, a hole, a lattice) nothing is
+// painted and there is no band. `face` is where it is drawn, null where it is
+// not: seen from above only the band at the top of the drop shows.
+export type BoardFaceBand = {
+  key: string
+  from: number
+  to: number
+  art: number | null
+  glass: boolean
+  face: string | null
+}
+
 // The top edge of a cliff, between a cell and a neighbour at least a cliff's
-// height lower: `a` to `b` is the ridge, `face` the strip of the lower ground
-// the drop falls over (ending at `foot`), `art` the picture it is drawn with, in
-// the board's `faces`, and `height` the metres it drops.
+// height lower: `a` to `b` is the ridge, the drop falls over the lower ground
+// to `foot`, `bands` are what paints it, and `height` the metres it drops.
 export type BoardRidgeView = {
   key: string
   // the cell on the higher side and the side of it that drops, a direction
@@ -216,8 +230,7 @@ export type BoardRidgeView = {
   a: { x: number; y: number }
   b: { x: number; y: number }
   foot: { x: number; y: number }
-  face: string
-  art: number | null
+  bands: BoardFaceBand[]
   // what the wall is drawn as part of: that of the cell it drops from
   group: string
   // how the picture lies on the face (`getFaceGrain`)
@@ -297,7 +310,7 @@ export type BoardView = {
   // drawn before it; plain ground, with nothing offered on it
   rims: BoardCellView[]
   overhead: BoardOverheadView[]
-  // the pictures the cliffs are drawn with, which a ridge's `art` indexes
+  // the pictures the cliffs are drawn with, which a face band's `art` indexes
   faces: SurfaceArt[]
   // the pieces drawn with a picture of their own, and (from the front only)
   // the slices of those pictures
@@ -535,7 +548,7 @@ function buildBoardView(state: SeenScene): BoardView {
     viewBox: frameHexes(cells),
     hex: HEX_POINTS,
     cells,
-    ...getRidges(board, cells),
+    ...getRidges(board, cells, board),
     rims: getRims(cells),
     standing: getStanding(board, cells),
     sprites: [],
@@ -665,11 +678,33 @@ function getRims(cells: BoardCellView[]): BoardCellView[] {
   }))
 }
 
+// What stands in a cell from the bottom up, each layer reaching to the floor of
+// the next: the ground's solid earth up to its top, the ground's own cell, then
+// every storey laid over it. A layer that blocks paints a drop with its face,
+// as glass when it is clear; the rest are open and paint nothing.
+type FaceLayer = { from: number; to: number; face: SurfaceArt | null; paints: 'solid' | 'glass' | null }
+function getFaceLayers(board: Board, key: string): FaceLayer[] {
+  const ground = board.terrain[key]
+  const faceOf = (surface: string | null | undefined) => (surface ? getSurface(surface)?.face ?? null : null)
+  const paints = (t: { blocking: boolean; transparent: boolean; hole?: boolean; lattice?: boolean } | undefined) =>
+    !t || !t.blocking || t.hole || t.lattice ? null : t.transparent ? 'glass' as const : 'solid' as const
+  const floors = [
+    { floor: ground?.elevation ?? 0, face: faceOf(ground?.surface), paints: paints(ground) },
+    ...board.levels.flatMap((l) => (l.terrain[key] ? [{ floor: l.floor, face: faceOf(l.terrain[key].surface), paints: paints(l.terrain[key]) }] : [])),
+  ].sort((a, b) => a.floor - b.floor)
+  return [
+    { from: -Infinity, to: floors[0].floor, face: faceOf(ground?.surface), paints: 'solid' },
+    ...floors.map((f, i) => ({ from: f.floor, to: floors[i + 1]?.floor ?? Infinity, face: f.face, paints: f.paints })),
+  ]
+}
+
 // Every side where ground drops a cliff's height or more to the neighbour, read
 // off the two elevations, so that nothing marks which way a cliff faces: the
-// higher cell is the ridge. Each is drawn with the face of the higher cell's
-// surface, the pictures listed once in `faces`.
-function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeView[]; faces: SurfaceArt[] } {
+// higher cell is the ridge. The drop is painted from the top down by what
+// stands in the cell at each height on `stacked` (the board as it is, when the
+// cells are drawn from a flattened copy of it), each layer its own band, the
+// pictures listed once in `faces`. A drop where nothing paints is no ridge.
+export function getRidges(board: Board, cells: BoardCellView[], stacked: Board): { ridges: BoardRidgeView[]; faces: SurfaceArt[] } {
   const faces: SurfaceArt[] = []
   const faceIndex = (face: SurfaceArt | null): number | null => {
     if (!face) return null
@@ -679,22 +714,31 @@ function getRidges(board: Board, cells: BoardCellView[]): { ridges: BoardRidgeVi
     return faces.length - 1
   }
   const edgeAt = new Map(cells.map((c) => [c.key, c.around]))
-  const ridges = cells.flatMap((c) => ROTATIONS.flatMap((d) => {
-    const next = add(c.cell, DIRECTIONS[d])
-    const high = c.elevation + c.wall
-    const low = c.width < 1 ? c.around : edgeAt.get(coordKey(next)) ?? board.terrain[coordKey(next)]?.elevation ?? 0
-    if (!isCliff(low, high) || low > high) return []
-    const height = high - low
-    const [p, q] = hexSide(d)
-    const a = { x: c.x + p.x * c.width, y: c.y + p.y * c.width }
-    const b = { x: c.x + q.x * c.width, y: c.y + q.y * c.width }
-    const away = toPlane(DIRECTIONS[d])
-    const depth = Math.min(FACE_MOST, FACE_PER_METRE * height) / Math.hypot(away.x, away.y)
-    const [dx, dy] = [away.x * depth, away.y * depth]
-    const face = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
-    const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
-    return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, face, art: faceIndex(getCellSurface(board, c.key)?.face ?? null), grain: getFaceGrain(a, b, foot), group: '', height }]
-  }))
+  const ridges = cells.flatMap((c) => {
+    const layers = getFaceLayers(stacked, c.key)
+    return ROTATIONS.flatMap((d) => {
+      const next = add(c.cell, DIRECTIONS[d])
+      const high = c.elevation + c.wall
+      const low = c.width < 1 ? c.around : edgeAt.get(coordKey(next)) ?? board.terrain[coordKey(next)]?.elevation ?? 0
+      if (!isCliff(low, high) || low > high) return []
+      const height = high - low
+      const [p, q] = hexSide(d)
+      const a = { x: c.x + p.x * c.width, y: c.y + p.y * c.width }
+      const b = { x: c.x + q.x * c.width, y: c.y + q.y * c.width }
+      const away = toPlane(DIRECTIONS[d])
+      const depth = Math.min(FACE_MOST, FACE_PER_METRE * height) / Math.hypot(away.x, away.y)
+      const [dx, dy] = [away.x * depth, away.y * depth]
+      const strip = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
+      const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
+      const bands: BoardFaceBand[] = layers.flatMap((l, i) => {
+        const [from, to] = [Math.max(l.from, low), Math.min(l.to, high)]
+        if (!l.paints || to <= from) return []
+        return [{ key: `${c.key}:${d}:${i}`, from, to, art: faceIndex(l.face), glass: l.paints === 'glass', face: to === high ? strip : null }]
+      })
+      if (bands.length === 0) return []
+      return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, bands, grain: getFaceGrain(a, b, foot), group: '', height }]
+    })
+  })
   return { ridges, faces }
 }
 

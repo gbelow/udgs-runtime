@@ -5,14 +5,16 @@ import { getFloors, getRoofs, getTerrainAt, type Footing } from '../rules/board/
 import { getCellSenser } from '../rules/detection'
 import { getCellLighting } from '../rules/board/light'
 import { getFloorArt } from '../rules/board/surface'
-import { getBoardView, type BoardCellView, type BoardOverheadView, type BoardView } from './boardView'
+import { getBoardView, getRidges, type BoardCellView, type BoardOverheadView, type BoardView } from './boardView'
 
 // The board looked at from a height: each cell drawn as the floor someone
 // whose feet are there stands on (`getTerrainAt`), the cells where they would
 // fall veiled as open air over the ground, and whoever stands on another
 // floor drawn apart. A wall of the ground stands as high as the floor looked
-// from, as it does to a line, up to a storey laid over it. Looked at through someone's eyes, a floor they do not see
-// with a storey over it is drawn as the highest solid floor there, its roof. A
+// from, as it does to a line, up to a storey laid over it. Looked at through someone's eyes, a floor with a storey
+// over it is drawn as the highest solid floor there, its roof, where they do
+// not see it from under a roof of their own, and wherever it is when they
+// stand under none. A
 // lattice is seen through: the solid floor under it is drawn (or the raised
 // ground it is a ledge of), and the lattice
 // over it at its own height, with its surface where one is laid on it; looked
@@ -67,6 +69,9 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
   const known = cache.get(view)?.get(memo)
   if (known) return known
   const senses = eye ? getCellSenser(state, eye) : null
+  // an eye with no roof over its own feet is outside, and sees no roof lifted
+  const feet = eye ? board.placements[eye] : undefined
+  const outside = !!feet && getRoofs(board, feet.cell, feet.elevation).length === 0
   const isLattice = (key: string) => (f: Footing) => f.level !== null && !!board.levels[f.level].terrain[key]?.lattice
   const standing = (cell: Coord): Footing => {
     if (height !== null) return getTerrainAt(board, cell, height)
@@ -86,12 +91,11 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
     const met = standing(c.cell)
     const leaves = height !== null && met.level === null ? floors.find((f) => lattice(f) && f.floor === met.floor && getFloorArt(f.terrain)) : undefined
     const stand = leaves ?? met
+    // looked at from the top down: under a roof, what is not seen from inside,
+    // and all of it from outside (walls, and rooms seen through a window), is
+    // drawn as the highest roof over it
     const over = getRoofs(board, c.cell, stand.floor)
-    // a wall of the ground is a wall wherever it is looked at from, not the
-    // roof over it, and as much in sight as that roof would have been
-    const roofed = !!senses && over.length > 0 && !senses(c.cell, stand.floor)
-    const keptWall = roofed && stand.level === null && !!ground?.blocking
-    const roof = roofed && !keptWall ? highest(over) : undefined
+    const roof = !!senses && over.length > 0 && (outside || !senses(c.cell, stand.floor)) ? highest(over) : undefined
     const top = roof ?? stand
     const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[c.key]).map((l) => l.floor))
     const wall = !roof && height !== null && stand.level === null && !!ground?.blocking && ceiling > height
@@ -100,7 +104,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
       : top
     const higher = (f: Footing) => f.floor > drawn.floor || (drawn.level === null && f.floor === drawn.floor)
     const above = floors.filter((f) => lattice(f) && f.level !== drawn.level && higher(f) && !floors.some((g) => !lattice(g) && g.floor > drawn.floor && g.floor < f.floor))
-    return [c.key, { stand, roof, wall, top, drawn, above, keptWall }]
+    return [c.key, { stand, roof, wall, top, drawn, above }]
   }))
 
   const terrain = { ...board.terrain }
@@ -111,12 +115,13 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
   // never to a storey's floor drawn in its place
   const raised = new Set([...looks].filter(([, l]) => l.drawn.level !== null).map(([key]) => key))
   const pieces = Object.fromEntries(Object.entries(board.pieces).map(([id, p]) => [id, { ...p, under: Object.fromEntries(Object.entries(p.under).filter(([key]) => !raised.has(key))) }]))
-  const flat = redrawn ? getBoardView({ ...state, board: { ...board, terrain, pieces, levels: [] } }) : view
+  const flatBoard = { ...board, terrain, pieces, levels: [] }
+  const flat = redrawn ? getBoardView({ ...state, board: flatBoard }) : view
   const byKey = new Map(flat.cells.map((c) => [c.key, c]))
 
   const cells = view.cells.map((c): BoardCellView => {
     const d = byKey.get(c.key)
-    const { stand, roof, wall, drawn, keptWall } = looks.get(c.key)!
+    const { stand, roof, wall, drawn } = looks.get(c.key)!
     const hole = height !== null && board.levels.some((level) => Math.abs(level.floor - height) < FALL.minHeight && level.terrain[c.key]?.hole)
     const storey = roof ? 'roof'
       : wall ? null
@@ -126,7 +131,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
       : null
     // a wall standing up through the floor looked from is seen there, not at
     // its foot
-    const unseen = wall && senses && height !== null ? !senses(c.cell, height) : c.unseen && !keptWall && !(roof && senses?.(c.cell, roof.floor))
+    const unseen = wall && senses && height !== null ? !senses(c.cell, height) : c.unseen && !(roof && senses?.(c.cell, roof.floor))
     // a storey's floor with no surface laid on it is drawn bare, never with
     // the board's ground
     const bare = drawn.level !== null && !drawn.terrain?.surface ? { art: null } : {}
@@ -146,7 +151,10 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
     const elsewhere = !!placement && !!look && Math.abs(getTerrainAt(board, placement.cell, placement.elevation).floor - look.top.floor) >= FALL.minHeight
     return { ...t, elsewhere }
   })
-  const seen = { ...view, cells, tokens, overhead, arts: flat.arts, ridges: flat.ridges, rims: flat.rims, faces: flat.faces, bands: flat.bands }
+  // each drop painted by what stands in its cell on the board as it is, not
+  // on the flattened copy it is drawn from
+  const cliffs = redrawn ? getRidges(flatBoard, flat.cells, board) : view
+  const seen = { ...view, cells, tokens, overhead, arts: flat.arts, ridges: cliffs.ridges, rims: flat.rims, faces: cliffs.faces, bands: flat.bands }
   cache.set(view, (cache.get(view) ?? new Map()).set(memo, seen))
   return seen
 }
