@@ -38,6 +38,7 @@ Improve Chase UI/ playability
 ### convictions
 - promoted actions
 - limit actions and compulsions
+- coward forces movement surge - cannot escape during grapple with surge ap
 
 
 ### knowledge actions
@@ -142,3 +143,8 @@ After that, in my recommended order:
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
 
 intercepting with bare hands - damage or not?
+
+
+## conviction attitudes
+- done: abilities carry `attitudes` (event + XP on a conviction); Fatalism automated (will hit at DL >= will +1/+2, limit stress -2); manual conviction XP +/- on the sheet
+- next: the other convictions (Stoicism, Adaptation, Domination, Ferocity, Guardian); will tests against morale spells and outside fights; auto-grant conviction abilities; end of session (negative XP loses a level, renounce at 0 with -4)
