@@ -1181,7 +1181,7 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   // or declared with the action and walked around the step it is made from.
   z.object({
     type: z.literal('carriedMove'),
-    on: z.enum(['rest', 'cast', 'shoot', 'upkeep']),
+    on: z.enum(['rest', 'social', 'taunt', 'cast', 'shoot', 'upkeep']),
     when: z.enum(['concentration', 'effortless', 'notSnipe']).nullable().default(null),
     budget: z.enum(['action', 'rest']).default('action'),
     path: z.enum(['afterRoll', 'declared']).default('afterRoll'),

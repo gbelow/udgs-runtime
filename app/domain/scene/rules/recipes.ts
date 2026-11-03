@@ -91,6 +91,17 @@ const RULE_RECIPES = {
     label: 'rest',
     recipe: RecipeSchema.parse({ type: 'carriedMove', on: 'rest', budget: 'rest' }),
   },
+  // combat.tex "Social actions": each "counts as a Rest action", so it
+  // carries a rest's careful move, bought with the 5 AP it paid (the table's
+  // ruling)
+  socialAction: {
+    label: 'social action',
+    recipe: RecipeSchema.parse({ type: 'carriedMove', on: 'social' }),
+  },
+  tauntAction: {
+    label: 'taunt',
+    recipe: RecipeSchema.parse({ type: 'carriedMove', on: 'taunt' }),
+  },
   // spells.tex "Effortless Spell": a cast rested through
   effortlessSpell: {
     label: 'effortless spell',

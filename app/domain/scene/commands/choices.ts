@@ -140,7 +140,7 @@ export function refundImprovement(name: SpellModification): Updater {
 // before it lands.
 export function moveWhileResting(newId: () => string): Updater {
   return (state) => {
-    const open = getRolledOpen(state, ['rest', 'cast'])
+    const open = getRolledOpen(state, ['rest', 'social', 'taunt', 'cast'])
     const c = open ? state.characters[open.actorId] : undefined
     if (!open || !c || !canMoveWhileResting(state, open)) return state
     return appendActions(state, [makeAction('move', { id: newId(), actorId: open.actorId, spawnedBy: open.id, ...getRestMove(state, open) })])
