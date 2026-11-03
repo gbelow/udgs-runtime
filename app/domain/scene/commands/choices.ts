@@ -51,6 +51,16 @@ export function chooseGrapple(on: boolean): Updater {
   }
 }
 
+// combat.tex "Theft": "On successes, the character can choose between
+// successfully stealing or failing without drawing attention": the thief's
+// call once the die is known, free to change until it lands.
+export function chooseTheft(take: boolean): Updater {
+  return (state) => {
+    const open = getRolledOpen(state, ['steal'])
+    return !open || open.take === take ? state : replaceActions(state, [{ ...open, take }])
+  }
+}
+
 // A tally of purchases, one more of `key`.
 function addOne<K extends string>(tally: Partial<Record<K, number>>, key: K): Partial<Record<K, number>> {
   return { ...tally, [key]: (tally[key] ?? 0) + 1 }

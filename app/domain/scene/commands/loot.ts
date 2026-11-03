@@ -1,4 +1,4 @@
-import type { Item } from '../../types'
+import type { Character, Item } from '../../types'
 import type { Body, FloorItem, LootSource } from '../types'
 import { mapSlotGroups } from '../../item/rules/containers'
 import { removeItemFromContainer } from '../../item/commands/items'
@@ -16,16 +16,17 @@ export function takeFromChest(floor: FloorItem[], chestId: string, itemId: strin
     : f))
 }
 
-// One of the item taken from a body: out of its hands or off its back, out of
-// a container it wears, or the armor or a container it wears itself. A hand
-// holds one of a stack, never the stack.
+// One of the item taken from whoever has it: out of their hands or off their
+// back, out of a container they wear, or the armor or a container they wear
+// itself. A hand holds one of a stack, never the stack.
+export function takeFromCarrier<C extends Character>(c: C, from: Exclude<LootSource, { kind: 'floor' | 'chest' }>, itemId: string): C {
+  if (from.kind === 'pack') return removeItemFromContainer(from.container, itemId, 1)(c)
+  if (from.kind === 'worn') return { ...c, worn: null }
+  if (from.kind === 'wornPack') return { ...c, containers: without(c.containers, from.container) }
+  return c.onBack?.id === itemId ? { ...c, onBack: null } : dropItem(itemId)(c)
+}
+
+// The same off a body.
 export function takeFromBody(bodies: Body[], from: Exclude<LootSource, { kind: 'floor' | 'chest' }>, itemId: string): Body[] {
-  return bodies.map((b) => {
-    const c = b.character
-    if (c.id !== from.body) return b
-    if (from.kind === 'pack') return { ...b, character: removeItemFromContainer(from.container, itemId, 1)(c) }
-    if (from.kind === 'worn') return { ...b, character: { ...c, worn: null } }
-    if (from.kind === 'wornPack') return { ...b, character: { ...c, containers: without(c.containers, from.container) } }
-    return { ...b, character: c.onBack?.id === itemId ? { ...c, onBack: null } : dropItem(itemId)(c) }
-  })
+  return bodies.map((b) => (b.character.id === from.body ? { ...b, character: takeFromCarrier(b.character, from, itemId) } : b))
 }

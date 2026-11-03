@@ -90,6 +90,16 @@ export function getReachableLoot(state: SceneState, id: string): LootItem[] {
   return [...lying, ...inChests, ...onBodies]
 }
 
+// What someone carries that a hand could take off them without opening
+// anything: what is in their hands and on their back, and everything in the
+// containers they wear (combat.tex "Theft").
+export function getCarriedBy(c: Character, cell: Coord | null): LootItem[] {
+  const on = (item: Item, from: LootSource, slot: SlotKind | null = null): LootItem => ({ item, from, cell, slot })
+  const held = [...c.held, ...(c.onBack ? [c.onBack] : [])].map((item) => on(item, { kind: 'body', body: c.id }))
+  const packed = Object.entries(c.containers).flatMap(([container, pack]) => slotted(pack).map(({ item, slot }) => on(item, { kind: 'pack', body: c.id, container }, slot)))
+  return [...held, ...packed]
+}
+
 // What taking the item into a hand costs the looter: what their own inventory
 // would ask for it. Lying loose or held by a body, a standard action
 // (combat.tex "Standard Action"); out of a container's slot, the price of

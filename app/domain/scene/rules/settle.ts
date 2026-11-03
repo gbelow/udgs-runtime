@@ -5,6 +5,7 @@ import { getConsume } from '../../item/rules/consumables'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
 import { getThrownItem, takeOne } from './floor'
 import { findLoot } from './loot'
+import { findStealable, getStealOutcome } from './steal'
 import { getThrownUnit } from './throw'
 import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
 import { getDragFacts, getUnpushed } from './drag'
@@ -79,6 +80,10 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
       return { ...open, step: 'done', picked: lying ? takeOne(lying, open.id) : null }
     }
     case 'open': return { ...open, step: 'done' }
+    case 'steal': {
+      const lifted = getStealOutcome(open).stolen ? findStealable(state, open)?.item : undefined
+      return { ...open, step: 'done', stolen: lifted ? takeOne(lifted, open.id) : null }
+    }
     case 'throw': return { ...open, step: 'done', thrown: getThrownUnit(state, open) }
     case 'drink': return { ...open, step: 'done', drunk: state.characters[open.actorId]?.held.find((i) => i.id === open.itemId && getConsume(i) !== null) ?? null }
     case 'firstAid': return { ...open, step: 'done', facts: getFirstAidFacts(open) }

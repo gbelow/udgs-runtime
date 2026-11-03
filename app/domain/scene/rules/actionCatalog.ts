@@ -146,6 +146,7 @@ export const ACTIONS = {
   letGo:       { label: 'let go', rule: 'combat.tex "Push and drag"',       type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
   // combat.tex "Standard Action"
   pickUp:      { label: 'pick up', rule: 'combat.tex "Standard Action"',      type: 'action',   price: 'standardAction', reactsTo: [],      die: false },
+  steal:       { label: 'steal', rule: 'combat.tex "Theft"',               type: 'action',   price: 'standardAction', reactsTo: [],      die: true, targeted: true },
   open:        { label: 'open', rule: 'combat.tex "Standard Action"',         type: 'action',   price: 'standardAction', reactsTo: [],      die: false },
   // combat.tex "Throw", "Standard Action": a held item or one off the
   // floor, to the floor, at its throwing row's price or a standard action's

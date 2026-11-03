@@ -30,6 +30,7 @@ import { layToRest } from './characters'
 import { getResults } from './results'
 import { compelByTest } from './stress'
 import { landSocial } from './social'
+import { landTheft } from './steal'
 import { getHiddenFrom } from '../rules/stealth'
 import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
@@ -154,6 +155,7 @@ function landOnTable(state: SceneState, resolved: RootAction): SceneState {
   switch (resolved.kind) {
     case 'feint': return forceSurge(state, resolved)
     case 'spellTest': return compelByTest(state, resolved)
+    case 'steal': return isVoided(state, resolved) ? state : landTheft(state, resolved)
     case 'social':
     case 'taunt': return landSocial(state, resolved)
     default: return state

@@ -25,6 +25,7 @@ import type { Test } from '../../play/test'
 import { AT_CHEST, type Aim } from './delivery'
 import { getExplosionDLTerms } from './explosion'
 import { getSlipTerms } from './tether'
+import { getStealTerms } from './steal'
 import { getFeintTerms } from './feint'
 import { CUT_DL, getCutStrike } from './cut'
 import { EQUIPMENT_ATTACK_PENALTY, isFloorAttack, isObjectOnTarget, isObjectAttack } from './equipment'
@@ -421,6 +422,8 @@ export function getDLTerms(state: SceneState, root: RootAction): Term[] {
       return getManeuverDLTerms(state, root)
     case 'slip':
       return getSlipTerms(state, root)?.DL ?? []
+    case 'steal':
+      return getStealTerms(state, root)?.DL ?? []
     case 'feint':
       return getFeintTerms(state, root)?.DL ?? []
     case 'firstAid':
@@ -531,6 +534,8 @@ function getOwnRootTestTerms(state: SceneState, root: RootAction): RootTestTerms
       return onDegrees({ skill: getManeuverTerms(state, root), DL: getDLTerms(state, root) })
     case 'slip':
       return onDegrees(getSlipTerms(state, root))
+    case 'steal':
+      return onDegrees(getStealTerms(state, root))
     case 'feint':
       return onDegrees(getFeintTerms(state, root))
     // abilities.tex "First Aid": a medicine test

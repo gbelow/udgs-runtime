@@ -45,6 +45,7 @@ import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp } from '../rules/floor'
 import { getLootCost, getLootLabel, getOpenables, getReachableLoot } from '../rules/loot'
+import { getStealable, isTheftChoiceOffered } from '../rules/steal'
 import { canThrowItem, getThrowables } from '../rules/throw'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { isSweepVariant } from '../../character/rules/gear'
@@ -280,6 +281,8 @@ export type OpenActionView = {
   // bought by the attacker's own commitment (null where the maneuver has
   // none); what a push comes to
   grapples: boolean | null
+  // combat.tex "Theft": on a hit, whether the thief takes it
+  theft: boolean | null
   maneuver: GrappleManeuver | null
   // once a knockdown or an immobilization has hit: whether the attacker
   // commits themselves along (null: nothing to choose)
@@ -511,15 +514,18 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       required: isPreparedRequired(state, open),
       flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,
       opportunity: open.kind === 'strike' && open.opportunity,
+      theft: open.kind === 'steal' && isTheftChoiceOffered(open) ? open.take : null,
       grapples: open.kind === 'strike' && open.step === 'post' && !open.modifiers.tackle && canGrapple(state, open) ? open.grapples : null,
       maneuver: grapple?.maneuver ?? null,
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       grappling: grapple && grapple.targetId && isGrapplingEffectOffered(grapple) ? getGrapplingView(state, grapple, grapple.targetId) : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
-      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),
+      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' || open.kind === 'steal' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' || open.kind === 'reload' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableLoot(state, actor.id).map((l) => ({ itemId: l.item.id, name: l.item.name, available: canPickUp(actor, l.item) && getLootCost(state, actor, l) !== null, cost: getLootCost(state, actor, l)?.AP ?? null, from: l.from, whose: getLootLabel(state, l.from) }))
+        : open.kind === 'steal' && open.step === 'define' && actor && open.targetId
+        ? getStealable(state, actor.id, open.targetId).map((l) => ({ itemId: l.item.id, name: l.item.name, available: canPickUp(actor, l.item), cost: null, from: l.from, whose: '' }))
         : open.kind === 'throw' && open.step === 'define' && actor
         ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i, isCombatStarted(state)), cost: null, from: null, whose: '' }))
         : [],

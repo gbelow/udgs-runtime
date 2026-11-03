@@ -1338,6 +1338,20 @@ export const SlipActionSchema = z.object({
   kind: z.literal('slip'),
 }).strip()
 
+// combat.tex "Theft": an item taken off someone's body, a Prestidigitation test
+// against their Detection. `from` says where on them it lies (their hands and
+// back, or a container they wear: `LootSource` with the holder as `body`). On a
+// hit the thief chooses between taking it, noticed, and failing unnoticed
+// (`take`); `stolen` is what was taken, written at the resolve.
+export const StealActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('steal'),
+  itemId: str.default(''),
+  from: LootSourceSchema.default({ kind: 'body', body: '' }),
+  take: z.boolean().default(true),
+  stolen: ItemSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Turns and Actions" ("Feint"): a cunning test against a character
 // in melee; on a hit or a critical the target is forced to take their turn
 // and use an action surge, otherwise the feinter is.
@@ -1550,6 +1564,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ReleaseActionSchema,
   ReleaseSpellActionSchema,
   SlipActionSchema,
+  StealActionSchema,
   FeintActionSchema,
   CutActionSchema,
   HoldBackActionSchema,
@@ -1601,6 +1616,7 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 export type OpportunityAction = StrikeAction | GrappleAction | ShootAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type OpenAction = z.infer<typeof OpenActionSchema>
+export type StealAction = z.infer<typeof StealActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
 export type PlantAction = z.infer<typeof PlantActionSchema>

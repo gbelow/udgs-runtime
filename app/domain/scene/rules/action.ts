@@ -38,6 +38,7 @@ import { isExtinguishCell } from './extinguish'
 import { isPlantDeclared } from './plant'
 import { canPickUp } from './floor'
 import { findLoot, findOpenable, getLootCost } from './loot'
+import { findStealable, getStealTargets, isTheftChoiceOffered } from './steal'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
@@ -166,6 +167,12 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'pickUp': {
       const found = findLoot(state, c.id, action.from, action.itemId)
       return !!found && canPickUp(c, found.item) && getLootCost(state, c, found) !== null
+    }
+    // combat.tex "Theft": something carried by someone within reach, into a
+    // free hand
+    case 'steal': {
+      const found = findStealable(state, action)
+      return !!found && canPickUp(c, found.item)
     }
     // combat.tex "Standard Action": "open doors ... and perform other kinds of
     // object interactions" — a container within reach, not yet open
@@ -379,6 +386,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'releaseSpell':
     case 'feint':
     case 'holdBack':
+    case 'steal':
     case 'open':
     case 'extinguish':
     case 'plant':
@@ -701,6 +709,9 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
       return isSpray(open) && open.direction === null ? 'aim' : 'confirm'
     case 'grapple':
       return needsDisarmPick(state, open) ? 'choose' : 'confirm'
+    // combat.tex "Theft": a hit leaves the thief the choice to take it
+    case 'steal':
+      return isTheftChoiceOffered(open) ? 'spend' : 'confirm'
     // combat.tex "Crash": the space a won crash puts its defender in
     case 'move':
       return getPendingDisplacement(state, open) ? 'aim' : 'confirm'
@@ -847,6 +858,8 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
       return getReleaseTargets(state, root.actorId)
     case 'slip':
       return getSlipTargets(state, root.actorId)
+    case 'steal':
+      return getStealTargets(state, root.actorId)
     case 'feint':
       return getFeintTargets(state, root.actorId)
     case 'taunt':

@@ -33,7 +33,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, sustainMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, sustainMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -353,6 +353,13 @@ export function ActionPanel(){
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>on the hit</SectionLabel>
               <Button size='xs' selected={open.grapples} title='the target is grappled, for nothing' onClick={() => grapple(!open.grapples)}>grapple</Button>
+            </div>
+          ) : null}
+          {step === 'spend' && open.theft !== null ? (
+            <div className='flex flex-row flex-wrap gap-1 items-center'>
+              <SectionLabel>on the hit</SectionLabel>
+              <Button size='xs' selected={open.theft} title='it is taken, and the target notices' onClick={() => theft(true)}>take it</Button>
+              <Button size='xs' selected={!open.theft} title='nothing is taken, and nobody notices' onClick={() => theft(false)}>let it be</Button>
             </div>
           ) : null}
           {step === 'spend' && view.castHOP.options.length > 0 ? (

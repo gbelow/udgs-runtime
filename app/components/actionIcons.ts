@@ -49,6 +49,7 @@ export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
   letGo: Unlink,
   pickUp: ArrowUpFromLine,
   open: DoorOpen,
+  steal: Grab,
   throw: MoveUpRight,
   drink: FlaskConical,
   firstAid: BriefcaseMedical,

@@ -14,7 +14,7 @@ import { findWeaponRow } from '../rules/weaponRow'
 import { needsReload } from '../../character/rules/gear'
 import { getAttackKind } from '../../weaponProperties'
 import { breakOne, onFloor, withoutOne } from '../rules/floor'
-import { takeFromBody, takeFromChest } from './loot'
+import { takeFromBody, takeFromCarrier, takeFromChest } from './loot'
 import { isFloorAttack } from '../rules/equipment'
 import { getGroundCell } from '../rules/floorAttack'
 import { getBurnOf } from '../rules/ignition'
@@ -196,6 +196,11 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
           return isWon(action) && c.id === action.targetId ? { ...treated, injuries: { ...treated.injuries, staunched: true } } : treated
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
+        // combat.tex "Theft": the thief holds it, and the victim no longer has it
+        if (action.kind === 'steal' && action.stolen) {
+          if (c.id === action.actorId) return holdItem(action.stolen)(c)
+          return c.id === action.targetId && action.from.kind !== 'floor' && action.from.kind !== 'chest' ? takeFromCarrier(c, action.from, action.itemId) : c
+        }
         // abilities.tex "Crossbow and Shield": the shield leaves the hand it
         // was planted from
         if (action.kind === 'plant') return c.id === action.actorId ? dropItem(action.itemId)(c) : c

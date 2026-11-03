@@ -24,6 +24,7 @@ import { getExtinguishCells } from './extinguish'
 import { getPlantableShields } from './plant'
 import { canPickUp } from './floor'
 import { getLootCost, getOpenables, getReachableLoot } from './loot'
+import { getStealable } from './steal'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getOpportunityBar, getOpportunityCheck, getOwnCost, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withoutReserve, withRefund } from './action'
 import { getAnswerDrafts } from './modifiers'
@@ -477,6 +478,16 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : !loot.some((l) => canPickUp(c, l.item) && getLootCost(state, c, l) !== null) ? (loot.length > 0 ? 'no free hand' : 'nothing within reach')
       : canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
     return [option({ kind: 'pickUp' }, cost, reason)]
+  },
+  // combat.tex "Theft": "A standard action can be used to steal an item from
+  // someone's body", with a hand free
+  steal: (state, c) => {
+    const cost = getActionCost(c, 'standardAction')
+    const reachable = Object.keys(state.characters).flatMap((id) => getStealable(state, c.id, id))
+    const reason = reachable.length === 0 ? 'nobody within reach carries anything'
+      : !reachable.some((l) => canPickUp(c, l.item)) ? 'no free hand'
+      : canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
+    return [option({ kind: 'steal' }, cost, reason)]
   },
   // combat.tex "Standard Action": "open doors ... and perform other kinds of
   // object interactions" — a container lying within reach, or one a body wears

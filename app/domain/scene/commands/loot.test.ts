@@ -9,6 +9,12 @@ import { joinFight } from './parties'
 import { pickFloorItem } from './floor'
 import { canPickUp } from '../rules/floor'
 import { getOpenables, getReachableLoot } from '../rules/loot'
+import { getRootTestTerms } from '../rules/attack'
+import { getDegree } from '../../play/test'
+import { sumTerms } from '../../character/rules/terms'
+import { setTarget, resolveAction } from './action'
+import { chooseTheft } from './choices'
+import type { Degree } from '../../types'
 import { drawItem } from '../../item/commands/hands'
 import { doffArmor } from '../../character/commands/armor'
 
@@ -129,5 +135,50 @@ describe('what a body has on it', () => {
     const own = doffArmor(null)({ ...fresh(sheet('x')), worn: mail }, true) as CampaignCharacter
     expect(looted.characters.a.held.map((i) => i.id)).toContain('mail')
     expect(40 - looted.characters.a.resources.AP).toBe(40 - own.resources.AP)
+  })
+})
+
+describe('theft', () => {
+  const from = { kind: 'pack', body: 'b', container: 'pack' } as const
+
+  function robbery(): SceneState {
+    const victim = { ...sheet('b'), containers: { pack: withPack('backpack', [stuff('rope', 'Rope')]) } }
+    const joined = [sheet('a'), victim].reduce((s, c) => joinFight(c, c.id, c.name, [])(s), SceneStateSchema.parse({}))
+    const resting = { ...joined, round: 1, turn: 1, turnsBegun: 1, inTurnCharacter: 'a', stealthTurns: [{ turn: 1, id: 'a', hiddenFrom: ['b'], AP: 0, heardAP: 0 }] }
+    return { ...resting, characters: { ...resting.characters, a: { ...resting.characters.a, resources: { ...resting.characters.a.resources, AP: 40 } } } }
+  }
+
+  // a die that comes to the degree against the test as declared
+  function dieFor(state: SceneState, degree: Degree): () => number {
+    const open = Object.values(state.actions).find((a) => a.kind === 'steal')!
+    const terms = getRootTestTerms(state, open)!
+    const die = Array.from({ length: 200 }, (_, i) => i - 100).find((n) => getDegree(n + sumTerms(terms.skill), sumTerms(terms.DL)) === degree)!
+    return () => die
+  }
+
+  function steal(degree: Degree, take = true): SceneState {
+    const declared = setTarget('b')(declareAction('a', { kind: 'steal', itemId: 'rope', from }, newId)(robbery()))
+    const rolled = commitAction(dieFor(declared, degree), newId)(declared)
+    return resolveAction(newId, () => 5)(chooseTheft(take)(rolled))
+  }
+
+  const noticed = (s: SceneState) => !s.stealthTurns[0].hiddenFrom.includes('b')
+  const holds = (s: SceneState) => s.characters.a.held.some((i) => i.id === 'rope')
+  const carries = (s: SceneState) => s.characters.b.containers.pack.slots.quick.items.some((i) => i.id === 'rope')
+
+  // combat.tex "Theft": "On criticals, it is stolen without being noticed. On
+  // successes, the character can choose between successfully stealing or
+  // failing without drawing attention. On grazes and failures, attention is
+  // drawn and it fails."
+  it.each([
+    ['critical', true, { stolen: true, noticed: false }],
+    ['hit', true, { stolen: true, noticed: true }],
+    ['hit', false, { stolen: false, noticed: false }],
+    ['graze', true, { stolen: false, noticed: true }],
+    ['miss', true, { stolen: false, noticed: true }],
+  ] as const)('on a %s (taking it: %s) comes to %j', (degree, take, outcome) => {
+    const after = steal(degree, take)
+    expect({ stolen: holds(after), noticed: noticed(after) }).toEqual(outcome)
+    expect(carries(after)).toBe(!outcome.stolen)
   })
 })

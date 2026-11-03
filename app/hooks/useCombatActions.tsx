@@ -33,6 +33,7 @@ export function useCombatActions() {
   const spend = (purchase: HOPPurchase) => dispatch({ kind: "spend", args: [purchase] });
   const refund = (purchase: HOPPurchase) => dispatch({ kind: "refund", args: [purchase] });
   const grapple = (on: boolean) => dispatch({ kind: "grapple", args: [on] });
+  const theft = (take: boolean) => dispatch({ kind: "theft", args: [take] });
   const resolve = () => dispatch({ kind: "resolve", args: [] });
   const improve = (name: SpellModification) => dispatch({ kind: "improve", args: [name] });
   const unimprove = (name: SpellModification) => dispatch({ kind: "unimprove", args: [name] });
@@ -48,5 +49,5 @@ export function useCombatActions() {
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, sustainMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, sustainMove, extend, cast, choose, boostPush, backSegment } as const;
 }
