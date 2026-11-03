@@ -66,6 +66,20 @@ describe('grapple', () => {
     expect(settled.binds.flatMap((g) => g.holders)).not.toContain('a')
   })
 
+  // A wolf immobilized in a fight still held the ranger it had grabbed.
+  it('lets go for a holder who is immobile, unconscious or dead', () => {
+    const s = grappling()
+    const incapacitated = {
+      immobile: (st: SceneState) => ({ ...st, binds: st.binds.map((g) => (g.kind === 'grapple' ? { ...g, immobile: ['a'] } : g)) }),
+      unconscious: (st: SceneState) => ({ ...st, characters: { ...st.characters, a: { ...st.characters.a, afflictions: [...st.characters.a.afflictions, 'unconscious' as const] } } }),
+      dead: (st: SceneState) => ({ ...st, characters: { ...st.characters, a: { ...st.characters.a, injuries: { ...st.characters.a.injuries, injuryLevel: 1000 } } } }),
+    }
+    for (const make of Object.values(incapacitated)) {
+      const settled = settleBinds(make(s))
+      expect(settled.binds.flatMap((g) => g.holders)).not.toContain('a')
+    }
+  })
+
   // combat.tex "Grapple Maneuvers": "If a grapple maneuvre grazes or misses,
   // it simply as no effect."
   // abilities.tex "Grappling Combat": the attack is a maneuver its learner makes

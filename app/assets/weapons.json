@@ -1106,6 +1106,7 @@
         "properties": [
           "grapple I",
           "grapple II",
+          "DEF",
           "bladed"
         ]
       }
