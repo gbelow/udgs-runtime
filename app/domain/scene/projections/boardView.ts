@@ -2,7 +2,7 @@ import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, Li
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { DIRECTIONS, HEX_CORNERS, ROTATIONS, fromPlane, getChordEnds, getHexCorners, add, angleBetween, coordKey, extentCells, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane, type Grain, type Point } from '../rules/board/geometry'
+import { DIRECTIONS, HEX_CORNERS, ROTATIONS, fromPlane, hexCorner, getChordEnds, getHexCorners, add, angleBetween, coordKey, extentCells, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane, type Grain, type Point } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor, getThinWallsOf, hasThinWalls } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
@@ -232,9 +232,11 @@ export type BoardFaceBand = {
 // to `foot`, `bands` are what paints it, and `height` the metres it drops.
 export type BoardRidgeView = {
   key: string
-  // the cell on the higher side and the side of it that drops, a direction
+  // the cell on the higher side, and which way the drop faces in the plane,
+  // a unit vector: away across the side it drops from, or past a thin wall
+  // toward the corner it cuts off
   cell: string
-  side: number
+  facing: Point
   // the band of the cell, which the ridge is drawn with
   band: number
   a: { x: number; y: number }
@@ -315,6 +317,15 @@ export type BoardChordView = {
   side: Point[] | null
 }
 
+// The corner a thin wall cuts off its cell (`BoardChordView.corner`): drawing
+// only, nothing stands there and no rule reads it. It is drawn as the ground
+// of the two neighbours that meet at that corner, the picture of whichever has
+// the higher priority at the height of the shorter, and black at the board's
+// edge where neither is; its cell's own top stops at the wall. `x`, `y` are its
+// cell's centre where it is drawn, `base` where it lies in the plane, and
+// `points` its corners.
+export type BoardCornerView = { key: string; cell: string; corner: number; x: number; y: number; base: Point; points: Point[]; elevation: number; art: number | null; edge: boolean; band: number; group: string }
+
 // A see-through floor (a lattice) over the floor a cell is drawn as, drawn
 // over it at its own height.
 // A lattice over the floor a cell is drawn as (`below` metres up),
@@ -337,6 +348,7 @@ export type BoardGround = {
   ridges: BoardRidgeView[]
   faces: SurfaceArt[]
   chords: BoardChordView[]
+  corners: BoardCornerView[]
   overhead: BoardOverheadView[]
   standing: BoardStandingView[]
   sprites: BoardSpriteView[]
@@ -409,7 +421,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, hex: [], frame: { x: 0, y: 0, width: 1, height: 1 }, arts: [], cells: [], rims: [], ridges: [], faces: [], chords: [], overhead: [], standing: [], sprites: [], bands: 1, front: false, beyond: [] }
+const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, hex: [], frame: { x: 0, y: 0, width: 1, height: 1 }, arts: [], cells: [], rims: [], ridges: [], faces: [], chords: [], corners: [], overhead: [], standing: [], sprites: [], bands: 1, front: false, beyond: [] }
 
 const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, hex: [], light: 'bright', lights: [], frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
@@ -692,7 +704,8 @@ function buildGround(board: Board, beyond: string[]): BoardGround {
   const drawing = found.map((_, i) => i).sort((a, b) => compareArts(found[a], found[b]))
   const arts = drawing.map((i) => found[i])
   const place = new Map(drawing.map((from, to) => [from, to]))
-  const cells = getThinTops(unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null })))
+  const cells = withCuts(board, getThinTops(unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null }))))
+  const corners = getCorners(board, cells)
 
   return {
     extent: board.extent,
@@ -700,9 +713,10 @@ function buildGround(board: Board, beyond: string[]): BoardGround {
     frame: hexBounds(cells),
     arts,
     cells,
-    rims: getRims(cells),
-    ...getRidges(board, cells, board),
+    rims: withCuts(board, getRims(cells)),
+    ...getRidges(board, cells, board, corners),
     chords: getChords(board, cells),
+    corners,
     overhead: [],
     standing: getStanding(board, cells),
     sprites: [],
@@ -824,6 +838,68 @@ export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER, BrushIco
   Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]): [string, BrushIcon] => [brush, { hex: HEX_CORNERS, chord: getChordEnds(corner) }]),
 ) as Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon>
 
+// The corners the thin walls of a cell cut off (`getThinWallsOf`).
+function getCuts(board: Board, cell: Coord): number[] {
+  return getThinWallsOf(cell, board.terrain[coordKey(cell)]).map((w) => w.corner)
+}
+
+// The two sides of a cell, by direction, that the corner `corner` lies
+// between, which a corner cut off owns whole.
+export function getCutSides(corner: number): number[] {
+  return [(((1 - corner) % 6) + 6) % 6, (((-corner) % 6) + 6) % 6]
+}
+
+// A convex polygon about a cell's centre less what lies past the chord of
+// each corner cut off: a chord of a unit hex lies half a unit from its centre,
+// square to its corner.
+function clipCuts(points: Point[], cuts: number[]): Point[] {
+  return cuts.reduce((poly, corner) => {
+    const n = hexCorner(corner)
+    const over = (p: Point) => p.x * n.x + p.y * n.y - 0.5
+    return poly.flatMap((a, i) => {
+      const b = poly[(i + 1) % poly.length]
+      const [da, db] = [over(a), over(b)]
+      const kept = da <= 0 ? [a] : []
+      if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
+        const t = da / (da - db)
+        kept.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
+      }
+      return kept
+    })
+  }, points)
+}
+
+// Each cell drawn without the corners its thin walls cut off.
+function withCuts(board: Board, cells: BoardGroundCell[]): BoardGroundCell[] {
+  return cells.map((c) => {
+    const cuts = getCuts(board, c.cell)
+    return cuts.length === 0 ? c : { ...c, hex: clipCuts(c.hex ?? HEX_CORNERS, cuts) }
+  })
+}
+
+// The corners the thin walls cut off the cells (`BoardCornerView`).
+function getCorners(board: Board, cells: BoardGroundCell[]): BoardCornerView[] {
+  const byKey = new Map(cells.map((c) => [c.key, c]))
+  return cells.flatMap((c) => getCuts(board, c.cell).map((corner) => {
+    const near = getCutSides(corner).flatMap((d) => byKey.get(coordKey(add(c.cell, DIRECTIONS[d]))) ?? [])
+    const arts = near.flatMap((n) => (n.art === null ? [] : [n.art]))
+    return {
+      key: `${c.key}:cut${corner}`,
+      cell: c.key,
+      corner,
+      x: c.x,
+      y: c.y,
+      base: { x: c.x, y: c.y },
+      points: [corner - 1, corner, corner + 1].map((i) => { const p = hexCorner(i); return { x: c.x + p.x, y: c.y + p.y } }),
+      elevation: near.length === 0 ? c.elevation : Math.min(...near.map((n) => n.elevation + n.wall)),
+      art: arts.length === 0 ? null : Math.max(...arts),
+      edge: near.length === 0,
+      band: 0,
+      group: '',
+    }
+  }))
+}
+
 // Each cell's top: drawn thinner than its hex where it is painted so and stands
 // over the lowest ground beside it on the board, which is drawn around its
 // foot; else across its whole hex, its edge as high as its top.
@@ -872,7 +948,7 @@ function getFaceLayers(board: Board, key: string): FaceLayer[] {
 // stands in the cell at each height on `stacked` (the board as it is, when the
 // cells are drawn from a flattened copy of it), each layer its own band, the
 // pictures listed once in `faces`. A drop where nothing paints is no ridge.
-export function getRidges(board: Board, cells: BoardGroundCell[], stacked: Board): { ridges: BoardRidgeView[]; faces: SurfaceArt[] } {
+export function getRidges(board: Board, cells: BoardGroundCell[], stacked: Board, corners: BoardCornerView[]): { ridges: BoardRidgeView[]; faces: SurfaceArt[] } {
   const faces: SurfaceArt[] = []
   const faceIndex = (face: SurfaceArt | null): number | null => {
     if (!face) return null
@@ -882,30 +958,43 @@ export function getRidges(board: Board, cells: BoardGroundCell[], stacked: Board
     return faces.length - 1
   }
   const edgeAt = new Map(cells.map((c) => [c.key, c.around]))
+  // the height beside a side that a corner cut off a neighbour owns
+  const cornerAt = new Map(corners.flatMap((k) => {
+    const owner = parseCoordKey(k.cell)
+    return owner ? getCutSides(k.corner).map((d) => [`${coordKey(add(owner, DIRECTIONS[d]))}|${(d + 3) % 6}`, k.elevation] as const) : []
+  }))
   const ridges = cells.flatMap((c) => {
     const layers = getFaceLayers(stacked, c.key)
-    return ROTATIONS.flatMap((d) => {
-      const next = add(c.cell, DIRECTIONS[d])
-      const high = c.elevation + c.wall
-      const low = c.width < 1 ? c.around : edgeAt.get(coordKey(next)) ?? board.terrain[coordKey(next)]?.elevation ?? 0
+    const high = c.elevation + c.wall
+    const owned = new Set(getCuts(board, c.cell).flatMap(getCutSides))
+    const drop = (key: string, a: Point, b: Point, facing: Point, low: number): BoardRidgeView[] => {
       if (!isCliff(low, high) || low > high) return []
       const height = high - low
-      const [p, q] = hexSide(d)
-      const a = { x: c.x + p.x * c.width, y: c.y + p.y * c.width }
-      const b = { x: c.x + q.x * c.width, y: c.y + q.y * c.width }
-      const away = toPlane(DIRECTIONS[d])
-      const depth = Math.min(FACE_MOST, FACE_PER_METRE * height) / Math.hypot(away.x, away.y)
-      const [dx, dy] = [away.x * depth, away.y * depth]
+      const depth = Math.min(FACE_MOST, FACE_PER_METRE * height)
+      const [dx, dy] = [facing.x * depth, facing.y * depth]
       const strip = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }]
       const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
       const bands: BoardFaceBand[] = layers.flatMap((l, i) => {
         const [from, to] = [Math.max(l.from, low), Math.min(l.to, high)]
         if (!l.paints || to <= from) return []
-        return [{ key: `${c.key}:${d}:${i}`, from, to, art: faceIndex(l.face), glass: l.paints === 'glass', face: to === high ? strip : null }]
+        return [{ key: `${key}:${i}`, from, to, art: faceIndex(l.face), glass: l.paints === 'glass', face: to === high ? strip : null }]
       })
-      if (bands.length === 0) return []
-      return [{ key: `${c.key}:${d}`, cell: c.key, side: d, band: c.band, a, b, foot, bands, grain: getFaceGrain(a, b, foot), group: '', height }]
+      return bands.length === 0 ? [] : [{ key, cell: c.key, facing, band: c.band, a, b, foot, bands, grain: getFaceGrain(a, b, foot), group: '', height }]
+    }
+    const sides = ROTATIONS.flatMap((d) => {
+      if (owned.has(d)) return []
+      const next = add(c.cell, DIRECTIONS[d])
+      const low = c.width < 1 ? c.around : cornerAt.get(`${c.key}|${d}`) ?? edgeAt.get(coordKey(next)) ?? board.terrain[coordKey(next)]?.elevation ?? 0
+      const [p, q] = hexSide(d)
+      const away = toPlane(DIRECTIONS[d])
+      const length = Math.hypot(away.x, away.y)
+      return drop(`${c.key}:${d}`, { x: c.x + p.x * c.width, y: c.y + p.y * c.width }, { x: c.x + q.x * c.width, y: c.y + q.y * c.width }, { x: away.x / length, y: away.y / length }, low)
     })
+    const walls = corners.filter((k) => k.cell === c.key).flatMap((k) => {
+      const [p, q] = getChordEnds(k.corner)
+      return drop(k.key, { x: c.x + p.x, y: c.y + p.y }, { x: c.x + q.x, y: c.y + q.y }, hexCorner(k.corner), k.elevation)
+    })
+    return [...sides, ...walls]
   })
   return { ridges, faces }
 }

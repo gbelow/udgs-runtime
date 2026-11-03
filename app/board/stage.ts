@@ -5,7 +5,7 @@ import type { Point } from '../domain/scene/rules/board/geometry'
 import { readPalette } from './palette'
 import { getTexture } from './textures'
 import { drawFlatGround } from './ground'
-import { FLOOR_ITEM_HALF, TOKEN_RADIUS, crispCells, drawAwaited, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, type Kit } from './draw'
+import { FLOOR_ITEM_HALF, TOKEN_RADIUS, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, type Kit } from './draw'
 import { drawShadeMap, drawShadeOver, type ShadeMap } from './light'
 
 // The board drawn on a canvas by Pixi: the view as the domain gives it, laid
@@ -228,7 +228,7 @@ export class BoardStage {
         this.part(band.parts, `surface-${tag}`, parent, [ground, shown, this.textures], () => {
           const out = new Container()
           if (b === 0 && !apart) out.addChild(drawFlatGround(ground, this.kit.texture))
-          out.addChild(drawCrispGround(this.kit, ground, keep(crispCells(groundOf, b))))
+          out.addChild(drawCrispGround(this.kit, ground, keep(crispCells(groundOf, b))), drawCorners(this.kit, ground, keep(inBand(ground.corners))))
           return out
         })
         this.part(band.parts, `cells-${tag}`, parent, [view.cells, view.rims, shown], () => drawCells(this.kit, keep(inBand(cellsOf)), view.hex))
@@ -240,7 +240,7 @@ export class BoardStage {
         this.part(band.parts, `shade-${tag}`, parent, [view.cells, view.rims, ground, shown, this.shade.map], () => {
           const out = new Container()
           const cells = keep(inBand(cellsOf))
-          if (this.shade.map) out.addChild(drawShadeOver(this.shade.map, cells, view.hex, { ridges: keep(inBand(ground.ridges)), chords: keep(inBand(ground.chords)), cellOf: (key) => cellByKey.get(key) }))
+          if (this.shade.map) out.addChild(drawShadeOver(this.shade.map, cells, view.hex, { ridges: keep(inBand(ground.ridges)), chords: keep(inBand(ground.chords)), corners: keep(inBand(ground.corners)), cellOf: (key) => cellByKey.get(key) }))
           out.addChild(drawMist(this.kit, cells, view.hex))
           return out
         })

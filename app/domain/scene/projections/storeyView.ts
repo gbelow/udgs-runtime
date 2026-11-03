@@ -173,9 +173,9 @@ function buildStorey(board: Board, ground: BoardGround, height: number | null, r
   })
   // each drop painted by what stands in its cell on the board as it is, not
   // on the flattened copy it is drawn from
-  const cliffs = flat ? getRidges(flat, drawnGround.cells, board) : ground
+  const cliffs = flat ? getRidges(flat, drawnGround.cells, board, drawnGround.corners) : ground
   return {
-    ground: { ...ground, cells, overhead, arts: drawnGround.arts, ridges: cliffs.ridges, chords: drawnGround.chords, rims: drawnGround.rims, faces: cliffs.faces, bands: drawnGround.bands },
+    ground: { ...ground, cells, overhead, arts: drawnGround.arts, ridges: cliffs.ridges, chords: drawnGround.chords, corners: drawnGround.corners, rims: drawnGround.rims, faces: cliffs.faces, bands: drawnGround.bands },
     flat,
     looks,
   }

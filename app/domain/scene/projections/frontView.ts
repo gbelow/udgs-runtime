@@ -12,7 +12,6 @@ import type { BoardBindView, BoardCellView, BoardChordView, BoardFloorItemView, 
 // The sides of a flat-top hex that face the viewer, by direction: south-east,
 // south-west and south.
 const FRONT_SIDES: readonly Direction[] = [0, 4, 5]
-const isFrontSide = (side: number) => (FRONT_SIDES as readonly number[]).includes(side)
 
 // The metres of leaves a lattice is drawn with under its floor, no more than
 // the height it is over the floor under it.
@@ -100,7 +99,7 @@ function buildFront(ground: BoardGround, lift: number): Front {
   // higher cell down to the same edge at the height of the lower ground, each
   // band of it standing at its own heights; the other drops are hidden behind
   // their own cell.
-  const ridges: BoardRidgeView[] = ground.ridges.filter((r) => isFrontSide(r.side)).map((r) => {
+  const ridges: BoardRidgeView[] = ground.ridges.filter((r) => r.facing.y > 0).map((r) => {
     const top = topOf.get(r.cell) ?? 0
     const at = (metres: number) => [{ x: r.a.x, y: r.a.y - rise(metres) }, { x: r.b.x, y: r.b.y - rise(metres) }]
     const [a, b] = at(top)
@@ -122,6 +121,14 @@ function buildFront(ground: BoardGround, lift: number): Front {
     const foot = lift(w.elevation)({ x: (w.ends[0].x + w.ends[1].x) / 2, y: (w.ends[0].y + w.ends[1].y) / 2 })
     return { ...w, band: w.elevation + w.height > 0 ? bandAt(w.y) : 0, group: groupOf.get(w.cell) ?? '', top, side: hull([...top, ...at(w.elevation)]), grain: rise(w.height) > 0 ? getFaceGrain(a, b, foot) : null }
   })
+
+  // a corner a thin wall cuts off stands at its own height
+  const corners = ground.corners.map((k) => ({
+    ...k,
+    y: k.y - rise(k.elevation),
+    points: k.points.map((p) => ({ x: p.x, y: p.y - rise(k.elevation) })),
+    band: k.elevation > 0 ? bandAt(k.y) : 0,
+  }))
 
   // What is drawn over a place on the screen: a cell of a higher band, or the
   // wall under one.
@@ -162,7 +169,7 @@ function buildFront(ground: BoardGround, lift: number): Front {
   const framed = [...cells, ...chords.flatMap((w) => w.top), ...sprites.flatMap((s) => [{ x: s.box.x, y: s.box.y }, { x: s.box.x + s.box.width, y: s.box.y + s.box.height }])]
 
   return {
-    ground: { ...ground, front: true, bands: rows.length + 1, cells, rims, ridges, chords, overhead, sprites, frame: hexBounds(framed) },
+    ground: { ...ground, front: true, bands: rows.length + 1, cells, rims, ridges, chords, corners, overhead, sprites, frame: hexBounds(framed) },
     elevationOf,
     bandOf,
     covers,

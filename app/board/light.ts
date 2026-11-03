@@ -1,5 +1,5 @@
 import { BlurFilter, BufferImageSource, Container, Graphics, Matrix, Mesh, MeshGeometry, RenderTexture, Shader, Sprite, Texture, UniformGroup, type Renderer } from 'pixi.js'
-import type { BoardCellView, BoardChordView, BoardLightView, BoardRidgeView } from '../domain/scene/projections/boardView'
+import type { BoardCellView, BoardChordView, BoardCornerView, BoardLightView, BoardRidgeView } from '../domain/scene/projections/boardView'
 import type { Point } from '../domain/scene/rules/board/geometry'
 
 // The light and darkness of the board, as paths of light rather than whole
@@ -264,7 +264,7 @@ export function drawShadeMap(renderer: Renderer, cells: BoardCellView[], chords:
 // The shade laid over cells, each where it is drawn, the shade read where it
 // lies in the plane; and over the walls standing on them, the drops of their
 // cliffs and their thin walls, each in the shade of the cell it stands on.
-export function drawShadeOver(map: ShadeMap, cells: BoardCellView[], hex: Point[], walls: { ridges: BoardRidgeView[]; chords: BoardChordView[]; cellOf: (key: string) => BoardCellView | undefined }): Graphics {
+export function drawShadeOver(map: ShadeMap, cells: BoardCellView[], hex: Point[], walls: { ridges: BoardRidgeView[]; chords: BoardChordView[]; corners: BoardCornerView[]; cellOf: (key: string) => BoardCellView | undefined }): Graphics {
   const g = new Graphics()
   const shaded = (c: BoardCellView) => {
     const plane = planeOf(c)
@@ -274,6 +274,10 @@ export function drawShadeOver(map: ShadeMap, cells: BoardCellView[], hex: Point[
   for (const r of walls.ridges) {
     const c = walls.cellOf(r.cell)
     if (c) for (const b of r.bands) if (b.face) g.poly(b.face.flatMap((p) => [p.x, p.y])).fill(shaded(c))
+  }
+  for (const k of walls.corners) {
+    const matrix = new Matrix(1 / map.scale, 0, 0, 1 / map.scale, map.plane.x + k.x - k.base.x, map.plane.y + k.y - k.base.y)
+    g.poly(k.points.flatMap((p) => [p.x, p.y])).fill({ texture: map.texture, matrix, textureSpace: 'global' })
   }
   for (const w of walls.chords) {
     const c = walls.cellOf(w.cell)

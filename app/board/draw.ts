@@ -1,5 +1,5 @@
 import { type AlphaFilter, type BlurFilter, Container, Graphics, Matrix, Sprite, Text, Texture, Rectangle, type TextStyleOptions } from 'pixi.js'
-import type { BoardBindView, BoardCellView, BoardChordView, BoardFloorItemView, BoardGhostView, BoardGround, BoardGroundCell, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from '../domain/scene/projections/boardView'
+import type { BoardBindView, BoardCellView, BoardChordView, BoardCornerView, BoardFloorItemView, BoardGhostView, BoardGround, BoardGroundCell, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from '../domain/scene/projections/boardView'
 import type { SurfaceArt } from '../domain/scene/types'
 import type { Grain, Point } from '../domain/scene/rules/board/geometry'
 import { isFlatGround } from './ground'
@@ -92,6 +92,20 @@ export function drawCrispGround(kit: Kit, ground: BoardGround, cells: BoardGroun
     const texture = kit.texture(art.src)
     if (!texture) continue
     g.poly(flat(c.hex ?? ground.hex, c.x, c.y)).fill({ texture, matrix: patternMatrix(art, texture), textureSpace: 'global' })
+  }
+  return g
+}
+
+// The corners thin walls cut off: the picture of the ground they are drawn
+// as, plain ground where it has none, and black past the board's edge.
+export function drawCorners(kit: Kit, ground: BoardGround, corners: BoardCornerView[]): Graphics {
+  const g = new Graphics()
+  for (const k of corners) {
+    const art = k.art === null ? null : ground.arts[k.art]
+    const texture = art ? kit.texture(art.src) : null
+    g.poly(flat(k.points))
+    if (art && texture) g.fill({ texture, matrix: patternMatrix(art, texture), textureSpace: 'global' })
+    else g.fill(k.edge ? { color: 0x000000 } : colorOf(kit, TERRAIN_FILL.open))
   }
   return g
 }

@@ -1,5 +1,5 @@
 import { BufferImageSource, Container, Mesh, MeshGeometry, Shader, Texture, UniformGroup } from 'pixi.js'
-import type { BoardGround, BoardGroundCell } from '../domain/scene/projections/boardView'
+import type { BoardCornerView, BoardGround, BoardGroundCell } from '../domain/scene/projections/boardView'
 
 // The ground at its own height, drawn by the GPU a picture at a time, lowest
 // priority first, each over the whole board: at every point the shader finds
@@ -63,8 +63,7 @@ vec4 cellAt(vec2 h) {
   if (t.x < 0.0 || t.y < 0.0 || t.x >= uSize.x || t.y >= uSize.y) return vec4(0.0);
   return texture(uCells, (t + 0.5) / uSize);
 }
-bool present(vec4 c) { return c.b > 0.5; }
-bool laidWith(vec4 c) { return present(c) && abs(c.r * 255.0 - uArt) < 0.5; }
+bool present(vec4 c) { return c.a > 0.5; }
 // the distance from a point to a flat-top hex of unit circumradius about the origin
 float hexDistance(vec2 p) {
   const vec3 k = vec3(-0.866025404, 0.5, 0.577350269);
@@ -74,6 +73,24 @@ float hexDistance(vec2 p) {
   p -= vec2(clamp(p.x, -k.z * r, k.z * r), r);
   return length(p) * sign(p.y);
 }
+int cutsOf(vec4 c) { return int(c.b * 255.0 + 0.5); }
+vec2 cornerDir(int k) { float a = 1.0471976 * float(k); return vec2(cos(a), sin(a)); }
+// how far a point lies outside a cell's hex less the corners cut off it, about its centre
+float cutDistance(vec2 p, int cuts) {
+  float d = hexDistance(p);
+  for (int k = 0; k < 6; k++) if ((cuts & (1 << k)) != 0) d = max(d, dot(p, cornerDir(k)) - 0.5);
+  return d;
+}
+bool inCut(vec2 p, int cuts) {
+  for (int k = 0; k < 6; k++) if ((cuts & (1 << k)) != 0 && dot(p, cornerDir(k)) > 0.5) return true;
+  return false;
+}
+// whether a cut corner of a cell owns its side toward direction d
+bool walled(int cuts, int d) {
+  for (int k = 0; k < 6; k++) if ((cuts & (1 << k)) != 0 && (d == (7 - k) % 6 || d == (6 - k) % 6)) return true;
+  return false;
+}
+bool laidWith(vec4 c) { return present(c) && abs(c.r * 255.0 - uArt) < 0.5; }
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
   vec2 i = floor(p);
@@ -81,32 +98,43 @@ float noise(vec2 p) {
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
-// how far a point lies from the nearest hex laid with the picture, 0 inside one
-float artDistance(vec2 p) {
+// how far a point lies from the nearest hex laid with the picture, 0 inside
+// one, less what a thin wall cuts off it and never across a thin wall from
+// the cell the point is in
+float artDistance(vec2 p, vec2 from) {
   vec2 h = hexRound(axial(p));
+  int fromCuts = cutsOf(cellAt(from));
   float best = 1000.0;
   vec2 around[7] = vec2[7](vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, -1.0), vec2(0.0, -1.0), vec2(-1.0, 0.0), vec2(-1.0, 1.0), vec2(0.0, 1.0));
   for (int i = 0; i < 7; i++) {
     vec2 n = h + around[i];
-    if (laidWith(cellAt(n))) best = min(best, max(hexDistance(p - plane(n)), 0.0));
+    vec4 c = cellAt(n);
+    if (!laidWith(c)) continue;
+    vec2 step = n - from;
+    if (abs(step.x) + abs(step.y) + abs(step.x + step.y) == 2.0) {
+      int d = step == vec2(1.0, 0.0) ? 0 : step == vec2(1.0, -1.0) ? 1 : step == vec2(0.0, -1.0) ? 2 : step == vec2(-1.0, 0.0) ? 3 : step == vec2(-1.0, 1.0) ? 4 : 5;
+      if (walled(fromCuts, d) || walled(cutsOf(c), (d + 3) % 6)) continue;
+    }
+    best = min(best, max(cutDistance(p - plane(n), cutsOf(c)), 0.0));
   }
   return best;
 }
 
 void main() {
   vec2 p = vPos;
-  vec4 here = cellAt(hexRound(axial(p)));
-  if (!present(here)) discard;
+  vec2 at = hexRound(axial(p));
+  vec4 here = cellAt(at);
+  if (!present(here) || inCut(p - plane(at), cutsOf(here))) discard;
   bool own = laidWith(here);
   float lets = here.g;
   float cover;
   float edge;
   if (uBleed <= 0.0) {
     cover = own ? 1.0 : 0.0;
-    edge = own ? -1.0 : artDistance(p);
+    edge = own ? -1.0 : artDistance(p, at);
   } else {
     vec2 shift = (vec2(noise(p * FREQUENCY), noise(p * FREQUENCY + vec2(17.3, 5.1))) - 0.5) * ROUGHNESS * uRough;
-    float dist = artDistance(p + shift);
+    float dist = artDistance(p + shift, at);
     float reach = own ? uBleed : uBleed * lets;
     cover = own || lets > 0.0 ? 1.0 - smoothstep(reach - FEATHER, reach + FEATHER, dist) : 0.0;
     edge = dist - reach;
@@ -131,7 +159,7 @@ export function isFlatGround(c: BoardGroundCell): boolean {
   return c.band === 0 && (c.base === null || Math.abs(c.base.y - c.y) < 1e-6)
 }
 
-function cellsTexture(cells: BoardGroundCell[]): { texture: Texture; origin: [number, number]; size: [number, number] } {
+function cellsTexture(cells: BoardGroundCell[], corners: BoardCornerView[]): { texture: Texture; origin: [number, number]; size: [number, number] } {
   const qs = cells.map((c) => c.cell.q)
   const rs = cells.map((c) => c.cell.r)
   const origin: [number, number] = [Math.min(...qs), Math.min(...rs)]
@@ -141,8 +169,12 @@ function cellsTexture(cells: BoardGroundCell[]): { texture: Texture; origin: [nu
     const at = ((c.cell.r - origin[1]) * size[0] + (c.cell.q - origin[0])) * 4
     data[at] = c.art === null ? 0 : c.art + 1
     data[at + 1] = Math.round(Math.max(0, Math.min(1, c.bledInto)) * 255)
-    data[at + 2] = 255
     data[at + 3] = 255
+  }
+  const drawn = new Map(cells.map((c) => [c.key, c]))
+  for (const k of corners) {
+    const c = drawn.get(k.cell)
+    if (c) data[((c.cell.r - origin[1]) * size[0] + (c.cell.q - origin[0])) * 4 + 2] |= 1 << k.corner
   }
   const source = new BufferImageSource({ resource: data, width: size[0], height: size[1], format: 'rgba8unorm', scaleMode: 'nearest', alphaMode: 'no-premultiply-alpha' })
   return { texture: new Texture({ source }), origin, size }
@@ -157,7 +189,7 @@ export function drawFlatGround(ground: BoardGround, texture: (src: string) => Te
   const out = new Container()
   const flat = [...ground.rims, ...ground.cells].filter(isFlatGround)
   if (flat.length === 0) return out
-  const cells = cellsTexture(flat)
+  const cells = cellsTexture(flat, ground.corners)
   const { x, y, width, height } = ground.frame
   const [x0, y0, x1, y1] = [x - MARGIN, y - MARGIN, x + width + MARGIN, y + height + MARGIN]
   const geometry = new MeshGeometry({
