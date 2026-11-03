@@ -170,12 +170,14 @@ export function drawRidges(kit: Kit, ridges: BoardRidgeView[], faces: SurfaceArt
 export function drawChords(kit: Kit, chords: BoardChordView[]): Graphics {
   const g = new Graphics()
   for (const w of chords) {
-    const texture = !w.glass && w.face && w.grain ? kit.texture(w.face.src) : null
+    const picture = !w.glass && w.face ? kit.texture(w.face.src) : null
+    const side = picture && w.face && w.grain ? { texture: picture, matrix: patternMatrix(w.face, picture, w.grain), textureSpace: 'global' as const } : null
     if (w.side !== null) {
-      if (texture && w.face) g.poly(flat(w.side)).fill({ texture, matrix: patternMatrix(w.face, texture, w.grain), textureSpace: 'global' }).stroke({ width: 0.02, ...colorOf(kit, { color: 'fg', alpha: 0.7 }) })
+      if (side) g.poly(flat(w.side)).fill(side)
       else g.poly(flat(w.side)).fill(colorOf(kit, w.glass ? { color: 'accent', alpha: 0.25 } : { color: 'fg', alpha: 0.6 })).stroke({ width: 0.02, ...colorOf(kit, w.glass ? { color: 'accent', alpha: 0.5 } : { color: 'fg', alpha: 0.7 }) })
     }
-    g.poly(flat(w.top)).fill(colorOf(kit, w.glass ? { color: 'accent', alpha: 0.4 } : { color: 'fg' })).stroke({ width: 0.02, ...colorOf(kit, { color: w.glass ? 'accent' : 'fg' }) })
+    if (picture && w.face) g.poly(flat(w.top)).fill({ texture: picture, matrix: patternMatrix(w.face, picture), textureSpace: 'global' })
+    else g.poly(flat(w.top)).fill(colorOf(kit, w.glass ? { color: 'accent', alpha: 0.4 } : { color: 'fg' })).stroke({ width: 0.02, ...colorOf(kit, { color: w.glass ? 'accent' : 'fg' }) })
   }
   return g
 }
