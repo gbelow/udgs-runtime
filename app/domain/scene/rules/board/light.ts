@@ -33,6 +33,11 @@ function getCastLights(state: SceneState): Map<string, number> {
   return lit
 }
 
+// Every source of light on the board: the cells it shines from and its radius.
+export function getLightSources(state: SceneState): { cells: Coord[]; radius: number }[] {
+  return getLights(state).map(({ cells, radius }) => ({ cells, radius }))
+}
+
 // Computed once per state: a view asks for the light on every cell.
 const getLights = perState((state: SceneState): Light[] => {
   const cast = getCastLights(state)
@@ -103,16 +108,17 @@ function reaches(state: SceneState, light: Light, cell: Coord, at: Footing): boo
 
 // The light on a floor of a cell, the one whose feet are at `feet` stand on
 // (the ground when not given): bright where a source reaches it, otherwise
-// its own; `lit` where a source made it brighter.
-export function getCellLighting(state: SceneState, cell: Coord, feet?: number): { light: LightLevel; lit: boolean } {
+// its own; `lit` where a source made it brighter, and `ambient` its own light,
+// with no source.
+export function getCellLighting(state: SceneState, cell: Coord, feet?: number): { light: LightLevel; lit: boolean; ambient: LightLevel } {
   const board = state.board
-  if (!board) return { light: 'bright', lit: false }
+  if (!board) return { light: 'bright', lit: false, ambient: 'bright' }
   const ground = board.terrain[coordKey(cell)]
   const at = feet === undefined ? { terrain: ground, floor: ground?.elevation ?? 0, level: null } : getTerrainAt(board, cell, feet)
   const own = getAmbientOnce(state, cell, at)
-  if (own === 'bright') return { light: own, lit: false }
+  if (own === 'bright') return { light: own, lit: false, ambient: own }
   const lit = getLights(state).some((l) => reaches(state, l, cell, at))
-  return { light: lit ? 'bright' : own, lit }
+  return { light: lit ? 'bright' : own, lit, ambient: own }
 }
 
 export function getCellLight(state: SceneState, cell: Coord, feet?: number): LightLevel {

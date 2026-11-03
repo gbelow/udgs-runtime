@@ -259,20 +259,16 @@ export function drawCells(kit: Kit, cells: BoardCellView[], hex: Point[]): Conta
 }
 
 // ---------------------------------------------------------------------------
-// The light and fog of a band: where no light reaches, where the eyes of the
-// one looking do not, and where the ground is misty, each a veil over the cells
-// it covers, blurred so that the dark falls off softly instead of in steps of
-// whole hexes. Each level of a veil is drawn whole and faded as one, so that
-// the cells of one level do not add up where they overlap.
+// The fog of a band: where the ground is misty, a veil over the cells it
+// covers, blurred so that it falls off softly instead of in steps of whole
+// hexes. Each level is drawn whole and faded as one, so that the cells of one
+// level do not add up where they overlap. Light and darkness are drawn by the
+// shade map (light.ts).
 
 const SHADE_BLUR = 0.35
 const SHADE_BLEED = 0.45
-const NIGHT_DIM = 0.6
-const NIGHT_DARK = 0.85
-const UNSEEN = 0.92
 const MIST_BAD = 0.35
 const MIST_ZERO = 0.7
-const GLOW = 0.2
 
 function levelsOf(cells: BoardCellView[], levelOf: (c: BoardCellView) => number): { level: number; cells: BoardCellView[] }[] {
   const levels = new Map<number, BoardCellView[]>()
@@ -283,12 +279,10 @@ function levelsOf(cells: BoardCellView[], levelOf: (c: BoardCellView) => number)
   return [...levels.entries()].sort(([a], [b]) => a - b).map(([level, at]) => ({ level, cells: at }))
 }
 
-export function drawShade(kit: Kit, cells: BoardCellView[], hex: Point[]): Container {
+export function drawMist(kit: Kit, cells: BoardCellView[], hex: Point[]): Container {
   const out = new Container()
   const veils: { paint: number; opacity: number; levels: { level: number; cells: BoardCellView[] }[] }[] = [
-    { paint: 0x000000, opacity: 1, levels: levelsOf(cells, (c) => (c.unseen ? UNSEEN : c.light === 'dark' ? NIGHT_DARK : c.light === 'dim' ? NIGHT_DIM : 0)) },
     { paint: 0xc9d4dc, opacity: 1, levels: levelsOf(cells, (c) => (c.visibility === null ? 0 : c.visibility === 'zero' ? MIST_ZERO : MIST_BAD)) },
-    { paint: 0xffb45a, opacity: GLOW, levels: levelsOf(cells, (c) => (c.lit && !c.unseen ? 1 : 0)) },
   ]
   for (const veil of veils) {
     if (veil.levels.length === 0) continue

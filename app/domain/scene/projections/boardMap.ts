@@ -43,8 +43,8 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
     cells: view.cells.map((c) => {
       const ground = drawn.get(c.key)!
       const floor = storey?.terrain[c.key]
-      const { light, lit } = getCellLighting(lighting, c.cell, storey && floor && !floor.hole ? getStoreyFloor(storey, floor) : undefined)
-      return { ...c, ...ground, light, lit, chosen: ground.piece !== null && ground.piece === chosen }
+      const { light, lit, ambient } = getCellLighting(lighting, c.cell, storey && floor && !floor.hole ? getStoreyFloor(storey, floor) : undefined)
+      return { ...c, ...ground, light, lit, ambient, chosen: ground.piece !== null && ground.piece === chosen }
     }),
   }
 }

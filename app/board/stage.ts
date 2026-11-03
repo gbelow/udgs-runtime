@@ -5,7 +5,8 @@ import type { Point } from '../domain/scene/rules/board/geometry'
 import { readPalette } from './palette'
 import { getTexture } from './textures'
 import { drawFlatGround } from './ground'
-import { FLOOR_ITEM_HALF, TOKEN_RADIUS, crispCells, drawAwaited, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawOverhead, drawRidges, drawShade, drawSprites, drawToken, type Kit } from './draw'
+import { FLOOR_ITEM_HALF, TOKEN_RADIUS, crispCells, drawAwaited, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, type Kit } from './draw'
+import { drawShadeMap, drawShadeOver, type ShadeMap } from './light'
 
 // The board drawn on a canvas by Pixi: the view as the domain gives it, laid
 // out band by band, each part of a band drawn again only when what it is
@@ -74,6 +75,7 @@ export class BoardStage {
   private blurs = new Map<number, BlurFilter>()
   private fades = new Map<number, AlphaFilter>()
   private kit: Kit
+  private shade: { deps: unknown[]; map: ShadeMap | null } = { deps: [], map: null }
   private camera = { scale: 1, x: 0, y: 0, zoomed: false, fit: 1 }
   private framed = ''
   private frameRequest = 0
@@ -143,6 +145,7 @@ export class BoardStage {
       this.app.canvas.remove()
       this.app.destroy(true, { children: true })
     }
+    this.shade.map?.destroy()
     this.blurs.forEach((f) => f.destroy())
     this.fades.forEach((f) => f.destroy())
   }
@@ -172,7 +175,11 @@ export class BoardStage {
       this.framed = frame
       this.fit()
     }
+    const shadeDeps = [view.cells, view.chords, view.lights]
+    const old = sameDeps(this.shade.deps, shadeDeps) ? null : this.shade.map
+    if (!sameDeps(this.shade.deps, shadeDeps)) this.shade = { deps: shadeDeps, map: drawShadeMap(this.app.renderer, view.cells, view.chords, view.lights) }
     this.syncBands(view, veiled)
+    old?.destroy()
     const top = this.top
     top.removeChildren()
     this.part(this.parts, 'overhead', top, [view.ground.overhead, view.hex, this.textures], () => drawOverhead(this.kit, view.ground.overhead, view.hex))
@@ -206,6 +213,7 @@ export class BoardStage {
     this.bandLayer.removeChildren()
     const cellsOf = [...view.rims, ...view.cells]
     const groundOf = [...ground.rims, ...ground.cells]
+    const cellByKey = new Map(view.cells.map((c) => [c.key, c]))
     this.bands.forEach((band, b) => {
       this.bandLayer.addChild(band.root)
       const inBand = <T extends { band: number }>(list: T[]) => list.filter((x) => x.band === b)
@@ -229,7 +237,13 @@ export class BoardStage {
           out.addChild(drawRidges(this.kit, keep(inBand(ground.ridges)), ground.faces, ground.front), drawChords(this.kit, keep(inBand(ground.chords))), drawSprites(this.kit, keep(inBand(ground.sprites))))
           return out
         })
-        this.part(band.parts, `shade-${tag}`, parent, [view.cells, view.rims, shown], () => drawShade(this.kit, keep(inBand(cellsOf)), view.hex))
+        this.part(band.parts, `shade-${tag}`, parent, [view.cells, view.rims, ground, shown, this.shade.map], () => {
+          const out = new Container()
+          const cells = keep(inBand(cellsOf))
+          if (this.shade.map) out.addChild(drawShadeOver(this.shade.map, cells, view.hex, { ridges: keep(inBand(ground.ridges)), chords: keep(inBand(ground.chords)), cellOf: (key) => cellByKey.get(key) }))
+          out.addChild(drawMist(this.kit, cells, view.hex))
+          return out
+        })
       }
       if (!shown) for (const name of Object.keys(band.parts).filter((n) => n.endsWith('-veiled'))) {
         band.parts[name].object.destroy({ children: true })

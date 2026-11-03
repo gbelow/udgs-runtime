@@ -452,9 +452,9 @@ function holds(board: Board, key: string, centre: number, reach: number, stops: 
 // The thin walls a cell stands, each where it lies in the plane: on the
 // chords that cut its corners off. Everything that meets a thin wall, and the
 // drawing of one, reads them here.
-export function getThinWallsOf(cell: Coord, t: TerrainCell | undefined): { key: string; ends: [{ x: number; y: number }, { x: number; y: number }] }[] {
+export function getThinWallsOf(cell: Coord, t: TerrainCell | undefined): { key: string; corner: number; ends: [{ x: number; y: number }, { x: number; y: number }] }[] {
   if (!t) return []
-  return t.chords.map((corner) => ({ key: `chord${corner}`, ends: getChordAt(cell, corner) }))
+  return t.chords.map((corner) => ({ key: `chord${corner}`, corner, ends: getChordAt(cell, corner) }))
 }
 
 // Whether the cell stands a thin wall.

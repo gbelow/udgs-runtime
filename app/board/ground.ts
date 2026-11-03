@@ -166,6 +166,7 @@ export function drawFlatGround(ground: BoardGround, texture: (src: string) => Te
     indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
   })
   const used = new Set(flat.map((c) => c.art))
+  const meshes: Mesh<MeshGeometry, Shader>[] = []
   ground.arts.forEach((art, i) => {
     const picture = used.has(i) ? texture(art.src) : null
     if (!picture) return
@@ -183,8 +184,13 @@ export function drawFlatGround(ground: BoardGround, texture: (src: string) => Te
       gl: { vertex: VERTEX, fragment: FRAGMENT, name: 'board-ground' },
       resources: { uTexture: picture.source, uCells: cells.texture.source, ground: uniforms },
     })
-    out.addChild(new Mesh({ geometry, shader }))
+    const mesh = new Mesh({ geometry, shader })
+    meshes.push(mesh)
+    out.addChild(mesh)
   })
-  out.on('destroyed', () => cells.texture.destroy(true))
+  out.on('destroyed', () => {
+    for (const mesh of meshes) mesh.shader?.destroy()
+    cells.texture.destroy(true)
+  })
   return out
 }

@@ -22,7 +22,7 @@ import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
 import { perParts, perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
-import { getCellLighting } from '../rules/board/light'
+import { getCellLighting, getLightSources } from '../rules/board/light'
 import { CHORD_BRUSH_CORNER, CHORD_DRAWN_THICKNESS, WALL_DRAWN_HEIGHT } from '../../lists'
 import { getCellArt, getCellBledInto, getCellSurfaceName, getSurface, getSurfaceChoices, type CellArt } from '../rules/board/surface'
 import { getAwaited } from '../rules/options'
@@ -110,6 +110,8 @@ export type BoardCellMarks = {
   // is a light source that makes it bright
   light: LightLevel
   lit: boolean
+  // the light the cell has of its own, with no source
+  ambient: LightLevel
   // the board seen from the active character's eyes: no active sense of theirs
   // takes the cell in (`getBoardViewFrom`)
   unseen: boolean
@@ -283,6 +285,8 @@ export type BoardGhostView = {
   cells: { key: string; x: number; y: number }[]
 }
 
+export type BoardLightView = { key: string; points: Point[]; radius: number }
+
 // What a click on a cell does right now.
 export type { BoardMode }
 
@@ -300,6 +304,8 @@ export type BoardChordView = {
   band: number
   group: string
   glass: boolean
+  // the corner of its cell the chord cuts off
+  corner: number
   elevation: number
   height: number
   ends: [{ x: number; y: number }, { x: number; y: number }]
@@ -349,6 +355,9 @@ export type BoardView = {
   hex: Point[]
   // combat.tex "Darkness and light": the light where no source reaches
   light: LightLevel
+  // the sources of light on the board: the centres of the cells each shines
+  // from, and its radius in cells
+  lights: BoardLightView[]
   // the rectangle that frames every cell, in the units the tokens are placed in
   frame: { x: number; y: number; width: number; height: number }
   // the surface of every cell that names none, and the ones to choose from
@@ -402,7 +411,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
 
 const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, hex: [], frame: { x: 0, y: 0, width: 1, height: 1 }, arts: [], cells: [], rims: [], ridges: [], faces: [], chords: [], overhead: [], standing: [], sprites: [], bands: 1, front: false, beyond: [] }
 
-const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, hex: [], light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, hex: [], light: 'bright', lights: [], frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -547,6 +556,7 @@ function buildBoardView(state: SeenScene): BoardView {
     ground,
     extent: ground.extent,
     light: board.light,
+    lights: getLightSources(state).map((l, i) => ({ key: `${i}`, points: l.cells.map(toPlane), radius: l.radius })),
     frame: ground.frame,
     surface: board.surface,
     surfaces: getSurfaceChoices(),
@@ -602,9 +612,9 @@ function getLaidBlast(state: SceneState) {
 
 // What play puts on the ground around the foot of a thinner top: the light and
 // the sight of the cell it is the foot of, and nothing else.
-export function getRimMarks(of: Pick<BoardCellMarks, 'visibility' | 'light' | 'lit' | 'unseen'>): BoardCellMarks {
+export function getRimMarks(of: Pick<BoardCellMarks, 'visibility' | 'light' | 'lit' | 'ambient' | 'unseen'>): BoardCellMarks {
   return {
-    visibility: of.visibility, light: of.light, lit: of.lit, unseen: of.unseen,
+    visibility: of.visibility, light: of.light, lit: of.lit, ambient: of.ambient, unseen: of.unseen,
     fire: 0, fuels: [], suffocating: false, occupants: [], chosen: false, reachable: null, pathStep: null, swept: false,
     isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, items: [],
   }
@@ -797,12 +807,12 @@ function getChords(board: Board, cells: BoardGroundCell[]): BoardChordView[] {
     const terrain = board.terrain[c.key]
     if (!terrain || !hasThinWalls(terrain)) return []
     const height = getWallHeight(board, c.key, terrain.elevation)
-    return getThinWallsOf(c.cell, terrain).map(({ key, ends: [p, q] }) => {
+    return getThinWallsOf(c.cell, terrain).map(({ key, corner, ends: [p, q] }) => {
       const length = Math.hypot(q.x - p.x, q.y - p.y)
       const [nx, ny] = [-(q.y - p.y) / length * half, (q.x - p.x) / length * half]
       const top = [{ x: p.x - nx, y: p.y - ny }, { x: q.x - nx, y: q.y - ny }, { x: q.x + nx, y: q.y + ny }, { x: p.x + nx, y: p.y + ny }]
       const face = terrain.chordSurface ? getSurface(terrain.chordSurface)?.face ?? null : null
-      return { key: `${c.key}:${key}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, elevation: terrain.elevation, height, ends: [p, q], face, grain: null, top, side: null }
+      return { key: `${c.key}:${key}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, corner, elevation: terrain.elevation, height, ends: [p, q], face, grain: null, top, side: null }
     })
   })
 }
