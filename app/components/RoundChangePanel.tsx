@@ -45,7 +45,7 @@ export function Forfeits({ lines, inline = false }: { lines: string[], inline?: 
 // The round change in the middle of the run screen: its steps, where it
 // stands, and each character with what it did to them and what they still
 // choose in it.
-export function RoundChangePanel(){
+export function RoundChangePanel({ openMap }: { openMap: ((turn: number) => void) | null }){
   const { view, pick } = useRoundChange()
   const { round } = useCombatState()
   const { continueRound } = useCombatCommands()
@@ -85,7 +85,7 @@ export function RoundChangePanel(){
           <div key={party.id} className='flex flex-col gap-1.5'>
             {party.name ? <span className='text-[10px] uppercase tracking-wide text-muted'>{party.name}</span> : null}
             <div className='flex flex-row flex-wrap gap-2'>
-              {party.cards.map((card) => <Card key={card.id} card={card} onClick={() => pick(card)}><RoundLines card={card} /></Card>)}
+              {party.cards.map((card) => <Card key={card.id} card={card} onClick={() => pick(card)}><RoundLines card={card} onMap={view.stressTurn?.id === card.id && openMap ? () => openMap(view.stressTurn!.turn) : null} /></Card>)}
             </div>
           </div>
         ))}
@@ -94,7 +94,7 @@ export function RoundChangePanel(){
   )
 }
 
-function RoundLines({ card }: { card: RoundCard }){
+function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | null }){
   const { holdOn, letGo } = useCombatCommands()
   const held = card.concentration
   if (card.happened.length === 0 && !held && !card.morale && !card.stress) return null
@@ -119,6 +119,7 @@ function RoundLines({ card }: { card: RoundCard }){
       ) : null}
       {card.morale ? <span className={card.morale.result ? 'text-muted' : 'text-bad'}>morale {card.morale.result || `DL ${card.morale.DL}: to test`}</span> : null}
       {card.stress ? <span className='text-bad'>{card.stress}</span> : null}
+      {onMap ? <ActionKey aria-label={`take the turn ${card.name}`} look='warn' onClick={onMap}>take the limit stress action on the map</ActionKey> : null}
     </>
   )
 }

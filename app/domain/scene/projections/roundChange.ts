@@ -3,7 +3,7 @@ import { perState } from '../../perState'
 import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getSustainedAbilities } from '../../character/rules/concentration'
 import { ROUND_PHASES, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold, type RoundPhase } from '../rules/roundChange'
-import { getStressOwed } from '../rules/stress'
+import { getStressOwed, getStressTurn } from '../rules/stress'
 import { describeChangeTo } from './episode'
 import { getMoraleRows, type MoraleRow } from './morale'
 import { getMoraleCalled } from '../rules/morale'
@@ -63,6 +63,9 @@ export type RoundChangeView = {
   continueLabel: string
   // what moving the round change on leaves nobody able to do, a line each
   closing: string[]
+  // the owed limit stress action being taken now: whose it is, and the turn
+  // it is taken in, which tells it from another of theirs later
+  stressTurn: { id: string; turn: number } | null
   parties: { id: string; name: string; cards: RoundCard[] }[]
 }
 
@@ -128,12 +131,14 @@ function buildRoundChange(state: SeenScene): RoundChangeView | null {
   if (!phase) return null
   const at = ROUND_PHASES.indexOf(phase)
   const morale = getMoraleRows(state)
+  const stress = getStressTurn(state)
   return {
     phase,
     steps: ROUND_PHASES.map((p, i) => ({ phase: p, label: PHASE_LABELS[p], status: i < at ? 'done' : i === at ? 'current' : 'next' })),
     continueBar: getContinueBar(state),
     continueLabel: phase === 'chase' ? getChaseStepLabel(state) : CONTINUE_LABELS[phase],
     closing: getClosing(state, phase),
+    stressTurn: stress ? { id: stress.id, turn: state.turn } : null,
     parties: getSceneCards(state).map((party) => ({
       ...party,
       cards: party.cards.map((card) => ({

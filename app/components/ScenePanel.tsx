@@ -91,15 +91,27 @@ function FightSettings(){
   )
 }
 
-// What the scene is played on: the round change above the board while it runs
-// (a limit stress action is played out on it); while a fight lives in the
-// chase, the chase saved and frozen above the board the fight is played on;
-// the chase's chain while it runs; the board otherwise; and whom the scene
-// follows once a chase is over.
+// What the scene is played on: the round change while it runs, with the board
+// in its place for as long as a character takes the limit stress action they
+// owe, opened from their card and closed by the end of that turn; while a
+// fight lives in the chase, the chase saved and frozen above the board the
+// fight is played on; the chase's chain while it runs; the board otherwise;
+// and whom the scene follows once a chase is over.
 export function SceneSpace(){
   const chase = useChase()
   const { view } = useRoundChange()
-  if (view) return <><RoundChangePanel />{chase.boardInPlay ? <BoardPanel /> : null}</>
+  const [mapOf, setMapOf] = useState<number | null>(null)
+  if (view) {
+    const onMap = chase.boardInPlay && view.stressTurn !== null && view.stressTurn.turn === mapOf
+    return onMap ? (
+      <>
+        <div className='flex flex-row items-center gap-2 px-2 py-1'>
+          <Button size='xs' onClick={() => setMapOf(null)}>back to the round change</Button>
+        </div>
+        <BoardPanel />
+      </>
+    ) : <RoundChangePanel openMap={chase.boardInPlay ? setMapOf : null} />
+  }
   return(
     <>
       <FollowPanel />
