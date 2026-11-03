@@ -2,12 +2,12 @@
 import { Fragment, memo, useState, type MouseEvent } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useBoardMaps } from '../hooks/useBoardMaps'
-import { useBoardVeil } from '../hooks/useBoardVeil'
+import { useBoardVeil, useLitCell } from '../hooks/useBoardVeil'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
 import { useZoomPan } from '../hooks/useZoomPan'
 import type { BoardExtent, Coord, GroundRecipe, SurfaceTarget } from '../domain/scene/types'
-import type { BoardView, BrushIcon, BoardCellView, BoardChordView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
+import type { BoardView, BoardGround, BrushIcon, BoardCellView, BoardChordView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES, SURFACE_TARGETS } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
@@ -183,8 +183,8 @@ export function BoardPanel(){
           </marker>
         </defs>
         {Array.from({ length: view.bands }, (_, band) => <BandLayers key={band} view={view} band={band} veiled={veil.veiled} />)}
-        <BaseLayer view={view} lit={veil.lit} setLit={veil.setLit} />
-        <OverheadLayer view={view} />
+        <BaseLayer view={view} setOver={veil.setOver} />
+        <OverheadLayer view={view.ground} />
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
@@ -226,7 +226,7 @@ const LIP_OPACITY = 0.5
 // along the ridge, which the view places on the higher cell's side.
 const FACE_SHADE = 0.45
 
-export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardView, band?: number, tag?: string }){
+export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardGround, band?: number, tag?: string }){
   const idPrefix = band === undefined ? '' : `b${band}-${tag}`
   const view = band === undefined ? whole : { ...whole, ridges: whole.ridges.filter((r) => r.band === band) }
   const looks = new Map<string, { art: number, grain: string }>()
@@ -270,7 +270,7 @@ export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardView, b
 // The thin walls cutting corners off cells: seen from the front, the outline
 // of the whole wall shaded, or covered by its picture laid along it, then its
 // top; from above, its top alone, glass tinted.
-export function ChordLayer({ view, band, tag = '' }: { view: BoardView, band: number, tag?: string }){
+export function ChordLayer({ view, band, tag = '' }: { view: BoardGround, band: number, tag?: string }){
   const walls = view.chords.filter((w) => w.band === band)
   const id = (i: number) => `b${band}-${tag}chord-face-${i}`
   const pictured = (w: BoardChordView) => !w.glass && w.face !== null && w.grain !== null
@@ -298,7 +298,7 @@ export function ChordLayer({ view, band, tag = '' }: { view: BoardView, band: nu
 // The pictures of the structures seen from the front, a slice to each storey,
 // drawn over the piece's own cells so that what is higher covers what is lower
 // and behind it. Each slice is the whole picture cut to the part it shows.
-export function SpriteLayer({ view, band, tag = '' }: { view: BoardView, band: number, tag?: string }){
+export function SpriteLayer({ view, band, tag = '' }: { view: BoardGround, band: number, tag?: string }){
   const slices = view.sprites.filter((s) => s.band === band)
   return (
     <g className='pointer-events-none'>
@@ -317,7 +317,7 @@ export function SpriteLayer({ view, band, tag = '' }: { view: BoardView, band: n
 const OVERHEAD_OPACITY = 0.6
 const OVERHEAD_SHADOW_BLUR = 0.25
 
-export function OverheadLayer({ view }: { view: BoardView }){
+export const OverheadLayer = memo(function OverheadLayer({ view }: { view: BoardGround }){
   const arts = [...new Map(view.overhead.flatMap((o) => (o.art ? [[o.art.src, o.art] as const] : []))).values()]
   const patternOf = (src: string) => `overhead-${arts.findIndex((a) => a.src === src)}`
   return (
@@ -346,7 +346,7 @@ export function OverheadLayer({ view }: { view: BoardView }){
         : <polygon key={`${o.key}@${o.elevation}`} points={view.hex} transform={`translate(${o.x} ${o.y})`} className='fill-good/20 stroke-good' strokeWidth={0.08} strokeDasharray='0.1 0.1' />)}
     </g>
   )
-}
+})
 
 // What is drawn over the cell the pointer is on, or over a cell picked, is
 // blurred and faded so that the cell can be seen through it.
@@ -359,43 +359,76 @@ export function VeilFilter(){
 
 // What is drawn in one band. What is drawn over a cell the pointer is on, or
 // a cell picked, is drawn apart, blurred and faded, so that the cell can be
-// seen through it and nothing else is.
+// seen through it and nothing else is. The ground and its walls are drawn from
+// the view's ground alone, which stays the same while only what stands on it
+// changes, so that they are not drawn again then.
 export function BandLayers({ view, band, veiled }: { view: BoardView, band: number, veiled: string[] }){
   const part = (behind: boolean): BoardView => {
     const keep = (group: string) => veiled.includes(group) === behind
     return { ...view, cells: view.cells.filter((c) => keep(c.group)), rims: view.rims.filter((c) => keep(c.group)), ridges: view.ridges.filter((r) => keep(r.group)), chords: view.chords.filter((w) => keep(w.group)), sprites: view.sprites.filter((s) => keep(s.group)) }
   }
+  const shown = veiled.join(VEIL_SEPARATOR)
   // the ground around the foot of a thinner top is drawn as a cell before it
-  const draw = (v: BoardView, tag?: string) => {
+  const draw = (v: BoardView, behind: boolean | null, tag?: string) => {
     const ground = { ...v, cells: [...v.rims, ...v.cells] }
     return (
       <>
-        <SurfaceLayer view={ground} band={band} tag={tag} crisp={band > 0} />
+        <BandSurface ground={view.ground} band={band} tag={tag} veiled={shown} behind={behind} />
         {ground.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
-        <RidgeLayer view={v} band={band} tag={tag} />
-        <ChordLayer view={v} band={band} tag={tag} />
-        <SpriteLayer view={v} band={band} tag={tag} />
+        <BandWalls ground={view.ground} band={band} tag={tag} veiled={shown} behind={behind} />
         <ShadeLayer view={ground} band={band} tag={tag} />
       </>
     )
   }
   const behind = veiled.length > 0 ? part(true) : null
-  if (!behind || !([...behind.cells, ...behind.rims].some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.chords.some((w) => w.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view)}</g>
+  if (!behind || !([...behind.cells, ...behind.rims].some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.chords.some((w) => w.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view, null)}</g>
   return (
     <g>
-      {draw(part(false))}
-      <g filter='url(#veil)' opacity={VEIL_OPACITY}>{draw(behind, 'veiled')}</g>
+      {draw(part(false), false)}
+      <g filter='url(#veil)' opacity={VEIL_OPACITY}>{draw(behind, true, 'veiled')}</g>
     </g>
   )
 }
+
+const VEIL_SEPARATOR = '\n'
+
+type BandGroundProps = { ground: BoardGround, band: number, tag?: string, veiled: string, behind: boolean | null }
+
+// The part of the ground drawn apart from the rest (behind) or with it, or all
+// of it (null).
+function groundPart({ ground, veiled, behind }: BandGroundProps): BoardGround {
+  if (behind === null) return ground
+  const groups = new Set(veiled.split(VEIL_SEPARATOR))
+  const keep = (group: string) => groups.has(group) === behind
+  return { ...ground, cells: ground.cells.filter((c) => keep(c.group)), rims: ground.rims.filter((c) => keep(c.group)), ridges: ground.ridges.filter((r) => keep(r.group)), chords: ground.chords.filter((w) => keep(w.group)), sprites: ground.sprites.filter((s) => keep(s.group)) }
+}
+
+const BandSurface = memo(function BandSurface(props: BandGroundProps){
+  const part = groundPart(props)
+  return <SurfaceLayer view={{ ...part, cells: [...part.rims, ...part.cells] }} band={props.band} tag={props.tag} crisp={props.band > 0} />
+})
+
+const BandWalls = memo(function BandWalls(props: BandGroundProps){
+  const part = groundPart(props)
+  return (
+    <>
+      <RidgeLayer view={part} band={props.band} tag={props.tag} />
+      <ChordLayer view={part} band={props.band} tag={props.tag} />
+      <SpriteLayer view={part} band={props.band} tag={props.tag} />
+    </>
+  )
+})
 
 // Seen from the front, a space is picked where it stands on the ground, as if
 // there were no heights: a hex over everything that is drawn, clear until the
 // pointer is on it, one to each cell. What is lifted can be reached at its foot,
 // and nothing drawn over a cell can keep it from being picked. While the
 // pointer is on one, the whole surface of the cell lights up where it is drawn:
-// its top and the walls under it.
-export function BaseLayer({ view, lit, setLit }: { view: BoardView, lit: string | null, setLit: (key: string | null) => void }){
+// its top and the walls under it. The space lit is this layer's own, so that
+// the pointer moving draws only the light again; the board hears of it only
+// when what is drawn over it changes.
+export function BaseLayer({ view, setOver }: { view: BoardView, setOver: (groups: string[]) => void }){
+  const { lit, setLit } = useLitCell(view, setOver)
   const cell = lit === null ? undefined : view.cells.find((c) => c.key === lit)
   return (
     <>
@@ -415,7 +448,7 @@ export function BaseLayer({ view, lit, setLit }: { view: BoardView, lit: string 
   )
 }
 
-export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { view: BoardView, band?: number, tag?: string, crisp?: boolean }){
+export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { view: BoardGround, band?: number, tag?: string, crisp?: boolean }){
   const idPrefix = band === undefined ? '' : `b${band}-${tag}`
   const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
   // what is lifted keeps its own edge: no spreading, no noise, no bank
@@ -434,7 +467,7 @@ export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { v
   // let none of it in, plus its hexes grown by the part of it each depth of
   // hex lets in, shown only over the hexes of that depth. The cut is made
   // after the roughening so that it stays a hex edge.
-  const body = (art: BoardView['arts'][number], i: number) => {
+  const body = (art: BoardGround['arts'][number], i: number) => {
     const rough = art.bleed > 0 ? `url(#${idPrefix}surface-rough-${i})` : undefined
     const limited = art.bleed > 0 && takesFrom(i)
     return (<>

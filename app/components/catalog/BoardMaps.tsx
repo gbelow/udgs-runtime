@@ -131,7 +131,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
         <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label={label} onClick={click}>
           <defs><VeilFilter /></defs>
           {Array.from({ length: view.bands }, (_, band) => <BandLayers key={band} view={view} band={band} veiled={veil.veiled} />)}
-          <BaseLayer view={view} lit={veil.lit} setLit={veil.setLit} />
+          <BaseLayer view={view} setOver={veil.setOver} />
         </svg>
       </div>
     </div>
