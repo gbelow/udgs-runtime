@@ -429,24 +429,39 @@ const BandWalls = memo(function BandWalls(props: BandGroundProps){
 // when what is drawn over it changes.
 export function BaseLayer({ view, setOver }: { view: BoardView, setOver: (groups: string[]) => void }){
   const { lit, setLit } = useLitCell(view, setOver)
-  const cell = lit === null ? undefined : view.cells.find((c) => c.key === lit)
   return (
     <>
-      {cell ? (
-        <g className='pointer-events-none'>
-          {view.ridges.filter((r) => r.cell === cell.key).flatMap((r) => r.bands).map((b) => b.face === null ? null : <polygon key={b.key} points={b.face} className='fill-accent/25 stroke-accent' strokeWidth={0.08} />)}
-          <polygon points={cell.hex ?? view.hex} transform={`translate(${cell.x} ${cell.y})`} className='fill-accent/25 stroke-accent' strokeWidth={0.1} />
-        </g>
-      ) : null}
+      <LitCell view={view} lit={lit} />
+      <BaseHexes view={view} setLit={setLit} />
+    </>
+  )
+}
+
+function LitCell({ view, lit }: { view: BoardView, lit: string | null }){
+  const cell = lit === null ? undefined : view.cells.find((c) => c.key === lit)
+  if (!cell) return null
+  return (
+    <g className='pointer-events-none'>
+      {view.ridges.filter((r) => r.cell === cell.key).flatMap((r) => r.bands).map((b) => b.face === null ? null : <polygon key={b.key} points={b.face} className='fill-accent/25 stroke-accent' strokeWidth={0.08} />)}
+      <polygon points={cell.hex ?? view.hex} transform={`translate(${cell.x} ${cell.y})`} className='fill-accent/25 stroke-accent' strokeWidth={0.1} />
+    </g>
+  )
+}
+
+// One handler for all the hexes, reading the hex from the element the pointer
+// is on, so that the hexes are drawn again only when the view is.
+const BaseHexes = memo(function BaseHexes({ view, setLit }: { view: BoardView, setLit: (key: string | null) => void }){
+  return (
+    <g onMouseOver={(e) => setLit((e.target as Element).closest('[data-key]')?.getAttribute('data-key') ?? null)} onMouseLeave={() => setLit(null)}>
       {view.cells.filter((c) => c.base !== null).map((c) => (
-        <g key={c.key} transform={`translate(${c.base!.x} ${c.base!.y})`} className='cursor-pointer' data-q={c.cell.q} data-r={c.cell.r} onMouseEnter={() => setLit(c.key)} onMouseLeave={() => setLit(null)}>
+        <g key={c.key} transform={`translate(${c.base!.x} ${c.base!.y})`} className='cursor-pointer' data-key={c.key} data-q={c.cell.q} data-r={c.cell.r}>
           <title>{cellTitle(c)}</title>
           <polygon points={view.hex} className='fill-transparent stroke-transparent hover:stroke-fg' strokeWidth={0.1} />
         </g>
       ))}
-    </>
+    </g>
   )
-}
+})
 
 export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { view: BoardGround, band?: number, tag?: string, crisp?: boolean }){
   const idPrefix = band === undefined ? '' : `b${band}-${tag}`
