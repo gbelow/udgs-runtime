@@ -7,7 +7,7 @@ import { getWill } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import type { Test } from '../../play/test'
 import { getFightName } from './fighters'
-import { getSituationalAfflictions } from './situational'
+import { getSituationalAfflictions, isImmobile } from './situational'
 import { isNearBlindGround } from './detection'
 import { isRunningInChase } from './chase'
 import { isParked } from './parked'
@@ -91,14 +91,14 @@ const MORALE_AFFLICTIONS: readonly AfflictionKey[] = ['afraid', 'enraged', 'conf
 
 // combat.tex "Morale test triggers": "at the beginning of a round when
 // aggravating factors are at 3 or more, when under specific afflictions" —
-// afraid, enraged or confused. The dead, the unconscious and the parked make
-// none, and neither does anyone running in a chase: the test is combat's (the
-// table's ruling).
+// afraid, enraged or confused. The dead, the unconscious, the immobile and the
+// parked make none (the table's ruling for the immobile), and neither does
+// anyone running in a chase: the test is combat's (the table's ruling).
 export function getMoraleCalled(state: SceneState): string[] {
   return Object.keys(state.characters).filter((id) => {
     const c = state.characters[id]
     const afflictions = getAfflictions(c, getSituationalAfflictions(state, id))
-    if (isDead(c) || afflictions.includes('unconscious') || isParked(state, id) || isRunningInChase(state, id)) return false
+    if (isDead(c) || afflictions.includes('unconscious') || isImmobile(state, c) || isParked(state, id) || isRunningInChase(state, id)) return false
     const stressed = sumTerms(getAggravators(state, id).filter((t) => t.value > 0)) >= MORALE_TRIGGER
     return stressed || getPressure(state, id).hostile !== null || MORALE_AFFLICTIONS.some((key) => afflictions.includes(key))
   })
