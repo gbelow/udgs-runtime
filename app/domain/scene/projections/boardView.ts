@@ -1,4 +1,4 @@
-import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, StructureArt, SurfaceArt } from '../types'
+import type { Bind, Board, TerrainCell, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, StructureArt, SurfaceArt } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -813,22 +813,42 @@ function getWallHeight(board: Board, key: string, elevation: number): number {
   return Number.isFinite(ceiling) ? ceiling - elevation : WALL_DRAWN_HEIGHT
 }
 
+// The thin walls of a cell's terrain on one floor of it, each on a chord, drawn
+// as a strip along it from `elevation` up `height` metres; `tag` tells the
+// floors of a cell apart.
+function chordsOf(c: BoardGroundCell, terrain: TerrainCell | undefined, elevation: number, height: number, tag: string): BoardChordView[] {
+  if (!terrain || !hasThinWalls(terrain)) return []
+  const half = CHORD_DRAWN_THICKNESS / 2
+  return getThinWallsOf(c.cell, terrain).map(({ key, corner, ends: [p, q] }) => {
+    const length = Math.hypot(q.x - p.x, q.y - p.y)
+    const [nx, ny] = [-(q.y - p.y) / length * half, (q.x - p.x) / length * half]
+    const top = [{ x: p.x - nx, y: p.y - ny }, { x: q.x - nx, y: q.y - ny }, { x: q.x + nx, y: q.y + ny }, { x: p.x + nx, y: p.y + ny }]
+    const face = terrain.chordSurface ? getSurface(terrain.chordSurface)?.face ?? null : null
+    return { key: `${c.key}:${key}${tag}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, corner, elevation, height, ends: [p, q] as [Point, Point], face, grain: null, top, side: null }
+  })
+}
+
 // The thin walls of the cells (`getThinWallsOf`), each on a chord,
 // drawn as a strip along it, standing as high as a wall in the cell would.
 function getChords(board: Board, cells: BoardGroundCell[]): BoardChordView[] {
-  const half = CHORD_DRAWN_THICKNESS / 2
   return cells.flatMap((c) => {
     const terrain = board.terrain[c.key]
-    if (!terrain || !hasThinWalls(terrain)) return []
-    const height = getWallHeight(board, c.key, terrain.elevation)
-    return getThinWallsOf(c.cell, terrain).map(({ key, corner, ends: [p, q] }) => {
-      const length = Math.hypot(q.x - p.x, q.y - p.y)
-      const [nx, ny] = [-(q.y - p.y) / length * half, (q.x - p.x) / length * half]
-      const top = [{ x: p.x - nx, y: p.y - ny }, { x: q.x - nx, y: q.y - ny }, { x: q.x + nx, y: q.y + ny }, { x: p.x + nx, y: p.y + ny }]
-      const face = terrain.chordSurface ? getSurface(terrain.chordSurface)?.face ?? null : null
-      return { key: `${c.key}:${key}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, corner, elevation: terrain.elevation, height, ends: [p, q], face, grain: null, top, side: null }
-    })
+    return terrain ? chordsOf(c, terrain, terrain.elevation, getWallHeight(board, c.key, terrain.elevation), '') : []
   })
+}
+
+// The thin walls of every floor of the cells, the ground's and each storey's,
+// each standing from its floor up to the storey laid over it or through its
+// own storey's height: what a view that draws a cell as a higher floor still
+// has standing under it.
+export function getFloorChords(board: Board, cells: BoardGroundCell[]): BoardChordView[] {
+  return cells.flatMap((c) => [
+    ...getChords(board, [c]),
+    ...board.levels.flatMap((l, i) => {
+      const here = l.terrain[c.key]
+      return here ? chordsOf(c, here, getStoreyFloor(l, here), l.floor + l.height - getStoreyFloor(l, here), `@${i}`) : []
+    }),
+  ])
 }
 
 // What each thin-wall brush paints, drawn on its button: a unit hex and the

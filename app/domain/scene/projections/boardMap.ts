@@ -1,6 +1,6 @@
 import type { BoardMap, SceneState } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
-import { getBoardView, getStandingOf, type BoardView } from './boardView'
+import { getBoardView, getFloorChords, getRidges, getStandingOf, type BoardView } from './boardView'
 import { coordKey } from '../rules/board/geometry'
 import { getPieceAt } from '../rules/board/piece'
 import { getCellLighting } from '../rules/board/light'
@@ -30,6 +30,21 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
   // the picture of the structure being edited stands on the map's anchor
   const own = getStandingOf('structure', map.art, view.cells.find((c) => c.key === coordKey(map.origin)), 0, Math.max(0, ...Object.values(map.terrain).filter((cell) => cell.piece === null).map((cell) => cell.elevation)), map.levels.filter((l) => l.piece === null).map((l) => l.floor))
   const standing = [...view.standing, ...own]
+  // what lies under a storey's floor is read off the map as it stands, not off
+  // the storey laid over the ground: a drop is painted by the walls under it,
+  // thin ones included, and none where nothing stands
+  const full = storey ? sceneOfMap(map).board : null
+  const cliffs = storey && full ? getRidges(sceneOfMap(seen).board!, view.ground.cells, full, view.ground.corners) : null
+  const lower = storey && full ? getFloorChords(full, view.ground.cells).filter((w) => {
+    const floor = storey.terrain[w.cell]
+    if (floor && !floor.hole) {
+      const at = getStoreyFloor(storey, floor)
+      return w.elevation < at && w.elevation + w.height <= at
+    }
+    // no floor of this storey there: the ground's own walls are drawn, and
+    // those of the storeys under this one stand over them
+    return w.elevation > (full.terrain[w.cell]?.elevation ?? 0) && w.elevation + w.height <= storey.floor
+  }) : []
   const cells = view.ground.cells.map((c) => ({
     ...c,
     piece: getPieceAt(map, c.key),
@@ -38,8 +53,10 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
   const drawn = new Map(cells.map((c) => [c.key, c]))
   return {
     ...view,
-    ground: { ...view.ground, cells, standing },
+    ground: { ...view.ground, cells, standing, ...(cliffs ?? {}), chords: [...view.ground.chords, ...lower] },
     standing,
+    ...(cliffs ?? {}),
+    chords: [...view.chords, ...lower],
     cells: view.cells.map((c) => {
       const ground = drawn.get(c.key)!
       const floor = storey?.terrain[c.key]

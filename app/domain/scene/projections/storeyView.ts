@@ -1,12 +1,12 @@
 import type { Board, Coord, SeenScene } from '../types'
 import { FALL } from '../../tables'
 import { coordKey, disk } from '../rules/board/geometry'
-import { getFloors, getRoofs, getStoreyFloor, getTerrainAt, type Footing } from '../rules/board/board'
+import { getFloors, getRoofs, getStoreyFloor, getTerrainAt, hasThinWalls, type Footing } from '../rules/board/board'
 import { getCellSenser } from '../rules/detection'
 import { getCellLighting } from '../rules/board/light'
 import { getFloorArt } from '../rules/board/surface'
 import { perParts } from '../../perState'
-import { getBoardGround, getGroundMarks, getRidges, getRimMarks, rimOwner, type BoardCellView, type BoardGround, type BoardGroundCell, type BoardOverheadView, type BoardView } from './boardView'
+import { getBoardGround, getFloorChords, getGroundMarks, getRidges, getRimMarks, rimOwner, type BoardCellView, type BoardGround, type BoardGroundCell, type BoardOverheadView, type BoardView } from './boardView'
 
 // The board looked at from a height: each cell drawn as the floor someone
 // whose feet are there stands on (`getTerrainAt`), the cells where they would
@@ -60,6 +60,10 @@ const DRAWN: (keyof BoardGroundCell)[] = ['terrain', 'strength', 'elevation', 'w
 
 const highest = (floors: Footing[]): Footing | undefined => floors.reduce<Footing | undefined>((a, b) => (!a || b.floor > a.floor ? b : a), undefined)
 
+// A storey's cell that holds a thin wall and nothing else, no surface laid on
+// it: the wall stands there, but no floor of it is drawn at its height.
+const holdsOnlyWalls = (f: Footing) => f.level !== null && !!f.terrain && !f.terrain.surface && !f.terrain.blocking && hasThinWalls(f.terrain)
+
 const isLatticeIn = (board: Board, key: string) => (f: Footing) => f.level !== null && !!board.levels[f.level].terrain[key]?.lattice
 
 // What a cell is looked at as from a height, before anyone's eyes decide which
@@ -97,7 +101,7 @@ function getStandings(board: Board, ground: BoardGround, height: number | null):
 // For each cell: the floor stood on, the roof drawn over it if any, whether a
 // wall of the ground stands up through the floor looked from, the floor looked
 // at, and the floor drawn.
-type Look = { stand: Footing; roof: Footing | undefined; wall: boolean; top: Footing; drawn: Footing }
+type Look = { floors: Footing[]; stand: Footing; roof: Footing | undefined; wall: boolean; top: Footing; drawn: Footing }
 
 // The board drawn at a height with these roofs: its ground, the copy of the
 // board flattened to the floors drawn (null where every cell is drawn at its
@@ -128,12 +132,13 @@ function buildStorey(board: Board, ground: BoardGround, height: number | null, r
     const top = roof ?? stand
     const ceiling = Math.min(Infinity, ...board.levels.flatMap((l) => (l.terrain[c.key] ? [getStoreyFloor(l, l.terrain[c.key])] : [])))
     const wall = !roof && height !== null && stand.level === null && !!own?.blocking && ceiling > height
-    const drawn = wall ? { terrain: own, floor: height, level: null }
+    const looked = wall ? { terrain: own, floor: height, level: null }
       : lattice(top) && !getFloorArt(top.terrain) ? highest(floors.filter((f) => !lattice(f) && f.floor < top.floor)) ?? floors[0]
       : top
+    const drawn = holdsOnlyWalls(looked) ? highest(floors.filter((f) => f.floor < looked.floor && !holdsOnlyWalls(f))) ?? floors[0] : looked
     const higher = (f: Footing) => f.floor > drawn.floor || (drawn.level === null && f.floor === drawn.floor)
     above.set(c.key, floors.filter((f) => lattice(f) && f.level !== drawn.level && higher(f) && !floors.some((g) => !lattice(g) && g.floor > drawn.floor && g.floor < f.floor)))
-    return [c.key, { stand, roof, wall, top, drawn }]
+    return [c.key, { floors, stand, roof, wall, top, drawn }]
   }))
 
   const terrain = { ...board.terrain }
@@ -174,8 +179,16 @@ function buildStorey(board: Board, ground: BoardGround, height: number | null, r
   // each drop painted by what stands in its cell on the board as it is, not
   // on the flattened copy it is drawn from
   const cliffs = flat ? getRidges(flat, drawnGround.cells, board, drawnGround.corners) : ground
+  // the thin walls of the floors under the one drawn in a cell still stand
+  // there, up to it
+  const lower = flat ? getFloorChords(board, ground.cells).filter((w) => {
+    const { drawn, floors } = looks.get(w.cell)!
+    const at = /@(\d+)$/.exec(w.key)
+    const held = !!at && floors.some((f) => holdsOnlyWalls(f) && f.level === Number(at[1]))
+    return held || (w.elevation < drawn.floor && w.elevation + w.height <= drawn.floor)
+  }) : []
   return {
-    ground: { ...ground, cells, overhead, arts: drawnGround.arts, ridges: cliffs.ridges, chords: drawnGround.chords, corners: drawnGround.corners, rims: drawnGround.rims, faces: cliffs.faces, bands: drawnGround.bands },
+    ground: { ...ground, cells, overhead, arts: drawnGround.arts, ridges: cliffs.ridges, chords: [...drawnGround.chords, ...lower], corners: drawnGround.corners, rims: drawnGround.rims, faces: cliffs.faces, bands: drawnGround.bands },
     flat,
     looks,
   }
