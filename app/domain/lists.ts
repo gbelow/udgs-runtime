@@ -192,10 +192,12 @@ export const BRUSH_RADIUS_MOST = 6
 
 // How far a metre of height lifts the ground up the screen when the board is seen
 // from the front, in board units: what it starts at, and the least and most
-// the table may ask for.
-export const LIFT_PER_METRE = 0.3
+// the table may ask for. A hex is a metre across, which is the square root of
+// 3 board units, so that is the lift at which a metre of height is drawn as
+// tall as a metre of ground.
+export const LIFT_PER_METRE = 1
 export const LIFT_LEAST = 0
-export const LIFT_MOST = 1
+export const LIFT_MOST = Math.sqrt(3)
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.

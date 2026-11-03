@@ -6,7 +6,7 @@ import { LIFT_LEAST, LIFT_MOST, LIFT_PER_METRE } from "../domain/lists";
 // convenience kept in the browser, never part of the fight.
 export type BoardLook = { front: boolean; lift: number; setFront: (front: boolean) => void; setLift: (lift: number) => void };
 
-const KEY = "chargenfallow.boardLook";
+const KEY = "chargenfallow.boardLook.v2";
 
 type Stored = { front: boolean; lift: number };
 const DEFAULT: Stored = { front: true, lift: LIFT_PER_METRE };
