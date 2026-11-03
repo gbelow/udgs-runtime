@@ -6,7 +6,7 @@ import { getAim } from '../aim'
 import { isAimable } from '../explosion'
 import { getEvasiveJumpPlacements } from '../move'
 import { canPickUp } from '../floor'
-import { getOpenables, getReachableLoot } from '../loot'
+import { getLootCost, getOpenables, getReachableLoot } from '../loot'
 import type { ActionDraft } from '../../types'
 import { isSteadyShot } from '../steadyArms'
 
@@ -51,12 +51,11 @@ export function getFloorPicker(state: SceneState, selected: string | null): { pi
 }
 
 // What a click on a body would declare for the character, with nothing open:
-// taking what it holds in its hands or on its back, else opening a container
-// it wears. Null when neither is open to them.
+// taking something it has on it, else opening a container it wears. Null when neither is open to them.
 export function getBodyDraft(state: SceneState, actorId: string, bodyId: string): ActionDraft | null {
   const actor = state.characters[actorId]
   if (!actor || getDiceBar(state.calls) || getOpenAction(state)) return null
-  const looseToTake = getReachableLoot(state, actorId).some((l) => (l.from.kind === 'body' || l.from.kind === 'pack') && l.from.body === bodyId && canPickUp(actor, l.item))
+  const looseToTake = getReachableLoot(state, actorId).some((l) => l.from.kind !== 'floor' && l.from.kind !== 'chest' && l.from.body === bodyId && canPickUp(actor, l.item) && getLootCost(state, actor, l) !== null)
   if (looseToTake && findOption(state, actorId, { kind: 'pickUp' })?.available) return { kind: 'pickUp' }
   const toOpen = getOpenables(state, actorId).some((o) => !o.opened && o.key.startsWith(`${bodyId}:`))
   return toOpen && findOption(state, actorId, { kind: 'open' })?.available ? { kind: 'open' } : null

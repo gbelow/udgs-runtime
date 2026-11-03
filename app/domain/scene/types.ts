@@ -718,13 +718,16 @@ export const BodySchema = z.object({
 export type Body = z.infer<typeof BodySchema>
 
 // Where a loose item or a container lies, for the one who loots it: on the
-// floor, in a container lying on the floor, on a body (its hands and back),
-// or in a container a body wears.
+// floor, in a container lying on the floor, on a body (its hands and back, the
+// armor it wears, a container it wears), or in a container a body wears.
 export const LootSourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('floor') }).strip(),
   z.object({ kind: z.literal('chest'), chest: str }).strip(),
   z.object({ kind: z.literal('body'), body: str }).strip(),
   z.object({ kind: z.literal('pack'), body: str, container: str }).strip(),
+  // the armor a body wears, and a container it wears taken whole
+  z.object({ kind: z.literal('worn'), body: str }).strip(),
+  z.object({ kind: z.literal('wornPack'), body: str, container: str }).strip(),
 ])
 export type LootSource = z.infer<typeof LootSourceSchema>
 

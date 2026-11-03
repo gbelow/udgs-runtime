@@ -371,7 +371,7 @@ export function reduceFloor(state: SceneState, action: Action, phase: Phase): (f
 export function reduceBodies(action: Action, phase: Phase): (bodies: Body[]) => Body[] {
   return (bodies) => {
     if (phase !== 'resolve' || action.kind !== 'pickUp') return bodies
-    return action.from.kind === 'body' || action.from.kind === 'pack' ? takeFromBody(bodies, action.from, action.itemId) : bodies
+    return action.from.kind === 'floor' || action.from.kind === 'chest' ? bodies : takeFromBody(bodies, action.from, action.itemId)
   }
 }
 

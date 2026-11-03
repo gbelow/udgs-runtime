@@ -44,7 +44,7 @@ import { findGrapple, getGrapples } from '../rules/partners'
 import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp } from '../rules/floor'
-import { getLootLabel, getOpenables, getReachableLoot } from '../rules/loot'
+import { getLootCost, getLootLabel, getOpenables, getReachableLoot } from '../rules/loot'
 import { canThrowItem, getThrowables } from '../rules/throw'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { isSweepVariant } from '../../character/rules/gear'
@@ -297,7 +297,7 @@ export type OpenActionView = {
   // can be thrown, from a hand or the floor
   // `from` is where a picked up item lies (null for a throw's), `whose` the
   // body or container it is in, empty when it lies loose
-  floor: { itemId: string; name: string; available: boolean; from: LootSource | null; whose: string }[]
+  floor: { itemId: string; name: string; available: boolean; cost: number | null; from: LootSource | null; whose: string }[]
   // an open: the containers within reach, and whether each is the one chosen
   openables: { key: string; name: string; selected: boolean }[]
   // gear.tex "Potions and Medicine": the potions in hand a drink can take
@@ -519,9 +519,9 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' || open.kind === 'reload' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
-        ? getReachableLoot(state, actor.id).map((l) => ({ itemId: l.item.id, name: l.item.name, available: canPickUp(actor, l.item), from: l.from, whose: getLootLabel(state, l.from) }))
+        ? getReachableLoot(state, actor.id).map((l) => ({ itemId: l.item.id, name: l.item.name, available: canPickUp(actor, l.item) && getLootCost(state, actor, l) !== null, cost: getLootCost(state, actor, l)?.AP ?? null, from: l.from, whose: getLootLabel(state, l.from) }))
         : open.kind === 'throw' && open.step === 'define' && actor
-        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i, isCombatStarted(state)), from: null, whose: '' }))
+        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i, isCombatStarted(state)), cost: null, from: null, whose: '' }))
         : [],
       openables: open.kind === 'open' && open.step === 'define' && actor
         ? getOpenables(state, actor.id).filter((o) => !o.opened).map((o) => ({ key: o.key, name: o.name, selected: o.key === open.key }))

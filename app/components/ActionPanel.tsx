@@ -121,7 +121,7 @@ export function ActionPanel(){
           <SectionLabel>floor</SectionLabel>
           {open.floor.map((f) =>
             <Button key={`${f.whose}:${f.itemId}`} size='xs' selected={f.itemId === open.item}
-              disabled={!f.available} title={f.available ? (f.whose || undefined) : 'no free hand'} onClick={() => amend(f.from ? { itemId: f.itemId, from: f.from } : { itemId: f.itemId })}>
+              disabled={!f.available} title={f.available ? [f.whose, f.cost === null ? '' : `${f.cost} AP`].filter(Boolean).join(' · ') || undefined : 'cannot be taken now'} onClick={() => amend(f.from ? { itemId: f.itemId, from: f.from } : { itemId: f.itemId })}>
               {f.name}{f.whose ? <span className='text-muted'> · {f.whose}</span> : null}
             </Button>)}
         </div>

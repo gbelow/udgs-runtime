@@ -37,7 +37,7 @@ import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { isExtinguishCell } from './extinguish'
 import { isPlantDeclared } from './plant'
 import { canPickUp } from './floor'
-import { findLoot, findOpenable } from './loot'
+import { findLoot, findOpenable, getLootCost } from './loot'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
@@ -165,7 +165,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // combat.tex "Standard Action": something within reach, into a free hand
     case 'pickUp': {
       const found = findLoot(state, c.id, action.from, action.itemId)
-      return !!found && canPickUp(c, found.item)
+      return !!found && canPickUp(c, found.item) && getLootCost(state, c, found) !== null
     }
     // combat.tex "Standard Action": "open doors ... and perform other kinds of
     // object interactions" — a container within reach, not yet open
@@ -379,7 +379,6 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'releaseSpell':
     case 'feint':
     case 'holdBack':
-    case 'pickUp':
     case 'open':
     case 'extinguish':
     case 'plant':
@@ -389,6 +388,11 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'prepare':
     case 'evasion':
       return getCatalogCost(c, action.kind)
+    // what taking the item costs from where it lies (rules/loot.ts)
+    case 'pickUp': {
+      const found = findLoot(state, c.id, action.from, action.itemId)
+      return found ? getLootCost(state, c, found) : getCatalogCost(c, 'pickUp')
+    }
     case 'grapple':
       return getManeuverCost(c, action.maneuver)
     // abilities.tex "Medicine": the ability's price

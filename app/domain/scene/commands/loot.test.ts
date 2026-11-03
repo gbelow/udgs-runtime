@@ -9,6 +9,8 @@ import { joinFight } from './parties'
 import { pickFloorItem } from './floor'
 import { canPickUp } from '../rules/floor'
 import { getOpenables, getReachableLoot } from '../rules/loot'
+import { drawItem } from '../../item/commands/hands'
+import { doffArmor } from '../../character/commands/armor'
 
 const stuff = (id: string, name: string): Item => ItemSchema.parse({ id, name, type: 'misc', refId: name, bulk: 1 })
 
@@ -82,5 +84,50 @@ describe('looting', () => {
       expect(taken.some((l) => l.item.id === item.id && JSON.stringify(l.from) === JSON.stringify(from))).toBe(false)
       expect(taken.length).toBe(getReachableLoot(open, 'a').length - 1)
     }
+  })
+})
+
+describe('what a body has on it', () => {
+  // the table's ruling: everything is lootable
+  it('is all to be had: its hands, its back, its armor and the containers it wears', () => {
+    const body = dead({
+      ...sheet('b'),
+      held: [stuff('blade', 'Blade')],
+      onBack: stuff('buckler', 'Buckler'),
+      worn: stuff('mail', 'Mail'),
+      containers: { pack: withPack('backpack', [stuff('rope', 'Rope')]) },
+    })
+    const lying = layToRest([sheet('a'), body].reduce((s, c) => joinFight(c, c.id, c.name, [])(s), SceneStateSchema.parse({})))
+    const ids = getReachableLoot(lying, 'a').map((l) => l.item.id)
+    for (const id of ['blade', 'buckler', 'mail', 'b:pack']) expect(ids).toContain(id)
+  })
+
+  // the table's ruling: the cost is the same as using one's own inventory
+  it('costs what the same move costs from the looter own inventory', () => {
+    const goods = [stuff('rope', 'Rope'), { ...stuff('tent', 'Tent'), bulk: 2 }, { ...stuff('anvil', 'Anvil'), bulk: 3 }]
+    const container = ContainerSchema.parse({ name: 'backpack', kind: 'backpack', slots: { quick: { numSlots: 4, items: [goods[0]] }, medium: { numSlots: 4, items: [goods[1]] }, large: { numSlots: 4, items: [goods[2]] } } })
+    const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, resources: { ...c.resources, AP: 40 } })
+    const body = dead({ ...sheet('b'), containers: { pack: container } })
+    const started = (s: SceneState): SceneState => ({ ...s, round: 1, inTurnCharacter: 'a', characters: { ...s.characters, a: fresh(s.characters.a) } })
+    const lying = started(layToRest([sheet('a'), body].reduce((s, c) => joinFight(c, c.id, c.name, [])(s), SceneStateSchema.parse({}))))
+    const open = play(lying, { kind: 'open', key: 'b:pack' })
+    for (const { id } of goods) {
+      const before = open.characters.a.resources.AP
+      const looted = commitAction(() => 5, newId)(pickFloorItem('a', id, newId, { kind: 'pack', body: 'b', container: 'pack' })(open))
+      const own = drawItem('pack', id)({ ...fresh(sheet('x')), containers: { pack: container } }, true) as CampaignCharacter
+      expect(before - looted.characters.a.resources.AP).toBe(40 - own.resources.AP)
+    }
+  })
+
+  it('takes armor off at the price of doffing it', () => {
+    const mail = stuff('mail', 'Mail')
+    const body = dead({ ...sheet('b'), worn: mail })
+    const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, resources: { ...c.resources, AP: 40 } })
+    const base = layToRest([sheet('a'), body].reduce((s, c) => joinFight(c, c.id, c.name, [])(s), SceneStateSchema.parse({})))
+    const lying = { ...base, round: 1, inTurnCharacter: 'a', characters: { ...base.characters, a: fresh(base.characters.a) } }
+    const looted = commitAction(() => 5, newId)(pickFloorItem('a', 'mail', newId, { kind: 'worn', body: 'b' })(lying))
+    const own = doffArmor(null)({ ...fresh(sheet('x')), worn: mail }, true) as CampaignCharacter
+    expect(looted.characters.a.held.map((i) => i.id)).toContain('mail')
+    expect(40 - looted.characters.a.resources.AP).toBe(40 - own.resources.AP)
   })
 })

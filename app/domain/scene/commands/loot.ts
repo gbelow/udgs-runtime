@@ -3,6 +3,7 @@ import type { Body, FloorItem, LootSource } from '../types'
 import { mapSlotGroups } from '../../item/rules/containers'
 import { removeItemFromContainer } from '../../item/commands/items'
 import { dropItem } from '../../item/commands/hands'
+import { without } from '../../utils'
 
 // One unit of the stack leaves, the stack itself when it is the last.
 const oneOut = (items: Item[], itemId: string): Item[] =>
@@ -15,13 +16,16 @@ export function takeFromChest(floor: FloorItem[], chestId: string, itemId: strin
     : f))
 }
 
-// One of the item taken from a body: out of its hands or off its back, or
-// out of a container it wears. A hand holds one of a stack, never the stack.
-export function takeFromBody(bodies: Body[], from: Extract<LootSource, { kind: 'body' | 'pack' }>, itemId: string): Body[] {
+// One of the item taken from a body: out of its hands or off its back, out of
+// a container it wears, or the armor or a container it wears itself. A hand
+// holds one of a stack, never the stack.
+export function takeFromBody(bodies: Body[], from: Exclude<LootSource, { kind: 'floor' | 'chest' }>, itemId: string): Body[] {
   return bodies.map((b) => {
     const c = b.character
     if (c.id !== from.body) return b
     if (from.kind === 'pack') return { ...b, character: removeItemFromContainer(from.container, itemId, 1)(c) }
+    if (from.kind === 'worn') return { ...b, character: { ...c, worn: null } }
+    if (from.kind === 'wornPack') return { ...b, character: { ...c, containers: without(c.containers, from.container) } }
     return { ...b, character: c.onBack?.id === itemId ? { ...c, onBack: null } : dropItem(itemId)(c) }
   })
 }
