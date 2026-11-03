@@ -5,8 +5,8 @@ import type { Point } from '../domain/scene/rules/board/geometry'
 import { readPalette } from './palette'
 import { getTexture } from './textures'
 import { drawFlatGround } from './ground'
-import { FLOOR_ITEM_HALF, TOKEN_RADIUS, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, type Kit } from './draw'
-import { drawShadeMap, drawShadeOver, type ShadeMap } from './light'
+import { FLOOR_ITEM_HALF, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, tokenBody, type Kit } from './draw'
+import { drawShadeCorners, drawShadeMap, drawShadeOver, type ShadeMap } from './light'
 
 // The board drawn on a canvas by Pixi: the view as the domain gives it, laid
 // out band by band, each part of a band drawn again only when what it is
@@ -231,6 +231,11 @@ export class BoardStage {
           out.addChild(drawCrispGround(this.kit, ground, keep(crispCells(groundOf, b))), drawCorners(this.kit, ground, keep(inBand(ground.corners))))
           return out
         })
+        this.part(band.parts, `corner-shade-${tag}`, parent, [view.cells, ground, shown, this.shade.map], () => {
+          const out = new Container()
+          if (this.shade.map) out.addChild(drawShadeCorners(this.shade.map, keep(inBand(ground.corners)), (key) => cellByKey.get(key)))
+          return out
+        })
         this.part(band.parts, `cells-${tag}`, parent, [view.cells, view.rims, shown], () => drawCells(this.kit, keep(inBand(cellsOf)), view.hex))
         this.part(band.parts, `walls-${tag}`, parent, [ground, shown, this.textures], () => {
           const out = new Container()
@@ -240,7 +245,7 @@ export class BoardStage {
         this.part(band.parts, `shade-${tag}`, parent, [view.cells, view.rims, ground, shown, this.shade.map], () => {
           const out = new Container()
           const cells = keep(inBand(cellsOf))
-          if (this.shade.map) out.addChild(drawShadeOver(this.shade.map, cells, view.hex, { ridges: keep(inBand(ground.ridges)), chords: keep(inBand(ground.chords)), corners: keep(inBand(ground.corners)), cellOf: (key) => cellByKey.get(key) }))
+          if (this.shade.map) out.addChild(drawShadeOver(this.shade.map, cells, view.hex, { ridges: keep(inBand(ground.ridges)), chords: keep(inBand(ground.chords)), cellOf: (key) => cellByKey.get(key) }))
           out.addChild(drawMist(this.kit, cells, view.hex))
           return out
         })
@@ -336,7 +341,10 @@ export class BoardStage {
       if (item) return { kind: 'floor', itemId: item.itemId }
     }
     if (this.events.onToken) {
-      const token = [...view.tokens].reverse().find((t) => Math.hypot(w.x - t.x, w.y - t.y) <= TOKEN_RADIUS)
+      const token = [...view.tokens].reverse().find((t) => {
+        const body = tokenBody(t)
+        return Math.hypot(w.x - body.x, w.y - body.y) <= body.radius
+      })
       if (token) return { kind: 'token', token }
     }
     const cell = this.events.cellAt(view, w)

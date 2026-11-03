@@ -262,10 +262,26 @@ export function drawShadeMap(renderer: Renderer, cells: BoardCellView[], chords:
   return { texture: shade, plane: { x: x0, y: y0 }, scale, destroy: () => shade.destroy(true) }
 }
 
+// The shade over the corners thin walls cut off, drawn with the ground they
+// are drawn as and so under the walls: each in the light of the cells beside it.
+export function drawShadeCorners(map: ShadeMap, corners: BoardCornerView[], cellOf: (key: string) => BoardCellView | undefined): Graphics {
+  const g = new Graphics()
+  for (const k of corners) {
+    const beside = k.beside.flatMap((key) => cellOf(key) ?? [])
+    if (beside.length > 0) {
+      g.poly(k.points.flatMap((p) => [p.x, p.y])).fill({ color: 0x000000, alpha: Math.min(...beside.map(darkOf)) })
+      continue
+    }
+    const matrix = new Matrix(1 / map.scale, 0, 0, 1 / map.scale, map.plane.x + k.x - k.base.x, map.plane.y + k.y - k.base.y)
+    g.poly(k.points.flatMap((p) => [p.x, p.y])).fill({ texture: map.texture, matrix, textureSpace: 'global' })
+  }
+  return g
+}
+
 // The shade laid over cells, each where it is drawn, the shade read where it
 // lies in the plane; and over the walls standing on them, the drops of their
 // cliffs and their thin walls, each in the shade of the cell it stands on.
-export function drawShadeOver(map: ShadeMap, cells: BoardCellView[], hex: Point[], walls: { ridges: BoardRidgeView[]; chords: BoardChordView[]; corners: BoardCornerView[]; cellOf: (key: string) => BoardCellView | undefined }): Graphics {
+export function drawShadeOver(map: ShadeMap, cells: BoardCellView[], hex: Point[], walls: { ridges: BoardRidgeView[]; chords: BoardChordView[]; cellOf: (key: string) => BoardCellView | undefined }): Graphics {
   const g = new Graphics()
   const shaded = (c: BoardCellView) => {
     const plane = planeOf(c)
@@ -275,15 +291,6 @@ export function drawShadeOver(map: ShadeMap, cells: BoardCellView[], hex: Point[
   for (const r of walls.ridges) {
     const c = walls.cellOf(r.cell)
     if (c) for (const b of r.bands) if (b.face) g.poly(b.face.flatMap((p) => [p.x, p.y])).fill(shaded(c))
-  }
-  for (const k of walls.corners) {
-    const beside = k.beside.flatMap((key) => walls.cellOf(key) ?? [])
-    if (beside.length > 0) {
-      g.poly(k.points.flatMap((p) => [p.x, p.y])).fill({ color: 0x000000, alpha: Math.min(...beside.map(darkOf)) })
-      continue
-    }
-    const matrix = new Matrix(1 / map.scale, 0, 0, 1 / map.scale, map.plane.x + k.x - k.base.x, map.plane.y + k.y - k.base.y)
-    g.poly(k.points.flatMap((p) => [p.x, p.y])).fill({ texture: map.texture, matrix, textureSpace: 'global' })
   }
   for (const w of walls.chords) {
     const c = walls.cellOf(w.cell)
