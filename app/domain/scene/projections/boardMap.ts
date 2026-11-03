@@ -29,14 +29,22 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
   const lighting = sceneOfMap({ ...map, extent: { q: map.extent.q + beyond, r: map.extent.r + beyond, s: map.extent.s + beyond } })
   // the picture of the structure being edited stands on the map's anchor
   const own = getStandingOf('structure', map.art, view.cells.find((c) => c.key === coordKey(map.origin)), 0, Math.max(0, ...Object.values(map.terrain).filter((cell) => cell.piece === null).map((cell) => cell.elevation)), map.levels.filter((l) => l.piece === null).map((l) => l.floor))
+  const standing = [...view.standing, ...own]
+  const cells = view.ground.cells.map((c) => ({
+    ...c,
+    piece: getPieceAt(map, c.key),
+    storey: !storey ? null : storey.terrain[c.key] ? (storey.terrain[c.key].hole ? 'hole' as const : storey.terrain[c.key].lattice ? 'lattice' as const : 'floor' as const) : 'air' as const,
+  }))
+  const drawn = new Map(cells.map((c) => [c.key, c]))
   return {
     ...view,
-    standing: [...view.standing, ...own],
+    ground: { ...view.ground, cells, standing },
+    standing,
     cells: view.cells.map((c) => {
-      const piece = getPieceAt(map, c.key)
+      const ground = drawn.get(c.key)!
       const floor = storey?.terrain[c.key]
       const { light, lit } = getCellLighting(lighting, c.cell, storey && floor && !floor.hole ? getStoreyFloor(storey, floor) : undefined)
-      return { ...c, light, lit, piece, chosen: piece !== null && piece === chosen, storey: !storey ? null : storey.terrain[c.key] ? (storey.terrain[c.key].hole ? 'hole' : storey.terrain[c.key].lattice ? 'lattice' : 'floor') : 'air' }
+      return { ...c, ...ground, light, lit, chosen: ground.piece !== null && ground.piece === chosen }
     }),
   }
 }

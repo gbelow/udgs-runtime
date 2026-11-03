@@ -1,6 +1,7 @@
 import { DIRECTIONS, add, coordKey, frameHexes, getFaceGrain, hexBounds, hexSide } from '../rules/board/geometry'
 import type { Direction } from '../types'
-import type { BoardBindView, BoardCellView, BoardChordView, BoardFloorItemView, BoardGhostView, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from './boardView'
+import { perParts } from '../../perState'
+import type { BoardBindView, BoardCellView, BoardChordView, BoardFloorItemView, BoardGhostView, BoardGround, BoardGroundCell, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from './boardView'
 
 // The board seen from the front rather than from above: ground that is higher
 // is drawn higher up the screen by so much a metre, and a cell is drawn over
@@ -35,7 +36,7 @@ function inside(p: Point, polygon: readonly Point[]): boolean {
 }
 
 // The corners a cell is drawn with, where it is drawn.
-function outline(c: BoardCellView): Point[] {
+function outline(c: BoardGroundCell): Point[] {
   return CORNERS.map((p) => ({ x: c.x + p.x * c.width, y: c.y + p.y * c.width }))
 }
 
@@ -68,40 +69,43 @@ function getBandFaces(ridge: BoardRidgeView): string[] {
   return ridge.bands.flatMap((b) => (b.face === null ? [] : [b.face]))
 }
 
-const cache = new WeakMap<BoardView, Map<number, BoardView>>()
-
-// The same board from the front, `lift` board units to the metre. Memoized per
-// view, so a view that has not changed is drawn from the same object.
-export function getFrontView(view: BoardView, lift: number): BoardView {
-  if (!view.present) return view
-  const known = cache.get(view)?.get(lift)
-  if (known) return known
-  const front = build(view, lift)
-  cache.set(view, (cache.get(view) ?? new Map()).set(lift, front))
-  return front
+// The ground seen from the front, and what the rest of the view is lifted by:
+// each cell's elevation and band, and what is drawn over each place on the
+// screen.
+type Front = {
+  ground: BoardGround
+  elevationOf: Map<string, number>
+  bandOf: Map<string, number>
+  covers: { band: number; polygon: Point[] }[]
 }
 
-function build(view: BoardView, lift: number): BoardView {
+const frontOf = perParts<Front>()
+
+function getFront(ground: BoardGround, lift: number): Front {
+  return frontOf([ground], `${lift}`, () => buildFront(ground, lift))
+}
+
+function buildFront(ground: BoardGround, lift: number): Front {
   const rise = (metres: number) => metres * lift
   // a wall is drawn standing above its ground, so its top is what is lifted
-  const standing = (c: BoardCellView) => c.elevation + c.wall
+  const standing = (c: BoardGroundCell) => c.elevation + c.wall
   // What is lifted is drawn back to front, a band to each row it stands on, so
   // that a tall cell covers what is behind it and never what is in front; the
   // ground at its own height is the first band, under all of it.
   const rowOf = (y: number) => Math.round(y * 1000)
   const rows = [...new Set([
-    ...view.cells.filter((c) => standing(c) > 0).map((c) => rowOf(c.y)),
-    ...view.chords.filter((w) => w.elevation + w.height > 0).map((w) => rowOf(w.y)),
+    ...ground.cells.filter((c) => standing(c) > 0).map((c) => rowOf(c.y)),
+    ...ground.chords.filter((w) => w.elevation + w.height > 0).map((w) => rowOf(w.y)),
   ])].sort((a, b) => a - b)
   const bandAt = (y: number) => rows.filter((row) => row <= rowOf(y)).length
-  const elevationOf = new Map(view.cells.map((c) => [c.key, c.elevation]))
-  const topOf = new Map(view.cells.map((c) => [c.key, standing(c)]))
-  const bandOf = new Map(view.cells.map((c) => [c.key, standing(c) > 0 ? bandAt(c.y) : 0]))
+  const elevationOf = new Map(ground.cells.map((c) => [c.key, c.elevation]))
+  const topOf = new Map(ground.cells.map((c) => [c.key, standing(c)]))
+  const bandOf = new Map(ground.cells.map((c) => [c.key, standing(c) > 0 ? bandAt(c.y) : 0]))
 
-  const cells: BoardCellView[] = view.cells.map((c) => ({ ...c, y: c.y - rise(standing(c)), band: bandOf.get(c.key) ?? 0, base: { x: c.x, y: c.y }, group: c.key }))
+  const cells: BoardGroundCell[] = ground.cells.map((c) => ({ ...c, y: c.y - rise(standing(c)), band: bandOf.get(c.key) ?? 0, base: { x: c.x, y: c.y }, group: c.key }))
   // the ground around the foot of a thinner top, at its own height, in the
   // band of the top's row unless it is the ground at its own height
-  const rims: BoardCellView[] = view.rims.map((c) => ({ ...c, y: c.y - rise(c.around), band: c.around > 0 ? bandAt(c.y) : 0, group: c.key }))
+  const rims: BoardGroundCell[] = ground.rims.map((c) => ({ ...c, y: c.y - rise(c.around), band: c.around > 0 ? bandAt(c.y) : 0, group: c.key }))
 
   const groupOf = new Map(cells.map((c) => [c.key, c.group]))
 
@@ -109,7 +113,7 @@ function build(view: BoardView, lift: number): BoardView {
   // higher cell down to the same edge at the height of the lower ground, each
   // band of it standing at its own heights; the other drops are hidden behind
   // their own cell.
-  const ridges: BoardRidgeView[] = view.ridges.filter((r) => isFrontSide(r.side)).map((r) => {
+  const ridges: BoardRidgeView[] = ground.ridges.filter((r) => isFrontSide(r.side)).map((r) => {
     const top = topOf.get(r.cell) ?? 0
     const at = (metres: number) => [{ x: r.a.x, y: r.a.y - rise(metres) }, { x: r.b.x, y: r.b.y - rise(metres) }]
     const [a, b] = at(top)
@@ -122,7 +126,7 @@ function build(view: BoardView, lift: number): BoardView {
   // A thin wall stands from its ground to its top: the top lifted, and the
   // outline of the whole of it as the viewer sees it drawn under that, its
   // picture lying along its top and down to its foot.
-  const chords: BoardChordView[] = view.chords.map((w) => {
+  const chords: BoardChordView[] = ground.chords.map((w) => {
     const strip = parsePoints(w.top)
     const lift = (metres: number) => (p: Point) => ({ x: p.x, y: p.y - rise(metres) })
     const at = (metres: number) => strip.map(lift(metres))
@@ -139,27 +143,12 @@ function build(view: BoardView, lift: number): BoardView {
     ...ridges.flatMap((r) => getBandFaces(r).map((face) => ({ band: r.band, polygon: parsePoints(face) }))),
     ...chords.map((w) => ({ band: w.band, polygon: parsePoints(w.side ?? w.top) })),
   ]
-  const tokens: BoardTokenView[] = view.tokens.map((t) => {
-    const ground = t.cells.find((c) => c.x === t.x && c.y === t.y) ?? t.cells[0]
-    const groundElevation = ground ? elevationOf.get(ground.key) ?? 0 : t.elevation
-    const dy = rise(t.elevation)
-    const centre = { x: t.x, y: t.y - dy }
-    const band = ground ? bandOf.get(ground.key) ?? 0 : 0
-    return {
-      ...t,
-      y: centre.y,
-      cells: t.cells.map((c) => ({ ...c, y: c.y - dy })),
-      shadow: { x: t.x, y: t.y - rise(groundElevation) },
-      hidden: covers.some((o) => o.band > band && inside(centre, o.polygon)),
-    }
-  })
 
-  const lifted = new Map(view.tokens.map((t) => [t.id, rise(t.elevation)]))
   // a lattice is lifted to its height, its shadow left on the floor under it,
   // and the sides of its leaves facing the viewer hang under its edge where
   // no lattice at its height is beside it
-  const layered = new Set(view.overhead.map((o) => `${o.key}@${o.elevation}`))
-  const overhead: BoardOverheadView[] = view.overhead.map((o) => {
+  const layered = new Set(ground.overhead.map((o) => `${o.key}@${o.elevation}`))
+  const overhead: BoardOverheadView[] = ground.overhead.map((o) => {
     const top = rise(o.elevation)
     const bottom = rise(o.elevation - Math.min(LEAVES_DEPTH, o.elevation - o.below))
     const slab = FRONT_SIDES.filter((d) => !layered.has(`${coordKey(add(o.cell, DIRECTIONS[d]))}@${o.elevation}`)).map((d) => {
@@ -169,18 +158,8 @@ function build(view: BoardView, lift: number): BoardView {
     })
     return { ...o, y: o.y - top, shadow: { x: o.x, y: o.y - rise(o.below) }, slab }
   })
-  const floor: BoardFloorItemView[] = view.floor.map((f) => ({ ...f, y: f.y - rise(elevationOf.get(f.cell) ?? 0) }))
-  const binds: BoardBindView[] = view.binds.map((b) => ({
-    ...b,
-    from: { x: b.from.x, y: b.from.y - (lifted.get(b.ids[0]) ?? 0) },
-    to: { x: b.to.x, y: b.to.y - (lifted.get(b.ids[1]) ?? 0) },
-  }))
-  const ghosts: BoardGhostView[] = view.ghosts.map((g) => {
-    const dy = rise(elevationOf.get(g.cells[0]?.key ?? '') ?? 0)
-    return { ...g, y: g.y - dy, cells: g.cells.map((c) => ({ ...c, y: c.y - dy })) }
-  })
 
-  const sprites: BoardSpriteView[] = view.standing.flatMap((s) => {
+  const sprites: BoardSpriteView[] = ground.standing.flatMap((s) => {
     const foot = { x: s.x + s.art.offsetX, y: s.y - rise(s.base) + s.art.offsetY }
     const box = { x: foot.x - s.art.width / 2, y: foot.y - rise(s.art.height), width: s.art.width, height: rise(s.art.height) }
     const edges = [0, ...s.cuts, s.art.height]
@@ -195,7 +174,62 @@ function build(view: BoardView, lift: number): BoardView {
   })
   const framed = [...cells, ...chords.flatMap((w) => parsePoints(w.top)), ...sprites.flatMap((s) => [{ x: s.box.x, y: s.box.y }, { x: s.box.x + s.box.width, y: s.box.y + s.box.height }])]
 
-  return { ...view, front: true, bands: rows.length + 1, cells, rims, ridges, chords, overhead, tokens, floor, binds, ghosts, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) }
+  return {
+    ground: { ...ground, front: true, bands: rows.length + 1, cells, rims, ridges, chords, overhead, sprites, frame: hexBounds(framed), viewBox: frameHexes(framed) },
+    elevationOf,
+    bandOf,
+    covers,
+  }
+}
+
+const cache = new WeakMap<BoardView, Map<number, BoardView>>()
+
+// The same board from the front, `lift` board units to the metre. Memoized per
+// view, so a view that has not changed is drawn from the same object.
+export function getFrontView(view: BoardView, lift: number): BoardView {
+  if (!view.present) return view
+  const known = cache.get(view)?.get(lift)
+  if (known) return known
+  const front = build(view, lift)
+  cache.set(view, (cache.get(view) ?? new Map()).set(lift, front))
+  return front
+}
+
+function build(view: BoardView, lift: number): BoardView {
+  const rise = (metres: number) => metres * lift
+  const { ground, elevationOf, bandOf, covers } = getFront(view.ground, lift)
+  const drawn = new Map([...ground.cells, ...ground.rims].map((c) => [c.key, c]))
+  const cells: BoardCellView[] = view.cells.map((c) => ({ ...c, ...drawn.get(c.key)! }))
+  const rims: BoardCellView[] = view.rims.map((c) => ({ ...c, ...drawn.get(c.key)! }))
+
+  const tokens: BoardTokenView[] = view.tokens.map((t) => {
+    const foot = t.cells.find((c) => c.x === t.x && c.y === t.y) ?? t.cells[0]
+    const footElevation = foot ? elevationOf.get(foot.key) ?? 0 : t.elevation
+    const dy = rise(t.elevation)
+    const centre = { x: t.x, y: t.y - dy }
+    const band = foot ? bandOf.get(foot.key) ?? 0 : 0
+    return {
+      ...t,
+      y: centre.y,
+      cells: t.cells.map((c) => ({ ...c, y: c.y - dy })),
+      shadow: { x: t.x, y: t.y - rise(footElevation) },
+      hidden: covers.some((o) => o.band > band && inside(centre, o.polygon)),
+    }
+  })
+
+  const lifted = new Map(view.tokens.map((t) => [t.id, rise(t.elevation)]))
+  const floor: BoardFloorItemView[] = view.floor.map((f) => ({ ...f, y: f.y - rise(elevationOf.get(f.cell) ?? 0) }))
+  const binds: BoardBindView[] = view.binds.map((b) => ({
+    ...b,
+    from: { x: b.from.x, y: b.from.y - (lifted.get(b.ids[0]) ?? 0) },
+    to: { x: b.to.x, y: b.to.y - (lifted.get(b.ids[1]) ?? 0) },
+  }))
+  const ghosts: BoardGhostView[] = view.ghosts.map((g) => {
+    const dy = rise(elevationOf.get(g.cells[0]?.key ?? '') ?? 0)
+    return { ...g, y: g.y - dy, cells: g.cells.map((c) => ({ ...c, y: c.y - dy })) }
+  })
+
+  return { ...view, ground, front: true, bands: ground.bands, cells, rims, ridges: ground.ridges, chords: ground.chords, overhead: ground.overhead, tokens, floor, binds, ghosts, sprites: ground.sprites, frame: ground.frame, viewBox: ground.viewBox }
 }
 
 // The groups of what is drawn over the middle of any of these cells, seen from

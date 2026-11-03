@@ -27,3 +27,27 @@ export function perPair<T, A extends object, B extends object>(project: (pair: {
     return view
   }
 }
+
+// A projection computed once per set of parts and a key: the parts are objects
+// every write replaces rather than changes (a board's terrain, its storeys), so
+// the same parts and key give the same result however much of the state around
+// them was written since.
+export function perParts<T>(): (parts: readonly object[], key: string, project: () => T) => T {
+  type Node = { next: WeakMap<object, Node>; done: Map<string, T> }
+  const root: Node = { next: new WeakMap(), done: new Map() }
+  return (parts, key, project) => {
+    let node = root
+    for (const part of parts) {
+      let next = node.next.get(part)
+      if (!next) {
+        next = { next: new WeakMap(), done: new Map() }
+        node.next.set(part, next)
+      }
+      node = next
+    }
+    if (node.done.has(key)) return node.done.get(key) as T
+    const result = project()
+    node.done.set(key, result)
+    return result
+  }
+}

@@ -20,7 +20,7 @@ import { getMoveSweep } from '../rules/board/waypoint'
 import { getDepth } from '../rules/swim'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
-import { perState } from '../../perState'
+import { perParts, perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLighting } from '../rules/board/light'
 import { CHORD_BRUSH_CORNER, CHORD_DRAWN_THICKNESS, WALL_DRAWN_HEIGHT } from '../../lists'
@@ -37,7 +37,9 @@ import { isOffGrid } from '../rules/parked'
 
 export type CellTerrain = 'open' | 'wall' | 'glass' | 'water' | 'rough'
 
-export type BoardCellView = {
+// How a cell's ground is drawn, which changes only when the ground is painted
+// or the board is looked at another way (`BoardGround`).
+export type BoardGroundCell = {
   key: string
   cell: Coord
   x: number
@@ -69,14 +71,7 @@ export type BoardCellView = {
   strength: string | null
   elevation: number
   elevationLabel: string
-  // what is left on the ground here (combat.tex "Fire", "Gas"): the burn of
-  // a fire surface, 0 for none, and a gas that suffocates
-  fire: number
-  fuels: Fuel[]
-  suffocating: boolean
-  // how well the cell is seen into (combat.tex "Visibility"), null for good,
-  // and the noise its ground makes per AP (combat.tex "Actions in stealth")
-  visibility: Visibility | null
+  // the noise its ground makes per AP (combat.tex "Actions in stealth")
   noise: number
   // combat.tex "Climbing": the DL of climbing up to this cell, null for a face
   // with nothing to hold
@@ -94,6 +89,23 @@ export type BoardCellView = {
   art: number | null
   // how much of a neighbouring picture's spreading the cell lets in, 0 to 1
   bledInto: number
+  // the storey the board is drawn at: a floor laid in the cell, a lattice
+  // floor, a stairwell over the ground, open air over it, or a roof over a
+  // floor the one looking does not see; null for the ground
+  storey: 'floor' | 'lattice' | 'hole' | 'air' | 'roof' | null
+  // the piece laid on the board the cell is part of, on the ground or a storey
+  piece: string | null
+}
+
+// What play puts on a cell, which any write to the fight may change.
+export type BoardCellMarks = {
+  // what is left on the ground here (combat.tex "Fire", "Gas"): the burn of
+  // a fire surface, 0 for none, and a gas that suffocates
+  fire: number
+  fuels: Fuel[]
+  suffocating: boolean
+  // how well the cell is seen into (combat.tex "Visibility"), null for good
+  visibility: Visibility | null
   // combat.tex "Darkness and light": the light on the cell, and whether it
   // is a light source that makes it bright
   light: LightLevel
@@ -102,13 +114,7 @@ export type BoardCellView = {
   // takes the cell in (`getBoardViewFrom`)
   unseen: boolean
   occupants: string[]
-  // the storey the board is drawn at: a floor laid in the cell, a lattice
-  // floor, a stairwell over the ground, open air over it, or a roof over a
-  // floor the one looking does not see; null for the ground
-  storey: 'floor' | 'lattice' | 'hole' | 'air' | 'roof' | null
-  // the piece laid on the board the cell is part of, on the ground or a
-  // storey, and whether it is the one picked in the editor
-  piece: string | null
+  // the cell is part of the piece picked in the editor
   chosen: boolean
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
@@ -132,6 +138,8 @@ export type BoardCellView = {
   // what lies on the floor here
   items: string[]
 }
+
+export type BoardCellView = BoardGroundCell & BoardCellMarks
 
 export type BoardTokenView = {
   id: string
@@ -309,8 +317,34 @@ export type BoardChordView = {
 // front, the sides of its leaves facing the viewer, each a polygon's points.
 export type BoardOverheadView = { key: string; cell: Coord; x: number; y: number; elevation: number; below: number; art: CellArt | null; shadow: { x: number; y: number }; slab: string[] }
 
+// What the board is drawn on, apart from what play puts on it: the same object
+// for as long as the ground is not painted and the board is looked at the same
+// way, however the fight goes on over it. The view's fields of the same names
+// say the same, with what play puts on the cells joined to them.
+export type BoardGround = {
+  extent: BoardExtent
+  viewBox: string
+  hex: string
+  frame: { x: number; y: number; width: number; height: number }
+  arts: CellArt[]
+  cells: BoardGroundCell[]
+  rims: BoardGroundCell[]
+  ridges: BoardRidgeView[]
+  faces: SurfaceArt[]
+  chords: BoardChordView[]
+  overhead: BoardOverheadView[]
+  standing: BoardStandingView[]
+  sprites: BoardSpriteView[]
+  bands: number
+  front: boolean
+  // the cells drawn though the board neither reaches nor paints them: someone
+  // standing or something threatened beyond its edge
+  beyond: string[]
+}
+
 export type BoardView = {
   present: boolean
+  ground: BoardGround
   extent: BoardExtent
   // the SVG viewBox that frames every cell, with a margin
   viewBox: string
@@ -369,7 +403,9 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY: BoardView = { present: false, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', frame: { x: 0, y: 0, width: 1, height: 1 }, arts: [], cells: [], rims: [], ridges: [], faces: [], chords: [], overhead: [], standing: [], sprites: [], bands: 1, front: false, beyond: [] }
+
+const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -425,87 +461,35 @@ function buildBoardView(state: SeenScene): BoardView {
   })
   const centers = new Set(aim ? aim.cells.map(coordKey) : [])
   const threatened = new Set(laid ? getThreatenedCells(state, laid).map(coordKey) : [])
-  const zones = new Map(laid ? getExplosionZones(state, laid).filter((z) => z.floor === (board.terrain[coordKey(z.cell)]?.elevation ?? 0)).map((z) => [coordKey(z.cell), z.degree]) : [])
 
-  // The drawn cells: those within the board's extent, plus anything placed,
-  // painted or threatened beyond it.
-  const drawn = new Map(extentCells(board.origin, board.extent).map((c) => [coordKey(c), c]))
-  for (const key of [...Object.keys(board.terrain), ...Object.keys(occupancy), ...threatened]) {
-    const cell = parseCoordKey(key)
-    if (cell && !drawn.has(key)) drawn.set(key, cell)
-  }
-
-  const found: CellArt[] = []
-  const artIndex = (art: CellArt | null): number | null => {
-    if (!art) return null
-    const at = found.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.roughness === art.roughness && a.bank === art.bank && a.priority === art.priority)
-    if (at >= 0) return at
-    found.push(art)
-    return found.length - 1
-  }
-
-  const unsorted: BoardCellView[] = [...drawn.values()].map((cell) => {
-    const key = coordKey(cell)
-    const terrain = board.terrain[key]
-    const { x, y } = toPlane(cell)
-    const there = reachableByKey.get(key)
-    const hazard = getCellHazard(state, cell)
-    const { light, lit } = getCellLighting(state, cell)
+  // The drawn cells: the ground's (those within the board's extent, and those
+  // painted), plus wherever someone stands or something is threatened beyond it.
+  const reached = new Set([...extentCells(board.origin, board.extent).map(coordKey), ...Object.keys(board.terrain)])
+  const beyond = [...new Set([...Object.keys(occupancy), ...threatened])].filter((key) => !reached.has(key) && !!parseCoordKey(key))
+  const ground = getBoardGround(board, beyond)
+  const left = getGroundMarks(state)
+  const cells: BoardCellView[] = ground.cells.map((g) => {
+    const there = reachableByKey.get(g.key)
     return {
-      key,
-      cell,
-      x,
-      y,
-      band: 0,
-      wall: terrain?.blocking ? getWallHeight(board, key, terrain.elevation) : 0,
-      width: terrain?.width ?? 1,
-      around: 0,
-      hex: null,
-      base: null,
-      group: '',
-      terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
-      strength: terrain && (terrain.blocking || hasThinWalls(terrain)) ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
-      elevation: terrain?.elevation ?? 0,
-      elevationLabel: elevationLabel(terrain?.elevation ?? 0),
-      fire: hazard.fire,
-      fuels: getCellFuels(state, cell),
-      suffocating: hazard.suffocating,
-      visibility: hazard.visibility === 'good' ? null : hazard.visibility,
-      noise: terrain?.noise ?? 0,
-      climbDL: terrain?.climbDL ?? null,
-      test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: terrain.DL } : null,
-      soft: terrain?.soft ?? false,
-      surface: getCellSurfaceName(board, key),
-      art: artIndex(getCellArt(board, key)),
-      bledInto: getCellBledInto(board, key),
-      light,
-      lit,
+      ...g,
+      ...left(g.key, g.cell),
+      ...getCellLighting(state, g.cell),
       unseen: false,
-      occupants: occupancy[key] ?? [],
-      storey: null,
-      piece: getPieceAt(board, key),
+      occupants: occupancy[g.key] ?? [],
       chosen: false,
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
-      pathStep: pathByKey.get(key) ?? null,
-      swept: swept.has(key),
-      isDestination: destination !== null && sameCell(destination, cell),
-      jump: landings.has(key),
-      isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
-      center: centers.has(key),
-      isCenter: aimedAt !== null && sameCell(aimedAt, cell),
-      threatened: threatened.has(key),
-      zone: zones.get(key) ?? null,
-      items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, cell)).map((f) => f.item.name),
+      pathStep: pathByKey.get(g.key) ?? null,
+      swept: swept.has(g.key),
+      isDestination: destination !== null && sameCell(destination, g.cell),
+      jump: landings.has(g.key),
+      isJumpTo: jumpTo !== null && sameCell(jumpTo, g.cell),
+      center: centers.has(g.key),
+      isCenter: aimedAt !== null && sameCell(aimedAt, g.cell),
+      threatened: threatened.has(g.key),
+      items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, g.cell)).map((f) => f.item.name),
     }
   })
-
-  // lowest priority first, so that a higher one is drawn over a lower; ties
-  // by the pictures themselves, so that which of two is drawn over the other
-  // never depends on which cell happened to be met first
-  const drawing = found.map((_, i) => i).sort((a, b) => compareArts(found[a], found[b]))
-  const arts = drawing.map((i) => found[i])
-  const place = new Map(drawing.map((from, to) => [from, to]))
-  const cells: BoardCellView[] = getThinTops(unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null })))
+  const rims = joinRims(ground.rims, cells)
 
   const awaited = new Set(getAwaited(state))
   const tokens: BoardTokenView[] = Object.entries(board.placements).flatMap(([id, placement]) => {
@@ -563,23 +547,25 @@ function buildBoardView(state: SeenScene): BoardView {
   const mover = move ? board.placements[move.actorId] : undefined
   return {
     present: true,
-    extent: board.extent,
+    ground,
+    extent: ground.extent,
     light: board.light,
-    frame: hexBounds(cells),
+    frame: ground.frame,
     surface: board.surface,
     surfaces: getSurfaceChoices(),
-    arts,
-    viewBox: frameHexes(cells),
-    hex: HEX_POINTS,
+    arts: ground.arts,
+    viewBox: ground.viewBox,
+    hex: ground.hex,
     cells,
-    ...getRidges(board, cells, board),
-    chords: getChords(board, cells),
-    rims: getRims(cells),
-    standing: getStanding(board, cells),
-    sprites: [],
-    overhead: [],
-    bands: 1,
-    front: false,
+    ridges: ground.ridges,
+    faces: ground.faces,
+    chords: ground.chords,
+    rims,
+    standing: ground.standing,
+    sprites: ground.sprites,
+    overhead: ground.overhead,
+    bands: ground.bands,
+    front: ground.front,
     tokens,
     floor,
     binds,
@@ -590,6 +576,134 @@ function buildBoardView(state: SeenScene): BoardView {
     move: move && mover
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }
       : null,
+  }
+}
+
+// What play leaves on the ground of each cell, read off `state` (for a storey,
+// a copy of it flattened to the floors drawn): fire, fuel, gas, how well the
+// cell is seen into, and the degree of the explosion in play where it goes off.
+export type GroundMarks = Pick<BoardCellMarks, 'fire' | 'fuels' | 'suffocating' | 'visibility' | 'zone'>
+
+export function getGroundMarks(state: SceneState): (key: string, cell: Coord) => GroundMarks {
+  const board = state.board
+  const laid = getLaidBlast(state)
+  const zones = new Map(board && laid ? getExplosionZones(state, laid).filter((z) => z.floor === (board.terrain[coordKey(z.cell)]?.elevation ?? 0)).map((z) => [coordKey(z.cell), z.degree]) : [])
+  return (key, cell) => {
+    const hazard = getCellHazard(state, cell)
+    return { fire: hazard.fire, fuels: getCellFuels(state, cell), suffocating: hazard.suffocating, visibility: hazard.visibility === 'good' ? null : hazard.visibility, zone: zones.get(key) ?? null }
+  }
+}
+
+// The explosion in play as it would go off: a blast confirmed, an explosion
+// pointed, or the throw being declared where it would land.
+function getLaidBlast(state: SceneState) {
+  const open = getOpenAction(state)
+  const explosion = findOpenRoot(state, 'explosion')
+  const blast = findOpenRoot(state, 'blast')
+  const throwing = open?.kind === 'throw' && open.step === 'define' ? open : null
+  return blast ?? (explosion ? getBlastOf(state, explosion) : throwing ? getImpactBlast(state, throwing) : null)
+}
+
+// What play puts on the ground around the foot of a thinner top: the light and
+// the sight of the cell it is the foot of, and nothing else.
+export function getRimMarks(of: Pick<BoardCellMarks, 'visibility' | 'light' | 'lit' | 'unseen'>): BoardCellMarks {
+  return {
+    visibility: of.visibility, light: of.light, lit: of.lit, unseen: of.unseen,
+    fire: 0, fuels: [], suffocating: false, occupants: [], chosen: false, reachable: null, pathStep: null, swept: false,
+    isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, items: [],
+  }
+}
+
+const RIM = ':rim'
+
+// The key of the cell a rim is the foot of.
+export const rimOwner = (key: string): string => key.slice(0, -RIM.length)
+
+function joinRims(rims: BoardGroundCell[], cells: BoardCellView[]): BoardCellView[] {
+  const byKey = new Map(cells.map((c) => [c.key, c]))
+  return rims.map((r) => ({ ...r, ...getRimMarks(byKey.get(rimOwner(r.key))!) }))
+}
+
+const groundOf = perParts<BoardGround>()
+
+// The ground of `board`, with the cells `beyond` its edge drawn as plain
+// ground: the same object for as long as nothing of the ground is written.
+export function getBoardGround(board: Board, beyond: string[] = []): BoardGround {
+  return groundOf([board.terrain, board.levels, board.pieces, board.origin, board.extent], `${JSON.stringify(board.surface)}|${beyond.join(' ')}`, () => buildGround(board, beyond))
+}
+
+function buildGround(board: Board, beyond: string[]): BoardGround {
+  const drawn = new Map(extentCells(board.origin, board.extent).map((c) => [coordKey(c), c]))
+  for (const key of [...Object.keys(board.terrain), ...beyond]) {
+    const cell = parseCoordKey(key)
+    if (cell && !drawn.has(key)) drawn.set(key, cell)
+  }
+
+  const found: CellArt[] = []
+  const artIndex = (art: CellArt | null): number | null => {
+    if (!art) return null
+    const at = found.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.roughness === art.roughness && a.bank === art.bank && a.priority === art.priority)
+    if (at >= 0) return at
+    found.push(art)
+    return found.length - 1
+  }
+
+  const unsorted: BoardGroundCell[] = [...drawn.values()].map((cell) => {
+    const key = coordKey(cell)
+    const terrain = board.terrain[key]
+    const { x, y } = toPlane(cell)
+    return {
+      key,
+      cell,
+      x,
+      y,
+      band: 0,
+      wall: terrain?.blocking ? getWallHeight(board, key, terrain.elevation) : 0,
+      width: terrain?.width ?? 1,
+      around: 0,
+      hex: null,
+      base: null,
+      group: '',
+      terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
+      strength: terrain && (terrain.blocking || hasThinWalls(terrain)) ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
+      elevation: terrain?.elevation ?? 0,
+      elevationLabel: elevationLabel(terrain?.elevation ?? 0),
+      noise: terrain?.noise ?? 0,
+      climbDL: terrain?.climbDL ?? null,
+      test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: terrain.DL } : null,
+      soft: terrain?.soft ?? false,
+      surface: getCellSurfaceName(board, key),
+      art: artIndex(getCellArt(board, key)),
+      bledInto: getCellBledInto(board, key),
+      storey: null,
+      piece: getPieceAt(board, key),
+    }
+  })
+
+  // lowest priority first, so that a higher one is drawn over a lower; ties
+  // by the pictures themselves, so that which of two is drawn over the other
+  // never depends on which cell happened to be met first
+  const drawing = found.map((_, i) => i).sort((a, b) => compareArts(found[a], found[b]))
+  const arts = drawing.map((i) => found[i])
+  const place = new Map(drawing.map((from, to) => [from, to]))
+  const cells = getThinTops(unsorted.map((c) => (c.art === null ? c : { ...c, art: place.get(c.art) ?? null })))
+
+  return {
+    extent: board.extent,
+    viewBox: frameHexes(cells),
+    hex: HEX_POINTS,
+    frame: hexBounds(cells),
+    arts,
+    cells,
+    rims: getRims(cells),
+    ...getRidges(board, cells, board),
+    chords: getChords(board, cells),
+    overhead: [],
+    standing: getStanding(board, cells),
+    sprites: [],
+    bands: 1,
+    front: false,
+    beyond,
   }
 }
 
@@ -682,7 +796,7 @@ function getWallHeight(board: Board, key: string, elevation: number): number {
 
 // The thin walls of the cells (`getThinWallsOf`), each on a chord,
 // drawn as a strip along it, standing as high as a wall in the cell would.
-function getChords(board: Board, cells: BoardCellView[]): BoardChordView[] {
+function getChords(board: Board, cells: BoardGroundCell[]): BoardChordView[] {
   const half = CHORD_DRAWN_THICKNESS / 2
   return cells.flatMap((c) => {
     const terrain = board.terrain[c.key]
@@ -709,7 +823,7 @@ export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER, BrushIco
 // Each cell's top: drawn thinner than its hex where it is painted so and stands
 // over the lowest ground beside it on the board, which is drawn around its
 // foot; else across its whole hex, its edge as high as its top.
-function getThinTops(cells: BoardCellView[]): BoardCellView[] {
+function getThinTops(cells: BoardGroundCell[]): BoardGroundCell[] {
   const groundAt = new Map(cells.map((c) => [c.key, c.elevation]))
   return cells.map((c) => {
     const top = c.elevation + c.wall
@@ -721,11 +835,10 @@ function getThinTops(cells: BoardCellView[]): BoardCellView[] {
 
 // The ground around the foot of every cell drawn thinner than its hex: the
 // cell's own ground at the height beside it, with nothing on it.
-function getRims(cells: BoardCellView[]): BoardCellView[] {
+function getRims(cells: BoardGroundCell[]): BoardGroundCell[] {
   return cells.filter((c) => c.width < 1).map((c) => ({
-    ...c, key: `${c.key}:rim`, wall: 0, width: 1, hex: null, elevation: c.around, elevationLabel: '', terrain: 'open', strength: null,
-    fire: 0, fuels: [], suffocating: false, noise: 0, climbDL: null, test: null, occupants: [], reachable: null, pathStep: null, swept: false,
-    isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, items: [], chosen: false, storey: null,
+    ...c, key: `${c.key}${RIM}`, wall: 0, width: 1, hex: null, elevation: c.around, elevationLabel: '', terrain: 'open', strength: null,
+    noise: 0, climbDL: null, test: null, storey: null,
   }))
 }
 
@@ -755,7 +868,7 @@ function getFaceLayers(board: Board, key: string): FaceLayer[] {
 // stands in the cell at each height on `stacked` (the board as it is, when the
 // cells are drawn from a flattened copy of it), each layer its own band, the
 // pictures listed once in `faces`. A drop where nothing paints is no ridge.
-export function getRidges(board: Board, cells: BoardCellView[], stacked: Board): { ridges: BoardRidgeView[]; faces: SurfaceArt[] } {
+export function getRidges(board: Board, cells: BoardGroundCell[], stacked: Board): { ridges: BoardRidgeView[]; faces: SurfaceArt[] } {
   const faces: SurfaceArt[] = []
   const faceIndex = (face: SurfaceArt | null): number | null => {
     if (!face) return null
@@ -796,14 +909,14 @@ export function getRidges(board: Board, cells: BoardCellView[], stacked: Board):
 // A picture standing on the cell at its anchor, cut where the floors (in
 // metres above its foot) begin inside the picture's height; none for a picture
 // with no file or no cell to stand on.
-export function getStandingOf(key: string, art: StructureArt | null, anchor: Pick<BoardCellView, 'x' | 'y'> | undefined, base: number, top: number, floors: number[]): BoardStandingView[] {
+export function getStandingOf(key: string, art: StructureArt | null, anchor: Pick<BoardGroundCell, 'x' | 'y'> | undefined, base: number, top: number, floors: number[]): BoardStandingView[] {
   if (!art || !art.src || !anchor) return []
   const cuts = [...new Set(floors)].filter((h) => h > 0 && h < art.height).sort((a, b) => a - b)
   return [{ key, art, x: anchor.x, y: anchor.y, base, top: Math.max(base, top), cuts }]
 }
 
 // Every piece that has a picture, at its anchor.
-function getStanding(board: Board, cells: BoardCellView[]): BoardStandingView[] {
+function getStanding(board: Board, cells: BoardGroundCell[]): BoardStandingView[] {
   return Object.entries(board.pieces).flatMap(([id, piece]) => getStandingOf(
     id, piece.art, cells.find((c) => c.key === coordKey(piece.cell)), piece.elevation,
     Math.max(0, ...Object.values(board.terrain).filter((cell) => cell.piece === id).map((cell) => cell.elevation)),
@@ -815,5 +928,6 @@ function elevationLabel(elevation: number): string {
   return elevation > 0 ? `+${elevation}` : elevation < 0 ? `${elevation}` : ''
 }
 
-export const getBoardViewDigest = perState((state: SeenScene) => JSON.stringify(getBoardView(state)))
-export const getBoardViewFromDigest = perState((state: SeenScene) => JSON.stringify(getBoardViewFrom(state)))
+// The ground is said again in the view's own fields, so the digest leaves it out.
+export const getBoardViewDigest = perState((state: SeenScene) => JSON.stringify({ ...getBoardView(state), ground: undefined }))
+export const getBoardViewFromDigest = perState((state: SeenScene) => JSON.stringify({ ...getBoardViewFrom(state), ground: undefined }))
