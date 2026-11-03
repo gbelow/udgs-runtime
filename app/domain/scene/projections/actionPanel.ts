@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import type { Action, ActionDraft, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, MoveAction, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
+import type { Action, ActionDraft, LootSource, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, MoveAction, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
@@ -43,7 +43,8 @@ import { getDragSides, getPushMovements, type PushMovementOption } from '../rule
 import { findGrapple, getGrapples } from '../rules/partners'
 import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
-import { canPickUp, getReachableFloor } from '../rules/floor'
+import { canPickUp } from '../rules/floor'
+import { getLootLabel, getOpenables, getReachableLoot } from '../rules/loot'
 import { canThrowItem, getThrowables } from '../rules/throw'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { isSweepVariant } from '../../character/rules/gear'
@@ -294,7 +295,11 @@ export type OpenActionView = {
   ammoId: string
   // a pick up: what lies within reach, and what was picked; a throw: what
   // can be thrown, from a hand or the floor
-  floor: { itemId: string; name: string; available: boolean }[]
+  // `from` is where a picked up item lies (null for a throw's), `whose` the
+  // body or container it is in, empty when it lies loose
+  floor: { itemId: string; name: string; available: boolean; from: LootSource | null; whose: string }[]
+  // an open: the containers within reach, and whether each is the one chosen
+  openables: { key: string; name: string; selected: boolean }[]
   // gear.tex "Potions and Medicine": the potions in hand a drink can take
   potions: { itemId: string; name: string }[]
   // once rolled or compared: what it does to the grapple
@@ -514,9 +519,12 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' || open.kind === 'reload' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
-        ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
+        ? getReachableLoot(state, actor.id).map((l) => ({ itemId: l.item.id, name: l.item.name, available: canPickUp(actor, l.item), from: l.from, whose: getLootLabel(state, l.from) }))
         : open.kind === 'throw' && open.step === 'define' && actor
-        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i, isCombatStarted(state)) }))
+        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i, isCombatStarted(state)), from: null, whose: '' }))
+        : [],
+      openables: open.kind === 'open' && open.step === 'define' && actor
+        ? getOpenables(state, actor.id).filter((o) => !o.opened).map((o) => ({ key: o.key, name: o.name, selected: o.key === open.key }))
         : [],
       potions: open.kind === 'drink' && open.step === 'define' && actor ? getTakeableHeld(actor).takeable.map((i) => ({ itemId: i.id, name: i.name })) : [],
       push: drag ? getPushView(state, drag) : null,

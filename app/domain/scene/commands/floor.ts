@@ -3,7 +3,7 @@ import type { Updater } from '../types'
 import { dropItem, throwOffShield } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { getSeveredItem } from '../../character/rules/body'
-import type { Coord, SceneState } from '../types'
+import type { Coord, LootSource, SceneState } from '../types'
 import { coordKey, inExtent } from '../rules/board/geometry'
 import type { Character, Item } from '../../types'
 import { findFloorItem, onFloor } from '../rules/floor'
@@ -11,6 +11,7 @@ import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
 import { getGearBar } from '../rules/turn'
+import { getBodyDraft } from '../rules/board/boardMode'
 import { getFightName } from '../rules/fighters'
 
 // What a character lets go of lands where they stand, and a holder who let
@@ -64,13 +65,23 @@ export function removeFloorItem(itemId: string): Updater {
   return (state) => (getOpenAction(state) || !findFloorItem(state, itemId) ? state : { ...state, floor: state.floor.filter((f) => f.item.id !== itemId) })
 }
 
-// An item on the floor chosen for picking up: declares the pick up with it,
-// or, while the character's pick up is still being declared, changes it.
-export function pickFloorItem(characterId: string, itemId: string, newId: () => string): Updater {
+// An item chosen for picking up, lying on the floor or in what is looted:
+// declares the pick up with it, or, while the character's pick up is still
+// being declared, changes it.
+export function pickFloorItem(characterId: string, itemId: string, newId: () => string, from: LootSource = { kind: 'floor' }): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (open?.kind === 'pickUp' && open.actorId === characterId) return amendAction({ itemId })(state)
-    return declareAction(characterId, { kind: 'pickUp', itemId }, newId)(state)
+    if (open?.kind === 'pickUp' && open.actorId === characterId) return amendAction({ itemId, from })(state)
+    return declareAction(characterId, { kind: 'pickUp', itemId, from }, newId)(state)
+  }
+}
+
+// A body or a container clicked on the board: declares what the click would
+// do with it (`getBodyDraft`), nothing when the picker could do nothing.
+export function declareLoot(characterId: string, bodyId: string, newId: () => string): Updater {
+  return (state) => {
+    const draft = getBodyDraft(state, characterId, bodyId)
+    return draft ? declareAction(characterId, draft, newId)(state) : state
   }
 }
 

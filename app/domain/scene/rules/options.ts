@@ -22,7 +22,8 @@ import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getFeintBar } from './feint'
 import { getExtinguishCells } from './extinguish'
 import { getPlantableShields } from './plant'
-import { canPickUp, getReachableFloor } from './floor'
+import { canPickUp } from './floor'
+import { getOpenables, getReachableLoot } from './loot'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getOpportunityBar, getOpportunityCheck, getOwnCost, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withoutReserve, withRefund } from './action'
 import { getAnswerDrafts } from './modifiers'
@@ -471,11 +472,21 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   // floor".
   pickUp: (state, c) => {
     const cost = getActionCost(c, 'standardAction')
-    const reachable = getReachableFloor(state, c.id).filter((f) => canPickUp(c, f.item))
-    const reason = state.floor.length === 0 ? 'nothing on the floor'
-      : reachable.length === 0 ? (getReachableFloor(state, c.id).length > 0 ? 'no free hand' : 'nothing within reach')
+    const loot = getReachableLoot(state, c.id)
+    const reason = state.floor.length === 0 && state.bodies.length === 0 ? 'nothing on the floor'
+      : !loot.some((l) => canPickUp(c, l.item)) ? (loot.length > 0 ? 'no free hand' : 'nothing within reach')
       : canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
     return [option({ kind: 'pickUp' }, cost, reason)]
+  },
+  // combat.tex "Standard Action": "open doors ... and perform other kinds of
+  // object interactions" — a container lying within reach, or one a body wears
+  open: (state, c) => {
+    const cost = getActionCost(c, 'standardAction')
+    const openable = getOpenables(state, c.id)
+    const reason = openable.length === 0 ? 'nothing to open within reach'
+      : openable.every((o) => o.opened) ? 'everything within reach is open'
+      : canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
+    return [option({ kind: 'open' }, cost, reason)]
   },
   // combat.tex "Throw", "Standard Action": something held or on the floor
   // in reach, at its throwing row's price or a standard action's

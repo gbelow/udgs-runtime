@@ -437,6 +437,7 @@ export function getDLTerms(state: SceneState, root: RootAction): Term[] {
     case 'release':
     case 'holdBack':
     case 'pickUp':
+    case 'open':
     case 'throw':
     case 'extinguish':
     case 'plant':
@@ -559,6 +560,7 @@ function getOwnRootTestTerms(state: SceneState, root: RootAction): RootTestTerms
     case 'release':
     case 'holdBack':
     case 'pickUp':
+    case 'open':
     case 'throw':
     case 'extinguish':
     case 'plant':

@@ -5,7 +5,9 @@ import { findOpenJump, findOption } from '../options'
 import { getAim } from '../aim'
 import { isAimable } from '../explosion'
 import { getEvasiveJumpPlacements } from '../move'
-import { canPickUp, getReachableFloor } from '../floor'
+import { canPickUp } from '../floor'
+import { getOpenables, getReachableLoot } from '../loot'
+import type { ActionDraft } from '../../types'
 import { isSteadyShot } from '../steadyArms'
 
 // What a click on the board means depends on what the open action is waiting
@@ -44,6 +46,18 @@ export function getFloorPicker(state: SceneState, selected: string | null): { pi
     : null
   const character = picker ? state.characters[picker] : undefined
   if (!picker || !character) return null
-  const itemIds = getReachableFloor(state, picker).filter((f) => canPickUp(character, f.item)).map((f) => f.item.id)
+  const itemIds = getReachableLoot(state, picker).filter((l) => l.from.kind === 'floor' && canPickUp(character, l.item)).map((l) => l.item.id)
   return itemIds.length > 0 ? { picker, itemIds } : null
+}
+
+// What a click on a body would declare for the character, with nothing open:
+// taking what it holds in its hands or on its back, else opening a container
+// it wears. Null when neither is open to them.
+export function getBodyDraft(state: SceneState, actorId: string, bodyId: string): ActionDraft | null {
+  const actor = state.characters[actorId]
+  if (!actor || getDiceBar(state.calls) || getOpenAction(state)) return null
+  const looseToTake = getReachableLoot(state, actorId).some((l) => (l.from.kind === 'body' || l.from.kind === 'pack') && l.from.body === bodyId && canPickUp(actor, l.item))
+  if (looseToTake && findOption(state, actorId, { kind: 'pickUp' })?.available) return { kind: 'pickUp' }
+  const toOpen = getOpenables(state, actorId).some((o) => !o.opened && o.key.startsWith(`${bodyId}:`))
+  return toOpen && findOption(state, actorId, { kind: 'open' })?.available ? { kind: 'open' } : null
 }

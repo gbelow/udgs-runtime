@@ -7,7 +7,7 @@ import { getBoardMode, getFloorPicker } from '../rules/board/boardMode'
 import { getOpenAction } from '../rules/log'
 import { setTarget } from './action'
 import { paintTerrain, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
-import { pickFloorItem } from './floor'
+import { declareLoot, pickFloorItem } from './floor'
 
 // What the board is clicked on. A cell is clicked as the screen looked at
 // the board: from a storey's height, from the ground (null), or with nothing
@@ -45,6 +45,7 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
     case 'cell': return readCell(state, click.cell, ctx, click.height)
     case 'token': return getDeclaredTargets(state, open).includes(click.id) ? { actor, apply: setTarget(click.id) } : { select: click.id }
     case 'floor': {
+      if (state.bodies.some((b) => b.character.id === click.itemId)) return ctx.selected ? { actor: { id: ctx.selected }, apply: declareLoot(ctx.selected, click.itemId, ctx.newId) } : NOTHING
       if (getDeclaredFloorTargets(state, open).some((f) => f.item.id === click.itemId)) return { actor, apply: setTarget(click.itemId) }
       const picker = getFloorPicker(state, ctx.selected)
       return picker?.itemIds.includes(click.itemId) ? { actor: { id: picker.picker }, apply: pickFloorItem(picker.picker, click.itemId, ctx.newId) } : NOTHING

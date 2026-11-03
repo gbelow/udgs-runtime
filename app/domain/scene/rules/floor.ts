@@ -14,9 +14,16 @@ export function onFloor(item: Item, cell: Coord | null, planted: FloorItem['plan
 // to them — anything, on a fight without a board, where the floor is one
 // pile.
 export function getReachableFloor(state: SceneState, id: string): FloorItem[] {
+  return state.floor.filter((f) => isInReach(state, id, f.cell))
+}
+
+// Whether something lying at the cell is on the character's own cells or next
+// to them; anything is, on a fight without a board, and so is whatever has no
+// cell.
+export function isInReach(state: SceneState, id: string, cell: Coord | null): boolean {
   const footprint = getPlacedFootprint(state, id)
-  if (!state.board || !footprint) return state.floor
-  return state.floor.filter((f) => f.cell === null || footprint.some((cell) => distance(cell, f.cell!) <= 1))
+  if (!state.board || !footprint || cell === null) return true
+  return footprint.some((c) => distance(c, cell) <= 1)
 }
 
 // Who a floor item is, wherever it lies; null for anything not on the floor.

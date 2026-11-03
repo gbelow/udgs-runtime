@@ -36,7 +36,8 @@ import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { isExtinguishCell } from './extinguish'
 import { isPlantDeclared } from './plant'
-import { canPickUp, getReachableFloor } from './floor'
+import { canPickUp } from './floor'
+import { findLoot, findOpenable } from './loot'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
@@ -163,9 +164,13 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
       return action.targetId !== null
     // combat.tex "Standard Action": something within reach, into a free hand
     case 'pickUp': {
-      const found = getReachableFloor(state, c.id).find((f) => f.item.id === action.itemId)
+      const found = findLoot(state, c.id, action.from, action.itemId)
       return !!found && canPickUp(c, found.item)
     }
+    // combat.tex "Standard Action": "open doors ... and perform other kinds of
+    // object interactions" — a container within reach, not yet open
+    case 'open':
+      return findOpenable(state, c.id, action.key) !== null
     // combat.tex "Throw", "Standard Action": something it can throw, to a
     // cell the throw reaches
     case 'throw': {
@@ -375,6 +380,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'feint':
     case 'holdBack':
     case 'pickUp':
+    case 'open':
     case 'extinguish':
     case 'plant':
     case 'drink':
@@ -703,6 +709,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'cut':
     case 'holdBack':
     case 'pickUp':
+    case 'open':
     case 'throw':
     case 'extinguish':
     case 'plant':
@@ -855,6 +862,7 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
     case 'blast':
     case 'move':
     case 'pickUp':
+    case 'open':
     case 'throw':
     case 'extinguish':
     case 'plant':

@@ -26,6 +26,7 @@ import { getFeinted } from '../rules/feint'
 import { getNextStress, owesStressTurn } from '../rules/stress'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
+import { layToRest } from './characters'
 import { getResults } from './results'
 import { compelByTest } from './stress'
 import { landSocial } from './social'
@@ -61,8 +62,9 @@ export function advance(state: SceneState, newId: () => string, caller: Caller):
   if (caller.waiting()) return state
   const top = getOpenAction(state)
   if (!top) {
-    const finishing = releaseNextHeld(state)
-    return finishing !== state ? finishing : handOverToFleers(handOverToCompelled(state))
+    const rested = layToRest(state)
+    const finishing = releaseNextHeld(rested)
+    return finishing !== rested ? finishing : handOverToFleers(handOverToCompelled(rested))
   }
   if (isForgone(state, top)) return advance(withdrawActions(state, [top.id], 'forgone'), newId, caller)
   if (top.step !== 'post') return state

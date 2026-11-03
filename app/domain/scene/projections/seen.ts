@@ -80,6 +80,8 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   board: (board, c) => (board ? { ...board, placements: unseen(board.placements, c) } : board),
   binds: unseen,
   floor: keep,
+  bodies: keep,
+  opened: keep,
 }
 
 // The fight as the viewer sees it: all of it for the GM, who sees everything

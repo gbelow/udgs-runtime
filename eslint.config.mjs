@@ -183,7 +183,7 @@ const eslintConfig = [
         patterns: [
           {
             group: ["../rules/chase"],
-            allowImportNames: ["getRoundSeconds", "getRoutingTerms", "getSplitChase", "isRunningInChase"],
+            allowImportNames: ["getChaseWithoutDead", "getRoundSeconds", "getRoutingTerms", "getSplitChase", "isRunningInChase"],
             allowTypeImports: true,
             message: "The scene's shared commands reach the chase only through the crossing points listed in eslint.config.mjs (6). Add a new one there, and have it answer nothing when there is no chase.",
           },

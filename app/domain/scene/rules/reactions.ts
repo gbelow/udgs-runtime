@@ -1,6 +1,6 @@
 import { isCombatStarted } from './started'
 import type { Character } from '../../types'
-import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
+import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, OpenAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getBody, getFlankers, isGuardingCells, isGuardingShot, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
 import { getBlastOf, getThreatenedIds } from './explosion'
@@ -122,7 +122,8 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     case 'explosion': return explosionTriggers(state, root)
     case 'move': return withoutAnswered(state, root, moveTriggers(state, root))
     case 'cast': return castTriggers(state, root)
-    case 'pickUp': return pickUpTriggers(state, root)
+    case 'pickUp':
+    case 'open': return pickUpTriggers(state, root)
     // combat.tex "Opportunity Attack": a standard action, as drinking is
     // (gear.tex "Potions and Medicine")
     case 'drink': return opportunityTriggers(state, root.actorId)
@@ -350,7 +351,7 @@ function castTriggers(state: SceneState, root: CastAction): Trigger[] {
 // combat.tex "Opportunity Attack": "Triggering actions include ... standard
 // actions" — picking up is one (combat.tex "Standard Action"), whatever its
 // AP cost comes to with Prestidigitation.
-function pickUpTriggers(state: SceneState, root: PickUpAction): Trigger[] {
+function pickUpTriggers(state: SceneState, root: PickUpAction | OpenAction): Trigger[] {
   return opportunityTriggers(state, root.actorId)
 }
 

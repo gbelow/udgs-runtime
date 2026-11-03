@@ -744,7 +744,9 @@ function startTurnOf(h: Harness, pick: Picker, only: readonly string[] | null = 
   if (pick([true, false])) passRoundChange(h, pick)
   const { characters, binds } = h.state()
   const bound = binds.flatMap((b) => b.members).filter((id) => characters[id])
-  h.select(characters[pick(only ?? (bound.length && pick([true, true, false]) ? bound : Object.keys(characters)))].name)
+  const alive = (only ?? (bound.length && pick([true, true, false]) ? bound : Object.keys(characters))).filter((id) => characters[id])
+  if (alive.length === 0) return
+  h.select(characters[pick(alive)].name)
   h.startTurn()
   if (pick([true, true, false])) h.send({ kind: 'surge', args: [h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])] })
 }

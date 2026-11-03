@@ -120,10 +120,18 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>floor</SectionLabel>
           {open.floor.map((f) =>
-            <Button key={f.itemId} size='xs' selected={f.itemId === open.item}
-              disabled={!f.available} title={f.available ? undefined : 'no free hand'} onClick={() => amend({ itemId: f.itemId })}>
-              {f.name}
+            <Button key={`${f.whose}:${f.itemId}`} size='xs' selected={f.itemId === open.item}
+              disabled={!f.available} title={f.available ? (f.whose || undefined) : 'no free hand'} onClick={() => amend(f.from ? { itemId: f.itemId, from: f.from } : { itemId: f.itemId })}>
+              {f.name}{f.whose ? <span className='text-muted'> · {f.whose}</span> : null}
             </Button>)}
+        </div>
+      ) : null}
+
+      {open.openables.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>open</SectionLabel>
+          {open.openables.map((o) =>
+            <Button key={o.key} size='xs' selected={o.selected} onClick={() => amend({ key: o.key })}>{o.name}</Button>)}
         </div>
       ) : null}
 

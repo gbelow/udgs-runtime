@@ -40,9 +40,12 @@ export function playScene(sceneId: string, board: unknown | null, opponents: Rec
   }
 }
 
-// What a fight that ended left on its floor, left where it was met.
+// What a fight that ended left on its floor, left where it was met, and the
+// dead who lie there with it.
 export function leaveBehind(fight: SceneState, campaign: CampaignState): CampaignState {
   const key = fight.foundAt
-  if (!key || fight.floor.length === 0) return campaign
-  return { ...campaign, left: { ...campaign.left, [key]: [...(campaign.left[key] ?? []), ...fight.floor.map((f) => f.item)] } }
+  const items = key && fight.floor.length > 0 ? { left: { ...campaign.left, [key]: [...(campaign.left[key] ?? []), ...fight.floor.map((f) => f.item)] } } : {}
+  const dead = fight.bodies.map((b) => b.character)
+  const bodies = dead.length > 0 ? { fallen: { ...campaign.fallen, [key ?? '']: [...(campaign.fallen[key ?? ''] ?? []), ...dead] } } : {}
+  return { ...campaign, ...items, ...bodies }
 }

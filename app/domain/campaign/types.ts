@@ -333,6 +333,9 @@ export const CampaignStateSchema = z.object({
   // what a scene left lying where it was played, by place key, for whoever
   // stands there to take
   left: z.record(z.string(), z.array(ItemSchema)).default({}),
+  // the dead a fight left lying where it was met (by place key, the empty
+  // key for a fight met nowhere), whole, so that they may be revived
+  fallen: z.record(z.string(), z.array(CampaignCharacterSchema)).default({}),
 })
 
 export type CampaignState = z.infer<typeof CampaignStateSchema>

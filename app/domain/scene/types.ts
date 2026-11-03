@@ -708,6 +708,26 @@ export const FloorItemSchema = z.object({
 }).strip()
 export type FloorItem = z.infer<typeof FloorItemSchema>
 
+// Whoever died in the fight, lying where they fell: out of their party and
+// off the turns, with the whole sheet kept so they may be revived. `cell` is
+// null on a fight without a board.
+export const BodySchema = z.object({
+  character: CampaignCharacterSchema,
+  cell: CoordSchema.nullable().default(null),
+}).strip()
+export type Body = z.infer<typeof BodySchema>
+
+// Where a loose item or a container lies, for the one who loots it: on the
+// floor, in a container lying on the floor, on a body (its hands and back),
+// or in a container a body wears.
+export const LootSourceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('floor') }).strip(),
+  z.object({ kind: z.literal('chest'), chest: str }).strip(),
+  z.object({ kind: z.literal('body'), body: str }).strip(),
+  z.object({ kind: z.literal('pack'), body: str, container: str }).strip(),
+])
+export type LootSource = z.infer<typeof LootSourceSchema>
+
 // The attacker's side of a strike or a shot, final: what the attack
 // delivers to its target, written when the attack resolves, once the HOP are
 // spent, with the degree the test came to. The target's reducer reads only
@@ -1347,8 +1367,18 @@ export const PickUpActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('pickUp'),
   itemId: str.default(''),
+  // where it lies: on the floor, or in what is looted
+  from: LootSourceSchema.default({ kind: 'floor' }),
   // what was picked up, written at the resolve
   picked: ItemSchema.nullable().default(null),
+}).strip()
+
+// Opening a container to rummage through: one lying within reach, or one a
+// body wears. `key` names it as `SceneState.opened` does.
+export const OpenActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('open'),
+  key: str.default(''),
 }).strip()
 
 // combat.tex "Throw", "Standard Action": an item thrown to a cell on the
@@ -1521,6 +1551,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   CutActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
+  OpenActionSchema,
   ThrowActionSchema,
   DrinkActionSchema,
   FirstAidActionSchema,
@@ -1566,6 +1597,7 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // shot too.
 export type OpportunityAction = StrikeAction | GrappleAction | ShootAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
+export type OpenAction = z.infer<typeof OpenActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
 export type PlantAction = z.infer<typeof PlantActionSchema>
@@ -1982,6 +2014,11 @@ export const SceneStateSchema = z.object({
   // Every bind of the fight: grapples (combat.tex "Grapple"), one per pair
   binds: z.array(BindSchema).default([]),
   floor: z.array(FloorItemSchema).default([]),
+  // the dead, lying where they fell, out of every party and every turn
+  bodies: z.array(BodySchema).default([]),
+  // the containers that have been opened to rummage through: a container
+  // lying on the floor by its item's id, one a body wears by `body:container`
+  opened: z.array(str).default([]),
   // where the prepared scene being played was met, by place key: what is
   // left on the floor when the fight ends is left there
   foundAt: z.string().nullable().default(null),

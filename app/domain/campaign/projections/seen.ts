@@ -24,6 +24,7 @@ const CENSORS: { [K in keyof CampaignState]: CampaignCensor<CampaignState[K]> } 
   lent: unseen,
   scenes: (scenes, k) => only(scenes, (id) => k.parties.has(scenes[id].party)),
   left: keep,
+  fallen: keep,
 }
 
 // The campaign as the viewer sees it, given what they are told of it

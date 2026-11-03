@@ -1,15 +1,17 @@
 import { isCombatStarted } from '../rules/started'
 import type { CampaignCharacter, Delivery } from '../../types'
 import { deliver } from '../../character/commands/deliver'
-import type { Updater } from '../types'
+import type { SceneState, Updater } from '../types'
 import { getOpenAction } from '../rules/log'
 import { getHeldActions } from '../rules/hold'
 import { withdrawActions } from './log'
 import { getGearBar } from '../rules/turn'
 import { settleBinds } from './bind'
-import { dropEmptyFightParties } from './parties'
+import { dropEmptyFightParties, joinFight } from './parties'
 import { getChanges } from '../rules/changes'
 import { without } from '../../utils'
+import { getChaseWithoutDead } from '../rules/chase'
+import { getDeathIL, isDead } from '../../character/rules/afflictions'
 
 // Takes a character out of the fight: their place on the board and in their
 // party goes with them, and so does every grapple they were in and the cover
@@ -27,6 +29,35 @@ export function removeFromCombat(id: string): Updater {
   }
 }
 
+// The dead are taken out of the fight where they fell: out of their party, off
+// the turns and the board, lying as a body that keeps the whole sheet, so that
+// it may be revived (`reviveBody`) or looted. Done as soon as nothing is being
+// played out, since nothing leaves the fight mid-action (`removeFromCombat`).
+export function layToRest(state: SceneState): SceneState {
+  const dead = Object.values(state.characters).filter(isDead)
+  if (getOpenAction(state) || dead.length === 0) return state
+  // a party with nobody left alive is out of the chase before it is gone from the fight
+  const chased = state.chase ? { ...state, chase: getChaseWithoutDead(state, state.chase) } : state
+  return dead.reduce((s, c) => {
+    const cell = s.board?.placements[c.id]?.cell ?? null
+    return removeFromCombat(c.id)({ ...s, bodies: [...s.bodies, { character: c, cell }] })
+  }, chased)
+}
+
+// A body is brought back to life and into the fight, in the party named
+// (made if the fight has none by that id), unplaced on the board: one below
+// death, as the healing spells leave whoever they revive. Refused while an
+// action is open.
+export function reviveBody(id: string, partyId: string): Updater {
+  return (state) => {
+    const body = state.bodies.find((b) => b.character.id === id)
+    if (!body || !partyId || getOpenAction(state)) return state
+    const c = body.character
+    const revived = { ...c, injuries: { ...c.injuries, injuryLevel: getDeathIL(c) - 1 } }
+    return joinFight(revived, partyId, '', [])({ ...state, bodies: state.bodies.filter((b) => b.character.id !== id) })
+  }
+}
+
 // Changes one character outside any action — an edit made on the sheet
 // mid-fight — and brings the grapples back into line with it: a holder whose
 // hands no longer hold a grapple row lets go. The updater is told whether
@@ -37,7 +68,8 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter, char
     if (!c) return state
     const after = settleBinds({ ...state, characters: { ...state.characters, [id]: updater(c, isCombatStarted(state)) } })
     const changes = getChanges(state, after, 'edit')
-    return changes.length === 0 ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.landed.length, changes }] }
+    const noted = changes.length === 0 ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.landed.length, changes }] }
+    return layToRest(noted)
   }
 }
 

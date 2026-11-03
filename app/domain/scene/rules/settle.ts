@@ -3,7 +3,8 @@ import { getReloaded } from './reload'
 import { getCauterizeFacts, getFirstAidFacts } from './medicine'
 import { getConsume } from '../../item/rules/consumables'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
-import { getThrownItem, getReachableFloor, takeOne } from './floor'
+import { getThrownItem, takeOne } from './floor'
+import { findLoot } from './loot'
 import { getThrownUnit } from './throw'
 import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
 import { getDragFacts, getUnpushed } from './drag'
@@ -74,9 +75,10 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
     case 'extinguish': return { ...open, step: 'done' }
     case 'plant': return { ...open, step: 'done' }
     case 'pickUp': {
-      const lying = getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item
+      const lying = findLoot(state, open.actorId, open.from, open.itemId)?.item
       return { ...open, step: 'done', picked: lying ? takeOne(lying, open.id) : null }
     }
+    case 'open': return { ...open, step: 'done' }
     case 'throw': return { ...open, step: 'done', thrown: getThrownUnit(state, open) }
     case 'drink': return { ...open, step: 'done', drunk: state.characters[open.actorId]?.held.find((i) => i.id === open.itemId && getConsume(i) !== null) ?? null }
     case 'firstAid': return { ...open, step: 'done', facts: getFirstAidFacts(open) }
