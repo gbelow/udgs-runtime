@@ -1903,8 +1903,8 @@ export const SceneStateSchema = z.object({
   // performed")
   performed: z.array(str).default([]),
   // Who took the round's first turn, and its number (abilities.json
-  // "Strategist": "the first to take their turn in a round"); null before
-  // anyone has
+  // "Strategist": "the first to take their turn in a round"), a limit stress
+  // action not counting as a turn; null before anyone has
   firstTurn: z.object({ turn: num, id: str }).strip().nullable().default(null),
   // combat.tex "Follow": whom each character marked to follow, by id, lapsing
   // at the round's end

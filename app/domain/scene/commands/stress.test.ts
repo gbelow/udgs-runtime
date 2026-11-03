@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { oweStress } from './stress'
+import { beginTurn } from './sequence'
 import { endTurn, surge } from './turn'
 import { SceneStateSchema, type SceneState, type MoraleRoll } from '../types'
 import { makeCampaignCharacter } from '../../factories'
@@ -49,6 +50,17 @@ describe('limit stress turns', () => {
     expect(surged.characters.b.usedSurge).toBe('combat')
     expect(getEndTurnBar(surged)).toBeNull()
     expect(endTurn(surged).inTurnCharacter).toBe('a')
+  })
+
+  // A compelled turn took the round's first turn, so Strategist (abilities.tex)
+  // never reached whoever really went first.
+  it('leave the round’s first turn to the first one taken after them', () => {
+    const owing = oweStress(tested([fighter('b', { limitStress: 'violent' })], [5]))
+    const state = { ...owing, characters: { ...owing.characters, c: fighter('c') } }
+    expect(state.firstTurn).toBeNull()
+
+    const after = beginTurn(endTurn(surge('b', 'combat')(state)), 'c')
+    expect(after.firstTurn?.id).toBe('c')
   })
 
   it('make an enraged martyr violent', () => {

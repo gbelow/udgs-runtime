@@ -69,6 +69,11 @@ export function getStressTurn(state: SceneState): Compulsion | null {
   return state.fleeing ? null : state.compulsions.find((t) => !t.taken && t.id === holder) ?? null
 }
 
+// Whether the character owes a limit stress action still to be taken.
+export function owesStressTurn(state: SceneState, id: string): boolean {
+  return state.compulsions.some((t) => !t.taken && t.id === id)
+}
+
 // The surge the holder's turn compels, if it does.
 export function getCompelledSurge(state: SceneState, id: string): SurgeKind | null {
   const turn = getStressTurn(state)

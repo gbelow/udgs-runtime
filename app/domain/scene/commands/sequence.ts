@@ -23,7 +23,7 @@ import { canMakeFeintSurge } from '../../character/rules/surge'
 import { getHeldRoll } from '../rules/heldRoll'
 import { isHeldCalled } from '../rules/heldTest'
 import { getFeinted } from '../rules/feint'
-import { getNextStress } from '../rules/stress'
+import { getNextStress, owesStressTurn } from '../rules/stress'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
 import { getResults } from './results'
@@ -188,10 +188,11 @@ function handOverToCompelled(state: SceneState): SceneState {
 
 // The character's turn begins: nobody has asked to contest it yet, and it
 // is numbered `turn`: a fresh one unless it is one resumed. The round's first
-// is noted as theirs.
+// is noted as theirs, unless it is a limit stress action they owe (the table's
+// ruling: a compelled turn is not the first to take a turn in the round).
 export function beginTurn(state: SceneState, id: string, { fleeing = false, turn = null }: { fleeing?: boolean; turn?: number | null } = {}): SceneState {
   const begun = turn === null ? state.turnsBegun + 1 : state.turnsBegun
-  const firstTurn = state.firstTurn ?? { turn: turn ?? begun, id }
+  const firstTurn = state.firstTurn ?? (!fleeing && owesStressTurn(state, id) ? null : { turn: turn ?? begun, id })
   return noteHiddenFrom({ ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null, firstTurn }, id)
 }
 
