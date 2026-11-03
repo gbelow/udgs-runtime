@@ -6,7 +6,7 @@ import { getCellSenser } from '../rules/detection'
 import { getCellLighting } from '../rules/board/light'
 import { getFloorArt } from '../rules/board/surface'
 import { perParts } from '../../perState'
-import { getBoardGround, getFloorChords, getGroundMarks, getRidges, getRimMarks, rimOwner, type BoardCellView, type BoardGround, type BoardGroundCell, type BoardOverheadView, type BoardView } from './boardView'
+import { RIM, getBoardGround, getFloorChords, getGroundMarks, getRidges, getRimMarks, rimOwner, type BoardCellView, type BoardGround, type BoardGroundCell, type BoardOverheadView, type BoardView } from './boardView'
 
 // The board looked at from a height: each cell drawn as the floor someone
 // whose feet are there stands on (`getTerrainAt`), the cells where they would
@@ -106,7 +106,7 @@ type Look = { floors: Footing[]; stand: Footing; roof: Footing | undefined; wall
 // The board drawn at a height with these roofs: its ground, the copy of the
 // board flattened to the floors drawn (null where every cell is drawn at its
 // own ground), and what each cell is looked at as.
-type Storey = { ground: BoardGround; flat: Board | null; looks: Map<string, Look> }
+type Storey = { ground: BoardGround; flat: Board | null; looks: Map<string, Look>; based: Set<string> }
 
 const storeyOf = perParts<Storey>()
 
@@ -187,10 +187,29 @@ function buildStorey(board: Board, ground: BoardGround, height: number | null, r
     const held = !!at && floors.some((f) => holdsOnlyWalls(f) && f.level === Number(at[1]))
     return held || (w.elevation < drawn.floor && w.elevation + w.height <= drawn.floor)
   }) : []
+  // the ground under a cell drawn as a floor above it is still there, around
+  // the foot of what stands on it: a rim at the height of the ground, as the
+  // ground of the board is drawn
+  const arts = [...drawnGround.arts]
+  const artOf = (at: number | null): number | null => {
+    const art = at === null ? undefined : ground.arts[at]
+    if (!art) return null
+    const same = arts.findIndex((a) => a.src === art.src && a.tile === art.tile && a.offsetX === art.offsetX && a.offsetY === art.offsetY && a.bleed === art.bleed && a.roughness === art.roughness && a.bank === art.bank && a.priority === art.priority)
+    if (same >= 0) return same
+    arts.push(art)
+    return arts.length - 1
+  }
+  const owned = new Set(drawnGround.rims.map((r) => r.key))
+  const rims = flat ? ground.cells.flatMap((c) => {
+    const key = `${c.key}${RIM}`
+    if (looks.get(c.key)!.drawn.level === null || owned.has(key)) return []
+    return [{ ...c, key, wall: 0, width: 1, around: c.elevation, hex: null, base: null, elevationLabel: '', terrain: 'open' as const, strength: null, noise: 0, climbDL: null, test: null, storey: null, art: artOf(c.art) }]
+  }) : []
   return {
-    ground: { ...ground, cells, overhead, arts: drawnGround.arts, ridges: cliffs.ridges, chords: [...drawnGround.chords, ...lower].sort((a, b) => a.elevation - b.elevation), corners: drawnGround.corners, rims: drawnGround.rims, faces: cliffs.faces, bands: drawnGround.bands },
+    ground: { ...ground, cells, overhead, arts, ridges: cliffs.ridges, chords: [...drawnGround.chords, ...lower].sort((a, b) => a.elevation - b.elevation), corners: drawnGround.corners, rims: [...drawnGround.rims, ...rims], faces: cliffs.faces, bands: drawnGround.bands },
     flat,
     looks,
+    based: new Set(rims.map((r) => r.key)),
   }
 }
 
@@ -208,7 +227,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
   const outside = !!feet && getRoofs(board, feet.cell, feet.elevation).length === 0
   const standings = getStandings(board, view.ground, height)
   const roofs = new Set(senses ? [...standings].flatMap(([key, s]) => (s.over.length > 0 && (outside || !senses(s.cell, s.stand.floor)) ? [key] : [])) : [])
-  const { ground, flat, looks } = getStorey(board, view.ground, height, roofs)
+  const { ground, flat, looks, based } = getStorey(board, view.ground, height, roofs)
 
   // what play leaves on the ground is read off the floor drawn
   const flatState = flat ? { ...state, board: { ...board, terrain: flat.terrain, pieces: flat.pieces, levels: flat.levels } } : null
@@ -224,7 +243,8 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
   const rims: BoardCellView[] = flatState && left
     ? ground.rims.map((r) => {
       const owner = drawnCells.get(rimOwner(r.key))!
-      return { ...r, ...getRimMarks({ visibility: left(owner.key, owner.cell).visibility, ...getCellLighting(flatState, owner.cell), unseen: false }) }
+      const lighting = based.has(r.key) ? getCellLighting(state, owner.cell, r.elevation) : getCellLighting(flatState, owner.cell)
+      return { ...r, ...getRimMarks({ visibility: left(owner.key, owner.cell).visibility, ...lighting, unseen: false }) }
     })
     : view.rims
   const tokens = view.tokens.map((t) => {

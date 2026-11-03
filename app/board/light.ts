@@ -165,6 +165,7 @@ void main() {
 export type ShadeMap = { texture: RenderTexture; plane: Point; scale: number; destroy: () => void }
 
 const AMBIENT_DARK: Record<BoardCellView['ambient'], number> = { bright: 0, dim: NIGHT_DIM, dark: NIGHT_DARK }
+const darkOf = (c: BoardCellView): number => (c.unseen ? UNSEEN : AMBIENT_DARK[c.ambient])
 
 // Where a cell lies in the plane, whatever it is drawn lifted to.
 export function planeOf(c: Pick<BoardCellView, 'cell'>): Point {
@@ -276,6 +277,11 @@ export function drawShadeOver(map: ShadeMap, cells: BoardCellView[], hex: Point[
     if (c) for (const b of r.bands) if (b.face) g.poly(b.face.flatMap((p) => [p.x, p.y])).fill(shaded(c))
   }
   for (const k of walls.corners) {
+    const beside = k.beside.flatMap((key) => walls.cellOf(key) ?? [])
+    if (beside.length > 0) {
+      g.poly(k.points.flatMap((p) => [p.x, p.y])).fill({ color: 0x000000, alpha: Math.min(...beside.map(darkOf)) })
+      continue
+    }
     const matrix = new Matrix(1 / map.scale, 0, 0, 1 / map.scale, map.plane.x + k.x - k.base.x, map.plane.y + k.y - k.base.y)
     g.poly(k.points.flatMap((p) => [p.x, p.y])).fill({ texture: map.texture, matrix, textureSpace: 'global' })
   }

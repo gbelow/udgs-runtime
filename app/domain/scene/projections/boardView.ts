@@ -323,8 +323,8 @@ export type BoardChordView = {
 // the higher priority at the height of the shorter, and black at the board's
 // edge where neither is; its cell's own top stops at the wall. `x`, `y` are its
 // cell's centre where it is drawn, `base` where it lies in the plane, and
-// `points` its corners.
-export type BoardCornerView = { key: string; cell: string; corner: number; x: number; y: number; base: Point; points: Point[]; elevation: number; art: number | null; edge: boolean; band: number; group: string }
+// `points` its corners, and `beside` the cells it is drawn as, which light it.
+export type BoardCornerView = { key: string; cell: string; beside: string[]; corner: number; x: number; y: number; base: Point; points: Point[]; elevation: number; art: number | null; edge: boolean; band: number; group: string }
 
 // A see-through floor (a lattice) over the floor a cell is drawn as, drawn
 // over it at its own height.
@@ -632,7 +632,7 @@ export function getRimMarks(of: Pick<BoardCellMarks, 'visibility' | 'light' | 'l
   }
 }
 
-const RIM = ':rim'
+export const RIM = ':rim'
 
 // The key of the cell a rim is the foot of.
 export const rimOwner = (key: string): string => key.slice(0, -RIM.length)
@@ -906,6 +906,7 @@ function getCorners(board: Board, cells: BoardGroundCell[]): BoardCornerView[] {
     return {
       key: `${c.key}:cut${corner}`,
       cell: c.key,
+      beside: near.map((n) => n.key),
       corner,
       x: c.x,
       y: c.y,
