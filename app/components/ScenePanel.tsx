@@ -91,14 +91,15 @@ function FightSettings(){
   )
 }
 
-// What the scene is played on: the round change while it runs; while a fight
-// lives in the chase, the chase saved and frozen above the board the fight is
-// played on; the chase's chain while it runs; the board otherwise; and whom
-// the scene follows once a chase is over.
+// What the scene is played on: the round change above the board while it runs
+// (a limit stress action is played out on it); while a fight lives in the
+// chase, the chase saved and frozen above the board the fight is played on;
+// the chase's chain while it runs; the board otherwise; and whom the scene
+// follows once a chase is over.
 export function SceneSpace(){
   const chase = useChase()
   const { view } = useRoundChange()
-  if (view) return <RoundChangePanel />
+  if (view) return <><RoundChangePanel />{chase.boardInPlay ? <BoardPanel /> : null}</>
   return(
     <>
       <FollowPanel />
