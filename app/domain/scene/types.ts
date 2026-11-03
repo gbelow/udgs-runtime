@@ -1226,7 +1226,8 @@ export const FleeFollowUpActionSchema = z.object({ ...ActionBase, kind: z.litera
 // immobilization — and `item` what a disarm goes for. `unresisted` is the escape "Being stunned allows for", "without the
 // possibility of active resistance". `opportunity` is one made as an
 // opportunity attack. One `gentle` is made under abilities.tex "Gentle Art",
-// as is a resist with it (rules/modifiers.ts).
+// as is a resist with it; `winded` is an escape made without the STA
+// (rules/modifiers.ts).
 export const GrappleActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('grapple'),
@@ -1235,7 +1236,7 @@ export const GrappleActionSchema = z.object({
   item: str.default(''),
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
-  modifiers: z.object({ gentle: z.boolean().default(false) }).prefault({}),
+  modifiers: z.object({ gentle: z.boolean().default(false), winded: z.boolean().default(false) }).prefault({}),
   // abilities.tex "Grappling Combat": the special effect an attack's 5 HOP
   // bought, and the part it breaks
   effect: z.enum(GRAPPLING_EFFECTS).nullable().default(null),

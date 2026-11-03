@@ -444,6 +444,7 @@ export type SpellModification = keyof typeof SPELL_MODIFICATIONS
 // "grapple" is "any action within a grapple": everything, for one in one.
 export const SURGE_ALLOWANCES = {
   movement: 'movement',
+  escape: 'escaping a grapple',
   reactions: 'reactions',
   attacks: 'melee attacks',
   defenses: 'defenses',
@@ -469,7 +470,7 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // STA".
 export const RECOVERY_SURGE_SHORT = 1
 export const SURGES = {
-  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'reactions'], restriction: 'Only in your own turn, or as a flee. A push or a drag is not movement here. Running costs no STA for the rest of the turn.' },
+  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'escape', 'reactions'], restriction: 'Only in your own turn, or as a flee. A push or a drag is not movement here, escaping a grapple is. Running costs no STA for the rest of the turn.' },
   combat:   { STA: 2, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
   reaction: { STA: 2, AP: () => 4, earmarked: false, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
   focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },

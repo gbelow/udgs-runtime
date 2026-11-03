@@ -112,6 +112,17 @@ const GENTLE: Modifier = {
   terms: () => [{ label: 'gentle art', value: -2 }],
 }
 
+// combat.tex "Grapple Maneuvers" (the table's ruling): an escape may be made
+// without the STA at -5; one who has learned Gentle Art takes that trade at -2
+// instead (GENTLE), so the two never go together.
+const WINDED: Modifier = {
+  label: 'no stamina',
+  offer: 'toggle',
+  allowed: ({ actor, action }) => action.kind === 'grapple' && action.maneuver === 'escape' && !hasGrant(actor, 'gentleArt'),
+  price: () => ({ add: { AP: 0, STA: -1 } }),
+  terms: () => [{ label: 'no stamina', value: -5 }],
+}
+
 const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modifier<ContextOf<K>>> } = {
   strike: STRIKE_MODIFIERS,
   counterattack: STRIKE_MODIFIERS,
@@ -123,7 +134,7 @@ const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modif
     ...when(STRIKE_MODIFIERS, ({ action }) => action.kind === 'opportunityAttack' && action.mode === 'strike'),
     gentle: GENTLE,
   },
-  grapple: { gentle: GENTLE },
+  grapple: { gentle: GENTLE, winded: WINDED },
   resist: { gentle: GENTLE },
   // abilities.tex "Precise Evasion": "Learns to use evade with 1 AP, but
   // takes -3 to defend in doing so"; a trample's evade is not tested

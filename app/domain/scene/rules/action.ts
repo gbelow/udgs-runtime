@@ -429,7 +429,7 @@ export function canPayOpened(state: SceneState, action: Action): boolean {
   const c = state.characters[action.actorId]
   if (!c) return false
   if (canPayAsDeclarable(state, action)) return true
-  return getSurgeProbes(state, c).some((p) => getSurgeBarFor(p.state, p.state.characters[c.id], action.kind) === null && canPayAsDeclarable(p.state, action))
+  return getSurgeProbes(state, c).some((p) => getSurgeBarFor(p.state, p.state.characters[c.id], action.kind, action.kind === 'grapple' ? action.maneuver : undefined) === null && canPayAsDeclarable(p.state, action))
 }
 
 // A strike with no row picked yet, with any row that reaches its target;

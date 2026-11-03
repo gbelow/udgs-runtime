@@ -120,7 +120,7 @@ export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id
 // "Grapple Maneuvers": "can be used like opportunity attacks").
 export function getOpportunityAction(state: SceneState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
-  if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver, modifiers: { gentle: reaction.modifiers.gentle } })
+  if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver, modifiers: { gentle: reaction.modifiers.gentle, winded: false } })
   return getOpportunityStrike(reaction, id)
 }
 
