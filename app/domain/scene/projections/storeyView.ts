@@ -198,7 +198,7 @@ export function getStoreyView(state: SeenScene, view: BoardView, height: number 
   const { ground, flat, looks } = getStorey(board, view.ground, height, roofs)
 
   // what play leaves on the ground is read off the floor drawn
-  const flatState = flat ? { ...state, board: flat } : null
+  const flatState = flat ? { ...state, board: { ...board, terrain: flat.terrain, pieces: flat.pieces, levels: flat.levels } } : null
   const left = flatState ? getGroundMarks(flatState) : null
   const drawnCells = new Map(ground.cells.map((c) => [c.key, c]))
   const cells = view.cells.map((c): BoardCellView => {

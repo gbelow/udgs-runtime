@@ -3,7 +3,10 @@ import { BoardSchema, PlacementSchema, SceneStateSchema, type Coord, type SeenSc
 import { FALL } from '../../tables'
 import { makeCampaignCharacter } from '../../factories'
 import { getHeight } from '../../character/rules/size'
-import { coordKey } from '../rules/board/geometry'
+import { coordKey, directionTo } from '../rules/board/geometry'
+import { makeAction } from '../factories'
+import { produceEffects } from '../../character/rules/production'
+import { SPELLS } from '../../spells'
 import { getBoardViewFrom } from './boardView'
 import { getStoreyView, getViewEye, getViewHeight } from './storeyView'
 
@@ -65,5 +68,19 @@ describe('the board looked at from where the active character stands', () => {
       expect(seen?.terrain === 'wall' || seen?.storey === 'roof').toBe(true)
       expect(seen?.unseen).toBe(false)
     }
+  })
+})
+
+describe('what play leaves on a storey', () => {
+  // Broke as: a flamethrower fired again upstairs after its caster was moved
+  // showed its cone from where they stood when the storey was first drawn,
+  // and fired from where they stood.
+  it('lays the cone of a spray from where its caster stands now', () => {
+    const blast = makeAction('blast', { id: 'b', actorId: 'a', direction: directionTo(cell(1), cell(0)), effects: produceEffects(someone, SPELLS.flamethrower.effects) })
+    const before: SeenScene = { ...standing({ cell: cell(-1), elevation: FLOOR }), actions: { b: blast }, stack: ['b'] }
+    lookedAt(before)
+    const moved = { ...before, board: { ...before.board!, placements: { a: { ...before.board!.placements.a, cell: cell(1) } } } }
+    const view = lookedAt(moved)
+    expect(view.cells.find((c) => c.key === coordKey(cell(0)))?.zone).toBeTruthy()
   })
 })
