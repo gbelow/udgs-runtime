@@ -370,38 +370,75 @@ export function drawLit(kit: Kit, view: BoardView, key: string | null): Graphics
 
 export const TOKEN_RADIUS = 0.62
 
+// Where a token's picture sits: the middle of the spaces it fills, as wide as
+// the share of the board they cover (one space keeps `TOKEN_RADIUS`).
+export function tokenBody(t: BoardTokenView): { x: number; y: number; radius: number; scale: number } {
+  const n = Math.max(t.cells.length, 1)
+  const x = t.cells.length ? t.cells.reduce((sum, c) => sum + c.x, 0) / n : t.x
+  const y = t.cells.length ? t.cells.reduce((sum, c) => sum + c.y, 0) / n : t.y
+  const scale = Math.sqrt(n)
+  return { x, y, radius: TOKEN_RADIUS * scale, scale }
+}
+
+// The edge of the spaces a token fills as a whole: the sides of its hexes that
+// no other hex of the same token shares.
+function tokenOutline(t: BoardTokenView, hex: Point[]): [Point, Point][] {
+  const at = (p: Point) => `${Math.round(p.x * 1000)},${Math.round(p.y * 1000)}`
+  const sides = new Map<string, { edge: [Point, Point]; count: number }>()
+  for (const c of t.cells) {
+    hex.forEach((a, i) => {
+      const [p, q] = [{ x: a.x + c.x, y: a.y + c.y }, { x: hex[(i + 1) % hex.length].x + c.x, y: hex[(i + 1) % hex.length].y + c.y }]
+      const key = [at(p), at(q)].sort().join('|')
+      const seen = sides.get(key)
+      if (seen) seen.count++
+      else sides.set(key, { edge: [p, q], count: 1 })
+    })
+  }
+  return [...sides.values()].filter((s) => s.count === 1).map((s) => s.edge)
+}
+
 export function drawToken(kit: Kit, t: BoardTokenView, hex: Point[], picked: boolean): Container {
   const out = new Container()
   out.alpha = t.elsewhere ? 0.35 : t.hidden ? 0.6 : 1
+  const ring: Token = picked ? 'accent' : t.targetable ? 'bad' : t.isActive ? 'accent' : t.isInTurn ? 'good' : 'muted'
+  const width = picked || t.isActive || t.targetable ? 0.12 : 0.06
+  const many = t.cells.length > 1
   const under = new Graphics()
-  for (const c of t.cells) under.poly(flat(hex, c.x, c.y)).fill(colorOf(kit, { color: 'fg', alpha: 0.15 }))
+  for (const c of t.cells) under.poly(flat(hex, c.x, c.y)).fill(colorOf(kit, { color: many ? ring : 'fg', alpha: many ? 0.2 : 0.15 }))
+  if (many) {
+    for (const [p, q] of tokenOutline(t, hex)) {
+      if (t.targetable || t.hidden) dashed(under, [p, q], false, [0.2, 0.12])
+      else under.moveTo(p.x, p.y).lineTo(q.x, q.y)
+    }
+    under.stroke({ width, cap: 'round', ...colorOf(kit, { color: ring }) })
+    under.circle(t.x, t.y, 0.1).fill(colorOf(kit, { color: ring }))
+  }
   if (t.shadow) under.ellipse(t.shadow.x, t.shadow.y + 0.5, 0.55, 0.2).fill(colorOf(kit, { color: 'fg', alpha: 0.3 }))
   out.addChild(under)
 
+  const { x, y, radius, scale } = tokenBody(t)
   const body = new Container()
-  body.position.set(t.x, t.y)
+  body.position.set(x, y)
   out.addChild(body)
-  const ring: Token = picked ? 'accent' : t.targetable ? 'bad' : t.isActive ? 'accent' : t.isInTurn ? 'good' : 'muted'
-  const width = picked || t.isActive || t.targetable ? 0.12 : 0.06
   const g = new Graphics()
-  g.circle(0, 0, TOKEN_RADIUS).fill(colorOf(kit, { color: 'raised' }))
+  g.circle(0, 0, radius).fill(colorOf(kit, { color: 'raised' }))
   const picture = t.image ? kit.texture(t.image) : null
-  if (picture) g.circle(0, 0, TOKEN_RADIUS).fill({ texture: picture, textureSpace: 'local' })
-  if (t.targetable || t.hidden) { dashed(g, circlePoints(TOKEN_RADIUS), true, [0.2, 0.12]); g.stroke({ width, ...colorOf(kit, { color: ring }) }) }
-  else g.circle(0, 0, TOKEN_RADIUS).stroke({ width, ...colorOf(kit, { color: ring }) })
+  if (picture) g.circle(0, 0, radius).fill({ texture: picture, textureSpace: 'local' })
+  if (t.targetable || t.hidden) { dashed(g, circlePoints(radius), true, [0.2, 0.12]); g.stroke({ width, ...colorOf(kit, { color: ring }) }) }
+  else g.circle(0, 0, radius).stroke({ width, ...colorOf(kit, { color: ring }) })
   if (t.shieldAngle !== null) {
-    const shield = new Graphics().roundRect(0.72, -0.45, 0.16, 0.9, 0.05).fill(colorOf(kit, { color: 'accent' }))
+    const shield = new Graphics().roundRect(0.72 * scale, -0.45 * scale, 0.16, 0.9 * scale, 0.05).fill(colorOf(kit, { color: 'accent' }))
     shield.rotation = (t.shieldAngle * Math.PI) / 180
     body.addChild(g, shield)
   } else body.addChild(g)
-  if (!picture) body.addChild(label(t.name.slice(0, 2), 0.45, kit.palette.fg, { x: 0, y: 0 }))
-  body.addChild(label(t.name, 0.32, kit.palette.fg, { x: 0, y: 0.95 }, { x: 0.5, y: 0.75 }, { fontWeight: '600', stroke: { color: kit.palette.bg, width: 0.16 * TEXT_SIZE / 0.32, join: 'round' } }))
+  if (!picture) body.addChild(label(t.name.slice(0, 2), 0.45 * scale, kit.palette.fg, { x: 0, y: 0 }))
+  body.addChild(label(t.name, 0.32, kit.palette.fg, { x: 0, y: radius + 0.33 }, { x: 0.5, y: 0.75 }, { fontWeight: '600', stroke: { color: kit.palette.bg, width: 0.16 * TEXT_SIZE / 0.32, join: 'round' } }))
   if (t.hanging) {
-    const chevron = new Graphics().moveTo(0.7, -0.4).lineTo(0.95, 0).lineTo(0.7, 0.4).stroke({ width: 0.1, cap: 'round', join: 'round', ...colorOf(kit, { color: 'good' }) })
+    const chevron = new Graphics().moveTo(0.7 * scale, -0.4).lineTo(0.95 * scale, 0).lineTo(0.7 * scale, 0.4).stroke({ width: 0.1, cap: 'round', join: 'round', ...colorOf(kit, { color: 'good' }) })
     chevron.rotation = (t.hanging.angle * Math.PI) / 180
-    body.addChild(chevron, label(`⇡${t.hanging.covered}/${t.hanging.height}`, 0.32, kit.palette.good, { x: 0.75, y: -0.8 }, { x: 0.5, y: 0.8 }))
+    body.addChild(chevron, label(`⇡${t.hanging.covered}/${t.hanging.height}`, 0.32, kit.palette.good, { x: 0.75 * scale, y: -0.8 * scale }, { x: 0.5, y: 0.8 }))
   }
-  if (t.depth > 0) body.addChild(label(`↓${t.depth}`, 0.35, kit.palette.accent, { x: 0, y: -0.8 }, { x: 0.5, y: 0.8 }))
+  if (t.depth > 0) body.addChild(label(`↓${t.depth}`, 0.35, kit.palette.accent, { x: 0, y: -radius - 0.18 }, { x: 0.5, y: 0.8 }))
   return out
 }
 
@@ -411,7 +448,8 @@ export function drawAwaited(kit: Kit, tokens: BoardTokenView[]): Graphics {
   const g = new Graphics()
   for (const t of tokens) {
     if (!t.awaited) continue
-    dashed(g, circlePoints(0.82, t.x, t.y), true, [0.25, 0.15])
+    const { x, y, radius } = tokenBody(t)
+    dashed(g, circlePoints(radius + 0.2, x, y), true, [0.25, 0.15])
     g.stroke({ width: 0.08, ...colorOf(kit, { color: 'accent' }) })
   }
   return g
