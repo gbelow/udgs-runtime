@@ -53,10 +53,10 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
   const drawn = new Map(cells.map((c) => [c.key, c]))
   return {
     ...view,
-    ground: { ...view.ground, cells, standing, ...(cliffs ?? {}), chords: [...view.ground.chords, ...lower] },
+    ground: { ...view.ground, cells, standing, ...(cliffs ?? {}), chords: [...view.ground.chords, ...lower].sort((a, b) => a.elevation - b.elevation) },
     standing,
     ...(cliffs ?? {}),
-    chords: [...view.chords, ...lower],
+    chords: [...view.chords, ...lower].sort((a, b) => a.elevation - b.elevation),
     cells: view.cells.map((c) => {
       const ground = drawn.get(c.key)!
       const floor = storey?.terrain[c.key]

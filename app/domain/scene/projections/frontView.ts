@@ -83,7 +83,11 @@ function buildFront(ground: BoardGround, lift: number): Front {
     ...ground.cells.filter((c) => standing(c) > 0).map((c) => rowOf(c.y)),
     ...ground.chords.filter((w) => w.elevation + w.height > 0).map((w) => rowOf(w.y)),
   ])].sort((a, b) => a - b)
-  const bandAt = (y: number) => rows.filter((row) => row <= rowOf(y)).length
+  // each row is two bands: the walls that stand under the floor drawn in a
+  // cell come first, so that the floor covers them, then the cells with the rest
+  const rowAt = (y: number) => rows.filter((row) => row <= rowOf(y)).length
+  const bandAt = (y: number) => rowAt(y) * 2
+  const beneathAt = (y: number) => rowAt(y) * 2 - 1
   const elevationOf = new Map(ground.cells.map((c) => [c.key, c.elevation]))
   const topOf = new Map(ground.cells.map((c) => [c.key, standing(c)]))
   const bandOf = new Map(ground.cells.map((c) => [c.key, standing(c) > 0 ? bandAt(c.y) : 0]))
@@ -119,7 +123,8 @@ function buildFront(ground: BoardGround, lift: number): Front {
     const top = at(w.elevation + w.height)
     const [a, b] = w.ends.map(lift(w.elevation + w.height))
     const foot = lift(w.elevation)({ x: (w.ends[0].x + w.ends[1].x) / 2, y: (w.ends[0].y + w.ends[1].y) / 2 })
-    return { ...w, band: w.elevation + w.height > 0 ? bandAt(w.y) : 0, group: groupOf.get(w.cell) ?? '', top, side: hull([...top, ...at(w.elevation)]), grain: rise(w.height) > 0 ? getFaceGrain(a, b, foot) : null }
+    const beneath = w.elevation + w.height <= (elevationOf.get(w.cell) ?? 0)
+    return { ...w, band: w.elevation + w.height > 0 ? (beneath ? beneathAt(w.y) : bandAt(w.y)) : 0, group: groupOf.get(w.cell) ?? '', top, side: hull([...top, ...at(w.elevation)]), grain: rise(w.height) > 0 ? getFaceGrain(a, b, foot) : null }
   })
 
   // a corner a thin wall cuts off stands at its own height
@@ -169,7 +174,7 @@ function buildFront(ground: BoardGround, lift: number): Front {
   const framed = [...cells, ...chords.flatMap((w) => w.top), ...sprites.flatMap((s) => [{ x: s.box.x, y: s.box.y }, { x: s.box.x + s.box.width, y: s.box.y + s.box.height }])]
 
   return {
-    ground: { ...ground, front: true, bands: rows.length + 1, cells, rims, ridges, chords, corners, overhead, sprites, frame: hexBounds(framed) },
+    ground: { ...ground, front: true, bands: rows.length * 2 + 1, cells, rims, ridges, chords, corners, overhead, sprites, frame: hexBounds(framed) },
     elevationOf,
     bandOf,
     covers,

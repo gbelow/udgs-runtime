@@ -188,7 +188,7 @@ function buildStorey(board: Board, ground: BoardGround, height: number | null, r
     return held || (w.elevation < drawn.floor && w.elevation + w.height <= drawn.floor)
   }) : []
   return {
-    ground: { ...ground, cells, overhead, arts: drawnGround.arts, ridges: cliffs.ridges, chords: [...drawnGround.chords, ...lower], corners: drawnGround.corners, rims: drawnGround.rims, faces: cliffs.faces, bands: drawnGround.bands },
+    ground: { ...ground, cells, overhead, arts: drawnGround.arts, ridges: cliffs.ridges, chords: [...drawnGround.chords, ...lower].sort((a, b) => a.elevation - b.elevation), corners: drawnGround.corners, rims: drawnGround.rims, faces: cliffs.faces, bands: drawnGround.bands },
     flat,
     looks,
   }
