@@ -197,6 +197,25 @@ export function toPlane(c: Coord): { x: number; y: number } {
   return { x: 1.5 * c.q, y: Math.sqrt(3) * (c.r + c.q / 2) }
 }
 
+// The cell whose hex holds a point of the plane (`toPlane` turned back).
+export function fromPlane(p: Point): Coord {
+  const q = p.x / 1.5
+  return roundCube(q, p.y / Math.sqrt(3) - q / 2)
+}
+
+export type Point = { x: number; y: number }
+
+// The corners of a hex about its centre, `scale` times a unit hex.
+export function getHexCorners(scale: number): Point[] {
+  return Array.from({ length: 6 }, (_, i) => {
+    const angle = (Math.PI / 180) * 60 * i
+    return { x: scale * Math.cos(angle), y: scale * Math.sin(angle) }
+  })
+}
+
+// The corners of a unit hex about its centre.
+export const HEX_CORNERS = getHexCorners(1)
+
 // The corners of a hex about its centre, `scale` times a unit hex, as SVG
 // polygon points.
 export function getHexPoints(scale: number): string {
@@ -256,15 +275,17 @@ export function turnCorner(corner: number, steps: number): number {
   return (((corner - steps) % 6) + 6) % 6
 }
 
-// The grain of a picture drawn over a wall, as the first four numbers of an SVG
-// matrix: the picture's across runs along the ridge from `a` to `b`, and its
-// down runs from the ridge to the foot, so that courses lie along the top of
-// the wall and fall away from it whichever way the wall faces.
-export function getFaceGrain(a: { x: number; y: number }, b: { x: number; y: number }, foot: { x: number; y: number }): string {
+// The grain of a picture drawn over a wall: the picture's across runs along
+// the ridge from `a` to `b`, and its down runs from the ridge to the foot, so
+// that courses lie along the top of the wall and fall away from it whichever
+// way the wall faces. Each a unit vector in the plane.
+export type Grain = { across: Point; down: Point }
+
+export function getFaceGrain(a: Point, b: Point, foot: Point): Grain {
   const across = Math.hypot(b.x - a.x, b.y - a.y)
   const [mx, my] = [(a.x + b.x) / 2, (a.y + b.y) / 2]
   const down = Math.hypot(foot.x - mx, foot.y - my)
-  return [(b.x - a.x) / across, (b.y - a.y) / across, (foot.x - mx) / down, (foot.y - my) / down].map((n) => n.toFixed(4)).join(' ')
+  return { across: { x: (b.x - a.x) / across, y: (b.y - a.y) / across }, down: { x: (foot.x - mx) / down, y: (foot.y - my) / down } }
 }
 
 // The SVG viewBox that frames hexes centred on the points, with a margin.

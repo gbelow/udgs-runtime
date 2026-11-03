@@ -2,14 +2,15 @@
 import { useState } from 'react'
 import { RotateCcw, RotateCw, Save } from 'lucide-react'
 import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, Segment, Segmented, TextInput, selectClass } from '../ui'
-import { BrushFace, BandLayers, BaseLayer, BrushSize, GroundGenerator, SurfaceRow, VeilFilter, ZoomButtons, cellAt } from '../BoardPanel'
-import { useZoomPan } from '../../hooks/useZoomPan'
+import { BrushFace, BrushSize, GroundGenerator, SurfaceRow, ZoomButtons } from '../BoardPanel'
+import { BoardCanvas } from '../BoardCanvas'
+import { useBoardCamera, useCellAt } from '../../hooks/useBoardCanvas'
 import { useBoardLook, type BoardLook } from '../../hooks/useBoardLook'
-import { useBoardVeil } from '../../hooks/useBoardVeil'
+import { useBoardVeil, useLitCell } from '../../hooks/useBoardVeil'
 import { useBoardMapEditor, useStructureEditor } from '../../hooks/useBoardMaps'
 import { GROUND_BRUSHES, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, PIECE_TURNS, STOREY_BRUSHES } from '../../domain/lists'
 import type { TerrainBrush } from '../../domain/types'
-import type { SurfaceTarget } from '../../domain/scene/types'
+import type { Coord, SurfaceTarget } from '../../domain/scene/types'
 
 type Editor = ReturnType<typeof useBoardMapEditor>
 
@@ -49,16 +50,16 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
   const [tool, setTool] = useState<Tool>('paint')
   const [held, setHeld] = useState<string | null>(null)
   const [turns, setTurns] = useState(0)
-  const zoomPan = useZoomPan(view.viewBox)
+  const camera = useBoardCamera()
+  const cellAt = useCellAt()
   const veil = useBoardVeil(view)
+  const { setLit } = useLitCell(view, veil.setOver)
   const opened = rows.find((r) => r.id === openId)
   const mine = opened ? !opened.shared || devServer : true
   const brushes = storey.level === null ? GROUND_BRUSHES : STOREY_BRUSHES
   const reset = () => { setStoreyAt(0); choose?.(null); setTool('paint') }
 
-  const click = (e: React.MouseEvent) => {
-    const cell = cellAt(e)
-    if (!cell) return
+  const click = (cell: Coord) => {
     if (tool === 'place' && held) editor.placePiece(held, cell, turns)
     else if (tool === 'pick' && choose) { choose(editor.pieceAt(cell)); setTool('paint') }
     else if (tool === 'move' && piece) { editor.movePiece(piece, cell); setTool('paint') }
@@ -124,15 +125,11 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
           <span className='grow' />
           <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
           {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
-          <ZoomButtons zoomPan={zoomPan} />
+          <ZoomButtons camera={camera} />
         </div>
         <SurfaceRow surfaces={view.surfaces} laying={tool === 'paint' ? laying : null} frozen={frozen} freeze={setFrozen} onto={onto} setOnto={setOnto} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setTool('paint') }} />
         {storey.level === null && !piece ? <GroundGenerator surfaces={view.surfaces} generate={generateGround} /> : null}
-        <svg {...zoomPan.svg} className='w-full max-h-[60vh] select-none touch-none' role='img' aria-label={label} onClick={click}>
-          <defs><VeilFilter /></defs>
-          {Array.from({ length: view.bands }, (_, band) => <BandLayers key={band} view={view} band={band} veiled={veil.veiled} />)}
-          <BaseLayer view={view} setOver={veil.setOver} />
-        </svg>
+        <BoardCanvas className='w-full h-[60vh] shrink-0' label={label} view={view} veiled={veil.veiled} camera={camera} cellAt={cellAt} setLit={setLit} onCell={click} />
       </div>
     </div>
   )

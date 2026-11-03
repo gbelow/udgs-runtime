@@ -1,13 +1,14 @@
 'use client'
-import { Fragment, memo, useState, type MouseEvent } from 'react'
+import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useBoardVeil, useLitCell } from '../hooks/useBoardVeil'
+import { useBoardCamera, useCellAt, type BoardCamera } from '../hooks/useBoardCanvas'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
-import { useZoomPan } from '../hooks/useZoomPan'
-import type { BoardExtent, Coord, GroundRecipe, SurfaceTarget } from '../domain/scene/types'
-import type { BoardView, BoardGround, BrushIcon, BoardCellView, BoardChordView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
+import type { BoardExtent, GroundRecipe, SurfaceTarget } from '../domain/scene/types'
+import type { BoardView, BrushIcon } from '../domain/scene/projections/boardView'
+import { BoardCanvas } from './BoardCanvas'
 import type { TerrainBrush } from '../domain/types'
 import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES, SURFACE_TARGETS } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
@@ -70,11 +71,13 @@ export function BrushFace({ brush, icons }: { brush: TerrainBrush, icons: Partia
   if (!icon) return <>{BRUSH_LABEL[brush]}</>
   return (
     <svg viewBox='-1.15 -1.15 2.3 2.3' className='h-4 w-4' role='img' aria-label={BRUSH_LABEL[brush]}>
-      <polygon points={icon.hex} className='fill-none stroke-muted' strokeWidth={0.12} />
-      <polyline points={icon.chord} className='stroke-fg' strokeWidth={0.3} strokeLinecap='round' />
+      <polygon points={toSvgPoints(icon.hex)} className='fill-none stroke-muted' strokeWidth={0.12} />
+      <polyline points={toSvgPoints(icon.chord)} className='stroke-fg' strokeWidth={0.3} strokeLinecap='round' />
     </svg>
   )
 }
+
+const toSvgPoints = (points: { x: number; y: number }[]) => points.map((p) => `${p.x},${p.y}`).join(' ')
 
 // The simulated grid: a hex field the GM paints, lights and repositions
 // characters on, each placed by hand the first time, and the surface a move
@@ -86,6 +89,8 @@ export function BoardPanel(){
   const [storey, setStorey] = useState<number | null | 'auto'>('auto')
   const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning, brushIcons } = useBoard(fromActive, look, storey)
   const veil = useBoardVeil(view)
+  const { setLit } = useLitCell(view, veil.setOver)
+  const cellAt = useCellAt()
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [laying, setLaying] = useState<string | null>(null)
   const [frozen, setFrozen] = useState<string | null>(null)
@@ -96,7 +101,7 @@ export function BoardPanel(){
   const { gmTools } = useRole()
   const gmBar = useGmBar()
   const open = tools && gmTools
-  const zoomPan = useZoomPan(view.viewBox)
+  const camera = useBoardCamera()
 
   if (!view.present) {
     return (
@@ -121,7 +126,7 @@ export function BoardPanel(){
     <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : grounding ? `click a cell to lay ${item.name || item.refId} on it` : exploding ? 'click a cell to set the explosion off there' : charging ? 'click an item on the floor to charge it with the explosion described' : settingOff ? 'click an item on the floor to set its charge off' : clearing ? 'click an item on the floor to take it away' : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
-        <ZoomButtons zoomPan={zoomPan} />
+        <ZoomButtons camera={camera} />
         <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
         {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
         {storeys.length > 1 ?
@@ -174,464 +179,11 @@ export function BoardPanel(){
         </div>
       ) : null}
 
-      <svg {...zoomPan.svg} className='w-full flex-1 min-h-0 select-none touch-none' role='img' aria-label='board'
-        onClick={(e) => { const cell = cellAt(e); if (!cell) return; if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}>
-        <defs>
-          <VeilFilter />
-          <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
-            <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
-          </marker>
-        </defs>
-        {Array.from({ length: view.bands }, (_, band) => <BandLayers key={band} view={view} band={band} veiled={veil.veiled} />)}
-        <BaseLayer view={view} setOver={veil.setOver} />
-        <OverheadLayer view={view.ground} />
-        {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} picked={picked.includes(t.id)} onClick={() => clickToken(t.id)} />)}
-        {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
-        {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
-        {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clearing ? removeFloorItem(f.itemId) : charging ? chargeByGM(f.itemId) : settingOff ? setOffItem(f.itemId) : clickFloorItem(f.itemId)} />)}
-      </svg>
+      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit}
+        onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
+        onToken={clickToken}
+        onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />
     </Panel>
-  )
-}
-
-// The ground of a board, drawn under its cells. Each picture is one small
-// texture repeated over the board in the units the tokens are placed in, so
-// that it runs on from hex to hex and is decoded once, and it is shown through
-// a mask of the hexes laid with it, grown outwards and roughened with noise:
-// where two pictures meet, the one drawn later pushes a ragged edge into the
-// other's hexes instead of cutting along the hex edge. How far a surface
-// spreads, how ragged its edge is (none leaves it soft but straight), how much
-// of a neighbour's spreading it lets in, which is drawn over which and the
-// width of the bank along its edge are the surface's own. A picture reaches a
-// hex that lets in only part of it as far as that part of its spreading, and
-// where a hex lets in none, nothing reaches it and no bank falls on it. A bank
-// is a wet band on the ground just outside the edge, tinted over whatever lies
-// there and edged with a pale line, drawn right after its picture so that a
-// surface drawn over it covers it.
-const ROUGHNESS = 0.8
-const ROUGH_FREQUENCY = 0.3
-const FEATHER = 0.1
-const ROUGH_SEED = 7
-const ROUGH_MARGIN = 2
-const SEAM = 0.03
-const RECEIVING_GROW = 1.03
-const BANK_TINT = 0.3
-const BANK_SOFT = 0.3
-const LIP = 0.3
-const LIP_OPACITY = 0.5
-
-// The drop of every cliff: a strip over the lower ground, each band of it drawn
-// with the picture of the face that paints it (shaded plain where it has none,
-// tinted where it is glass) and darkening towards the foot, and a dark line
-// along the ridge, which the view places on the higher cell's side.
-const FACE_SHADE = 0.45
-
-export function RidgeLayer({ view: whole, band, tag = '' }: { view: BoardGround, band?: number, tag?: string }){
-  const idPrefix = band === undefined ? '' : `b${band}-${tag}`
-  const view = band === undefined ? whole : { ...whole, ridges: whole.ridges.filter((r) => r.band === band) }
-  const looks = new Map<string, { art: number, grain: string }>()
-  view.ridges.forEach((r) => r.bands.forEach((b) => { if (b.art !== null && b.face !== null) looks.set(`${b.art}|${r.grain}`, { art: b.art, grain: r.grain }) }))
-  const looksIn = [...looks.keys()]
-  return (
-    <g className='pointer-events-none'>
-      <defs>
-        {[...looks.values()].map(({ art, grain }, i) => {
-          const face = view.faces[art]
-          return (
-            <pattern key={i} id={`${idPrefix}face-${i}`} patternUnits='userSpaceOnUse' width={face.tile} height={face.tile} patternTransform={`matrix(${grain} 0 0) translate(${face.offsetX} ${face.offsetY})`}>
-              <image href={face.src} width={face.tile} height={face.tile} />
-            </pattern>
-          )
-        })}
-        {view.ridges.map((r) => (
-          <linearGradient key={r.key} id={`${idPrefix}face-shade-${r.key}`} gradientUnits='userSpaceOnUse' x1={(r.a.x + r.b.x) / 2} y1={(r.a.y + r.b.y) / 2} x2={r.foot.x} y2={r.foot.y}>
-            <stop offset='0' stopColor='black' stopOpacity={0} />
-            <stop offset='1' stopColor='black' stopOpacity={FACE_SHADE} />
-          </linearGradient>
-        ))}
-      </defs>
-      {view.ridges.map((r) => (
-        <g key={r.key}>
-          {r.bands.map((b) => b.face === null ? null : (
-            <g key={b.key}>
-              {b.art !== null ? <polygon points={b.face} fill={`url(#${idPrefix}face-${looksIn.indexOf(`${b.art}|${r.grain}`)})`} className='stroke-none' />
-                : b.glass ? <polygon points={b.face} className='fill-accent/25 stroke-none' />
-                : <polygon points={b.face} className='fill-fg/30 stroke-none' />}
-              {b.glass ? null : <polygon points={b.face} fill={`url(#${idPrefix}face-shade-${r.key})`} className='stroke-none' />}
-            </g>
-          ))}
-          {view.front ? null : <line x1={r.a.x} y1={r.a.y} x2={r.b.x} y2={r.b.y} className='stroke-fg' strokeWidth={0.12} strokeLinecap='round' />}
-        </g>
-      ))}
-    </g>
-  )
-}
-
-// The thin walls cutting corners off cells: seen from the front, the outline
-// of the whole wall shaded, or covered by its picture laid along it, then its
-// top; from above, its top alone, glass tinted.
-export function ChordLayer({ view, band, tag = '' }: { view: BoardGround, band: number, tag?: string }){
-  const walls = view.chords.filter((w) => w.band === band)
-  const id = (i: number) => `b${band}-${tag}chord-face-${i}`
-  const pictured = (w: BoardChordView) => !w.glass && w.face !== null && w.grain !== null
-  return (
-    <g className='pointer-events-none'>
-      <defs>
-        {walls.map((w, i) => (pictured(w) ? (
-          <pattern key={w.key} id={id(i)} patternUnits='userSpaceOnUse' width={w.face!.tile} height={w.face!.tile} patternTransform={`matrix(${w.grain} 0 0) translate(${w.face!.offsetX} ${w.face!.offsetY})`}>
-            <image href={w.face!.src} width={w.face!.tile} height={w.face!.tile} />
-          </pattern>
-        ) : null))}
-      </defs>
-      {walls.map((w, i) => (
-        <g key={w.key}>
-          {w.side === null ? null
-            : pictured(w) ? <polygon points={w.side} fill={`url(#${id(i)})`} className='stroke-fg/70' strokeWidth={0.02} />
-            : <polygon points={w.side} className={w.glass ? 'fill-accent/25 stroke-accent/50' : 'fill-fg/60 stroke-fg/70'} strokeWidth={0.02} />}
-          <polygon points={w.top} className={w.glass ? 'fill-accent/40 stroke-accent' : 'fill-fg stroke-fg'} strokeWidth={0.02} />
-        </g>
-      ))}
-    </g>
-  )
-}
-
-// The pictures of the structures seen from the front, a slice to each storey,
-// drawn over the piece's own cells so that what is higher covers what is lower
-// and behind it. Each slice is the whole picture cut to the part it shows.
-export function SpriteLayer({ view, band, tag = '' }: { view: BoardGround, band: number, tag?: string }){
-  const slices = view.sprites.filter((s) => s.band === band)
-  return (
-    <g className='pointer-events-none'>
-      <defs>
-        {slices.map((s) => <clipPath key={s.key} id={`b${band}-${tag}slice-${s.key}`}><rect {...s.clip} /></clipPath>)}
-      </defs>
-      {slices.map((s) => <image key={s.key} href={s.src} {...s.box} preserveAspectRatio='none' clipPath={`url(#b${band}-${tag}slice-${s.key})`} />)}
-    </g>
-  )
-}
-
-// The lattices over the floors drawn: the shadow each casts on the floor under
-// it, then, seen from the front, the sides of its leaves, darker, and its top:
-// the surface laid on it, faded so that what is under it shows, or a dashed
-// outline where none was laid.
-const OVERHEAD_OPACITY = 0.6
-const OVERHEAD_SHADOW_BLUR = 0.25
-
-export const OverheadLayer = memo(function OverheadLayer({ view }: { view: BoardGround }){
-  const arts = [...new Map(view.overhead.flatMap((o) => (o.art ? [[o.art.src, o.art] as const] : []))).values()]
-  const patternOf = (src: string) => `overhead-${arts.findIndex((a) => a.src === src)}`
-  return (
-    <g className='pointer-events-none'>
-      <defs>
-        {arts.map((art, i) => (
-          <pattern key={art.src} id={`overhead-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile} patternTransform={`translate(${art.offsetX} ${art.offsetY})`}>
-            <image href={art.src} width={art.tile} height={art.tile} />
-          </pattern>
-        ))}
-        <filter id='overhead-shadow' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation={OVERHEAD_SHADOW_BLUR} /></filter>
-      </defs>
-      <g filter='url(#overhead-shadow)'>
-        {view.overhead.map((o) => <polygon key={`${o.key}@${o.elevation}:shadow`} points={view.hex} transform={`translate(${o.shadow.x} ${o.shadow.y})`} className='fill-black/35' />)}
-      </g>
-      <g opacity={OVERHEAD_OPACITY}>
-        {view.overhead.flatMap((o) => o.slab.map((points, i) => (
-          <g key={`${o.key}@${o.elevation}:slab${i}`}>
-            <polygon points={points} fill={o.art ? `url(#${patternOf(o.art.src)})` : undefined} className={o.art ? undefined : 'fill-good/20'} />
-            <polygon points={points} className='fill-black/40' />
-          </g>
-        )))}
-      </g>
-      {view.overhead.map((o) => o.art
-        ? <polygon key={`${o.key}@${o.elevation}`} points={view.hex} transform={`translate(${o.x} ${o.y})`} fill={`url(#${patternOf(o.art.src)})`} opacity={OVERHEAD_OPACITY} />
-        : <polygon key={`${o.key}@${o.elevation}`} points={view.hex} transform={`translate(${o.x} ${o.y})`} className='fill-good/20 stroke-good' strokeWidth={0.08} strokeDasharray='0.1 0.1' />)}
-    </g>
-  )
-})
-
-// What is drawn over the cell the pointer is on, or over a cell picked, is
-// blurred and faded so that the cell can be seen through it.
-const VEIL_BLUR = 0.15
-const VEIL_OPACITY = 0.45
-
-export function VeilFilter(){
-  return <filter id='veil' x='-5%' y='-5%' width='110%' height='110%'><feGaussianBlur stdDeviation={VEIL_BLUR} /></filter>
-}
-
-// What is drawn in one band. What is drawn over a cell the pointer is on, or
-// a cell picked, is drawn apart, blurred and faded, so that the cell can be
-// seen through it and nothing else is. The ground and its walls are drawn from
-// the view's ground alone, which stays the same while only what stands on it
-// changes, so that they are not drawn again then.
-export function BandLayers({ view, band, veiled }: { view: BoardView, band: number, veiled: string[] }){
-  const part = (behind: boolean): BoardView => {
-    const keep = (group: string) => veiled.includes(group) === behind
-    return { ...view, cells: view.cells.filter((c) => keep(c.group)), rims: view.rims.filter((c) => keep(c.group)), ridges: view.ridges.filter((r) => keep(r.group)), chords: view.chords.filter((w) => keep(w.group)), sprites: view.sprites.filter((s) => keep(s.group)) }
-  }
-  const shown = veiled.join(VEIL_SEPARATOR)
-  // the ground around the foot of a thinner top is drawn as a cell before it
-  const draw = (v: BoardView, behind: boolean | null, tag?: string) => {
-    const ground = { ...v, cells: [...v.rims, ...v.cells] }
-    return (
-      <>
-        <BandSurface ground={view.ground} band={band} tag={tag} veiled={shown} behind={behind} />
-        {ground.cells.filter((c) => c.band === band).map((c) => <Cell key={c.key} cell={c} hex={v.hex} />)}
-        <BandWalls ground={view.ground} band={band} tag={tag} veiled={shown} behind={behind} />
-        <ShadeLayer view={ground} band={band} tag={tag} />
-      </>
-    )
-  }
-  const behind = veiled.length > 0 ? part(true) : null
-  if (!behind || !([...behind.cells, ...behind.rims].some((c) => c.band === band) || behind.ridges.some((r) => r.band === band) || behind.chords.some((w) => w.band === band) || behind.sprites.some((s) => s.band === band))) return <g>{draw(view, null)}</g>
-  return (
-    <g>
-      {draw(part(false), false)}
-      <g filter='url(#veil)' opacity={VEIL_OPACITY}>{draw(behind, true, 'veiled')}</g>
-    </g>
-  )
-}
-
-const VEIL_SEPARATOR = '\n'
-
-type BandGroundProps = { ground: BoardGround, band: number, tag?: string, veiled: string, behind: boolean | null }
-
-// The part of the ground drawn apart from the rest (behind) or with it, or all
-// of it (null).
-function groundPart({ ground, veiled, behind }: BandGroundProps): BoardGround {
-  if (behind === null) return ground
-  const groups = new Set(veiled.split(VEIL_SEPARATOR))
-  const keep = (group: string) => groups.has(group) === behind
-  return { ...ground, cells: ground.cells.filter((c) => keep(c.group)), rims: ground.rims.filter((c) => keep(c.group)), ridges: ground.ridges.filter((r) => keep(r.group)), chords: ground.chords.filter((w) => keep(w.group)), sprites: ground.sprites.filter((s) => keep(s.group)) }
-}
-
-const BandSurface = memo(function BandSurface(props: BandGroundProps){
-  const part = groundPart(props)
-  return <SurfaceLayer view={{ ...part, cells: [...part.rims, ...part.cells] }} band={props.band} tag={props.tag} crisp={props.band > 0} />
-})
-
-const BandWalls = memo(function BandWalls(props: BandGroundProps){
-  const part = groundPart(props)
-  return (
-    <>
-      <RidgeLayer view={part} band={props.band} tag={props.tag} />
-      <ChordLayer view={part} band={props.band} tag={props.tag} />
-      <SpriteLayer view={part} band={props.band} tag={props.tag} />
-    </>
-  )
-})
-
-// Seen from the front, a space is picked where it stands on the ground, as if
-// there were no heights: a hex over everything that is drawn, clear until the
-// pointer is on it, one to each cell. What is lifted can be reached at its foot,
-// and nothing drawn over a cell can keep it from being picked. While the
-// pointer is on one, the whole surface of the cell lights up where it is drawn:
-// its top and the walls under it. The space lit is this layer's own, so that
-// the pointer moving draws only the light again; the board hears of it only
-// when what is drawn over it changes.
-export function BaseLayer({ view, setOver }: { view: BoardView, setOver: (groups: string[]) => void }){
-  const { lit, setLit } = useLitCell(view, setOver)
-  return (
-    <>
-      <LitCell view={view} lit={lit} />
-      <BaseHexes view={view} setLit={setLit} />
-    </>
-  )
-}
-
-function LitCell({ view, lit }: { view: BoardView, lit: string | null }){
-  const cell = lit === null ? undefined : view.cells.find((c) => c.key === lit)
-  if (!cell) return null
-  return (
-    <g className='pointer-events-none'>
-      {view.ridges.filter((r) => r.cell === cell.key).flatMap((r) => r.bands).map((b) => b.face === null ? null : <polygon key={b.key} points={b.face} className='fill-accent/25 stroke-accent' strokeWidth={0.08} />)}
-      <polygon points={cell.hex ?? view.hex} transform={`translate(${cell.x} ${cell.y})`} className='fill-accent/25 stroke-accent' strokeWidth={0.1} />
-    </g>
-  )
-}
-
-// One handler for all the hexes, reading the hex from the element the pointer
-// is on, so that the hexes are drawn again only when the view is.
-const BaseHexes = memo(function BaseHexes({ view, setLit }: { view: BoardView, setLit: (key: string | null) => void }){
-  return (
-    <g onMouseOver={(e) => setLit((e.target as Element).closest('[data-key]')?.getAttribute('data-key') ?? null)} onMouseLeave={() => setLit(null)}>
-      {view.cells.filter((c) => c.base !== null).map((c) => (
-        <g key={c.key} transform={`translate(${c.base!.x} ${c.base!.y})`} className='cursor-pointer' data-key={c.key} data-q={c.cell.q} data-r={c.cell.r}>
-          <title>{cellTitle(c)}</title>
-          <polygon points={view.hex} className='fill-transparent stroke-transparent hover:stroke-fg' strokeWidth={0.1} />
-        </g>
-      ))}
-    </g>
-  )
-})
-
-export function SurfaceLayer({ view: whole, band, tag = '', crisp = false }: { view: BoardGround, band?: number, tag?: string, crisp?: boolean }){
-  const idPrefix = band === undefined ? '' : `b${band}-${tag}`
-  const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
-  // what is lifted keeps its own edge: no spreading, no noise, no bank
-  const arts = crisp ? whole.arts.map((art) => ({ ...art, bleed: 0, bank: 0 })) : whole.arts
-  const { frame, hex } = view
-  const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
-  const used = new Set(view.cells.map((c) => c.art))
-  const taking = crisp ? [] : view.cells.filter((c) => c.bledInto < 1)
-  const shut = taking.filter((c) => c.bledInto === 0)
-  const depths = [...new Set(taking.map((c) => c.bledInto))].filter((b) => b > 0)
-  const takesFrom = (i: number) => taking.some((c) => c.art !== i)
-  const ownHexes = (i: number, width: number) => view.cells.filter((c) => c.art === i).map((c) => (
-    <polygon key={c.key} points={c.hex ?? hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={width} strokeLinejoin='round' />
-  ))
-  // The picture's own hexes grown by its spreading, cut off at the hexes that
-  // let none of it in, plus its hexes grown by the part of it each depth of
-  // hex lets in, shown only over the hexes of that depth. The cut is made
-  // after the roughening so that it stays a hex edge.
-  const body = (art: BoardGround['arts'][number], i: number) => {
-    const rough = art.bleed > 0 ? `url(#${idPrefix}surface-rough-${i})` : undefined
-    const limited = art.bleed > 0 && takesFrom(i)
-    return (<>
-      <g mask={limited ? `url(#${idPrefix}surface-take-${i})` : undefined}>
-        <g filter={rough}>{ownHexes(i, Math.max(art.bleed * 2, SEAM))}</g>
-      </g>
-      {limited ? depths.map((b, d) => (
-        <g key={b} clipPath={`url(#${idPrefix}surface-receiving-${d})`}>
-          <g filter={rough}>{ownHexes(i, art.bleed * b * 2)}</g>
-        </g>
-      )) : null}
-    </>)
-  }
-  const unbanked = shut.length > 0 ? `url(#${idPrefix}surface-shut)` : undefined
-  return (
-    <g className='pointer-events-none'>
-      <defs>
-        {arts.map((art, i) => !used.has(i) ? null : (
-          <pattern key={i} id={`${idPrefix}surface-${i}`} patternUnits='userSpaceOnUse' width={art.tile} height={art.tile} patternTransform={`translate(${art.offsetX} ${art.offsetY})`}>
-            <image href={art.src} width={art.tile} height={art.tile} />
-          </pattern>
-        ))}
-        {arts.map((art, i) => !used.has(i) || art.bleed <= 0 ? null : (
-          <filter key={i} id={`${idPrefix}surface-rough-${i}`} filterUnits='userSpaceOnUse' {...region}>
-            {art.roughness > 0 ? (<>
-              <feTurbulence type='fractalNoise' baseFrequency={ROUGH_FREQUENCY} numOctaves={1} seed={ROUGH_SEED} result='noise' />
-              <feDisplacementMap in='SourceGraphic' in2='noise' scale={ROUGHNESS * art.roughness} xChannelSelector='R' yChannelSelector='G' result='displaced' />
-              <feGaussianBlur in='displaced' stdDeviation={FEATHER} />
-            </>) : <feGaussianBlur in='SourceGraphic' stdDeviation={FEATHER} />}
-          </filter>
-        ))}
-        {arts.map((_, i) => !used.has(i) || !takesFrom(i) ? null : (
-          <mask key={i} id={`${idPrefix}surface-take-${i}`} maskUnits='userSpaceOnUse' {...region}>
-            <rect {...region} fill='white' />
-            {taking.filter((c) => c.art !== i).map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='black' />)}
-          </mask>
-        ))}
-        {depths.map((b, d) => (
-          <clipPath key={b} id={`${idPrefix}surface-receiving-${d}`}>
-            {taking.filter((c) => c.bledInto === b).map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y}) scale(${RECEIVING_GROW})`} />)}
-          </clipPath>
-        ))}
-        {shut.length > 0 ? (
-          <mask id={`${idPrefix}surface-shut`} maskUnits='userSpaceOnUse' {...region}>
-            <rect {...region} fill='white' />
-            {shut.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} fill='black' />)}
-          </mask>
-        ) : null}
-        {arts.map((art, i) => !used.has(i) ? null : (
-          <mask key={i} id={`${idPrefix}surface-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>{body(art, i)}</mask>
-        ))}
-        {/* a mask, not a clipPath: Chrome drops some hexes from a clip of many hexes that share edges */}
-        <mask id={`${idPrefix}surface-board`} maskUnits='userSpaceOnUse' {...region}>
-          {view.cells.map((c) => <polygon key={c.key} points={c.hex ?? hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={SEAM} />)}
-        </mask>
-        {arts.map((art, i) => !used.has(i) || art.bank <= 0 ? null : (<Fragment key={i}>
-          <filter id={`${idPrefix}surface-bank-${i}`} filterUnits='userSpaceOnUse' {...region}>
-            <feMorphology in='SourceAlpha' operator='dilate' radius={art.bank} result='fat' />
-            <feComposite in='fat' in2='SourceAlpha' operator='out' result='ring' />
-            <feGaussianBlur in='ring' stdDeviation={art.bank * BANK_SOFT} result='soft' />
-            <feFlood floodColor='white' />
-            <feComposite in2='soft' operator='in' />
-          </filter>
-          <filter id={`${idPrefix}surface-lip-${i}`} filterUnits='userSpaceOnUse' {...region}>
-            <feMorphology in='SourceAlpha' operator='dilate' radius={art.bank * LIP} result='fat' />
-            <feComposite in='fat' in2='SourceAlpha' operator='out' result='ring' />
-            <feFlood floodColor='white' />
-            <feComposite in2='ring' operator='in' />
-          </filter>
-          <mask id={`${idPrefix}surface-bank-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
-            <g mask={unbanked}><g filter={`url(#${idPrefix}surface-bank-${i})`}>{body(art, i)}</g></g>
-          </mask>
-          <mask id={`${idPrefix}surface-lip-mask-${i}`} maskUnits='userSpaceOnUse' {...region}>
-            <g mask={unbanked}><g filter={`url(#${idPrefix}surface-lip-${i})`}>{body(art, i)}</g></g>
-          </mask>
-        </Fragment>))}
-      </defs>
-      <g mask={`url(#${idPrefix}surface-board)`}>
-        {arts.map((art, i) => !used.has(i) ? null : (<Fragment key={i}>
-          <rect {...region} fill={`url(#${idPrefix}surface-${i})`} mask={`url(#${idPrefix}surface-mask-${i})`} />
-          {art.bank > 0 ? (<>
-            <rect {...region} fill='black' opacity={BANK_TINT} mask={`url(#${idPrefix}surface-bank-mask-${i})`} />
-            <rect {...region} fill='white' opacity={LIP_OPACITY} mask={`url(#${idPrefix}surface-lip-mask-${i})`} />
-          </>) : null}
-        </Fragment>))}
-      </g>
-    </g>
-  )
-}
-
-// The light and the fog of a board, drawn over its cells: where no light
-// reaches, where the eyes of the one looking do not, and where the ground is
-// misty, each as a veil shown through a mask of the cells it covers, blurred so
-// that the dark falls off softly instead of in steps of whole hexes. A cell is
-// drawn in white a little past its edge and its level is the opacity of the
-// whole group, so that the blur fades from full colour at the board's rim and
-// cells of one level do not add up. The ground layer's mask of the board keeps
-// it on the board.
-const SHADE_BLUR = 0.35
-const SHADE_BLEED = 0.45
-const NIGHT_DIM = 0.6
-const NIGHT_DARK = 0.85
-const UNSEEN = 0.92
-const MIST_BAD = 0.35
-const MIST_ZERO = 0.7
-const GLOW = 0.2
-
-// The cells of each level of a veil, weakest first, so that a stronger one is
-// drawn over a weaker.
-function levelsOf(cells: BoardCellView[], levelOf: (c: BoardCellView) => number): { level: number, cells: BoardCellView[] }[] {
-  const levels = new Map<number, BoardCellView[]>()
-  for (const c of cells) {
-    const level = levelOf(c)
-    if (level > 0) levels.set(level, [...(levels.get(level) ?? []), c])
-  }
-  return [...levels.entries()].sort(([a], [b]) => a - b).map(([level, at]) => ({ level, cells: at }))
-}
-
-export function ShadeLayer({ view: whole, band, tag = '' }: { view: BoardView, band?: number, tag?: string }){
-  const idPrefix = band === undefined ? '' : `b${band}-${tag}`
-  const view = band === undefined ? whole : { ...whole, cells: whole.cells.filter((c) => c.band === band) }
-  const { frame, hex } = view
-  const region = { x: frame.x - ROUGH_MARGIN, y: frame.y - ROUGH_MARGIN, width: frame.width + 2 * ROUGH_MARGIN, height: frame.height + 2 * ROUGH_MARGIN }
-  const veils = [
-    { id: 'night', fill: 'black', opacity: 1, levels: levelsOf(view.cells, (c) => (c.unseen ? UNSEEN : c.light === 'dark' ? NIGHT_DARK : c.light === 'dim' ? NIGHT_DIM : 0)) },
-    { id: 'mist', fill: '#c9d4dc', opacity: 1, levels: levelsOf(view.cells, (c) => (c.visibility === null ? 0 : c.visibility === 'zero' ? MIST_ZERO : MIST_BAD)) },
-    { id: 'glow', fill: '#ffb45a', opacity: GLOW, levels: levelsOf(view.cells, (c) => (c.lit && !c.unseen ? 1 : 0)) },
-  ].filter((v) => v.levels.length > 0)
-  if (veils.length === 0) return null
-  return (
-    <g className='pointer-events-none' mask={`url(#${idPrefix}surface-board)`}>
-      <defs>
-        <filter id={`${idPrefix}shade-soft`} filterUnits='userSpaceOnUse' {...region}>
-          <feGaussianBlur stdDeviation={SHADE_BLUR} />
-        </filter>
-        {veils.map((v) => (
-          <mask key={v.id} id={`${idPrefix}shade-${v.id}`} maskUnits='userSpaceOnUse' {...region}>
-            <g filter={`url(#${idPrefix}shade-soft)`}>
-              {v.levels.map(({ level, cells }) => (
-                <g key={level} opacity={level}>
-                  {cells.map((c) => <polygon key={c.key} points={c.hex ?? hex} transform={`translate(${c.x} ${c.y})`} fill='white' stroke='white' strokeWidth={2 * SHADE_BLEED} strokeLinejoin='round' />)}
-                </g>
-              ))}
-            </g>
-          </mask>
-        ))}
-      </defs>
-      {veils.map((v) => <rect key={v.id} {...region} fill={v.fill} opacity={v.opacity} mask={`url(#${idPrefix}shade-${v.id})`} />)}
-    </g>
   )
 }
 
@@ -707,11 +259,11 @@ export function SurfaceRow({ surfaces, laying, lay, frozen, freeze, onto, setOnt
   </>)
 }
 
-export function ZoomButtons({ zoomPan }: { zoomPan: ReturnType<typeof useZoomPan> }){
+export function ZoomButtons({ camera }: { camera: BoardCamera }){
   return (<>
-    <IconButton icon={ZoomIn} aria-label='zoom in' title='zoom in (or the wheel)' onClick={zoomPan.zoomIn} />
-    <IconButton icon={ZoomOut} aria-label='zoom out' title='zoom out (or the wheel)' onClick={zoomPan.zoomOut} />
-    <IconButton icon={Scan} aria-label='fit board' disabled={!zoomPan.zoomed} title='show the whole board' onClick={zoomPan.reset} />
+    <IconButton icon={ZoomIn} aria-label='zoom in' title='zoom in (or the wheel)' onClick={camera.zoomIn} />
+    <IconButton icon={ZoomOut} aria-label='zoom out' title='zoom out (or the wheel)' onClick={camera.zoomOut} />
+    <IconButton icon={Scan} aria-label='fit board' disabled={!camera.zoomed} title='show the whole board' onClick={camera.reset} />
   </>)
 }
 
@@ -760,193 +312,5 @@ function MapsRow({ canSave }: { canSave: boolean }){
         {devServer ? <Button size='xs' disabled={!name.trim()} onClick={() => save(name.trim(), true)}>save for all</Button> : null}
       </>) : null}
     </div>
-  )
-}
-
-const TERRAIN_FILL = {
-  open: 'fill-surface',
-  wall: 'fill-line',
-  glass: 'fill-accent/25',
-  water: 'fill-accent/10',
-  rough: 'fill-muted/20',
-} as const
-
-const TERRAIN_LABEL = {
-  open: null,
-  wall: 'wall',
-  glass: 'glass',
-  water: 'water',
-  rough: 'rough',
-} as const
-
-const TERRAIN_GLYPH = {
-  open: '',
-  wall: '',
-  glass: '◇',
-  water: '≈',
-  rough: '∴',
-} as const
-
-const ZONE_FILL = {
-  critical: 'fill-bad/60',
-  hit: 'fill-bad/35',
-  graze: 'fill-bad/15',
-  miss: 'fill-bad/5',
-} as const
-
-// The cell a click on the board landed on, if it landed on one: the board
-// takes one handler for all its cells, so a cell is the same drawing for as
-// long as what it shows is.
-export function cellAt(e: MouseEvent): Coord | null {
-  const el = (e.target as Element).closest('[data-q]')
-  return el ? { q: Number(el.getAttribute('data-q')), r: Number(el.getAttribute('data-r')) } : null
-}
-
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true
-  if (Array.isArray(a) && Array.isArray(b) && a.length === 0 && b.length === 0) return true
-  return typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b)
-}
-
-function sameCellDrawing(a: { cell: BoardCellView, hex: string }, b: { cell: BoardCellView, hex: string }): boolean {
-  return a.hex === b.hex && (Object.keys(a.cell) as (keyof BoardCellView)[]).every((k) => k === 'cell' || sameValue(a.cell[k], b.cell[k]))
-}
-
-// What the cell says of itself when the pointer rests on it.
-function cellTitle(cell: BoardCellView): string {
-  return [
-    cell.key,
-    cell.unseen ? 'out of sight' : null,
-    cell.piece !== null ? (cell.chosen ? 'the piece picked' : 'part of a piece') : null,
-    cell.storey === 'roof' ? 'a roof over what is out of their sight' : cell.storey === 'air' ? 'open air over the ground' : cell.storey === 'hole' ? 'stairwell over the ground' : cell.storey === 'lattice' ? 'lattice: seen, shot and climbed through' : null,
-    TERRAIN_LABEL[cell.terrain],
-    cell.surface,
-    cell.strength,
-    cell.elevation ? `${cell.elevation} m` : null,
-    cell.climbDL !== null ? `climbing up here: DL ${cell.climbDL}` : null,
-    cell.test ? `${cell.test.kind} DL ${cell.test.DL}` : null,
-    cell.soft ? 'soft ground' : null,
-    cell.fire > 0 ? `fire ${cell.fire}` : null,
-    cell.fuels.length > 0 ? `coated in ${cell.fuels.join(' and ')}` : null,
-    cell.suffocating ? 'suffocating gas' : null,
-    cell.visibility === 'zero' ? 'no visibility' : cell.visibility === 'bad' ? 'bad visibility' : null,
-    cell.light === 'dark' ? 'dark' : cell.light === 'dim' ? 'dim light' : cell.lit ? 'lit' : null,
-    cell.noise > 0 ? `noise ${cell.noise}` : null,
-    cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
-    cell.swept ? 'on the way of the move' : null,
-    cell.jump ? 'evasive jump' : null,
-    cell.center ? 'aim here' : null,
-    cell.zone ? `explosion: ${cell.zone}` : cell.threatened ? 'in reach of the explosion' : null,
-    cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,
-  ].filter((s) => s !== null).join(' · ')
-}
-
-export const Cell = memo(function Cell({ cell, hex: board }: { cell: BoardCellView, hex: string }){
-  const hex = cell.hex ?? board
-  const fill = cell.isJumpTo ? 'fill-good/40'
-    : cell.pathStep !== null ? 'fill-accent/40'
-    : cell.swept ? 'fill-accent/20'
-    : cell.zone ? ZONE_FILL[cell.zone]
-    : cell.reachable || cell.jump || cell.center ? 'fill-good/35'
-    : cell.threatened ? 'fill-bad/10'
-    : cell.fire > 0 ? 'fill-injury-2/30'
-    : cell.fuels.length > 0 ? 'fill-accent/15'
-    : cell.suffocating ? 'fill-fg/25'
-    : cell.art !== null && cell.terrain === 'open' ? 'fill-surface/0'
-    : TERRAIN_FILL[cell.terrain]
-  const offered = cell.reachable || cell.jump || cell.center
-  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter || cell.chosen ? 'stroke-accent' : offered ? 'stroke-good' : cell.piece !== null ? 'stroke-accent/40' : cell.art !== null ? 'stroke-line/30' : 'stroke-line'
-  const title = cellTitle(cell)
-  return (
-    <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' data-q={cell.cell.q} data-r={cell.cell.r}>
-      <title>{title}</title>
-      <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={cell.chosen ? 0.14 : offered ? 0.12 : 0.06} />
-      {cell.storey === 'roof' ? <polygon points={hex} className='fill-fg/10 stroke-none pointer-events-none' /> : null}
-      {cell.storey === 'lattice' ? <polygon points={hex} className='fill-none stroke-good pointer-events-none' strokeWidth={0.08} strokeDasharray='0.1 0.1' /> : null}
-      {cell.storey === 'air' || cell.storey === 'hole' ? <polygon points={hex} className={`fill-bg/55 pointer-events-none ${cell.storey === 'hole' ? 'stroke-accent' : 'stroke-none'}`} strokeWidth={0.1} strokeDasharray='0.2 0.12' /> : null}
-      {TERRAIN_GLYPH[cell.terrain] && !cell.unseen ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
-      {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
-      {cell.fire > 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-injury-2 pointer-events-none' fontSize={0.35}>{`🔥${cell.fire}`}</text> : null}
-      {cell.noise > 0 && cell.fire === 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.35}>{`♪${cell.noise}`}</text> : null}
-      {cell.climbDL !== null && !cell.unseen ? <text x={0.5} y={0.05} textAnchor='middle' dominantBaseline='central' className='fill-good pointer-events-none' fontSize={0.3}>{`⇡${cell.climbDL}`}</text> : null}
-      {cell.pathStep !== null ? <text x={0} y={0.45} textAnchor='middle' className='fill-fg pointer-events-none' fontSize={0.4}>{cell.pathStep}</text> : null}
-    </g>
-  )
-}, sameCellDrawing)
-
-function Token({ token, hex, picked, onClick }: { token: BoardTokenView, hex: string, picked: boolean, onClick: () => void }){
-  const ring = picked ? 'stroke-accent' : token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
-  const [broken, setBroken] = useState(false)
-  const clip = `token-clip-${token.id}`
-  return (
-    <g className='cursor-pointer' onClick={onClick} opacity={token.elsewhere ? 0.35 : token.hidden ? 0.6 : 1}>
-      <title>{`${token.name}${token.elsewhere ? ' · on another floor' : ''}${token.hidden ? ' · behind higher ground' : ''}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}${token.hanging ? ` · hanging on the face to ${token.hanging.to}, ${token.hanging.covered} of ${token.hanging.height} m` : ''}`}</title>
-      {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
-      {token.shadow ? <ellipse cx={token.shadow.x} cy={token.shadow.y + 0.5} rx={0.55} ry={0.2} className='fill-fg/30 pointer-events-none' /> : null}
-      <g transform={`translate(${token.x} ${token.y})`}>
-        {token.awaited ? <circle r={0.82} className='fill-none stroke-accent animate-pulse pointer-events-none' strokeWidth={0.08} strokeDasharray='0.25 0.15' /> : null}
-        <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable || token.hidden ? '0.2 0.12' : undefined} />
-        {token.image && !broken ? (
-          <>
-            <clipPath id={clip}><circle r={0.62} /></clipPath>
-            <image href={token.image} x={-0.62} y={-0.62} width={1.24} height={1.24} preserveAspectRatio='xMidYMid slice' clipPath={`url(#${clip})`} className='pointer-events-none' onError={() => setBroken(true)} />
-            <circle r={0.62} className={`fill-none ${ring} pointer-events-none`} strokeWidth={picked || token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
-          </>
-        ) : <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>}
-        <text y={0.95} textAnchor='middle' className='fill-fg stroke-bg font-semibold pointer-events-none' fontSize={0.32} strokeWidth={0.16} strokeLinejoin='round' paintOrder='stroke'>{token.name}</text>
-        {token.shieldAngle !== null ? <rect x={0.72} y={-0.45} width={0.16} height={0.9} rx={0.05} transform={`rotate(${token.shieldAngle})`} className='fill-accent pointer-events-none' /> : null}
-        {token.hanging ? <path d='M 0.7 -0.4 L 0.95 0 L 0.7 0.4' transform={`rotate(${token.hanging.angle})`} className='fill-none stroke-good pointer-events-none' strokeWidth={0.1} strokeLinecap='round' strokeLinejoin='round' /> : null}
-        {token.hanging ? <text y={-0.8} x={0.75} textAnchor='middle' className='fill-good pointer-events-none' fontSize={0.32}>{`⇡${token.hanging.covered}/${token.hanging.height}`}</text> : null}
-        {token.depth > 0 ? <text y={-0.8} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.35}>{`↓${token.depth}`}</text> : null}
-      </g>
-    </g>
-  )
-}
-
-// What is bound to what: a link between the two tokens, an arrowhead at each
-// one held. A grapple is a solid line, a net's tether dashed, a held arc dotted
-// in the accent colour.
-const BIND_STROKE: Record<BoardBindView['kind'], { className: string; dash?: string }> = {
-  grapple: { className: 'stroke-fg' },
-  tether: { className: 'stroke-muted', dash: '0.3 0.15' },
-  arc: { className: 'stroke-accent', dash: '0.05 0.12' },
-  link: { className: 'stroke-accent', dash: '0.3 0.15 0.05 0.15' },
-}
-
-function BindLink({ link }: { link: BoardBindView }){
-  const { className, dash } = BIND_STROKE[link.kind]
-  return (
-    <g>
-      <title>{link.title}</title>
-      <line x1={link.from.x} y1={link.from.y} x2={link.to.x} y2={link.to.y}
-        className={`${className} pointer-events-none`} strokeWidth={0.08} strokeLinecap='round' strokeDasharray={dash}
-        markerStart={link.back ? 'url(#grip)' : undefined} markerEnd={link.forward ? 'url(#grip)' : undefined} />
-    </g>
-  )
-}
-
-// An item lying on the floor, drawn above any token on its cell.
-function FloorItem({ item, onClick }: { item: BoardFloorItemView, onClick: () => void }){
-  return (
-    <g transform={`translate(${item.x} ${item.y})`} className={item.pickable || item.targetable ? 'cursor-pointer' : ''} onClick={onClick}>
-      <title>{item.targetable ? `aim at ${item.name}` : item.pickable ? `pick up ${item.name}` : `on the floor: ${item.name}`}</title>
-      <rect x={-0.16} y={-0.16} width={0.32} height={0.32} rx={0.05}
-        className={item.pickable || item.targetable ? 'fill-accent stroke-fg hover:fill-good' : 'fill-muted stroke-line'} strokeWidth={0.04} />
-    </g>
-  )
-}
-
-// Where someone the settled push moves will stand once it lands: an outline
-// of their token, clicks passing through to the board beneath.
-function Ghost({ ghost, hex }: { ghost: BoardGhostView, hex: string }){
-  return (
-    <g className='pointer-events-none'>
-      <title>{`${ghost.name} ends here`}</title>
-      {ghost.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-accent/10 stroke-none' />)}
-      <g transform={`translate(${ghost.x} ${ghost.y})`}>
-        <circle r={0.62} className='fill-none stroke-accent' strokeWidth={0.06} strokeDasharray='0.15 0.1' />
-        <text textAnchor='middle' dominantBaseline='central' className='fill-accent' fontSize={0.45}>{ghost.name.slice(0, 2)}</text>
-      </g>
-    </g>
   )
 }

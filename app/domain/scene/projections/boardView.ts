@@ -2,7 +2,7 @@ import type { Bind, Board, BoardExtent, SceneState, SeenScene, Coord, Degree, Li
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { DIRECTIONS, HEX_POINTS, ROTATIONS, getChordEnds, getHexPoints, add, angleBetween, coordKey, extentCells, frameHexes, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane } from '../rules/board/geometry'
+import { DIRECTIONS, HEX_CORNERS, ROTATIONS, fromPlane, getChordEnds, getHexCorners, add, angleBetween, coordKey, extentCells, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane, type Grain, type Point } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
 import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor, getThinWallsOf, hasThinWalls } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
@@ -57,7 +57,7 @@ export type BoardGroundCell = {
   // board's own `hex`
   width: number
   around: number
-  hex: string | null
+  hex: Point[] | null
   // seen from the front, where the cell stands on the ground whatever its
   // height: the space a click there picks; null where the board is seen from
   // above and the cell is picked where it is drawn
@@ -222,7 +222,7 @@ export type BoardFaceBand = {
   to: number
   art: number | null
   glass: boolean
-  face: string | null
+  face: Point[] | null
 }
 
 // The top edge of a cliff, between a cell and a neighbour at least a cliff's
@@ -242,7 +242,7 @@ export type BoardRidgeView = {
   // what the wall is drawn as part of: that of the cell it drops from
   group: string
   // how the picture lies on the face (`getFaceGrain`)
-  grain: string
+  grain: Grain
   height: number
 }
 
@@ -304,9 +304,9 @@ export type BoardChordView = {
   height: number
   ends: [{ x: number; y: number }, { x: number; y: number }]
   face: SurfaceArt | null
-  grain: string | null
-  top: string
-  side: string | null
+  grain: Grain | null
+  top: Point[]
+  side: Point[] | null
 }
 
 // A see-through floor (a lattice) over the floor a cell is drawn as, drawn
@@ -314,8 +314,8 @@ export type BoardChordView = {
 // A lattice over the floor a cell is drawn as (`below` metres up),
 // `elevation` metres up, and the picture of the surface laid on it, null for
 // none; the middle of the shadow it casts on that floor; and, seen from the
-// front, the sides of its leaves facing the viewer, each a polygon's points.
-export type BoardOverheadView = { key: string; cell: Coord; x: number; y: number; elevation: number; below: number; art: CellArt | null; shadow: { x: number; y: number }; slab: string[] }
+// front, the sides of its leaves facing the viewer, each a polygon's corners.
+export type BoardOverheadView = { key: string; cell: Coord; x: number; y: number; elevation: number; below: number; art: CellArt | null; shadow: { x: number; y: number }; slab: Point[][] }
 
 // What the board is drawn on, apart from what play puts on it: the same object
 // for as long as the ground is not painted and the board is looked at the same
@@ -323,8 +323,7 @@ export type BoardOverheadView = { key: string; cell: Coord; x: number; y: number
 // say the same, with what play puts on the cells joined to them.
 export type BoardGround = {
   extent: BoardExtent
-  viewBox: string
-  hex: string
+  hex: Point[]
   frame: { x: number; y: number; width: number; height: number }
   arts: CellArt[]
   cells: BoardGroundCell[]
@@ -346,10 +345,8 @@ export type BoardView = {
   present: boolean
   ground: BoardGround
   extent: BoardExtent
-  // the SVG viewBox that frames every cell, with a margin
-  viewBox: string
-  // one hexagon's corners around its centre, as an SVG `points` string
-  hex: string
+  // one hexagon's corners around its centre
+  hex: Point[]
   // combat.tex "Darkness and light": the light where no source reaches
   light: LightLevel
   // the rectangle that frames every cell, in the units the tokens are placed in
@@ -403,9 +400,9 @@ const compareArts = (a: CellArt, b: CellArt): number =>
   || a.roughness - b.roughness
   || a.bank - b.bank
 
-const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', frame: { x: 0, y: 0, width: 1, height: 1 }, arts: [], cells: [], rims: [], ridges: [], faces: [], chords: [], overhead: [], standing: [], sprites: [], bands: 1, front: false, beyond: [] }
+const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, hex: [], frame: { x: 0, y: 0, width: 1, height: 1 }, arts: [], cells: [], rims: [], ridges: [], faces: [], chords: [], overhead: [], standing: [], sprites: [], bands: 1, front: false, beyond: [] }
 
-const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, viewBox: '0 0 1 1', hex: '', light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, hex: [], light: 'bright', frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -554,7 +551,6 @@ function buildBoardView(state: SeenScene): BoardView {
     surface: board.surface,
     surfaces: getSurfaceChoices(),
     arts: ground.arts,
-    viewBox: ground.viewBox,
     hex: ground.hex,
     cells,
     ridges: ground.ridges,
@@ -690,8 +686,7 @@ function buildGround(board: Board, beyond: string[]): BoardGround {
 
   return {
     extent: board.extent,
-    viewBox: frameHexes(cells),
-    hex: HEX_POINTS,
+    hex: HEX_CORNERS,
     frame: hexBounds(cells),
     arts,
     cells,
@@ -806,7 +801,6 @@ function getChords(board: Board, cells: BoardGroundCell[]): BoardChordView[] {
       const length = Math.hypot(q.x - p.x, q.y - p.y)
       const [nx, ny] = [-(q.y - p.y) / length * half, (q.x - p.x) / length * half]
       const top = [{ x: p.x - nx, y: p.y - ny }, { x: q.x - nx, y: q.y - ny }, { x: q.x + nx, y: q.y + ny }, { x: p.x + nx, y: p.y + ny }]
-        .map((v) => `${v.x.toFixed(4)},${v.y.toFixed(4)}`).join(' ')
       const face = terrain.chordSurface ? getSurface(terrain.chordSurface)?.face ?? null : null
       return { key: `${c.key}:${key}`, cell: c.key, x: c.x, y: c.y, band: c.band, group: c.group, glass: terrain.transparent, elevation: terrain.elevation, height, ends: [p, q], face, grain: null, top, side: null }
     })
@@ -814,10 +808,10 @@ function getChords(board: Board, cells: BoardGroundCell[]): BoardChordView[] {
 }
 
 // What each thin-wall brush paints, drawn on its button: a unit hex and the
-// chord it lays, as SVG points.
-export type BrushIcon = { hex: string; chord: string }
+// chord it lays.
+export type BrushIcon = { hex: Point[]; chord: Point[] }
 export const CHORD_BRUSH_ICONS: Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon> = Object.fromEntries(
-  Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]) => [brush, { hex: HEX_POINTS, chord: getChordEnds(corner).map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ') }]),
+  Object.entries(CHORD_BRUSH_CORNER).map(([brush, corner]): [string, BrushIcon] => [brush, { hex: HEX_CORNERS, chord: getChordEnds(corner) }]),
 ) as Record<keyof typeof CHORD_BRUSH_CORNER, BrushIcon>
 
 // Each cell's top: drawn thinner than its hex where it is painted so and stands
@@ -829,7 +823,7 @@ function getThinTops(cells: BoardGroundCell[]): BoardGroundCell[] {
     const top = c.elevation + c.wall
     const beside = ROTATIONS.flatMap((d) => groundAt.get(coordKey(add(c.cell, DIRECTIONS[d]))) ?? [])
     const around = Math.min(top, ...beside)
-    return c.width < 1 && around < top ? { ...c, around, hex: getHexPoints(c.width) } : { ...c, width: 1, around: top }
+    return c.width < 1 && around < top ? { ...c, around, hex: getHexCorners(c.width) } : { ...c, width: 1, around: top }
   })
 }
 
@@ -892,7 +886,7 @@ export function getRidges(board: Board, cells: BoardGroundCell[], stacked: Board
       const away = toPlane(DIRECTIONS[d])
       const depth = Math.min(FACE_MOST, FACE_PER_METRE * height) / Math.hypot(away.x, away.y)
       const [dx, dy] = [away.x * depth, away.y * depth]
-      const strip = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }].map((p) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(' ')
+      const strip = [a, b, { x: b.x + dx, y: b.y + dy }, { x: a.x + dx, y: a.y + dy }]
       const foot = { x: (a.x + b.x) / 2 + dx, y: (a.y + b.y) / 2 + dy }
       const bands: BoardFaceBand[] = layers.flatMap((l, i) => {
         const [from, to] = [Math.max(l.from, low), Math.min(l.to, high)]
@@ -926,6 +920,14 @@ function getStanding(board: Board, cells: BoardGroundCell[]): BoardStandingView[
 
 function elevationLabel(elevation: number): string {
   return elevation > 0 ? `+${elevation}` : elevation < 0 ? `${elevation}` : ''
+}
+
+// The cell a point of the plane picks: the cell whose hex holds it where the
+// cell stands on the ground (seen from the front, its `base`; from above, where
+// it is drawn), null off the board.
+export function getCellAt(view: BoardView, point: Point): BoardCellView | null {
+  const key = coordKey(fromPlane(point))
+  return view.cells.find((c) => c.key === key) ?? null
 }
 
 // The ground is said again in the view's own fields, so the digest leaves it out.
