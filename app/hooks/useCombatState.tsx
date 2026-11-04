@@ -14,6 +14,7 @@ import { useGmPickStore } from "../stores/useGmPickStore";
 import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 import { useSceneDispatch } from "./useSceneDispatch";
+import { useFollowPick } from "./useFollowPick";
 
 const NONE: string[] = [];
 
@@ -49,10 +50,13 @@ export function useCombatRoster(): {
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
   const picked = useGmPickStore((s) => (s.picking ? s.picked : NONE));
+  const { take } = useFollowPick();
 
-  // A click on the roster aims the open action while it is waiting for a
-  // target, and switches the active character otherwise.
+  // A click on the roster marks whom to follow while that is being picked,
+  // aims the open action while it is waiting for a target, and switches the
+  // active character otherwise.
   const pick = (entry: CombatRosterEntry) => {
+    if (take(entry.id)) return;
     if (useGmPickStore.getState().picking) useGmPickStore.getState().toggle(entry.id);
     else if (entry.targetable) dispatch({ kind: "target", args: [entry.id] });
     else setActiveCharacter(entry.id);

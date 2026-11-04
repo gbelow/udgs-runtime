@@ -11,6 +11,7 @@ import { useAppStore } from "../stores/useAppStore";
 import { useFloorToolStore } from "../stores/useFloorToolStore";
 import { useGmPickStore } from "../stores/useGmPickStore";
 import { useSceneDispatch } from "./useSceneDispatch";
+import { useFollowPick } from "./useFollowPick";
 import { usePendingItem } from "./useItemLens";
 import { useState } from "react";
 
@@ -44,7 +45,9 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
   };
 
   const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean, radius: number) => click({ on: 'cell', cell, height }, brush, reposition, radius);
+  const { take } = useFollowPick();
   const clickToken = (id: string) => {
+    if (take(id)) return;
     if (useGmPickStore.getState().picking) useGmPickStore.getState().toggle(id);
     else click({ on: 'token', id });
   };

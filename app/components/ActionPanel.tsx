@@ -1,5 +1,6 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
+import { FollowOption, FollowPicking } from './FollowButton'
 import { useGmBar, useIsToken } from '../hooks/useControl'
 import { usePartyCommands, useSaveLogBar } from '../hooks/useParty'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
@@ -10,7 +11,7 @@ import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionRoll, ReactionAmend, CostTerm, StrikeAction } from '../domain/scene/types'
 import { Check, CheckCheck, Dices, Footprints, Hourglass, Minus, Play, Plus, X } from 'lucide-react'
-import { ActionKey, Button, Closed, IconButton, Panel, SectionLabel, Segment, Segmented, Tooltip } from './ui'
+import { ActionKey, Button, Closed, Dropdown, IconButton, Panel, SectionLabel, Segment, Segmented, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
@@ -40,17 +41,23 @@ export function ActionPanel(){
     return (
       <Panel title='Actions'>
         <ControlLocked>
-          <div className='flex flex-row flex-wrap gap-1'>
-            {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
-            {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
-            {view.sustainMove ? <ActionKey icon={Footprints} aria-label='careful move while holding a spell' onClick={sustainMove}>careful move (held spell)</ActionKey> : null}
+          {view.categories.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
+          <FollowPicking />
+          <div className='flex flex-row flex-wrap gap-1 items-center'>
+            {view.categories.map((c) => c.options.length === 1 && c.extras.length === 0
+              ? <OptionButton key={c.key} option={c.options[0]} onClick={() => declare(c.options[0].draft)} />
+              : (
+                <Dropdown key={c.key} label={`${c.key} actions`} text={<>{c.key}<> <span className='font-mono text-muted'>{c.available}/{c.total}</span></></>}>
+                  {(close) => (
+                    <div className='flex flex-col items-stretch gap-1'>
+                      {c.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => { declare(o.draft); close() }} />)}
+                      {c.extras.includes('sustainMove') ? <ActionKey icon={Footprints} aria-label='careful move while holding a spell' onClick={() => { sustainMove(); close() }}>careful move (held spell)</ActionKey> : null}
+                      {c.extras.includes('follow') && view.follow ? <FollowOption offer={view.follow} onPress={close} /> : null}
+                    </div>
+                  )}
+                </Dropdown>
+              ))}
           </div>
-          {view.social.length > 0 ? (
-            <div className='flex flex-row flex-wrap gap-1 items-center'>
-              <SectionLabel>social</SectionLabel>
-              {view.social.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
-            </div>
-          ) : null}
         </ControlLocked>
         <Prepared rows={view.prepared} />
       </Panel>

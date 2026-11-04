@@ -6,10 +6,12 @@ import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
 import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
-import { ActionKey, Button, Closed, Dropdown, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { usePartyCommands, useTableParties } from '../hooks/useParty';
+import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useFollowControls, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
+import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useGmFloorTools } from '../hooks/useBoard';
 import { ExplosionFields } from './ExplosionFields';
@@ -29,9 +31,9 @@ export function SceneStrip(){
     <div className='flex flex-col'>
       <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center px-2 py-1.5'>
         <Locked bar={useSceneDiceBar()} className='contents'>
+          <FightEnd />
           <FightControls />
           <CharacterList />
-          <FightEnd />
         </Locked>
       </div>
     </div>
@@ -39,7 +41,7 @@ export function SceneStrip(){
 }
 
 function FightControls(){
-  const { nextRound } = useCombatCommands()
+  const { nextRound, agreeAllToEnd } = useCombatCommands()
   const { round, nextRoundBar, nextRoundClosing } = useCombatState()
   const forfeits = nextRoundBar === null && nextRoundClosing.length > 0
 
@@ -49,27 +51,61 @@ function FightControls(){
       <Tooltip text={nextRoundBar ?? (round === 0 ? 'start the first round' : 'on to the next round')}>
         <Button aria-label='nextRound' tone={forfeits ? 'bad' : 'neutral'} disabled={nextRoundBar !== null} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
       </Tooltip>
+      {round > 0 ? (
+        <Tooltip text='agree to end the round for every character you play'>
+          <Button aria-label='agreeAllToEnd' onClick={agreeAllToEnd}>all ok</Button>
+        </Tooltip>
+      ) : null}
       {nextRoundBar ? <span className='text-xs text-muted'>{nextRoundBar}</span> : null}
       {forfeits ? <Forfeits lines={nextRoundClosing} inline /> : null}
     </div>
   )
 }
 
-// Ending the fight, starting it over and how the table plays it, at the far
-// right of the strip.
+// Ending the scene and how the table plays it, first in the strip.
 function FightEnd(){
-  const { endCombat, resetCombat } = useCombatCommands()
-  const { round, endCombatBar } = useCombatState()
-
   return(
-    <div className='ml-auto flex flex-row gap-2 items-center'>
-      {round > 0
-        ? <Closed reason={endCombatBar}><Tooltip text={endCombatBar ? null : 'the rounds end; everyone stays'}><Button aria-label='endCombat' disabled={endCombatBar !== null} onClick={endCombat}>end combat</Button></Tooltip></Closed>
-        : null}
-      <Button aria-label='resetGame' weight='subtle' tone='bad' onClick={resetCombat}>reset</Button>
+    <div className='flex flex-row gap-2 items-center'>
+      <Dropdown label='end scene' text='end scene' title='end the rounds, send each party on, or throw the scene away'>
+        {() => <EndSceneMenu />}
+      </Dropdown>
       <Dropdown label='fight settings' title='how the table plays this fight' icon={Settings}>
         {() => <FightSettings />}
       </Dropdown>
+    </div>
+  )
+}
+
+// What happens to the scene: the rounds end with everyone staying, each party
+// that fought goes back to the campaign on its own (where exploring or
+// downtime goes on), or the scene is thrown away.
+function EndSceneMenu(){
+  const { endCombat, resetCombat } = useCombatCommands()
+  const { round, endCombatBar, returnBar } = useCombatState()
+  const { parties, loose } = useTableParties()
+  const { partyBack, back } = usePartyCommands()
+  const gmBar = useGmBar()
+  const [ets, setEts] = useState(0)
+  const leaving = parties.filter((p) => p.fighters.length > 0)
+  const bar = returnBar ?? gmBar
+
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>End scene</SectionLabel>
+      {round > 0 ? <MenuItem bar={endCombatBar} hint='the rounds end; everyone stays in the scene' onClick={endCombat}>end combat, stay</MenuItem> : null}
+      <SectionLabel>Back to the campaign</SectionLabel>
+      {leaving.length === 0 && loose.fighters.length === 0 ? <span className='text-muted px-2'>nobody is in the scene</span> : null}
+      {leaving.map((p) => (
+        <MenuItem key={p.id} bar={bar} hint='the scene is over for the party' onClick={() => partyBack(p.id, ets)}>{p.name}</MenuItem>
+      ))}
+      {loose.fighters.map((card) => (
+        <MenuItem key={card.id} bar={bar} hint='the scene is over for them' onClick={() => back(card.id, ets)}>{card.name}</MenuItem>
+      ))}
+      <label className='flex flex-row items-center gap-2 px-2 text-muted'>
+        ETs the scene took
+        <NumberInput className='w-10' aria-label='ETs taken' title='passed for each party when the last of it comes back' value={ets} onChange={(e) => setEts(parseInt(e.target.value) || 0)} />
+      </label>
+      <MenuConfirm bar={gmBar} hint='the scene is thrown away, no time passes; whoever was sent from the roster goes back to it' onConfirm={resetCombat}>discard the scene</MenuConfirm>
     </div>
   )
 }
@@ -144,11 +180,6 @@ export function SceneActions(){
       <Locked bar={diceBar}>
       <ControlLocked>
         <TurnControl />
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>surge</SectionLabel>
-          <SurgeControl />
-        </div>
-        <FollowControl />
       </ControlLocked>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -315,7 +346,7 @@ export function SustainedPanel(){
 // contested before its holder declares anything — by as many as ask, all
 // rolling cunning at once.
 function TurnControl(){
-  const { startTurn, toggleContest, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn } = useCombatCommands()
+  const { startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
   const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed, stealth } = useTurnControls()
 
   return(
@@ -344,9 +375,6 @@ function TurnControl(){
         }
         <Tooltip text={agreed ? 'agreed to end the round' : 'agree to end the round'}>
           <ActionKey look={agreed ? 'picked' : 'plain'} icon={agreed ? Check : undefined} aria-label='agreeToEnd' aria-pressed={agreed} onClick={toggleAgreeToEnd}>end round ok</ActionKey>
-        </Tooltip>
-        <Tooltip text='agree to end the round for every character you play'>
-          <ActionKey aria-label='agreeAllToEnd' onClick={agreeAllToEnd}>all ok</ActionKey>
         </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
@@ -382,55 +410,36 @@ function HeldTestsPanel(){
   )
 }
 
-// combat.tex "Follow": whom the active character follows this round, marked in
-// their own turn.
-function FollowControl(){
-  const { follow } = useCombatCommands()
-  const { marked, options } = useFollowControls()
-  if (options.length === 0) return null
-
-  return(
-    <div className='flex flex-row flex-wrap gap-1 items-center'>
-      <SectionLabel>follow</SectionLabel>
-      {options.map((o) => (
-        <Tooltip key={o.id} text={o.bar ?? (marked === o.id ? `stop following ${o.name}` : `follow ${o.name} when they move`)}>
-          <ActionKey look={marked === o.id ? 'picked' : 'plain'} aria-label={`follow ${o.name}`} aria-pressed={marked === o.id}
-            disabled={marked !== o.id && o.bar !== null} onClick={() => follow(marked === o.id ? null : o.id)}>{o.name}</ActionKey>
-        </Tooltip>
-      ))}
-    </div>
-  )
-}
-
-function SurgeControl(){
+// The action surge, one a round: the button says which was used, or that none
+// has, and opens the four.
+export function SurgeTile(){
   const { endSurge } = useCharacterCommands()
   const { actionSurge } = useCombatCommands()
   const options = useCombatSurgeOptions()
   const binding = useBindingSurge()
+  const used = options.find((option) => option.used)
 
   return(
-    <div className='flex gap-1'>
-      {
-        options.map(option =>
-          // The surge spent this round stays lit until nextRound clears it; the
-          // other three close (combat.tex "Action surge": one per round).
-          <Tooltip key={option.kind} text={option.used ? `${option.kind} surge used this round` : option.title}>
-            {
-              option.used ?
-              <ActionKey look='picked' icon={Check} aria-label={option.kind + ' surge'} aria-pressed className='pointer-events-none'>{option.kind} surge</ActionKey> :
-              <ActionKey aria-label={option.kind + ' surge'} disabled={!option.available}
-                onClick={() => actionSurge(option.kind)}>{option.kind} surge</ActionKey>
-            }
-          </Tooltip>
-        )
-      }
-      {
-        binding ?
-        <Tooltip text={`give up the ${binding} surge AP left, to do something it does not allow`}>
-          <ActionKey aria-label='endSurge' onClick={endSurge}>end surge</ActionKey>
-        </Tooltip> : null
-      }
-    </div>
+    <Dropdown label='action surges' title='one surge a round' tile={{ name: 'surge', value: used ? used.kind : 'unused', lit: !!used }}>
+      {(close) => (
+        <div className='flex flex-col items-stretch gap-1'>
+          {options.map((option) =>
+            // The surge spent this round stays lit until nextRound clears it; the
+            // other three close (combat.tex "Action surge": one per round).
+            <Tooltip key={option.kind} text={option.used ? `${option.kind} surge used this round` : option.title}>
+              {option.used
+                ? <ActionKey look='picked' icon={Check} aria-label={option.kind + ' surge'} aria-pressed className='pointer-events-none'>{option.kind} surge</ActionKey>
+                : <ActionKey aria-label={option.kind + ' surge'} disabled={!option.available} onClick={() => { actionSurge(option.kind); close() }}>{option.kind} surge</ActionKey>}
+            </Tooltip>
+          )}
+          {binding ? (
+            <Tooltip text={`give up the ${binding} surge AP left, to do something it does not allow`}>
+              <ActionKey aria-label='endSurge' onClick={() => { endSurge(); close() }}>end surge</ActionKey>
+            </Tooltip>
+          ) : null}
+        </div>
+      )}
+    </Dropdown>
   )
 }
 

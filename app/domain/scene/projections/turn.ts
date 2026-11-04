@@ -88,6 +88,18 @@ export function getFollowControls(state: SceneState, id: string): FollowControls
   return { marked: state.following[id] ?? '', options: getFollowOptions(state, id) }
 }
 
+// What the follow entry of the action list says: the name of whoever the
+// character has marked, or '', and why nothing can be marked now, null while
+// something can be or a mark can be taken back.
+export type FollowOffer = { marked: string; bar: string | null }
+
+export function getFollowOffer(state: SceneState, id: string): FollowOffer | null {
+  const { marked, options } = getFollowControls(state, id)
+  if (options.length === 0) return null
+  const name = options.find((o) => o.id === marked)?.name ?? ''
+  return { marked: name, bar: name || options.some((o) => o.bar === null) ? null : options[0].bar }
+}
+
 // Why the round cannot pass, as the button says it: an action under way is
 // named with whoever it still waits on to react or pass.
 export const getNextRoundNote = perState((state: SceneState): string | null => getOpenNote(state) ?? getNextRoundBar(state))

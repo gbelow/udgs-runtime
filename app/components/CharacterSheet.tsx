@@ -74,7 +74,7 @@ export function CharacterSheet({ header, resources, injuryAction, injuryPanels, 
   )
 }
 
-export function ResourceTiles({ children, needs = true }: { children?: ReactNode, needs?: boolean }){
+export function ResourceTiles({ children, after, needs = true }: { children?: ReactNode, after?: ReactNode, needs?: boolean }){
   const { tableName, name } = useActiveCharacterData()
   return(
     <div className='flex flex-col gap-1 min-w-0 overflow-hidden'>
@@ -82,6 +82,7 @@ export function ResourceTiles({ children, needs = true }: { children?: ReactNode
       <div className='flex flex-row flex-wrap gap-1.5'>
         {children}
         <SimpleResource rssName={'STA'} />
+        {after}
         {needs ? <>
           <SimpleResource rssName={'exhaustion'} />
           <SimpleResource rssName={'hunger'} />

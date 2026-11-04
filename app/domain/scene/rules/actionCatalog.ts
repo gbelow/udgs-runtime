@@ -7,6 +7,11 @@ import type { Action, ActionDraft, ActionKind, AttackAction, ReactionAction, Rea
 // kinds it `reactsTo`. `price` names the row of ACTION_COSTS that is its
 // whole cost; null where the price is the declaration's to say (a strike
 // costs what its weapon row and variation cost).
+// The headings the panel lists what a character can declare under, in the
+// order it lists them.
+export const ACTION_CATEGORIES = ['attack', 'move', 'spell', 'grapple', 'gear', 'care', 'social', 'tactical'] as const
+export type ActionCategory = (typeof ACTION_CATEGORIES)[number]
+
 export type ActionDef<K extends ActionKind = ActionKind> = {
   label: string
   // where the book says it: the file and the rule it is under, or that it is
@@ -40,8 +45,9 @@ export type ActionDef<K extends ActionKind = ActionKind> = {
   // the declared fields that tell two options of the kind apart, each with
   // the value it reads as when left out
   identity?: K extends ActionKind ? Partial<Omit<Extract<ActionDraft, { kind: K }>, 'kind'>> : never
-  // the heading the panel lists its options under, when not the actions'
-  group?: 'social'
+  // the heading the panel lists the option under; an action with none is
+  // listed under 'tactical'
+  category?: ActionCategory
   // counts as a rest: open at the round's rest step outside the turn, and may
   // overdraw the AP the next round brings (combat.tex "Rest")
   rest?: true
@@ -49,9 +55,9 @@ export type ActionDef<K extends ActionKind = ActionKind> = {
 
 export const ACTIONS = {
   // combat.tex "Strike"
-  strike:      { label: 'strike', rule: 'combat.tex "Strike"',       type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  strike:      { label: 'strike', rule: 'combat.tex "Strike"',       type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, category: 'attack' },
   // combat.tex "Accuracy", "Shoot"
-  shoot:       { label: 'shoot', rule: 'combat.tex "Accuracy", "Shoot"',        noun: 'shot',  type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  shoot:       { label: 'shoot', rule: 'combat.tex "Accuracy", "Shoot"',        noun: 'shot',  type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, category: 'attack' },
   // combat.tex "Explosions": no test of the attacker's — "the DL of the
   // explosion is equal to the shooting skill", and it is the reactors who
   // roll; opened by a throw, a cast or a detonation, never declared
@@ -60,9 +66,9 @@ export const ACTIONS = {
   // the escapes are walked; nobody answers it
   blast:       { label: 'blast', rule: 'combat.tex "Explosions"',        type: 'action',   price: null,          reactsTo: [],         die: false, generated: true },
   // spells.tex "Casting spells": the caster's test against the spell's DL
-  cast:        { label: 'cast', rule: 'spells.tex "Casting spells"',         noun: 'spell', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  cast:        { label: 'cast', rule: 'spells.tex "Casting spells"',         noun: 'spell', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, category: 'spell' },
   // a held spell fired again without the casting test (the table's ruling)
-  fireAgain:   { label: 'fire again', rule: "the table's ruling",   type: 'action',   price: null,          reactsTo: [],         die: false, identity: { key: '' } },
+  fireAgain:   { label: 'fire again', rule: "the table's ruling",   type: 'action',   price: null,          reactsTo: [],         die: false, identity: { key: '' }, category: 'spell' },
   // spells.tex "Telepathic Link": a target's test against a spell worked
   // through a link, opened by the cast; nobody answers it
   spellTest:   { label: 'spell test', rule: 'spells.tex "Telepathic Link"',   type: 'action',   price: null,          reactsTo: [],         die: true, generated: true },
@@ -70,7 +76,7 @@ export const ACTIONS = {
   // the move that took them in; nobody answers it
   swimTest:    { label: 'swim test', rule: 'combat.tex "Swimming"',   type: 'action',   price: null,          reactsTo: [],         die: true, generated: true },
   // combat.tex "Movement"
-  move:      { label: 'move', rule: 'combat.tex "Movement"',         type: 'action',   price: null,          reactsTo: [],         die: false, movement: true },
+  move:      { label: 'move', rule: 'combat.tex "Movement"',         type: 'action',   price: null,          reactsTo: [],         die: false, movement: true, category: 'move' },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
   // Jump, Intercept, and Block." "Evade: ... This can be used to avoid
   // being trampled" — a move whose path comes into the evader.
@@ -91,7 +97,7 @@ export const ACTIONS = {
   blockExplosion: { label: 'block explosion', rule: 'combat.tex "Explosion Block"', type: 'reaction', price: 'blockExplosion', reactsTo: ['explosion'], die: true, identity: { weaponKey: '', attack: '' } },
   // combat.tex "Preparing a reaction": the 1 AP is the whole price of
   // preparing; what it is prepared for is paid when it comes to be done
-  prepare:     { label: 'prepare', rule: 'combat.tex "Preparing a reaction"', noun: 'preparation', type: 'action', price: 'prepare', reactsTo: [],        die: false },
+  prepare:     { label: 'prepare', rule: 'combat.tex "Preparing a reaction"', noun: 'preparation', type: 'action', price: 'prepare', reactsTo: [],        die: false, category: 'tactical' },
   // a prepared action whose trigger came, priced by the actions it opens
   prepared:    { label: 'prepared action', rule: 'combat.tex "Preparing a reaction"', type: 'reaction', price: null, reactsTo: ['move'], die: false, identity: { preparedId: '' } },
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
@@ -111,28 +117,28 @@ export const ACTIONS = {
   // attack it answers and priced by the strike it opens
   counterattack: { label: 'counterattack', rule: 'abilities.tex "Counterattack", "Archer\'s Reflexes"', type: 'reaction', price: null,      reactsTo: ['strike', 'shoot'], die: true },
   // combat.tex "Grapple Maneuvers": a grapple test against the partner's
-  grapple:     { label: 'grapple', rule: 'combat.tex "Grapple Maneuvers"',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, targeted: true, identity: { maneuver: 'escape' } },
+  grapple:     { label: 'grapple', rule: 'combat.tex "Grapple Maneuvers"',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, targeted: true, identity: { maneuver: 'escape' }, category: 'grapple' },
   // combat.tex "Push and drag": "a force vs force comparison to be able to
   // move", no die, priced by the block declared (rules/drag.ts
   // `getPushPrice`)
-  drag:        { label: 'push or drag', rule: 'combat.tex "Push and drag"', noun: 'push',  type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, movement: true, identity: { pull: false } },
+  drag:        { label: 'push or drag', rule: 'combat.tex "Push and drag"', noun: 'push',  type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, movement: true, identity: { pull: false }, category: 'move' },
   // letting go of a partner who does not hold back costs nothing
-  release:     { label: 'let go', rule: "the table's ruling",       type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
+  release:     { label: 'let go', rule: "the table's ruling",       type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, category: 'grapple' },
   // spells.tex "Sustained Spells": a held spell is let go of at will, for nothing
-  releaseSpell: { label: 'let go of a spell', rule: 'spells.tex "Sustained Spells"', type: 'action', price: null, reactsTo: [], die: false, identity: { key: '' } },
+  releaseSpell: { label: 'let go of a spell', rule: 'spells.tex "Sustained Spells"', type: 'action', price: null, reactsTo: [], die: false, identity: { key: '' }, category: 'spell' },
   // gear.tex "Net": a Prestidigitation test against the tether's DL, priced
   // as two standard actions (rules/tether.ts `getSlipCost`)
-  slip:        { label: 'slip the net', rule: 'gear.tex "Net"', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  slip:        { label: 'slip the net', rule: 'gear.tex "Net"', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, category: 'grapple' },
   // combat.tex "Turns and Actions" ("Feint"): free; what it costs is the
   // surge it forces
-  feint:       { label: 'feint', rule: 'combat.tex "Turns and Actions", "Feint"',        type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  feint:       { label: 'feint', rule: 'combat.tex "Turns and Actions", "Feint"',        type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, category: 'attack' },
   // gear.tex "Equipment Breakage": a strike at a net's tether, priced by the
   // row it swings
-  cut:         { label: 'cut the net', rule: 'gear.tex "Equipment Breakage"',  type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  cut:         { label: 'cut the net', rule: 'gear.tex "Equipment Breakage"',  type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, category: 'attack' },
   // combat.tex "Initiate the Grab": "It is possible to grapple back
   // automatically just by having a weapon with grappling property
   // equipped" — one who takes one up mid-grapple does so as a free action
-  holdBack:    { label: 'take hold', rule: 'combat.tex "Initiate the Grapple", "Intercept"', type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
+  holdBack:    { label: 'take hold', rule: 'combat.tex "Initiate the Grapple", "Intercept"', type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, category: 'grapple' },
   // combat.tex "Grapple Maneuvers": the defender's 2 AP + 1 STA that spares
   // them the -5; "Push and drag": the defender's 2 AP for +5
   resist:      { label: 'resist', rule: 'combat.tex "Grapple Maneuvers"',       type: 'reaction', price: 'grappleDefense', reactsTo: ['grapple', 'drag'], die: false },
@@ -145,34 +151,34 @@ export const ACTIONS = {
   carry:       { label: 'tag along', rule: 'combat.tex "Push and drag"',    type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
   letGo:       { label: 'let go', rule: 'combat.tex "Push and drag"',       type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
   // combat.tex "Standard Action"
-  pickUp:      { label: 'pick up', rule: 'combat.tex "Standard Action"',      type: 'action',   price: 'standardAction', reactsTo: [],      die: false },
-  steal:       { label: 'steal', rule: 'combat.tex "Theft"',               type: 'action',   price: 'standardAction', reactsTo: [],      die: true, targeted: true },
-  open:        { label: 'open', rule: 'combat.tex "Standard Action"',         type: 'action',   price: 'standardAction', reactsTo: [],      die: false },
+  pickUp:      { label: 'pick up', rule: 'combat.tex "Standard Action"',      type: 'action',   price: 'standardAction', reactsTo: [],      die: false, category: 'gear' },
+  steal:       { label: 'steal', rule: 'combat.tex "Theft"',               type: 'action',   price: 'standardAction', reactsTo: [],      die: true, targeted: true, category: 'gear' },
+  open:        { label: 'open', rule: 'combat.tex "Standard Action"',         type: 'action',   price: 'standardAction', reactsTo: [],      die: false, category: 'gear' },
   // combat.tex "Throw", "Standard Action": a held item or one off the
   // floor, to the floor, at its throwing row's price or a standard action's
-  throw:       { label: 'throw', rule: 'combat.tex "Throw"',        type: 'action',   price: null,          reactsTo: [],         die: false },
+  throw:       { label: 'throw', rule: 'combat.tex "Throw"',        type: 'action',   price: null,          reactsTo: [],         die: false, category: 'gear' },
   // gear.tex "Potions and Medicine": a held potion, at a standard action's price
-  drink:       { label: 'drink', rule: 'gear.tex "Potions and Medicine"', type: 'action', price: 'standardAction', reactsTo: [],      die: false },
+  drink:       { label: 'drink', rule: 'gear.tex "Potions and Medicine"', type: 'action', price: 'standardAction', reactsTo: [],      die: false, category: 'care' },
   // abilities.tex "Medicine": priced by the ability, aimed at one bleeding
-  firstAid:    { label: 'first aid', rule: `abilities.tex "First Aid"; the table's ruling for "full turn": the focus surge and 8 AP, in melee`, type: 'action', price: null, reactsTo: [], die: true, targeted: true },
-  cauterize:   { label: 'cauterize', rule: 'abilities.tex "Cauterization"', type: 'action', price: null, reactsTo: [], die: false, targeted: true },
+  firstAid:    { label: 'first aid', rule: `abilities.tex "First Aid"; the table's ruling for "full turn": the focus surge and 8 AP, in melee`, type: 'action', price: null, reactsTo: [], die: true, targeted: true, category: 'care' },
+  cauterize:   { label: 'cauterize', rule: 'abilities.tex "Cauterization"', type: 'action', price: null, reactsTo: [], die: false, targeted: true, category: 'care' },
   // gear.tex "Reload": priced by the row it loads; part of the shot (the
   // table's ruling)
-  reload:      { label: 'reload', rule: 'gear.tex "Reload"',          type: 'action',   price: null,          reactsTo: [],         die: false, identity: { weaponKey: '', attack: '' } },
+  reload:      { label: 'reload', rule: 'gear.tex "Reload"',          type: 'action',   price: null,          reactsTo: [],         die: false, identity: { weaponKey: '', attack: '' }, category: 'gear' },
   // combat.tex "Fire": muffling a burning space, the actor's own or next to it
-  extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false },
-  plant:       { label: 'plant shield', rule: 'abilities.tex "Crossbow and Shield"', type: 'action', price: 'standardAction', reactsTo: [], die: false },
+  extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false, category: 'care' },
+  plant:       { label: 'plant shield', rule: 'abilities.tex "Crossbow and Shield"', type: 'action', price: 'standardAction', reactsTo: [], die: false, category: 'gear' },
   // combat.tex "Rest"
-  rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false, rest: true },
+  rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false, rest: true, category: 'tactical' },
   // combat.tex "Social actions": each "counts as a Rest action"; priced by
   // what is said (rules/social.ts `getSocialCost`)
-  social:      { label: 'social', rule: 'combat.tex "Social actions"', type: 'action', price: null,           reactsTo: [],         die: false, identity: { say: 'intimidate' }, group: 'social', rest: true },
+  social:      { label: 'social', rule: 'combat.tex "Social actions"', type: 'action', price: null,           reactsTo: [],         die: false, identity: { say: 'intimidate' }, category: 'social', rest: true },
   // combat.tex "Social actions", "Taunt"
-  taunt:       { label: 'taunt', rule: 'combat.tex "Social actions", "Taunt"', type: 'action', price: 'socialAction', reactsTo: [], die: false, targeted: true, group: 'social', rest: true },
+  taunt:       { label: 'taunt', rule: 'combat.tex "Social actions", "Taunt"', type: 'action', price: 'socialAction', reactsTo: [], die: false, targeted: true, category: 'social', rest: true },
   // combat.tex "Balance" ("Fall skill test"): the faller's own Balance test,
   // opened by the jump down or the climb that failed, or declared by a climber
   // who lets go
-  fall:        { label: 'fall', rule: 'combat.tex "Balance"',        type: 'action',   price: null,          reactsTo: [],         die: true },
+  fall:        { label: 'fall', rule: 'combat.tex "Balance"',        type: 'action',   price: null,          reactsTo: [],         die: true, category: 'move' },
 } as const satisfies { [K in ActionKind]: ActionDef<K> }
 
 // The flags as the catalog declares them, read through the general shape
