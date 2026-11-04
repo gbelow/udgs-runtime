@@ -4,6 +4,7 @@ import type { TerrainBrush } from '../domain/types'
 import { SceneStateSchema, type ActionDraft, type BoardMap, type GroundRecipe, type SceneState, type SeenScene, type Coord, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { readClick, type Click } from '../domain/scene/commands/click'
+import { getClickMenu, type MenuAim, type MenuEntry } from '../domain/scene/commands/clickMenu'
 import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
 import type { Viewer } from '../domain/profiles'
 import { makeCampaignCharacter } from '../domain/factories'
@@ -61,6 +62,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     const selected = state().activeCharacterId
     const read = readClick(state(), c, { brush, radius, reposition, selected, newId: () => '' })
     if ('select' in read) useCombatStore.getState().setActiveCharacter(read.select)
+    else if ('menu' in read) { if (read.menu.select) useCombatStore.getState().setActiveCharacter(read.menu.select) }
     else send({ kind: 'click', args: [c, brush, reposition, selected, radius] })
   }
 
@@ -106,6 +108,9 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     token: (name: string) => click({ on: 'token', id: idOf(name) }),
     floor: (itemId: string) => click({ on: 'floor', itemId }),
     turn: () => click({ on: 'turn' }),
+    // what a click on the board would offer the active character, and an entry of it pressed
+    menu: (at: MenuAim) => getClickMenu(state(), at, active()),
+    pressMenu: (entry: MenuEntry) => send({ kind: 'menu', args: [entry.press] }),
     select: (name: string) => useCombatStore.getState().setActiveCharacter(idOf(name)),
     holdBrush: (b: TerrainBrush | null) => { brush = b },
     // the GM's repositioning tool, held while `run` clicks

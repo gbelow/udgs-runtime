@@ -11,7 +11,7 @@ import { holdForDice } from '../domain/play/calls'
 // that mutate it. Keeping the halves separate is what lets the combat commands
 // be pure SceneState updaters with no import from here.
 type CombatActions = {
-  setActiveCharacter: (id: string) => void
+  setActiveCharacter: (id: string | null) => void
   getActiveCharacter: () => CampaignCharacter | null
 
   updateActiveCharacter: (

@@ -322,6 +322,7 @@ app/domain/scene/
 │   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── click.ts        readClick: what a click on a cell, token, floor item or the turn button does
+│   ├── clickMenu.ts    getClickMenu / pressMenu: what a click with no action open offers the selected character (each weapon row, each spell, any action, a move to the cell), or what a clicked character may answer the action in play with; an entry is offered only if pressing it leaves the action aimed at what was clicked (probed with `declareAction` and the aim), and a press is the registry's `menu` command
 │   ├── registry.ts     sceneCommands: every scene press and board click as data (kind and plain args), the command it runs and whom it acts for; applySceneCommand refuses what the sender may not do. Lists the chase's commands without being a crossing point (eslint rule 6)
 │   ├── tableRegistry.ts tableCommands: what crosses between the campaign and the fight (sent, brought back, loaded, taken out, reset), as data on the same pattern (domain/registry.ts)
 │   ├── gmExplosion.ts  setOffExplosion: the GM's explosion at a cell, a one-effect disk with its own DL and no producer (`source: 'gm'`), opened committed

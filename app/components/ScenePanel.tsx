@@ -34,6 +34,7 @@ export function SceneStrip(){
           <FightEnd />
           <FightControls />
           <CharacterList />
+          <FightSettingsButton />
         </Locked>
       </div>
     </div>
@@ -62,13 +63,20 @@ function FightControls(){
   )
 }
 
-// Ending the scene and how the table plays it, first in the strip.
+// Ending the scene, first in the strip.
 function FightEnd(){
   return(
     <div className='flex flex-row gap-2 items-center'>
       <Dropdown label='end scene' text='end scene' title='end the rounds, send each party on, or throw the scene away'>
         {() => <EndSceneMenu />}
       </Dropdown>
+    </div>
+  )
+}
+
+function FightSettingsButton(){
+  return(
+    <div className='ml-auto'>
       <Dropdown label='fight settings' title='how the table plays this fight' icon={Settings}>
         {() => <FightSettings />}
       </Dropdown>

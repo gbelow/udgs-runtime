@@ -14,6 +14,7 @@ import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
 import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, turnAround } from './chase'
 import { readClick, type Click } from './click'
+import { pressMenu, type MenuPress } from './clickMenu'
 import { endCombat } from './endCombat'
 import { followScene } from './parked'
 import { follow } from './follow'
@@ -58,7 +59,7 @@ const typed = (ctx: CommandContext, die?: number) => (die === undefined || die =
 // a click that only picks a character there does nothing to the fight
 const readOn = (newId: () => string, state: SceneState, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null, radius: number) => {
   const read = readClick(state, click, { brush, radius, reposition, selected, newId })
-  return 'select' in read ? null : read
+  return 'select' in read || 'menu' in read ? null : read
 }
 
 // a sheet's edit played on a character in the fight, its dice the table's
@@ -67,6 +68,8 @@ const sheet = (ctx: CommandContext, edit: CharacterCommand | GearCommand) =>
 
 export const sceneCommands = {
   declare: command((ctx, actorId: string, draft: ActionDraft) => declareAction(actorId, draft, ctx.newId)).by((_, actorId) => ({ id: actorId })),
+  // an entry of the menu a click on the board opens
+  menu: command((ctx, press: MenuPress) => pressMenu(press, ctx.newId)).by((_, press) => ({ id: press.kind === 'declare' ? press.actorId : press.reactorId })),
   amend: command((_, fields: Partial<ActionDraft>) => amendAction(fields)).by(panel('open')),
   target: command((_, targetId: string) => setTarget(targetId)).by(panel('open')),
   react: command((ctx, reactorId: string, draft: ActionDraft) => declareReaction(reactorId, draft, ctx.newId)).by(reactor),

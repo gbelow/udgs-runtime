@@ -8,6 +8,7 @@ import { getOpenAction } from '../rules/log'
 import { setTarget } from './action'
 import { paintTerrain, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
 import { pickFloorItem } from './floor'
+import { getClickMenu, type ClickMenu } from './clickMenu'
 
 // What the board is clicked on. A cell is clicked as the screen looked at
 // the board: from a storey's height, from the ground (null), or with nothing
@@ -24,8 +25,9 @@ export type Click =
 export type ClickContext = { brush: TerrainBrush | null, radius?: number, reposition: boolean, selected: string | null, newId: () => string }
 
 // What a click means: whom it acts for and what it does to the fight, or the
-// character it picks on the screen it was made on, which the fight never sees.
-export type ClickReading = { actor: Actor, apply: Updater } | { select: string }
+// character it picks on the screen it was made on, which the fight never sees, or
+// the menu of what could be done there (`getClickMenu`), which changes nothing until an entry is pressed.
+export type ClickReading = { actor: Actor, apply: Updater } | { select: string } | { menu: ClickMenu }
 
 // What a click means in the state it lands on: painting if a brush is in
 // hand, a path edit while a move is being declared, the landing of an evasive
@@ -43,11 +45,17 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
   const actor = open ? { id: open.actorId } : null
   switch (click.on) {
     case 'cell': return readCell(state, click.cell, ctx, click.height)
-    case 'token': return getDeclaredTargets(state, open).includes(click.id) ? { actor, apply: setTarget(click.id) } : { select: click.id }
+    case 'token': {
+      if (getDeclaredTargets(state, open).includes(click.id)) return { actor, apply: setTarget(click.id) }
+      const menu = getClickMenu(state, { on: 'token', id: click.id }, ctx.selected)
+      return menu ? { menu } : { select: click.id }
+    }
     case 'floor': {
       if (getDeclaredFloorTargets(state, open).some((f) => f.item.id === click.itemId)) return { actor, apply: setTarget(click.itemId) }
       const picker = getFloorPicker(state, ctx.selected)
-      return picker?.itemIds.includes(click.itemId) ? { actor: { id: picker.picker }, apply: pickFloorItem(picker.picker, click.itemId, ctx.newId) } : NOTHING
+      if (picker?.itemIds.includes(click.itemId)) return { actor: { id: picker.picker }, apply: pickFloorItem(picker.picker, click.itemId, ctx.newId) }
+      const menu = getClickMenu(state, { on: 'floor', itemId: click.itemId }, ctx.selected)
+      return menu ? { menu } : NOTHING
     }
     case 'turn': {
       if (getBoardMode(state) === 'path') return { actor, apply: turnMove() }
@@ -67,6 +75,10 @@ function readCell(state: SceneState, cell: Coord, ctx: ClickContext, height?: nu
   if (mode === 'path' || mode === 'jump' || mode === 'aim') {
     const pick = readPick(state, cell, ctx.newId, height)
     return pick ? { actor: { id: pick.actor }, apply: pick.apply } : NOTHING
+  }
+  if (mode === 'idle' && ctx.selected && !ctx.reposition && isCombatStarted(state)) {
+    const menu = getClickMenu(state, { on: 'cell', cell, height }, ctx.selected)
+    if (menu) return { menu }
   }
   if (mode === 'idle' && ctx.selected) {
     return ctx.reposition ? { actor: 'gm', apply: repositionCharacter(ctx.selected, cell) } : { actor: { id: ctx.selected }, apply: placeCharacter(ctx.selected, cell) }

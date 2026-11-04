@@ -9,6 +9,7 @@ import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useFloorToolStore } from "../stores/useFloorToolStore";
+import { useClickMenuStore } from "../stores/useClickMenuStore";
 import { useGmPickStore } from "../stores/useGmPickStore";
 import { useSceneDispatch } from "./useSceneDispatch";
 import { useFollowPick } from "./useFollowPick";
@@ -41,6 +42,7 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
     const selected = state.activeCharacterId;
     const read = readClick(state, c, { brush, radius, reposition, selected, newId: () => "" });
     if ("select" in read) setActiveCharacter(read.select);
+    else if ("menu" in read) useClickMenuStore.getState().setMenu(read.menu);
     else dispatch({ kind: "click", args: [c, brush, reposition, selected, radius] });
   };
 

@@ -15,6 +15,7 @@ import { useBoardLook } from '../hooks/useBoardLook'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
+import { ClickMenuHost } from './ClickMenu'
 
 const MODE_LABEL = {
   idle: 'click a cell to place the active character (to move them again only until the fight starts), or an item to pick it up',
@@ -183,6 +184,7 @@ export function BoardPanel(){
         onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
         onToken={clickToken}
         onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />
+      <ClickMenuHost />
     </Panel>
   )
 }

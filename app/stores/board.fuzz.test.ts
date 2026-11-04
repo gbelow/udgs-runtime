@@ -19,6 +19,7 @@ import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renam
 import { newStructureMap, structureOfMap } from '../domain/scene/factories'
 import type { BoardMap, Coord } from '../domain/scene/types'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
+import { isAimed, type MenuAim } from '../domain/scene/commands/clickMenu'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, type RoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
 import { getChasePanel } from '../domain/scene/projections/chase'
@@ -230,6 +231,21 @@ function plays(): Play[] {
       run: (h, pick) => {
         const items = h.view().floor.filter((f) => f.pickable)
         if (items.length) h.floor(pick(items).itemId)
+      },
+    },
+    {
+      name: 'press an entry of the menu a click opens',
+      weight: 2,
+      run: (h, pick) => {
+        const view = h.view()
+        const aims: MenuAim[] = [...view.tokens.map((t): MenuAim => ({ on: 'token', id: t.id })), ...view.cells.map((c): MenuAim => ({ on: 'cell', cell: c.cell }))]
+        if (!aims.length) return
+        const aim = pick(aims)
+        const menu = h.menu(aim)
+        if (!menu || menu.entries.length === 0) return
+        const entry = pick(menu.entries)
+        h.pressMenu(entry)
+        if (entry.press.kind === 'declare') expect(isAimed(h.state(), aim), 'an entry the menu offers declares an action aimed at what was clicked').toBe(true)
       },
     },
     { name: 'paint a cell', run: (h, pick) => { const cells = h.view().cells; if (!cells.length) return; h.holdBrush(pick(TERRAIN_BRUSHES)); h.click({ on: 'cell', cell: pick(cells).cell }); h.holdBrush(null) } },
