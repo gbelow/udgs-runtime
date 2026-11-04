@@ -7,11 +7,11 @@ import { getHeldActions } from '../rules/hold'
 import { withdrawActions } from './log'
 import { getGearBar } from '../rules/turn'
 import { settleBinds } from './bind'
-import { dropEmptyFightParties, joinFight } from './parties'
+import { dropEmptyFightParties } from './parties'
 import { getChanges } from '../rules/changes'
 import { without } from '../../utils'
 import { getChaseWithoutDead } from '../rules/chase'
-import { getDeathIL, isDead } from '../../character/rules/afflictions'
+import { isDead } from '../../character/rules/afflictions'
 
 // Takes a character out of the fight: their place on the board and in their
 // party goes with them, and so does every grapple they were in and the cover
@@ -29,33 +29,22 @@ export function removeFromCombat(id: string): Updater {
   }
 }
 
-// The dead are taken out of the fight where they fell: out of their party, off
-// the turns and the board, lying as a body that keeps the whole sheet, so that
-// it may be revived (`reviveBody`) or looted. Done as soon as nothing is being
-// played out, since nothing leaves the fight mid-action (`removeFromCombat`).
+// The dead leave their party and the turns where they fell, and stay in the
+// fight as characters: the sheet, the token and the gear are theirs still, to
+// be looted (`pickUp`), and they are not given back with the party when the
+// fight ends (`leaveBehind`). Done as soon as nothing is being played out,
+// since nobody leaves a party mid-action.
 export function layToRest(state: SceneState): SceneState {
-  const dead = Object.values(state.characters).filter(isDead)
+  const dead = Object.values(state.characters).filter((c) => isDead(c) && c.id in state.partyOf)
   if (getOpenAction(state) || dead.length === 0) return state
   // a party with nobody left alive is out of the chase before it is gone from the fight
   const chased = state.chase ? { ...state, chase: getChaseWithoutDead(state, state.chase) } : state
-  return dead.reduce((s, c) => {
-    const cell = s.board?.placements[c.id]?.cell ?? null
-    return removeFromCombat(c.id)({ ...s, bodies: [...s.bodies, { character: c, cell }] })
+  return dead.reduce((given, c) => {
+    const s = withdrawActions(given, getHeldActions(given).filter((h) => h.actorId === c.id).map((h) => h.id), 'failed')
+    const { [c.id]: _party, ...partyOf } = s.partyOf
+    const left = dropEmptyFightParties({ ...s, partyOf, inTurnCharacter: s.inTurnCharacter === c.id ? '' : s.inTurnCharacter, surrendered: s.surrendered.filter((id) => id !== c.id), binds: s.binds.filter((g) => !g.members.includes(c.id)) }, [s.partyOf[c.id]])
+    return settleBinds(left)
   }, chased)
-}
-
-// A body is brought back to life and into the fight, in the party named
-// (made if the fight has none by that id), unplaced on the board: one below
-// death, as the healing spells leave whoever they revive. Refused while an
-// action is open.
-export function reviveBody(id: string, partyId: string): Updater {
-  return (state) => {
-    const body = state.bodies.find((b) => b.character.id === id)
-    if (!body || !partyId || getOpenAction(state)) return state
-    const c = body.character
-    const revived = { ...c, injuries: { ...c.injuries, injuryLevel: getDeathIL(c) - 1 } }
-    return joinFight(revived, partyId, '', [])({ ...state, bodies: state.bodies.filter((b) => b.character.id !== id) })
-  }
 }
 
 // Changes one character outside any action — an edit made on the sheet

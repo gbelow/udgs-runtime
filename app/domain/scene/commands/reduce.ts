@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { HazardLayerSchema, type Action, type AttackAction, type Board, type Body, type SceneState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type ShootAction, type Tether, type Trample } from '../types'
+import { HazardLayerSchema, type Action, type AttackAction, type Board, type SceneState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type ShootAction, type Tether, type Trample } from '../types'
 import { getFootprint, placeAt, withFloorAt } from '../rules/board/board'
 import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
@@ -14,7 +14,7 @@ import { findWeaponRow } from '../rules/weaponRow'
 import { needsReload } from '../../character/rules/gear'
 import { getAttackKind } from '../../weaponProperties'
 import { breakOne, onFloor, withoutOne } from '../rules/floor'
-import { takeFromBody, takeFromCarrier, takeFromChest } from './loot'
+import { takeFromCarrier, takeFromChest } from './loot'
 import { isFloorAttack } from '../rules/equipment'
 import { getGroundCell } from '../rules/floorAttack'
 import { getBurnOf } from '../rules/ignition'
@@ -195,7 +195,12 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
           const treated = deliverAll(action.facts?.[c.id] ?? [])(c)
           return isWon(action) && c.id === action.targetId ? { ...treated, injuries: { ...treated.injuries, staunched: true } } : treated
         }
-        if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
+        // taken off a character, the dead looted: the looter holds it, and the
+        // one it was taken from no longer has it
+        if (action.kind === 'pickUp') {
+          if (c.id === action.actorId && action.picked) return holdItem(action.picked)(c)
+          return action.picked && action.from.kind !== 'floor' && action.from.kind !== 'chest' && c.id === action.from.holder ? takeFromCarrier(c, action.from, action.itemId) : c
+        }
         // combat.tex "Theft": the thief holds it, and the victim no longer has it
         if (action.kind === 'steal' && action.stolen) {
           if (c.id === action.actorId) return holdItem(action.stolen)(c)
@@ -368,15 +373,6 @@ export function reduceFloor(state: SceneState, action: Action, phase: Phase): (f
     if (action.kind === 'explosion' && action.itemId) return withoutOne(floor, action.itemId)
     if (action.kind === 'strike' && isFloorAttack(action)) return withBroken(floor, action)
     return floor
-  }
-}
-
-// The one place an action changes the dead: what was picked up off a body or
-// out of a container it wears, gone from it.
-export function reduceBodies(action: Action, phase: Phase): (bodies: Body[]) => Body[] {
-  return (bodies) => {
-    if (phase !== 'resolve' || action.kind !== 'pickUp') return bodies
-    return action.from.kind === 'floor' || action.from.kind === 'chest' ? bodies : takeFromBody(bodies, action.from, action.itemId)
   }
 }
 

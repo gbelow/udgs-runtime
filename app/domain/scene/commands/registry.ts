@@ -20,7 +20,7 @@ import { follow } from './follow'
 import { dropToFloor, placeItem, removeFloorItem, throwOffShieldToFloor } from './floor'
 import { setOffExplosion } from './gmExplosion'
 import { chargeByGM, setOffItem } from './gmCharge'
-import { impose, reviveBody, updateCharacter, updateInventory } from './characters'
+import { impose, updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
 import { rollMorale, setTablePressure } from './morale'
@@ -157,7 +157,6 @@ export const sceneCommands = {
   defaultToCoward: command((_, id: string) => defaultToCoward(id)).by(own),
 
   // the fight's parties: a player moves only their own character
-  reviveBody: command((_, id: string, partyId: string) => reviveBody(id, partyId)).by(gm),
   moveToParty: command((_, id: string, partyId: string) => moveToParty(id, partyId)).by(own),
   createParty: command((ctx, name: string) => createParty(ctx.newId(), name)).by(gm),
   splitOff: command((ctx, id: string) => splitOff(id, ctx.newId)).by(own),

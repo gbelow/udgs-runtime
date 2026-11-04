@@ -708,26 +708,19 @@ export const FloorItemSchema = z.object({
 }).strip()
 export type FloorItem = z.infer<typeof FloorItemSchema>
 
-// Whoever died in the fight, lying where they fell: out of their party and
-// off the turns, with the whole sheet kept so they may be revived. `cell` is
-// null on a fight without a board.
-export const BodySchema = z.object({
-  character: CampaignCharacterSchema,
-  cell: CoordSchema.nullable().default(null),
-}).strip()
-export type Body = z.infer<typeof BodySchema>
-
-// Where a loose item or a container lies, for the one who loots it: on the
-// floor, in a container lying on the floor, on a body (its hands and back, the
-// armor it wears, a container it wears), or in a container a body wears.
+// Where a loose item or a container lies, for the one who takes it: on the
+// floor, in a container lying on the floor, on a character (their hands and
+// back, the armor they wear, a container they wear), or in a container a
+// character wears. `holder` is the character; a dead one is looted, a living
+// one robbed.
 export const LootSourceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('floor') }).strip(),
   z.object({ kind: z.literal('chest'), chest: str }).strip(),
-  z.object({ kind: z.literal('body'), body: str }).strip(),
-  z.object({ kind: z.literal('pack'), body: str, container: str }).strip(),
+  z.object({ kind: z.literal('carried'), holder: str }).strip(),
+  z.object({ kind: z.literal('pack'), holder: str, container: str }).strip(),
   // the armor a body wears, and a container it wears taken whole
-  z.object({ kind: z.literal('worn'), body: str }).strip(),
-  z.object({ kind: z.literal('wornPack'), body: str, container: str }).strip(),
+  z.object({ kind: z.literal('worn'), holder: str }).strip(),
+  z.object({ kind: z.literal('wornPack'), holder: str, container: str }).strip(),
 ])
 export type LootSource = z.infer<typeof LootSourceSchema>
 
@@ -1340,14 +1333,14 @@ export const SlipActionSchema = z.object({
 
 // combat.tex "Theft": an item taken off someone's body, a Prestidigitation test
 // against their Detection. `from` says where on them it lies (their hands and
-// back, or a container they wear: `LootSource` with the holder as `body`). On a
+// back, or a container they wear: `LootSource` with them as the holder). On a
 // hit the thief chooses between taking it, noticed, and failing unnoticed
 // (`take`); `stolen` is what was taken, written at the resolve.
 export const StealActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('steal'),
   itemId: str.default(''),
-  from: LootSourceSchema.default({ kind: 'body', body: '' }),
+  from: LootSourceSchema.default({ kind: 'carried', holder: '' }),
   take: z.boolean().default(true),
   stolen: ItemSchema.nullable().default(null),
 }).strip()
@@ -1391,7 +1384,7 @@ export const PickUpActionSchema = z.object({
 }).strip()
 
 // Opening a container to rummage through: one lying within reach, or one a
-// body wears. `key` names it as `SceneState.opened` does.
+// character wears. `key` names it as `SceneState.opened` does.
 export const OpenActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('open'),
@@ -2033,8 +2026,6 @@ export const SceneStateSchema = z.object({
   // Every bind of the fight: grapples (combat.tex "Grapple"), one per pair
   binds: z.array(BindSchema).default([]),
   floor: z.array(FloorItemSchema).default([]),
-  // the dead, lying where they fell, out of every party and every turn
-  bodies: z.array(BodySchema).default([]),
   // the containers that have been opened to rummage through: a container
   // lying on the floor by its item's id, one a body wears by `body:container`
   opened: z.array(str).default([]),

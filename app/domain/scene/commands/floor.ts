@@ -11,7 +11,6 @@ import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
 import { getGearBar } from '../rules/turn'
-import { getBodyDraft } from '../rules/board/boardMode'
 import { getFightName } from '../rules/fighters'
 
 // What a character lets go of lands where they stand, and a holder who let
@@ -73,15 +72,6 @@ export function pickFloorItem(characterId: string, itemId: string, newId: () => 
     const open = getOpenAction(state)
     if (open?.kind === 'pickUp' && open.actorId === characterId) return amendAction({ itemId, from })(state)
     return declareAction(characterId, { kind: 'pickUp', itemId, from }, newId)(state)
-  }
-}
-
-// A body or a container clicked on the board: declares what the click would
-// do with it (`getBodyDraft`), nothing when the picker could do nothing.
-export function declareLoot(characterId: string, bodyId: string, newId: () => string): Updater {
-  return (state) => {
-    const draft = getBodyDraft(state, characterId, bodyId)
-    return draft ? declareAction(characterId, draft, newId)(state) : state
   }
 }
 

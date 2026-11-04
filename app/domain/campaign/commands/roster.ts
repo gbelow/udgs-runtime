@@ -54,6 +54,14 @@ export function removeFromRoster(id: string): CampaignUpdater {
   }
 }
 
+// A character who left the roster for a fight and does not come back (they
+// were left where they fell): their party, their name and their place in the
+// roster are gone with them. Their id stays lent, since the sheet is kept
+// where they lie.
+export function leaveForGood(id: string): CampaignUpdater {
+  return (state) => dropEmptyParties({ ...state, partyOf: without(state.partyOf, id), names: without(state.names, id) })
+}
+
 // The character leaves the roster for a fight but stays in their party.
 export function checkOut(id: string): CampaignUpdater {
   return (state) => {

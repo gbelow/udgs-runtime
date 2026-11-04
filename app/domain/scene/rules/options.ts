@@ -474,7 +474,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   pickUp: (state, c) => {
     const cost = getActionCost(c, 'standardAction')
     const loot = getReachableLoot(state, c.id)
-    const reason = state.floor.length === 0 && state.bodies.length === 0 ? 'nothing on the floor'
+    const reason = state.floor.length === 0 && !Object.values(state.characters).some(isDead) ? 'nothing on the floor'
       : !loot.some((l) => canPickUp(c, l.item) && getLootCost(state, c, l) !== null) ? (loot.length > 0 ? 'no free hand' : 'nothing within reach')
       : canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
     return [option({ kind: 'pickUp' }, cost, reason)]

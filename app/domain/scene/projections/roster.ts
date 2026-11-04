@@ -7,6 +7,7 @@ import { getFightName } from '../rules/fighters'
 import { getJoinBar } from '../rules/fight'
 import { perState } from '../../perState'
 import { getHeldOf } from '../rules/hold'
+import { isDead } from '../../character/rules/afflictions'
 import { getActionNoun } from './labels'
 
 // Who a character is to an action.
@@ -66,12 +67,14 @@ export const getCombatRoster = perState(buildCombatRoster)
 export type RosterParty = { id: string; name: string; entries: CombatRosterEntry[] }
 
 // The roster split by party, in the order the parties joined the fight;
-// anyone in none comes last, in a party with no name.
+// anyone in none comes last, in a party with no name, or the fallen when all
+// of them are dead.
 function buildRosterParties(state: SeenScene): RosterParty[] {
   const roster = getCombatRoster(state)
   const parties = Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name, entries: roster.filter((e) => state.partyOf[e.id] === id) }))
   const loose = roster.filter((e) => !state.parties[state.partyOf[e.id]])
-  return loose.length > 0 ? [...parties, { id: '', name: '', entries: loose }] : parties
+  const fallen = loose.length > 0 && loose.every((e) => isDead(state.characters[e.id]))
+  return loose.length > 0 ? [...parties, { id: '', name: fallen ? 'fallen' : '', entries: loose }] : parties
 }
 
 export const getRosterParties = perState(buildRosterParties)

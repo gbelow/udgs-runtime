@@ -337,8 +337,6 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
   layToRest: (s) => combatCommands.layToRest(deepFreeze(grappling(s))),
   chooseTheft: (s) => combatCommands.chooseTheft(false)(deepFreeze(cleared(s))),
-  reviveBody: (s) => combatCommands.reviveBody('b', 'a')(deepFreeze({ ...cleared(s), bodies: [{ character: s.characters.b, cell: null }] })),
-  declareLoot: (s) => combatCommands.declareLoot('a', 'b', newId)(deepFreeze({ ...cleared(s), bodies: [{ character: s.characters.b, cell: null }] })),
   impose: (s) => combatCommands.impose(['a', 'b'], { effect: { name: 'fall', trigger: 'instant', type: 'fall', effect: { height: 6 } }, degree: null, test: { roll: 'balance', DL: 6, direct: true }, when: null, then: [], locks: null })(deepFreeze(cleared(s))),
   updateCharacter: (s) => combatCommands.updateCharacter('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
   updateInventory: (s) => combatCommands.updateInventory('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
@@ -371,6 +369,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
   updateRosterCharacter: ({ campaign }) => campaignCommands.updateRosterCharacter('a', (c) => ({ ...c, held: [] }))(campaign),
   checkOut: ({ campaign }) => campaignCommands.checkOut('a')(campaign),
+  leaveForGood: ({ campaign }) => campaignCommands.leaveForGood('a')(campaign),
   addParty: ({ campaign }) => campaignCommands.addParty('q')(campaign),
   dropEmptyParties: ({ campaign }) => campaignCommands.dropEmptyParties({ ...campaign, partyOf: {} }),
   joinParty: ({ campaign }) => campaignCommands.joinParty('c', () => 'q')(campaign),
@@ -411,6 +410,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   toggleBreakage: (t) => campaignCommands.toggleBreakage(deepFreeze(away(t))),
   passBy: ({ campaign }) => campaignCommands.passBy('s')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null } } }),
   playScene: (t) => campaignCommands.playScene('s', null, {}, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [], scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: true, event: 'E', at: { map: 'm', node: 'n1' } } } }, fight: resetCombatModule.resetCombat(t.fight) })),
+  leaveDead: ({ campaign, fight }) => campaignCommands.leaveDead({ ...fight, foundAt: 'm/n1' }, campaign, Object.values(fight.characters), () => true),
   leaveBehind: ({ campaign, fight }) => campaignCommands.leaveBehind({ ...fight, foundAt: 'm/n1', floor: [{ item: ItemSchema.parse({ id: 'i' }), cell: null, planted: null }] }, campaign),
 }
 

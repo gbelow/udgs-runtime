@@ -5,22 +5,15 @@ import { getPrestidigitationTerms } from '../../character/rules/skills'
 import { getSize } from '../../character/rules/size'
 import { isDead } from '../../character/rules/afflictions'
 import { GEAR_SIZE } from '../../item/rules/items'
-import { getPlacedFootprint } from './board/board'
-import { canPickUp, isInReach } from './floor'
+import { canPickUp } from './floor'
 import { getSenseReaches, getSensoryTermsHere } from './detection'
-import { getCarriedBy, isSameSource, type LootItem } from './loot'
+import { getCarriedBy, isSameSource, isWithinReach, type LootItem } from './loot'
 import { notices } from './stealth'
 
 // combat.tex "Theft": "A standard action can be used to steal an item from
 // someone's body ... having one hand free". What they have on them, within
 // reach: in their hands and on their back, and in the containers they wear,
 // none of it needing to be opened.
-
-// Whether the character stands within reach of the other, which a thief must.
-function isWithinReach(state: SceneState, id: string, victimId: string): boolean {
-  const footprint = getPlacedFootprint(state, victimId)
-  return !state.board || !footprint || footprint.some((cell) => isInReach(state, id, cell))
-}
 
 // Everything the thief could lift off the victim.
 export function getStealable(state: SceneState, thiefId: string, victimId: string): LootItem[] {

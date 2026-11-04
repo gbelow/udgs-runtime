@@ -3,8 +3,10 @@ import { ContainerSchema, ItemSchema, type CampaignCharacter, type Item } from '
 import { makeCampaignCharacter } from '../../factories'
 import { getDeathIL } from '../../character/rules/afflictions'
 import { SceneStateSchema, type SceneState } from '../types'
+import { CampaignStateSchema } from '../../campaign/types'
+import { returnFromFight, sendToFight } from './fight'
 import { commitAction, declareAction } from './action'
-import { layToRest, reviveBody } from './characters'
+import { layToRest } from './characters'
 import { joinFight } from './parties'
 import { pickFloorItem } from './floor'
 import { canPickUp } from '../rules/floor'
@@ -43,17 +45,23 @@ const opened = (state: SceneState): SceneState => getOpenables(state, 'a').reduc
 
 describe('the dead', () => {
   // the table's ruling: a dead character leaves their party at the moment of
-  // death, keeps all their data, and may be revived
-  it('leave the fight whole and come back as they were, one below death', () => {
+  // death and stays a character, whole
+  it('leave their party and stay characters', () => {
     const lying = scene()
-    const body = lying.bodies[0].character
-    expect(lying.characters.b).toBeUndefined()
     expect(lying.partyOf.b).toBeUndefined()
-    const revived = reviveBody('b', 'a')(lying)
-    expect(revived.bodies).toEqual([])
-    expect(revived.partyOf.b).toBe('a')
-    expect({ ...revived.characters.b, injuries: body.injuries }).toEqual(body)
-    expect(revived.characters.b.injuries.injuryLevel).toBe(getDeathIL(body) - 1)
+    expect(lying.characters.b.name).toBe('b')
+    expect(lying.characters.b.containers.pack.name).toBe('backpack')
+  })
+
+  // the table's ruling: carrying a corpse is storing it, so the dead are not
+  // given back to the roster with their party
+  it('are left where they fell when the fight is given back', () => {
+    const campaign = CampaignStateSchema.parse({ characters: { a: sheet('a'), b: dead(sheet('b')) } })
+    const sent = sendToFight(['a', 'b'])({ campaign, fight: SceneStateSchema.parse({}) })
+    const back = returnFromFight(['a', 'b'], 0)({ ...sent, fight: layToRest(sent.fight) })
+    expect(Object.keys(back.campaign.characters)).toEqual(['a'])
+    expect(back.campaign.fallen[''].map((c) => c.id)).toEqual(['b'])
+    expect(back.fight.characters).toEqual({})
   })
 })
 
@@ -66,7 +74,7 @@ describe('looting', () => {
     expect(shut.every((o) => !o.opened)).toBe(true)
     const inside = new Set(['rope', 'flint', 'coin'])
     expect(getReachableLoot(lying, 'a').filter((l) => inside.has(l.item.id))).toEqual([])
-    const tried = pickFloorItem('a', 'rope', newId, { kind: 'pack', body: 'b', container: 'pack' })(lying)
+    const tried = pickFloorItem('a', 'rope', newId, { kind: 'pack', holder: 'b', container: 'pack' })(lying)
     expect(commitAction(() => 5, newId)(tried).characters.a.held).toEqual([])
   })
 
@@ -119,7 +127,7 @@ describe('what a body has on it', () => {
     const open = play(lying, { kind: 'open', key: 'b:pack' })
     for (const { id } of goods) {
       const before = open.characters.a.resources.AP
-      const looted = commitAction(() => 5, newId)(pickFloorItem('a', id, newId, { kind: 'pack', body: 'b', container: 'pack' })(open))
+      const looted = commitAction(() => 5, newId)(pickFloorItem('a', id, newId, { kind: 'pack', holder: 'b', container: 'pack' })(open))
       const own = drawItem('pack', id)({ ...fresh(sheet('x')), containers: { pack: container } }, true) as CampaignCharacter
       expect(before - looted.characters.a.resources.AP).toBe(40 - own.resources.AP)
     }
@@ -131,7 +139,7 @@ describe('what a body has on it', () => {
     const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, resources: { ...c.resources, AP: 40 } })
     const base = layToRest([sheet('a'), body].reduce((s, c) => joinFight(c, c.id, c.name, [])(s), SceneStateSchema.parse({})))
     const lying = { ...base, round: 1, inTurnCharacter: 'a', characters: { ...base.characters, a: fresh(base.characters.a) } }
-    const looted = commitAction(() => 5, newId)(pickFloorItem('a', 'mail', newId, { kind: 'worn', body: 'b' })(lying))
+    const looted = commitAction(() => 5, newId)(pickFloorItem('a', 'mail', newId, { kind: 'worn', holder: 'b' })(lying))
     const own = doffArmor(null)({ ...fresh(sheet('x')), worn: mail }, true) as CampaignCharacter
     expect(looted.characters.a.held.map((i) => i.id)).toContain('mail')
     expect(40 - looted.characters.a.resources.AP).toBe(40 - own.resources.AP)
@@ -139,7 +147,7 @@ describe('what a body has on it', () => {
 })
 
 describe('theft', () => {
-  const from = { kind: 'pack', body: 'b', container: 'pack' } as const
+  const from = { kind: 'pack', holder: 'b', container: 'pack' } as const
 
   function robbery(): SceneState {
     const victim = { ...sheet('b'), containers: { pack: withPack('backpack', [stuff('rope', 'Rope')]) } }

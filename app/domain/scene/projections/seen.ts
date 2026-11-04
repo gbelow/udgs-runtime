@@ -80,7 +80,6 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   board: (board, c) => (board ? { ...board, placements: unseen(board.placements, c) } : board),
   binds: unseen,
   floor: keep,
-  bodies: keep,
   opened: keep,
 }
 

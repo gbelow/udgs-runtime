@@ -48,7 +48,6 @@ export function resetCombat(state: SceneState): SceneState {
     board: state.board ? { ...state.board, placements: {} } : null,
     binds: [],
     floor: [],
-    bodies: [],
     opened: [],
     foundAt: null,
   }

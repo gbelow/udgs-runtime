@@ -3,7 +3,7 @@ import type { CampaignCharacter } from '../../types'
 import type { Action, ActionKind, ActionOf, SceneState, RootAction, WithdrawalReason } from '../types'
 import { getAction, getLiveActions, getParticipants, getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
-import { reduceBoard, reduceBodies, reduceCharacter, reduceFloor, reduceBinds, reduceOpened, type Phase } from './reduce'
+import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, reduceOpened, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
 import { getInterruptionsLanding, type StampedInterruption } from '../rules/interruption'
 import { getPreparationOf, getReactedWithin } from '../rules/prepared'
@@ -193,7 +193,7 @@ function applyOne(s: SceneState, action: Action, phase: Phase): SceneState {
   const board = rolled.board ? reduceBoard(rolled, action, phase)(rolled.board) : null
   const fire = phase === 'resolve' ? getFireTouched({ ...rolled, board }, action) : null
   const next = mapCharacters(rolled, reduceCharacter(action, phase, isCombatStarted(rolled), fire))
-  const placed = { ...next, board, floor: reduceFloor(rolled, action, phase)(rolled.floor), bodies: reduceBodies(action, phase)(rolled.bodies), opened: reduceOpened(action, phase)(rolled.opened), binds: reduceBinds(rolled, action, phase)(next.binds) }
+  const placed = { ...next, board, floor: reduceFloor(rolled, action, phase)(rolled.floor), opened: reduceOpened(action, phase)(rolled.opened), binds: reduceBinds(rolled, action, phase)(next.binds) }
   return settleSevered(rolled, action.id)(settleBinds(phase === 'resolve' ? settleLinks(settleArcs(placed), action) : placed))
 }
 

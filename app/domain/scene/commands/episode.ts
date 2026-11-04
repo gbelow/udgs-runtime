@@ -1,4 +1,7 @@
 import type { CampaignState } from '../../campaign/types'
+import type { CampaignCharacter } from '../../types'
+import { isDead } from '../../character/rules/afflictions'
+import { leaveForGood } from '../../campaign/commands/roster'
 import type { FloorItem, SceneState, Table, TableUpdater } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { getPlaySceneBar, getScenePreset } from '../../campaign/rules/scenes'
@@ -40,12 +43,21 @@ export function playScene(sceneId: string, board: unknown | null, opponents: Rec
   }
 }
 
+// The dead stay where they fell, whole, under the place the fight was met at
+// (the empty key for a fight met nowhere): they are not given back to the
+// roster with their party, since carrying a body is storing it. One sent from
+// the roster is gone from it for good.
+export function leaveDead(fight: SceneState, campaign: CampaignState, dead: CampaignCharacter[], fromRoster: (id: string) => boolean): CampaignState {
+  if (dead.length === 0) return campaign
+  const key = fight.foundAt ?? ''
+  const forgotten = dead.filter((c) => fromRoster(c.id)).reduce((acc, c) => leaveForGood(c.id)(acc), campaign)
+  return { ...forgotten, fallen: { ...forgotten.fallen, [key]: [...(forgotten.fallen[key] ?? []), ...dead] } }
+}
+
 // What a fight that ended left on its floor, left where it was met, and the
 // dead who lie there with it.
 export function leaveBehind(fight: SceneState, campaign: CampaignState): CampaignState {
   const key = fight.foundAt
   const items = key && fight.floor.length > 0 ? { left: { ...campaign.left, [key]: [...(campaign.left[key] ?? []), ...fight.floor.map((f) => f.item)] } } : {}
-  const dead = fight.bodies.map((b) => b.character)
-  const bodies = dead.length > 0 ? { fallen: { ...campaign.fallen, [key ?? '']: [...(campaign.fallen[key ?? ''] ?? []), ...dead] } } : {}
-  return { ...campaign, ...items, ...bodies }
+  return leaveDead(fight, { ...campaign, ...items }, Object.values(fight.characters).filter(isDead), (id) => id in campaign.partyOf && !campaign.characters[id])
 }

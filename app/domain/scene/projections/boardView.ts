@@ -11,7 +11,7 @@ import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/fighters'
 import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells } from '../rules/explosion'
-import { getBoardMode, getBodyDraft, getEvasiveJumper, getFloorPicker, type BoardMode } from '../rules/board/boardMode'
+import { getBoardMode, getEvasiveJumper, getFloorPicker, type BoardMode } from '../rules/board/boardMode'
 import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost } from '../rules/move'
 import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
@@ -504,7 +504,7 @@ function buildBoardView(state: SeenScene): BoardView {
       center: centers.has(g.key),
       isCenter: aimedAt !== null && sameCell(aimedAt, g.cell),
       threatened: threatened.has(g.key),
-      items: [...state.floor.filter((f) => f.cell !== null && sameCell(f.cell, g.cell)).map((f) => f.item.name), ...state.bodies.filter((b) => b.cell !== null && sameCell(b.cell, g.cell)).map((b) => `${getFightName(state, b.character.id)} (dead)`)],
+      items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, g.cell)).map((f) => f.item.name),
     }
   })
   const rims = joinRims(ground.rims, cells)
@@ -552,16 +552,6 @@ function buildBoardView(state: SeenScene): BoardView {
     const { x, y } = toPlane(f.cell)
     return [{ itemId: f.item.id, name: f.item.name, cell: key, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id), targetable: struck.has(f.item.id) }]
   })
-  // the dead lie among the items, drawn and clicked as one, by their id
-  const fallen: BoardFloorItemView[] = state.bodies.flatMap((b) => {
-    if (!b.cell) return []
-    const key = coordKey(b.cell)
-    const stack = stacks.get(key) ?? 0
-    stacks.set(key, stack + 1)
-    const { x, y } = toPlane(b.cell)
-    const id = b.character.id
-    return [{ itemId: id, name: `${getFightName(state, id)} (dead)`, cell: key, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: !!state.activeCharacterId && getBodyDraft(state, state.activeCharacterId, id) !== null, targetable: false }]
-  })
 
   const binds: BoardBindView[] = state.binds.flatMap((g) => {
     const [a, b] = g.members
@@ -595,7 +585,7 @@ function buildBoardView(state: SeenScene): BoardView {
     bands: ground.bands,
     front: ground.front,
     tokens,
-    floor: [...floor, ...fallen],
+    floor,
     binds,
     ghosts,
     picker: floorPicker?.picker ?? null,

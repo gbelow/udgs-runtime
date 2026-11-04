@@ -1,5 +1,5 @@
 import type { Character, Item } from '../../types'
-import type { Body, FloorItem, LootSource } from '../types'
+import type { FloorItem, LootSource } from '../types'
 import { mapSlotGroups } from '../../item/rules/containers'
 import { removeItemFromContainer } from '../../item/commands/items'
 import { dropItem } from '../../item/commands/hands'
@@ -24,9 +24,4 @@ export function takeFromCarrier<C extends Character>(c: C, from: Exclude<LootSou
   if (from.kind === 'worn') return { ...c, worn: null }
   if (from.kind === 'wornPack') return { ...c, containers: without(c.containers, from.container) }
   return c.onBack?.id === itemId ? { ...c, onBack: null } : dropItem(itemId)(c)
-}
-
-// The same off a body.
-export function takeFromBody(bodies: Body[], from: Exclude<LootSource, { kind: 'floor' | 'chest' }>, itemId: string): Body[] {
-  return bodies.map((b) => (b.character.id === from.body ? { ...b, character: takeFromCarrier(b.character, from, itemId) } : b))
 }
