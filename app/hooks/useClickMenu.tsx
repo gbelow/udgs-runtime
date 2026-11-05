@@ -19,11 +19,6 @@ export function useClickMenu() {
     dispatch({ kind: "menu", args: [entry.press] });
     setMenu(null);
   };
-  const select = () => {
-    if (menu?.select) setActiveCharacter(menu.select);
-    setMenu(null);
-  };
-
   // Escape backs out one thing at a time: the menu, then a follow pick waiting
   // for its click, then whoever is picked.
   const escape = () => {
@@ -32,5 +27,5 @@ export function useClickMenu() {
     else setActiveCharacter(null);
   };
 
-  return { menu, press, select, close, escape } as const;
+  return { menu, press, close, escape } as const;
 }

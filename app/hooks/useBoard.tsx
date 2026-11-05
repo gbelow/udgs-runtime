@@ -40,6 +40,13 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
   const click = (c: Click, brush: TerrainBrush | null = null, reposition = false, radius = 0) => {
     const state = useCombatStore.getState();
     const selected = state.activeCharacterId;
+    // while a menu is open a click only closes it, and one on the character it opened on picks them
+    const menu = useClickMenuStore.getState().menu;
+    if (menu) {
+      useClickMenuStore.getState().setMenu(null);
+      if (c.on === "token" && menu.select === c.id) setActiveCharacter(c.id);
+      return;
+    }
     const read = readClick(state, c, { brush, radius, reposition, selected, newId: () => "" });
     if ("select" in read) setActiveCharacter(read.select);
     else if ("menu" in read) useClickMenuStore.getState().setMenu(read.menu);

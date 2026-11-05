@@ -509,7 +509,7 @@ export function Dropdown({ label, text, icon, tile, title, children }: { label: 
         ? <IconButton icon={icon} active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)} />
         : <Button size='xs' active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>}
       {open ? (
-        <Floating anchor={box} panelRef={panel} align='end' className='!w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
+        <Floating anchor={box} panelRef={panel} align='end' className='min-w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
           <MenuClose.Provider value={() => setOpen(false)}>{children(() => setOpen(false))}</MenuClose.Provider>
         </Floating>
       ) : null}
