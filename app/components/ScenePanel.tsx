@@ -425,29 +425,21 @@ export function SurgeTile(){
   const { actionSurge } = useCombatCommands()
   const options = useCombatSurgeOptions()
   const binding = useBindingSurge()
-  const used = options.find((option) => option.used)
 
   return(
-    <Dropdown label='action surges' title='one surge a round' tile={{ name: 'surge', value: used ? used.kind : 'unused', lit: !!used }}>
-      {(close) => (
-        <div className='flex flex-col items-stretch gap-1'>
-          {options.map((option) =>
-            // The surge spent this round stays lit until nextRound clears it; the
-            // other three close (combat.tex "Action surge": one per round).
-            <Tooltip key={option.kind} text={option.used ? `${option.kind} surge used this round` : option.title}>
-              {option.used
-                ? <ActionKey look='picked' icon={Check} aria-label={option.kind + ' surge'} aria-pressed className='pointer-events-none'>{option.kind} surge</ActionKey>
-                : <ActionKey aria-label={option.kind + ' surge'} disabled={!option.available} onClick={() => { actionSurge(option.kind); close() }}>{option.kind} surge</ActionKey>}
-            </Tooltip>
-          )}
-          {binding ? (
-            <Tooltip text={`give up the ${binding} surge AP left, to do something it does not allow`}>
-              <ActionKey aria-label='endSurge' onClick={() => { endSurge(); close() }}>end surge</ActionKey>
-            </Tooltip>
-          ) : null}
-        </div>
-      )}
-    </Dropdown>
+    <div role='group' aria-label='action surges' className='flex flex-col items-start rounded border border-line bg-surface px-1.5 py-1 max-w-80'>
+      <span className='text-[10px] text-muted'>surge</span>
+      <div className='flex flex-row flex-wrap gap-1'>
+        {options.map((option) =>
+          // The surge spent this round stays lit until nextRound clears it; the
+          // others close (combat.tex "Action surge": one per round).
+          option.used
+            ? <Button key={option.kind} size='xs' selected icon={Check} aria-label={option.kind + ' surge'} aria-pressed title={`${option.kind} surge used this round`} className='pointer-events-none'>{option.kind}</Button>
+            : <Button key={option.kind} size='xs' aria-label={option.kind + ' surge'} disabled={!option.available} title={option.title} onClick={() => actionSurge(option.kind)}>{option.kind}</Button>
+        )}
+        {binding ? <Button size='xs' weight='subtle' aria-label='endSurge' title={`give up the ${binding} surge AP left, to do something it does not allow`} onClick={endSurge}>end surge</Button> : null}
+      </div>
+    </div>
   )
 }
 

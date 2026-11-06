@@ -38,7 +38,6 @@ Improve Chase UI/ playability
 ### convictions
 - promoted actions
 - limit actions and compulsions
-- coward forces movement surge - cannot escape during grapple with surge ap
 
 
 ### knowledge actions
