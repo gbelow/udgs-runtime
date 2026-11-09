@@ -1671,6 +1671,7 @@ export const CreationDraftSchema = z.object({
   trainables: z.partialRecord(TrainableKeySchema, num).default({}),
   progress: z.partialRecord(TrainableKeySchema, num).default({}), // the XP put toward the next level of a skill, proficiency or knowledge, short of its price
   abilities: z.record(z.string(), num).default({}), // by ability family: the level bought up to, the race's stages free
+  abilityProgress: z.record(z.string(), num).default({}), // by ability family: the XP put toward its next stage, short of that stage's price
   // the spells chosen, by key: the method each is learned by, and whether it
   // was claimed free from an ability (Magic Theory)
   spells: z.record(z.string(), z.object({ method: SpellMethodSchema, free: z.boolean().default(false) })).default({}),

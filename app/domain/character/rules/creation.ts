@@ -4,7 +4,7 @@ import { isBaseCharacter } from '../../utils'
 import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, SpellMethod, SpellMethodSchema, TalentsSchema, Trainables } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey, isSpellKey } from '../../spells'
 import { formatMoney, getCarriedValue, getPurse, getSparedWealth } from '../../item/rules/money'
-import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
+import { getAbilityTrainingPrice, getAbilityXPCost, meetsAbilityRequirements } from './abilities'
 import { getConvictionSlot } from './requirements'
 import { canClaimFreeSpell, canLearnSpell, getFreeSpellCount } from './spells'
 import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_KEYS, SKILL_TALENTS, SPELL_LEARN_XP, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice, isSkillKey } from './learning'
@@ -75,10 +75,10 @@ function talentTerms(d: CreationDraft, start: Character, key: keyof Trainables):
   ]
 }
 
-// creating.tex "Gaining Experience (XP)": skills, knowledges and proficiencies take XP
+// creating.tex "Gaining Experience (XP)": skills, knowledges, proficiencies and attributes take XP
 // short of a level, counted toward the next. The XP held is what was put
 // toward it, kept below the price of that level; none for what cannot rise.
-export const hasProgress = (key: keyof Trainables): boolean => isSkillKey(key) || key in ProficienciesSchema.shape
+export const hasProgress = (key: keyof Trainables): boolean => isSkillKey(key) || key in ProficienciesSchema.shape || key in AttributesSchema.shape
 
 export function getCreationProgressCap(build: Character, key: keyof Trainables): number {
   const price = hasProgress(key) && getCreationPool(key) !== null ? getTrainableRaisePrice(key)(build) : null
@@ -100,11 +100,6 @@ export function getCreationBuild(d: CreationDraft): Character {
     const value = terms.length ? sumTerms(terms) : trainables[key].value + boughtOf(d, key)
     if (value !== trainables[key].value) trainables[key] = { ...trainables[key], value }
   }
-  const leveled = { ...c, trainables }
-  for (const key of Object.keys(d.progress) as (keyof Trainables)[]) {
-    const XP = getCreationProgress(d, leveled, key)
-    if (XP !== trainables[key].XP) trainables[key] = { ...trainables[key], XP }
-  }
   const abilities = { ...c.abilities }
   for (const [family, level] of Object.entries(d.abilities)) {
     if (isFamilyKey(family) && level > getAbilityLevel(c, family)) abilities[family] = heldAbility(family, level)
@@ -113,7 +108,28 @@ export function getCreationBuild(d: CreationDraft): Character {
   for (const [key, { method }] of Object.entries(d.spells)) {
     if (!(key in spells)) spells[key] = { method, practice: 0 }
   }
+  const leveled = { ...c, trainables, abilities, spells }
+  for (const key of Object.keys(d.progress) as (keyof Trainables)[]) {
+    const XP = getCreationProgress(d, leveled, key)
+    if (XP !== trainables[key].XP) trainables[key] = { ...trainables[key], XP }
+  }
+  for (const family of Object.keys(d.abilityProgress).filter(isFamilyKey)) {
+    const XP = getCreationAbilityProgress(d, leveled, family)
+    if (XP > 0) abilities[family] = { ...(abilities[family] ?? heldAbility(family)), XP }
+  }
   return { ...c, trainables, abilities, spells }
+}
+
+// abilities.tex "Acquiring abilities": a family takes XP toward its next stage
+// short of that stage's price, as a trainable does. Only a stage priced in XP
+// takes it; a karma-priced one, or one whose requirements are not met, none.
+export function getCreationAbilityProgressCap(build: Character, family: FamilyKey): number {
+  const price = getAbilityTrainingPrice(family)(build)
+  return price?.currency === 'XP' ? Math.max(0, price.amount - 1) : 0
+}
+
+export function getCreationAbilityProgress(d: CreationDraft, build: Character, family: FamilyKey): number {
+  return Math.min(Math.max(0, d.abilityProgress[family] ?? 0), getCreationAbilityProgressCap(build, family))
 }
 
 // creating.tex "Character Creation", Step 3 gives the wealth focus in gold.
@@ -159,8 +175,9 @@ function getTrainableCharge(d: CreationDraft, build: Character, key: keyof Train
 function getAttributesCharge(d: CreationDraft, build: Character): CreationCharge | null {
   const from = ATTRIBUTE_KEYS.map((key) => d.character.trainables[key].value)
   const to = ATTRIBUTE_KEYS.map((key, i) => from[i] + Math.max(0, boughtOf(d, key)))
-  if (to.every((v, i) => v === from[i])) return null
-  return { key: 'attributes', pool: 'CON', amount: getAttributeRaisesXPCost(from, to, getAttributeBalance(build)) }
+  const progress = ATTRIBUTE_KEYS.reduce((sum, key) => sum + getCreationProgress(d, build, key), 0)
+  if (to.every((v, i) => v === from[i]) && progress <= 0) return null
+  return { key: 'attributes', pool: 'CON', amount: getAttributeRaisesXPCost(from, to, getAttributeBalance(build)) + progress }
 }
 
 // The stages bought of a family, each in its own price: karma (a flaw's
@@ -186,6 +203,13 @@ function getSpellCharge(d: CreationDraft, key: string): CreationCharge | null {
   return !chosen || chosen.free || key in d.character.spells ? null : spellCharge(key, chosen.method)
 }
 
+// The XP put toward a family's next stage, from the talent that stage lists.
+function getAbilityProgressCharge(d: CreationDraft, build: Character, family: FamilyKey): CreationCharge | null {
+  const amount = getCreationAbilityProgress(d, build, family)
+  const talent = ABILITIES[getFamilyStages(family)[getAbilityLevel(build, family)]]?.talent[0]
+  return amount > 0 && talent ? { key: family, pool: talent.property, amount } : null
+}
+
 const boughtStages = (d: CreationDraft, family: FamilyKey): AbilityKey[] =>
   getFamilyStages(family).slice(getRacialLevel(d, family), d.abilities[family] ?? 0)
 
@@ -196,6 +220,7 @@ export function getCreationCharges(d: CreationDraft): CreationCharge[] {
     ...TRAINABLE_KEYS.map((key) => getTrainableCharge(d, build, key)),
     getAttributesCharge(d, build),
     ...families.flatMap((family) => boughtStages(d, family).map((key) => getStageCharge(key, build))),
+    ...Object.keys(d.abilityProgress).filter(isFamilyKey).map((family) => getAbilityProgressCharge(d, build, family)),
     ...Object.keys(d.spells).map((key) => getSpellCharge(d, key)),
   ].filter((charge): charge is CreationCharge => charge !== null)
 }

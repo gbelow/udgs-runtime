@@ -234,6 +234,7 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   setCreationConviction: creationCommands.setCreationConviction('conviction1', 'Fatalism'),
   buyCreationLevel: creationCommands.buyCreationLevel('strike', 1),
   setCreationProgress: creationCommands.setCreationProgress('strike', 1),
+  setCreationAbilityProgress: creationCommands.setCreationAbilityProgress('sprinter', 1),
   buyCreationStage: creationCommands.buyCreationStage('sprinter', -1),
   setCreationSpell: creationCommands.setCreationSpell('detonate-explosive', 'intuitive'),
   claimCreationSpell: creationCommands.claimCreationSpell('detonate-explosive'),

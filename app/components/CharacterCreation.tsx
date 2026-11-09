@@ -13,7 +13,7 @@ import { WeaponPanel } from './WeaponPanel'
 import { ContainerPanel } from './ContainerPanel'
 import { PRIORITIES, SpellMethodSchema } from '../domain/types'
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists'
-import type { CreationPrice, CreationRow } from '../domain/character/lenses/creation'
+import type { CreationAbilityEntry, CreationPrice, CreationRow } from '../domain/character/lenses/creation'
 import type { Term } from '../domain/character/rules/terms'
 
 const STEPS = ['Race & attributes', 'Skills & proficiencies', 'Knowledge & spirit', 'Abilities & spells', 'Gear', 'Finish'] as const
@@ -362,15 +362,20 @@ function TrainableGroup({ label, rows }: { label: string; rows: CreationRow[] })
 // stages and what they do, a family that can be bought now added from it;
 // under it the families held, the race's stages locked.
 function Abilities() {
-  const { view, buyStage } = useCreation()
+  const { view, buyStage, setAbilityProgress } = useCreation()
   const filter = useCollectionFilter('abilities')
+  const progressInput = (entry: CreationAbilityEntry) => entry.progressCap > 0 ? (
+    <Tooltip text={`XP toward the next stage, up to ${entry.progressCap}`}>
+      <NumberInput aria-label={`${entry.view.family} xp`} className='w-14 text-xs py-0' min={0} max={entry.progressCap} value={entry.progress} onChange={(e) => setAbilityProgress(entry.family, parseInt(e.target.value) || 0)} />
+    </Tooltip>
+  ) : null
   return (
     <Section title='Abilities'>
       <div className='flex flex-col rounded border border-line p-1'>
         <CatalogList label='ability' groups={view.abilityCatalog} nameOf={(entry) => entry.view.family} collection={{ filter, keyOf: (entry) => entry.view.key }} render={(entry) => (
           <AbilityFamilyRow key={entry.family} row={entry.view} action={
             entry.level > 0 ? <span className='text-xs text-good px-1'>{entry.bought > 0 ? 'taken' : 'racial'}</span>
-            : entry.next ? <Button size='xs' weight='subtle' tone='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
+            : entry.next ? <span className='flex flex-row items-center gap-1'>{progressInput(entry)}<Button size='xs' weight='subtle' tone='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button></span>
             : <LockedLabel reason={entry.view.blocked} />} />
         )} />
       </div>
@@ -378,6 +383,7 @@ function Abilities() {
       {view.abilities.map((entry) => <AbilityFamilyRow key={entry.family} row={entry.view} action={
         <span className='flex flex-row items-center gap-1'>
           {entry.racial > 0 ? <span className='text-xs text-muted' title='given by the race'>🔒 racial</span> : null}
+          {progressInput(entry)}
           <Button size='xs' aria-label={`give back ${entry.view.family}`} disabled={entry.bought === 0} onClick={() => buyStage(entry.family, -1)}>−</Button>
           <Tooltip text={entry.next === null ? entry.view.blocked : ''}>
             <Button size='xs' aria-label={`raise ${entry.view.family}`} disabled={entry.next === null} onClick={() => buyStage(entry.family, 1)}>+</Button>

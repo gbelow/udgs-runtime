@@ -10,7 +10,7 @@ import { getAttributeBalance, getTrainableLimit } from '../rules/learning'
 import { skillTermGetters } from '../rules/skills'
 import { isFormalKnowledge } from '../rules/knowledge'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
-import { CREATION_POOLS, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getCreationProgress, getCreationProgressCap, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
+import { CREATION_POOLS, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getCreationProgress, getCreationProgressCap, getCreationAbilityProgress, getCreationAbilityProgressCap, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
 
 // What buying the next level costs: its pool and amount; free for a stage the
 // book lists at no cost; null when it cannot be bought.
@@ -33,7 +33,7 @@ export type CreationRaceView = { name: string; bonuses: Term[]; abilities: strin
 // One ability family as the creation tab shows it: its text and stages, the
 // level held, the stages the race gives (locked) and those bought on top, and
 // the price of its next stage (null when it cannot be bought now).
-export type CreationAbilityEntry = { family: FamilyKey; view: AbilityFamilyView; level: number; racial: number; bought: number; next: CreationPrice }
+export type CreationAbilityEntry = { family: FamilyKey; view: AbilityFamilyView; level: number; racial: number; bought: number; next: CreationPrice; progress: number; progressCap: number }
 
 // One spell as the creation tab shows it: its catalog entry, the method it
 // was chosen by (null while not chosen), whether it was claimed free or can
@@ -113,13 +113,16 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
     const knowledge = section.toLowerCase()
     return !isFormalKnowledge(knowledge) || created.trainables[knowledge].value > 0
   }
+  const build = getCreationBuild(d)
   const entries = getAbilityCatalogRows(created, false)
     .sort((a, b) => a.family.localeCompare(b.family))
     .map((view) => {
       const family = FAMILY_BY_NAME.get(view.family)!
-      return { family, view, level: getAbilityLevel(created, family), racial: getRacialLevel(d, family), bought: getBoughtStageCount(d, family), next: stagePrice(family) }
+      return {
+        family, view, level: getAbilityLevel(created, family), racial: getRacialLevel(d, family), bought: getBoughtStageCount(d, family), next: stagePrice(family),
+        progress: getCreationAbilityProgress(d, build, family), progressCap: getCreationAbilityProgressCap(build, family),
+      }
     })
-  const build = getCreationBuild(d)
   const spellRaises = getCreationSpellRaises(d, build)
   const spellEntries: CreationSpellEntry[] = getSpellCatalogRows(created).map((row) => {
     const chosen = d.spells[row.key]
@@ -170,7 +173,7 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
       }),
     })),
     attributes: { average: (build.trainables.STR.value + build.trainables.AGI.value + build.trainables.STA.value) / 3, maximum: getAttributeBalance(build) },
-    abilities: entries.filter((entry) => entry.level > 0),
+    abilities: entries.filter((entry) => entry.level > 0 || entry.progress > 0),
     abilityCatalog: ABILITY_SECTIONS.filter(offered)
       .map((label) => ({ label, rows: entries.filter((entry) => entry.view.section === label) }))
       .filter(({ rows }) => rows.length),
