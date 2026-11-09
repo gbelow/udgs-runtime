@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { makeCreationDraft } from '../../factories'
 import { FOCI, PRIORITIES, RaceSchema, TrainablesSchema, type CreationDraft, type Trainables } from '../../types'
-import { CREATION_ATTRIBUTE, CREATION_PRIORITIES } from '../../tables'
+import { CREATION_ATTRIBUTE, CREATION_TALENT } from '../../tables'
 import { buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from '../commands/creation'
 import { getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationBuild, getCreationCharges, getCreationPool, getCreationProblems, getCreationSpellRaises } from './creation'
 import { ABILITIES, ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, type FamilyKey } from '../../abilities'
@@ -59,7 +59,7 @@ describe('the race at creation', () => {
     const created = getCreatedCharacter(d)
     expect(created.trainables.STR.value).toBe(CREATION_ATTRIBUTE + 4)
     expect(created.trainables.AGI.value).toBe(CREATION_ATTRIBUTE - 1)
-    expect(created.trainables.CON.value).toBe(1 + CREATION_PRIORITIES[priority].talent)
+    expect(created.trainables.CON.value).toBe(1 + CREATION_TALENT.CON[priority])
   })
 
   it('does not change what an attribute costs', () => {

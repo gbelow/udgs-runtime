@@ -1,5 +1,5 @@
 import { ABILITIES, ABILITY_FAMILIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, heldAbility, isFamilyKey } from '../../abilities'
-import { COINS, CREATION_PRIORITIES } from '../../tables'
+import { COINS, CREATION_PRIORITIES, CREATION_TALENT } from '../../tables'
 import { isBaseCharacter } from '../../utils'
 import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, SpellMethod, SpellMethodSchema, TalentsSchema, Trainables } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey, isSpellKey } from '../../spells'
@@ -36,7 +36,7 @@ export function getCreationPool(key: keyof Trainables): CreationPool | null {
 const boughtOf = (d: CreationDraft, key: keyof Trainables): number => d.trainables[key] ?? 0
 
 // The talent a priority gives its focus (Steps 4–7).
-const priorityTalent = (d: CreationDraft, key: keyof Trainables): number => (isTalent(key) ? CREATION_PRIORITIES[d.priorities[key]].talent : 0)
+const priorityTalent = (d: CreationDraft, key: keyof Trainables): number => (isTalent(key) ? CREATION_TALENT[key][d.priorities[key]] : 0)
 
 // creating.tex "Character Creation", Step 1: where the character starts — the
 // draft's own choices with the race on them. The race's talent bonuses count

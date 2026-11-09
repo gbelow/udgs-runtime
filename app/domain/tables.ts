@@ -673,13 +673,22 @@ export const SELF_TRAINING_YIELD: Record<Degree, number> = { miss: 0, graze: 0.2
 export const DOCTOR = { capacity: 4, price: 10 } as const
 
 // creating.tex "Character Creation", Steps 3–7: what each priority gives a
-// talent focus (its talent and XP to spend) and the wealth focus (gold).
-export const CREATION_PRIORITIES: Record<Priority, { talent: number; XP: number; gold: number }> = {
-  A: { talent: 2, XP: 60, gold: 100 },
-  B: { talent: 1, XP: 42, gold: 60 },
-  C: { talent: 1, XP: 30, gold: 30 },
-  D: { talent: 0, XP: 24, gold: 10 },
-  E: { talent: 0, XP: 16, gold: 5 },
+// talent focus (XP to spend) and the wealth focus (gold).
+export const CREATION_PRIORITIES: Record<Priority, { XP: number; gold: number }> = {
+  A: { XP: 60, gold: 100 },
+  B: { XP: 48, gold: 60 },
+  C: { XP: 32, gold: 30 },
+  D: { XP: 24, gold: 15 },
+  E: { XP: 16, gold: 5 },
+}
+
+// creating.tex "Character Creation", Steps 4–7: the talent each priority gives
+// its focus, which differs by focus.
+export const CREATION_TALENT: Record<'CON' | 'SPI' | 'INT' | 'DEX', Record<Priority, number>> = {
+  CON: { A: 2, B: 1, C: 1, D: 0, E: 0 },
+  SPI: { A: 4, B: 3, C: 2, D: 2, E: 1 },
+  INT: { A: 2, B: 1, C: 1, D: 0, E: 0 },
+  DEX: { A: 2, B: 1, C: 1, D: 0, E: 0 },
 }
 
 // creating.tex "Character Creation", Step 4: "Characters start with 8 in all
