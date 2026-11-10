@@ -209,11 +209,11 @@ export function ActionPanel(){
           {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, recipe: null, metres: null, ledge: null })} />)}
         </div>
       ) : null}
-      {open.climbModes.length > 1 ? (
+      {open.testModes && open.testModes.modes.length > 1 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>climb</SectionLabel>
-          <Segmented label='climb mode'>
-            {open.climbModes.map((mode) => <Segment key={mode} selected={mode === open.mode} onClick={() => amend({ mode })}>{mode}</Segment>)}
+          <SectionLabel>{open.testModes.test}</SectionLabel>
+          <Segmented label={`${open.testModes.test} mode`}>
+            {open.testModes.modes.map((mode) => <Segment key={mode} selected={mode === open.mode} onClick={() => amend({ mode })}>{mode}</Segment>)}
           </Segmented>
         </div>
       ) : null}

@@ -801,7 +801,7 @@ function travel(h: Harness, pick: Picker) {
   }
   const climb = getActionPanel(h.state()).open?.climbSteps
   if (climb && pick([true, false])) h.send({ kind: 'amend', args: [{ metres: 1 + Math.floor(pick([0, 1, 2]) % climb.metres) }] })
-  const modes = getActionPanel(h.state()).open?.climbModes ?? []
+  const modes = getActionPanel(h.state()).open?.testModes?.modes ?? []
   if (modes.length) h.send({ kind: 'amend', args: [{ mode: pick(modes) }] })
   h.commit()
   answerOpen(h, pick, pick([0, 1, 2]))

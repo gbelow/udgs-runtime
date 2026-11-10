@@ -23,11 +23,11 @@ import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
-import { MovementOption, ReachableCell, getMovementOptions } from '../rules/move'
+import { MovementOption, ReachableCell, getMoveModes, getMoveTest, getMovementOptions, needsBalanceTest } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
 import { getMoraleSpell, getSuggestible } from '../rules/moraleSpell'
 import type { LimitStressAction } from '../../lists'
-import { getClimbChoices, getClimbModes, getClimbSteps } from '../rules/board/cliff'
+import { getClimbChoices, getClimbSteps } from '../rules/board/cliff'
 import { coordKey } from '../rules/board/geometry'
 import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
@@ -243,10 +243,10 @@ export type OpenActionView = {
   // abilities.tex "Steady Arms": the steps of the path the shot may be fired from
   // (counted from the shooter's start), and the one it is
   steady: { steps: { at: number; selected: boolean }[] } | null
-  // play.tex "Safe and risky tests": how a climb is thrown, and the ways its
-  // climber may throw it (just the normal one without Climber)
+  // play.tex "Safe and risky tests": how the move's test is thrown, and the
+  // test with the ways its mover may throw it, null while it has none
   mode: RollMode
-  climbModes: RollMode[]
+  testModes: { test: NonNullable<MoveAction['test']>; modes: RollMode[] } | null
   // abilities.tex "Jumper II": whether the climb may start with a jump, and
   // whether it does
   canLeap: boolean
@@ -513,7 +513,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       path: open.kind === 'move' ? open.path : [],
       steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? { steps: getFiringSteps(open) } : null,
       mode: open.kind === 'move' ? open.mode : 'normal',
-      climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor, isCombatStarted(state)) : [],
+      testModes: open.kind === 'move' && (open.movement === 'climb' || needsBalanceTest(state, open)) ? { test: getMoveTest(state, open), modes: getMoveModes(state, open) } : null,
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
       climbStops: open.kind === 'move' ? getClimbStopOffers(state, open) : null,
       canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),

@@ -9,6 +9,7 @@ import type { HeldKind } from './heldRoll'
 import { getSituationalAfflictions } from './situational'
 import { getSwimTestTerms, getWaterOf } from './swim'
 import { getStealthTerms } from '../../character/rules/skills'
+import { getRollModes } from '../../character/rules/effects'
 import { getDegree } from '../../play/test'
 import { isParked } from './parked'
 
@@ -43,7 +44,7 @@ const HELD_DEFS: Record<CalledKind, HeldDef> = {
     called: (state, id) => getWaterOf(state, id) !== null,
     skill: getSwimTestTerms,
     DL: (state, id) => getWaterOf(state, id)?.DL ?? 0,
-    modes: () => ['normal'],
+    modes: (c) => getRollModes(c, 'swim', true),
     versus: true,
   },
   // combat.tex "Stealth in combat": "The stealth value is rolled for each
@@ -54,7 +55,7 @@ const HELD_DEFS: Record<CalledKind, HeldDef> = {
     called: () => true,
     skill: getStealthTerms,
     DL: () => 0,
-    modes: () => ['normal'],
+    modes: (c) => getRollModes(c, 'stealth', true),
     versus: false,
   },
 }

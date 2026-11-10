@@ -1,4 +1,5 @@
-import { Ability, Buff, BuffTarget, Character, Cost, Effect, Grant, Trigger } from '../../types'
+import { Ability, Buff, BuffCondition, BuffTarget, Character, Cost, Effect, Grant, Skills, Trigger } from '../../types'
+import type { RollMode } from '../../play/dice'
 import { ABILITIES, AbilityKey, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
@@ -34,6 +35,29 @@ export function getGrantCount(character: Character, grant: Grant): number {
 // what its catalog entry says it costs; null when none does.
 export function getGrantingAbility(character: Character, grant: Grant): AbilityKey | null {
   return getLearnedAbilityKeys(character).filter((key) => ABILITIES[key].grants.includes(grant)).at(-1) ?? null
+}
+
+// play.tex "Safe and risky tests": the ways the character may roll a test of
+// the skill, as their learned abilities allow. A surge asked for counts only
+// in a fight (`inFight`); before it, no surge is asked.
+export function getRollModes(character: Character, skill: keyof Skills, inFight: boolean): RollMode[] {
+  const allowed = getLearnedAbilities(character).flatMap((a) => a.rollModes).filter((m) =>
+    (m.skill === 'any' || m.skill === skill) &&
+    (m.surge === null || !inFight || (isCampaignCharacter(character) && character.usedSurge === m.surge)))
+  return ['normal', ...(['safe', 'risky'] as const).filter((mode) => allowed.some((m) => m.mode === mode))]
+}
+
+// What each buff condition reads off the character.
+const BUFF_CONDITIONS: Record<BuffCondition, (c: Character) => boolean> = {
+  // combat.tex "Action surge": the rest of the turn a movement surge was made
+  // in (abilities.tex "Tactical Movement")
+  movementSurge: (c) => isCampaignCharacter(c) && c.runsFree,
+  // abilities.tex "Claws": "if not wearing gloves"
+  noGauntlets: (c) => !c.hasGauntlets,
+}
+
+function holds(character: Character, buff: Buff): boolean {
+  return buff.when === null || BUFF_CONDITIONS[buff.when](character)
 }
 
 // The abilities in effect: every `active` entry of kind ability whose key is
@@ -103,7 +127,7 @@ export function isSuppressed(character: Character, target: string): boolean {
 }
 
 export function collectBuffs(character: Character): Buff[] {
-  return getContributingEffects(character).filter(isBuff).map((e) => e.effect)
+  return getContributingEffects(character).filter(isBuff).map((e) => e.effect).filter((b) => holds(character, b))
 }
 
 export function groupBuffsByTarget(buffs: Buff[]): Record<string, Buff[]> {

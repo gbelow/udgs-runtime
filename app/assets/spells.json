@@ -3271,7 +3271,8 @@
         "effect": {
           "target": "skill:health",
           "operation": "+",
-          "value": 2
+          "value": 2,
+          "when": null
         },
         "target": "target",
         "count": 10,

@@ -13,8 +13,9 @@ import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMove
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
 import { getClimbBack, getClimbBound, getClimbTarget, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
-import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
-import { hasGrant } from '../../character/rules/effects'
+import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
+import { getRollModes, hasGrant } from '../../character/rules/effects'
+import type { RollMode } from '../../play/dice'
 import { getModifiedTotal } from './modifiers'
 import { canRest, getCrowdedBy, isCrossable, isInLiquid, isStoodOver, isWet, readGround, type Floor } from './board/ground'
 import { mayStep, type Stepping } from './board/step'
@@ -255,7 +256,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
 
   if (action.movement === 'climb' && !(isClimbable(state, action) && (isUntestedClimb(state, action) || cells >= 1 || !!getClimbPlan(state, action)?.top))) return false
   if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
-  if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c, isCombatStarted(state)).includes(action.mode))) return false
+  if (action.mode !== 'normal' && !getMoveModes(state, action).includes(action.mode)) return false
 
   if (action.movement === 'jump' && !isStraight(from.cell, action.path)) return false
 
@@ -344,6 +345,12 @@ export function needsBalanceTest(state: SceneState, action: MoveAction): boolean
 export function getMoveTest(state: SceneState, action: MoveAction): NonNullable<MoveAction['test']> {
   if (action.movement === 'climb') return 'climb'
   return 'balance'
+}
+
+// The ways the mover may roll the test the move's die is thrown as.
+export function getMoveModes(state: SceneState, action: MoveAction): RollMode[] {
+  const c = state.characters[action.actorId]
+  return c ? getRollModes(c, getMoveTest(state, action), isCombatStarted(state)) : ['normal']
 }
 
 // Every step of the path that comes down on difficult ground, with the DL of

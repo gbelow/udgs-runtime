@@ -7,7 +7,6 @@ import { getClimbTerms } from '../../../character/rules/skills'
 import type { RollMode } from '../../../play/dice'
 import { coordKey, sameCell } from './geometry'
 import { getDegree } from '../../../play/test'
-import { isCampaignCharacter } from '../../../utils'
 import { getHangingLanding } from './ground'
 import { getMoveOrigin, getPathPlacements } from './waypoint'
 import { getClimbBack, getClimbStops, getClimbTarget, getTerrainAt, type Footing } from './board'
@@ -252,15 +251,6 @@ export function isClimbable(state: SceneState, action: MoveAction): boolean {
   if (plan?.face.bare) return plan.trivial || plan.hang
   if (plan?.face.back) return plan.trivial
   return !!plan && (!hanging || sameCell(hanging.to, action.path[0])) && (plan.trivial || plan.hang || getClimbDL(state, action) !== null)
-}
-
-// abilities.tex "Climber": safe climbing from the first level, risky from the
-// second "during a movement surge"; play.tex "Safe and risky tests": "only ...
-// when indicated in the skill or ability". Before the combat has started
-// (`charged`) no surge is asked.
-export function getClimbModes(c: Character, charged: boolean): RollMode[] {
-  const surging = !charged || (isCampaignCharacter(c) && c.usedSurge === 'movement')
-  return ['normal', ...(hasGrant(c, 'safeClimb') ? ['safe' as const] : []), ...(hasGrant(c, 'riskyClimb') && surging ? ['risky' as const] : [])]
 }
 
 type ClimbTest = { score: number; mode: RollMode }

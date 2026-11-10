@@ -108,7 +108,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   the next (`getClimbPlan`), with the DL painted on the higher cell (`climbDL`; a face with none
   has nothing to hold, so only a trivial climb crosses it, `isClimbable`). The climber's test
   stands for the round: the first climb of a round throws the die (in the mode it declares, among
-  `getClimbModes`), which is held, and the climbs after it score that result against their own
+  `getMoveModes`), which is held, and the climbs after it score that result against their own
   DL, with the `holds` term swapped for the one the climber has now (`withHolds`). A climb starts at the
   climber's height (`getClimbStart`: 2 m × RM, more by the jump a Jumper II spends, `leap`), and
   only the first move up a face takes that: what is left is climbed in moves of `metres` each, at

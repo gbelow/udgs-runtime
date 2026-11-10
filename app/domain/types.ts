@@ -735,10 +735,16 @@ export const BUFF_TARGETS = [
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
 
+// A state of the character a buff holds only in (character/rules/effects.ts
+// `BUFF_CONDITIONS` says what each reads).
+export const BuffConditionSchema = z.enum(['movementSurge', 'noGauntlets'])
+export type BuffCondition = z.infer<typeof BuffConditionSchema>
+
 export const BuffSchema = z.object({
   target: BuffTargetSchema,
   operation: str.default('+'), // +, *, set
   value: num.default(0),
+  when: BuffConditionSchema.nullable().default(null), // null: always
 }).strip()
 
 export type Buff = z.infer<typeof BuffSchema>
@@ -1206,8 +1212,19 @@ export type CarriedMoveRecipe = Extract<Recipe, { type: 'carriedMove' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'cheaperQuicken'])
+export const GrantSchema = z.enum(['preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'cheaperQuicken'])
 export type Grant = z.infer<typeof GrantSchema>
+
+// play.tex "Safe and risky tests": "This mechanic can only be used when
+// indicated in the skill or ability". A way an ability lets its holder roll
+// a skill's tests (`any` for every test), and the surge it asks for, if any
+// (abilities.tex "Climber" II: "During a movement surge").
+export const RollModeGrantSchema = z.object({
+  skill: z.enum([...SkillKeySchema.options, 'any']).default('any'),
+  mode: z.enum(['safe', 'risky']).default('safe'),
+  surge: SurgeKindSchema.nullable().default(null),
+}).strip()
+export type RollModeGrant = z.infer<typeof RollModeGrantSchema>
 
 // abilities.tex "Promoted Attitudes", "Prohibited Attitudes": what moves a
 // conviction's XP in play, as data, read by character/rules/attitudes.ts.
@@ -1248,6 +1265,7 @@ const AbilityStageValues = {
   effect: z.array(EffectSchema).default([]), // this stage's delta over the one before
   recipes: z.array(RecipeSchema).default([]), // the actions this stage gives in a fight
   grants: z.array(GrantSchema).default([]), // the capabilities this stage gives while learned
+  rollModes: z.array(RollModeGrantSchema).default([]), // the safe and risky tests this stage allows while learned
   attitudes: z.array(AttitudeSchema).default([]), // what moves a conviction's XP in play while learned
   freeSpells: num.default(0), // spells learned with the stage, at no cost, among those the character has the knowledge for
 }

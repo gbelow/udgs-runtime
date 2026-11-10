@@ -2,11 +2,10 @@ import { AfflictionKey, Character, Skills } from '../../types'
 import { getSM } from './size'
 import { skill } from './helpers'
 import { getAfflictionPenalty, hasAffliction } from './afflictions'
-import { getBuffBonus, hasGrant } from './effects'
+import { getBuffBonus } from './effects'
 import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getDEX, getCON, getConviction1, getConviction2 } from './characteristics'
 import { Term, sumTerms } from './terms'
 import { isVisorClosed } from './armor'
-import { isCampaignCharacter } from '../../utils'
 import { canClimbWith, getWorkingParts } from './body'
 import { CLIMB_NO_HAND_PENALTY, CLIMB_ONE_HAND_PENALTY } from '../../tables'
 
@@ -50,13 +49,6 @@ export function getDefend(c: Character) {
   return sumTerms(getDefendTerms(c))
 }
 
-// abilities.tex "Tactical Movement": +2 to SD and reflex for the rest of the
-// turn a movement surge was made in (a flee's, a skirmish approach's), for
-// the one who has the ability only.
-function getTacticalMovementBonus(c: Character): number {
-  return hasGrant(c, 'tacticalMovement') && isCampaignCharacter(c) && c.runsFree ? 2 : 0
-}
-
 export function getReflexTerms(c: Character): Term[] {
   const SM = getSM(c)
   return [
@@ -66,7 +58,6 @@ export function getReflexTerms(c: Character): Term[] {
     { label: 'reflex', value: skill(c, 'reflex').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'reflex') },
     { label: 'abilities', value: getBuffBonus(c, 'skill:reflex') },
-    { label: 'tactical movement', value: getTacticalMovementBonus(c) },
   ]
 }
 export function getReflex(c: Character) {
@@ -109,7 +100,6 @@ export function getSDTerms(c: Character, situational: readonly AfflictionKey[] =
     { label: 'SD', value: skill(c, 'SD').value },
     { label: 'immobile', value: hasAffliction(c, 'immobile', situational) ? -3 : 0 },
     { label: 'abilities', value: getBuffBonus(c, 'skill:SD') },
-    { label: 'tactical movement', value: getTacticalMovementBonus(c) },
   ]
 }
 export function getSD(c: Character, situational: readonly AfflictionKey[] = []) {
@@ -157,8 +147,6 @@ export function getClimbTerms(c: Character): Term[] {
     { label: 'climb', value: skill(c, 'climb').value },
     { label: 'size', value: -2 * SM },
     { label: 'gear', value: -3 * c.hasGauntlets },
-    // abilities.tex "Claws": "improves climbing by +1 if not wearing gloves"
-    { label: 'claws', value: hasGrant(c, 'clawGrip') && !c.hasGauntlets ? 1 : 0 },
     { label: 'holds', value: -getHoldPenalty(c) },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'climb') },
     { label: 'abilities', value: getBuffBonus(c, 'skill:climb') },

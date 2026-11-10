@@ -53,6 +53,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -96,6 +97,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -144,12 +146,14 @@
             "effect": {
               "target": "movement:run",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -182,12 +186,14 @@
             "effect": {
               "target": "movement:run",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -236,12 +242,14 @@
             "effect": {
               "target": "movement:jump",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -274,7 +282,8 @@
             "effect": {
               "target": "movement:jump",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
@@ -282,6 +291,7 @@
         "grants": [
           "climbLeap"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -328,8 +338,13 @@
         "description": "Learns to make climbing tests safely.",
         "effect": [],
         "recipes": [],
-        "grants": [
-          "safeClimb"
+        "grants": [],
+        "rollModes": [
+          {
+            "skill": "climb",
+            "mode": "safe",
+            "surge": null
+          }
         ],
         "attitudes": [],
         "freeSpells": 0
@@ -361,8 +376,13 @@
         "description": "Learns to spend 1 STA to make the test in a risky manner and make climbing speed equal to 1m on a hit or crit.",
         "effect": [],
         "recipes": [],
-        "grants": [
-          "riskyClimb"
+        "grants": [],
+        "rollModes": [
+          {
+            "skill": "climb",
+            "mode": "risky",
+            "surge": "movement"
+          }
         ],
         "attitudes": [],
         "freeSpells": 0
@@ -397,6 +417,7 @@
         "grants": [
           "climbUpright"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -444,6 +465,13 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [
+          {
+            "skill": "balance",
+            "mode": "safe",
+            "surge": null
+          }
+        ],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -475,6 +503,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -508,6 +537,7 @@
         "grants": [
           "softLanding"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -555,6 +585,13 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [
+          {
+            "skill": "swim",
+            "mode": "safe",
+            "surge": null
+          }
+        ],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -586,6 +623,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -617,6 +655,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -660,6 +699,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -687,6 +727,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -714,6 +755,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -775,6 +817,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -820,6 +863,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -877,12 +921,14 @@
             "effect": {
               "target": "reach:throw",
               "operation": "+",
-              "value": 50
+              "value": 50,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -924,12 +970,14 @@
             "effect": {
               "target": "reach:throw",
               "operation": "+",
-              "value": 50
+              "value": 50,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -975,6 +1023,7 @@
         "grants": [
           "bowTraining"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1032,12 +1081,14 @@
             "effect": {
               "target": "hit:snipe",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1079,12 +1130,14 @@
             "effect": {
               "target": "hit:snipe",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1126,7 +1179,8 @@
             "effect": {
               "target": "hit:snipe",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           },
           {
@@ -1136,12 +1190,14 @@
             "effect": {
               "target": "ap:snipe",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1199,12 +1255,14 @@
             "effect": {
               "target": "distance:quickShot",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1246,12 +1304,14 @@
             "effect": {
               "target": "distance:shoot",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1293,12 +1353,14 @@
             "effect": {
               "target": "ap:quickShot",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1344,6 +1406,7 @@
         "grants": [
           "plantShield"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1395,6 +1458,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1452,12 +1516,14 @@
             "effect": {
               "target": "bow:STR",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1499,12 +1565,14 @@
             "effect": {
               "target": "bow:STR",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1563,6 +1631,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1611,12 +1680,14 @@
             "effect": {
               "target": "ap:reload",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1649,12 +1720,14 @@
             "effect": {
               "target": "ap:reload",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1719,6 +1792,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1759,11 +1833,33 @@
           ]
         ],
         "description": "Gains +2 to SD or reflex for the rest of the turn after using movement surge. Also works for approaching in skirmishes.",
-        "effect": [],
-        "recipes": [],
-        "grants": [
-          "tacticalMovement"
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:SD",
+              "operation": "+",
+              "value": 2,
+              "when": "movementSurge"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:reflex",
+              "operation": "+",
+              "value": 2,
+              "when": "movementSurge"
+            }
+          }
         ],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1809,6 +1905,7 @@
         "grants": [
           "bladeAlignment"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1854,6 +1951,7 @@
         "grants": [
           "gentleArt"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1927,6 +2025,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1972,6 +2071,7 @@
         "grants": [
           "grapplingCombat"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2021,6 +2121,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2086,6 +2187,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2150,6 +2252,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2195,6 +2298,7 @@
         "grants": [
           "fullCircleSweep"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2240,6 +2344,7 @@
         "grants": [
           "charge"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2312,6 +2417,7 @@
         "grants": [
           "tackle"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2364,6 +2470,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -2400,6 +2507,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2464,6 +2572,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2512,12 +2621,14 @@
             "effect": {
               "target": "surge:combat",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -2550,12 +2661,14 @@
             "effect": {
               "target": "surge:combat",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2620,6 +2733,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2668,12 +2782,14 @@
             "effect": {
               "target": "ap:braced",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2719,6 +2835,7 @@
         "grants": [
           "preciseEvade"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2788,6 +2905,7 @@
           }
         ],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2835,6 +2953,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2887,7 +3006,8 @@
             "effect": {
               "target": "skill:deception",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           },
           {
@@ -2897,12 +3017,14 @@
             "effect": {
               "target": "skill:persuasion",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2950,6 +3072,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2997,6 +3120,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3044,6 +3168,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3091,6 +3216,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3136,6 +3262,7 @@
         "grants": [
           "deliberate"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -3165,6 +3292,7 @@
         "grants": [
           "deliberate"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3212,6 +3340,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3259,6 +3388,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3304,6 +3434,7 @@
         "grants": [
           "initiativeEdge"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3349,6 +3480,7 @@
         "grants": [
           "perfectPreparation"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3396,6 +3528,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [
           {
             "on": {
@@ -3477,6 +3610,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3529,12 +3663,14 @@
             "effect": {
               "target": "skill:will",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -3571,12 +3707,14 @@
             "effect": {
               "target": "skill:will",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3624,6 +3762,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -3655,6 +3794,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3702,6 +3842,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3749,6 +3890,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3796,6 +3938,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3843,6 +3986,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3890,6 +4034,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -3921,6 +4066,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3968,6 +4114,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4017,6 +4164,7 @@
         "grants": [
           "spiritOfBattle"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4064,6 +4212,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4111,6 +4260,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4142,6 +4292,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4189,6 +4340,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4236,6 +4388,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4267,6 +4420,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4314,6 +4468,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4345,6 +4500,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4376,6 +4532,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4423,6 +4580,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4454,6 +4612,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4501,6 +4660,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4532,6 +4692,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4579,6 +4740,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4610,6 +4772,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4657,6 +4820,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4688,6 +4852,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4735,6 +4900,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4766,6 +4932,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4813,6 +4980,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4844,6 +5012,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4891,6 +5060,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4938,6 +5108,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4985,6 +5156,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5032,6 +5204,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5079,6 +5252,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5126,6 +5300,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5173,6 +5348,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5220,6 +5396,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5267,6 +5444,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5314,6 +5492,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5361,6 +5540,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5410,6 +5590,7 @@
         "grants": [
           "clericSpells"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5457,6 +5638,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5504,6 +5686,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5551,6 +5734,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5589,6 +5773,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5627,6 +5812,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5665,6 +5851,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5703,6 +5890,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5741,6 +5929,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5779,6 +5968,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5817,6 +6007,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5855,6 +6046,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5893,6 +6085,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5940,6 +6133,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5987,6 +6181,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6034,6 +6229,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6081,6 +6277,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6128,6 +6325,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6175,6 +6373,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6222,6 +6421,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6269,6 +6469,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6316,6 +6517,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6372,6 +6574,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6419,6 +6622,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6466,6 +6670,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6513,6 +6718,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6556,6 +6762,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6603,6 +6810,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6650,6 +6858,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6697,6 +6906,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6744,6 +6954,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6791,6 +7002,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6838,6 +7050,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6885,6 +7098,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6932,6 +7146,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -6963,6 +7178,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7010,6 +7226,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7057,6 +7274,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7104,6 +7322,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7165,6 +7384,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7212,6 +7432,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7259,6 +7480,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7306,6 +7528,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7353,6 +7576,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7400,6 +7624,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7447,6 +7672,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7492,6 +7718,7 @@
         "grants": [
           "battleCommands"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7537,6 +7764,7 @@
         "grants": [
           "strategist"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -7566,6 +7794,7 @@
         "grants": [
           "strategist"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7611,6 +7840,7 @@
         "grants": [
           "prepared"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7656,6 +7886,7 @@
         "grants": [
           "reactiveFighting"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7701,6 +7932,7 @@
         "grants": [
           "improvedFeint"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7755,6 +7987,7 @@
         "grants": [
           "wizardSpells"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 2
       }
@@ -7800,6 +8033,7 @@
         "grants": [
           "cheaperQuicken"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -7829,6 +8063,7 @@
         "grants": [
           "concentratedDefense"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7881,6 +8116,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7924,6 +8160,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7976,6 +8213,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8032,6 +8270,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -8072,6 +8311,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -8112,6 +8352,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8164,6 +8405,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8216,6 +8458,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8268,6 +8511,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8320,6 +8564,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8372,6 +8617,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8433,6 +8679,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8485,6 +8732,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8528,6 +8776,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8593,6 +8842,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8645,6 +8895,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8697,6 +8948,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8762,6 +9014,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8827,6 +9080,7 @@
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8874,6 +9128,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8921,6 +9176,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8973,7 +9229,8 @@
             "effect": {
               "target": "body:size",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           },
           {
@@ -8983,7 +9240,8 @@
             "effect": {
               "target": "attribute:STR",
               "operation": "+",
-              "value": -3
+              "value": -3,
+              "when": null
             }
           },
           {
@@ -8993,7 +9251,8 @@
             "effect": {
               "target": "attribute:AGI",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           }
         ],
@@ -9001,6 +9260,7 @@
         "grants": [
           "humanoidHeight"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9060,7 +9320,8 @@
             "effect": {
               "target": "body:size",
               "operation": "+",
-              "value": -1
+              "value": -1,
+              "when": null
             }
           },
           {
@@ -9070,7 +9331,8 @@
             "effect": {
               "target": "attribute:STR",
               "operation": "+",
-              "value": 3
+              "value": 3,
+              "when": null
             }
           },
           {
@@ -9080,7 +9342,8 @@
             "effect": {
               "target": "attribute:AGI",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
@@ -9088,6 +9351,7 @@
         "grants": [
           "humanoidHeight"
         ],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9142,6 +9406,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9194,12 +9459,14 @@
             "effect": {
               "target": "sense:vision",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9236,12 +9503,14 @@
             "effect": {
               "target": "sense:vision",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9278,12 +9547,14 @@
             "effect": {
               "target": "sense:vision",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9336,12 +9607,14 @@
             "effect": {
               "target": "sense:hearing",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9378,12 +9651,14 @@
             "effect": {
               "target": "sense:hearing",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9420,12 +9695,14 @@
             "effect": {
               "target": "sense:hearing",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9478,12 +9755,14 @@
             "effect": {
               "target": "sense:smell",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9520,12 +9799,14 @@
             "effect": {
               "target": "sense:smell",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9562,12 +9843,14 @@
             "effect": {
               "target": "sense:smell",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9615,6 +9898,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9653,6 +9937,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9691,6 +9976,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9756,6 +10042,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9810,6 +10097,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9857,6 +10145,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9904,6 +10193,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9951,6 +10241,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9998,6 +10289,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10045,6 +10337,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10080,11 +10373,22 @@
           ]
         ],
         "description": "Gives an unarmed attack that uses claws, defined in gear. Also improves climbing by +1 if not wearing gloves.",
-        "effect": [],
-        "recipes": [],
-        "grants": [
-          "clawGrip"
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:climb",
+              "operation": "+",
+              "value": 1,
+              "when": "noGauntlets"
+            }
+          }
         ],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10123,6 +10427,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10166,7 +10471,8 @@
             "effect": {
               "target": "skill:balance",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           },
           {
@@ -10176,12 +10482,14 @@
             "effect": {
               "target": "skill:climb",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -10209,7 +10517,8 @@
             "effect": {
               "target": "skill:balance",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           },
           {
@@ -10219,12 +10528,14 @@
             "effect": {
               "target": "skill:climb",
               "operation": "+",
-              "value": 1
+              "value": 1,
+              "when": null
             }
           }
         ],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10253,6 +10564,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10291,6 +10603,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10329,6 +10642,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10367,6 +10681,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10414,6 +10729,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10461,6 +10777,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10508,6 +10825,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10555,6 +10873,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -10586,6 +10905,7 @@
         "effect": [],
         "recipes": [],
         "grants": [],
+        "rollModes": [],
         "attitudes": [],
         "freeSpells": 0
       }
