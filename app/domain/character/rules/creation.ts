@@ -191,12 +191,11 @@ function getStageCharge(key: AbilityKey, build: Character): CreationCharge | nul
   return null
 }
 
-// A spell chosen costs 6 XP by any route (the user's ruling): from the INT
-// XP, a cleric's from the SPI XP ("using devotion XP", creating.tex "Deities
-// and Devotion"). A spell claimed free, or one the character starts with,
-// costs nothing.
+// A spell chosen costs the intuitive price from the INT XP (the user's
+// ruling); a cleric just knows the deity's spells, so those cost nothing, as
+// does one claimed free or one the character starts with.
 const spellCharge = (key: string, method: SpellMethod): CreationCharge =>
-  ({ key: `spell:${key}`, pool: method === 'cleric' ? 'SPI' : 'INT', amount: SPELL_LEARN_XP })
+  ({ key: `spell:${key}`, pool: 'INT', amount: method === 'cleric' ? 0 : SPELL_LEARN_XP })
 
 function getSpellCharge(d: CreationDraft, key: string): CreationCharge | null {
   const chosen = d.spells[key]

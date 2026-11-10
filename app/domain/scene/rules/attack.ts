@@ -8,7 +8,7 @@ import { setDistance } from './board/geometry'
 import { CLIMB_REDO_PENALTY, EXTEND } from '../../tables'
 import { getAimedPlace } from '../../character/rules/body'
 import { SPELLS, isSpellKey } from '../../spells'
-import { getQuickenDL } from '../../character/rules/spells'
+import { getGearCastingDL, getQuickenDL, getSpellGear } from '../../character/rules/spells'
 import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
@@ -495,8 +495,11 @@ function getSpellDLTerms(state: SceneState, root: ActionOf<'cast'>): Term[] {
   const caster = state.characters[root.actorId]
   if (!isSpellKey(root.key)) return []
   const links = caster ? getLinkDL(state, caster) : 0
+  const gear = caster ? getSpellGear(caster, root.key, root.itemId) : null
+  const gearDL = getGearCastingDL(SPELLS[root.key], gear)
   return [
     { label: 'spell DL', value: SPELLS[root.key].DL ?? 0 },
+    ...(gear && gearDL !== 0 ? [{ label: gear.name, value: gearDL }] : []),
     ...(root.quicken ? [{ label: 'quicken', value: getQuickenDL(caster) }] : []),
     ...(root.extend > 0 ? [{ label: `extend ×${root.extend}`, value: root.extend * EXTEND.DL }] : []),
     ...(links > 0 ? [{ label: 'links', value: links }] : []),

@@ -93,13 +93,13 @@ describe('changing race', () => {
   })
 })
 
-// The user's ruling: a spell costs the 6 XP of spells.tex "Learning spells"
+// The user's ruling: a spell costs the XP of spells.tex "Learning spells"
 // by any method, from the INT XP; given back, it is refunded.
 describe('a spell chosen at creation', () => {
   const raises = getCreationSpellRaises(chosen())
   const offered = (Object.keys(raises) as SpellKey[]).filter((key) => raises[key]?.intuitive)
 
-  it.each(offered)('"%s" costs 6 INT XP and is refunded', (key) => {
+  it.each(offered)('"%s" costs the spell price in INT XP and is refunded', (key) => {
     const d = chosen()
     const learned = setCreationSpell(key, 'intuitive')(d)
     expect(getCreationBalances(learned).INT.spent - getCreationBalances(d).INT.spent).toBe(SPELL_LEARN_XP)

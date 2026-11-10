@@ -111,8 +111,14 @@ export function canClaimFreeSpell(key: SpellKey): (c: Character) => boolean {
 // Quicken when the caster forgoes the focus surge, and by what the links the
 // caster holds add (spells.tex "Telepathic Link"), `linkDL`. `quickenDL` is
 // what Quicken adds (`getQuickenDL`), 0 for a cast that is not quickened.
-export function getCastingDL(spell: Spell, quickenDL: number, extend = 0, linkDL = 0): number | null {
-  return spell.DL === null ? null : spell.DL + quickenDL + extend * EXTEND.DL + linkDL
+export function getCastingDL(spell: Spell, quickenDL: number, extend = 0, linkDL = 0, gearDL = 0): number | null {
+  return spell.DL === null ? null : spell.DL + quickenDL + extend * EXTEND.DL + linkDL + gearDL
+}
+
+// What the gear a spell is cast with adds to its DL: a fine item lowers it,
+// never below nothing of the spell's own.
+export function getGearCastingDL(spell: Spell, gear: Item | null): number {
+  return Math.max(-(spell.DL ?? 0), gear?.casting?.DL ?? 0)
 }
 
 // spells.tex "Quicken Spell": +3 DL; abilities.tex "Battle Mage I": only +2.

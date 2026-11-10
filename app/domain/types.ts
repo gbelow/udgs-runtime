@@ -316,6 +316,13 @@ export const SourceSchema = z.object({
 }).strip()
 export type Source = z.infer<typeof SourceSchema>
 
+// What a made item changes in the casts it is the gear of: `DL` is added to
+// the casting DL, negative for a fine item, positive for a poor one.
+export const CastingSchema = z.object({
+  DL: num.default(0),
+}).strip()
+export type Casting = z.infer<typeof CastingSchema>
+
 // story.tex "Job": "arbitrary skill or knowledge vs DL" — a skill, or a
 // knowledge by name, formal or specific.
 export const SkillRefSchema = z.discriminatedUnion('kind', [
@@ -353,6 +360,7 @@ export const ItemSchema = z.object({
   // size and skill decided are carried here rather than looked up again.
   charge: ChargeSchema.nullable().default(null),
   source: SourceSchema.nullable().default(null),
+  casting: CastingSchema.nullable().default(null),
   // gear.tex "Containers and Burden": a container is an item too, and what
   // it carries goes wherever it is put.
   container: z.lazy((): z.ZodType<Container> => ContainerSchema).optional(),

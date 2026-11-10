@@ -3,7 +3,7 @@ import { DEGREES, type Area, type Character, type Spell, type SpellMethod } from
 import { SPELLS, SPELL_KEYS, SpellKey, getSpellOutcomes } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
 import { getSpellEffects, produceEffects } from '../rules/production'
-import { ResolvedTest, getSpellLearnBlocks, getCastSize, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
+import { ResolvedTest, getSpellLearnBlocks, getCastSize, getCastingDL, getGearCastingDL, getMiracleSkill, getSpellGear, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
 import { isSpellActive } from '../rules/effects'
 
 function knowledgeLabel(spell: Spell): string {
@@ -116,7 +116,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
       const spell = SPELLS[key]
       const outcomesOf = getSpellOutcomes(spell)
       const learned = c.spells[key]
-      const DL = getCastingDL(spell, 0)
+      const DL = getCastingDL(spell, 0, 0, 0, getGearCastingDL(spell, getSpellGear(c, key)))
       const hitAt = DL === null ? null : DL + HIT_MARGIN
       const active = isSpellActive(c, key)
       return {
