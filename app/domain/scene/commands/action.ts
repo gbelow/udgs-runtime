@@ -21,7 +21,7 @@ import { toThrower, type Caller, type Throw } from '../../play/calls'
 import { calling, WAITING } from './calling'
 import { getDragComparison } from '../rules/drag'
 import { getHold } from '../rules/fireAgain'
-import { canAcceptSpellTest, getCastGear } from '../rules/cast'
+import { canAcceptSpellTest, getCastGear, getSpellTestModes } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
@@ -31,7 +31,7 @@ import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { endsSurge } from '../rules/surge'
 import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
-import { getPreparationAP } from '../rules/cunning'
+import { getPreparedCrit } from '../rules/cunning'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -399,7 +399,7 @@ function rollWith(caller: Caller, newId: () => string): Updater {
     if (!actor || !areReactionsComplete(state, open)) return state
 
     const rootTest = getRootTest(state, open)
-    const mode = open.kind === 'move' ? open.mode : 'normal'
+    const mode = open.kind === 'move' || open.kind === 'spellTest' ? open.mode : 'normal'
     const own = open.kind !== 'move' || needsOwnDie(state, open)
     const test = rootTest && own ? testFor(caller, open, rootTest, open.kind, mode) : null
     if (!test && own && ACTIONS[open.kind].die) return state
@@ -493,6 +493,16 @@ export function acceptSpellTest(newId: () => string, thrown: Throw): Updater {
   })
 }
 
+// play.tex "Safe and risky tests": the target picks how they throw the
+// spell's test, among the ways their abilities allow, before it is rolled.
+export function setSpellTestMode(mode: RollMode): Updater {
+  return (state) => {
+    const open = getOpenAt(state, 'react')
+    if (!open || open.kind !== 'spellTest' || open.accepted || !getSpellTestModes(state, open).includes(mode)) return state
+    return replaceActions(state, [{ ...open, mode }])
+  }
+}
+
 // Prices the root and every reaction to it off their actors as they stand
 // and takes every price in one update: the root is rolled, its reactions
 // done. Nothing happens if anyone cannot pay. `rollOf` throws the die of a
@@ -504,7 +514,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, caller: Ca
     if (!cost) return state
     const stamped = { ...a, endsSurge: endsSurge(state, a) }
     const rolled = thrown(stamped)
-    paid.push({ ...rolled, cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo, a.kind) : 0, preparationAP: getPreparationAP(state, rolled), step: a.id === root.id ? 'post' : 'done' })
+    paid.push({ ...rolled, cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo, a.kind) : 0, preparedCrit: getPreparedCrit(state, rolled), step: a.id === root.id ? 'post' : 'done' })
   }
   return advance(giveUpSustained(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), paid), newId, caller)
 }

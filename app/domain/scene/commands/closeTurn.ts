@@ -4,16 +4,21 @@ import { burnScorch, touchFire } from '../../character/commands/deliver'
 import { getHazardOf } from '../rules/board/hazard'
 import { updateCharacter } from './characters'
 import { sinkInArmor } from './swim'
+import { meetAttitudes } from '../../character/commands/attitudes'
+import { isUnpreparedTurn } from '../rules/stoicism'
 
 // The holder's turn is over. The AP a movement or combat surge left unspent
 // goes with it (combat.tex "Action surge": "Ending the turn loses the surge
 // AP"), and so does the movement surge's free running; the worst fire
 // touched in it, where they stand now among it, burns (combat.tex "Fire").
-// A swimmer in metallic armor sinks (gear.tex "Metallic armors").
-// Nobody holds the turn after it.
+// A swimmer in metallic armor sinks (gear.tex "Metallic armors"). A turn
+// with nothing prepared in it, by a holder holding nothing through the
+// round, moves their convictions by their attitudes (abilities.json
+// "Stoic's Attitudes"). Nobody holds the turn after it.
 export function closeTurn(state: SceneState, holder: string): SceneState {
   const fire = getHazardOf(state, holder).fire
-  const ended = { ...state, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', contenders: [] }
+  const met = isUnpreparedTurn(state, holder) ? updateCharacter(holder, meetAttitudes({ event: 'unpreparedTurn' }), 'conviction attitude')(state) : state
+  const ended = { ...met, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', contenders: [], contestModes: {} }
   const closed = updateCharacter(holder, (c) => ({ ...endSurge(c), runsFree: false }), 'turn ends')(ended)
   const burnt = updateCharacter(holder, (c) => burnScorch(touchFire(fire)(c)), 'fire touched in its turn burns')(closed)
   return sinkInArmor(holder)(burnt)

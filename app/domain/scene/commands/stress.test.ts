@@ -16,7 +16,7 @@ function fighter(id: string, overrides: Partial<CampaignCharacter> = {}): Campai
 }
 
 function missed(score: number, DL: number): MoraleRoll {
-  return { mode: 'normal', die: 1, skill: 0, score, DL, degree: 'miss', limitStress: true }
+  return { mode: 'normal', die: 1, skill: 0, score, DL, degree: 'miss', resisted: 0, limitStress: true }
 }
 
 // Every test of the round made, each a miss, `margins` short of its DL.

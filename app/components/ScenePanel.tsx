@@ -6,12 +6,12 @@ import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
 import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
-import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Segment, Segmented, Tooltip, selectClass } from './ui';
 import { usePartyCommands, useTableParties } from '../hooks/useParty';
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
+import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useGmFloorTools } from '../hooks/useBoard';
 import { ExplosionFields } from './ExplosionFields';
@@ -354,8 +354,9 @@ export function SustainedPanel(){
 // contested before its holder declares anything — by as many as ask, all
 // rolling cunning at once.
 function TurnControl(){
-  const { startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed, stealth } = useTurnControls()
+  const { startTurn, toggleContest, contestMode, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
+  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, agreed, stealth } = useTurnControls()
+  const modes = useContestModes()
 
   return(
     <div className='flex flex-col gap-0.5'>
@@ -374,6 +375,12 @@ function TurnControl(){
           <Tooltip text={contesting ? 'stop contesting the turn' : contest ?? `contest ${holder}'s turn`}>
             <ActionKey look={contesting ? 'picked' : 'plain'} aria-label='contestTurn' aria-pressed={contesting} disabled={!contesting && contest !== null} onClick={toggleContest}>contest</ActionKey>
           </Tooltip> : null
+        }
+        {
+          modes.length > 1 ?
+          <Segmented label='cunning mode for the contest'>
+            {modes.map((m) => <Segment key={m} selected={m === mode} onClick={() => contestMode(m)}>{`cunning ${m}`}</Segment>)}
+          </Segmented> : null
         }
         {
           contenders ?

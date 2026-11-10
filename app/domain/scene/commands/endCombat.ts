@@ -31,7 +31,7 @@ export function endScene(state: SceneState, caller: Caller): SceneState {
     fleeing: false,
     turnQueue: [],
     fleers: [],
-    contenders: [],
+    contenders: [], contestModes: {},
     lastContest: null,
     agreedToEnd: [],
     concentration: [],

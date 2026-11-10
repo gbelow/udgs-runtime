@@ -1,14 +1,16 @@
 import type { SurgeKind } from '../../types'
+import type { RollMode } from '../../play/dice'
 import type { SceneState, Updater } from '../types'
 import type { Throw } from '../../play/calls'
 import { calling, WAITING } from './calling'
 import { actionSurge } from '../../character/commands/actionSurge'
-import { getContestBar, getContenders, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, rollCunning } from '../rules/turn'
+import { getContestBar, getContenders, getContestMode, getContestModes, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, rollCunning } from '../rules/turn'
 import { updateCharacter } from './characters'
 import { beginTurn, takeQueuedTurn } from './sequence'
 import { markStress, takeStressTurn } from './stress'
 import { getCompelledSurge, getStressTurn } from '../rules/stress'
 import { closeTurn } from './closeTurn'
+import { passFirstMoverAP } from './stoicism'
 
 // The character's turn begins, if nobody else holds one. Nobody has asked
 // to contest it yet.
@@ -22,10 +24,19 @@ export function startTurn(id: string): Updater {
 // The character asks to contest the turn, or takes the asking back.
 export function toggleContest(id: string): Updater {
   return (state) => {
-    if (state.contenders.includes(id)) return { ...state, contenders: state.contenders.filter((c) => c !== id) }
+    if (state.contenders.includes(id)) {
+      const { [id]: _mode, ...modes } = state.contestModes
+      return { ...state, contenders: state.contenders.filter((c) => c !== id), contestModes: modes }
+    }
     if (getContestBar(state, id)) return state
     return { ...state, contenders: [...state.contenders, id] }
   }
+}
+
+// play.tex "Safe and risky tests": how the character, in the contest for the
+// turn, throws their cunning, among the ways their abilities allow.
+export function setContestMode(id: string, mode: RollMode): Updater {
+  return (state) => (getContestModes(state, id).includes(mode) ? { ...state, contestModes: { ...state.contestModes, [id]: mode } } : state)
 }
 
 // The character says they agree to end the round, or takes it back
@@ -47,16 +58,17 @@ export function agreeAllToEnd(ids: string[]): Updater {
 
 // The contest is rolled: the holder and everyone who asked roll cunning
 // (the die does not explode: play.tex "Exploding die" — only where it says),
-// and the winner takes the turn.
+// each in the way they picked, and the winner takes the turn, the round's first with it if it is that.
 export function rollContest(thrown: Throw): Updater {
   return calling({ kind: 'contest' }, thrown, (caller) => (state) => {
     const holder = getTurnHolder(state)
     if (getRollContestBar(state) || !holder) return state
     const die = (id: string) => () => caller.die({ id: `contest:${id}`, roller: id, label: 'cunning, for the turn' }) ?? WAITING
-    const rolls = [holder, ...getContenders(state)].map((id) => rollCunning(state, id, die(id)))
+    const rolls = [holder, ...getContenders(state)].map((id) => rollCunning(state, id, die(id), getContestMode(state, id)))
     const winner = getContestWinner(rolls) ?? holder
-    const firstTurn = state.firstTurn?.turn === state.turn ? { ...state.firstTurn, id: winner } : state.firstTurn
-    return { ...state, inTurnCharacter: winner, contenders: [], lastContest: { rolls, winner }, firstTurn }
+    const won = state.firstTurn?.turn === state.turn ? state.firstTurn : null
+    const passed = won ? passFirstMoverAP(state, won.id, winner) : state
+    return { ...passed, inTurnCharacter: winner, contenders: [], contestModes: {}, lastContest: { rolls, winner }, firstTurn: won ? { ...won, id: winner } : state.firstTurn }
   })
 }
 

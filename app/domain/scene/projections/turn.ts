@@ -1,5 +1,6 @@
 import type { SceneState } from '../types'
-import { getContestBar, getContenders, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
+import type { RollMode } from '../../play/dice'
+import { getContestBar, getContenders, getContestMode, getContestModes, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getOpenAction } from '../rules/log'
 import { getEndCombatBar } from '../rules/fight'
 import { perState } from '../../perState'
@@ -25,6 +26,8 @@ export type TurnControls = {
   contesting: boolean
   contest: string | null
   contenders: string
+  // how the character throws their cunning in the contest
+  contestMode: RollMode
   roll: string | null
   end: string | null
   result: string
@@ -43,12 +46,19 @@ export function getTurnControls(state: SceneState, id: string): TurnControls {
     contesting: state.contenders.includes(id),
     contest: getContestBar(state, id),
     contenders: getContenders(state).map((c) => getFightName(state, c)).join(', '),
+    contestMode: getContestMode(state, id),
     roll: getRollContestBar(state),
     end: getEndTurnBar(state),
     result: getContestResult(state),
     agreed: hasAgreedToEnd(state, id),
     stealth: getStealthLine(state),
   }
+}
+
+// The ways the character may throw their cunning in the contest for the turn,
+// a single one where there is no choice.
+export function getContestModeOptions(state: SceneState, id: string): RollMode[] {
+  return getContestModes(state, id)
 }
 
 // The turn's stealth, as one line: whom its holder is hidden from, their
@@ -67,7 +77,7 @@ function getStealthLine(state: SceneState): string {
 function getContestResult(state: SceneState): string {
   const contest = state.lastContest
   if (!contest) return ''
-  const rolls = contest.rolls.map((r) => `${getFightName(state, r.id)} ${r.score} (${r.die}+${r.skill})`).join(' · ')
+  const rolls = contest.rolls.map((r) => `${getFightName(state, r.id)} ${r.score} (${r.die}+${r.skill}${r.mode === 'normal' ? '' : `, ${r.mode}`})`).join(' · ')
   return `cunning contest: ${rolls} → ${getFightName(state, contest.winner)} takes the turn`
 }
 

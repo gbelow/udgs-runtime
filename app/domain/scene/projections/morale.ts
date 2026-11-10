@@ -1,5 +1,6 @@
 import type { SceneState } from '../types'
-import { getAggravators, getMoraleBar, getMoraleDLOf, getPressureKey } from '../rules/morale'
+import { getAggravators, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey } from '../rules/morale'
+import type { RollMode } from '../../play/dice'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
 import { perState } from '../../perState'
@@ -12,6 +13,8 @@ export type MoraleRow = {
   aggravators: string
   // why the test cannot be made now, null while it waits to be
   bar: string | null
+  // the ways the character may throw it
+  modes: RollMode[]
   // the test as it was made, '' before it is
   result: string
   // the character's limit stress action as it stands when the test activated
@@ -32,7 +35,8 @@ function buildMoraleRows(state: SceneState): MoraleRow[] {
       DL: roll?.DL ?? getMoraleDLOf(aggravators),
       aggravators: aggravators.map((t) => `${t.label} +${t.value}`).join(', '),
       bar: getMoraleBar(state, id),
-      result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}` : '',
+      modes: getMoraleModes(state.characters[id]),
+      result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}${roll.resisted ? ` · +${roll.resisted} against the compulsion` : ''}` : '',
       limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,
       owed: getStressOwed(state, id),
     }

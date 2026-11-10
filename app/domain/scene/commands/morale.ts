@@ -1,14 +1,14 @@
 import type { MoraleRoll, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getMoraleBar, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey } from '../rules/morale'
+import { getCompulsionDegree, getCompulsionResistance, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey } from '../rules/morale'
 import { resolveTest } from '../../play/test'
 import { updateCharacter } from './characters'
 import { oweStress } from './stress'
 import { meetAttitudes } from '../../character/commands/attitudes'
 
 // combat.tex "Combat morale test": the character's will test against the DL
-// of the moment, normally, safely or riskily as the player decides. What it
+// of the moment, thrown in a way their abilities allow (`getMoraleModes`). What it
 // leaves them is the outcome's (`getMoraleOutcome`); `enemyNear` is whether
 // an enemy is within 30 m, told by the table. The last test of the round
 // made, the limit stress actions it activated are owed (`oweStress`). The
@@ -17,15 +17,16 @@ import { meetAttitudes } from '../../character/commands/attitudes'
 export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice: Dice): Updater {
   return (state) => {
     const test = getMoraleTest(state, id)
-    if (!test || getMoraleBar(state, id)) return state
+    if (!test || getMoraleBar(state, id) || !getMoraleModes(state.characters[id]).includes(mode)) return state
     const { die, score, degree } = resolveTest(test, (explodes) => rollModed(mode, explodes, dice))
-    const outcome = getMoraleOutcome(degree, enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
+    const resisted = getCompulsionResistance(state.characters[id])
+    const outcome = getMoraleOutcome(degree, getCompulsionDegree(state.characters[id], score, test.DL), enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
     const settled = [
       updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)), 'morale test'),
       updateCharacter(id, meetAttitudes({ event: 'test', skill: 'will', value: test.skill, DL: test.DL, degree }), 'conviction attitude'),
       ...(outcome.limitStress ? [updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')] : []),
     ].reduce((acc, step) => step(acc), state)
-    const roll: MoraleRoll = { mode, die, skill: test.skill, score, DL: test.DL, degree, limitStress: outcome.limitStress }
+    const roll: MoraleRoll = { mode, die, skill: test.skill, score, DL: test.DL, degree, resisted, limitStress: outcome.limitStress }
     const tested = { ...settled, morale: settled.morale.map((call) => (call.id === id ? { ...call, roll } : call)) }
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)
   }

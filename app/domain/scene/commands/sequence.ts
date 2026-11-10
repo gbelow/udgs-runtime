@@ -27,6 +27,7 @@ import { getNextStress, owesStressTurn } from '../rules/stress'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
 import { layToRest } from './characters'
+import { passFirstMoverAP } from './stoicism'
 import { getResults } from './results'
 import { compelByTest } from './stress'
 import { landSocial } from './social'
@@ -160,11 +161,13 @@ function handOverToCompelled(state: SceneState): SceneState {
 // The character's turn begins: nobody has asked to contest it yet, and it
 // is numbered `turn`: a fresh one unless it is one resumed. The round's first
 // is noted as theirs, unless it is a limit stress action they owe (the table's
-// ruling: a compelled turn is not the first to take a turn in the round).
+// ruling: a compelled turn is not the first to take a turn in the round), with
+// what First Mover gives for it.
 export function beginTurn(state: SceneState, id: string, { fleeing = false, turn = null }: { fleeing?: boolean; turn?: number | null } = {}): SceneState {
   const begun = turn === null ? state.turnsBegun + 1 : state.turnsBegun
   const firstTurn = state.firstTurn ?? (!fleeing && owesStressTurn(state, id) ? null : { turn: turn ?? begun, id })
-  return noteHiddenFrom({ ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null, firstTurn }, id)
+  const first = state.firstTurn === null && firstTurn !== null ? passFirstMoverAP(state, null, id) : state
+  return noteHiddenFrom({ ...first, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], contestModes: {}, lastContest: null, firstTurn }, id)
 }
 
 // combat.tex "Actions in stealth": whom the holder begins the turn
@@ -185,7 +188,7 @@ export function handOverToFleers(state: SceneState): SceneState {
   const fleers = [...new Set(state.fleers)].map((id): QueuedTurn => ({ id, fleeing: true, turn: null }))
   const holder = getTurnHolder(state)
   const resumed: QueuedTurn[] = holder ? [{ id: holder, fleeing: state.fleeing, turn: state.turn }] : []
-  return takeQueuedTurn({ ...state, fleers: [], inTurnCharacter: '', fleeing: false, contenders: [], turnQueue: [...fleers, ...resumed, ...state.turnQueue] })
+  return takeQueuedTurn({ ...state, fleers: [], inTurnCharacter: '', fleeing: false, contenders: [], contestModes: {}, turnQueue: [...fleers, ...resumed, ...state.turnQueue] })
 }
 
 // The next turn waiting in the queue is taken, passing over anyone no longer

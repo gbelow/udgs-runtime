@@ -3,6 +3,7 @@ import { isRootAction } from './actionCatalog'
 import { getAction, getLiveActions } from './log'
 import { isConcentrationAbility } from './medicine'
 import { keepsConcentrationOn } from './battleMage'
+import { getGiveUpLoss } from './stoicism'
 
 // combat.tex "Concentration", "Focus surge": the actions that need the focus
 // surge, draw opportunity attacks as a triggering action, and may be held over
@@ -61,5 +62,5 @@ function givesUpFor(state: SceneState, held: Action, foughtId: string): boolean 
 // refunded, but 1 AP is lost" — what the held action had been paid.
 export function getHeldRefund(state: SceneState, reactorId: string, foughtId: string, kind?: ActionKind): number {
   const held = getHeldOf(state, reactorId)
-  return held && !keepsHeldOn(state, held, kind) && givesUpFor(state, held, foughtId) ? Math.max(0, held.carried.AP - 1) : 0
+  return held && !keepsHeldOn(state, held, kind) && givesUpFor(state, held, foughtId) ? Math.max(0, held.carried.AP - getGiveUpLoss(state.characters[reactorId])) : 0
 }

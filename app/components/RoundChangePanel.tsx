@@ -8,7 +8,6 @@ import { ActionKey, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
 import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../hooks/useCombatState'
 import { GmLocked } from './Locks'
 import { useCombatCommands } from '../hooks/useCombatCommands'
-import { ROLL_MODES } from '../domain/play/dice'
 import { RollButtons } from './DieCalls'
 import type { RoundCard, RoundChangeView, RoundStepView } from '../domain/scene/projections/roundChange'
 
@@ -163,7 +162,7 @@ function MoralePanel(){
           <span className='text-muted'>DL <span className='font-mono text-fg'>{r.DL}</span>{r.aggravators ? ` (${r.aggravators})` : ''}</span>
           {
             !r.result ?
-            <RollButtons name={r.name} options={ROLL_MODES.map((mode) => ({ key: mode, label: `morale ${mode}` }))} onRoll={(mode, die) => rollMorale(r.id, mode, enemyNear, die)} /> :
+            <RollButtons name={r.name} options={r.modes.map((mode) => ({ key: mode, label: `morale ${mode}` }))} onRoll={(mode, die) => rollMorale(r.id, mode, enemyNear, die)} /> :
             <span className='text-xs text-muted'>{r.result}</span>
           }
           {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}

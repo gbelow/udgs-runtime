@@ -8,7 +8,7 @@ import { getAction } from './log'
 import { getDistanceBetween } from './board/board'
 import { getLinkedTargets } from './link'
 import { getSenseReaches } from './detection'
-import { getMoraleOutcome } from './morale'
+import { getCompulsionDegree, getMoraleOutcome } from './morale'
 import { getSituationalAfflictions } from './situational'
 
 export function getMoraleSpell(key: string): MoraleSpellEffect | null {
@@ -96,7 +96,8 @@ export function getMoraleSpellOutcome(state: SceneState, test: SpellTestAction):
     const owed = state.compulsions.some((t) => t.id === test.targetId && !t.taken)
     return { cure: beaten ? ['afraid', 'enraged'] : [], inflict: [], compel: null, constraint: null, pacified: beaten && owed }
   }
-  const outcome = getMoraleOutcome(degree, true, spell.taunt)
+  const compulsion = test.accepted || !test.roll ? 'miss' : getCompulsionDegree(state.characters[test.targetId], test.roll.score, test.roll.DL)
+  const outcome = getMoraleOutcome(degree, compulsion, true, spell.taunt)
   const compel = outcome.limitStress ? getCompelled(state, test, spell, outcome.inflict) : null
   return { cure: outcome.cure, inflict: outcome.inflict, compel, constraint: compel ? spell.constraint : null, pacified: false }
 }

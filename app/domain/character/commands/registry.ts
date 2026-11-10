@@ -1,6 +1,7 @@
 import type { Dice } from '../../play/dice'
 import { editsOver, toEdit, type EditOf } from '../../registry'
-import type { AbilityKey } from '../../abilities'
+import type { AbilityKey, FamilyKey } from '../../abilities'
+import type { ConvictionSlot } from '../rules/requirements'
 import type { SpellKey } from '../../spells'
 import type { FootprintPreset, LimitStressAction } from '../../lists'
 import type { AfflictionKey, Armor, CampaignCharacter, Character, CharacterUpdater, Characteristics, Coord, CreatureCategory, HitLocation, Injuries, Item, Knowledges, Movement, PartWound, Race, Resources, Senses, SlotKind, SpellMethod, Stance, Skills, Trainables } from '../../types'
@@ -19,7 +20,7 @@ import {
   addAffliction, addBodyPart, addPartWound, addSpecificKnowledge, addTrainingXP, applyRace, setCategory, doffArmor, editBodyPart, editNaturalArmor, editPartWound,
   editStance, endSurge, equipArmor, forgetAbility, forgetSpell, healWound, learnAbility, learnSpell, practiceSpell, putGauntlets, putHelm,
   releaseSpell, removeBodyPart, removePartWound, removeSpecificKnowledge, resetAllSkills, resetSkill, resistCurse, resolvePending,
-  setFootprintPreset, setLimitStress, toggleAbility, toggleFootprintCell, toggleVisor, updateIL, updateSTA, useAbility, wearFromContainer,
+  setFootprintPreset, setLimitStress, studyWithConviction, toggleAbility, toggleFootprintCell, toggleVisor, updateIL, updateSTA, useAbility, wearFromContainer,
   wearFromHands, type BodyPartEdit,
 } from '.'
 
@@ -79,6 +80,7 @@ export const characterCommands = {
   releaseSpell: edit((_, key: SpellKey) => releaseSpell(key)),
   addSpecificKnowledge: edit((_, name: string) => addSpecificKnowledge(name)),
   addTrainingXP: edit((_, key: keyof Trainables, amount: number) => addTrainingXP(key, amount)),
+  studyWithConviction: edit((_, slot: ConvictionSlot, family: FamilyKey, amount: number) => studyWithConviction(slot, family, amount)),
   removeSpecificKnowledge: edit((_, name: string) => removeSpecificKnowledge(name)),
 
   // the creature: its race, body, stance and footprint

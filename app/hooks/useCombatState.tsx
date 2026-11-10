@@ -6,7 +6,8 @@ import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getGearBar } from "../domain/scene/rules/turn";
-import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
+import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getContestModeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
+import type { RollMode } from "../domain/play/dice";
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -107,10 +108,18 @@ export function useBreakage(): boolean {
 }
 
 const NO_ONE = 'no active character'
-const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', roll: NO_ONE, end: NO_ONE, result: '', agreed: false, stealth: '' }
+const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', contestMode: 'normal', roll: NO_ONE, end: NO_ONE, result: '', agreed: false, stealth: '' }
 
 // play.tex "Combat" — the turn buttons for the active character, flat
 // primitives gated shallowly.
+const NO_MODES: RollMode[] = ['normal']
+
+// How the active character may throw their cunning in the contest for the
+// turn; a list of plain words, so it gates shallowly.
+export function useContestModes(): RollMode[] {
+  return useCombatStore(useShallow((s) => (s.activeCharacterId ? getContestModeOptions(s, s.activeCharacterId) : NO_MODES)))
+}
+
 export function useTurnControls(): TurnControls {
   return useCombatStore(useShallow((s) => (s.activeCharacterId ? getTurnControls(s, s.activeCharacterId) : NO_TURN)));
 }

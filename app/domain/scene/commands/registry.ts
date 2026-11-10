@@ -28,10 +28,10 @@ import { rollMorale, setTablePressure } from './morale'
 import { backToChase, continueRound, holdOn, joinChaseFight, letGo, nextRound } from './nextRound'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
-import { agreeAllToEnd, endTurn, rollContest, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
+import { agreeAllToEnd, endTurn, rollContest, setContestMode, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
 import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
-  passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
+  passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setSpellTestMode, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
 } from './action'
 import { chooseGrapple, chooseManeuver, chooseTheft, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from './choices'
 
@@ -85,6 +85,7 @@ export const sceneCommands = {
   skip: command((ctx) => withdrawSpawnedAction(ctx.thrower, ctx.newId)).by(panel('open')),
   pay: command((ctx) => payAnswered(ctx.newId, ctx.thrower)).by(panel('open')),
   accept: command((ctx) => acceptAnswered(ctx.newId, ctx.thrower)).by(panel('accept')),
+  spellTestMode: command((_, mode: RollMode) => setSpellTestMode(mode)).by(panel('accept')),
   spend: command((_, purchase: HOPPurchase) => spendHOP(purchase)).by(panel('open')),
   refund: command((_, purchase: HOPPurchase) => refundHOP(purchase)).by(panel('open')),
   grapple: command((_, on: boolean) => chooseGrapple(on)).by(panel('open')),
@@ -141,6 +142,7 @@ export const sceneCommands = {
   // the turn and the round
   startTurn: command((_, id: string) => startTurn(id)).by(own),
   toggleContest: command((_, id: string) => toggleContest(id)).by(own),
+  contestMode: command((_, id: string, mode: RollMode) => setContestMode(id, mode)).by(own),
   toggleAgreeToEnd: command((_, id: string) => toggleAgreeToEnd(id)).by(own),
   agreeAllToEnd: command((_, ids: string[]) => agreeAllToEnd(ids)).by((_, ids) => ({ anyOf: ids })),
   surge: command((_, id: string, kind: SurgeKind) => surge(id, kind)).by(own),

@@ -108,12 +108,16 @@ export function getStrategistDiscount(state: SceneState, c: CampaignCharacter, i
 // prepared action, or when an attack has 5 HOPs or more": every test its
 // performer rolls in it, the action and what it opens, a critical or 5 HOP
 // (left to be spent); the tests held for the round (a balance, a climb, a
-// swim) are not counted (the table's ruling). The AP go to its preparer.
-export function getPreparationAP(state: SceneState, rolled: Action): { to: string; AP: number } | null {
+// swim) are not counted (the table's ruling). The crit is its preparer's, and
+// so are the AP; the Stoic's attitude counts the same crits. The preparer's
+// id, or null.
+export function getPreparedCrit(state: SceneState, rolled: Action): string | null {
   if (!rolled.roll || rolled.kind === 'move' || rolled.kind === 'swimTest') return null
   const p: PrepareAction | null = getPreparationWithin(state, rolled)
-  if (!p || rolled.actorId !== getPerformerId(p)) return null
-  const preparer = state.characters[p.actorId]
-  if (!preparer || !hasGrant(preparer, 'perfectPreparation')) return null
-  return rolled.roll.degree === 'critical' || rolled.roll.HOP >= 5 ? { to: p.actorId, AP: 1 } : null
+  if (!p || rolled.actorId !== getPerformerId(p) || !state.characters[p.actorId]) return null
+  return rolled.roll.degree === 'critical' || rolled.roll.HOP >= 5 ? p.actorId : null
+}
+
+export function getPerfectPreparationAP(c: CampaignCharacter): number {
+  return hasGrant(c, 'perfectPreparation') ? 1 : 0
 }

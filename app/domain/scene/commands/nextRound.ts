@@ -29,6 +29,7 @@ import { carryOver, finishHeld } from './hold'
 import { updateCharacter } from './characters'
 import { isParked } from '../rules/parked'
 import { getMembers } from '../rules/fighters'
+import { getHoldOnDiscount } from '../rules/stoicism'
 
 // The round change (rules/roundChange.ts has its order). `nextRound` opens
 // it, `continueRound` moves it on a step at a time, and `holdOn` / `letGo`
@@ -70,7 +71,7 @@ export function nextRound(thrown: Throw): Updater {
     const receive = state.round === 0 ? startAP : receiveAP
     const moved = { ...state, chase: endChaseRound(state) }
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) || isParked(moved, id) ? c : receive(wake(state, c))]))
-    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
+    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], contestModes: {}, lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })
@@ -195,18 +196,20 @@ function payRoundEnd(c: CampaignCharacter): CampaignCharacter {
 // draws from its item, letting go of one that has none left, and then the
 // upkeep of everything kept going; a held spell or a held action takes the
 // focus surge holding it does (the table's ruling), and a held action keeps
-// every AP left for itself (combat.tex "Concentration").
+// every AP left for itself (combat.tex "Concentration"). Flow State takes its
+// AP off the upkeep paid, and what is left of it off the held action.
 export function holdOn(id: string, thrown: Throw): Updater {
   return calling({ kind: 'holdOn', id }, thrown, (caller) => (state) => {
     if (getHoldOnBar(state, id)) return state
-    const focus = needsFocusToHold(state, id)
-    const paid = updateCharacter(id, (c) => {
-      const kept = payRoundEnd(payHeldSources(() => rollPercent(caller.dice))(c))
-      return focus ? actionSurge('focus')(kept) : kept
-    }, 'holds on')(state)
+    const c = state.characters[id]
+    const kept = payRoundEnd(payHeldSources(() => rollPercent(caller.dice))(c))
+    const discount = getHoldOnDiscount(c)
+    const back = Math.min(discount, Math.max(0, c.resources.AP - kept.resources.AP))
+    const eased = back > 0 ? { ...kept, resources: { ...kept.resources, AP: kept.resources.AP + back } } : kept
+    const paid = updateCharacter(id, () => (needsFocusToHold(state, id) ? actionSurge('focus')(eased) : eased), 'holds on')(state)
     const held = getHeldActions(paid).find((h) => h.actorId === id)
     const pool = Math.max(0, paid.characters[id].resources.AP)
-    const carried = held ? carryOver(updateCharacter(id, payCost({ AP: pool, STA: 0 }, true), 'holds on')(paid), held, pool) : paid
+    const carried = held ? carryOver(updateCharacter(id, payCost({ AP: pool, STA: 0 }, true), 'holds on')(paid), held, pool + discount - back) : paid
     return settleChoices({ ...carried, concentration: [...carried.concentration, { id, hold: true }] }, caller)
   })
 }

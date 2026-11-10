@@ -33,6 +33,7 @@ export function useCombatCommands() {
 
   const startTurn = asPicked((id) => dispatch({ kind: "startTurn", args: [id] }))
   const toggleContest = asPicked((id) => dispatch({ kind: "toggleContest", args: [id] }))
+  const contestMode = (mode: RollMode) => asPicked((id) => dispatch({ kind: "contestMode", args: [id, mode] }))()
   const toggleAgreeToEnd = asPicked((id) => dispatch({ kind: "toggleAgreeToEnd", args: [id] }))
   const agreeAllToEnd = () => {
     const ids = getControlledIds(Object.keys(useCombatStore.getState().characters), viewer())
@@ -61,5 +62,5 @@ export function useCombatCommands() {
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
   const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
 }

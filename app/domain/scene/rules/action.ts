@@ -20,6 +20,7 @@ import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
 import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
+import { getGiveUpLoss } from './stoicism'
 import { isSpellActive } from '../../character/rules/effects'
 import { SHOTS } from '../../tables'
 import { answersByDetection, getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
@@ -619,14 +620,15 @@ function getPriceLabel(action: Action): string {
 }
 
 // combat.tex "Interruption": "The AP from the interrupted action is
-// refunded, but 1 AP is lost" — given back as the answer to the attack the
-// action was given up for is paid, and for that one only; the STA is lost.
+// refunded, but 1 AP is lost" (none with Reserve Clause): given back as the
+// answer to the attack the action was given up for is paid, and for that one
+// only; the STA is lost.
 // An interruption from outside refunds nothing.
 export function getRefundedAP(state: SceneState, reactorId: string, rootId: string, kind?: ActionKind): number {
   if (!isCombatStarted(state)) return 0
   const fought = getAction(state, rootId)
   const given = fought ? getCancellableRoot(state, fought, reactorId, kind) : null
-  if (given && getGivenUpFor(state, given)?.id === rootId) return Math.max(0, (given.cost?.AP ?? 0) + given.carried.AP - 1)
+  if (given && getGivenUpFor(state, given)?.id === rootId) return Math.max(0, (given.cost?.AP ?? 0) + given.carried.AP - getGiveUpLoss(state.characters[reactorId]))
   return getHeldRefund(state, reactorId, rootId, kind)
 }
 

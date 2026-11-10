@@ -43,6 +43,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   turn: keep,
   turnsBegun: keep,
   contenders: unseen,
+  contestModes: unseen,
   lastContest: unseen,
   agreedToEnd: unseen,
   roundStep: keep,

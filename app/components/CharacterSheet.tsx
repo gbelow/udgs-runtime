@@ -1,11 +1,11 @@
 'use client'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
 import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
 import { Minus, Plus } from 'lucide-react'
-import { Button, IconButton, NumberInput, SectionLabel, StatTile, Tiles } from './ui';
+import { Button, IconButton, NumberInput, SectionLabel, StatTile, Tiles, selectClass } from './ui';
 import { Characteristics, Knowledges, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -145,16 +145,24 @@ export function CharacteristicTiles(){
 }
 
 // A conviction's XP, raised or lowered by hand for the attitudes the table
-// judges (abilities.tex "Promoted Attitudes").
+// judges (abilities.tex "Promoted Attitudes"), given to an ability it may
+// study where one is picked (abilities.json "Cunning Studies").
 function ConvictionXP({slot}: {slot: 'conviction1' | 'conviction2'}){
-  const { name, XP, adopted, addXP } = useConvictionXP(slot)
+  const { name, XP, adopted, studies, addXP, study } = useConvictionXP(slot)
+  const [studied, setStudied] = useState('')
   if (!adopted) return null
+  const picked = studies.find((s) => s.family === studied)
   return(
     <div className='flex flex-row items-center gap-1.5 rounded border border-line bg-surface px-1.5 py-1 text-sm'>
       <span className='text-muted'>{name} XP</span>
       <span className='tabular-nums'>{XP}</span>
-      <IconButton icon={Plus} aria-label={`give ${name} XP`} title='give 1 XP' onClick={() => addXP(1)} />
+      <IconButton icon={Plus} aria-label={`give ${name} XP`} title={picked ? `give 1 XP to ${name} and ${picked.name}` : 'give 1 XP'} onClick={() => (picked ? study(picked.family, 1) : addXP(1))} />
       <IconButton icon={Minus} aria-label={`take ${name} XP`} title='take 1 XP' onClick={() => addXP(-1)} />
+      {studies.length > 0 ?
+        <select aria-label={`${name} XP also trains`} className={selectClass} value={picked?.family ?? ''} onChange={(e) => setStudied(e.target.value)}>
+          <option value=''>{name} only</option>
+          {studies.map((s) => <option key={s.family} value={s.family}>also {s.name}</option>)}
+        </select> : null}
     </div>
   )
 }

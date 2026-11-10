@@ -23,6 +23,8 @@ import { isStoppedByGuard } from '../rules/attack'
 import { getMoveDestination } from '../rules/board/waypoint'
 import { getActionHeading } from '../rules/detection'
 import { isAttackAction } from '../rules/actionCatalog'
+import { getPerfectPreparationAP } from '../rules/cunning'
+import { meetAttitudes } from '../../character/commands/attitudes'
 import { getBreaks, getBrokenItems } from '../rules/breakage'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
 import { HOP_PURCHASES } from '../../lists'
@@ -69,9 +71,10 @@ export type Phase = 'roll' | 'save' | 'resolve'
 export function reduceCharacter(action: Action, phase: Phase, charged: boolean, fire: FireTouched | null = null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const part = reducePart(action, phase, charged)(c)
-    // abilities.json "Perfect Preparation": the AP its preparer receives for
-    // the test, once the die is thrown
-    const reduced = phase === 'roll' && action.preparationAP?.to === c.id ? refund(action.preparationAP.AP)(part) : part
+    // A crit in an action the character prepared, once the die is thrown:
+    // what Perfect Preparation gives for it, and what their convictions'
+    // attitudes make of it
+    const reduced = phase === 'roll' && action.preparedCrit === c.id ? meetAttitudes({ event: 'preparedCrit' })(refund(getPerfectPreparationAP(part))(part)) : part
     if (phase !== 'resolve') return reduced
     const damaged = deliverAll(getBreaks(action)[c.id] ?? [])(reduced)
     const touched = fire?.id === c.id ? touchFire(fire.fire)(damaged) : damaged

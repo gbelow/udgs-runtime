@@ -10,7 +10,8 @@ import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
 import { getHeldTurnBar } from './heldRoll'
 import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } from './stress'
-import type { Dice } from '../../play/dice'
+import { moded, type Dice, type RollMode } from '../../play/dice'
+import { getRollModes } from '../../character/rules/effects'
 import { getCunning } from '../../character/rules/skills'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
@@ -110,11 +111,27 @@ export function getContestWinner(rolls: ContestRoll[]): string | null {
 }
 
 // One contender's cunning roll (the die does not explode: play.tex
-// "Exploding die" — only where it says), with the routing bonus of a chase.
-export function rollCunning(state: SceneState, id: string, dice: Dice): ContestRoll {
-  const die = dice(false)
+// "Exploding die": only where it says), with the routing bonus of a chase,
+// thrown in `mode`.
+export function rollCunning(state: SceneState, id: string, dice: Dice, mode: RollMode = 'normal'): ContestRoll {
+  const die = moded(mode, dice)(false)
   const skill = getCunning(state.characters[id]) + sumTerms(getRoutingTerms(state, id))
-  return { id, die, skill, score: die + skill }
+  return { id, mode, die, skill, score: die + skill }
+}
+
+// play.tex "Safe and risky tests": the ways the character may throw their
+// cunning in the contest for the turn, as their abilities allow, while they
+// are in it, the holder too, and it is still to be rolled.
+export function getContestModes(state: SceneState, id: string): RollMode[] {
+  const c = state.characters[id]
+  const inIt = getTurnHolder(state) === id || getContenders(state).includes(id)
+  return c && inIt && getContestClosed(state) === null ? getRollModes(c, 'cunning', true) : ['normal']
+}
+
+// How the character throws their cunning in the contest.
+export function getContestMode(state: SceneState, id: string): RollMode {
+  const mode = state.contestModes[id] ?? 'normal'
+  return getContestModes(state, id).includes(mode) ? mode : 'normal'
 }
 
 // Why the character cannot make a movement or combat surge now, or null:

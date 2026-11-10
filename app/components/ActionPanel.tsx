@@ -34,7 +34,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -209,7 +209,7 @@ export function ActionPanel(){
           {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, recipe: null, metres: null, ledge: null })} />)}
         </div>
       ) : null}
-      {open.testModes && open.testModes.modes.length > 1 ? (
+      {open.testModes?.by === 'mover' && open.testModes.modes.length > 1 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>{open.testModes.test}</SectionLabel>
           <Segmented label={`${open.testModes.test} mode`}>
@@ -332,6 +332,13 @@ export function ActionPanel(){
                 : <Tooltip text={view.goBar}><ActionKey look='go' icon={Play} aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</ActionKey></Tooltip>}
             </LockedFor>
             {view.canAccept ? <LockedFor id={open.targetId}><ActionKey aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</ActionKey></LockedFor> : null}
+            {open.testModes?.by === 'target' && open.testModes.modes.length > 1 ? (
+              <LockedFor id={open.targetId}>
+                <Segmented label={`${open.testModes.test} mode`}>
+                  {open.testModes.modes.map((mode) => <Segment key={mode} selected={mode === open.mode} onClick={() => spellTestMode(mode)}>{`${open.testModes?.test} ${mode}`}</Segment>)}
+                </Segmented>
+              </LockedFor>
+            ) : null}
             <Button weight='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
           </div>
         </div>

@@ -21,7 +21,8 @@ import type { BoardMap, Coord } from '../domain/scene/types'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
 import { isAimed, type MenuAim } from '../domain/scene/commands/clickMenu'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, type RoundPhase } from '../domain/scene/rules/roundChange'
-import { DIE_SOURCES, ROLL_MODES } from '../domain/play/dice'
+import { DIE_SOURCES } from '../domain/play/dice'
+import { getMoraleModes } from '../domain/scene/rules/morale'
 import { getChasePanel } from '../domain/scene/projections/chase'
 import { getFollowPanel } from '../domain/scene/projections/parked'
 import { getBackToChaseBar, getChaseIntentBar, getDeclareBar, getDeclareOrder, getStartCaught } from '../domain/scene/rules/chase'
@@ -322,6 +323,7 @@ function plays(): Play[] {
     { name: 'pick the gear to cast with', run: (h, pick) => { const gear = getActionPanel(h.state()).gear; if (gear.length) h.send({ kind: 'amend', args: [{ itemId: pick(gear).itemId }] }) } },
     { name: 'extend a spell', run: (h, pick) => h.send({ kind: 'extend', args: [pick([1, -1] as const)] }) },
     { name: 'accept a spell test', run: (h) => h.send({ kind: 'accept', args: [] }) },
+    { name: 'pick how a spell test is thrown', run: (h, pick) => { const modes = getActionPanel(h.state()).open?.testModes; if (modes?.by === 'target') h.send({ kind: 'spellTestMode', args: [pick(modes.modes)] }) } },
     { name: 'answer with nothing', weight: 2, run: (h, pick) => { const reactors = getActionPanel(h.state()).reactors; if (reactors.length) h.send({ kind: 'pass', args: [pick(reactors).id] }) } },
     { name: 'buy with the overflow', weight: 2, run: (h, pick) => { const options = getActionPanel(h.state()).hop.options.filter((o) => o.available); if (options.length) h.send({ kind: 'spend', args: [pick(options).purchase] }) } },
     { name: 'take back an overflow purchase', run: (h, pick) => { const options = getActionPanel(h.state()).hop.options; if (options.length) h.send({ kind: 'refund', args: [pick(options).purchase] }) } },
@@ -709,7 +711,9 @@ function roundChangePlays(): Play[] {
       name: 'test morale',
       run: (h, pick) => {
         const owed = h.state().morale.filter((m) => m.roll === null && h.state().characters[m.id])
-        if (owed.length) h.send({ kind: 'rollMorale', args: [pick(owed).id, pick(ROLL_MODES), pick([true, false])] })
+        if (!owed.length) return
+        const call = pick(owed)
+        h.send({ kind: 'rollMorale', args: [call.id, pick(getMoraleModes(h.state().characters[call.id])), pick([true, false])] })
       },
     },
   ]
@@ -741,7 +745,7 @@ function stepRoundChange(h: Harness, pick: Picker, until: RoundPhase | null = nu
     if (owed.length) {
       const id = pick(owed)
       h.send({ kind: getHoldOnBar(s, id) || pick([true, false]) ? 'letGo' : 'holdOn', args: [id] })
-    } else if (untested) h.send({ kind: 'rollMorale', args: [untested.id, pick(ROLL_MODES), pick([true, false])] })
+    } else if (untested) h.send({ kind: 'rollMorale', args: [untested.id, pick(getMoraleModes(s.characters[untested.id])), pick([true, false])] })
     else if (!getContinueBar(s)) h.send({ kind: 'continueRound', args: [] })
     else return
   }

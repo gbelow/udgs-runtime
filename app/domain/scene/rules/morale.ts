@@ -5,7 +5,9 @@ import { getAfflictions, getInjuryPenalty, hasAffliction, isDead } from '../../c
 import { getCharisma } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
-import type { Test } from '../../play/test'
+import { getDegree, type Test } from '../../play/test'
+import { getBuffBonus, getRollModes } from '../../character/rules/effects'
+import type { RollMode } from '../../play/dice'
 import { getFightName } from './fighters'
 import { getSituationalAfflictions, isImmobile } from './situational'
 import { isNearBlindGround } from './detection'
@@ -82,6 +84,13 @@ export function getMoraleDL(state: SceneState, id: string): number {
 // combat.tex "Combat morale test": a will test against the DL, which "can be
 // done normally, safely or riskily"; the die does not explode (the table's
 // ruling).
+// play.tex "Safe and risky tests": "This mechanic can only be used when
+// indicated in the skill or ability": the ways the character may throw their
+// morale test, as their abilities allow for will.
+export function getMoraleModes(c: CampaignCharacter): RollMode[] {
+  return getRollModes(c, 'will', true)
+}
+
 export function getMoraleTest(state: SceneState, id: string): Test | null {
   const c = state.characters[id]
   return c ? { skill: getWill(c), DL: getMoraleDL(state, id), explodes: false, scale: 'degrees' } : null
@@ -126,9 +135,22 @@ export type MoraleOutcome = { cure: AfflictionKey[]; inflict: AfflictionKey[]; l
 // afraid too. "Afraid" and "Enraged": the fear and the anger end "when the
 // character succeeds on their Will test" — a graze is not success — and each
 // ends by becoming the other. combat.tex "Taunt": a taunt causes "enraged
-// instead of afraid".
-export function getMoraleOutcome(degree: Degree, enemyNear: boolean, taunted: boolean): MoraleOutcome {
+// instead of afraid". The limit stress action is read off `compulsion`, the
+// degree the test comes to against it (`getCompulsionDegree`).
+export function getMoraleOutcome(degree: Degree, compulsion: Degree, enemyNear: boolean, taunted: boolean): MoraleOutcome {
   if (degree === 'hit' || degree === 'critical') return { cure: [...MORALE_AFFLICTIONS], inflict: [], limitStress: false }
   const [inflict, cure]: AfflictionKey[] = taunted ? ['enraged', 'afraid'] : ['afraid', 'enraged']
-  return { cure: [cure], inflict: [inflict], limitStress: degree === 'miss' && enemyNear }
+  return { cure: [cure], inflict: [inflict], limitStress: compulsion === 'miss' && enemyNear }
+}
+
+// combat.tex "Compulsions": a limit stress action is a compulsion.
+// abilities.json "Contemplation": "Increases defense against any compulsions
+// by 1": the morale test's score counts that much higher against the
+// compulsion it would activate, and only against that (the table's ruling).
+export function getCompulsionResistance(c: CampaignCharacter | undefined): number {
+  return c ? getBuffBonus(c, 'resist:compulsion') : 0
+}
+
+export function getCompulsionDegree(c: CampaignCharacter | undefined, score: number, DL: number): Degree {
+  return getDegree(score + getCompulsionResistance(c), DL)
 }

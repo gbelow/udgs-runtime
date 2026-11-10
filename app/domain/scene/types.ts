@@ -462,9 +462,10 @@ const ActionBase = {
   // Which part of a prepared reaction this action is, when a `prepared`
   // reaction opened it: the movement it may carry, or the action it is for.
   preparedPart: z.enum(['move', 'main']).nullable().default(null),
-  // abilities.json "Perfect Preparation": the AP its rolled test gave the one
-  // who prepared it, written as the die is thrown; null where it gave none
-  preparationAP: z.object({ to: str, AP: num }).strip().nullable().default(null),
+  // The one who prepared the action whose rolled test this is, where the test
+  // crit (rules/cunning.ts `getPreparedCrit`), written as the die is thrown;
+  // null where it did not
+  preparedCrit: str.nullable().default(null),
   // The turn this action was declared in (`SceneState.turn`), stamped when it
   // enters the log; null until then.
   turn: num.nullable().default(null),
@@ -944,6 +945,8 @@ export const SpellTestActionSchema = z.object({
   // part of a link
   link: str.default(''),
   accepted: z.boolean().default(false),
+  // play.tex "Safe and risky tests": how the target throws their die
+  mode: z.enum(ROLL_MODES).default('normal'),
   facts: DeliveriesSchema.nullable().default(null),
   morale: MoraleSpellOutcomeSchema.nullable().default(null),
 }).strip()
@@ -1644,8 +1647,8 @@ export type ActionDraft = {
 export type ReactionAmend = Partial<ActionDraft> & { targetId?: string | null }
 
 // combat.tex "Morale": a character called to a morale test at the beginning of
-// the round, and — once it is made — what it was and whether it activated
-// their limit stress action.
+// the round, and, once it is made, what it was, what it had against the
+// compulsion, and whether it activated their limit stress action.
 export const MoraleRollSchema = z.object({
   mode: z.enum(ROLL_MODES),
   die: z.number(),
@@ -1653,6 +1656,7 @@ export const MoraleRollSchema = z.object({
   score: z.number(),
   DL: z.number(),
   degree: DegreeSchema,
+  resisted: z.number().default(0),
   limitStress: z.boolean(),
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
@@ -1712,7 +1716,7 @@ export type MoraleCall = z.infer<typeof MoraleCallSchema>
 
 // A contest for the turn as it was rolled: each contender's cunning roll, in
 // the order they asked, the holder first, and who took the turn.
-export const ContestRollSchema = z.object({ id: z.string(), die: z.number(), skill: z.number(), score: z.number() })
+export const ContestRollSchema = z.object({ id: z.string(), mode: z.enum(ROLL_MODES).default('normal'), die: z.number(), skill: z.number(), score: z.number() })
 export const ContestSchema = z.object({ rolls: z.array(ContestRollSchema), winner: z.string() })
 export type ContestRoll = z.infer<typeof ContestRollSchema>
 
@@ -1907,6 +1911,9 @@ export const SceneStateSchema = z.object({
   // who has asked to contest the turn, in the order they asked, and the
   // contest once it is rolled — a turn is contested once
   contenders: z.array(z.string()).default([]),
+  // play.tex "Safe and risky tests": how each in the contest, the holder too,
+  // throws their cunning, where they picked other than normal
+  contestModes: z.record(z.string(), z.enum(ROLL_MODES)).default({}),
   lastContest: ContestSchema.nullable().default(null),
   // combat.tex "End of the round": who has said they agree to end it; who
   // has nothing left to spend agrees without saying so

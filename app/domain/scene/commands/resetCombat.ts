@@ -13,7 +13,7 @@ export function resetCombat(state: SceneState): SceneState {
     forcedBy: '',
     turn: 0,
     turnsBegun: 0,
-    contenders: [],
+    contenders: [], contestModes: {},
     lastContest: null,
     agreedToEnd: [],
     morale: [],

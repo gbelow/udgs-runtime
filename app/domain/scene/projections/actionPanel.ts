@@ -2,7 +2,7 @@ import { isCombatStarted } from '../rules/started'
 import type { Action, ActionDraft, LootSource, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, MoveAction, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
-import type { Area, Character, Item, MoveKind } from '../../types'
+import type { Area, Character, Item, MoveKind, Skills } from '../../types'
 import { ACTION_CATEGORIES, getActionDef, isAttackAction, isReactionAction, type ActionCategory } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -10,10 +10,10 @@ import { ActionOption, getAvailableActions, getAwaited, getGoBar } from '../rule
 import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, getTargetIds, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { getCounterShot } from '../rules/counter'
-import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
+import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions, getSpellTestModes } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { PART_PRESETS, SHOTS } from '../../tables'
-import { getExtendDL } from '../../character/rules/spells'
+import { getExtendDL, getSpellTestRoll } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, canGrapple, getHitHOP, getHOPOptions } from '../rules/damage'
@@ -71,6 +71,15 @@ export type ItemAim = { id: string; name: string; penalty: number; selected: boo
 function getClimbStopOffers(state: SceneState, move: MoveAction): OpenActionView['climbStops'] {
   const stops = getClimbChoices(state, move)
   return stops && stops.length > 1 ? stops.map((s) => ({ ...s, key: coordKey(s.cell) })) : null
+}
+
+// The test the open action is thrown as and the ways it may be thrown: a
+// climb's or a balance's as the move is declared, a spell's test while its
+// target waits for the die.
+function getTestModes(state: SceneState, open: Action): OpenActionView['testModes'] {
+  if (open.kind === 'move' && (open.movement === 'climb' || needsBalanceTest(state, open))) return { test: getMoveTest(state, open), modes: getMoveModes(state, open), by: 'mover' }
+  const roll = open.kind === 'spellTest' && open.step === 'react' && !open.accepted && isSpellKey(open.key) ? getSpellTestRoll(open.key) : null
+  return open.kind === 'spellTest' && roll ? { test: roll, modes: getSpellTestModes(state, open), by: 'target' } : null
 }
 
 function getLocationOptions(target: Character | undefined, aim: { location: HitLocation; part: string | null; object?: string }): LocationOption[] {
@@ -244,10 +253,12 @@ export type OpenActionView = {
   // abilities.tex "Steady Arms": the steps of the path the shot may be fired from
   // (counted from the shooter's start), and the one it is
   steady: { steps: { at: number; selected: boolean }[] } | null
-  // play.tex "Safe and risky tests": how the move's test is thrown, and the
-  // test with the ways its mover may throw it, null while it has none
+  // play.tex "Safe and risky tests": how the test is thrown, and the test
+  // with the ways it may be thrown, null while it has none: a move's, picked
+  // by its mover as it is declared, or a spell's, by its target as it waits
+  // for the die
   mode: RollMode
-  testModes: { test: NonNullable<MoveAction['test']>; modes: RollMode[] } | null
+  testModes: { test: NonNullable<MoveAction['test']> | keyof Skills; modes: RollMode[]; by: 'mover' | 'target' } | null
   // abilities.tex "Jumper II": whether the climb may start with a jump, and
   // whether it does
   canLeap: boolean
@@ -513,8 +524,8 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? { steps: getFiringSteps(open) } : null,
-      mode: open.kind === 'move' ? open.mode : 'normal',
-      testModes: open.kind === 'move' && (open.movement === 'climb' || needsBalanceTest(state, open)) ? { test: getMoveTest(state, open), modes: getMoveModes(state, open) } : null,
+      mode: open.kind === 'move' || open.kind === 'spellTest' ? open.mode : 'normal',
+      testModes: getTestModes(state, open),
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
       climbStops: open.kind === 'move' ? getClimbStopOffers(state, open) : null,
       canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),

@@ -1,3 +1,4 @@
+import type { RollMode } from "../domain/play/dice";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import type { ActionDraft, HOPPurchase, ReactionAmend } from "../domain/scene/types";
 import type { chooseManeuver } from "../domain/scene/commands/choices";
@@ -30,6 +31,7 @@ export function useCombatActions() {
   const skip = () => dispatch({ kind: "skip", args: [] });
   const pay = () => dispatch({ kind: "pay", args: [] });
   const accept = () => dispatch({ kind: "accept", args: [] });
+  const spellTestMode = (mode: RollMode) => dispatch({ kind: "spellTestMode", args: [mode] });
   const spend = (purchase: HOPPurchase) => dispatch({ kind: "spend", args: [purchase] });
   const refund = (purchase: HOPPurchase) => dispatch({ kind: "refund", args: [purchase] });
   const grapple = (on: boolean) => dispatch({ kind: "grapple", args: [on] });
@@ -45,5 +47,5 @@ export function useCombatActions() {
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

@@ -1273,7 +1273,9 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 // conviction's XP in play, as data, read by character/rules/attitudes.ts.
 // `test`: the holder's test of `skill` came to one of `degrees` (any when
 // empty) against a DL at least `DLOverSkill` above that skill. `limitStress`:
-// the holder's limit stress action was activated.
+// the holder's limit stress action was activated. `preparedCrit`: an action
+// the holder prepared crit. `unpreparedTurn`: the holder's turn ended with
+// nothing prepared in it, and nothing held through the round.
 export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('test'),
@@ -1282,6 +1284,8 @@ export const AttitudeEventSchema = z.discriminatedUnion('event', [
     DLOverSkill: num.default(0),
   }).strip(),
   z.object({ event: z.literal('limitStress') }).strip(),
+  z.object({ event: z.literal('preparedCrit') }).strip(),
+  z.object({ event: z.literal('unpreparedTurn') }).strip(),
 ])
 export type AttitudeEvent = z.infer<typeof AttitudeEventSchema>
 
@@ -1295,6 +1299,14 @@ export const AttitudeSchema = z.object({
   XP: num.default(1),
 }).strip()
 export type Attitude = z.infer<typeof AttitudeSchema>
+
+// abilities.json "Cunning Studies": the abilities of `section` the XP of
+// `conviction` may train, the XP counting for the conviction as well.
+export const StudySchema = z.object({
+  section: str.default(''),
+  conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]),
+}).strip()
+export type Study = z.infer<typeof StudySchema>
 
 // What one level of an ability states for itself: its price, what it asks
 // for, what it does. Shared between the stored family shape and the
@@ -1311,6 +1323,7 @@ const AbilityStageValues = {
   rollModes: z.array(RollModeGrantSchema).default([]), // the safe and risky tests this stage allows while learned
   surgeAllows: z.array(SurgeAllowSchema).default([]), // what this stage lets a surge's AP pay for while learned
   attitudes: z.array(AttitudeSchema).default([]), // what moves a conviction's XP in play while learned
+  studies: z.array(StudySchema).default([]), // the abilities a conviction's XP may train while learned
 }
 
 export const AbilityStageSchema = z.object(AbilityStageValues).strip()

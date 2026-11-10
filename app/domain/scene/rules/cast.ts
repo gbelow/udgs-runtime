@@ -9,7 +9,8 @@ import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
 import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getGearCastingDL, getSpellGear, getQuickenDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTest, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
-import { isSpellActive } from '../../character/rules/effects'
+import { getRollModes, isSpellActive } from '../../character/rules/effects'
+import type { RollMode } from '../../play/dice'
 import { getCastLink, mayCastWhileConcentrating } from '../../character/rules/concentration'
 import { getLinkDL, getLinkedTargets } from './link'
 import { skillTermGetters } from '../../character/rules/skills'
@@ -428,4 +429,12 @@ export function getLinkSpent(state: SceneState, root: SpellTestAction): { caster
 // willing target takes the test's effects without rolling for it.
 export function canAcceptSpellTest(action: SpellTestAction): boolean {
   return action.step === 'react' && !action.accepted && getTestLink(action) !== null
+}
+
+// play.tex "Safe and risky tests": the ways the target may throw the spell's
+// test, as their abilities allow for the skill it is rolled with.
+export function getSpellTestModes(state: SceneState, action: SpellTestAction): RollMode[] {
+  const target = action.targetId ? state.characters[action.targetId] : undefined
+  const roll = isSpellKey(action.key) ? getSpellTestRoll(action.key) : null
+  return target && roll ? getRollModes(target, roll, isCombatStarted(state)) : ['normal']
 }
