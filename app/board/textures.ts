@@ -1,4 +1,5 @@
 import { Assets, Texture } from 'pixi.js'
+import { assetUrl } from './assetUrl'
 
 // The pictures the board is drawn with, each loaded once and kept for every
 // board after: a surface, a wall face, a structure, a token. A picture still
@@ -16,7 +17,7 @@ export function getTexture(src: string, onLoad: () => void): Texture | null {
   }
   const entry: Entry = { texture: null, failed: false, waiting: new Set([onLoad]) }
   cache.set(src, entry)
-  Assets.load<Texture>({ src, parser: 'texture' }).then((texture) => {
+  Assets.load<Texture>({ src: assetUrl(src), parser: 'texture' }).then((texture) => {
     texture.source.style.addressMode = 'repeat'
     texture.source.style.mipmapFilter = 'linear'
     texture.source.style.update()

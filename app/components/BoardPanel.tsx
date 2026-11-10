@@ -9,6 +9,7 @@ import { useGmBar } from '../hooks/useControl'
 import type { BoardExtent, GroundRecipe, SurfaceTarget } from '../domain/scene/types'
 import type { BoardView, BrushIcon } from '../domain/scene/projections/boardView'
 import { BoardCanvas } from './BoardCanvas'
+import { assetUrl } from '../board/assetUrl'
 import type { TerrainBrush } from '../domain/types'
 import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES, SURFACE_TARGETS } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
@@ -253,7 +254,7 @@ export function SurfaceRow({ surfaces, laying, lay, frozen, freeze, onto, setOnt
         <Button size='xs' selected={frozen === null} onClick={() => freeze(null)}>random</Button>
         {arts.map((src) => (
           <Button key={src} size='xs' selected={frozen === src} title={src} aria-label={src} onClick={() => freeze(frozen === src ? null : src)}>
-            <span className='inline-block h-5 w-5 rounded-sm bg-cover bg-center' style={{ backgroundImage: `url(${src})` }} />
+            <span className='inline-block h-5 w-5 rounded-sm bg-cover bg-center' style={{ backgroundImage: `url(${assetUrl(src)})` }} />
           </Button>
         ))}
       </div>
