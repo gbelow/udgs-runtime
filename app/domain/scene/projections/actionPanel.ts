@@ -33,7 +33,6 @@ import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
-import { canMoveWhileSustaining } from '../rules/battleMage'
 import { getFiringSteps, isSteadyShot } from '../rules/steadyArms'
 import { isRootAction } from '../rules/actionCatalog'
 import { getBreakableLimbs, getDisarmOptions, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
@@ -349,7 +348,7 @@ export type ActionPanelView = {
   // headings of rules/actionCatalog.ts `ACTION_CATEGORIES`, those with
   // something to show; `extras` are what a heading holds besides the actions
   // (a careful move while a spell is held, follow), and the counts include them
-  categories: { key: ActionCategory; options: ActionOptionView[]; available: number; total: number; extras: ('sustainMove' | 'follow')[] }[]
+  categories: { key: ActionCategory; options: ActionOptionView[]; available: number; total: number; extras: 'follow'[] }[]
   // combat.tex "Follow": marking whom to follow is offered with the tactical
   // actions, null when there is nobody to follow
   follow: FollowOffer | null
@@ -398,8 +397,6 @@ export type ActionPanelView = {
   // combat.tex "Rest": whether the careful move made while resting is still
   // to be had
   restMove: boolean
-  // abilities.tex "Battle Mage I": the careful move holding on bought, still to make
-  sustainMove: boolean
   // at `react`: a reaction has been declared and can be taken back
   canBack: boolean
   // at `react`: who the die, the payment or the acceptance still waits on,
@@ -430,7 +427,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, categories: [], follow: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, sustainMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, categories: [], follow: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -444,17 +441,16 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
 
   if (!open) {
     const own = active ? labelled(state, active.id, getAvailableActions(state, active.id)) : []
-    const sustainMove = !!active && canMoveWhileSustaining(state, active.id)
     const follow = active ? getFollowOffer(state, active.id) : null
     const categories = ACTION_CATEGORIES
       .map((key) => ({ key, options: own.filter((o) => (getActionDef(o.draft.kind).category ?? 'tactical') === key) }))
       .map((c) => {
-        const extras = [...(sustainMove && c.key === 'move' ? ['sustainMove' as const] : []), ...(follow && c.key === 'tactical' ? ['follow' as const] : [])]
-        const openExtras = extras.filter((e) => e === 'sustainMove' || follow?.bar === null)
+        const extras = follow && c.key === 'tactical' ? ['follow' as const] : []
+        const openExtras = extras.filter(() => follow?.bar === null)
         return { ...c, extras, available: c.options.filter((o) => o.available).length + openExtras.length, total: c.options.length + extras.length }
       })
       .filter((c) => c.options.length > 0 || c.extras.length > 0)
-    return { ...EMPTY, sustainMove, follow, categories, episodes, edits, prepared: getPreparedRows(state) }
+    return { ...EMPTY, follow, categories, episodes, edits, prepared: getPreparedRows(state) }
   }
 
   const actor = state.characters[open.actorId]
@@ -611,7 +607,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     goBar,
     canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
     restMove: isRootAction(open) && canMoveWhileResting(state, open),
-    sustainMove: false,
+   
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
     canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor, move) : [],

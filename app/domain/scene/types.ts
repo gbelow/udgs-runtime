@@ -498,10 +498,6 @@ const ActionBase = {
   // gave rise to, before it landed itself, written as each lands in the
   // order they landed; `tie` marks a counterattack's strike that tied it
   interruptions: z.array(z.object({ by: str, level: z.enum(['interrupted', 'stunned']), tie: z.boolean() }).strip()).default([]),
-  // abilities.tex "Battle Mage III": the casting tests each caster it
-  // interrupted made again, at -3, for every spell they held as it landed,
-  // by caster id; a hit or better keeps the spell
-  retests: z.record(str, z.array(z.object({ key: str, roll: ActionRollSchema }).strip())).default({}),
   // combat.tex "Preparing a reaction": the reactions its actor declared to
   // what it gave rise to, by id, written as each is declared
   reactedWithin: z.array(str).default([]),
@@ -898,12 +894,6 @@ export const CastActionSchema = z.object({
   failed: z.boolean().default(false),
   // spells.tex "Suggestion": the limit stress action suggested to the target
   suggested: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),
-  // abilities.tex "Battle Mage III": interrupted while it was held over, and
-  // kept for its caster to test again once it is rolled
-  shaken: z.boolean().default(false),
-  // abilities.tex "Battle Mage III": the casting test as first thrown and
-  // again at -3 once the cast was interrupted; `roll` is the worse of the two
-  retest: z.object({ first: ActionRollSchema, again: ActionRollSchema }).strip().nullable().default(null),
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -1671,10 +1661,7 @@ export const RoundStepSchema = z.enum(['rest', 'concentration', 'join', 'chase',
 export type RoundStep = z.infer<typeof RoundStepSchema>
 // What a character holding something on through the round change chose: to
 // pay for it again, or to let it go and finish what it held.
-// abilities.tex "Battle Mage I": `upkeepAP` is what holding on paid to keep
-// the held spells, the careful move it buys in the caster's turn; `moveId` the
-// move opened with it, spent once it is committed
-export const ConcentrationChoiceSchema = z.object({ id: z.string(), hold: z.boolean(), upkeepAP: num.default(0), moveId: str.nullable().default(null) })
+export const ConcentrationChoiceSchema = z.object({ id: z.string(), hold: z.boolean() })
 // combat.tex "Actions in stealth": what a turn's holder may use their stealth
 // value against. `hiddenFrom` is everyone the holder began the turn
 // undetected by; `AP` what their actions in the turn have spent that "add -1

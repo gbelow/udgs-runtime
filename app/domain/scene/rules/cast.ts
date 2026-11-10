@@ -7,7 +7,7 @@ import { getAction, getSpawned } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTest, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getQuickenDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTest, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
 import { isSpellActive } from '../../character/rules/effects'
 import { getCastLink, mayCastWhileConcentrating } from '../../character/rules/concentration'
@@ -188,8 +188,8 @@ export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellO
     const boardBar = getSpellBoardBar(state, c, key)
     return {
       key,
-      DL: getCastingDL(spell, false, 0, linkDL),
-      quickenedDL: getCastingDL(spell, true, 0, linkDL),
+      DL: getCastingDL(spell, 0, 0, linkDL),
+      quickenedDL: getCastingDL(spell, getQuickenDL(c), 0, linkDL),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
       castable: !boardBar && canCastSpell(c, key, false, charged),
       quickenable: !boardBar && canCastSpell(c, key, true, charged),

@@ -1181,8 +1181,8 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   // or declared with the action and walked around the step it is made from.
   z.object({
     type: z.literal('carriedMove'),
-    on: z.enum(['rest', 'social', 'taunt', 'cast', 'shoot', 'upkeep']),
-    when: z.enum(['concentration', 'effortless', 'notSnipe']).nullable().default(null),
+    on: z.enum(['rest', 'social', 'taunt', 'cast', 'shoot']),
+    when: z.enum(['effortless', 'notSnipe']).nullable().default(null),
     budget: z.enum(['action', 'rest']).default('action'),
     path: z.enum(['afterRoll', 'declared']).default('afterRoll'),
   }).strip(),
@@ -1195,7 +1195,7 @@ export type CarriedMoveRecipe = Extract<Recipe, { type: 'carriedMove' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'castingRetest'])
+export const GrantSchema = z.enum(['preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'grapplingCombat', 'tackle', 'plantShield', 'tacticalMovement', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'cheaperQuicken'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // abilities.tex "Promoted Attitudes", "Prohibited Attitudes": what moves a

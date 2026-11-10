@@ -5,7 +5,7 @@ import { isInTurn } from './turn'
 import { getRolledMoveAP } from './carriedMove'
 
 // The careful move a rolled action carries (rules/carriedMove.ts: a rest, a
-// cast rested through, a Battle Mage's cast), in the actor's own turn: theirs
+// cast rested through), in the actor's own turn: theirs
 // to make or not, once, while the action waits to land. It is played out
 // before the action's effects, a spell's among them.
 export function canMoveWhileResting(state: SceneState, root: RootAction): boolean {

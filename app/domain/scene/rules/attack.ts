@@ -5,9 +5,10 @@ import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, SceneState, HitLocation, MoveAction, OpportunityAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { setDistance } from './board/geometry'
-import { CLIMB_REDO_PENALTY, QUICKEN_DL, EXTEND } from '../../tables'
+import { CLIMB_REDO_PENALTY, EXTEND } from '../../tables'
 import { getAimedPlace } from '../../character/rules/body'
 import { SPELLS, isSpellKey } from '../../spells'
+import { getQuickenDL } from '../../character/rules/spells'
 import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
@@ -487,8 +488,8 @@ function getShotDLTerms(state: SceneState, root: ActionOf<'shoot'>): Term[] {
 }
 
 // spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:
-// Increases spell DL by 3"; "Extend Spell", 3 per extension; "Telepathic
-// Link": "Each simultaneous link increases the difficulty of spellcasting
+// Increases spell DL by 3", 2 for a Battle Mage (abilities.tex "Battle Mage I");
+// "Extend Spell", 3 per extension; "Telepathic Link": "Each simultaneous link increases the difficulty of spellcasting
 // test by 3".
 function getSpellDLTerms(state: SceneState, root: ActionOf<'cast'>): Term[] {
   const caster = state.characters[root.actorId]
@@ -496,7 +497,7 @@ function getSpellDLTerms(state: SceneState, root: ActionOf<'cast'>): Term[] {
   const links = caster ? getLinkDL(state, caster) : 0
   return [
     { label: 'spell DL', value: SPELLS[root.key].DL ?? 0 },
-    ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : []),
+    ...(root.quicken ? [{ label: 'quicken', value: getQuickenDL(caster) }] : []),
     ...(root.extend > 0 ? [{ label: `extend ×${root.extend}`, value: root.extend * EXTEND.DL }] : []),
     ...(links > 0 ? [{ label: 'links', value: links }] : []),
   ]

@@ -26,7 +26,6 @@ import { rollHeld } from './heldTest'
 import { getRoundSeconds, isRunningInChase } from '../rules/chase'
 import { beginChase, endChaseFight, endChaseRound, endChaseRoundChange, enterChaseFight } from './chase'
 import { carryOver, finishHeld } from './hold'
-import { getUpkeepMoveAP } from '../rules/battleMage'
 import { updateCharacter } from './characters'
 import { isParked } from '../rules/parked'
 import { getMembers } from '../rules/fighters'
@@ -208,7 +207,7 @@ export function holdOn(id: string, thrown: Throw): Updater {
     const held = getHeldActions(paid).find((h) => h.actorId === id)
     const pool = Math.max(0, paid.characters[id].resources.AP)
     const carried = held ? carryOver(updateCharacter(id, payCost({ AP: pool, STA: 0 }, true), 'holds on')(paid), held, pool) : paid
-    return settleChoices({ ...carried, concentration: [...carried.concentration, { id, hold: true, upkeepAP: getUpkeepMoveAP(paid, id), moveId: null }] }, caller)
+    return settleChoices({ ...carried, concentration: [...carried.concentration, { id, hold: true }] }, caller)
   })
 }
 
@@ -221,7 +220,7 @@ export function letGo(id: string, thrown: Throw): Updater {
 
 function letGoOf(state: SceneState, id: string, caller: Caller): SceneState {
   const released = updateCharacter(id, (c) => payRoundEnd(letGoOfSustained(c)), 'lets go')(state)
-  return settleChoices({ ...released, concentration: [...released.concentration, { id, hold: false, upkeepAP: 0, moveId: null }] }, caller)
+  return settleChoices({ ...released, concentration: [...released.concentration, { id, hold: false }] }, caller)
 }
 
 // Once nobody owes a choice, the held actions let go of are finished, in

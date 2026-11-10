@@ -1,6 +1,6 @@
 import { CampaignCharacter, Character, Charge, ChargeTrigger, Grant, Item, Requirement, Skills, Spell, SpellMethod, SpellMethodSchema } from '../../types'
 import { SPELLS, SpellKey, getSpellOutcomes, isSpellKey } from '../../spells'
-import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
+import { BATTLE_MAGE_QUICKEN_DL, EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
 import { getAccuracy, getStrike, skillTermGetters } from './skills'
@@ -109,9 +109,15 @@ export function canClaimFreeSpell(key: SpellKey): (c: Character) => boolean {
 
 // spells.tex "Casting spells": the DL a cast is rolled against, raised by
 // Quicken when the caster forgoes the focus surge, and by what the links the
-// caster holds add (spells.tex "Telepathic Link"), `linkDL`.
-export function getCastingDL(spell: Spell, quicken: boolean, extend = 0, linkDL = 0): number | null {
-  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0) + extend * EXTEND.DL + linkDL
+// caster holds add (spells.tex "Telepathic Link"), `linkDL`. `quickenDL` is
+// what Quicken adds (`getQuickenDL`), 0 for a cast that is not quickened.
+export function getCastingDL(spell: Spell, quickenDL: number, extend = 0, linkDL = 0): number | null {
+  return spell.DL === null ? null : spell.DL + quickenDL + extend * EXTEND.DL + linkDL
+}
+
+// spells.tex "Quicken Spell": +3 DL; abilities.tex "Battle Mage I": only +2.
+export function getQuickenDL(c: Character | undefined): number {
+  return c && hasGrant(c, 'cheaperQuicken') ? BATTLE_MAGE_QUICKEN_DL : QUICKEN_DL
 }
 
 // play.tex "Degrees of success": a hit is the DL + 5.

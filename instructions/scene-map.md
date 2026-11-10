@@ -252,7 +252,7 @@ resolveAction ─────────► land(top)
   Defensive Advance, the martyr's run, a rule recipe), or after the strike has landed, which an
   interruption cancels (Technical Lift's stand up). A `carriedMove` (`rules/carriedMove.ts`)
   is a careful move bought with AP the action already paid: made once the action is rolled
-  (Rest and Effortless Spell, rule recipes; Battle Mage I's cast and upkeep), or declared
+  (Rest and Effortless Spell, rule recipes), or declared
   with the shot and walked around the step it is fired from (Steady Arms). Both are
   declared through the action's `recipe`, offered by `rules/modifiers.ts` as a toggle on an
   action of one's own or as an answer of its own, with the price and the test terms they
@@ -404,7 +404,7 @@ app/domain/scene/
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
 │   ├── combinedMove.ts a movement made with an action at its own price (RecipeSchema `combinedMove`): a move that opens an attack from where it lands (Lunge, Jump Shot: where it may land, a jump shot backward at half the jump, the rows the attack may use), the move a defense carries before its die (Defender, Defensive Advance, the martyr's run: its reach, where it may end, pending and lapsed) or after the strike (Technical Lift's stand up)
-│   ├── carriedMove.ts  a careful move an action carries, bought with AP already paid (RecipeSchema `carriedMove`): the AP a rolled rest, cast rested through or Battle Mage's cast carries, the upkeep move, the moves declared with an action (Steady Arms)
+│   ├── carriedMove.ts  a careful move an action carries, bought with AP already paid (RecipeSchema `carriedMove`): the AP a rolled rest, cast rested through carries, the moves declared with an action (Steady Arms)
 │   ├── plant.ts        a body shield planted (abilities.tex "Crossbow and Shield"): the shields one may plant, the cells it may face
 │   ├── steadyArms.ts   a shot declared with a carried move on a path (abilities.tex "Steady Arms", rules/carriedMove.ts): the path and the step it is fired from are part of the shoot declaration; the steps before it are walked first as a move of their own (opened committed by `commitAction`), the shot is made from where they end, the steps after it are offered as a move once it has landed; the declaration reads the shooter as standing at the firing step (`getFiringState`). Both moves are bought with the shot's AP (`getCarriedMove`, shared with the move a rest allows)
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes (of whoever a landed action stunned), grapple facts
@@ -427,7 +427,7 @@ app/domain/scene/
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── medicine.ts     First Aid and Cauterization: who may be tended, the bar, the price off the ability, the test, what lands
 │   ├── hold.ts         concentration: which actions require it (`requiresConcentration`), the held ones (`getHeldOf`), whether a reaction gives one up and what it gets back (`isGivingUpHeld`, `getHeldRefund`)
-│   ├── battleMage.ts   abilities.tex "Battle Mage": the careful move a held spell's upkeep buys (the cast's is rules/carriedMove.ts), the defenses that keep concentration, the casting test thrown again at -3
+│   ├── battleMage.ts   abilities.tex "Battle Mage": Quicken's cheaper DL is `getQuickenDL`, and the defenses that keep concentration
 │   ├── reload.ts       reloads: the rows in hand that are reloaded, why one cannot be, the stack it takes and what it leaves in the weapon (`Item.loaded`)
 │   ├── detection.ts    senses: how impaired each of an observer's senses is against a target (`none`, `partial`, `total`: line of sight, darkness no light reaches, bad and zero visibility, fog's radius, a sense's range, touch and smell at 0 m being a grapple partner, camouflage carried, the afflictions that blind, deafen or worsen a sense), and what each detects at; `getActionHeading`, the way a landed action leaves a one-cell token facing, drawn only (written by `reduceBoard`)
 │   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test

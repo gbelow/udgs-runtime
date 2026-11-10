@@ -34,7 +34,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, sustainMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -51,7 +51,6 @@ export function ActionPanel(){
                   {(close) => (
                     <div className='flex flex-col items-stretch gap-1'>
                       {c.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => { declare(o.draft); close() }} />)}
-                      {c.extras.includes('sustainMove') ? <ActionKey icon={Footprints} aria-label='careful move while holding a spell' onClick={() => { sustainMove(); close() }}>careful move (held spell)</ActionKey> : null}
                       {c.extras.includes('follow') && view.follow ? <FollowOption offer={view.follow} onPress={close} /> : null}
                     </div>
                   )}

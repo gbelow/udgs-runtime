@@ -7794,25 +7794,12 @@
             }
           ]
         ],
-        "description": "Allows the caster to use careful movement while concentrating, repurposing the same action points used for the spell.",
+        "description": "Quickening a spell increases DL only by 2.",
         "effect": [],
-        "recipes": [
-          {
-            "type": "carriedMove",
-            "on": "cast",
-            "when": "concentration",
-            "budget": "action",
-            "path": "afterRoll"
-          },
-          {
-            "type": "carriedMove",
-            "on": "upkeep",
-            "when": null,
-            "budget": "action",
-            "path": "afterRoll"
-          }
+        "recipes": [],
+        "grants": [
+          "cheaperQuicken"
         ],
-        "grants": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -7841,35 +7828,6 @@
         "recipes": [],
         "grants": [
           "concentratedDefense"
-        ],
-        "attitudes": [],
-        "freeSpells": 0
-      },
-      {
-        "XPcost": 6,
-        "karma": 0,
-        "talent": [
-          {
-            "property": "INT",
-            "level": 5
-          }
-        ],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "When interrupted, instead of losing the spell, redo the spellcasting test with a penalty of -3 and choose the worst result between the original and this one.",
-        "effect": [],
-        "recipes": [],
-        "grants": [
-          "castingRetest"
         ],
         "attitudes": [],
         "freeSpells": 0

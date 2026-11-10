@@ -33,7 +33,7 @@ import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
   passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
 } from './action'
-import { chooseGrapple, chooseManeuver, chooseTheft, improveSpell, moveWhileResting, moveWhileSustaining, refundHOP, refundImprovement, saveGraze, spendHOP } from './choices'
+import { chooseGrapple, chooseManeuver, chooseTheft, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from './choices'
 
 // The scene's presses and clicks as data: each kind names the command it
 // runs and whom it acts for, and takes only plain data as its arguments, so that a press
@@ -94,7 +94,6 @@ export const sceneCommands = {
   unimprove: command((_, name: SpellModification) => refundImprovement(name)).by(panel('open')),
   grazeSave: command(() => saveGraze()).by(panel('open')),
   restMove: command((ctx) => moveWhileResting(ctx.newId)).by(panel('open')),
-  sustainMove: command((ctx, actorId: string) => moveWhileSustaining(actorId, ctx.newId)).by(own),
   extend: command((_, delta: 1 | -1) => stepExtend(delta)).by(panel('open')),
   cast: command((_, key: string, quicken: boolean) => chooseSpell(key, quicken)).by(panel('open')),
   choose: command((_, fields: Parameters<typeof chooseManeuver>[0]) => chooseManeuver(fields)).by(panel('open')),

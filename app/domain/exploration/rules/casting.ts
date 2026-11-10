@@ -78,7 +78,7 @@ export function isEnhanceable(key: SpellKey): boolean {
 // The casting test: the caster's skill with the spell against its DL; the
 // overflow over a hit buys improvements.
 export function getETCastTest(c: Character, key: SpellKey): Test | null {
-  const DL = getCastingDL(SPELLS[key], false)
+  const DL = getCastingDL(SPELLS[key], 0)
   return DL === null ? null : { skill: getSpellSkill(c, key), DL, explodes: false, scale: 'overflow', grazes: true }
 }
 

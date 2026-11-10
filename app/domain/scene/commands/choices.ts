@@ -5,8 +5,6 @@ import { isSpray } from '../rules/explosion'
 import type { SpellModification } from '../../tables'
 import { appendActions, applyPhase, getRolledOpen, replaceActions } from './log'
 import { canMoveWhileResting, getRestMove, hasRestMove } from '../rules/rest'
-import { canMoveWhileSustaining, getUpkeepMoveOf } from '../rules/battleMage'
-import { getCarriedMove } from '../rules/reactionMoves'
 import { makeAction } from '../factories'
 import { getDisplacementCells, getPendingDisplacement } from '../rules/displace'
 import type { Coord } from '../types'
@@ -146,7 +144,7 @@ export function refundImprovement(name: SpellModification): Updater {
 }
 
 // combat.tex "Rest": the careful move made while resting, opened over the
-// rest (or the cast rested through, or a Battle Mage's cast) and played out
+// rest (or the cast rested through) and played out
 // before it lands.
 export function moveWhileResting(newId: () => string): Updater {
   return (state) => {
@@ -154,17 +152,5 @@ export function moveWhileResting(newId: () => string): Updater {
     const c = open ? state.characters[open.actorId] : undefined
     if (!open || !c || !canMoveWhileResting(state, open)) return state
     return appendActions(state, [makeAction('move', { id: newId(), actorId: open.actorId, spawnedBy: open.id, ...getRestMove(state, open) })])
-  }
-}
-
-// abilities.tex "Battle Mage I": the careful move holding on to the held
-// spells bought, declared in the caster's turn as far as the upkeep's AP
-// reach. Once it is committed it is spent; a draft taken back leaves it.
-export function moveWhileSustaining(actorId: string, newId: () => string): Updater {
-  return (state) => {
-    if (!canMoveWhileSustaining(state, actorId)) return state
-    const move = makeAction('move', { id: newId(), actorId, ...getCarriedMove(getUpkeepMoveOf(state, actorId)) })
-    const concentration = state.concentration.map((x) => (x.id === actorId && x.hold ? { ...x, moveId: move.id } : x))
-    return appendActions({ ...state, concentration }, [move])
   }
 }

@@ -11,7 +11,7 @@ import { replaceActions, setActions, withdrawActions } from './log'
 import { canAfford } from '../../character/rules/cost'
 import { loseConcentration } from '../../character/commands/spells'
 import { isCombatStarted } from '../rules/started'
-import { isRetestedCast, keepsConcentrationOn } from '../rules/battleMage'
+import { keepsConcentrationOn } from '../rules/battleMage'
 
 // combat.tex "Concentration": an action held over to the next round, in play
 // but off the stack, paid as far as its actor's AP went.
@@ -41,14 +41,10 @@ export function giveUpSustained(state: SceneState, paid: Action[]): SceneState {
 
 // combat.tex "Interruption": "All AP and STA costs of the action or movement
 // that have already been spent are lost" — an action held over comes to
-// nothing when what lands interrupts its actor; a Battle Mage's cast is kept
-// to be tested again once it is rolled (abilities.tex "Battle Mage III").
+// nothing when what lands interrupts its actor.
 export function breakHeld(state: SceneState, landed: Action): SceneState {
-  const interrupted = getHeldActions(state).filter((h) => isInterruptedBy(state, landed, h.actorId))
-  const shaken = interrupted.flatMap((h) => (h.kind === 'cast' && isRetestedCast(state, h) ? [{ ...h, shaken: true }] : []))
-  const broken = interrupted.filter((h) => !shaken.some((s) => s.id === h.id))
-  const kept = shaken.length === 0 ? state : replaceActions(state, shaken)
-  return broken.length === 0 ? kept : withdrawActions(kept, broken.map((h) => h.id), 'interrupted')
+  const broken = getHeldActions(state).filter((h) => isInterruptedBy(state, landed, h.actorId))
+  return broken.length === 0 ? state : withdrawActions(state, broken.map((h) => h.id), 'interrupted')
 }
 
 // combat.tex "Concentration": the round has changed, or the combat has

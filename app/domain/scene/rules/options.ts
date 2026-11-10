@@ -597,7 +597,7 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 // the surge allows, and until it is, nothing else can be done.
 // spells.tex "Sustained Spells": a caster holding a spell does nothing but
 // cast what it lets them (rules/cast.ts `getSpellOptions` says which), or
-// fire what they hold again, and no moving (abilities.tex "Battle Mage"). A
+// fire what they hold again, and no moving. A
 // reaction is their own to give the spell up for (combat.tex "Give up
 // action").
 function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {

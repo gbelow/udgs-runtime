@@ -39,15 +39,11 @@ export function useCombatActions() {
   const unimprove = (name: SpellModification) => dispatch({ kind: "unimprove", args: [name] });
   const grazeSave = () => dispatch({ kind: "grazeSave", args: [] });
   const restMove = () => dispatch({ kind: "restMove", args: [] });
-  const sustainMove = () => {
-    const actorId = useCombatStore.getState().activeCharacterId;
-    if (actorId) dispatch({ kind: "sustainMove", args: [actorId] });
-  };
   const extend = (delta: 1 | -1) => dispatch({ kind: "extend", args: [delta] });
   const cast = (key: string, quicken: boolean) => dispatch({ kind: "cast", args: [key, quicken] });
   const choose = (fields: Parameters<typeof chooseManeuver>[0]) => dispatch({ kind: "choose", args: [fields] });
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, sustainMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

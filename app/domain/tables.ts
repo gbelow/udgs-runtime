@@ -428,6 +428,9 @@ export const SPELL_MODIFICATIONS = {
 // surge and not cause opportunity attacks."
 export const QUICKEN_DL = 3
 
+// abilities.tex "Battle Mage I": "Quickening a spell increases DL only by 2."
+export const BATTLE_MAGE_QUICKEN_DL = 2
+
 // "Extend Spell: Spend 3 HOPs to increase the casting range of a spell by
 // +100%, then +200%, +300%" — bought before the roll, not after it (the
 // table's ruling), its 3 HOPs as 3 DL per extension.

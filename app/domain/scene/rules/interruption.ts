@@ -6,7 +6,6 @@ import { isManeuverWon } from './grapple'
 import { getDeliveryInterruption } from './damage'
 import { getShotGroup } from './coordinated'
 import { strongerInterruption } from '../../character/rules/damage'
-import { isRetestedCast } from './battleMage'
 
 // combat.tex "Interruption": "receiving a tier 1+ blunt or electric injury
 // causes any action and movement to be interrupted, except for running and
@@ -106,8 +105,7 @@ export function isInterruptedBy(state: SceneState, landed: Action, id: string): 
 
 // Whether the action is broken: interrupted before its effect. A move is
 // cut short where it was caught instead (`getMoveOverride`), and a push
-// carries on unless its pusher is stunned (`getPushStop`), and a Battle
-// Mage's cast goes on to be tested again (rules/battleMage.ts).
+// carries on unless its pusher is stunned (`getPushStop`).
 export function isBroken(state: SceneState, action: Action): boolean {
-  return action.kind !== 'move' && action.kind !== 'drag' && !isRetestedCast(state, action) && getInterruptions(state, action).length > 0
+  return action.kind !== 'move' && action.kind !== 'drag' && getInterruptions(state, action).length > 0
 }

@@ -3,7 +3,6 @@ import type { Action, ActionKind, RootAction, SceneState } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
 import { SHOTS } from '../../tables'
 import { getRecipeEntry, getRecipesOf, type RecipeEntry } from './recipes'
-import { requiresConcentration } from './hold'
 import { getCastSpentAP } from './cast'
 import { getOwnCost } from './action'
 
@@ -26,7 +25,6 @@ import { getOwnCost } from './action'
 export type CarriedEntry = RecipeEntry<CarriedMoveRecipe>
 
 const WHEN: Record<NonNullable<CarriedMoveRecipe['when']>, (action: Action) => boolean> = {
-  concentration: (a) => a.kind === 'cast' && requiresConcentration(a),
   effortless: (a) => a.kind === 'cast' && (a.improved.effortless ?? 0) > 0,
   notSnipe: (a) => a.kind === 'shoot' && a.variant !== SHOTS.snipe.variant,
 }
@@ -76,10 +74,4 @@ export function getCarriedOf(c: Character | undefined, action: { recipe?: string
 // actor's own, on the board, as the recipe asks.
 export function canDeclareCarried(state: SceneState, action: Action, entry: CarriedEntry): boolean {
   return action.spawnedBy === null && state.board?.placements[action.actorId] !== undefined && goesWith(entry, action)
-}
-
-// Whether what holding on to held spells pays at the round change buys its
-// holder a careful move.
-export function hasUpkeepMove(c: Character): boolean {
-  return getRecipesOf(c, 'carriedMove').some((e) => e.recipe.on === 'upkeep')
 }
