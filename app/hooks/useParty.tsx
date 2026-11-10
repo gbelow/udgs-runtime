@@ -141,7 +141,7 @@ export function usePartyCommands() {
     if (sendTable(command)) setTab('scene');
   };
   const comeBack = (command: TableCommand) => {
-    if (sendTable(command) && Object.keys(useCombatStore.getState().characters).length === 0) setTab('exploration');
+    sendTable(command);
   };
 
   return {

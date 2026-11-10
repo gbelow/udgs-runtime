@@ -292,7 +292,7 @@ function WealthLine() {
 }
 
 const priceLabel = (price: CreationPrice): string =>
-  price === null ? '—' : price.pool === null ? 'free' : `${price.amount} ${price.pool === 'karma' ? 'karma' : 'XP'}`
+  price === null ? '—' : price.pool === null ? 'free' : price.pool === 'karma' ? `${price.amount} karma` : `${price.amount} ${price.pool} XP`
 
 // One thing that can be bought: its level now, − to give a level back, + to
 // buy the next at the price shown.
@@ -314,7 +314,7 @@ function BuyRow({ name, value, bought, next, terms = [], trained = true, blocked
             <Button size='xs' className={stepper} disabled={next === null} onClick={() => onBuy(1)}>+</Button>
           </Tooltip>
           {onProgress && progressCap > 0 ? (
-            <Tooltip text={`XP toward the next level, up to ${progressCap}`}>
+            <Tooltip text={`${next?.pool && next.pool !== 'karma' ? `${next.pool} ` : ''}XP toward the next level, up to ${progressCap}`}>
               <NumberInput aria-label={`${name} xp`} className='w-full text-xs py-0' min={0} max={progressCap} value={progress} onChange={(e) => onProgress(parseInt(e.target.value) || 0)} />
             </Tooltip>
           ) : <span />}
@@ -390,7 +390,7 @@ function Abilities() {
           </Tooltip>
           {entry.next === null && entry.view.blocked
             ? <LockedLabel reason={entry.view.blocked} />
-            : <span className='w-14 text-right text-xs text-muted'>{priceLabel(entry.next)}</span>}
+            : <span className='w-20 text-right text-xs text-muted'>{priceLabel(entry.next)}</span>}
         </span>
       } />)}
     </Section>
