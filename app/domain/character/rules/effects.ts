@@ -47,9 +47,10 @@ export function getRollModes(character: Character, skill: keyof Skills, inFight:
   return ['normal', ...(['safe', 'risky'] as const).filter((mode) => allowed.some((m) => m.mode === mode))]
 }
 
-// What the character's learned abilities let a surge's AP pay for.
+// What the character's learned abilities let a surge's AP pay for, in the
+// state the character is in.
 export function getSurgeAllows(character: Character): SurgeAllow[] {
-  return getLearnedAbilities(character).flatMap((a) => a.surgeAllows)
+  return getLearnedAbilities(character).flatMap((a) => a.surgeAllows).filter((a) => holdsWhen(character, a.when))
 }
 
 // What each buff condition reads off the character.
@@ -59,10 +60,17 @@ const BUFF_CONDITIONS: Record<BuffCondition, (c: Character) => boolean> = {
   movementSurge: (c) => isCampaignCharacter(c) && c.runsFree,
   // abilities.tex "Claws": "if not wearing gloves"
   noGauntlets: (c) => !c.hasGauntlets,
+  // combat.tex "Afflictions": enraged is put on by a morale test and never
+  // forced, so the stored list holds it
+  enraged: (c) => isCampaignCharacter(c) && c.afflictions.includes('enraged'),
+}
+
+function holdsWhen(character: Character, when: BuffCondition | null): boolean {
+  return when === null || BUFF_CONDITIONS[when](character)
 }
 
 function holds(character: Character, buff: Buff): boolean {
-  return buff.when === null || BUFF_CONDITIONS[buff.when](character)
+  return holdsWhen(character, buff.when)
 }
 
 // The abilities in effect: every `active` entry of kind ability whose key is
@@ -126,9 +134,14 @@ export function getContributingEffects(character: Character): Effect[] {
   return [...passive, ...active, ...held, ...getPotionEffects(character)]
 }
 
-// The suppressions in effect: what blocks a rule outright for the character.
+// The suppressions in effect: what blocks a rule outright for the character,
+// in the state the character is in.
+export function getSuppressed(character: Character): Set<string> {
+  return new Set(getContributingEffects(character).flatMap((e) => (e.type === 'suppression' && holdsWhen(character, e.effect.when) ? [e.effect.target] : [])))
+}
+
 export function isSuppressed(character: Character, target: string): boolean {
-  return getContributingEffects(character).some((e) => e.type === 'suppression' && e.effect.target === target)
+  return getSuppressed(character).has(target)
 }
 
 export function collectBuffs(character: Character): Buff[] {

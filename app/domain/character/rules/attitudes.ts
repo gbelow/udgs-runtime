@@ -6,12 +6,14 @@ import { ABILITY_FAMILIES, type FamilyKey } from '../../abilities'
 // What happened to a character in play that an attitude may answer: a test
 // they made (the skill's value, the DL, the degree), their limit stress
 // action activated, an action they prepared crit, or a turn of theirs ended
-// with nothing prepared and nothing held.
+// with nothing prepared and nothing held, or a round they spent enraged
+// ended, with a combat surge made in it or not.
 export type AttitudeHappening =
   | { event: 'test'; skill: 'will'; value: number; DL: number; degree: Degree }
   | { event: 'limitStress' }
   | { event: 'preparedCrit' }
   | { event: 'unpreparedTurn' }
+  | { event: 'enragedRound'; combatSurge: boolean }
 
 function matches(on: AttitudeEvent, happened: AttitudeHappening): boolean {
   switch (on.event) {
@@ -19,6 +21,8 @@ function matches(on: AttitudeEvent, happened: AttitudeHappening): boolean {
       return happened.event === 'test' && happened.skill === on.skill
         && (on.degrees.length === 0 || on.degrees.includes(happened.degree))
         && happened.DL >= happened.value + on.DLOverSkill
+    case 'enragedRound':
+      return happened.event === 'enragedRound' && happened.combatSurge === on.combatSurge
     case 'limitStress':
     case 'preparedCrit':
     case 'unpreparedTurn':

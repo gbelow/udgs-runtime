@@ -50,6 +50,7 @@ export function useCombatCommands() {
   const holdOn = (id: string) => dispatch({ kind: "holdOn", args: [id] })
   const letGo = (id: string) => dispatch({ kind: "letGo", args: [id] })
   const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => dispatch({ kind: "rollMorale", args: [id, mode, enemyNear, die] })
+  const hypeUp = (id: string) => dispatch({ kind: "hypeUp", args: [id] })
   const rollHeld = (id: string, kind: CalledKind, mode: RollMode, die?: number) => dispatch({ kind: "rollHeld", args: [id, kind, mode, die] })
   const setTablePressure = (id: string, value: number) => dispatch({ kind: "setTablePressure", args: [id, value] })
   const toggleBreakage = () => sendTable({ kind: "toggleBreakage", args: [] })
@@ -62,5 +63,5 @@ export function useCombatCommands() {
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
   const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
-  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
 }

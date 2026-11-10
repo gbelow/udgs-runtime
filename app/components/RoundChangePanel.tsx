@@ -131,7 +131,7 @@ function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | nu
 function MoralePanel(){
   const rows = useMorale()
   const pressure = useTablePressure()
-  const { rollMorale, setTablePressure } = useCombatCommands()
+  const { rollMorale, hypeUp, setTablePressure } = useCombatCommands()
   const [enemyNear, setEnemyNear] = useState(true)
   if (pressure.length === 0) return null
 
@@ -165,6 +165,7 @@ function MoralePanel(){
             <RollButtons name={r.name} options={r.modes.map((mode) => ({ key: mode, label: `morale ${mode}` }))} onRoll={(mode, die) => rollMorale(r.id, mode, enemyNear, die)} /> :
             <span className='text-xs text-muted'>{r.result}</span>
           }
+          {r.hypeUp !== null ? <ActionKey aria-label={`hype up ${r.name}`} disabled={r.hypeUp !== ''} title={r.hypeUp || undefined} onClick={() => hypeUp(r.id)}>hype up</ActionKey> : null}
           {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}
           {r.owed ? <span className='text-xs text-muted'>{r.owed}</span> : null}
         </div>

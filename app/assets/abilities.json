@@ -2404,7 +2404,8 @@
           {
             "surge": "movement",
             "allows": "attacks",
-            "endsSurge": true
+            "endsSurge": true,
+            "when": null
           }
         ],
         "attitudes": [],
@@ -4085,8 +4086,74 @@
       }
     ]
   },
-  "furious": {
-    "family": "Furious",
+  "ferocious-attitudes": {
+    "family": "Ferocious Attitudes",
+    "section": "Ferocity",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Ferocity",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Promoted: receives 1 XP every time they are enraged and used combat surge. Prohibited: loses 1 XP for any round that they are enraged and did not use combat surge.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
+        "surgeAllows": [],
+        "attitudes": [
+          {
+            "on": {
+              "event": "enragedRound",
+              "combatSurge": true
+            },
+            "conviction": "Ferocity",
+            "XP": 1
+          },
+          {
+            "on": {
+              "event": "enragedRound",
+              "combatSurge": false
+            },
+            "conviction": "Ferocity",
+            "XP": -1
+          }
+        ],
+        "studies": []
+      }
+    ]
+  },
+  "hype-up": {
+    "family": "Hype Up",
     "section": "Ferocity",
     "activation": "passive",
     "cost": {
@@ -4123,10 +4190,12 @@
             }
           ]
         ],
-        "description": "The character becomes enraged when they graze on a morale test, and only calm down on a crit.",
+        "description": "The character can enrage themselves on a hit or crit in a morale test.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "hypeUp"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -4166,16 +4235,76 @@
             {
               "kind": "trainable",
               "name": "Ferocity",
+              "level": 1,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "The character can choose to use their ferocity level instead of charisma as bonus. They can also use intimidation with combat surge while enraged. ",
+        "effect": [],
+        "recipes": [],
+        "grants": [
+          "brutality"
+        ],
+        "rollModes": [],
+        "surgeAllows": [
+          {
+            "surge": "combat",
+            "allows": "intimidation",
+            "endsSurge": false,
+            "when": "enraged"
+          }
+        ],
+        "attitudes": [],
+        "studies": []
+      }
+    ]
+  },
+  "furious": {
+    "family": "Furious",
+    "section": "Ferocity",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Ferocity",
               "level": 2,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Every time the character uses combat surge while enraged, they automatically use intimidation using the character's ferocity level instead of charisma.",
+        "description": "The character becomes enraged when they graze on a morale test, and only calm down on a crit.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "furious"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -4221,8 +4350,29 @@
             }
           ]
         ],
-        "description": "Does not fall unconscious from IL while enraged.",
-        "effect": [],
+        "description": "Does not become immobilized by shock nor by IL while enraged.",
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "wound:shocked",
+              "when": "enraged"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "collapse",
+              "when": "enraged"
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
@@ -4270,8 +4420,39 @@
             }
           ]
         ],
-        "description": "The character ignores the effect of exhaustion and sickness during rage. They also get +2 to will while enraged.",
-        "effect": [],
+        "description": "The character ignores the effect of exhaustion and sickness during rage. They also lose the mental penalties when enraged.",
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "affliction:exhausted",
+              "when": "enraged"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "affliction:sick",
+              "when": "enraged"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "penalty:enraged",
+              "when": "enraged"
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],

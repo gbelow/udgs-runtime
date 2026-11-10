@@ -1161,7 +1161,8 @@
           "type": "suppression",
           "effect": {
             "name": "Darkseeing",
-            "target": "light:dim"
+            "target": "light:dim",
+            "when": null
           }
         }
       ],

@@ -4,9 +4,10 @@ import { MORALE_AGGRAVATORS, MORALE_LOW_STA, MORALE_SENSE_RADIUS, MORALE_TRIGGER
 import { getAfflictions, getInjuryPenalty, hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getCharisma } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
+import { getConvictionLevel } from '../../character/rules/requirements'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getDegree, type Test } from '../../play/test'
-import { getBuffBonus, getRollModes } from '../../character/rules/effects'
+import { getBuffBonus, getRollModes, hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getFightName } from './fighters'
 import { getSituationalAfflictions, isImmobile } from './situational'
@@ -42,8 +43,13 @@ export function getPressureKey(state: SceneState, id: string): string {
 }
 
 // combat.tex "Social actions": the value is "1 + character's charisma/2".
-export function getSocialValue(c: CampaignCharacter): number {
-  return SOCIAL_BONUS + Math.floor(getCharisma(c) / 2)
+// abilities.tex "Brutality": an intimidation said enraged uses "the
+// character's ferocity level instead of charisma", whichever is higher (the
+// table's ruling).
+export function getSocialValue(c: CampaignCharacter, say: Pressure['kind']): number {
+  const brutal = say === 'intimidate' && hasGrant(c, 'brutality') && hasAffliction(c, 'enraged')
+  const value = brutal ? Math.max(getCharisma(c), getConvictionLevel(c, 'Ferocity') ?? 0) : getCharisma(c)
+  return SOCIAL_BONUS + Math.floor(value / 2)
 }
 
 // combat.tex "Morale", "Combat morale DL = 0 + aggravating factors": what
@@ -137,10 +143,30 @@ export type MoraleOutcome = { cure: AfflictionKey[]; inflict: AfflictionKey[]; l
 // ends by becoming the other. combat.tex "Taunt": a taunt causes "enraged
 // instead of afraid". The limit stress action is read off `compulsion`, the
 // degree the test comes to against it (`getCompulsionDegree`).
-export function getMoraleOutcome(degree: Degree, compulsion: Degree, enemyNear: boolean, taunted: boolean): MoraleOutcome {
-  if (degree === 'hit' || degree === 'critical') return { cure: [...MORALE_AFFLICTIONS], inflict: [], limitStress: false }
-  const [inflict, cure]: AfflictionKey[] = taunted ? ['enraged', 'afraid'] : ['afraid', 'enraged']
+// abilities.tex "Furious": the character "becomes enraged when they graze on
+// a morale test, and only calm down on a crit"; a miss still leaves them
+// afraid (the table's ruling).
+export function getMoraleOutcome(c: CampaignCharacter | undefined, degree: Degree, compulsion: Degree, enemyNear: boolean, taunted: boolean): MoraleOutcome {
+  const furious = c !== undefined && hasGrant(c, 'furious')
+  if (degree === 'critical') return { cure: [...MORALE_AFFLICTIONS], inflict: [], limitStress: false }
+  if (degree === 'hit') return { cure: furious && hasAffliction(c, 'enraged') ? MORALE_AFFLICTIONS.filter((key) => key !== 'enraged') : [...MORALE_AFFLICTIONS], inflict: [], limitStress: false }
+  const [inflict, cure]: AfflictionKey[] = taunted || (furious && degree === 'graze') ? ['enraged', 'afraid'] : ['afraid', 'enraged']
   return { cure: [cure], inflict: [inflict], limitStress: compulsion === 'miss' && enemyNear }
+}
+
+// abilities.tex "Hype up": "The character can enrage themselves on a hit or
+// crit in a morale test", chosen once the test is seen (the table's
+// ruling), while the round change is still at its morale tests. Why the
+// character cannot now, or null.
+export function getHypeUpBar(state: SceneState, id: string): string | null {
+  const c = state.characters[id]
+  const roll = state.morale.find((m) => m.id === id)?.roll
+  if (!c || !hasGrant(c, 'hypeUp')) return 'has not learned Hype up'
+  if (!roll) return 'no morale test made'
+  if (state.roundStep !== 'morale') return 'the morale tests are over'
+  if (roll.degree !== 'hit' && roll.degree !== 'critical') return 'the morale test was not a hit'
+  if (roll.hyped || hasAffliction(c, 'enraged')) return 'already enraged'
+  return null
 }
 
 // combat.tex "Compulsions": a limit stress action is a compulsion.

@@ -1,7 +1,7 @@
 import type { MoraleRoll, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getCompulsionDegree, getCompulsionResistance, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey } from '../rules/morale'
+import { getCompulsionDegree, getCompulsionResistance, getHypeUpBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey } from '../rules/morale'
 import { resolveTest } from '../../play/test'
 import { updateCharacter } from './characters'
 import { oweStress } from './stress'
@@ -20,15 +20,26 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
     if (!test || getMoraleBar(state, id) || !getMoraleModes(state.characters[id]).includes(mode)) return state
     const { die, score, degree } = resolveTest(test, (explodes) => rollModed(mode, explodes, dice))
     const resisted = getCompulsionResistance(state.characters[id])
-    const outcome = getMoraleOutcome(degree, getCompulsionDegree(state.characters[id], score, test.DL), enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
+    const outcome = getMoraleOutcome(state.characters[id], degree, getCompulsionDegree(state.characters[id], score, test.DL), enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
     const settled = [
       updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)), 'morale test'),
       updateCharacter(id, meetAttitudes({ event: 'test', skill: 'will', value: test.skill, DL: test.DL, degree }), 'conviction attitude'),
       ...(outcome.limitStress ? [updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')] : []),
     ].reduce((acc, step) => step(acc), state)
-    const roll: MoraleRoll = { mode, die, skill: test.skill, score, DL: test.DL, degree, resisted, limitStress: outcome.limitStress }
+    const roll: MoraleRoll = { mode, die, skill: test.skill, score, DL: test.DL, degree, resisted, limitStress: outcome.limitStress, hyped: false }
     const tested = { ...settled, morale: settled.morale.map((call) => (call.id === id ? { ...call, roll } : call)) }
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)
+  }
+}
+
+// abilities.tex "Hype up": the character enrages themselves on the hit or
+// crit their morale test came to, which ends their fear (combat.tex
+// "Afraid").
+export function hypeUp(id: string): Updater {
+  return (state) => {
+    if (getHypeUpBar(state, id)) return state
+    const enraged = updateCharacter(id, (c) => inflict(['enraged'])(cure(['afraid'])(c)), 'hype up')(state)
+    return { ...enraged, morale: enraged.morale.map((call) => (call.id === id && call.roll ? { ...call, roll: { ...call.roll, hyped: true } } : call)) }
   }
 }
 

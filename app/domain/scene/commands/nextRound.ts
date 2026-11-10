@@ -30,6 +30,7 @@ import { updateCharacter } from './characters'
 import { isParked } from '../rules/parked'
 import { getMembers } from '../rules/fighters'
 import { getHoldOnDiscount } from '../rules/stoicism'
+import { meetAttitudes } from '../../character/commands/attitudes'
 
 // The round change (rules/roundChange.ts has its order). `nextRound` opens
 // it, `continueRound` moves it on a step at a time, and `holdOn` / `letGo`
@@ -64,10 +65,13 @@ function startAP(c: CampaignCharacter): CampaignCharacter {
 // (the table's ruling). The first round has nothing to rest from, hold on to,
 // lose or join: its AP start at the round's, and its change opens at the
 // morale tests. Refused while any action is still being played out, so that
-// whatever it committed to is paid in the round it was committed in.
+// whatever it committed to is paid in the round it was committed in. The
+// round that ends is met by the attitudes of whoever spent it enraged
+// (`meetRage`), before its surges are cleared.
 export function nextRound(thrown: Throw): Updater {
-  return calling({ kind: 'nextRound' }, thrown, (caller) => (state) => {
-    if (state.roundStep !== null || getPlayingOutBar(state)) return state
+  return calling({ kind: 'nextRound' }, thrown, (caller) => (initial) => {
+    if (initial.roundStep !== null || getPlayingOutBar(initial)) return initial
+    const state = meetRage(initial)
     const receive = state.round === 0 ? startAP : receiveAP
     const moved = { ...state, chase: endChaseRound(state) }
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) || isParked(moved, id) ? c : receive(wake(state, c))]))
@@ -75,6 +79,16 @@ export function nextRound(thrown: Throw): Updater {
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })
+}
+
+// abilities.tex "Ferocity": a round ends for whoever spent it enraged, with
+// a combat surge made in it or not, and their attitudes answer it.
+function meetRage(state: SceneState): SceneState {
+  if (state.round === 0) return state
+  return Object.entries(state.characters).reduce((s, [id, c]) => {
+    if (isDead(c) || isParked(state, id) || !hasAffliction(c, 'enraged')) return s
+    return updateCharacter(id, meetAttitudes({ event: 'enragedRound', combatSurge: c.usedSurge === 'combat' }), 'conviction attitude')(s)
+  }, state)
 }
 
 function wake(state: SceneState, c: CampaignCharacter): CampaignCharacter {

@@ -6,14 +6,19 @@ import { isLamedByHeld } from '../../item/rules/hands'
 import { getWoundAfflictions } from './wounds'
 import { getStanceAfflictions } from './body'
 import { getCurseAfflictions } from './curses'
+import { getSuppressed } from './effects'
 
 // The full affliction set: what the GM toggled by hand, plus everything the
 // character's own state forces on them, plus what their surroundings put on
 // them (`situational`). survival.tex states each resource's effects as
 // exclusive bands, so a resource contributes exactly one rung of its ladder
-// and `worstOfEachGroup` keeps a hand-set rung from stacking on top.
+// and `worstOfEachGroup` keeps a hand-set rung from stacking on top. An
+// affliction the character's abilities suppress (`affliction:<key>`,
+// abilities.tex "Rage Endurance": "ignores the effect") is not among them.
 export function getAfflictions(character: Character, situational: readonly AfflictionKey[] = []): AfflictionKey[] {
-  return combineAfflictions(getStoredAfflictions(character), [...getForcedAfflictions(character), ...situational])
+  const suppressed = getSuppressed(character)
+  const all = combineAfflictions(getStoredAfflictions(character), [...getForcedAfflictions(character, suppressed), ...situational])
+  return suppressed.size === 0 ? all : all.filter((key) => !suppressed.has(`affliction:${key}`))
 }
 
 // What the hand, or a hit, put on the character. Stored afflictions come
@@ -30,7 +35,7 @@ export function combineAfflictions(stored: readonly AfflictionKey[], forced: Ite
 }
 
 // What the character's own state keeps on them, whatever the hand set.
-export function getForcedAfflictions(character: Character): AfflictionKey[] {
+export function getForcedAfflictions(character: Character, suppressed: ReadonlySet<string> = getSuppressed(character)): AfflictionKey[] {
   if (!isCampaignCharacter(character)) return []
   const afflictions = new Set<AfflictionKey>()
   const rss = character.resources
@@ -62,10 +67,11 @@ export function getForcedAfflictions(character: Character): AfflictionKey[] {
   // combat.tex "Wounds": a carried wound's consequence, for as long as it is,
   // and the legs lost or broken, as many as the stance can bear;
   // spells.tex "Curse": a carried curse's, the same
-  // combat.tex "Injuries and Death": collapsing at injury capacity.
-  if (character.injuries.injuryLevel >= getInjuryCapacity(character)) afflictions.add('immobile')
+  // combat.tex "Injuries and Death": collapsing at injury capacity, unless
+  // the collapse is suppressed (abilities.tex "Unstoppable").
+  if (character.injuries.injuryLevel >= getInjuryCapacity(character) && !suppressed.has('collapse')) afflictions.add('immobile')
 
-  for (const key of getWoundAfflictions(character)) afflictions.add(key)
+  for (const key of getWoundAfflictions(character, suppressed)) afflictions.add(key)
   for (const key of getStanceAfflictions(character)) afflictions.add(key)
   for (const key of getCurseAfflictions(character)) afflictions.add(key)
 
@@ -104,11 +110,17 @@ function worstOfEachGroup(keys: AfflictionKey[]): AfflictionKey[] {
 // health) and applies to every skill in it. The injury penalty is deliberately
 // absent — the rulebook puts it on STR/AGI/STA, so it reaches skills through
 // the characteristic getters instead of through this table.
+// An affliction whose penalty is suppressed (`penalty:<key>`, abilities.tex
+// "Rage Endurance": "lose the mental penalties when enraged", rage's own
+// only, the table's ruling) is still on the character and does all else it
+// does.
 export function getAfflictionPenalty(character: Character, skill: keyof Skills): number {
   if (!isCampaignCharacter(character)) return 0
 
+  const suppressed = getSuppressed(character)
   let totalPenalty = 0
   for (const afflictionName of getAfflictions(character)) {
+    if (suppressed.has(`penalty:${afflictionName}`)) continue
     const afflictionDef = AFFLICTIONS[afflictionName]
     for (const [category, affectedSkills] of Object.entries(SkillPenaltyTable)) {
       if (affectedSkills.includes(skill)) {
@@ -187,7 +199,8 @@ export function getIT(_c: CampaignCharacter){
 // derived set, so exhaustion and intoxication reach spells the same way a
 // hand-set affliction does.
 export function getMentalAfflictionPenalty(c: Character): number {
-  return getAfflictions(c).reduce((total: number, key) => total + (AFFLICTIONS[key].mental ?? 0), 0)
+  const suppressed = getSuppressed(c)
+  return getAfflictions(c).reduce((total: number, key) => total + (suppressed.has(`penalty:${key}`) ? 0 : AFFLICTIONS[key].mental ?? 0), 0)
 }
 
 // combat.tex "Afflictions": what the character's afflictions do to a sense —

@@ -22,9 +22,11 @@ export function getPartWound(c: Character, wound: Pick<Wound, 'name' | 'part'>):
 }
 
 // What the wounds do past the part they took: each one's affliction, for as
-// long as it is carried.
-export function getWoundAfflictions(c: Character): AfflictionKey[] {
+// long as it is carried, but for the wounds whose consequence is suppressed
+// (`wound:<name>`, abilities.tex "Unstoppable").
+export function getWoundAfflictions(c: Character, suppressed: ReadonlySet<string> = new Set()): AfflictionKey[] {
   return getWounds(c).flatMap((w) => {
+    if (suppressed.has(`wound:${w.name}`)) return []
     const affliction = getPartWound(c, w)?.affliction
     return affliction ? [affliction] : []
   })

@@ -739,9 +739,9 @@ export const BUFF_TARGETS = [
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
 
-// A state of the character a buff holds only in (character/rules/effects.ts
-// `BUFF_CONDITIONS` says what each reads).
-export const BuffConditionSchema = z.enum(['movementSurge', 'noGauntlets'])
+// A state of the character a buff, a suppression or a surge allowance holds
+// only in (character/rules/effects.ts `BUFF_CONDITIONS` says what each reads).
+export const BuffConditionSchema = z.enum(['movementSurge', 'noGauntlets', 'enraged'])
 export type BuffCondition = z.infer<typeof BuffConditionSchema>
 
 export const BuffSchema = z.object({
@@ -755,7 +755,8 @@ export type Buff = z.infer<typeof BuffSchema>
 
 export const SuppressionSchema = z.object({
   name: str.default(''),
-  target: str.default(''), // rule/hook id whose effect is blocked entirely, e.g. 'affliction:hunger'
+  target: str.default(''), // rule/hook id whose effect is blocked entirely, e.g. 'affliction:sick'
+  when: BuffConditionSchema.nullable().default(null), // null: always
 }).strip()
 
 export type Suppression = z.infer<typeof SuppressionSchema>
@@ -1244,7 +1245,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
@@ -1266,6 +1267,7 @@ export const SurgeAllowSchema = z.object({
   surge: SurgeKindSchema.default('movement'),
   allows: z.enum(Object.keys(SURGE_ALLOWANCES) as [SurgeAllowance, ...SurgeAllowance[]]).default('attacks'),
   endsSurge: z.boolean().default(false),
+  when: BuffConditionSchema.nullable().default(null), // null: always
 }).strip()
 export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 
@@ -1275,7 +1277,9 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 // empty) against a DL at least `DLOverSkill` above that skill. `limitStress`:
 // the holder's limit stress action was activated. `preparedCrit`: an action
 // the holder prepared crit. `unpreparedTurn`: the holder's turn ended with
-// nothing prepared in it, and nothing held through the round.
+// nothing prepared in it, and nothing held through the round. `enragedRound`:
+// a round the holder spent enraged ended, with a combat surge made in it or
+// not (`combatSurge`).
 export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('test'),
@@ -1286,6 +1290,7 @@ export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('limitStress') }).strip(),
   z.object({ event: z.literal('preparedCrit') }).strip(),
   z.object({ event: z.literal('unpreparedTurn') }).strip(),
+  z.object({ event: z.literal('enragedRound'), combatSurge: z.boolean().default(true) }).strip(),
 ])
 export type AttitudeEvent = z.infer<typeof AttitudeEventSchema>
 

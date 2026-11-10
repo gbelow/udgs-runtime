@@ -41,7 +41,7 @@ import { getReloadCost } from '../../character/rules/gear'
 import { getSpellOptions } from './cast'
 import { isSpellKey } from '../../spells'
 import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain'
-import { getFleeBarFor, getSurgeBarFor, getSurgeProbes } from './surge'
+import { getFleeBarFor, getSurgeBarFor, getSurgeProbes, getSurgeVariant } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
 import { findPrepared, getPreparedBar } from './prepared'
@@ -605,12 +605,12 @@ function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]):
 }
 
 function closeBySurge(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeWith(options, (o) => getSurgeBarFor(state, c, o.draft.kind, o.draft.kind === 'grapple' ? o.draft.maneuver : undefined))
+  return closeWith(options, (o) => getSurgeBarFor(state, c, o.draft.kind, getSurgeVariant(o.draft)))
 }
 
 // combat.tex "Flee": a flee turn allows only what the movement surge does.
 function closeWhileFleeing(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeWith(options, (o) => getFleeBarFor(state, c, o.draft.kind, o.draft.kind === 'grapple' ? o.draft.maneuver : undefined))
+  return closeWith(options, (o) => getFleeBarFor(state, c, o.draft.kind, getSurgeVariant(o.draft)))
 }
 
 // play.tex "Combat": a character acts in their own turn; outside it, only

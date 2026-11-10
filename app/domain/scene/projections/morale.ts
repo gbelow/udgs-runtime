@@ -1,5 +1,6 @@
 import type { SceneState } from '../types'
-import { getAggravators, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey } from '../rules/morale'
+import { getAggravators, getHypeUpBar, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey } from '../rules/morale'
+import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
@@ -22,6 +23,10 @@ export type MoraleRow = {
   limitStress: string | null
   // what is still owed of it this round, null when nothing is
   owed: string | null
+  // abilities.tex "Hype up": null when the character has not learned it or
+  // has not tested yet, else why they cannot enrage themselves now ('' when
+  // they can)
+  hypeUp: string | null
 }
 
 // combat.tex "Morale": everyone the round called to a test, what weighs on
@@ -36,9 +41,10 @@ function buildMoraleRows(state: SceneState): MoraleRow[] {
       aggravators: aggravators.map((t) => `${t.label} +${t.value}`).join(', '),
       bar: getMoraleBar(state, id),
       modes: getMoraleModes(state.characters[id]),
-      result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}${roll.resisted ? ` · +${roll.resisted} against the compulsion` : ''}` : '',
+      result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}${roll.resisted ? ` · +${roll.resisted} against the compulsion` : ''}${roll.hyped ? ' · hyped up' : ''}` : '',
       limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,
       owed: getStressOwed(state, id),
+      hypeUp: roll && hasGrant(state.characters[id], 'hypeUp') ? getHypeUpBar(state, id) ?? '' : null,
     }
   })
 }

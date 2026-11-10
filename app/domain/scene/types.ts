@@ -1648,7 +1648,8 @@ export type ReactionAmend = Partial<ActionDraft> & { targetId?: string | null }
 
 // combat.tex "Morale": a character called to a morale test at the beginning of
 // the round, and, once it is made, what it was, what it had against the
-// compulsion, and whether it activated their limit stress action.
+// compulsion, whether it activated their limit stress action, and whether
+// they enraged themselves on it (abilities.tex "Hype up").
 export const MoraleRollSchema = z.object({
   mode: z.enum(ROLL_MODES),
   die: z.number(),
@@ -1658,6 +1659,7 @@ export const MoraleRollSchema = z.object({
   degree: DegreeSchema,
   resisted: z.number().default(0),
   limitStress: z.boolean(),
+  hyped: z.boolean().default(false),
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
 // The steps of the round change the table moves on from by hand; what runs on

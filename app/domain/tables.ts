@@ -450,6 +450,7 @@ export const SURGE_ALLOWANCES = {
   defenses: 'defenses',
   reflexes: 'reflexes',
   grapple: 'any action within a grapple',
+  intimidation: 'intimidation',
 } as const
 export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 

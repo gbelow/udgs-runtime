@@ -18,7 +18,7 @@ import { isSheltered } from './chase'
 import { getMoveFacts, getMovePrice, getWalkedCells, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
-import { getSurgeBarFor, getSurgeProbes } from './surge'
+import { getSurgeBarFor, getSurgeProbes, getSurgeVariant } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
 import { getGiveUpLoss } from './stoicism'
 import { isSpellActive } from '../../character/rules/effects'
@@ -448,7 +448,7 @@ export function canPayOpened(state: SceneState, action: Action): boolean {
   const c = state.characters[action.actorId]
   if (!c) return false
   if (canPayAsDeclarable(state, action)) return true
-  return getSurgeProbes(state, c).some((p) => getSurgeBarFor(p.state, p.state.characters[c.id], action.kind, action.kind === 'grapple' ? action.maneuver : undefined) === null && canPayAsDeclarable(p.state, action))
+  return getSurgeProbes(state, c).some((p) => getSurgeBarFor(p.state, p.state.characters[c.id], action.kind, getSurgeVariant(action)) === null && canPayAsDeclarable(p.state, action))
 }
 
 // A strike with no row picked yet, with any row that reaches its target;

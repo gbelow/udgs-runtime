@@ -97,7 +97,7 @@ export function getMoraleSpellOutcome(state: SceneState, test: SpellTestAction):
     return { cure: beaten ? ['afraid', 'enraged'] : [], inflict: [], compel: null, constraint: null, pacified: beaten && owed }
   }
   const compulsion = test.accepted || !test.roll ? 'miss' : getCompulsionDegree(state.characters[test.targetId], test.roll.score, test.roll.DL)
-  const outcome = getMoraleOutcome(degree, compulsion, true, spell.taunt)
+  const outcome = getMoraleOutcome(state.characters[test.targetId], degree, compulsion, true, spell.taunt)
   const compel = outcome.limitStress ? getCompelled(state, test, spell, outcome.inflict) : null
   return { cure: outcome.cure, inflict: outcome.inflict, compel, constraint: compel ? spell.constraint : null, pacified: false }
 }

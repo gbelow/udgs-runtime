@@ -3,6 +3,7 @@ import { SPIRIT_ATTACK } from '../../tables'
 import { getSPI } from './characteristics'
 import { getSM } from './size'
 import { hasGrant } from './effects'
+import { hasAffliction } from './afflictions'
 import { skillTermGetters } from './skills'
 import { Term, sumTerms } from './terms'
 
@@ -18,9 +19,10 @@ export function getSpiritTerms(c: Character): Term[] {
   ]
 }
 
-// The attacker's side, with abilities.tex "Spirit of Battle"'s added DL.
+// The attacker's side, with abilities.tex "Spirit of Battle"'s added DL
+// "while enraged".
 export function getSpiritDLTerms(c: Character): Term[] {
-  const battle = hasGrant(c, 'spiritOfBattle') ? [{ label: 'Spirit of Battle', value: SPIRIT_ATTACK.battleDL }] : []
+  const battle = hasGrant(c, 'spiritOfBattle') && hasAffliction(c, 'enraged') ? [{ label: 'Spirit of Battle', value: SPIRIT_ATTACK.battleDL }] : []
   return [...getSpiritTerms(c), ...battle]
 }
 

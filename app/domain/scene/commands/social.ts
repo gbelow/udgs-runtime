@@ -24,11 +24,11 @@ function speak(state: SceneState, id: string, kind: Pressure['kind'], value: num
 export function landSocial(state: SceneState, action: SocialActionRecord | TauntAction): SceneState {
   const c = state.characters[action.actorId]
   if (!c || isVoided(state, action)) return state
-  if (action.kind === 'taunt') return action.targetId ? speak(state, c.id, 'taunt', getSocialValue(c), [action.targetId]) : state
+  if (action.kind === 'taunt') return action.targetId ? speak(state, c.id, 'taunt', getSocialValue(c, 'taunt'), [action.targetId]) : state
   switch (action.say) {
     case 'intimidate':
     case 'rally':
-      return speak(state, c.id, action.say, getSocialValue(c), getHeard(state, c.id, action.say))
+      return speak(state, c.id, action.say, getSocialValue(c, action.say), getHeard(state, c.id, action.say))
     case 'insult':
       return markStress(c.id, { acted: true })(speak(state, c.id, 'insult', INSULT_BONUS, getHeard(state, c.id, 'insult')))
     case 'negotiate':

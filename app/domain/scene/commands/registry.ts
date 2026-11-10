@@ -24,7 +24,7 @@ import { chargeByGM, setOffItem } from './gmCharge'
 import { impose, updateCharacter, updateInventory } from './characters'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
-import { rollMorale, setTablePressure } from './morale'
+import { hypeUp, rollMorale, setTablePressure } from './morale'
 import { backToChase, continueRound, holdOn, joinChaseFight, letGo, nextRound } from './nextRound'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
@@ -156,6 +156,7 @@ export const sceneCommands = {
   holdOn: command((ctx, id: string) => holdOn(id, ctx.thrower)).by(own),
   letGo: command((ctx, id: string) => letGo(id, ctx.thrower)).by(own),
   rollMorale: command((ctx, id: string, mode: RollMode, enemyNear: boolean, die?: number) => rollMorale(id, mode, enemyNear, typed(ctx, die))).by(own),
+  hypeUp: command((_, id: string) => hypeUp(id)).by(own),
   rollHeld: command((ctx, id: string, kind: CalledKind, mode: RollMode, die?: number) => rollHeld(id, kind, mode, typed(ctx, die))).by(own),
   setTablePressure: command((_, partyId: string, value: number) => setTablePressure(partyId, value)).by(gm),
   defaultToCoward: command((_, id: string) => defaultToCoward(id)).by(own),

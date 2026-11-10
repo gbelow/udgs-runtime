@@ -259,6 +259,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   holdOn: (s) => combatCommands.holdOn('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
   letGo: (s) => combatCommands.letGo('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
   rollMorale: (s) => combatCommands.rollMorale('a', 'normal', true, () => 3)(deepFreeze({ ...s, morale: [{ id: 'a', roll: null }] })),
+  hypeUp: (s) => combatCommands.hypeUp('a')(deepFreeze({ ...s, roundStep: 'morale', characters: { ...s.characters, a: { ...s.characters.a, afflictions: ['afraid'], abilities: { ...s.characters.a.abilities, 'hype-up': held('hype-up', 1) } } }, morale: [{ id: 'a', roll: { mode: 'normal', die: 9, skill: 0, score: 9, DL: 0, degree: 'critical', resisted: 0, limitStress: false, hyped: false } }] })),
   setTablePressure: (s) => combatCommands.setTablePressure('a', 2)(deepFreeze(s)),
   landSocial: (s) => combatCommands.landSocial(deepFreeze(cleared(s)), SocialActionSchema.parse({ id: 'x', actorId: 'a', kind: 'social', say: 'rally' })),
   defaultToCoward: (s) => combatCommands.defaultToCoward('a')(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', compulsions: [{ id: 'a', action: 'abusive', acted: false, taken: false, by: '', constraint: null }] })),
