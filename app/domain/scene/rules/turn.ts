@@ -10,7 +10,7 @@ import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
 import { getHeldTurnBar } from './heldRoll'
 import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } from './stress'
-import { moded, type Dice, type RollMode } from '../../play/dice'
+import type { RollMode } from '../../play/dice'
 import { getRollModes } from '../../character/rules/effects'
 import { getCunning } from '../../character/rules/skills'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
@@ -110,11 +110,10 @@ export function getContestWinner(rolls: ContestRoll[]): string | null {
   return rolls.reduce<ContestRoll | null>((best, r) => (best === null || r.score > best.score ? r : best), null)?.id ?? null
 }
 
-// One contender's cunning roll (the die does not explode: play.tex
-// "Exploding die": only where it says), with the routing bonus of a chase,
-// thrown in `mode`.
-export function rollCunning(state: SceneState, id: string, dice: Dice, mode: RollMode = 'normal'): ContestRoll {
-  const die = moded(mode, dice)(false)
+// One contender's cunning roll, the die kept as thrown in `mode` (it does
+// not explode: play.tex "Exploding die": only where it says), with the
+// routing bonus of a chase.
+export function rollCunning(state: SceneState, id: string, die: number, mode: RollMode): ContestRoll {
   const skill = getCunning(state.characters[id]) + sumTerms(getRoutingTerms(state, id))
   return { id, mode, die, skill, score: die + skill }
 }

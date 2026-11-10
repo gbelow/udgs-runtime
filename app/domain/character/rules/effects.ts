@@ -47,6 +47,20 @@ export function getRollModes(character: Character, skill: keyof Skills, inFight:
   return ['normal', ...(['safe', 'risky'] as const).filter((mode) => allowed.some((m) => m.mode === mode))]
 }
 
+// Whether a learned ability lets the character throw any test riskily
+// (abilities.tex "Adaptation": "take any test in a risky manner").
+export function mayRollRisky(character: Character): boolean {
+  return getLearnedAbilities(character).some((a) => a.rollModes.some((m) => m.mode === 'risky' && m.skill === 'any' && m.surge === null))
+}
+
+// The way the character throws a test: the way the test picked, where it was
+// something other than normal; otherwise riskily while they keep to risky
+// tests and may throw any test so; normally failing those.
+export function getTestMode(character: Character | undefined, picked: RollMode = 'normal'): RollMode {
+  if (picked !== 'normal' || !character) return picked
+  return isCampaignCharacter(character) && character.risky && mayRollRisky(character) ? 'risky' : 'normal'
+}
+
 // What the character's learned abilities let a surge's AP pay for, in the
 // state the character is in.
 export function getSurgeAllows(character: Character): SurgeAllow[] {

@@ -10,6 +10,7 @@ import { rollPercent } from '../../play/dice'
 import type { Caller, Throw } from '../../play/calls'
 import { calling } from './calling'
 import { getHeldTest } from '../rules/heldTest'
+import { getHeldBar } from '../rules/heldRoll'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { letGoOfSustained, payHeldSources } from '../../character/commands/spells'
 import { cure } from '../../character/commands/addAffliction'
@@ -22,7 +23,7 @@ import { getMoraleCalled } from '../rules/morale'
 import { getHeldCalled } from '../rules/heldTest'
 import { getHeldActions } from '../rules/hold'
 import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
-import { rollHeld } from './heldTest'
+import { writeHeld } from './heldTest'
 import { getRoundSeconds, isRunningInChase } from '../rules/chase'
 import { beginChase, endChaseFight, endChaseRound, endChaseRoundChange, enterChaseFight } from './chase'
 import { carryOver, finishHeld } from './hold'
@@ -98,9 +99,8 @@ function wake(state: SceneState, c: CampaignCharacter): CampaignCharacter {
 // The stealth tests the round calls, rolled as it begins (the table's ruling).
 function rollStealth(state: SceneState, caller: Caller): SceneState {
   return state.heldTests.filter((t) => t.kind === 'stealth').reduce((s, t) => {
-    const test = getHeldTest(s, t.id, 'stealth')
-    const result = test && caller.test({ id: `stealth:${t.id}`, roller: t.id, label: 'stealth', test })
-    return result ? rollHeld(t.id, 'stealth', 'normal', () => result.die)(s) : s
+    const die = getHeldTest(s, t.id, 'stealth') && !getHeldBar(s, t.id, 'stealth') ? caller.die({ id: `stealth:${t.id}`, roller: t.id, label: 'stealth' }) : null
+    return die === null ? s : writeHeld(t.id, 'stealth', caller.calls[`stealth:${t.id}`].mode, die)(s)
   }, state)
 }
 

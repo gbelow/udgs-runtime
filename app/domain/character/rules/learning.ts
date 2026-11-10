@@ -199,6 +199,27 @@ export function getTrainableRaisePrice(key: keyof Trainables): (c: Character) =>
   return getAttributeRaisePrice(key as keyof Attributes)
 }
 
+// The talent the price of a trainable's levels is multiplied by
+// (creating.tex "Improving proficiencies", "Improving skills"); null for
+// one priced without a talent, or not trainable on its own.
+export function getTrainableTalent(key: keyof Trainables): TalentKey | null {
+  if (isSkillKey(key)) return SKILL_TALENTS[key]
+  return key in ProficienciesSchema.shape ? PROFICIENCY_TALENTS[key as keyof Proficiencies] : null
+}
+
+// How much further XP goes on the trainable's next level when it is priced
+// as if its talent were `bonus` higher: the price it has over the price it
+// would have. 1 where the talent is already high enough, or none is asked.
+export function getTalentReliefRate(key: keyof Trainables, bonus: number): (c: Character) => number {
+  return (c: Character) => {
+    const talent = getTrainableTalent(key)
+    if (talent === null) return 1
+    const level = c.trainables[key].value + 1
+    const value = talentOf(c, talent)
+    return getTalentMultiplier(level, value) / getTalentMultiplier(level, value + bonus)
+  }
+}
+
 // creating.tex "Changing attributes": a point out of one attribute into
 // another, null when the receiving one is already at the limit.
 export function getAttributeSwapPrice(to: keyof Attributes): (c: Character) => LearningPrice | null {

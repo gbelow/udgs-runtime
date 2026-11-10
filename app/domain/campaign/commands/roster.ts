@@ -4,6 +4,9 @@ import { withFreeId } from '../rules/roster'
 import { without } from '../../utils'
 import { addParty, dropEmptyParties, joinParty, withParty } from './parties'
 import { nameByParty } from './names'
+import type { Calls } from '../../play/calls'
+import { getCallHappenings } from '../../character/rules/attitudes'
+import { meetEachAttitude } from '../../character/commands/attitudes'
 
 // Only a fight hands out AP (combat.tex "End of the round"), so whoever is on
 // the roster has none.
@@ -91,4 +94,13 @@ export function updateRosterCharacter(id: string, updater: (c: CampaignCharacter
     const c = state.characters[id]
     return c ? { ...state, characters: { ...state.characters, [id]: updater(c) } } : state
   }
+}
+
+// abilities.tex "Promoted Attitudes", "Prohibited Attitudes": each one on the
+// roster meets what the dice they threw came to, once those dice are spent.
+export function meetCalls(calls: Calls): CampaignUpdater {
+  return (state) => Object.values(calls).reduce((s, call) => {
+    const happened = getCallHappenings(call)
+    return happened.length > 0 ? updateRosterCharacter(call.roller, meetEachAttitude(happened))(s) : s
+  }, state)
 }

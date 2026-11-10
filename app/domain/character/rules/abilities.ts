@@ -32,10 +32,22 @@ export function meetsAbilityRequirements(key: AbilityKey): (c: Character) => boo
 // abilities.tex "Cost": the listed price at its training level, priced by
 // the creation rules — doubled for every level the training level sits above
 // the character's talent. A karma-priced ability costs no XP.
-export function getAbilityXPCost(key: AbilityKey): (c: Character) => number {
+export function getAbilityXPCost(key: AbilityKey, talentBonus = 0): (c: Character) => number {
   return (c: Character) => {
     const { XPcost, talent } = ABILITIES[key]
-    return talent.reduce((cost, t) => Math.max(cost, XPcost * getTalentMultiplier(t.level, c.trainables[t.property].value)), XPcost)
+    return talent.reduce((cost, t) => Math.max(cost, XPcost * getTalentMultiplier(t.level, c.trainables[t.property].value + talentBonus)), XPcost)
+  }
+}
+
+// How much further XP goes on the family's next stage when it is priced as
+// if each talent were `bonus` higher (abilities.tex "Adaptive Learning"),
+// null when that stage is not trained with XP.
+export function getAbilityReliefRate(family: FamilyKey, bonus: number): (c: Character) => number | null {
+  return (c: Character) => {
+    const next = getFamilyStages(family)[getAbilityLevel(c, family)]
+    const price = getAbilityTrainingPrice(family)(c)
+    if (!next || !price || price.currency !== 'XP' || price.amount <= 0) return null
+    return price.amount / getAbilityXPCost(next, bonus)(c)
   }
 }
 

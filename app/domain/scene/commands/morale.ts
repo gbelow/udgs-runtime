@@ -5,28 +5,32 @@ import { getCompulsionDegree, getCompulsionResistance, getHypeUpBar, getMoraleBa
 import { resolveTest } from '../../play/test'
 import { updateCharacter } from './characters'
 import { oweStress } from './stress'
-import { meetAttitudes } from '../../character/commands/attitudes'
+import { meetAttitudes, meetEachAttitude } from '../../character/commands/attitudes'
+import { getThrowHappenings } from '../../character/rules/attitudes'
+import { getSceneModeOf } from '../rules/test'
 
 // combat.tex "Combat morale test": the character's will test against the DL
-// of the moment, thrown in a way their abilities allow (`getMoraleModes`). What it
+// of the moment, thrown in a way their abilities allow (`getMoraleModes`), or
+// riskily while they keep to risky tests. What it
 // leaves them is the outcome's (`getMoraleOutcome`); `enemyNear` is whether
 // an enemy is within 30 m, told by the table. The last test of the round
 // made, the limit stress actions it activated are owed (`oweStress`). The
-// test and an activated limit stress action move the character's convictions
-// by their attitudes (abilities.tex "Fatalism").
+// die, the test and an activated limit stress action move the character's
+// convictions by their attitudes (abilities.tex "Fatalism", "Adaptation").
 export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice: Dice): Updater {
   return (state) => {
     const test = getMoraleTest(state, id)
     if (!test || getMoraleBar(state, id) || !getMoraleModes(state.characters[id]).includes(mode)) return state
-    const { die, score, degree } = resolveTest(test, (explodes) => rollModed(mode, explodes, dice))
+    const thrown = getSceneModeOf(state)(id, mode)
+    const { die, score, degree } = resolveTest(test, (explodes) => rollModed(thrown, explodes, dice))
     const resisted = getCompulsionResistance(state.characters[id])
     const outcome = getMoraleOutcome(state.characters[id], degree, getCompulsionDegree(state.characters[id], score, test.DL), enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
     const settled = [
       updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)), 'morale test'),
-      updateCharacter(id, meetAttitudes({ event: 'test', skill: 'will', value: test.skill, DL: test.DL, degree }), 'conviction attitude'),
+      updateCharacter(id, meetEachAttitude(getThrowHappenings({ mode: thrown, die, explodes: test.explodes, scored: { skill: 'will', value: test.skill, DL: test.DL, degree } })), 'conviction attitude'),
       ...(outcome.limitStress ? [updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')] : []),
     ].reduce((acc, step) => step(acc), state)
-    const roll: MoraleRoll = { mode, die, skill: test.skill, score, DL: test.DL, degree, resisted, limitStress: outcome.limitStress, hyped: false }
+    const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, score, DL: test.DL, degree, resisted, limitStress: outcome.limitStress, hyped: false }
     const tested = { ...settled, morale: settled.morale.map((call) => (call.id === id ? { ...call, roll } : call)) }
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)
   }

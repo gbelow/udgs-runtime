@@ -63,8 +63,12 @@ export function rollContest(thrown: Throw): Updater {
   return calling({ kind: 'contest' }, thrown, (caller) => (state) => {
     const holder = getTurnHolder(state)
     if (getRollContestBar(state) || !holder) return state
-    const die = (id: string) => () => caller.die({ id: `contest:${id}`, roller: id, label: 'cunning, for the turn' }) ?? WAITING
-    const rolls = [holder, ...getContenders(state)].map((id) => rollCunning(state, id, die(id), getContestMode(state, id)))
+    const roll = (id: string) => {
+      const callId = `contest:${id}`
+      const die = caller.die({ id: callId, roller: id, label: 'cunning, for the turn', mode: getContestMode(state, id) }) ?? WAITING
+      return rollCunning(state, id, die, caller.calls[callId].mode)
+    }
+    const rolls = [holder, ...getContenders(state)].map(roll)
     const winner = getContestWinner(rolls) ?? holder
     const won = state.firstTurn?.turn === state.turn ? state.firstTurn : null
     const passed = won ? passFirstMoverAP(state, won.id, winner) : state

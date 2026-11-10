@@ -2,6 +2,8 @@ import type { CampaignState } from '../types'
 import type { CampaignCharacter } from '../../types'
 import { without } from '../../utils'
 import { addInstance } from '../../instances'
+import type { ModeOf } from '../../play/calls'
+import { getTestMode } from '../../character/rules/effects'
 
 // Every id the campaign has given: on the roster, kept in a party while away,
 // or lent to a fight.
@@ -32,4 +34,10 @@ export function getRosterName(state: CampaignState, id: string): string {
 // else at the table may go by.
 export function getTableNames(state: CampaignState, except?: string): string[] {
   return Object.values(except ? without(state.names, except) : state.names)
+}
+
+// play.tex "Safe and risky tests": the way each one on the roster throws a
+// die for a test, away from a fight.
+export function getRosterModeOf(state: CampaignState): ModeOf {
+  return (roller, picked) => getTestMode(state.characters[roller], picked)
 }

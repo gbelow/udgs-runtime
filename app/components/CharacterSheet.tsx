@@ -5,7 +5,7 @@ import { ContainerPanel } from './ContainerPanel';
 import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
 import { Minus, Plus } from 'lucide-react'
-import { Button, IconButton, NumberInput, SectionLabel, StatTile, Tiles, selectClass } from './ui';
+import { Button, IconButton, NumberInput, SectionLabel, Segment, Segmented, StatTile, Tiles, selectClass } from './ui';
 import { Characteristics, Knowledges, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -22,6 +22,7 @@ import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useConvictionXP } from '../hooks/useConvictionXP';
+import { useRiskyTests } from '../hooks/useRiskyTests';
 import { useFormalKnowledgeLens, useKnowledgeTerms, useSpecificKnowledges } from '../hooks/useKnowledgeLens';
 import { knowledges_list } from '../domain/lists';
 
@@ -139,31 +140,46 @@ export function CharacteristicTiles(){
       <div className='flex flex-row flex-wrap gap-2'>
         <ConvictionXP slot='conviction1' />
         <ConvictionXP slot='conviction2' />
+        <RiskyTests />
       </div>
     </div>
   )
 }
 
 // A conviction's XP, raised or lowered by hand for the attitudes the table
-// judges (abilities.tex "Promoted Attitudes"), given to an ability it may
-// study where one is picked (abilities.json "Cunning Studies").
+// judges (abilities.tex "Promoted Attitudes"), given to something it may
+// study where one is picked (abilities.json "Cunning Studies", abilities.tex
+// "Adaptive Learning"), with how far each XP goes on it.
 function ConvictionXP({slot}: {slot: 'conviction1' | 'conviction2'}){
   const { name, XP, adopted, studies, addXP, study } = useConvictionXP(slot)
   const [studied, setStudied] = useState('')
   if (!adopted) return null
-  const picked = studies.find((s) => s.family === studied)
+  const picked = studies.find((s) => s.key === studied)
   return(
     <div className='flex flex-row items-center gap-1.5 rounded border border-line bg-surface px-1.5 py-1 text-sm'>
       <span className='text-muted'>{name} XP</span>
       <span className='tabular-nums'>{XP}</span>
-      <IconButton icon={Plus} aria-label={`give ${name} XP`} title={picked ? `give 1 XP to ${name} and ${picked.name}` : 'give 1 XP'} onClick={() => (picked ? study(picked.family, 1) : addXP(1))} />
+      <IconButton icon={Plus} aria-label={`give ${name} XP`} title={picked ? `give 1 XP to ${name}, ${picked.rate} to ${picked.name}` : 'give 1 XP'} onClick={() => (picked ? study(picked.target, 1) : addXP(1))} />
       <IconButton icon={Minus} aria-label={`take ${name} XP`} title='take 1 XP' onClick={() => addXP(-1)} />
       {studies.length > 0 ?
-        <select aria-label={`${name} XP also trains`} className={selectClass} value={picked?.family ?? ''} onChange={(e) => setStudied(e.target.value)}>
+        <select aria-label={`${name} XP also trains`} className={selectClass} value={picked?.key ?? ''} onChange={(e) => setStudied(e.target.value)}>
           <option value=''>{name} only</option>
-          {studies.map((s) => <option key={s.family} value={s.family}>also {s.name}</option>)}
+          {studies.map((s) => <option key={s.key} value={s.key}>also {s.name}{s.rate === 1 ? '' : ` (×${s.rate})`}</option>)}
         </select> : null}
     </div>
+  )
+}
+
+// play.tex "Safe and risky tests": whether the character throws every test
+// they may throw riskily in a risky manner (abilities.tex "Adaptation").
+function RiskyTests(){
+  const { shown, risky, setRisky } = useRiskyTests()
+  if (!shown) return null
+  return(
+    <Segmented label='tests'>
+      <Segment selected={!risky} onClick={() => setRisky(false)}>normal tests</Segment>
+      <Segment selected={risky} onClick={() => setRisky(true)}>risky tests</Segment>
+    </Segmented>
   )
 }
 

@@ -42,6 +42,12 @@ export function readD10({ d10, d6s }: D10Throw): number {
   return d6s.reduce((total, d6) => total + sign * d6, d10)
 }
 
+// The face the kept d10 showed, read back from what it came to: an exploding
+// die past 9 showed a 9, one below 0 showed a 0.
+export function getD10Face(die: number, explodes: boolean): number {
+  return explodes ? Math.max(0, Math.min(9, die)) : die
+}
+
 export function rollD10(explodes: boolean, rng: () => number): number {
   return readD10(throwD10(explodes, rng))
 }

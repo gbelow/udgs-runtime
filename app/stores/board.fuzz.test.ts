@@ -35,7 +35,7 @@ import { hasGrant } from '../domain/character/rules/effects'
 import { hasAbility } from '../domain/abilities'
 import { getCombinedMoves } from '../domain/scene/rules/combinedMove'
 import { getDeclaredCarriedMoves } from '../domain/scene/rules/carriedMove'
-import { archer, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
+import { adapted, archer, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
@@ -265,6 +265,10 @@ function plays(): Play[] {
         const owing = Object.values(h.state().characters).filter((c) => c.pending.length > 0)
         if (owing.length) h.send({ kind: 'edit', args: [pick(owing).id, { kind: 'resolvePending', args: [0] }, true] })
       },
+    },
+    {
+      name: 'keep to risky tests or not',
+      run: (h, pick) => h.send({ kind: 'edit', args: [pick(Object.keys(h.state().characters)), { kind: 'setRisky', args: [pick([true, false])] }, true] }),
     },
     { name: 'click a token', run: (h, pick) => h.token(pick(names(h))) },
     { name: 'click a floor item', run: (h, pick) => { const floor = h.view().floor; if (floor.length) h.floor(pick(floor).itemId) } },
@@ -1132,7 +1136,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann')), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), walls.length ? torchbearer('Gus') : brawler('Gus'))
+  h.bring(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann')), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), adapted(archer('Fay')), walls.length ? torchbearer('Gus') : brawler('Gus'))
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
@@ -1229,7 +1233,7 @@ function playHouse(seed: number, table = false) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(towerWarden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), torchbearer('Gus'))
+  h.bring(towerWarden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), adapted(archer('Fay')), torchbearer('Gus'))
   h.createBoard(5)
   h.loadMap(houseMap())
   expect(Object.keys(h.state().board?.pieces ?? {}).sort(), 'the house and the trees stand on the board').toEqual(['house', ...TREES.map((_, i) => `tree ${i}`)].sort())

@@ -1,4 +1,6 @@
-import type { Action, Degree } from '../types'
+import type { Action, Degree, SceneState } from '../types'
+import type { ModeOf } from '../../play/calls'
+import { getTestMode } from '../../character/rules/effects'
 
 // Whether the action's test came to a hit or a critical.
 export function isWon(root: Pick<Action, 'roll'>): boolean {
@@ -14,4 +16,10 @@ export function resisted(degree: Degree): Degree {
     case 'graze': return 'graze'
     default: return 'miss'
   }
+}
+
+// play.tex "Safe and risky tests": the way each one in the scene throws a die
+// for a test, as they stand.
+export function getSceneModeOf(state: SceneState): ModeOf {
+  return (roller, picked) => getTestMode(state.characters[roller], picked)
 }

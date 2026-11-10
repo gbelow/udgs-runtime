@@ -2995,6 +2995,93 @@
       }
     ]
   },
+  "adaptive-attitudes": {
+    "family": "Adaptive Attitudes",
+    "section": "Adaptation",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Adaptation",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Learns to take any test in a risky manner. Promoted: gains 1 XP each time they roll an 8 or a 9 on a risky test. Prohibited: loses 1 XP each time they fail or graze on a test that is not risky.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [
+          {
+            "skill": "any",
+            "mode": "risky",
+            "surge": null
+          }
+        ],
+        "surgeAllows": [],
+        "attitudes": [
+          {
+            "on": {
+              "event": "die",
+              "modes": [
+                "risky"
+              ],
+              "faces": [
+                8,
+                9
+              ]
+            },
+            "conviction": "Adaptation",
+            "XP": 1
+          },
+          {
+            "on": {
+              "event": "test",
+              "skill": "any",
+              "modes": [
+                "normal",
+                "safe"
+              ],
+              "degrees": [
+                "miss",
+                "graze"
+              ],
+              "DLOverSkill": null
+            },
+            "conviction": "Adaptation",
+            "XP": -1
+          }
+        ],
+        "studies": []
+      }
+    ]
+  },
   "adaptive-learning": {
     "family": "Adaptive Learning",
     "section": "Adaptation",
@@ -3040,7 +3127,13 @@
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
-        "studies": []
+        "studies": [
+          {
+            "kind": "any",
+            "talent": 1,
+            "conviction": "Adaptation"
+          }
+        ]
       }
     ]
   },
@@ -3447,6 +3540,7 @@
         "attitudes": [],
         "studies": [
           {
+            "kind": "section",
             "section": "Cunning",
             "conviction": "Stoicism"
           }
@@ -3653,6 +3747,7 @@
             "on": {
               "event": "test",
               "skill": "will",
+              "modes": [],
               "degrees": [
                 "hit",
                 "critical"
@@ -3666,6 +3761,7 @@
             "on": {
               "event": "test",
               "skill": "will",
+              "modes": [],
               "degrees": [
                 "hit",
                 "critical"
@@ -3751,8 +3847,8 @@
       }
     ]
   },
-  "quick-resolve": {
-    "family": "Quick Resolve",
+  "fateful": {
+    "family": "Fateful",
     "section": "Fatalism",
     "activation": "passive",
     "cost": {
@@ -3789,7 +3885,7 @@
             }
           ]
         ],
-        "description": "Active will tests can be made with 2 AP.",
+        "description": "The character can spend 1 AP to reroll a will test once. The reroll must be taken.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -3832,13 +3928,13 @@
             {
               "kind": "trainable",
               "name": "Fatalism",
-              "level": 2,
+              "level": 1,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Receives +1 in Will. Still triggers the XP gain when the will test was overcome by 1.",
+        "description": "Receives +1 in Will.",
         "effect": [
           {
             "name": "",
@@ -3877,13 +3973,13 @@
             {
               "kind": "trainable",
               "name": "Fatalism",
-              "level": 4,
+              "level": 3,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Receives +2 in Will. Still triggers the XP gain when the will test was overcome by 2.",
+        "description": "Receives +2 in Will.",
         "effect": [
           {
             "name": "",
@@ -4026,7 +4122,7 @@
             }
           ]
         ],
-        "description": "The character gains +1 to all skills in any turn when the morale test has a DL equal or higher than 3.",
+        "description": "The character gains +1 to all skills in any turn when the morale test aggravating factors are equal or higher than 5.",
         "effect": [],
         "recipes": [],
         "grants": [],

@@ -24,6 +24,7 @@ import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
+import { getSceneModeOf } from '../rules/test'
 import { MovementOption, ReachableCell, getMoveModes, getMoveTest, getMovementOptions, needsBalanceTest } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
 import { getMoraleSpell, getSuggestible } from '../rules/moraleSpell'
@@ -71,6 +72,15 @@ export type ItemAim = { id: string; name: string; penalty: number; selected: boo
 function getClimbStopOffers(state: SceneState, move: MoveAction): OpenActionView['climbStops'] {
   const stops = getClimbChoices(state, move)
   return stops && stops.length > 1 ? stops.map((s) => ({ ...s, key: coordKey(s.cell) })) : null
+}
+
+// The way the open action's die is thrown: as picked, or riskily where its
+// roller keeps to risky tests.
+function getShownMode(state: SceneState, open: Action): RollMode {
+  const modeOf = getSceneModeOf(state)
+  if (open.kind === 'move') return modeOf(open.actorId, open.mode)
+  if (open.kind === 'spellTest') return modeOf(open.targetId ?? '', open.mode)
+  return 'normal'
 }
 
 // The test the open action is thrown as and the ways it may be thrown: a
@@ -524,7 +534,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? { steps: getFiringSteps(open) } : null,
-      mode: open.kind === 'move' || open.kind === 'spellTest' ? open.mode : 'normal',
+      mode: getShownMode(state, open),
       testModes: getTestModes(state, open),
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
       climbStops: open.kind === 'move' ? getClimbStopOffers(state, open) : null,

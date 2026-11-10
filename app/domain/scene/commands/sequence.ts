@@ -26,7 +26,9 @@ import { getFeinted } from '../rules/feint'
 import { getNextStress, owesStressTurn } from '../rules/stress'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
-import { layToRest } from './characters'
+import { layToRest, updateCharacter } from './characters'
+import { meetAttitudes } from '../../character/commands/attitudes'
+import { getTestMode } from '../../character/rules/effects'
 import { passFirstMoverAP } from './stoicism'
 import { getResults } from './results'
 import { compelByTest } from './stress'
@@ -91,7 +93,7 @@ export function land(state: SceneState, open: RootAction, newId: () => string, c
   const resolved = { ...settled, results: getResults(state, settled) }
   const redone = redoClimb(replaceActions(state, [resolved]), resolved, caller)
   if (caller.waiting()) return state
-  const landed = breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved)
+  const landed = meetTested(breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved), resolved)
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
   return advance(appendActions(landOnTable(fled, resolved), followUps), newId, caller)
@@ -104,6 +106,14 @@ function throwTargetDice(state: SceneState, open: RootAction, caller: Caller): R
   if (owed.length === 0) return open
   const dice = owed.map((id) => [id, caller.die({ id: `target:${open.id}:${id}`, roller: id, label: `a test against the ${open.kind}` })] as const)
   return { ...open, targetDice: { ...open.targetDice, ...Object.fromEntries(dice.flatMap(([id, die]) => (die === null ? [] : [[id, die]]))) } }
+}
+
+// abilities.tex "Promoted Attitudes", "Prohibited Attitudes": each test the
+// landing scored for a target moves their convictions.
+function meetTested(state: SceneState, landed: RootAction): SceneState {
+  return landed.tested.reduce((s, { targetId, roll }) => updateCharacter(targetId, meetAttitudes({
+    event: 'test', skill: null, value: roll.score - roll.die, DL: roll.DL, degree: roll.degree, mode: getTestMode(s.characters[targetId]),
+  }), 'conviction attitude')(s), state)
 }
 
 // combat.tex "Climbing": "An attack that interrupts the climber will require

@@ -8,9 +8,12 @@ import { Outcome, getOutcome, passesCondition } from '../rules/damage'
 import { skillLenses } from '../lenses'
 import { getSpiritBlow, getTestRollTerms } from '../rules/spirit'
 import { sumTerms } from '../rules/terms'
-import { resolveTest } from '../../play/test'
+import { resolveTest, type Test } from '../../play/test'
 import { resisted } from '../../scene/rules/test'
-import type { Dice } from '../../play/dice'
+import { moded, type Dice } from '../../play/dice'
+import { getTestMode } from '../rules/effects'
+import { getThrowHappenings } from '../rules/attitudes'
+import { meetEachAttitude } from './attitudes'
 import { payCost } from './cost'
 import { cure, inflict } from './addAffliction'
 import { mend } from './heal'
@@ -18,6 +21,12 @@ import { woundPart } from './wounds'
 import { getPartWound } from '../rules/wounds'
 import { getFallDeliveries } from '../rules/fall'
 import { loseConcentration } from './spells'
+
+// A test the character throws in the way they throw a test, with the skill it
+// was thrown at.
+function thrownTest(c: CampaignCharacter, test: Test, dice: Dice) {
+  return { ...resolveTest(test, moded(getTestMode(c), dice)), skill: test.skill }
+}
 
 // The one place a delivered effect changes a character. A delivery whose
 // degree is known lands now: the effect is applied, and what its landing
@@ -71,29 +80,34 @@ export function deliverAll(deliveries: readonly Delivery[]): (c: CampaignCharact
 
 // spells.tex "Curse": "holds until the target shrugs it off" — the test the
 // curse's effect names, rolled again against the DL it landed with; a hit
-// or better and the curse is gone.
+// or better and the curse is gone. The die and the test move the character's
+// convictions by their attitudes.
 export function resistCurse(key: string, dice: Dice): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const curse = getCurses(c).find((e) => e.key === key)
     if (!curse || !isSpellKey(key)) return c
     const resist = SPELLS[key].effects.find((e) => e.duration === 'locked' && e.resist)?.resist
     if (!resist) return c
-    const { degree } = resolveTest({ skill: skillLenses[resist.roll].get(c), DL: curse.DL, explodes: false, scale: 'degrees' }, dice)
-    return resisted(degree) === 'miss' ? { ...c, active: c.active.filter((e) => !(e.kind === 'curse' && e.key === key)) } : c
+    const { degree, die, skill, DL } = thrownTest(c, { skill: skillLenses[resist.roll].get(c), DL: curse.DL, explodes: false, scale: 'degrees' }, dice)
+    const met = meetEachAttitude(getThrowHappenings({ mode: getTestMode(c), die, explodes: false, scored: { skill: resist.roll, value: skill, DL, degree } }))(c)
+    return resisted(degree) === 'miss' ? { ...met, active: met.active.filter((e) => !(e.kind === 'curse' && e.key === key)) } : met
   }
 }
 
 // The target's die on a pending delivery: their skill against the DL the
 // producer set, and the effect lands at the degree their result turns into,
-// or not at all. Either way the wait is over.
+// or not at all. Either way the wait is over, and the die and the test move
+// the character's convictions by their attitudes.
 export function resolvePending(index: number, dice: Dice): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const delivery = c.pending[index]
     if (!delivery?.test) return c
     const { direct } = delivery.test
-    const rolled = resolveTest({ skill: sumTerms(getTestRollTerms(c, delivery.test.roll)), DL: delivery.test.DL, explodes: false, scale: 'degrees' }, dice).degree
+    const of = delivery.test.roll === 'spirit' ? null : delivery.test.roll
+    const { degree: rolled, die, skill, DL } = thrownTest(c, { skill: sumTerms(getTestRollTerms(c, delivery.test.roll)), DL: delivery.test.DL, explodes: false, scale: 'degrees' }, dice)
     const degree = direct ? rolled : resisted(rolled)
-    const rest = { ...c, pending: c.pending.filter((_, i) => i !== index) }
+    const met = meetEachAttitude(getThrowHappenings({ mode: getTestMode(c), die, explodes: false, scored: { skill: of, value: skill, DL, degree: rolled } }))(c)
+    const rest = { ...met, pending: met.pending.filter((_, i) => i !== index) }
     return !direct && degree === 'miss' ? rest : deliver({ ...delivery, degree, test: delivery.test })(rest)
   }
 }

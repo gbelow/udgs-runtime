@@ -3,7 +3,11 @@ import { SWIM_FAILURE_SINK } from '../../tables'
 import type { Action, SceneState, HeldRoll, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { getHeldBar, getHeldRoll, type HeldKind } from '../rules/heldRoll'
-import { getHeldModes, getHeldTest, type CalledKind } from '../rules/heldTest'
+import { getHeldDL, getHeldModes, getHeldTest, type CalledKind } from '../rules/heldTest'
+import { getSceneModeOf } from '../rules/test'
+import { getThrowHappenings } from '../../character/rules/attitudes'
+import { meetEachAttitude } from '../../character/commands/attitudes'
+import { updateCharacter } from './characters'
 import { getDegree, resolveTest } from '../../play/test'
 import { sink } from './swim'
 
@@ -28,12 +32,28 @@ export function holdRoll(id: string, kind: HeldKind, roll: HeldRoll, DL: number)
 }
 
 // A held test rolled for the call the round made: as the player decides,
-// normally, safely or riskily.
+// normally, safely or riskily, or riskily while they keep to risky tests. The
+// die and, against a DL, the test move the roller's convictions by their
+// attitudes.
 export function rollHeld(id: string, kind: CalledKind, mode: RollMode, dice: Dice): Updater {
   return (state) => {
     const test = getHeldTest(state, id, kind)
     if (!test || getHeldBar(state, id, kind) || !getHeldModes(state.characters[id], kind).includes(mode)) return state
-    const { die, score, skillTerms } = resolveTest(test, (explodes) => rollModed(mode, explodes, dice))
+    const thrown = getSceneModeOf(state)(id, mode)
+    const { die, degree } = resolveTest(test, (explodes) => rollModed(thrown, explodes, dice))
+    const DL = getHeldDL(state, id, kind)
+    const happened = getThrowHappenings({ mode: thrown, die, explodes: test.explodes, scored: DL === null ? null : { skill: kind, value: test.skill, DL, degree } })
+    return updateCharacter(id, meetEachAttitude(happened), 'conviction attitude')(writeHeld(id, kind, thrown, die)(state))
+  }
+}
+
+// The held test the call the round made came to, with the die thrown for it
+// in the way it was thrown.
+export function writeHeld(id: string, kind: CalledKind, mode: RollMode, die: number): Updater {
+  return (state) => {
+    const test = getHeldTest(state, id, kind)
+    if (!test) return state
+    const { score, skillTerms } = resolveTest(test, () => die)
     return holdRoll(id, kind, { mode, die, skill: test.skill, score, skillTerms }, test.DL)(state)
   }
 }

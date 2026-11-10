@@ -83,6 +83,13 @@ own.
     (`holdForDice`, `play/calls.ts`). Percentiles (breakage, charges, the
     chase's coin) are never called for. `components/utils.tsx` is the one `Math.random` seam; ids come as a
     `newId: () => string` (hooks pass `crypto.randomUUID`).
+    `calling` throws each die the way its roller throws a test (`getSceneModeOf`,
+    `rules/test.ts`: the mode the step picked, else risky while the character keeps to risky
+    tests and an ability lets them throw any test so, `getTestMode`), and once every die is
+    in, each roller meets what their dice came to (`getCallHappenings`: the die's face, and
+    the test's degree where the call was scored). A target's bare die is scored as the action
+    lands, so `land` meets those tests; the morale test and the round's swim call, which are
+    not calls, meet theirs themselves.
 
 11. **An action waits only where someone owes a decision.** The step changes only at a
     commitment (commit, roll or pay, resolve); a step whose only move would be forward is
@@ -383,7 +390,7 @@ app/domain/scene/
 │   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
 │   ├── protect.ts      protecting another: the line, intercept range, who may protect (from where they stand or after a move a defense carries), where a defense can be made from
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
-│   ├── test.ts         isWon and resisted: what a test's degree means for an action
+│   ├── test.ts         isWon and resisted: what a test's degree means for an action; getSceneModeOf, the way each one throws a die
 │   ├── breakage.ts     the blow a block met: what it broke, the dice it needs, the setting's bar
 │   ├── damage.ts       attack deliveries, interruption, HOP options and prices, hooked motion
 │   ├── delivery.ts     a row's damage as it leaves the weapon

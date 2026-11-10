@@ -75,9 +75,13 @@ export function carryOver(state: SceneState, held: RootAction, AP: number): Scen
 // before an equal one.
 function rank(state: SceneState, ids: string[], caller: Caller): Action[] {
   const held = ids.flatMap((id) => getAction(state, id) ?? [])
-  const die = (a: Action) => () => caller.die({ id: `finish:${a.id}`, roller: a.actorId, label: 'cunning, to finish a held action first' }) ?? WAITING
+  const score = (a: Action) => {
+    const callId = `finish:${a.id}`
+    const die = caller.die({ id: callId, roller: a.actorId, label: 'cunning, to finish a held action first' }) ?? WAITING
+    return rollCunning(state, a.actorId, die, caller.calls[callId].mode).score
+  }
   return held
-    .map((a) => ({ a, score: held.length > 1 ? rollCunning(state, a.actorId, die(a)).score : 0 }))
+    .map((a) => ({ a, score: held.length > 1 ? score(a) : 0 }))
     .sort((x, y) => y.score - x.score)
     .map(({ a }, place) => ({ ...a, finishing: place }))
 }

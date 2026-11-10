@@ -112,6 +112,13 @@ export function cunningTrained(c: CampaignCharacter): CampaignCharacter {
   return (['deliberate-2', 'initiative-edge', 'perfect-preparation', 'battle-commands', 'strategist-2', 'prepared', 'reactive-fighting', 'improved-feint'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
+// Adaptation adopted, its attitudes learned, every test it may throw
+// riskily thrown so (abilities.tex "Adaptation").
+export function adapted(c: CampaignCharacter): CampaignCharacter {
+  const adopted = { ...c, risky: true, trainables: { ...c.trainables, conviction2: { ...c.trainables.conviction2, name: 'Adaptation' } } }
+  return grantAbility('adaptive-attitudes')(adopted)
+}
+
 // A brawler with a short sword in the other hand, which intercepts and is
 // bladed.
 export function swordBrawler(id: string): CampaignCharacter {

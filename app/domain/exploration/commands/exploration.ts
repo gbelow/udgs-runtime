@@ -28,8 +28,9 @@ import { takeItems } from '../../campaign/commands/event'
 import { record } from '../../campaign/commands/journal'
 import { without } from '../../utils'
 import { addParty, setPartySequence, updateCampaignMap } from '../../campaign/commands/parties'
-import { updateRosterCharacter } from '../../campaign/commands/roster'
+import { meetCalls, updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
+import { getRosterModeOf } from '../../campaign/rules/roster'
 import { takeDose } from '../../character/commands/consume'
 import { chargeItem, consumeItem } from '../../item/commands/hands'
 import { canFitItem, findCarriedItem, getContainer } from '../../item/rules/containers'
@@ -114,7 +115,7 @@ export function readItem(id: string, itemId: string, thrown: Throw): Exploration
     const learning = item?.learning
     if (!item || !learning) return t
     const partyId = t.campaign.partyOf[id] ?? null
-    const caller = makeCaller(t.exploration.calls, thrown)
+    const caller = makeCaller(t.exploration.calls, thrown, getRosterModeOf(t.campaign))
     const result = caller.test({ id: `read:${id}:${itemId}`, roller: id, label: `${item.name}: ${getSkillName(learning.test)}`, test: getSkillTest(learning.test, learning.DL)(c) })
     if (!result) return { ...t, exploration: { ...t.exploration, calls: caller.calls, running: { kind: 'read', party: partyId ?? '', reader: id, item: itemId } } }
     const roll = toCallRoll(result)
@@ -122,7 +123,7 @@ export function readItem(id: string, itemId: string, thrown: Throw): Exploration
     const campaign = record({
       kind: 'et', party: partyId, title: `${getRosterName(t.campaign, id)} read ${item.name}`,
       lines: [`${describeRoll(roll)} — ${describeLearned(name, held, level)}`],
-    })(updateRosterCharacter(id, raiseSpecificKnowledge(name, level))(t.campaign))
+    })(updateRosterCharacter(id, raiseSpecificKnowledge(name, level))(meetCalls(caller.calls)(t.campaign)))
     return { campaign, exploration: { ...t.exploration, calls: {}, running: null } }
   }
 }
@@ -743,13 +744,13 @@ function openedET(t: Exploring, caller: Caller): { open: Exploring; ready: boole
 export function resolvePlan(partyId: string, groupId: string, thrown: Throw, newId: () => string): ExplorationUpdater {
   return (t) => {
     if (getResolveBar(t, partyId, groupId)) return t
-    const caller = makeCaller(t.exploration.calls, thrown)
+    const caller = makeCaller(t.exploration.calls, thrown, getRosterModeOf(t.campaign))
     const waiting = (s: Exploring): Exploring => ({ ...s, exploration: { ...s.exploration, calls: caller.calls, running: { kind: 'plan', party: partyId, group: groupId } } })
     const { open, ready } = openedET(t, caller)
     if (!ready) return waiting(open)
     const resolved = resolveGroup(open, partyId, groupId, caller.test, caller.dice, newId)
     if (caller.waiting()) return waiting(open)
-    return { ...resolved, exploration: { ...resolved.exploration, calls: {}, running: null } }
+    return { campaign: meetCalls(caller.calls)(resolved.campaign), exploration: { ...resolved.exploration, calls: {}, running: null } }
   }
 }
 
@@ -764,7 +765,7 @@ export function resolvePlan(partyId: string, groupId: string, thrown: Throw, new
 export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
   return (t) => {
     if (getPassBar(t)) return t
-    const caller = makeCaller(t.exploration.calls, thrown)
+    const caller = makeCaller(t.exploration.calls, thrown, getRosterModeOf(t.campaign))
     const waiting = (s: Exploring): Exploring => ({ ...s, exploration: { ...s.exploration, calls: caller.calls, running: null } })
     const { open, ready } = openedET(t, caller)
     if (!ready) return waiting(open)
@@ -778,7 +779,7 @@ export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
       const next = resolveGroup(s, plan.party, plan.group, caller.test, caller.dice, newId)
       if (caller.waiting()) return waiting(s)
       s = next
-      if (s.exploration.pending) return { ...s, exploration: { ...s.exploration, calls: {}, running: null } }
+      if (s.exploration.pending) return { campaign: meetCalls(caller.calls)(s.campaign), exploration: { ...s.exploration, calls: {}, running: null } }
     }
     const played = getPlayingParties(s.campaign, 'exploration').reduce<Played & { t: Exploring }>((acc, partyId) => {
       const clock = acc.t.campaign.parties[partyId]?.clock ?? null
@@ -795,7 +796,7 @@ export function passET(thrown: Throw, newId: () => string): ExplorationUpdater {
     }, { t: s, results: [], castResults: [], stayResults: [] })
     if (caller.waiting()) return waiting(s)
     const { results, castResults, stayResults } = played
-    return closeET(played.t, opening, { results, castResults, stayResults })
+    return closeET({ ...played.t, campaign: meetCalls(caller.calls)(played.t.campaign) }, opening, { results, castResults, stayResults })
   }
 }
 

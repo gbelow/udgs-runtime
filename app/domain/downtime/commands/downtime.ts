@@ -16,6 +16,8 @@ import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
 import { record } from '../../campaign/commands/journal'
 import { setPartySequence } from '../../campaign/commands/parties'
+import { meetCalls } from '../../campaign/commands/roster'
+import { getRosterModeOf } from '../../campaign/rules/roster'
 import { ETS_PER_DAY, describeSpan, getClockOf, getPlayingParties } from '../../campaign/rules/clock'
 import {
   getBlockDays, getBlockSettlement, getDoctorHealing, getDowntimeBar, getDowntimeCharacters, getDowntimeHealing, getJobTraining,
@@ -153,7 +155,7 @@ export function passDays(days: number, thrown: Throw = toTable(() => 0)): Downti
   return (t) => {
     if (getDowntimeBar(t, days)) return t
     const ids = getDowntimeCharacters(t.campaign)
-    const caller = makeCaller(t.downtime.calls, thrown)
+    const caller = makeCaller(t.downtime.calls, thrown, getRosterModeOf(t.campaign))
     const lived = ids.map((id) => ({ id, ...liveDays(t, id, days, caller.test) }))
     if (getOpenCalls(caller.calls).length > 0) return { ...t, downtime: { ...t.downtime, calls: caller.calls, passing: days } }
     const characters = { ...t.campaign.characters, ...Object.fromEntries(lived.map(({ id, c }) => [id, c])) }
@@ -162,7 +164,7 @@ export function passDays(days: number, thrown: Throw = toTable(() => 0)): Downti
     const recorded = playing.reduce<CampaignState>((campaign, partyId) => record({
       kind: 'days', party: partyId, title: `${describeSpan(days * ETS_PER_DAY)} of downtime`,
       lines: getDowntimeResultLines((byParty.get(partyId) ?? []).flatMap((l) => l.results)),
-    })(campaign), { ...t.campaign, characters })
+    })(campaign), meetCalls(caller.calls)({ ...t.campaign, characters }))
     const moved = passETs(days * ETS_PER_DAY, playing)(recorded)
     const fedAll = { ...moved, characters: { ...moved.characters, ...Object.fromEntries(ids.map((id) => [id, fed(moved.characters[id])])) } }
     const plans = Object.fromEntries(lived.map(({ id, plan }) => [id, { ...plan, at: getClockOf(fedAll, id) ?? 0 }]))

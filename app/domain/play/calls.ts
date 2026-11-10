@@ -47,14 +47,25 @@ export const toTable = (dice: Dice): Thrower => ({ dice, answer: () => null })
 export type DieSpec = { id: string; roller: string; label: string; explodes?: boolean; mode?: RollMode }
 export type CallSpec = Omit<DieSpec, 'explodes'> & { test: Test }
 
-// What a test called for came to.
-export type CallResult = TestResult & { source: DieSource }
+// What a test called for came to, and the way its die was thrown.
+export type CallResult = TestResult & { source: DieSource; mode: RollMode }
+
+// play.tex "Safe and risky tests": the way the roller throws a die, given the
+// way the step asks for (`picked`). Each part of play says it of its own
+// characters; without it, the die is thrown as asked.
+export type ModeOf = (roller: string, picked: RollMode) => RollMode
 
 const toCalled = (t: Test): NonNullable<DieCall['test']> =>
   ({ skill: t.skill, DL: t.DL, scale: t.scale, grazes: t.scale === 'overflow' ? t.grazes : false })
 
 const toTest = (t: NonNullable<DieCall['test']>, explodes: boolean): Test =>
   t.scale === 'overflow' ? { skill: t.skill, DL: t.DL, explodes, scale: 'overflow', grazes: t.grazes } : { skill: t.skill, DL: t.DL, explodes, scale: 'degrees' }
+
+// What an answered call's test came to; null for a bare die, or one not in.
+export function getCallResult(call: DieCall): TestResult | null {
+  const { die, test } = call
+  return die === null || !test ? null : resolveTest(toTest(test, call.explodes), () => die)
+}
 
 const sameCall = (a: DieCall, b: DieCall): boolean =>
   a.roller === b.roller && a.mode === b.mode && a.explodes === b.explodes && JSON.stringify(a.test) === JSON.stringify(b.test)
@@ -63,8 +74,9 @@ const sameCall = (a: DieCall, b: DieCall): boolean =>
 // for is the one answered, or null while it waits on the table. The calls the
 // step made, answered or not, are in `calls` afterwards, and none it did not
 // make; a call whose test has changed since it was answered (a new roller,
-// another DL) is called again, since its die answered another test.
-export function makeCaller(made: Calls, thrown: Throw) {
+// another DL) is called again, since its die answered another test. Each die
+// is thrown the way `modeOf` says its roller throws it.
+export function makeCaller(made: Calls, thrown: Throw, modeOf: ModeOf = (_roller, picked) => picked) {
   const { dice, answer } = toThrower(thrown)
   const calls: Calls = {}
   const call = (fresh: DieCall): DieCall => {
@@ -73,13 +85,14 @@ export function makeCaller(made: Calls, thrown: Throw) {
     return { ...fresh, die: answer(fresh) }
   }
   const die = (spec: DieSpec, test: Test | null = null): number | null => {
-    const kept = call({ id: spec.id, roller: spec.roller, label: spec.label, explodes: spec.explodes ?? false, mode: spec.mode ?? 'normal', test: test && toCalled(test), die: null, source: 'screen' })
+    const mode = modeOf(spec.roller, spec.mode ?? 'normal')
+    const kept = call({ id: spec.id, roller: spec.roller, label: spec.label, explodes: spec.explodes ?? false, mode, test: test && toCalled(test), die: null, source: 'screen' })
     calls[spec.id] = kept
     return kept.die
   }
   const test = (spec: CallSpec): CallResult | null => {
     const thrownDie = die({ ...spec, explodes: spec.test.explodes }, spec.test)
-    return thrownDie === null ? null : { ...resolveTest(spec.test, () => thrownDie), source: calls[spec.id].source }
+    return thrownDie === null ? null : { ...resolveTest(spec.test, () => thrownDie), source: calls[spec.id].source, mode: calls[spec.id].mode }
   }
   const waiting = () => getOpenCalls(calls).length > 0
   return { die, test, dice, calls, waiting }

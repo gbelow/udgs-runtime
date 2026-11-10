@@ -123,7 +123,7 @@ click to what stands afterwards. It is admitted, under these terms.
   It checks that two paths agree, not that either is right.
 - **A fuzzer for breadth.** `board.fuzz.test.ts` presses everything there is to press, in
   seeded random order: every click, every panel command, terrain painted by brush, the
-  board's light switched. After each
+  board's light switched, a character's risky tests switched on or off. After each
   press it asserts what the architecture promises of any session and nothing about a rule's
   output: nothing throws, the state is one the schema accepts and storage round-trips, the
   active and in-turn characters are in the fight, no two standing footprints share a cell, the board
@@ -141,7 +141,7 @@ click to what stands afterwards. It is admitted, under these terms.
   Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, archers across a pane of glass that breaks, an
   archer trained to jump and shoot beside a brawler a warden threatens from the other side, a spearman, a trained warden with spear and shield, one trained in cunning as well, one with a body shield, a mage who is a Battle Mage, a bomber with a potion, a netter, a brawler whose three cells bend behind its head, a bleeding medic) and a crowd of
   seven on ground with a pond and a cliff painted on it, once in the open and once with walls,
-  glass, fog, dim and dark ground between them, a torch in one hand and the warden's
+  glass, fog, dim and dark ground between them, an archer who keeps to risky tests, a torch in one hand and the warden's
   shield a body shield, so that some begin out of the others' sight and stealth has someone to hide. In an exchange one declares something
   leaning to a grapple, a push, a shot, a throw or a spell, the others are answered with whatever
   defences are offered, and the roll runs on to its end, aiming what it opens. A walk, swim, climb

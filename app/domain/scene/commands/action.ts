@@ -381,9 +381,11 @@ export function rollAction(thrown: Throw, newId: () => string): Updater {
 }
 
 // A test called for in the exchange, or, while its die waits, what it would
-// come to on nothing.
+// come to on nothing. Its die is its actor's, but a spell test's, which is its
+// target's (spells.tex "Telepathic Link").
 function testFor(caller: Caller, action: Action, test: Test, label: string, mode: RollMode = 'normal', id = `roll:${action.id}`) {
-  return caller.test({ id, roller: action.actorId, label, test, mode }) ?? { ...resolveTest(test, () => WAITING), source: 'screen' as const }
+  const roller = action.kind === 'spellTest' ? action.targetId ?? action.actorId : action.actorId
+  return caller.test({ id, roller, label, test, mode }) ?? { ...resolveTest(test, () => WAITING), source: 'screen' as const, mode }
 }
 
 function rollWith(caller: Caller, newId: () => string): Updater {
@@ -403,7 +405,8 @@ function rollWith(caller: Caller, newId: () => string): Updater {
     const own = open.kind !== 'move' || needsOwnDie(state, open)
     const test = rootTest && own ? testFor(caller, open, rootTest, open.kind, mode) : null
     if (!test && own && ACTIONS[open.kind].die) return state
-    const thrown = withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice)
+    const moded = test && (open.kind === 'move' || open.kind === 'spellTest') ? { ...open, mode: test.mode } : open
+    const thrown = withArmorRolls(state, withPercentileRolls(state, test ? { ...moded, roll: test } : moded, dice), dice)
     const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, { ...thrown, test: test ? getMoveTest(state, open) : null }) : thrown
     return payAll(state, rolled, newId, caller, (a) => (a.id !== open.id && ACTIONS[a.kind].die && !answersByDetection(state, a) ? { ...a, roll: testFor(caller, a, getReactionTest(state, open, a), a.kind) } : a))
   }

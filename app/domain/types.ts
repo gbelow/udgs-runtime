@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, CREATURE_CATEGORIES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TEMPERAMENT_CONVICTIONS, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WORLDVIEW_CONVICTIONS, WOUND_EFFECTS } from './lists'
+import { ROLL_MODES } from './play/dice'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, SURGE_ALLOWANCES, ShotKind, type SurgeAllowance } from './tables'
 
 const num = z.number()
@@ -1273,8 +1274,11 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 
 // abilities.tex "Promoted Attitudes", "Prohibited Attitudes": what moves a
 // conviction's XP in play, as data, read by character/rules/attitudes.ts.
-// `test`: the holder's test of `skill` came to one of `degrees` (any when
-// empty) against a DL at least `DLOverSkill` above that skill. `limitStress`:
+// `test`: the holder's test of `skill` (any skill for 'any'), thrown in one
+// of `modes`, came to one of `degrees` (any when empty), against a DL at
+// least `DLOverSkill` above that skill where one is given. `die`: a die the holder threw for a
+// test, in one of `modes`, showed one of `faces` (any when empty; a 9 that
+// explodes showed a 9). `limitStress`:
 // the holder's limit stress action was activated. `preparedCrit`: an action
 // the holder prepared crit. `unpreparedTurn`: the holder's turn ended with
 // nothing prepared in it, and nothing held through the round. `enragedRound`:
@@ -1283,9 +1287,15 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('test'),
-    skill: z.enum(['will']).default('will'),
+    skill: z.enum([...SkillKeySchema.options, 'any']).default('any'),
+    modes: z.array(z.enum(ROLL_MODES)).default([]),
     degrees: z.array(DegreeSchema).default([]),
-    DLOverSkill: num.default(0),
+    DLOverSkill: num.nullable().default(null),
+  }).strip(),
+  z.object({
+    event: z.literal('die'),
+    modes: z.array(z.enum(ROLL_MODES)).default([]),
+    faces: z.array(num).default([]),
   }).strip(),
   z.object({ event: z.literal('limitStress') }).strip(),
   z.object({ event: z.literal('preparedCrit') }).strip(),
@@ -1305,12 +1315,15 @@ export const AttitudeSchema = z.object({
 }).strip()
 export type Attitude = z.infer<typeof AttitudeSchema>
 
-// abilities.json "Cunning Studies": the abilities of `section` the XP of
-// `conviction` may train, the XP counting for the conviction as well.
-export const StudySchema = z.object({
-  section: str.default(''),
-  conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]),
-}).strip()
+// What the XP of `conviction` may train, the XP counting for the conviction
+// as well: the abilities of `section` (abilities.json "Cunning Studies"), or
+// anything priced in XP, priced as if each talent were `talent` higher
+// (abilities.tex "Adaptive Learning": "considering the character's talent
+// +1").
+export const StudySchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('section'), section: str.default(''), conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]) }).strip(),
+  z.object({ kind: z.literal('any'), talent: num.default(1), conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]) }).strip(),
+])
 export type Study = z.infer<typeof StudySchema>
 
 // What one level of an ability states for itself: its price, what it asks
@@ -1581,6 +1594,9 @@ const CampaignValues = {
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),
   usedSurge: SurgeKindSchema.nullable().default(null),
+  // play.tex "Safe and risky tests": the character throws every test they
+  // may throw riskily in a risky manner, until they say otherwise
+  risky: z.boolean().default(false),
   // combat.tex "Action surge": the AP held before a movement or combat surge
   // was made; what stands above it is the surge's AP, spent first and only on
   // what that surge allows. Null when no such surge is in force.
