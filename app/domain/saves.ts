@@ -6,6 +6,7 @@ import { DowntimeStateSchema, type DowntimeState } from './downtime/types'
 import { SceneStateSchema, type SceneState } from './scene/types'
 import { isFromRoster } from './scene/rules/fight'
 import { nameByParty } from './campaign/commands/names'
+import { makeCampaignCharacter } from './factories'
 import { CampaignMembersSchema, CharacterOwnersSchema, type CampaignMembers, type CharacterOwners } from './profiles'
 
 // A campaign as it is saved: who plays it, its own record, what exploration
@@ -108,7 +109,8 @@ export function toFileInfo(from: CampaignFileInfo): CampaignFileInfo {
 // the saved fight stays in it, and whoever the campaign sent to a fight that
 // did not come back is on the roster again. One that was not found is out of
 // every party and goes by no name, and one on a timeline the save has no name
-// for is named (`nameByParty`).
+// for is named (`nameByParty`). The fight's characters are read the way the
+// campaign's are.
 export function fromCampaignSave(save: CampaignSave, characters: readonly CampaignCharacter[]): CampaignInPlay {
   const fighting = (id: string) => id in save.fight.characters
   const found = Object.fromEntries(characters.filter((c) => save.characterIds.includes(c.id) && !fighting(c.id)).map((c) => [c.id, c]))
@@ -119,7 +121,7 @@ export function fromCampaignSave(save: CampaignSave, characters: readonly Campai
     campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, partyOf, names, lent: save.campaign.lent.filter(fighting) }),
     exploration: save.exploration,
     downtime: save.downtime,
-    fight: save.fight,
+    fight: { ...save.fight, characters: Object.fromEntries(Object.entries(save.fight.characters).map(([id, c]) => [id, makeCampaignCharacter(c)])) },
   }
 }
 

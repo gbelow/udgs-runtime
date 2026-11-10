@@ -151,13 +151,16 @@ export function makeRaceHolder(raw: unknown = {}): BaseCharacter {
 // say — its wounds, its penalty, its flags — is the book's; a cell that does
 // not parse spreads it over the whole body, a flag no longer known is dropped,
 // a part that does not parse is dropped, and a body left without a chest is
-// given one.
+// given one. A wound is read the same way over the row's wound of its name,
+// so a field it was saved without is the book's too.
 function readBody(raw: Record<string, unknown>[]): BodyPart[] {
   return BodySchema.parse(raw.flatMap((entry) => {
     const kind = HitLocationSchema.safeParse(entry.location)
     const cell = CoordSchema.safeParse(entry.cell)
+    const preset = presetPart(kind.success ? kind.data : 'chest')
     const flags = Array.isArray(entry.flags) ? { flags: entry.flags.filter((f) => PartFlagSchema.safeParse(f).success) } : {}
-    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry, ...flags, cell: cell.success ? cell.data : null })
+    const wounds = Array.isArray(entry.wounds) ? { wounds: entry.wounds.map((w) => (typeof w === 'object' && w !== null ? { ...preset.wounds.find((p) => p.name === (w as { name?: unknown }).name), ...w } : w)) } : {}
+    const part = BodyPartSchema.safeParse({ ...preset, ...entry, ...flags, ...wounds, cell: cell.success ? cell.data : null })
     return part.success ? [part.data] : []
   }))
 }
