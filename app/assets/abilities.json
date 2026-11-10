@@ -3852,7 +3852,7 @@
     "section": "Fatalism",
     "activation": "passive",
     "cost": {
-      "AP": 0,
+      "AP": 1,
       "STA": 0,
       "exhaustion": 0,
       "IL": 0,
@@ -3888,7 +3888,9 @@
         "description": "The character can spend 1 AP to reroll a will test once. The reroll must be taken.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "fateful"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -4041,7 +4043,18 @@
           ]
         ],
         "description": "The character ignores the effect of tiredness.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "affliction:tired",
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
@@ -4074,7 +4087,18 @@
           ]
         ],
         "description": "Ignores the effect of exhaustion.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "affliction:exhausted",
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
@@ -4124,7 +4148,14 @@
         ],
         "description": "The character gains +1 to all skills in any turn when the morale test aggravating factors are equal or higher than 5.",
         "effect": [],
-        "recipes": [],
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "underPressure",
+            "tests": "all",
+            "hit": 1
+          }
+        ],
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
@@ -4174,7 +4205,9 @@
         "description": "The character has no limit action.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "unshakable"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

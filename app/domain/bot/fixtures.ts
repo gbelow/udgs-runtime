@@ -127,6 +127,14 @@ export function ferocious(c: CampaignCharacter): CampaignCharacter {
   return (['hype-up', 'furious', 'brutality'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
 }
 
+// Fatalism adopted and its abilities learned: a morale test left open for a
+// reroll, no limit stress action, and +1 to every test under pressure
+// (abilities.tex "Fatalism").
+export function fatalist(c: CampaignCharacter): CampaignCharacter {
+  const adopted = { ...c, trainables: { ...c.trainables, conviction1: { ...c.trainables.conviction1, name: 'Fatalism' } } }
+  return (['fateful', 'unshakable', 'grace-under-pressure', 'unwearied-2'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
+}
+
 // A brawler with a short sword in the other hand, which intercepts and is
 // bladed.
 export function swordBrawler(id: string): CampaignCharacter {

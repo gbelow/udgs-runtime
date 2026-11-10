@@ -7,7 +7,8 @@ import { getWill } from '../../character/rules/skills'
 import { getConvictionLevel } from '../../character/rules/requirements'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getDegree, type Test } from '../../play/test'
-import { getBuffBonus, getRollModes, hasGrant } from '../../character/rules/effects'
+import { getBuffBonus, getGrantingAbility, getRollModes, hasGrant } from '../../character/rules/effects'
+import { ABILITIES } from '../../abilities'
 import type { RollMode } from '../../play/dice'
 import { getFightName } from './fighters'
 import { getSituationalAfflictions, isImmobile } from './situational'
@@ -87,6 +88,12 @@ export function getMoraleDL(state: SceneState, id: string): number {
   return getMoraleDLOf(getAggravators(state, id))
 }
 
+// What the aggravating factors weighing on the character come to, a rally
+// left out: it lowers the DL, not what weighs on them.
+export function getPressingFactors(state: SceneState, id: string): number {
+  return sumTerms(getAggravators(state, id).filter((t) => t.value > 0))
+}
+
 // combat.tex "Combat morale test": a will test against the DL, which "can be
 // done normally, safely or riskily"; the die does not explode (the table's
 // ruling).
@@ -113,7 +120,7 @@ export function getMoraleCalled(state: SceneState): string[] {
   return Object.keys(state.characters).filter((id) => {
     if (!canTestMorale(state, id)) return false
     const afflictions = getAfflictions(state.characters[id], getSituationalAfflictions(state, id))
-    const stressed = sumTerms(getAggravators(state, id).filter((t) => t.value > 0)) >= MORALE_TRIGGER
+    const stressed = getPressingFactors(state, id) >= MORALE_TRIGGER
     return stressed || getPressure(state, id).hostile !== null || MORALE_AFFLICTIONS.some((key) => afflictions.includes(key))
   })
 }
@@ -147,9 +154,10 @@ export function getMoraleBar(state: SceneState, id: string): string | null {
   return call.roll ? 'already tested this round' : null
 }
 
-// Why a turn waits on the morale tests, or null.
+// Why a turn waits on the morale tests, or null: a test not yet made, or
+// made and left open for a reroll (abilities.tex "Fateful").
 export function getMoraleTurnBar(state: SceneState): string | null {
-  const pending = state.morale.filter((call) => call.roll === null && state.characters[call.id] && !isDead(state.characters[call.id])).map((call) => call.id)
+  const pending = state.morale.filter((call) => (call.roll === null || call.roll.open) && state.characters[call.id] && !isDead(state.characters[call.id])).map((call) => call.id)
   return pending.length > 0 ? `waiting for ${pending.map((id) => getFightName(state, id)).join(', ')} to test morale` : null
 }
 
@@ -166,12 +174,47 @@ export type MoraleOutcome = { cure: AfflictionKey[]; inflict: AfflictionKey[]; l
 // abilities.tex "Furious": the character "becomes enraged when they graze on
 // a morale test, and only calm down on a crit"; a miss still leaves them
 // afraid (the table's ruling).
+// abilities.tex "Unshakable": "The character has no limit stress action": a
+// miss leaves them afraid as a graze does, and activates nothing, from a
+// morale test or a spell's (the table's ruling).
 export function getMoraleOutcome(c: CampaignCharacter | undefined, degree: Degree, compulsion: Degree, enemyNear: boolean, taunted: boolean): MoraleOutcome {
   const furious = c !== undefined && hasGrant(c, 'furious')
   if (degree === 'critical') return { cure: [...MORALE_AFFLICTIONS], inflict: [], limitStress: false }
   if (degree === 'hit') return { cure: furious && hasAffliction(c, 'enraged') ? MORALE_AFFLICTIONS.filter((key) => key !== 'enraged') : [...MORALE_AFFLICTIONS], inflict: [], limitStress: false }
   const [inflict, cure]: AfflictionKey[] = taunted || (furious && degree === 'graze') ? ['enraged', 'afraid'] : ['afraid', 'enraged']
-  return { cure: [cure], inflict: [inflict], limitStress: compulsion === 'miss' && enemyNear }
+  const unshakable = c !== undefined && hasGrant(c, 'unshakable')
+  return { cure: [cure], inflict: [inflict], limitStress: compulsion === 'miss' && enemyNear && !unshakable }
+}
+
+// abilities.tex "Fateful": "The character can spend 1 AP to reroll a will
+// test once. The reroll must be taken": the morale test, thrown again the
+// way it was, priced as the catalog prices Fateful. A test below a crit by
+// one who has learned it and can pay is left open until they reroll it or
+// keep it; null for one who has not learned it.
+export function getFatefulAP(c: CampaignCharacter | undefined): number | null {
+  const key = c ? getGrantingAbility(c, 'fateful') : null
+  return key ? ABILITIES[key].cost.AP : null
+}
+
+export function isLeftOpen(c: CampaignCharacter | undefined, degree: Degree): boolean {
+  const AP = getFatefulAP(c)
+  return c !== undefined && AP !== null && degree !== 'critical' && c.resources.AP >= AP
+}
+
+// Why the character cannot reroll their morale test now, or null.
+export function getFatefulBar(state: SceneState, id: string): string | null {
+  const c = state.characters[id]
+  const roll = state.morale.find((m) => m.id === id)?.roll
+  const AP = getFatefulAP(c)
+  if (!c || AP === null) return 'has not learned Fateful'
+  if (!roll) return 'no morale test made'
+  if (!roll.open) return roll.rerolled ? 'already rerolled' : 'the morale test is settled'
+  return c.resources.AP < AP ? 'not enough AP' : null
+}
+
+// Why the character cannot keep the morale test they left open, or null.
+export function getKeepMoraleBar(state: SceneState, id: string): string | null {
+  return state.morale.find((m) => m.id === id)?.roll?.open ? null : 'no morale test left open'
 }
 
 // abilities.tex "Hype up": "The character can enrage themselves on a hit or
@@ -183,6 +226,7 @@ export function getHypeUpBar(state: SceneState, id: string): string | null {
   const roll = state.morale.find((m) => m.id === id)?.roll
   if (!c || !hasGrant(c, 'hypeUp')) return 'has not learned Hype up'
   if (!roll) return 'no morale test made'
+  if (roll.open) return 'the morale test is not settled'
   if (state.roundStep !== 'morale') return 'the morale tests are over'
   if (roll.degree !== 'hit' && roll.degree !== 'critical') return 'the morale test was not a hit'
   if (roll.hyped || hasAffliction(c, 'enraged')) return 'already enraged'

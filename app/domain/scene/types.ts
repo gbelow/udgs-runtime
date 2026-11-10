@@ -1660,6 +1660,13 @@ export const MoraleRollSchema = z.object({
   resisted: z.number().default(0),
   limitStress: z.boolean(),
   hyped: z.boolean().default(false),
+  // abilities.tex "Fateful": the test is shown but not yet settled, waiting
+  // on whether it is rerolled (`open`), and whether it is the reroll
+  open: z.boolean().default(false),
+  rerolled: z.boolean().default(false),
+  // whether an enemy is within 30 m, as the table told it when the test was
+  // thrown, for the settling of a test left open
+  enemyNear: z.boolean().default(true),
 })
 // abilities.json "Hype Up": a call the character was not made to answer, but
 // may (`optional`), thrown or skipped.

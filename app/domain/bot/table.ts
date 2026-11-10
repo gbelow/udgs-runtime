@@ -55,6 +55,8 @@ function chooseConcentration(state: SceneState, plays: (id: string) => boolean):
 }
 
 function testMorale(state: SceneState, plays: (id: string) => boolean): SceneCommand | null {
+  const open = state.morale.find((m) => m.roll?.open && state.characters[m.id] && plays(m.id))
+  if (open) return { kind: 'keepMorale', args: [open.id] }
   const untested = state.morale.find((m) => m.roll === null && state.characters[m.id] && plays(m.id))
   if (!untested) return null
   return untested.optional ? { kind: 'skipMorale', args: [untested.id] } : { kind: 'rollMorale', args: [untested.id, 'normal', true] }

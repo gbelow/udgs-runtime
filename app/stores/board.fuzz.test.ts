@@ -22,7 +22,7 @@ import { declareAction, declareReaction, payAnswered, rollAnswered } from '../do
 import { isAimed, type MenuAim } from '../domain/scene/commands/clickMenu'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, type RoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES } from '../domain/play/dice'
-import { getMoraleModes } from '../domain/scene/rules/morale'
+import { getFatefulBar, getMoraleModes } from '../domain/scene/rules/morale'
 import { getChasePanel } from '../domain/scene/projections/chase'
 import { getFollowPanel } from '../domain/scene/projections/parked'
 import { getBackToChaseBar, getChaseIntentBar, getDeclareBar, getDeclareOrder, getStartCaught } from '../domain/scene/rules/chase'
@@ -35,7 +35,7 @@ import { hasGrant } from '../domain/character/rules/effects'
 import { hasAbility } from '../domain/abilities'
 import { getCombinedMoves } from '../domain/scene/rules/combinedMove'
 import { getDeclaredCarriedMoves } from '../domain/scene/rules/carriedMove'
-import { adapted, archer, ferocious, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
+import { adapted, archer, fatalist, ferocious, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
@@ -714,6 +714,13 @@ function roundChangePlays(): Play[] {
     {
       name: 'test morale',
       run: (h, pick) => {
+        const open = h.state().morale.filter((m) => m.roll?.open && h.state().characters[m.id])
+        if (open.length) {
+          const id = pick(open).id
+          if (pick([true, false])) refused(h, getFatefulBar(h.state(), id), () => h.send({ kind: 'rerollMorale', args: [id] }), 'rerolling morale')
+          else h.send({ kind: 'keepMorale', args: [id] })
+          return
+        }
         const owed = h.state().morale.filter((m) => m.roll === null && h.state().characters[m.id])
         if (!owed.length) return
         const call = pick(owed)
@@ -747,7 +754,9 @@ function stepRoundChange(h: Harness, pick: Picker, until: RoundPhase | null = nu
     const s = h.state()
     const owed = getConcentrationOwed(s)
     const untested = s.morale.find((m) => m.roll === null && s.characters[m.id])
-    if (owed.length) {
+    const open = s.morale.find((m) => m.roll?.open && s.characters[m.id])
+    if (open) h.send({ kind: !getFatefulBar(s, open.id) && pick([true, false]) ? 'rerollMorale' : 'keepMorale', args: [open.id] })
+    else if (owed.length) {
       const id = pick(owed)
       h.send({ kind: getHoldOnBar(s, id) || pick([true, false]) ? 'letGo' : 'holdOn', args: [id] })
     } else if (untested?.optional && pick([true, false])) h.send({ kind: 'skipMorale', args: [untested.id] })
@@ -1138,7 +1147,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann')), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), adapted(archer('Fay')), ferocious(walls.length ? torchbearer('Gus') : brawler('Gus')))
+  h.bring(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann')), fatalist(bomber('Bob')), netter('Cy'), mage('Dee'), archer('Eve'), adapted(archer('Fay')), ferocious(walls.length ? torchbearer('Gus') : brawler('Gus')))
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)

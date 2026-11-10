@@ -342,7 +342,7 @@ app/domain/scene/
 │   ├── hold.ts         actions held over to the next round: holdOver (the commit), giveUpHeld (a reaction gives it up), breakHeld (an interruption breaks it), finishHeld (the round change: who finishes and the cunning order), carryOver (holding on), releaseNextHeld (taken up at `react` once nothing is open; called by `advance`)
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
-│   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves; skipMorale: an optional call passed up; hypeUp
+│   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves (settled at once, or left open for Fateful's rerollMorale / keepMorale); skipMorale: an optional call passed up; hypeUp
 │   ├── heldTest.ts     held tests: rollHeld answers a round's call; holdRoll writes a roll down and lets its effect work; holdThrown makes the die of a held test thrown as an action's (a swim test, a climb, a balance test) the round's (called by applyPhase at the roll); dropFallenBalance (at the resolve)
 │   ├── swim.ts         sink, sinkInArmor: the swimmer goes deeper, no deeper than the floor
 │   ├── social.ts       landSocial: what a landed `social` or `taunt` leaves (called by `land`'s `landOnTable`, beside the feint's and the spell test's) — the pressure written to `state.pressure`, the surrender flag in `state.surrendered`, an abusive's insult or a traitor's negotiation marked done; defaultToCoward (the GM's)
@@ -402,7 +402,7 @@ app/domain/scene/
 │   ├── approach.ts     how a mover's way brings them to someone: distances along it, the step that first comes within a range
 │   ├── prepared.ts     prepared reactions: what is prepared in the round, its zone and triggers (a move's, and an attack's for a defense made for an ally), what a fired one opened, a defense's reposition, cancelling and no chaining; who may be commanded (`getCommandBar`) and Prepared's discount
 │   ├── performer.ts    getPerformerId: who makes a prepared action, its preparer or the one it was commanded for (abilities.json "Battle Commands")
-│   ├── cunning.ts      the Cunning abilities on the fight: Deliberate, Initiative Edge (the turn's contest, `lastContest`) and Improved Feint (the provoked turn, `forcedBy`) on a test, Strategist's free preparation, Perfect Preparation's AP back
+│   ├── cunning.ts      the Cunning abilities on the fight: Deliberate, Initiative Edge (the turn's contest, `lastContest`), Improved Feint (the provoked turn, `forcedBy`) and Fatalism's Grace Under Pressure (the aggravating factors as they stand) on a test, Strategist's free preparation, Perfect Preparation's AP back
 │   ├── fall.ts         a fall: its DL and test terms, the landing's ground (the damage per degree is `character/rules/fall.ts`, shared with the `fall` effect)
 │   ├── impose.ts       the GM's test: the draft the form fills, the delivery it makes (a fall is tested on Balance against its height's DL, its degree read directly), why nothing can be laid on now
 │   ├── reactionMoves.ts the moves evasion, follow, explosion reflexes and an evade open
@@ -418,7 +418,7 @@ app/domain/scene/
 │   ├── partners.ts     who is grappled with whom
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
-│   ├── morale.ts       aggravators and the DL (social pressure of the round before included), who a round calls to a test and who it offers one (`getMoraleVolunteers`), the outcome of each degree; `state.morale` holds the calls, and a turn waits on them
+│   ├── morale.ts       aggravators and the DL (social pressure of the round before included), who a round calls to a test and who it offers one (`getMoraleVolunteers`), the outcome of each degree (Unshakable owes no limit stress action), a test left open for a reroll (Fateful); `state.morale` holds the calls, and a turn waits on them and on any test left open
 │   ├── heldRoll.ts     held tests, the reads: a character's roll for the round, the one a move carries (`getMoveHeld`), what bars a roll or the turn
 │   ├── heldTest.ts     held tests, the registry of called kinds (`HELD_DEFS`, typed over `CALLED_TESTS`): who the round calls, the skill terms, the DL of a call, the ways it may be rolled
 │   ├── swim.ts         the water a footprint stands in (surface, floor, DL), depth, the swim test's terms, each metre's degree off the held score, the dive, the prone a swim out of the water ends in

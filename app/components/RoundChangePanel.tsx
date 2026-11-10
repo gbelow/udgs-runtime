@@ -131,7 +131,7 @@ function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | nu
 function MoralePanel(){
   const rows = useMorale()
   const pressure = useTablePressure()
-  const { rollMorale, hypeUp, skipMorale, setTablePressure } = useCombatCommands()
+  const { rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure } = useCombatCommands()
   const [enemyNear, setEnemyNear] = useState(true)
   if (pressure.length === 0) return null
 
@@ -166,6 +166,8 @@ function MoralePanel(){
             <span className='text-xs text-muted'>{r.result}</span>
           }
           {r.skip !== null ? <ActionKey aria-label={`skip morale ${r.name}`} disabled={r.skip !== ''} title={r.skip || undefined} onClick={() => skipMorale(r.id)}>skip</ActionKey> : null}
+          {r.reroll !== null ? <RollButtons name={r.name} options={[{ key: 'reroll', label: 'reroll (Fateful)' }]} blocked={r.reroll || null} onRoll={(_, die) => rerollMorale(r.id, die)} /> : null}
+          {r.reroll !== null ? <ActionKey aria-label={`keep morale ${r.name}`} onClick={() => keepMorale(r.id)}>keep</ActionKey> : null}
           {r.hypeUp !== null ? <ActionKey aria-label={`hype up ${r.name}`} disabled={r.hypeUp !== ''} title={r.hypeUp || undefined} onClick={() => hypeUp(r.id)}>hype up</ActionKey> : null}
           {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}
           {r.owed ? <span className='text-xs text-muted'>{r.owed}</span> : null}

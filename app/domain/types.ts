@@ -1215,10 +1215,11 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   // (scene/rules/cunning.ts). `when`: the holder won the cunning test for
   // the turn against the one the test is against, or feinted them into the
   // turn being played, or the action is one the holder prepared, whoever
-  // makes it; `tests`: every test, or only reactions; `hit`: to the test.
+  // makes it, or the holder makes it while the fight weighs on them;
+  // `tests`: every test, or only reactions; `hit`: to the test.
   z.object({
     type: z.literal('edge'),
-    when: z.enum(['wonCunning', 'feinted', 'prepared']).default('wonCunning'),
+    when: z.enum(['wonCunning', 'feinted', 'prepared', 'underPressure']).default('wonCunning'),
     tests: z.enum(['all', 'reactions']).default('all'),
     hit: num.default(0),
   }).strip(),
@@ -1246,7 +1247,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when

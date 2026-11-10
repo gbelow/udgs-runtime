@@ -52,6 +52,8 @@ export function useCombatCommands() {
   const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => dispatch({ kind: "rollMorale", args: [id, mode, enemyNear, die] })
   const hypeUp = (id: string) => dispatch({ kind: "hypeUp", args: [id] })
   const skipMorale = (id: string) => dispatch({ kind: "skipMorale", args: [id] })
+  const rerollMorale = (id: string, die?: number) => dispatch({ kind: "rerollMorale", args: [id, die] })
+  const keepMorale = (id: string) => dispatch({ kind: "keepMorale", args: [id] })
   const rollHeld = (id: string, kind: CalledKind, mode: RollMode, die?: number) => dispatch({ kind: "rollHeld", args: [id, kind, mode, die] })
   const setTablePressure = (id: string, value: number) => dispatch({ kind: "setTablePressure", args: [id, value] })
   const toggleBreakage = () => sendTable({ kind: "toggleBreakage", args: [] })
@@ -64,5 +66,5 @@ export function useCombatCommands() {
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
   const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
-  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, skipMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
 }

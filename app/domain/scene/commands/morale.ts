@@ -1,8 +1,9 @@
-import type { MoraleRoll, Updater } from '../types'
+import type { MoraleRoll, SceneState, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getCompulsionDegree, getCompulsionResistance, getHypeUpBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey, getSkipMoraleBar } from '../rules/morale'
-import { resolveTest } from '../../play/test'
+import { getCompulsionDegree, getCompulsionResistance, getFatefulAP, getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey, getSkipMoraleBar, isLeftOpen } from '../rules/morale'
+import { resolveTest, type Test } from '../../play/test'
+import { payCost } from '../../character/commands/cost'
 import { updateCharacter } from './characters'
 import { oweStress } from './stress'
 import { meetAttitudes, meetEachAttitude } from '../../character/commands/attitudes'
@@ -11,27 +12,62 @@ import { getSceneModeOf } from '../rules/test'
 
 // combat.tex "Combat morale test": the character's will test against the DL
 // of the moment, thrown in a way their abilities allow (`getMoraleModes`), or
-// riskily while they keep to risky tests. What it
-// leaves them is the outcome's (`getMoraleOutcome`); `enemyNear` is whether
-// an enemy is within 30 m, told by the table. The last test of the round
-// made, the limit stress actions it activated are owed (`oweStress`). The
-// die, the test and an activated limit stress action move the character's
-// convictions by their attitudes (abilities.tex "Fatalism", "Adaptation").
+// riskily while they keep to risky tests; `enemyNear` is whether an enemy is
+// within 30 m, told by the table. A test left open for a reroll
+// (abilities.tex "Fateful", `isLeftOpen`) is shown and settles later;
+// any other settles at once (`settleMorale`).
 export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice: Dice): Updater {
   return (state) => {
     const test = getMoraleTest(state, id)
     if (!test || getMoraleBar(state, id) || !getMoraleModes(state.characters[id]).includes(mode)) return state
     const thrown = getSceneModeOf(state)(id, mode)
     const { die, score, degree } = resolveTest(test, (explodes) => rollModed(thrown, explodes, dice))
-    const resisted = getCompulsionResistance(state.characters[id])
-    const outcome = getMoraleOutcome(state.characters[id], degree, getCompulsionDegree(state.characters[id], score, test.DL), enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
+    const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, score, DL: test.DL, degree, resisted: getCompulsionResistance(state.characters[id]), limitStress: false, hyped: false, open: false, rerolled: false, enemyNear }
+    if (isLeftOpen(state.characters[id], degree)) return withRoll(state, id, { ...roll, open: true })
+    return settleMorale(id, roll)(state)
+  }
+}
+
+// abilities.tex "Fateful": the open test thrown again, the same test the same
+// way, for the AP Fateful costs; the reroll stands, whatever it comes to.
+export function rerollMorale(id: string, dice: Dice): Updater {
+  return (state) => {
+    const roll = state.morale.find((m) => m.id === id)?.roll
+    const AP = getFatefulAP(state.characters[id])
+    if (!roll || AP === null || getFatefulBar(state, id)) return state
+    const test: Test = { skill: roll.skill, DL: roll.DL, explodes: false, scale: 'degrees' }
+    const { die, score, degree } = resolveTest(test, (explodes) => rollModed(roll.mode, explodes, dice))
+    const paid = updateCharacter(id, payCost({ AP, STA: 0 }, true), 'Fateful')(state)
+    return settleMorale(id, { ...roll, die, score, degree, open: false, rerolled: true })(paid)
+  }
+}
+
+// abilities.tex "Fateful": the open test kept as it came.
+export function keepMorale(id: string): Updater {
+  return (state) => {
+    const roll = state.morale.find((m) => m.id === id)?.roll
+    return roll && !getKeepMoraleBar(state, id) ? settleMorale(id, { ...roll, open: false })(state) : state
+  }
+}
+
+const withRoll = (state: SceneState, id: string, roll: MoraleRoll): SceneState =>
+  ({ ...state, morale: state.morale.map((call) => (call.id === id ? { ...call, roll } : call)) })
+
+// What the test leaves the character is the outcome's (`getMoraleOutcome`).
+// The die, the test and an activated limit stress action move the
+// character's convictions by their attitudes (abilities.tex "Fatalism",
+// "Adaptation"). The last test of the round settled, the limit stress
+// actions it activated are owed (`oweStress`).
+function settleMorale(id: string, roll: MoraleRoll): Updater {
+  return (state) => {
+    const c = state.characters[id]
+    const outcome = getMoraleOutcome(c, roll.degree, getCompulsionDegree(c, roll.score, roll.DL), roll.enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
     const settled = [
       updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)), 'morale test'),
-      updateCharacter(id, meetEachAttitude(getThrowHappenings({ mode: thrown, die, explodes: test.explodes, scored: { skill: 'will', value: test.skill, DL: test.DL, degree } })), 'conviction attitude'),
+      updateCharacter(id, meetEachAttitude(getThrowHappenings({ mode: roll.mode, die: roll.die, explodes: false, scored: { skill: 'will', value: roll.skill, DL: roll.DL, degree: roll.degree } })), 'conviction attitude'),
       ...(outcome.limitStress ? [updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')] : []),
     ].reduce((acc, step) => step(acc), state)
-    const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, score, DL: test.DL, degree, resisted, limitStress: outcome.limitStress, hyped: false }
-    const tested = { ...settled, morale: settled.morale.map((call) => (call.id === id ? { ...call, roll } : call)) }
+    const tested = withRoll(settled, id, { ...roll, limitStress: outcome.limitStress })
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)
   }
 }

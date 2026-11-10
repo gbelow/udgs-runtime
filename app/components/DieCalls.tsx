@@ -54,12 +54,12 @@ function DieCallRow({ row, answer }: { row: CallRow, answer: Answer }){
 // rolls their own dice at the table, a field for the die first, which every
 // button then answers with. The screen rolls these for whoever throws in the
 // dice tray.
-export function RollButtons<K extends string>({ options, name, onRoll }: { options: { key: K, label: string }[], name: string, onRoll: (key: K, die?: number) => void }){
+export function RollButtons<K extends string>({ options, name, onRoll, blocked = null }: { options: { key: K, label: string }[], name: string, onRoll: (key: K, die?: number) => void, blocked?: string | null }){
   const manual = useDicePlace() === 'table'
   const dieBar = useDieBar()
   const [die, setDie] = useState('')
   const typed = die.trim() === '' ? null : Number(die)
-  const bar = !manual ? null : typed === null ? 'type the die rolled' : dieBar(typed)
+  const bar = blocked ?? (!manual ? null : typed === null ? 'type the die rolled' : dieBar(typed))
   return(
     <>
       {manual ? <NumberInput className='w-12' aria-label={`die rolled ${name}`} placeholder='die' value={die} onChange={(e) => setDie(e.target.value)} /> : null}

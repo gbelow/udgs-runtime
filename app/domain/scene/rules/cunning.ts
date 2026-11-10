@@ -6,6 +6,7 @@ import { getGrantCount, getLearnedAbilities, hasGrant } from '../../character/ru
 import { getAction, getRootOf } from './log'
 import { getPrepared, getPreparationOf, getPreparationWithin } from './prepared'
 import { getPerformerId } from './performer'
+import { getPressingFactors } from './morale'
 
 // The Cunning abilities (abilities.json, section "Cunning") that work on the
 // fight as it stands: what a test gets, what a preparation costs, and what a
@@ -41,6 +42,10 @@ export function getCunningReactionTerms(state: SceneState, reaction: Action): Te
 // winner (the table's ruling: only a turn won by cunning).
 // "Improved Feint": "After feinting a character successfully, gains +1 in
 // every reaction against them on the provoked turn."
+// abilities.tex "Grace Under Pressure": "+1 to all skills in any turn when
+// the morale test aggravating factors are equal or higher than 5": the
+// actor's, as the fight weighs on them when they test, a rally left out
+// (the table's ruling).
 const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action, againstId: string | null) => CampaignCharacter | null> = {
   prepared: (state, action) => {
     const p = getPreparationOf(state, action)
@@ -57,6 +62,10 @@ const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action
   feinted: (state, action, againstId) => {
     const actor = getAgainst(state, action, againstId)
     return actor && state.forcedBy === actor.id && state.forcedSurge === againstId && state.inTurnCharacter === againstId ? actor : null
+  },
+  underPressure: (state, action) => {
+    const actor = state.characters[action.actorId]
+    return actor && getPressingFactors(state, action.actorId) >= 5 ? actor : null
   },
 }
 
