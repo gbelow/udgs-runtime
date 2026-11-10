@@ -21,7 +21,7 @@ const input = `${inputClass} text-sm w-full`
 type Widget = (props: { value: unknown; onChange: (v: unknown) => void; parent: Record<string, unknown> }) => React.ReactNode
 
 const textarea: Widget = ({ value, onChange }) => (
-  <textarea className={`${input} min-h-16`} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
+  <textarea className={`${input} min-h-32 min-w-[36rem]`} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
 )
 
 function suggesting(options: (parent: Record<string, unknown>) => readonly string[]): Widget {

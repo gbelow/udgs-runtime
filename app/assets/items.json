@@ -942,7 +942,7 @@
   },
   "Flamethrower": {
     "name": "Flamethrower",
-    "description": "A stick mounted with a fire stone to apply pressure to the flames, deals 15 base burn damage.",
+    "description": "A stick mounted with a fire stone to apply pressure to the flames, deals 20 base burn damage.",
     "type": "magical",
     "bulk": 2,
     "refId": "",
@@ -951,7 +951,7 @@
       "damage": [
         {
           "kind": "burn",
-          "value": 15
+          "value": 20
         }
       ],
       "ammo": 20
@@ -960,8 +960,14 @@
     "muffles": false,
     "light": null,
     "food": null,
-    "price": 5000,
-    "consume": null
+    "price": 2000,
+    "consume": null,
+    "broken": false,
+    "edge": null,
+    "fuel": null,
+    "currency": false,
+    "casting": null,
+    "loaded": null
   },
   "Venomous Frog Corpse": {
     "name": "Venomous Frog Corpse",
