@@ -12,7 +12,8 @@ import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/lo
 import { getCounterShot } from '../rules/counter'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
-import { EXTEND, PART_PRESETS, SHOTS } from '../../tables'
+import { PART_PRESETS, SHOTS } from '../../tables'
+import { getExtendDL } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, canGrapple, getHitHOP, getHOPOptions } from '../rules/damage'
@@ -505,7 +506,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       itemId: explosion?.itemId ?? '',
       spell: cast && isSpellKey(cast.key) ? SPELLS[cast.key].name : '',
       quicken: cast?.quicken ?? false,
-      extend: cast ? { times: cast.extend, DL: cast.extend * EXTEND.DL } : null,
+      extend: cast ? { times: cast.extend, DL: cast.extend * getExtendDL(actor) } : null,
       castItemId: gear?.itemId ?? '',
       chargeItemId: gear?.chargeItemId ?? '',
       suggestion: cast && getMoraleSpell(cast.key)?.effect.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,

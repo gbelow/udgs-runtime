@@ -189,8 +189,8 @@ export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellO
     const gearDL = getGearCastingDL(spell, getSpellGear(c, key))
     return {
       key,
-      DL: getCastingDL(spell, 0, 0, linkDL, gearDL),
-      quickenedDL: getCastingDL(spell, getQuickenDL(c), 0, linkDL, gearDL),
+      DL: getCastingDL(spell, 0, linkDL, gearDL),
+      quickenedDL: getCastingDL(spell, getQuickenDL(c), linkDL, gearDL),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
       castable: !boardBar && canCastSpell(c, key, false, charged),
       quickenable: !boardBar && canCastSpell(c, key, true, charged),

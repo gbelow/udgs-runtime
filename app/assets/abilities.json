@@ -3347,10 +3347,15 @@
         ],
         "description": "Prepared actions gain +1 on the test of the prepared action.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "deliberate"
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "prepared",
+            "tests": "all",
+            "hit": 1
+          }
         ],
+        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -3378,10 +3383,15 @@
         ],
         "description": "Prepared actions gain +2 on the test of the prepared action.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "deliberate"
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "prepared",
+            "tests": "all",
+            "hit": 1
+          }
         ],
+        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -3523,10 +3533,15 @@
         ],
         "description": "Whenever you win a cunning test to act before another character, you gain +1 in all skill tests against that character on your turn.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "initiativeEdge"
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "wonCunning",
+            "tests": "all",
+            "hit": 1
+          }
         ],
+        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -8120,10 +8135,15 @@
         ],
         "description": "After feinting a character successfully, gains +1 in every reaction against them on the provoked turn.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "improvedFeint"
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "feinted",
+            "tests": "reactions",
+            "hit": 1
+          }
         ],
+        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -8222,11 +8242,21 @@
           ]
         ],
         "description": "Quickening a spell increases DL only by 2.",
-        "effect": [],
-        "recipes": [],
-        "grants": [
-          "cheaperQuicken"
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "castDL:quicken",
+              "operation": "+",
+              "value": -1,
+              "when": null
+            }
+          }
         ],
+        "recipes": [],
+        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

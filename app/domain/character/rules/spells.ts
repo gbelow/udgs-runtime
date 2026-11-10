@@ -1,6 +1,6 @@
 import { CampaignCharacter, Character, Charge, ChargeTrigger, Grant, Item, Requirement, Skills, Spell, SpellMethod, SpellMethodSchema } from '../../types'
 import { SPELLS, SpellKey, getSpellOutcomes, isSpellKey } from '../../spells'
-import { BATTLE_MAGE_QUICKEN_DL, EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
+import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
 import { getAccuracy, getStrike, skillTermGetters } from './skills'
@@ -14,7 +14,7 @@ import { getReadyItems } from '../../item/rules/containers'
 import { isCampaignCharacter } from '../../utils'
 import { ABILITIES, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
 import { mayCastWhileConcentrating } from './concentration'
-import { hasGrant, isAbilityActive, isSpellActive } from './effects'
+import { getBuffBonus, hasGrant, isAbilityActive, isSpellActive } from './effects'
 import { getUnmetRequirements, holdsRequirement, requirementLabel, requirementsLabel } from './requirements'
 
 // spells.tex "Learning spells".
@@ -111,8 +111,8 @@ export function canClaimFreeSpell(key: SpellKey): (c: Character) => boolean {
 // Quicken when the caster forgoes the focus surge, and by what the links the
 // caster holds add (spells.tex "Telepathic Link"), `linkDL`. `quickenDL` is
 // what Quicken adds (`getQuickenDL`), 0 for a cast that is not quickened.
-export function getCastingDL(spell: Spell, quickenDL: number, extend = 0, linkDL = 0, gearDL = 0): number | null {
-  return spell.DL === null ? null : spell.DL + quickenDL + extend * EXTEND.DL + linkDL + gearDL
+export function getCastingDL(spell: Spell, quickenDL: number, linkDL = 0, gearDL = 0): number | null {
+  return spell.DL === null ? null : spell.DL + quickenDL + linkDL + gearDL
 }
 
 // What the gear a spell is cast with adds to its DL: a fine item lowers it,
@@ -121,9 +121,16 @@ export function getGearCastingDL(spell: Spell, gear: Item | null): number {
   return Math.max(-(spell.DL ?? 0), gear?.casting?.DL ?? 0)
 }
 
-// spells.tex "Quicken Spell": +3 DL; abilities.tex "Battle Mage I": only +2.
+// spells.tex "Quicken Spell": +3 DL, moved by what the caster's abilities
+// put on it (abilities.tex "Battle Mage I": "only by 2").
 export function getQuickenDL(c: Character | undefined): number {
-  return c && hasGrant(c, 'cheaperQuicken') ? BATTLE_MAGE_QUICKEN_DL : QUICKEN_DL
+  return QUICKEN_DL + (c ? getBuffBonus(c, 'castDL:quicken') : 0)
+}
+
+// spells.tex "Extend Spell": the DL each extension adds, moved by what the
+// caster's abilities put on it.
+export function getExtendDL(c: Character | undefined): number {
+  return EXTEND.DL + (c ? getBuffBonus(c, 'castDL:extend') : 0)
 }
 
 // play.tex "Degrees of success": a hit is the DL + 5.

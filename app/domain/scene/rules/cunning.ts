@@ -1,8 +1,8 @@
 import type { Action, PrepareAction, SceneState } from '../types'
-import type { CampaignCharacter } from '../../types'
+import type { CampaignCharacter, EdgeRecipe } from '../../types'
 import type { Term } from '../../character/rules/terms'
 import { getActionCost, type ActionCost } from '../../character/rules/actionCosts'
-import { getGrantCount, hasGrant } from '../../character/rules/effects'
+import { getGrantCount, getLearnedAbilities, hasGrant } from '../../character/rules/effects'
 import { getAction, getRootOf } from './log'
 import { getPrepared, getPreparationOf, getPreparationWithin } from './prepared'
 import { getPerformerId } from './performer'
@@ -17,63 +17,68 @@ import { getPerformerId } from './performer'
 // ---------------------------------------------------------------------------
 // What a test gets
 
-// What the root's own test gets: Deliberate on the prepared action it is, and
-// Initiative Edge and Improved Feint against whoever it is aimed at.
+// What the root's own test gets against whoever it is aimed at.
 export function getCunningTestTerms(state: SceneState, root: Action): Term[] {
   const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
-  return [
-    ...getDeliberateTerms(state, root),
-    ...getEdgeTerms(state, root.actorId, root.targetId, opener?.reactionTo != null),
-  ]
+  return getEdgeTerms(state, root, root.targetId, opener?.reactionTo != null)
 }
 
-// What a reaction puts up against the action it answers: Deliberate on a
-// defense made as one prepared, and Initiative Edge and Improved Feint against
-// whoever made that action.
+// What a reaction puts up against the action it answers, against whoever
+// made that action.
 export function getCunningReactionTerms(state: SceneState, reaction: Action): Term[] {
   const answered = reaction.reactionTo ? getRootOf(state, reaction) : null
-  return [
-    ...getDeliberateTerms(state, reaction),
-    ...getEdgeTerms(state, reaction.actorId, answered?.actorId ?? null, true),
-  ]
+  return getEdgeTerms(state, reaction, answered?.actorId ?? null, true)
 }
 
+// The holder whose edges of the situation count for the test, or null when
+// the situation does not hold.
 // abilities.json "Deliberate": "Prepared actions gain +1|2 on the test of the
-// prepared action", by its preparer's level, whoever makes it (the table's
-// ruling: a command is made with its commander's abilities).
-function getDeliberateTerms(state: SceneState, action: Action): Term[] {
-  const p = getPreparationOf(state, action)
-  const preparer = p ? state.characters[p.actorId] : undefined
-  const level = preparer ? getGrantCount(preparer, 'deliberate') : 0
-  return level > 0 ? [{ label: 'Deliberate', value: level }] : []
-}
-
-// What the actor's test against the other gets for the turn it is made in.
-// abilities.json "Initiative Edge": "Whenever you win a cunning test to act
-// before another character, you gain +1 in all skill tests against that
-// character on your turn": the contest for the turn, against everyone who
-// rolled under the winner (the table's ruling: only a turn won by cunning).
+// prepared action": its preparer's, whoever makes it (the table's ruling: a
+// command is made with its commander's abilities).
+// "Initiative Edge": "Whenever you win a cunning test to act before another
+// character, you gain +1 in all skill tests against that character on your
+// turn": the contest for the turn, against everyone who rolled under the
+// winner (the table's ruling: only a turn won by cunning).
 // "Improved Feint": "After feinting a character successfully, gains +1 in
 // every reaction against them on the provoked turn."
-function getEdgeTerms(state: SceneState, actorId: string, againstId: string | null, reacting: boolean): Term[] {
-  const actor = state.characters[actorId]
-  if (!actor || !againstId || againstId === actorId) return []
-  return [
-    ...(hasInitiativeEdge(state, actor, againstId) ? [{ label: 'Initiative Edge', value: 1 }] : []),
-    ...(reacting && hasFeintEdge(state, actor, againstId) ? [{ label: 'Improved Feint', value: 1 }] : []),
-  ]
+const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action, againstId: string | null) => CampaignCharacter | null> = {
+  prepared: (state, action) => {
+    const p = getPreparationOf(state, action)
+    return (p && state.characters[p.actorId]) ?? null
+  },
+  wonCunning: (state, action, againstId) => {
+    const actor = getAgainst(state, action, againstId)
+    const contest = state.lastContest
+    if (!actor || !againstId || !contest || contest.winner !== actor.id || state.inTurnCharacter !== actor.id) return null
+    const won = contest.rolls.find((r) => r.id === actor.id)
+    const lost = contest.rolls.find((r) => r.id === againstId)
+    return won && lost && lost.score < won.score ? actor : null
+  },
+  feinted: (state, action, againstId) => {
+    const actor = getAgainst(state, action, againstId)
+    return actor && state.forcedBy === actor.id && state.forcedSurge === againstId && state.inTurnCharacter === againstId ? actor : null
+  },
 }
 
-function hasInitiativeEdge(state: SceneState, actor: CampaignCharacter, againstId: string): boolean {
-  const contest = state.lastContest
-  if (!contest || contest.winner !== actor.id || state.inTurnCharacter !== actor.id || !hasGrant(actor, 'initiativeEdge')) return false
-  const won = contest.rolls.find((r) => r.id === actor.id)
-  const lost = contest.rolls.find((r) => r.id === againstId)
-  return !!won && !!lost && lost.score < won.score
+// The actor of a test made against someone else.
+function getAgainst(state: SceneState, action: Action, againstId: string | null): CampaignCharacter | null {
+  return againstId && againstId !== action.actorId ? state.characters[action.actorId] ?? null : null
 }
 
-function hasFeintEdge(state: SceneState, actor: CampaignCharacter, againstId: string): boolean {
-  return state.forcedBy === actor.id && state.forcedSurge === againstId && state.inTurnCharacter === againstId && hasGrant(actor, 'improvedFeint')
+// What the test gets from every edge whose situation holds, one line per
+// ability, by the holder's learned abilities.
+function getEdgeTerms(state: SceneState, action: Action, againstId: string | null, reacting: boolean): Term[] {
+  const lines = new Map<string, number>()
+  for (const when of Object.keys(EDGE_HOLDER) as EdgeRecipe['when'][]) {
+    const holder = EDGE_HOLDER[when](state, action, againstId)
+    if (!holder) continue
+    for (const ability of getLearnedAbilities(holder)) {
+      for (const r of ability.recipes) {
+        if (r.type === 'edge' && r.when === when && (r.tests === 'all' || reacting)) lines.set(ability.family, (lines.get(ability.family) ?? 0) + r.hit)
+      }
+    }
+  }
+  return [...lines].map(([label, value]) => ({ label, value }))
 }
 
 // ---------------------------------------------------------------------------

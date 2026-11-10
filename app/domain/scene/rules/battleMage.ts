@@ -6,7 +6,8 @@ import { isDefense } from './actionCatalog'
 // would otherwise end it. Concentrating is a cast that needs it (combat.tex
 // "Concentration"), the same cast held over for the round to change, or a
 // sustained spell held (spells.tex "Sustained Spells"). Level I, a cheaper
-// Quicken Spell, is read by `getQuickenDL` (character/rules/spells.ts).
+// Quicken Spell, is a buff on `castDL:quicken` (character/rules/spells.ts
+// `getQuickenDL`).
 
 // "II. The character can defend actively while concentrating, with AP costs
 // paid separately": a defense, or a reflex against a shot (the table's

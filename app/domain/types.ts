@@ -712,8 +712,9 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // `ap:`/`sta:` move the price of an action in ACTION_COSTS, `distance:` the
 // penalty a way of shooting takes per step of distance and `hit:` its test,
 // `attribute:` the attribute on top of its training, `body:size` the
-// creature's size, `bow:STR` the STR a bow is drawn with and `reach:throw` a
-// throw's reach, in percent).
+// creature's size, `bow:STR` the STR a bow is drawn with, `reach:throw` a
+// throw's reach, in percent, and `castDL:` what a choice made before a cast's
+// roll adds to its DL, per extension for `extend`).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -731,6 +732,7 @@ export const BUFF_TARGETS = [
   ...prefixed('body', ['size'] as const),
   ...prefixed('bow', ['STR'] as const),
   ...prefixed('reach', ['throw'] as const),
+  ...prefixed('castDL', ['quicken', 'extend'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
@@ -1205,6 +1207,17 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     cost: z.object({ operation: z.enum(['+', 'set']).default('+'), AP: num.default(0), STA: num.default(0) }).prefault({}),
     hit: num.default(0),
   }).strip(),
+  // `edge`: what a test gets in a situation of the fight
+  // (scene/rules/cunning.ts). `when`: the holder won the cunning test for
+  // the turn against the one the test is against, or feinted them into the
+  // turn being played, or the action is one the holder prepared, whoever
+  // makes it; `tests`: every test, or only reactions; `hit`: to the test.
+  z.object({
+    type: z.literal('edge'),
+    when: z.enum(['wonCunning', 'feinted', 'prepared']).default('wonCunning'),
+    tests: z.enum(['all', 'reactions']).default('all'),
+    hit: num.default(0),
+  }).strip(),
   // `carriedMove`: a careful move an action carries, bought with AP already
   // paid (scene/rules/carriedMove.ts). `on`: the action it goes with, or the
   // upkeep held spells pay at the round change; `when`: the condition the
@@ -1223,12 +1236,13 @@ export type Recipe = z.infer<typeof RecipeSchema>
 export type CombinedMoveRecipe = Extract<Recipe, { type: 'combinedMove' }>
 export type CarriedMoveRecipe = Extract<Recipe, { type: 'carriedMove' }>
 export type ModifierRecipe = Extract<Recipe, { type: 'modifier' }>
+export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 
 // A capability a rule in the domain asks for by name, which an ability gives
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'cheaperQuicken'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
