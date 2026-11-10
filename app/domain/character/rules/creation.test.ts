@@ -128,7 +128,7 @@ describe('the spells Magic Theory teaches', () => {
       claimed.push(key)
       d = next
     }
-    expect(claimed).toHaveLength(ABILITIES['magic-theory'].freeSpells)
+    expect(claimed).toHaveLength(2)
     expect(getCreationCharges(d)).toEqual(charges)
     for (const key of claimed) {
       expect(getCreatedCharacter(d).spells[key]?.method).toBe('wizard')

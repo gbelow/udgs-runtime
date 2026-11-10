@@ -713,8 +713,9 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // penalty a way of shooting takes per step of distance and `hit:` its test,
 // `attribute:` the attribute on top of its training, `body:size` the
 // creature's size, `bow:STR` the STR a bow is drawn with, `reach:throw` a
-// throw's reach, in percent, and `castDL:` what a choice made before a cast's
-// roll adds to its DL, per extension for `extend`).
+// throw's reach, in percent, `castDL:` what a choice made before a cast's
+// roll adds to its DL, per extension for `extend`, and `resist:compulsion`
+// what a morale test gets against the compulsion it would activate).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -733,6 +734,7 @@ export const BUFF_TARGETS = [
   ...prefixed('bow', ['STR'] as const),
   ...prefixed('reach', ['throw'] as const),
   ...prefixed('castDL', ['quicken', 'extend'] as const),
+  ...prefixed('resist', ['compulsion'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
@@ -1242,7 +1244,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
@@ -1309,7 +1311,6 @@ const AbilityStageValues = {
   rollModes: z.array(RollModeGrantSchema).default([]), // the safe and risky tests this stage allows while learned
   surgeAllows: z.array(SurgeAllowSchema).default([]), // what this stage lets a surge's AP pay for while learned
   attitudes: z.array(AttitudeSchema).default([]), // what moves a conviction's XP in play while learned
-  freeSpells: num.default(0), // spells learned with the stage, at no cost, among those the character has the knowledge for
 }
 
 export const AbilityStageSchema = z.object(AbilityStageValues).strip()

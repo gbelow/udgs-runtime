@@ -12,7 +12,7 @@ import { getActionCost, type ActionCost } from './actionCosts'
 import { getCarriedItems, getItemScale, hasAmmo, hasTag, isMetalWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { isCampaignCharacter } from '../../utils'
-import { ABILITIES, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
+import { ABILITIES, hasAbility, isAbilityKey } from '../../abilities'
 import { mayCastWhileConcentrating } from './concentration'
 import { getBuffBonus, hasGrant, isAbilityActive, isSpellActive } from './effects'
 import { getUnmetRequirements, holdsRequirement, requirementLabel, requirementsLabel } from './requirements'
@@ -90,15 +90,15 @@ export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character
   return (c: Character) => getSpellLearnBlocks(key)(c)[method] === ''
 }
 
-// abilities.tex "Magic Theory": "Learns two spells for which the character
-// has knowledge" — every knowledge the spell names, at its level. The count
-// is what the abilities learned give.
+// abilities.tex "Magic Theory": "Allows learning and casting spells like a
+// wizard. Learns two spells for which the character has knowledge": every
+// knowledge the spell names, at its level.
 export function hasSpellKnowledge(c: Character, key: SpellKey): boolean {
   return SPELLS[key].knowledge.every((k) => getKnowledge(k.name)(c) >= k.level)
 }
 
 export function getFreeSpellCount(c: Character): number {
-  return getLearnedAbilityKeys(c).reduce((sum, key) => sum + ABILITIES[key].freeSpells, 0)
+  return hasGrant(c, 'wizardSpells') ? 2 : 0
 }
 
 // A spell that can be taken as one of those: learnable as a wizard, with the

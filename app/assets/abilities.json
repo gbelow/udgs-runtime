@@ -55,8 +55,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -100,8 +99,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -157,8 +155,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -198,8 +195,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -255,8 +251,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -298,8 +293,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -353,8 +347,7 @@
           }
         ],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -392,8 +385,7 @@
           }
         ],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -427,8 +419,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -482,8 +473,7 @@
           }
         ],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -515,8 +505,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -550,8 +539,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -605,8 +593,7 @@
           }
         ],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -638,8 +625,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -671,8 +657,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -716,8 +701,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -745,8 +729,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -774,8 +757,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -837,8 +819,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 4,
@@ -884,8 +865,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -950,8 +930,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -1000,8 +979,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1047,8 +1025,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1113,8 +1090,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -1163,8 +1139,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -1224,8 +1199,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1290,8 +1264,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -1340,8 +1313,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -1390,8 +1362,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1437,8 +1408,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1490,8 +1460,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1556,8 +1525,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -1606,8 +1574,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1666,8 +1633,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1723,8 +1689,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -1764,8 +1729,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1830,8 +1794,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1898,8 +1861,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -1945,8 +1907,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2003,8 +1964,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2078,8 +2038,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2125,8 +2084,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2176,8 +2134,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2243,8 +2200,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2309,8 +2265,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2356,8 +2311,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2407,8 +2361,7 @@
             "endsSurge": true
           }
         ],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2481,8 +2434,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2535,8 +2487,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -2573,8 +2524,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2639,8 +2589,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2696,8 +2645,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -2737,8 +2685,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2803,8 +2750,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2860,8 +2806,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2918,8 +2863,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -2989,8 +2933,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3038,8 +2981,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3110,8 +3052,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3159,8 +3100,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3208,8 +3148,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3257,8 +3196,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3306,8 +3244,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3358,8 +3295,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -3394,8 +3330,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3443,8 +3378,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3492,8 +3426,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3544,8 +3477,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3591,8 +3523,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3674,8 +3605,7 @@
             "conviction": "Fatalism",
             "XP": -2
           }
-        ],
-        "freeSpells": 0
+        ]
       }
     ]
   },
@@ -3723,8 +3653,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3784,8 +3713,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -3829,8 +3757,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3878,8 +3805,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -3911,8 +3837,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -3960,8 +3885,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4009,8 +3933,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4058,8 +3981,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4107,8 +4029,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4156,8 +4077,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4189,8 +4109,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4238,8 +4157,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4289,8 +4207,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4338,8 +4255,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4387,8 +4303,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4420,8 +4335,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4469,8 +4383,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4518,8 +4431,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4551,8 +4463,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4600,8 +4511,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4633,8 +4543,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4666,8 +4575,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4715,8 +4623,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4748,8 +4655,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4797,8 +4703,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4830,8 +4735,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4879,8 +4783,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4912,8 +4815,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -4961,8 +4863,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -4994,8 +4895,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5043,8 +4943,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -5076,8 +4975,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5125,8 +5023,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -5158,8 +5055,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5207,8 +5103,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5256,8 +5151,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5305,8 +5199,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5354,8 +5247,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5403,8 +5295,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5452,8 +5343,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5501,8 +5391,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5550,8 +5439,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5599,8 +5487,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5648,8 +5535,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5697,8 +5583,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5748,8 +5633,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5797,8 +5681,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5846,8 +5729,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5895,8 +5777,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5935,8 +5816,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -5975,8 +5855,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6015,8 +5894,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6055,8 +5933,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6095,8 +5972,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6135,8 +6011,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6175,8 +6050,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6215,8 +6089,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6255,8 +6128,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6304,8 +6176,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6353,8 +6224,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6402,8 +6272,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6451,8 +6320,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6500,8 +6368,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6549,8 +6416,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6598,8 +6464,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6647,8 +6512,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6696,8 +6560,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6754,8 +6617,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6803,8 +6665,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6852,8 +6713,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6901,8 +6761,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6946,8 +6805,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -6995,8 +6853,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7044,8 +6901,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7093,8 +6949,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7142,8 +6997,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7191,8 +7045,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7240,8 +7093,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7289,8 +7141,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7338,8 +7189,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -7371,8 +7221,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7420,8 +7269,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7469,8 +7317,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7518,8 +7365,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7581,8 +7427,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7630,8 +7475,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7679,8 +7523,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7728,8 +7571,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7777,8 +7619,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7826,8 +7667,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7875,8 +7715,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7922,8 +7761,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -7969,8 +7807,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 4,
@@ -8000,8 +7837,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8047,8 +7883,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8094,8 +7929,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8146,8 +7980,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8202,8 +8035,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 2
+        "attitudes": []
       }
     ]
   },
@@ -8259,8 +8091,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -8290,8 +8121,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8344,8 +8174,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8389,8 +8218,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8443,8 +8271,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8501,8 +8328,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -8543,8 +8369,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 6,
@@ -8585,8 +8410,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8639,8 +8463,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8693,8 +8516,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8747,8 +8569,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8801,8 +8622,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8855,8 +8675,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8918,8 +8737,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -8972,8 +8790,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9017,8 +8834,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9084,8 +8900,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9138,8 +8953,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9192,8 +9006,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9259,8 +9072,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9326,8 +9138,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9375,8 +9186,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9424,8 +9234,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9509,8 +9318,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9601,8 +9409,7 @@
         ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9657,8 +9464,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9718,8 +9524,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -9763,8 +9568,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -9808,8 +9612,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -9869,8 +9672,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -9914,8 +9716,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -9959,8 +9760,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10020,8 +9820,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -10065,8 +9864,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -10110,8 +9908,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10159,8 +9956,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10199,8 +9995,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10239,8 +10034,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10306,8 +10100,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10362,8 +10155,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10411,8 +10203,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10460,8 +10251,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10509,8 +10299,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10558,8 +10347,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10607,8 +10395,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10659,8 +10446,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10699,8 +10485,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10762,8 +10547,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -10809,8 +10593,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10839,8 +10622,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10879,8 +10661,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10919,8 +10700,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -10959,8 +10739,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -11008,8 +10787,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -11057,8 +10835,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -11106,8 +10883,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   },
@@ -11155,8 +10931,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       },
       {
         "XPcost": 0,
@@ -11188,8 +10963,7 @@
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "freeSpells": 0
+        "attitudes": []
       }
     ]
   }
