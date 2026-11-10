@@ -282,7 +282,10 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "grenade"
+    ]
   },
   "Short Bow": {
     "name": "Short Bow",
@@ -704,7 +707,10 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "grenade"
+    ]
   },
   "Anticoagulant Poison": {
     "name": "Anticoagulant Poison",
@@ -824,7 +830,10 @@
     "light": null,
     "food": null,
     "price": 1200,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "alchemical torch"
+    ]
   },
   "Superior Alchemical Torch": {
     "name": "Superior Alchemical Torch",
@@ -839,7 +848,10 @@
     "light": null,
     "food": null,
     "price": 5000,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "alchemical torch"
+    ]
   },
   "Alchemical Prism": {
     "name": "Alchemical Prism",
@@ -854,7 +866,10 @@
     "light": null,
     "food": null,
     "price": 15000,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "alchemical prism"
+    ]
   },
   "Electrite": {
     "name": "Electrite",
@@ -877,7 +892,10 @@
     "light": null,
     "food": null,
     "price": 3000,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "electrite"
+    ]
   },
   "Superior Electrite": {
     "name": "Superior Electrite",
@@ -900,7 +918,10 @@
     "light": null,
     "food": null,
     "price": 40000,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "electrite"
+    ]
   },
   "Magnetite": {
     "name": "Magnetite",
@@ -967,7 +988,10 @@
     "fuel": null,
     "currency": false,
     "casting": null,
-    "loaded": null
+    "loaded": null,
+    "tags": [
+      "flamethrower"
+    ]
   },
   "Venomous Frog Corpse": {
     "name": "Venomous Frog Corpse",
@@ -997,7 +1021,10 @@
     "light": null,
     "food": null,
     "price": 4000,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "soul stone"
+    ]
   },
   "Condenser": {
     "name": "Condenser",
@@ -1012,7 +1039,10 @@
     "light": null,
     "food": null,
     "price": 500,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "condenser"
+    ]
   },
   "Simple Healing": {
     "name": "Simple Healing",
@@ -1167,7 +1197,10 @@
     "light": null,
     "food": null,
     "price": 5,
-    "consume": null
+    "consume": null,
+    "tags": [
+      "splint"
+    ]
   },
   "Cocaine": {
     "name": "Cocaine",

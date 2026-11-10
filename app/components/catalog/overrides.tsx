@@ -55,13 +55,15 @@ const learningGains: Widget = ({ value, onChange }) => (
   </div>
 )
 
+const ITEM_TAGS = [...new Set((Object.values(items) as { tags?: string[] }[]).flatMap((item) => item.tags ?? []))].sort()
+
 // A requirement's name is a key into whichever catalog its kind points at —
-// spells.tex "Requirements": a gear item is the one the character has to
-// have on them, so the item list is offered, and a category is one of the
+// spells.tex "Requirements": a gear item is asked for by a tag the catalog
+// gives it, so the tags are offered, and a category is one of the
 // creature categories; trainables and conditions stay free words.
 const requirementName = suggesting((parent) => {
   const kind = String(parent.kind ?? '')
-  return kind === 'ability' || kind === 'active' ? ABILITY_KEYS : kind === 'spell' || kind === 'sustaining' ? SPELL_KEYS : kind === 'gear' ? Object.keys(items) : kind === 'category' ? [...CREATURE_CATEGORIES] : []
+  return kind === 'ability' || kind === 'active' ? ABILITY_KEYS : kind === 'spell' || kind === 'sustaining' ? SPELL_KEYS : kind === 'gear' ? ITEM_TAGS : kind === 'category' ? [...CREATURE_CATEGORIES] : []
 })
 
 // An item's refId resolves in the catalog its type names.

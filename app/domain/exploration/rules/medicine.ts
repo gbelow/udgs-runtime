@@ -4,7 +4,7 @@ import type { Test } from '../../play/test'
 import { ABILITIES, hasAbility } from '../../abilities'
 import { getKnowledgeTestTerms } from '../../character/rules/knowledge'
 import { sumTerms } from '../../character/rules/terms'
-import { getCarriedItems } from '../../item/rules/items'
+import { getCarriedItems, hasTag } from '../../item/rules/items'
 
 // abilities.tex "Medicine": the abilities used over an ET and the DL of each
 // one's test.
@@ -30,7 +30,7 @@ function getNeededName(key: ETMedicineKey): string {
 
 // The gear the ability requires, carried.
 function getNeeded(c: Character, key: ETMedicineKey) {
-  return getCarriedItems(c).find((i) => i.name === getNeededName(key)) ?? null
+  return getCarriedItems(c).find((i) => hasTag(i, getNeededName(key))) ?? null
 }
 
 // What stands between the medic and using it over the coming ET.

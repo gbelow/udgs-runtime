@@ -427,6 +427,9 @@ const PriceSchema = num.int().nonnegative().nullable().default(null)
 export const ItemEntrySchema = ItemSchema.extend({
   price: PriceSchema,
   currency: z.boolean().default(false),
+  // spells.tex "Requirements": what the item is for the spells and abilities
+  // that ask for gear; read off the entry, never copied onto an item
+  tags: z.array(str).default([]),
 })
 
 // gear.tex "Containers": belt, bandolier and backpack are worn one at a time;

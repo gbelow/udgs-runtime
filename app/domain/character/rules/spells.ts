@@ -9,7 +9,7 @@ import { MAX_SIZE, getSM, getVMAt, getSize } from './size'
 import { getKnowledge } from './knowledge'
 import { canAfford, canAffordOrHold } from './cost'
 import { getActionCost, type ActionCost } from './actionCosts'
-import { getCarriedItems, getItemScale, hasAmmo, isGear, isMetalWeapon } from '../../item/rules/items'
+import { getCarriedItems, getItemScale, hasAmmo, hasTag, isMetalWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { isCampaignCharacter } from '../../utils'
 import { ABILITIES, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
@@ -195,10 +195,17 @@ export function hasChargesFor(item: Item, ammo: number, size: number): boolean {
   return hasAmmo(item, drawCharges(ammo, size, -1))
 }
 
+// Whether one item carries everything the spell asks of its gear: for each
+// thing asked, one of its alternatives as a tag. The gear is a single item
+// (the table's ruling), so tags on two items never add up.
+function carriesGear(key: SpellKey, item: Item): boolean {
+  const asked = getGearRequirements(key).map((entry) => entry.filter((alt) => !alt.not)).filter((entry) => entry.length > 0)
+  return asked.length > 0 && asked.every((entry) => entry.some((alt) => hasTag(item, alt.name)))
+}
+
 // The gear at hand the spell is cast with, what is in the hands first.
 export function getSpellGearOptions(c: Character, key: SpellKey): Item[] {
-  const names = getGearRequirements(key).flat().filter((alt) => !alt.not).map((alt) => alt.name)
-  return getReadyItems(c).filter((i) => names.some((name) => isGear(i, name)) && fitsSpell(c, key, i))
+  return getReadyItems(c).filter((i) => carriesGear(key, i) && fitsSpell(c, key, i))
 }
 
 // The gear at hand a cast of the spell can be started with.
@@ -263,7 +270,7 @@ export function getCastSize(c: Character, key: SpellKey, amplify: number, itemId
 }
 
 function holdsGear(ready: Item[], c: Character, key: SpellKey, alt: Requirement): boolean {
-  return ready.some((i) => isGear(i, alt.name) && (alt.not || servesSpell(c, key, i))) !== alt.not
+  return alt.not ? !ready.some((i) => hasTag(i, alt.name)) : getCastableGear(c, key).some((i) => hasTag(i, alt.name))
 }
 
 // A passive ability is in effect for as long as it is learned; a toggle
@@ -302,9 +309,9 @@ export function getUnmetCastLabel(c: Character, key: SpellKey): string {
   const ready = getReadyItems(c)
   const carried = getCarriedItems(c)
   const label = (alt: Requirement): string => (alt.kind !== 'gear' || alt.not ? requirementLabel(alt)
-    : ready.some((i) => isGear(i, alt.name) && fitsSpell(c, key, i)) ? `${alt.name} with charges left`
-    : ready.some((i) => isGear(i, alt.name)) ? `a smaller ${alt.name}`
-    : carried.some((i) => isGear(i, alt.name)) ? `${alt.name} at hand`
+    : ready.some((i) => carriesGear(key, i) && fitsSpell(c, key, i)) ? `${alt.name} with charges left`
+    : ready.some((i) => carriesGear(key, i)) ? `a smaller ${alt.name}`
+    : carried.some((i) => carriesGear(key, i)) ? `${alt.name} at hand`
     : alt.name)
   return getUnmetCastRequirements(c, key).map((item) => item.map(label).join(' or ')).join(' · ')
 }

@@ -41,11 +41,11 @@ export function getItemCatalog(): Record<string, unknown> {
   return catalog
 }
 
-type CatalogEntry = { template: Item; price: number | null; currency: boolean }
+type CatalogEntry = { template: Item; price: number | null; currency: boolean; tags: string[] }
 
 const entries: CatalogEntry[] = Object.values(catalog).map((raw) => {
-  const { price, currency, ...template } = ItemEntrySchema.parse(raw)
-  return { template, price, currency }
+  const { price, currency, tags, ...template } = ItemEntrySchema.parse(raw)
+  return { template, price, currency, tags: tags.map((tag) => tag.trim().toLowerCase()) }
 })
 
 const byRefId = new Map(entries.filter(({ template: t }) => t.refId).map((e) => [`${e.template.type}|${e.template.refId}`, e]))
@@ -145,10 +145,6 @@ export function getItemArmor(item: Item): Armor | undefined {
   return raw ? scaleArmor(ArmorSchema.parse(raw), getItemScale(item)) : undefined
 }
 
-// spells.tex "Requirements": whether this is the piece of gear something
-// asks for, by the name the book calls it — a better version of the same
-// thing answers to it too ("Superior Electrite" is electrite), and an item
-// stamped from a catalog row answers to that row's key.
 // gear.tex "Electrite": the damage a stone or device puts out, times what
 // draws on it; nothing from an item that puts out none.
 export function getSourceDamage(item: Item | null, factor = 1): DamageComponent[] {
@@ -165,10 +161,11 @@ export function isMetalWeapon(item: Item): boolean {
   return getItemWeapon(item)?.attacks.some((a) => a.material === 'metal') ?? false
 }
 
-export function isGear(item: Item, name: string): boolean {
-  const asked = name.trim().toLowerCase()
-  const own = item.name.trim().toLowerCase()
-  return own === asked || own.endsWith(` ${asked}`) || item.refId.trim().toLowerCase() === asked
+// spells.tex "Requirements": whether this is the piece of gear something asks
+// for, by the tag its catalog entry gives it. A made item is an entry of its
+// own with its own tags, not the sum of what it was made from.
+export function hasTag(item: Item, tag: string): boolean {
+  return getEntry(item)?.tags.includes(tag.trim().toLowerCase()) ?? false
 }
 
 // Everything the character has on them: what is in their hands, what they
