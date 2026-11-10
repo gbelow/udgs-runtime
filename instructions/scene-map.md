@@ -152,7 +152,7 @@ else walks them: up (`getAncestry`, `getGivenRiseBy` without follow-ups, `getOri
 opened and then passed up, `getDrawnOpportunityAttacks`). What a round or a turn needs to
 remember is kept in a registry beside the log, emptied by `nextRound` (`heldTests`, with
 every character's stealth roll, made as the round begins; `turnsTaken`: the turns something was committed
-in and who rested in each; `prepared`: the preparations landed; `performed`: the preparations whose action has landed; `firstTurn`: who took the round's first turn; `stealthTurns`: for each turn, whom its
+in and who rested in each; `prepared`: the preparations landed; `performed`: the preparations whose action has landed; `firstTurn`: who took the round's first turn; `protectionMoves`: who repositioned under their protection surge, once per time; `stealthTurns`: for each turn, whom its
 holder began it undetected by and the AP their actions in it have spent, loud and to an ear;
 all but the tests themselves written by `setActions` as actions land), or stamped on the action that needs it (a move's `held`, a sweep link's
 `swept`), never found by scanning the record.
@@ -254,9 +254,10 @@ resolveAction ─────────► land(top)
   The other two are moves. A `combinedMove` (`rules/combinedMove.ts`) is a movement of the
   actor's own made with an action at a price of its own: declared on a move, it opens an
   attack from where the move lands (Lunge, Jump Shot); carried by a block, intercept or
-  evasive jump, it is a move made before the die, opened by `repositionDefenders` like a
+  evasive jump, or a guard against a shot, it is a move made before the die, opened by `repositionDefenders` like a
   prepared defense's reposition and ending only where the defense can be made (Defender,
-  Defensive Advance, the martyr's run, a rule recipe), or after the strike has landed, which an
+  Defensive Advance, the martyr's run, a rule recipe, and the protection surge's, which is
+  the same run under a surge of its own), or after the strike has landed, which an
   interruption cancels (Technical Lift's stand up). A `carriedMove` (`rules/carriedMove.ts`)
   is a careful move bought with AP the action already paid: made once the action is rolled
   (Rest and Effortless Spell, rule recipes), or declared
@@ -346,6 +347,7 @@ app/domain/scene/
 │   ├── heldTest.ts     held tests: rollHeld answers a round's call; holdRoll writes a roll down and lets its effect work; holdThrown makes the die of a held test thrown as an action's (a swim test, a climb, a balance test) the round's (called by applyPhase at the roll); dropFallenBalance (at the resolve)
 │   ├── swim.ts         sink, sinkInArmor: the swimmer goes deeper, no deeper than the floor
 │   ├── social.ts       landSocial: what a landed `social` or `taunt` leaves (called by `land`'s `landOnTable`, beside the feint's and the spell test's) — the pressure written to `state.pressure`, the surrender flag in `state.surrendered`, an abusive's insult or a traitor's negotiation marked done; defaultToCoward (the GM's)
+│   ├── protection.ts   madeProtectionSurge (the Guardian's attitude and Rallying Guard's rally, called by `declareReaction` as the surge is made), getUnprotectedBy (who let the surge go by, stamped on the attack as it is paid), meetUnprotected (their attitude, called by `land` once the ally is hurt badly enough)
 │   ├── stress.ts       oweStress (the last morale test makes the activated limit stress actions owed into `state.compulsions`; tanatosis and a martyr who can pay make theirs at once), compelByTest (a morale spell's test landing: a miss owes a limit stress action at once, bound to its caster as the spell says; Pacify takes one back; `land` calls it, and `advance` hands the turn to the compelled once nothing is open, closing the holder's as a feint does), takeStressTurn (the next owed turn begins; also called by endTurn), markStress
 │   ├── fight.ts        sendToFight, returnFromFight, removeFromFight, resetFight, loadIntoFight: characters off the campaign's roster into the scene and back under the ids they left with, in the parties the scene left them in, with the ETs it took (the dead are not given back: `leaveDead` leaves them where they fell, `campaign.fallen`, since carrying a body is storing it); one brought straight in under an id the campaign gives and lends (`lent`), released when they are gone
 │   ├── chase.ts        chooseChase (a party's choice at the round change's chase step: run away, give chase to a party running away from a tier, or neither, kept in `state.chaseIntents`), leaveBehind (whoever the chase would catch at once split off into a party of their own, out of the chase), beginChase (called as the round change ends: the chase the parties chose, the runners leaving the grid), declareChase (a party's move for the round, head of the chain first: run, run the other way, shoot, hide, with what it scouts for), confirmChase (tail to head once everyone has declared; what is confirmed is final), resolveChase (a party caught opens a fight that lives in the chase, taking in everyone within combat range of it, and the chase is saved until the GM ends it; otherwise hiders hide, every live link is run — the two ends' ways, the faster deciding when they pull apart, a skirmish's way waiting for the round's end — runners pay, skirmish AP, scouting), followParty, putBack, giveUp, mergeBack, endChaseFight (the fight that lives in the chase ends: its fighters run again off the grid; called by `backToChase`), enterChaseFight (a party at shooting range joins that fight within combat range of the party it joins; called by `joinChaseFight`), crossObstacle, turnAround, setChaseCover; endChaseRound (called by nextRound: skirmish ways, places run towards, disconnected parties out); endChaseRoundChange (called as the round change ends: a party with nobody alive is out, its pursuers taking over its link)
@@ -388,7 +390,8 @@ app/domain/scene/
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike or shot
 │   ├── recipes.ts      follow-ups and contested strikes as data: who may make them, their hit, price and opportunity attacks
 │   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
-│   ├── protect.ts      protecting another: the line, intercept range, who may protect (from where they stand or after a move a defense carries), where a defense can be made from
+│   ├── protect.ts      protecting another: the line, intercept range, who may protect or guard (from where they stand or after a move a defense carries), where a defense can be made from
+│   ├── protection.ts   the Guardian's protection surge (SURGES.protection, made only with the defense that repositions for it: `withSurges` in options.ts lists that defense, which only the surge opens): `isProtectionGuard` (an ally within 10 m attacked, a reposition left this round, `state.protectionMoves`), what a protection move is, and when a refused one costs XP
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
 │   ├── test.ts         isWon and resisted: what a test's degree means for an action; getSceneModeOf, the way each one throws a die
 │   ├── breakage.ts     the blow a block met: what it broke, the dice it needs, the setting's bar

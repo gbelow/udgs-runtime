@@ -11,7 +11,7 @@ import { canGrab, isGrappleRowOf } from './grapple'
 import { isSweepLink } from './sweep'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getRecipeLabel, getRecipesOf, type RecipeEntry } from './recipes'
-import { canCarryStep, canDeclareOnMove, getCombinedMoves, getCombinedPrice, getCombinedTerms, type CombinedDefense } from './combinedMove'
+import { canCarryStep, canDeclareOnMove, getCombinedMoves, getCombinedPrice, getCombinedTerms, isCombinedDefense } from './combinedMove'
 import { canDeclareCarried, getDeclaredCarriedMoves } from './carriedMove'
 import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
 
@@ -195,10 +195,6 @@ function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'acto
   }))
   const learned = getLearnedModifiers(actor, action.kind).map((entry): Entry => ({ key: entry.id, slot: 'learned', modifier: toModifier(entry) }))
   return [...combined, ...carried, ...learned]
-}
-
-function isCombinedDefense(action: Action): action is CombinedDefense {
-  return action.kind === 'block' || action.kind === 'intercept' || action.kind === 'evasiveJump'
 }
 
 function getEntries(state: SceneState, action: Pick<Action, 'kind' | 'actorId'>): Entry[] {

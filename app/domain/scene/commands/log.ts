@@ -7,6 +7,7 @@ import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, reduceOpened, t
 import { isVoided } from '../rules/opportunity'
 import { getInterruptionsLanding, type StampedInterruption } from '../rules/interruption'
 import { getPreparationOf, getReactedWithin } from '../rules/prepared'
+import { isProtectionMove } from '../rules/protection'
 import { isAnswerable } from '../rules/action'
 import { settleBinds } from './bind'
 import { dropFallenBalance, holdThrown } from './heldTest'
@@ -34,7 +35,8 @@ import { deliverAll } from '../../character/commands/deliver'
 // tests its mover had made when it got there, and the turn it was committed
 // in is noted as taken. What lands is noted in the round's registries: the
 // noise it made in its actor's own turn, the preparation it is, the one it
-// is the prepared action of.
+// is the prepared action of, the reposition of a protection surge it was
+// made with.
 export function setActions(state: SceneState, declared: Action[], pushed: string[] = []): SceneState {
   const stamped = declared.map((a) => noteParticipants(state, stampHeld(state, a.turn === null ? { ...a, turn: state.turn, round: state.round } : a)))
   const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
@@ -55,6 +57,7 @@ export function setActions(state: SceneState, declared: Action[], pushed: string
     stealthTurns: entering.reduce((turns, a) => noteNoise(state, turns, a), state.stealthTurns),
     prepared: [...state.prepared, ...entering.flatMap((a) => (a.kind === 'prepare' ? [a.id] : []))],
     performed: entering.reduce((ids, a) => notePerformed(state, ids, a), state.performed),
+    protectionMoves: [...state.protectionMoves, ...entering.flatMap((a) => (isProtectionMove(state, a) ? [a.actorId] : []))],
     bodyCover: entering.reduce((cover, a) => noteCover(state, stamped, cover, a), state.bodyCover),
   }))
 }

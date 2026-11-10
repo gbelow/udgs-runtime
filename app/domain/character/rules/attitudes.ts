@@ -12,7 +12,8 @@ import { getCallResult, type DieCall } from '../../play/calls'
 // degree, the way it was thrown), a die they threw for a test (the way, the face the
 // kept d10 showed), their limit stress action activated, an action they
 // prepared crit, a turn of theirs ended with nothing prepared and nothing
-// held, or a round they spent enraged ended.
+// held, a round they spent enraged ended, they made their protection surge,
+// or they let one go by and the ally it was offered for was hurt.
 export type AttitudeHappening =
   | { event: 'test'; skill: keyof Skills | null; value: number; DL: number; degree: Degree; mode: RollMode }
   | { event: 'die'; mode: RollMode; face: number }
@@ -20,6 +21,8 @@ export type AttitudeHappening =
   | { event: 'preparedCrit' }
   | { event: 'unpreparedTurn' }
   | { event: 'enragedRound'; combatSurge: boolean }
+  | { event: 'protectionSurge' }
+  | { event: 'refusedProtection' }
 
 const among = <T,>(listed: readonly T[], value: T): boolean => listed.length === 0 || listed.includes(value)
 
@@ -36,6 +39,8 @@ function matches(on: AttitudeEvent, happened: AttitudeHappening): boolean {
     case 'limitStress':
     case 'preparedCrit':
     case 'unpreparedTurn':
+    case 'protectionSurge':
+    case 'refusedProtection':
       return happened.event === on.event
   }
 }

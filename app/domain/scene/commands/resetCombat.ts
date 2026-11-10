@@ -22,6 +22,7 @@ export function resetCombat(state: SceneState): SceneState {
     turnsTaken: [],
     prepared: [],
     performed: [],
+    protectionMoves: [],
     firstTurn: null,
     following: {},
     stealthTurns: [],

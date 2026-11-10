@@ -28,7 +28,7 @@ import { getStealable } from './steal'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getOpportunityBar, getOpportunityCheck, getOwnCost, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withoutReserve, withRefund } from './action'
 import { getAnswerDrafts } from './modifiers'
-import { isGuardPlaced } from './protect'
+import { isGuardPlaced, isStandingGuard } from './protect'
 import { getCombinedOf } from './combinedMove'
 import { makeAction } from '../factories'
 import { perState } from '../../perState'
@@ -48,6 +48,7 @@ import { findPrepared, getPreparedBar } from './prepared'
 import { SHOTS, SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
+import { isLearnedSurge } from '../../character/rules/surge'
 import { canAffordRest } from '../../character/rules/rest'
 import { getIncomingAP, getRoundChangeActBar, getRoundPhase } from './roundChange'
 import { getChaseRestBar } from './chase'
@@ -211,18 +212,34 @@ function closeWhileHolding(state: SceneState, c: CampaignCharacter, options: Act
 // combat.tex "Action surge": an option closed now that a surge the character
 // may make now would open is marked with that surge (`getSurgeProbes`). A
 // reaction so marked is open — the surge made first, then the reaction; an
-// action of their own stays closed until they make it.
+// action of their own stays closed until they make it. A surge only an
+// ability gives may give an answer nothing else does (abilities.tex
+// "Protection Surge": the defense that repositions for it), which is listed
+// with it; and the protection surge opens nothing but that defense
+// (`isSurgeFor`).
 function withSurges(state: SceneState, c: CampaignCharacter, now: ActionOption[], list: (state: SceneState) => ActionOption[], opens: boolean): ActionOption[] {
-  if (now.every((o) => o.available)) return now
-  const probes = getSurgeProbes(state, c).map((p) => ({ kind: p.kind, options: list(p.state) }))
-  return now.map((o) => {
+  const surges = getSurgeProbes(state, c, opens)
+  const giving = opens && surges.some((p) => isLearnedSurge(p.kind))
+  if (now.every((o) => o.available) && !giving) return now
+  const probes = surges.map((p) => ({ kind: p.kind, options: list(p.state).filter((a) => a.available && isSurgeFor(c, p.kind, a.draft)) }))
+  const opened = now.map((o) => {
     if (o.available) return o
     for (const { kind, options } of probes) {
-      const viaSurge = options.find((a) => a.available && sameDraft(a.draft, o.draft))
+      const viaSurge = options.find((a) => sameDraft(a.draft, o.draft))
       if (viaSurge) return opens ? { ...viaSurge, surge: kind } : { ...o, surge: kind, reason: 'needs a surge' }
     }
     return o
   })
+  if (!giving) return opened
+  const given = probes.filter((p) => isLearnedSurge(p.kind)).flatMap(({ kind, options }) => options.map((a) => ({ ...a, surge: kind })))
+  return [...opened, ...given.filter((a, i) => !now.some((o) => sameDraft(o.draft, a.draft)) && given.findIndex((b) => sameDraft(b.draft, a.draft)) === i)]
+}
+
+// abilities.tex "Protection Surge": the surge is made with the defense that
+// repositions for it, and nothing else (the table's ruling: the move is what
+// makes it one). Any other surge opens whatever it opens.
+function isSurgeFor(c: CampaignCharacter, kind: SurgeKind, draft: ActionDraft): boolean {
+  return kind !== 'protection' || getCombinedOf(c, draft)?.recipe.openWhen === 'protectionSurge'
 }
 
 function getAnswers(state: SceneState, answerer: CampaignCharacter, open: RootAction): ActionOption[] {
@@ -288,11 +305,18 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         })
       // combat.tex "Cover": a guard with a body shield may take total cover
       // behind it
+      // A guard that carries a move (rules/combinedMove.ts) is made from
+      // where it ends; any other from where its guard stands.
       case 'guard':
         return guardRows(state, c, open).flatMap((row) => {
-          const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
-          const reason = gate ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id }))
-          return [draft, ...(row.weapon.shield?.body ? [{ ...draft, cover: true }] : [])].map((d) => answer(d, cost, reason))
+          const plain: ActionDraft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
+          const drafts = [plain, ...(row.weapon.shield?.body ? [{ ...plain, cover: true }] : [])]
+          return drafts.flatMap((d) => [d, ...getAnswerDrafts(state, c.id, open.id, d)]).map((draft) => {
+            const guard = makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id } as Parameters<typeof makeAction>[1])
+            const own = getOwnCost(state, guard) ?? cost
+            const placed = getCombinedOf(c, guard)?.recipe.order === 'before' || isStandingGuard(state, open, c.id)
+            return answer(draft, own, defenseGate(state, c, open, kind, own) ?? (placed ? null : 'not beside the target') ?? seizedReason(state, guard))
+          })
         })
       // combat.tex "Explosion Block": only with a shield
       case 'blockExplosion':

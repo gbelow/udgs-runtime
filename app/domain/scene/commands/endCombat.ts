@@ -41,6 +41,7 @@ export function endScene(state: SceneState, caller: Caller): SceneState {
     turnsTaken: [],
     prepared: [],
     performed: [],
+    protectionMoves: [],
     firstTurn: null,
     following: {},
     stealthTurns: [],

@@ -86,10 +86,11 @@ export function getFleeBarFor(state: SceneState, c: CampaignCharacter, kind: Act
 
 // combat.tex "Action surge": each surge the character may make now, with the
 // fight as it would leave them — what an action closed to them now is
-// weighed against, to say whether a surge would open it.
-export function getSurgeProbes(state: SceneState, c: CampaignCharacter): { kind: SurgeKind; state: SceneState }[] {
+// weighed against, to say whether a surge would open it; `answering` for
+// what they may answer an action with.
+export function getSurgeProbes(state: SceneState, c: CampaignCharacter, answering = false): { kind: SurgeKind; state: SceneState }[] {
   return surgeKinds.flatMap((kind) => {
-    if (!canSurge(kind)(c) || getSurgeTurnBar(state, c.id, kind)) return []
+    if (!canSurge(kind)(c) || getSurgeTurnBar(state, c.id, kind, answering)) return []
     return [{ kind, state: { ...state, characters: { ...state.characters, [c.id]: getSurged(kind)(c) } } }]
   })
 }

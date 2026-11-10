@@ -703,7 +703,7 @@ export const CostSchema = z.object({
 
 export type Cost = z.infer<typeof CostSchema>
 
-export const SurgeKindSchema = z.enum(['movement', 'combat', 'reaction', 'focus', 'recovery'])
+export const SurgeKindSchema = z.enum(['movement', 'combat', 'reaction', 'protection', 'focus', 'recovery'])
 export type SurgeKind = z.infer<typeof SurgeKindSchema>
 
 // Everything a buff can land on, as `<group>:<key>`. The list is derived from
@@ -1174,17 +1174,18 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   // which is made from where it ends, or `after` it has landed, which an
   // interruption cancels. `reach`: as far as the movement goes (a jump's
   // length, a block of basic movement), one space, or the run the reaction
-  // surge's AP buy. `toward`: anywhere, away from everyone threatening the
+  // or protection surge's AP buy. `toward`: anywhere, away from everyone threatening the
   // actor, or nearer the attacker; a defense's move always ends where the
   // defense can be made from, and `defends: 'ally'` makes it one for someone
   // else. `rows`: the rows the attack may be made with. `cost`: added to the
   // price of what carries it, set in its place, or (`movement`) the AP its
   // movement costs, the movement paying its own STA. `hit`: to the test of
   // what carries it; `cover`: a shield's cover added to the defense.
-  // `openWhen`: open only while the condition holds.
+  // `openWhen`: open only while the condition holds (the martyr holding
+  // the surge their limit stress action made, or the protection surge).
   z.object({
     type: z.literal('combinedMove'),
-    with: z.array(z.enum(['strike', 'shoot', 'block', 'intercept', 'evasiveJump'])).default([]),
+    with: z.array(z.enum(['strike', 'shoot', 'block', 'intercept', 'guard', 'evasiveJump'])).default([]),
     movement: z.enum(['jump', 'basic', 'run', 'stand']).default('jump'),
     order: z.enum(['before', 'after']).default('before'),
     reach: z.enum(['movement', 'oneSpace', 'reactionSurge']).default('movement'),
@@ -1194,7 +1195,7 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     cost: z.object({ operation: z.enum(['+', 'set', 'movement']).default('+'), AP: num.default(0), STA: num.default(0) }).prefault({}),
     hit: num.default(0),
     cover: z.boolean().default(false),
-    openWhen: z.enum(['martyrGuard']).nullable().default(null),
+    openWhen: z.enum(['martyrGuard', 'protectionSurge']).nullable().default(null),
   }).strip(),
   // `modifier`: a trade its holder may declare on a test of theirs
   // (scene/rules/modifiers.ts). `on`: the tests it goes with, an evade or a
@@ -1215,11 +1216,12 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   // (scene/rules/cunning.ts). `when`: the holder won the cunning test for
   // the turn against the one the test is against, or feinted them into the
   // turn being played, or the action is one the holder prepared, whoever
-  // makes it, or the holder makes it while the fight weighs on them;
+  // makes it, or the holder makes it while the fight weighs on them, or
+  // the holder defends someone else under their protection surge;
   // `tests`: every test, or only reactions; `hit`: to the test.
   z.object({
     type: z.literal('edge'),
-    when: z.enum(['wonCunning', 'feinted', 'prepared', 'underPressure']).default('wonCunning'),
+    when: z.enum(['wonCunning', 'feinted', 'prepared', 'underPressure', 'protecting']).default('wonCunning'),
     tests: z.enum(['all', 'reactions']).default('all'),
     hit: num.default(0),
   }).strip(),
@@ -1247,7 +1249,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'repositionTwice'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
@@ -1284,7 +1286,10 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 // the holder prepared crit. `unpreparedTurn`: the holder's turn ended with
 // nothing prepared in it, and nothing held through the round. `enragedRound`:
 // a round the holder spent enraged ended, with a combat surge made in it or
-// not (`combatSurge`).
+// not (`combatSurge`). `protectionSurge`: the holder made their protection
+// surge. `refusedProtection`: the holder let an attack on an ally go by
+// without the protection surge it offered them, and the ally took damage of
+// tier 2 or more from it.
 export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('test'),
@@ -1302,6 +1307,8 @@ export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('preparedCrit') }).strip(),
   z.object({ event: z.literal('unpreparedTurn') }).strip(),
   z.object({ event: z.literal('enragedRound'), combatSurge: z.boolean().default(true) }).strip(),
+  z.object({ event: z.literal('protectionSurge') }).strip(),
+  z.object({ event: z.literal('refusedProtection') }).strip(),
 ])
 export type AttitudeEvent = z.infer<typeof AttitudeEventSchema>
 

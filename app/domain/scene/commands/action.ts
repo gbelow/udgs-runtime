@@ -25,6 +25,7 @@ import { canAcceptSpellTest, getCastGear, getSpellTestModes } from '../rules/cas
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
+import { getUnprotectedBy, madeProtectionSurge } from './protection'
 import { getModifierToggles } from '../rules/modifiers'
 import { giveUpHeld, giveUpSustained } from './hold'
 import { updateCharacter } from './characters'
@@ -255,8 +256,9 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const targetId = trigger?.against ?? open.actorId
     const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? draft.recipe ?? null })
     const aimed = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
-    const paid = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), `${chosen.surge} surge for a reaction`)(state) : state
-    const reaction = { ...aimed, surged: getSurgeMade(state, paid, actorId, chosen.surge) }
+    const surged = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), `${chosen.surge} surge for a reaction`)(state) : state
+    const paid = chosen.surge === 'protection' ? madeProtectionSurge(surged, actorId) : surged
+    const reaction = { ...aimed, surged: getSurgeMade(state, surged, actorId, chosen.surge) }
     const replaced = getLiveReactionsTo(paid, open.id).filter((r) => r.actorId === actorId)
     return pruneReactions(appendActions(withdrawActions(paid, replaced.map((r) => r.id), 'replaced'), [reaction]))
   }
@@ -515,7 +517,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, caller: Ca
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    const stamped = { ...a, endsSurge: endsSurge(state, a) }
+    const stamped = { ...a, endsSurge: endsSurge(state, a), ...(a.id === root.id ? { unprotectedBy: getUnprotectedBy(state, a) } : {}) }
     const rolled = thrown(stamped)
     paid.push({ ...rolled, cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo, a.kind) : 0, preparedCrit: getPreparedCrit(state, rolled), step: a.id === root.id ? 'post' : 'done' })
   }

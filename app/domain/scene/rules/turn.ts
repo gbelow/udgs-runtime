@@ -4,7 +4,7 @@ import type { SurgeKind } from '../../types'
 import type { SceneState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { canMakeFeintSurge, hasAPLeft, isFeintSurge } from '../../character/rules/surge'
+import { canMakeFeintSurge, hasAPLeft, isFeintSurge, isReactiveSurge } from '../../character/rules/surge'
 import { getLiveActions, getOpenAction, getPlayingOutBar } from './log'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
@@ -51,7 +51,7 @@ function getTurnlessReason(state: SceneState, id: string): string | null {
   if (hasAffliction(c, 'unconscious')) return 'unconscious'
   const parked = getParkedReason(state, state.partyOf[id] ?? '')
   if (parked) return parked
-  if (c.usedSurge === 'reaction') return 'reaction surge used this round'
+  if (isReactiveSurge(c.usedSurge)) return `${c.usedSurge} surge used this round`
   return null
 }
 
@@ -136,9 +136,12 @@ export function getContestMode(state: SceneState, id: string): RollMode {
 // Why the character cannot make a movement or combat surge now, or null:
 // those are made only in the character's own turn — and in a flee turn,
 // only the movement surge (combat.tex "Flee"). There are none before the
-// combat has started.
-export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind): string | null {
+// combat has started. The protection surge is made only with the defense
+// that repositions for it (abilities.tex "Protection Surge"), never on its
+// own.
+export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind, answering = false): string | null {
   if (!isCombatStarted(state)) return 'combat has not started'
+  if (kind === 'protection' && !answering) return 'made only with a defense that repositions for an ally'
   if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
   if (state.forcedSurge === id && !isFeintSurge(kind)) return 'a feint forces a surge other than focus or recovery'
   return SURGES[kind].earmarked && !isInTurn(state, id) ? 'only in your own turn' : null

@@ -40,6 +40,13 @@ export function landSocial(state: SceneState, action: SocialActionRecord | Taunt
   }
 }
 
+// combat.tex "Rally", said by the character as something else makes it
+// (abilities.tex "Rallying Guard").
+export function rally(state: SceneState, id: string): SceneState {
+  const c = state.characters[id]
+  return c ? speak(state, id, 'rally', getSocialValue(c, 'rally'), getHeard(state, id, 'rally')) : state
+}
+
 // creating.tex "Limit Stress Actions": the table finds nobody for the abusive
 // to insult, or nobody who can communicate for the traitor to negotiate with,
 // so they "default to coward".

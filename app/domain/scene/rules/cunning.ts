@@ -46,6 +46,9 @@ export function getCunningReactionTerms(state: SceneState, reaction: Action): Te
 // the morale test aggravating factors are equal or higher than 5": the
 // actor's, as the fight weighs on them when they test, a rally left out
 // (the table's ruling).
+// abilities.tex "Bulwark": "+1|2 to defend and reflex when making the
+// protection surge to protect someone else": every defense and reflex made
+// once the surge is (the table's ruling).
 const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action, againstId: string | null) => CampaignCharacter | null> = {
   prepared: (state, action) => {
     const p = getPreparationOf(state, action)
@@ -66,6 +69,10 @@ const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action
   underPressure: (state, action) => {
     const actor = state.characters[action.actorId]
     return actor && getPressingFactors(state, action.actorId) >= 5 ? actor : null
+  },
+  protecting: (state, action) => {
+    const actor = state.characters[action.actorId]
+    return actor && actor.usedSurge === 'protection' && action.reactionTo !== null ? actor : null
   },
 }
 

@@ -135,6 +135,14 @@ export function fatalist(c: CampaignCharacter): CampaignCharacter {
   return (['fateful', 'unshakable', 'grace-under-pressure', 'unwearied-2'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
 }
 
+// Guardian adopted and its abilities learned: the protection surge, run for
+// a block, an intercept or a guard, twice a round, with Bulwark's edge and
+// a rally (abilities.tex "Guardian").
+export function guardian(c: CampaignCharacter): CampaignCharacter {
+  const adopted = { ...c, trainables: { ...c.trainables, conviction1: { ...c.trainables.conviction1, name: 'Guardian' } } }
+  return (['protection-surge', 'bulwark-2', 'rallying-guard', 'guardian-s-vigor-2'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
+}
+
 // A brawler with a short sword in the other hand, which intercepts and is
 // bladed.
 export function swordBrawler(id: string): CampaignCharacter {

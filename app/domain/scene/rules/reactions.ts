@@ -19,7 +19,7 @@ import { getJoinReaction } from './coordinated'
 import { defRows, hasShootingRow } from './attack'
 import { getGroundCell } from './floorAttack'
 import { drawsOpportunity, getContestRecipe } from './recipes'
-import { getInterceptors, getProtectors } from './protect'
+import { getInterceptors, getProtectors, getStepGuards } from './protect'
 import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
 import { getSweepTargets, isSweep, isSweepLink } from './sweep'
@@ -253,8 +253,9 @@ function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
   // combat.tex "Guard": each shot has its own angle, so one who guards any
   // of the shots — the lead's or a joiner's — may be declared
   const shooters = [root.actorId, ...getReactionsTo(state, root.id).flatMap((r) => (r.kind === 'joinShot' ? [r.actorId] : []))]
-  const guards = Object.keys(state.characters)
-    .filter((id) => id !== root.targetId && shooters.some((shooter) => isGuardingShot(state, shooter, root.targetId!, id)))
+  // and whoever a move a guard carries gets there (rules/combinedMove.ts)
+  const standing = Object.keys(state.characters).filter((id) => id !== root.targetId && shooters.some((shooter) => isGuardingShot(state, shooter, root.targetId!, id)))
+  const guards = [...standing, ...getStepGuards(state, root).filter((id) => !standing.includes(id))]
     .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
   // combat.tex "Coordinated Shots": anyone with a shooting weapon may join,
   // whether or not they are in range of the target: that is declared. A

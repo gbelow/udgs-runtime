@@ -1,7 +1,7 @@
-import { CampaignCharacter, Character, SurgeKind } from "../../types"
+import { CampaignCharacter, Character, Grant, SurgeKind } from "../../types"
 import { RECOVERY_SURGE_SHORT, SURGES } from "../../tables"
 import { getAGI, getRecoveredSTA, getSTARegen } from "./characteristics"
-import { getBuffBonus, getGrantingAbility } from "./effects"
+import { getBuffBonus, getGrantingAbility, hasGrant } from "./effects"
 import { ABILITIES } from "../../abilities"
 import { hasAffliction } from "./afflictions"
 import { getBled } from "./wounds"
@@ -29,11 +29,35 @@ export function getSurgeSTA(kind: SurgeKind): (c: CampaignCharacter) => number {
 // character has 4 AP or more when they use the surge", for the ability's own
 // STA on top of the surge's. It is the same surge, bettered by itself
 // whenever it can be (the table's ruling); one who cannot pay the STA more
-// makes the plain one.
+// makes the plain one. The protection surge is a reaction surge.
 function isReactiveFighting(kind: SurgeKind, c: CampaignCharacter): boolean {
-  if (kind !== 'reaction' || c.resources.AP < 4) return false
+  if (!isReactiveSurge(kind) || c.resources.AP < 4) return false
   const extra = getReactiveFightingSTA(c)
-  return extra !== null && SURGES.reaction.STA + extra <= c.resources.STA
+  return extra !== null && SURGES[kind].STA + extra <= c.resources.STA
+}
+
+// combat.tex "Action surge": a reaction surge, after which no turn can be
+// started in the round (abilities.tex "Protection Surge": "This is a
+// reaction surge").
+export function isReactiveSurge(kind: SurgeKind | null): boolean {
+  if (kind === null) return false
+  const surge: { STA: number; reactive?: boolean } = SURGES[kind]
+  return surge.reactive === true
+}
+
+// Whether only an ability gives the surge.
+export function isLearnedSurge(kind: SurgeKind): boolean {
+  const surge: { STA: number; learned?: Grant } = SURGES[kind]
+  return surge.learned !== undefined
+}
+
+// Whether the character may make the surge at all: one only an ability
+// gives is made only by who has learned it.
+export function knowsSurge(kind: SurgeKind): (c: Character) => boolean {
+  return (c) => {
+    const surge: { STA: number; learned?: Grant } = SURGES[kind]
+    return !surge.learned || hasGrant(c, surge.learned)
+  }
 }
 
 function getReactiveFightingSTA(c: CampaignCharacter): number | null {
@@ -52,7 +76,7 @@ function getReactiveFightingSTA(c: CampaignCharacter): number | null {
 export function canSurge(kind: SurgeKind, compelled = false): (c: CampaignCharacter) => boolean {
   return (c: CampaignCharacter) => {
     const surge = SURGES[kind]
-    if (c.usedSurge !== null || getSurgeSTA(kind)(c) > c.resources.STA) return false
+    if (c.usedSurge !== null || !knowsSurge(kind)(c) || getSurgeSTA(kind)(c) > c.resources.STA) return false
     return compelled || !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
   }
 }
@@ -99,9 +123,9 @@ export function canSurgeAtAll(c: CampaignCharacter): boolean {
 }
 
 // combat.tex "Feint": the loser must "use an action surge, except recovery or
-// focus surge".
+// focus surge", in their own turn, where no protection surge is made.
 export function isFeintSurge(kind: SurgeKind): boolean {
-  return kind !== 'focus' && kind !== 'recovery'
+  return kind !== 'focus' && kind !== 'recovery' && kind !== 'protection'
 }
 
 // Whether some surge a feint may force is still open to the character.

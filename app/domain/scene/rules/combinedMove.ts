@@ -5,7 +5,7 @@ import type { Term } from '../../character/rules/terms'
 import { makeAction } from '../factories'
 import { canAfford } from '../../character/rules/cost'
 import { getMovementBlock } from '../../character/rules/movement'
-import { getSurgeAP } from '../../character/rules/surge'
+import { getSurgeAP, isReactiveSurge } from '../../character/rules/surge'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { getAttackKind } from '../../weaponProperties'
 import { SHOTS } from '../../tables'
@@ -22,6 +22,7 @@ import { getSurgeBarFor } from './surge'
 import { isCombatStarted } from './started'
 import { findWeaponRow } from './weaponRow'
 import { isMartyrGuard } from './stress'
+import { isProtectionGuard } from './protection'
 import { isGuardPlacedAt } from './protect'
 import { getRecipeEntry, getRecipesOf, type RecipeEntry } from './recipes'
 import type { ReactionMove } from './reactionMoves'
@@ -41,6 +42,9 @@ import type { ReactionMove } from './reactionMoves'
 // abilities.tex "Defensive Advance": "Spend 1 STA to move forward to get in
 // range to intercept, adding shield cover to the defense": one space towards
 // the attacker (the table's ruling).
+// abilities.tex "Protection Surge": "a reaction surge that allows
+// repositioning immediately to assist the ally": the martyr's run, carried
+// by a block, an intercept or, against a shot, a guard.
 // abilities.tex "Technical Lift": "perform an evasive jump and stand up in
 // the same action", taking "-3 to defend while doing so"; the stand up comes
 // once the strike has landed, and an interruption cancels it.
@@ -53,7 +57,23 @@ import type { ReactionMove } from './reactionMoves'
 
 export type CombinedEntry = RecipeEntry<CombinedMoveRecipe>
 type OwnAttack = 'strike' | 'shoot'
-export type CombinedDefense = ActionOf<'block'> | ActionOf<'intercept'> | ActionOf<'evasiveJump'>
+export type CombinedDefense = ActionOf<'block'> | ActionOf<'intercept'> | ActionOf<'guard'> | ActionOf<'evasiveJump'>
+type CarryingDefense = ActionOf<'block'> | ActionOf<'intercept'> | ActionOf<'guard'>
+
+export function isCombinedDefense(action: Action): action is CombinedDefense {
+  return action.kind === 'block' || action.kind === 'intercept' || action.kind === 'guard' || action.kind === 'evasiveJump'
+}
+
+// The defenses whose move is made before their die, from where it ends: a
+// block or an intercept against a strike, a guard against a shot.
+function isCarrying(action: Action): action is CarryingDefense {
+  return action.kind === 'block' || action.kind === 'intercept' || action.kind === 'guard'
+}
+
+// What the defense is made against: a strike, or for a guard a shot.
+function isAnsweredBy(root: Action | null, kind: CombinedDefense['kind']): root is StrikeAction | ShootAction {
+  return kind === 'guard' ? root?.kind === 'shoot' : root?.kind === 'strike'
+}
 
 function isOwnAttack(kind: string): kind is OwnAttack {
   return kind === 'strike' || kind === 'shoot'
@@ -73,12 +93,13 @@ export function getCombinedOf(c: Character | undefined, action: { recipe?: strin
   return entry && entry.recipe.type === 'combinedMove' ? (entry as CombinedEntry) : null
 }
 
-const OPEN_WHEN: Record<NonNullable<CombinedMoveRecipe['openWhen']>, (state: SceneState, id: string) => boolean> = {
-  martyrGuard: isMartyrGuard,
+const OPEN_WHEN: Record<NonNullable<CombinedMoveRecipe['openWhen']>, (state: SceneState, id: string, root: Action | null) => boolean> = {
+  martyrGuard: (state, id) => isMartyrGuard(state, id),
+  protectionSurge: isProtectionGuard,
 }
 
-function holds(state: SceneState, id: string, recipe: CombinedMoveRecipe): boolean {
-  return recipe.openWhen === null || OPEN_WHEN[recipe.openWhen](state, id)
+function holds(state: SceneState, id: string, recipe: CombinedMoveRecipe, root: Action | null): boolean {
+  return recipe.openWhen === null || OPEN_WHEN[recipe.openWhen](state, id, root)
 }
 
 // What the recipe does to the price of what carries it.
@@ -102,7 +123,7 @@ function getMovementAP(c: Character, movement: CombinedMoveRecipe['movement']): 
 // Whether the move may be declared with the recipe: a move of its movement
 // of the actor's own in their action.
 export function canDeclareOnMove(state: SceneState, move: MoveAction, entry: CombinedEntry): boolean {
-  return move.movement === entry.recipe.movement && move.spawnedBy === null && move.preparedPart === null && !move.forced && holds(state, move.actorId, entry.recipe)
+  return move.movement === entry.recipe.movement && move.spawnedBy === null && move.preparedPart === null && !move.forced && holds(state, move.actorId, entry.recipe, null)
 }
 
 // The recipe the move is declared with, open, when it opens an attack.
@@ -179,21 +200,28 @@ function isAway(state: SceneState, move: MoveAction, cell: Coord): boolean {
 // A move a defense carries
 
 // The move the defense carries, as the move opened for it: its movement, as
-// far as the recipe reaches, bought with the defense's price.
+// far as the recipe reaches, bought with the defense's price. The run a
+// reaction surge buys (the martyr's, the protection surge's) is as long as
+// the AP the surge made gives, a protection surge's included, and is paid
+// for as movement, AP and STA (the table's ruling).
 export function getCarriedStep(c: Character, entry: CombinedEntry): ReactionMove {
   const { movement, reach } = entry.recipe
-  const AP = reach === 'reactionSurge' && isCampaignCharacter(c) ? getSurgeAP('reaction')(c) : getMovementAP(c, movement)
-  return movement === 'stand' ? { movement, budget: AP, prepaid: AP } : { movement, movements: [movement], budget: AP, prepaid: AP }
+  const surge = isCampaignCharacter(c) && isReactiveSurge(c.usedSurge) ? c.usedSurge! : 'reaction'
+  const bySurge = reach === 'reactionSurge' && isCampaignCharacter(c)
+  const AP = bySurge ? getSurgeAP(surge)(c) : getMovementAP(c, movement)
+  const prepaid = bySurge ? 0 : AP
+  return movement === 'stand' ? { movement, budget: AP, prepaid } : { movement, movements: [movement], budget: AP, prepaid }
 }
 
 // Whether the defense may be declared with the recipe against the root:
-// against a strike, made on the spot, for someone else where the recipe asks
-// it, while its condition holds, and with somewhere for the move to end
-// (one made before its die) or someone to stand up (a stand up).
+// against a strike (a guard against a shot), made on the spot, for someone
+// else where the recipe asks it, while its condition holds, and with
+// somewhere for the move to end (one made before its die) or someone to
+// stand up (a stand up).
 export function canCarryStep(state: SceneState, root: Action | null, defense: CombinedDefense, entry: CombinedEntry): boolean {
   const c = state.characters[defense.actorId]
   const { recipe } = entry
-  if (root?.kind !== 'strike' || !c || !(recipe.with as readonly string[]).includes(defense.kind) || !holds(state, c.id, recipe)) return false
+  if (!isAnsweredBy(root, defense.kind) || !c || !(recipe.with as readonly string[]).includes(defense.kind) || !holds(state, c.id, recipe, root)) return false
   if ('preparedId' in defense && defense.preparedId !== '') return false
   if (recipe.defends === 'ally' && defense.actorId === root.targetId) return false
   if (recipe.movement === 'stand') return hasAffliction(c, 'prone') && !isInLiquid(state, c)
@@ -203,14 +231,14 @@ export function canCarryStep(state: SceneState, root: Action | null, defense: Co
 // The spaces the move a defense carries before its die may end on: within
 // its reach, where the recipe sends it, where the defense can be made from,
 // and not where an evasive jump answering the same strike lands.
-export function getStepLandings(state: SceneState, root: StrikeAction, defense: CombinedDefense, entry: CombinedEntry): Coord[] {
+export function getStepLandings(state: SceneState, root: StrikeAction | ShootAction, defense: CombinedDefense, entry: CombinedEntry): Coord[] {
   const c = state.characters[defense.actorId]
   if (!c || !state.board?.placements[c.id]) return []
   const probe = makeAction('move', { id: '', actorId: c.id, ...getCarriedStep(c, entry) })
   return getWalkableCells(state, probe).map(({ cell }) => cell).filter((cell) => isStepLanding(state, root, defense, entry, cell))
 }
 
-function isStepLanding(state: SceneState, root: StrikeAction, defense: CombinedDefense, entry: CombinedEntry, cell: Coord): boolean {
+function isStepLanding(state: SceneState, root: StrikeAction | ShootAction, defense: CombinedDefense, entry: CombinedEntry, cell: Coord): boolean {
   const c = state.characters[defense.actorId]
   const from = state.board?.placements[defense.actorId]
   if (!c || !from) return true
@@ -223,13 +251,13 @@ function isStepLanding(state: SceneState, root: StrikeAction, defense: CombinedD
     const other = getPlacedFootprint(state, id)
     return !!other && setDistance(here, other) <= setDistance(getFootprint(c, from), other)
   })) return false
-  if ((defense.kind === 'block' || defense.kind === 'intercept') && !isGuardPlacedAt(state, root, defense, at)) return false
+  if (isCarrying(defense) && !isGuardPlacedAt(state, root, defense, at)) return false
   return !isLandedOn(state, root, c, at)
 }
 
 // Whether an evasive jump answering the strike lands on any of that place:
 // the jump was declared first and has the space (the table's ruling).
-function isLandedOn(state: SceneState, root: StrikeAction, c: Character, at: Placement): boolean {
+function isLandedOn(state: SceneState, root: StrikeAction | ShootAction, c: Character, at: Placement): boolean {
   const landings = getReactionsTo(state, root.id).flatMap((r) => {
     const jumper = state.characters[r.actorId]
     return r.kind === 'evasiveJump' && r.to && jumper && r.actorId !== c.id ? getFootprint(jumper, r.to) : []
@@ -239,7 +267,7 @@ function isLandedOn(state: SceneState, root: StrikeAction, c: Character, at: Pla
 
 function getCarrier(state: SceneState, move: MoveAction): { defense: CombinedDefense; entry: CombinedEntry } | null {
   const opener = move.spawnedBy ? getAction(state, move.spawnedBy) : null
-  if (!opener || (opener.kind !== 'block' && opener.kind !== 'intercept' && opener.kind !== 'evasiveJump')) return null
+  if (!opener || !isCombinedDefense(opener)) return null
   const entry = getCombinedOf(state.characters[opener.actorId], opener)
   return entry ? { defense: opener, entry } : null
 }
@@ -247,9 +275,9 @@ function getCarrier(state: SceneState, move: MoveAction): { defense: CombinedDef
 // The defense declared against the root whose move before its die has still
 // to be offered, and that move.
 export function getPendingStep(state: SceneState, root: Action): { defense: CombinedDefense; move: ReactionMove } | null {
-  if (root.kind !== 'strike') return null
+  if (root.kind !== 'strike' && root.kind !== 'shoot') return null
   for (const r of getReactionsTo(state, root.id)) {
-    if (r.kind !== 'block' && r.kind !== 'intercept') continue
+    if (!isCarrying(r) || !isAnsweredBy(root, r.kind)) continue
     const c = state.characters[r.actorId]
     const entry = getCombinedOf(c, r)
     if (!c || !entry || entry.recipe.order !== 'before' || getOpenedBy(state, r) || getPassedUp(state, r.id).length > 0) continue
@@ -262,9 +290,9 @@ export function getPendingStep(state: SceneState, root: Action): { defense: Comb
 // come to nothing: the move passed up, or ended where the defense cannot be
 // made from.
 export function getLapsedSteps(state: SceneState, root: Action): CombinedDefense[] {
-  if (root.kind !== 'strike') return []
-  return getReactionsTo(state, root.id).filter((r): r is ActionOf<'block'> | ActionOf<'intercept'> => {
-    if ((r.kind !== 'block' && r.kind !== 'intercept') || r.step === 'done') return false
+  if (root.kind !== 'strike' && root.kind !== 'shoot') return []
+  return getReactionsTo(state, root.id).filter((r): r is CarryingDefense => {
+    if (!isCarrying(r) || !isAnsweredBy(root, r.kind) || r.step === 'done') return false
     const entry = getCombinedOf(state.characters[r.actorId], r)
     const at = state.board?.placements[r.actorId]
     if (!entry || entry.recipe.order !== 'before') return false
@@ -274,7 +302,7 @@ export function getLapsedSteps(state: SceneState, root: Action): CombinedDefense
 
 // Whether the defense waits on the move it carries before its die.
 export function isStepPending(state: SceneState, defense: Action): boolean {
-  if (defense.kind !== 'block' && defense.kind !== 'intercept') return false
+  if (!isCarrying(defense)) return false
   const entry = getCombinedOf(state.characters[defense.actorId], defense)
   return !!entry && entry.recipe.order === 'before' && !getOpenedBy(state, defense) && getPassedUp(state, defense.id).length === 0
 }
@@ -298,7 +326,7 @@ export function isCombinedLanding(state: SceneState, move: MoveAction, cell: Coo
   const carrier = getCarrier(state, move)
   if (carrier && carrier.entry.recipe.order === 'before') {
     const root = getRootOf(state, carrier.defense)
-    return !!cell && root?.kind === 'strike' && isStepLanding(state, root, carrier.defense, carrier.entry, cell)
+    return !!cell && isAnsweredBy(root, carrier.defense.kind) && isStepLanding(state, root, carrier.defense, carrier.entry, cell)
   }
   const entry = getCombinedOf(state.characters[move.actorId], move)
   if (!entry) return true

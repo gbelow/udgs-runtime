@@ -79,11 +79,12 @@ const RULE_RECIPES = {
   },
   // creating.tex "Limit Stress Actions": a martyr "can use their reaction
   // surge to protect an ally and reposition", running as far as the surge's
-  // AP buy onto where they can block or intercept for them (the table's
-  // ruling); the run pays its STA as any movement a reaction opens does
+  // AP buy onto where they can block or intercept for them, or guard them
+  // against a shot (the table's ruling); the run is paid for as movement, AP
+  // and STA
   martyrGuard: {
     label: 'martyr',
-    recipe: RecipeSchema.parse({ type: 'combinedMove', with: ['block', 'intercept'], movement: 'run', reach: 'reactionSurge', defends: 'ally', openWhen: 'martyrGuard' }),
+    recipe: RecipeSchema.parse({ type: 'combinedMove', with: ['block', 'intercept', 'guard'], movement: 'run', reach: 'reactionSurge', defends: 'ally', openWhen: 'martyrGuard' }),
   },
   // combat.tex "Rest": "The character is allowed to move 4 AP worth of
   // careful movement while resting during their own turn"

@@ -88,7 +88,7 @@ export const ACTIONS = {
   intercept:   { label: 'intercept', rule: 'combat.tex "Defend", "Intercept"',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', preparedId: '', recipe: null } },
   // combat.tex "Reflex": "Evasion" and "Guard", the two reactions to a shot
   evasion:     { label: 'evasion', rule: 'combat.tex "Reflex", "Evasion"',      type: 'reaction', price: 'reflex',      reactsTo: ['shoot'],  die: false },
-  guard:       { label: 'guard', rule: 'combat.tex "Reflex", "Guard"',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false, identity: { weaponKey: '', attack: '', preparedId: '', cover: false } },
+  guard:       { label: 'guard', rule: 'combat.tex "Reflex", "Guard"',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false, identity: { weaponKey: '', attack: '', preparedId: '', cover: false, recipe: null } },
   // combat.tex "Avoiding an Explosion": "Spend 3 AP and make a reflex skill
   // test against the DL of the explosion"
   avoidExplosion: { label: 'avoid explosion', rule: 'combat.tex "Avoiding an Explosion"', type: 'reaction', price: 'avoidExplosion', reactsTo: ['explosion'], die: true },

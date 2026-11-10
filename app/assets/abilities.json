@@ -4680,13 +4680,53 @@
             }
           ]
         ],
-        "description": "When they realize that an ally within 10m has been attacked, they can make a protection surge. This is just a reaction surge that allows running to reposition immediately to assist the ally. It works like a compulsion, which interrupts the attacker's turn momentarily. The character's actions must necessarily heal the ally or be reactions.",
+        "description": "When they realize that an ally within 10m has been attacked, they can make a protection surge. This is a reaction surge that allows repositioning immediately to assist the ally. It works like a compulsion, which interrupts the attacker's turn momentarily. The character's actions must necessarily be reactions to defend it.",
         "effect": [],
-        "recipes": [],
-        "grants": [],
+        "recipes": [
+          {
+            "type": "combinedMove",
+            "with": [
+              "block",
+              "intercept",
+              "guard"
+            ],
+            "movement": "run",
+            "order": "before",
+            "reach": "reactionSurge",
+            "toward": "any",
+            "defends": "ally",
+            "rows": "any",
+            "cost": {
+              "operation": "+",
+              "AP": 0,
+              "STA": 0
+            },
+            "hit": 0,
+            "cover": false,
+            "openWhen": "protectionSurge"
+          }
+        ],
+        "grants": [
+          "protectionSurge"
+        ],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
+        "attitudes": [
+          {
+            "on": {
+              "event": "protectionSurge"
+            },
+            "conviction": "Guardian",
+            "XP": 1
+          },
+          {
+            "on": {
+              "event": "refusedProtection"
+            },
+            "conviction": "Guardian",
+            "XP": -1
+          }
+        ],
         "studies": []
       }
     ]
@@ -4723,15 +4763,22 @@
             {
               "kind": "trainable",
               "name": "Guardian",
-              "level": 2,
+              "level": 1,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Gains +1 to defend and reflex when making the protection surge to protect someone else. ★ Also gains +1 in sorcery for any healing action.",
+        "description": "Gains +1 to defend and reflex when making the protection surge to protect someone else.",
         "effect": [],
-        "recipes": [],
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "protecting",
+            "tests": "reactions",
+            "hit": 1
+          }
+        ],
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
@@ -4756,15 +4803,22 @@
             {
               "kind": "trainable",
               "name": "Guardian",
-              "level": 4,
+              "level": 3,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Gains +2 to defend and reflex when making the protection surge to protect someone else. ★ Also gains +2 in sorcery for any healing action.",
+        "description": "Gains +2 to defend and reflex when making the protection surge to protect someone else.",
         "effect": [],
-        "recipes": [],
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "protecting",
+            "tests": "reactions",
+            "hit": 1
+          }
+        ],
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
@@ -4805,7 +4859,7 @@
             {
               "kind": "trainable",
               "name": "Guardian",
-              "level": 3,
+              "level": 4,
               "op": ">=",
               "not": false
             }
@@ -4814,7 +4868,9 @@
         "description": "Using protection surge automatically makes a rally.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "rallyingGuard"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -4854,14 +4910,26 @@
             {
               "kind": "trainable",
               "name": "Guardian",
-              "level": 3,
+              "level": 2,
               "op": ">=",
               "not": false
             }
           ]
         ],
         "description": "Gain 1 AP extra when they use protection surge.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "surge:protection",
+              "operation": "+",
+              "value": 1,
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
@@ -4893,10 +4961,24 @@
             }
           ]
         ],
-        "description": "Gain 2 AP extra when they use protection surge.",
-        "effect": [],
+        "description": "Gain 2 AP extra when they use protection surge. The character can reposition themselves a second time during the round after using protection surge.",
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "surge:protection",
+              "operation": "+",
+              "value": 1,
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "repositionTwice"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

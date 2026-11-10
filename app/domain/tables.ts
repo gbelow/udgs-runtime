@@ -1,5 +1,5 @@
 import { EDGES, HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type ChaseTier, type FootprintPreset, type LivingLevel } from './lists'
-import type { AfflictionKey, Coord, Degree, Fuel, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
+import type { AfflictionKey, Coord, Degree, Fuel, Grant, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
 // not import this module (eslint enforces it) — a table that the UI needs is
@@ -468,15 +468,26 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // affliction under which the surge cannot be made voluntarily (combat.tex
 // "Afflictions": afraid bars the combat surge, enraged the reaction surge).
 // The recovery surge gives back STA instead of AP: "STA equal to resting -1
-// STA".
+// STA". A `reactive` surge is a reaction surge: no turn can be started after
+// it. abilities.tex "Protection Surge": "This is a reaction surge that allows
+// repositioning immediately to assist the ally", made only by one who has
+// learned it (`learned`), with the defense whose move it is (the table's
+// ruling: the move is what makes it one; its AP pay for anything after).
 export const RECOVERY_SURGE_SHORT = 1
 export const SURGES = {
   movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'escape', 'reactions'], restriction: 'Only in your own turn, or as a flee. A push or a drag is not movement here, escaping a grapple is. Running costs no STA for the rest of the turn.' },
   combat:   { STA: 2, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
-  reaction: { STA: 2, AP: () => 4, earmarked: false, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
+  reaction: { STA: 2, AP: () => 4, earmarked: false, reactive: true, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
+  protection: { STA: 2, AP: () => 4, earmarked: false, reactive: true, learned: 'protectionSurge', restriction: 'Made with a block, intercept or guard that repositions to defend an ally attacked within 10 m. No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
   focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
   recovery: { STA: 0, AP: () => 0, earmarked: false, restriction: 'Recovers a rest\'s STA less 1. Made by itself at the end of a round in which no surge was.' },
-} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; allows?: readonly SurgeAllowance[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
+} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; reactive?: boolean; learned?: Grant; allows?: readonly SurgeAllowance[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
+
+// abilities.tex "Protection Surge": "an ally within 10m has been attacked";
+// "Guardian": the prohibited attitude, "an ally takes tier 2 damage or
+// higher"
+export const PROTECTION_RANGE = 10
+export const PROTECTION_FAILED_TIER = 2
 
 // combat.tex "Morale": "Combat morale DL = 0 + aggravating factors", and a
 // test is triggered at the beginning of a round when they total MORALE_TRIGGER

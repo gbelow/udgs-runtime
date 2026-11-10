@@ -55,6 +55,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   turnsTaken: unseen,
   prepared: (ids, c) => ids.filter((id) => c.visible.has(id)),
   performed: (ids, c) => ids.filter((id) => c.visible.has(id)),
+  protectionMoves: unseen,
   firstTurn: (first, c) => (first && c.hidden.has(first.id) ? null : first),
   following: unseen,
   stealthTurns: (turns, c) => unseen(turns.filter((t) => c.controlled.has(t.id)), c),

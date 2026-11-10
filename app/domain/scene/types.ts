@@ -515,6 +515,9 @@ const ActionBase = {
   // who, among those it let answer, said they would not while it waited for
   // its die, written as each says it
   passed: z.array(str).default([]),
+  // abilities.tex "Guardian": who could have made their protection surge for
+  // its target and let it go by, written as it is paid
+  unprotectedBy: z.array(str).default([]),
   // HOP purchase -> times bought
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }
@@ -1954,6 +1957,10 @@ export const SceneStateSchema = z.object({
   // (abilities.json "Prepared": "The first time a prepared action is
   // performed")
   performed: z.array(str).default([]),
+  // Who repositioned under their protection surge in the round, once for
+  // each time (abilities.tex "Guardian's Vigor" II: "a second time during the
+  // round")
+  protectionMoves: z.array(str).default([]),
   // Who took the round's first turn, and its number (abilities.json
   // "Strategist": "the first to take their turn in a round"), a limit stress
   // action not counting as a turn; null before anyone has

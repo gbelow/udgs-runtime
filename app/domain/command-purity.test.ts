@@ -267,6 +267,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   keepMorale: (s) => combatCommands.keepMorale('a')(deepFreeze({ ...s, roundStep: 'morale', morale: [{ id: 'a', roll: { mode: 'normal', die: 1, skill: 0, score: 1, DL: 3, degree: 'miss', resisted: 0, limitStress: false, hyped: false, open: true, rerolled: false, enemyNear: true }, optional: false }] })),
   setTablePressure: (s) => combatCommands.setTablePressure('a', 2)(deepFreeze(s)),
   landSocial: (s) => combatCommands.landSocial(deepFreeze(cleared(s)), SocialActionSchema.parse({ id: 'x', actorId: 'a', kind: 'social', say: 'rally' })),
+  rally: (s) => combatCommands.rally(deepFreeze(cleared(s)), 'a'),
   defaultToCoward: (s) => combatCommands.defaultToCoward('a')(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', compulsions: [{ id: 'a', action: 'abusive', acted: false, taken: false, by: '', constraint: null }] })),
   resetCombat: combatCommands.resetCombat,
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
