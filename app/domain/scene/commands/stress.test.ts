@@ -24,7 +24,7 @@ function tested(characters: CampaignCharacter[], margins: number[]): SceneState 
   return {
     ...SceneStateSchema.parse({ round: 1 }),
     characters: Object.fromEntries(characters.map((c) => [c.id, c])),
-    morale: characters.map((c, i) => ({ id: c.id, roll: missed(10 - margins[i], 10) })),
+    morale: characters.map((c, i) => ({ id: c.id, roll: missed(10 - margins[i], 10), optional: false })),
   }
 }
 

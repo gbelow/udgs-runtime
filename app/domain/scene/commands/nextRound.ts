@@ -19,7 +19,7 @@ import type { SceneState, Updater } from '../types'
 import { getHazardOf } from '../rules/board/hazard'
 import { getPlayingOutBar } from '../rules/log'
 import { isSuffocating } from '../rules/situational'
-import { getMoraleCalled } from '../rules/morale'
+import { getMoraleCalled, getMoraleVolunteers } from '../rules/morale'
 import { getHeldCalled } from '../rules/heldTest'
 import { getHeldActions } from '../rules/hold'
 import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
@@ -145,8 +145,9 @@ function stepOn(state: SceneState, caller: Caller): SceneState {
     case 'chase': {
       const begun = beginChase(state)
       const called = getMoraleCalled(begun)
-      if (called.length === 0) return { ...begun, roundStep: null, chase: endChaseRoundChange(begun) }
-      return { ...begun, roundStep: 'morale', morale: called.map((id) => ({ id, roll: null })) }
+      const volunteers = getMoraleVolunteers(begun, called)
+      if (called.length === 0 && volunteers.length === 0) return { ...begun, roundStep: null, chase: endChaseRoundChange(begun) }
+      return { ...begun, roundStep: 'morale', morale: [...called.map((id) => ({ id, roll: null, optional: false })), ...volunteers.map((id) => ({ id, roll: null, optional: true }))] }
     }
     case 'morale': return { ...state, roundStep: null, chase: endChaseRoundChange(state) }
     default: return state

@@ -111,12 +111,32 @@ const MORALE_AFFLICTIONS: readonly AfflictionKey[] = ['afraid', 'enraged', 'conf
 // anyone running in a chase: the test is combat's (the table's ruling).
 export function getMoraleCalled(state: SceneState): string[] {
   return Object.keys(state.characters).filter((id) => {
-    const c = state.characters[id]
-    const afflictions = getAfflictions(c, getSituationalAfflictions(state, id))
-    if (isDead(c) || afflictions.includes('unconscious') || isImmobile(state, c) || isParked(state, id) || isRunningInChase(state, id)) return false
+    if (!canTestMorale(state, id)) return false
+    const afflictions = getAfflictions(state.characters[id], getSituationalAfflictions(state, id))
     const stressed = sumTerms(getAggravators(state, id).filter((t) => t.value > 0)) >= MORALE_TRIGGER
     return stressed || getPressure(state, id).hostile !== null || MORALE_AFFLICTIONS.some((key) => afflictions.includes(key))
   })
+}
+
+function canTestMorale(state: SceneState, id: string): boolean {
+  const c = state.characters[id]
+  return !!c && !isDead(c) && !hasAffliction(c, 'unconscious', getSituationalAfflictions(state, id)) && !isImmobile(state, c) && !isParked(state, id) && !isRunningInChase(state, id)
+}
+
+// abilities.json "Hype Up": "They can decide to do a morale test in the
+// beginning of any round during combat": whoever has learned it and could
+// make a morale test but is not called to one. One test a round: a character
+// already called makes that one (the table's ruling).
+export function getMoraleVolunteers(state: SceneState, called: readonly string[]): string[] {
+  return Object.keys(state.characters).filter((id) => !called.includes(id) && hasGrant(state.characters[id], 'hypeUp') && canTestMorale(state, id))
+}
+
+// Why the character cannot pass up the morale test they chose whether to
+// make, or null.
+export function getSkipMoraleBar(state: SceneState, id: string): string | null {
+  const call = state.morale.find((m) => m.id === id)
+  if (!call || !call.optional) return 'not offered a morale test'
+  return call.roll ? 'already tested this round' : null
 }
 
 // Why the character cannot make their morale test now, or null.

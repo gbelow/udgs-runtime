@@ -33,7 +33,8 @@ export function tableMove(state: SceneState, parties: readonly Party[], dice: Di
 // One move of the round change by whoever `plays` the characters: a
 // concentrating character finishes the action they held when its AP are
 // there, else holds on to what they can, else lets go; a character called to
-// a test tests their morale normally, unless `tests` is off. Once nobody in
+// a test tests their morale normally, and passes up one they may choose,
+// unless `tests` is off. Once nobody in
 // the fight is played by anyone else, the change moves on. Null when there is
 // nothing to do.
 export function stepRoundChange(state: SceneState, dice: Dice, plays: (id: string) => boolean, tests = true): Played | null {
@@ -55,7 +56,8 @@ function chooseConcentration(state: SceneState, plays: (id: string) => boolean):
 
 function testMorale(state: SceneState, plays: (id: string) => boolean): SceneCommand | null {
   const untested = state.morale.find((m) => m.roll === null && state.characters[m.id] && plays(m.id))
-  return untested ? { kind: 'rollMorale', args: [untested.id, 'normal', true] } : null
+  if (!untested) return null
+  return untested.optional ? { kind: 'skipMorale', args: [untested.id] } : { kind: 'rollMorale', args: [untested.id, 'normal', true] }
 }
 
 // The round passes and its change is moved on as far as it goes with nobody

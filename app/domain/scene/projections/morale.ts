@@ -1,5 +1,5 @@
 import type { SceneState } from '../types'
-import { getAggravators, getHypeUpBar, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey } from '../rules/morale'
+import { getAggravators, getHypeUpBar, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey, getSkipMoraleBar } from '../rules/morale'
 import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
@@ -27,12 +27,15 @@ export type MoraleRow = {
   // has not tested yet, else why they cannot enrage themselves now ('' when
   // they can)
   hypeUp: string | null
+  // abilities.json "Hype Up": null unless the character chose whether to be
+  // tested, else why they cannot pass it up now ('' when they can)
+  skip: string | null
 }
 
 // combat.tex "Morale": everyone the round called to a test, what weighs on
 // them and, once made, how it went.
 function buildMoraleRows(state: SceneState): MoraleRow[] {
-  return state.morale.filter((call) => state.characters[call.id]).map(({ id, roll }) => {
+  return state.morale.filter((call) => state.characters[call.id]).map(({ id, roll, optional }) => {
     const aggravators = getAggravators(state, id)
     return {
       id,
@@ -45,6 +48,7 @@ function buildMoraleRows(state: SceneState): MoraleRow[] {
       limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,
       owed: getStressOwed(state, id),
       hypeUp: roll && hasGrant(state.characters[id], 'hypeUp') ? getHypeUpBar(state, id) ?? '' : null,
+      skip: optional && !roll ? getSkipMoraleBar(state, id) ?? '' : null,
     }
   })
 }

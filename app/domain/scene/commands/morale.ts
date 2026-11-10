@@ -1,7 +1,7 @@
 import type { MoraleRoll, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getCompulsionDegree, getCompulsionResistance, getHypeUpBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey } from '../rules/morale'
+import { getCompulsionDegree, getCompulsionResistance, getHypeUpBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey, getSkipMoraleBar } from '../rules/morale'
 import { resolveTest } from '../../play/test'
 import { updateCharacter } from './characters'
 import { oweStress } from './stress'
@@ -33,6 +33,17 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
     const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, score, DL: test.DL, degree, resisted, limitStress: outcome.limitStress, hyped: false }
     const tested = { ...settled, morale: settled.morale.map((call) => (call.id === id ? { ...call, roll } : call)) }
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)
+  }
+}
+
+// abilities.json "Hype Up": the character passes up the morale test they
+// could have chosen to make. The last of the round's tests settled, the
+// limit stress actions they activated are owed, as after a roll.
+export function skipMorale(id: string): Updater {
+  return (state) => {
+    if (getSkipMoraleBar(state, id)) return state
+    const skipped = { ...state, morale: state.morale.filter((call) => call.id !== id) }
+    return getMoraleTurnBar(skipped) ? skipped : oweStress(skipped)
   }
 }
 

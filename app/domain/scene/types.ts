@@ -1661,7 +1661,9 @@ export const MoraleRollSchema = z.object({
   limitStress: z.boolean(),
   hyped: z.boolean().default(false),
 })
-export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
+// abilities.json "Hype Up": a call the character was not made to answer, but
+// may (`optional`), thrown or skipped.
+export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null), optional: z.boolean().default(false) })
 // The steps of the round change the table moves on from by hand; what runs on
 // its own between them, and the steps inside the last one, are read off the
 // state (rules/roundChange.ts).

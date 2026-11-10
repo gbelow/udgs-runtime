@@ -3,8 +3,8 @@ import { SceneStateSchema, type SceneState, type MoraleRoll } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { TrainableSchema, type CampaignCharacter, type Degree } from '../../types'
 import { ABILITIES } from '../../abilities'
-import { getMoraleOutcome, getSocialValue } from '../rules/morale'
-import { hypeUp } from './morale'
+import { getMoraleCalled, getMoraleOutcome, getMoraleVolunteers, getSocialValue } from '../rules/morale'
+import { hypeUp, skipMorale } from './morale'
 import { nextRound } from './nextRound'
 import { getSurgeBarFor } from '../rules/surge'
 import { getSurged } from '../../character/rules/surge'
@@ -57,7 +57,7 @@ describe('Hype up', () => {
 
   it('enrages on a hit or crit at the morale step, ending fear', () => {
     for (const degree of ['hit', 'critical'] as const) {
-      const state = hypeUp('a')(inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: tested(degree) }] }))
+      const state = hypeUp('a')(inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: tested(degree), optional: false }] }))
       expect(getAfflictions(state.characters.a)).toContain('enraged')
       expect(getAfflictions(state.characters.a)).not.toContain('afraid')
     }
@@ -65,13 +65,35 @@ describe('Hype up', () => {
 
   it('is refused on a graze or a miss, before the test, after the morale step, or unlearned', () => {
     const refused: SceneState[] = [
-      inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: tested('graze') }] }),
-      inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: tested('miss') }] }),
-      inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: null }] }),
-      inFight(afraid, { roundStep: null, morale: [{ id: 'a', roll: tested('hit') }] }),
-      inFight(fighter([], { afflictions: ['afraid'] }), { roundStep: 'morale', morale: [{ id: 'a', roll: tested('hit') }] }),
+      inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: tested('graze'), optional: false }] }),
+      inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: tested('miss'), optional: false }] }),
+      inFight(afraid, { roundStep: 'morale', morale: [{ id: 'a', roll: null, optional: false }] }),
+      inFight(afraid, { roundStep: null, morale: [{ id: 'a', roll: tested('hit'), optional: false }] }),
+      inFight(fighter([], { afflictions: ['afraid'] }), { roundStep: 'morale', morale: [{ id: 'a', roll: tested('hit'), optional: false }] }),
     ]
     for (const state of refused) expect(hypeUp('a')(state)).toBe(state)
+  })
+})
+
+// abilities.json "Hype Up": "They can decide to do a morale test in the
+// beginning of any round during combat"; one test a round, a character
+// already called makes that one (the table's ruling).
+describe('Hype up, a morale test chosen', () => {
+  it('is offered to one who has learned it and is not called, and to nobody else', () => {
+    const calm = inFight(fighter(['hype-up']))
+    expect(getMoraleCalled(calm)).toEqual([])
+    expect(getMoraleVolunteers(calm, getMoraleCalled(calm))).toEqual(['a'])
+    const afraid = inFight(fighter(['hype-up'], { afflictions: ['afraid'] }))
+    expect(getMoraleVolunteers(afraid, getMoraleCalled(afraid))).toEqual([])
+    const untrained = inFight(fighter([]))
+    expect(getMoraleVolunteers(untrained, getMoraleCalled(untrained))).toEqual([])
+  })
+
+  it('may be passed up, and a call the character was made to answer may not', () => {
+    const offered = inFight(fighter(['hype-up']), { roundStep: 'morale', morale: [{ id: 'a', roll: null, optional: true }] })
+    expect(skipMorale('a')(offered).morale).toEqual([])
+    const called = inFight(fighter(['hype-up']), { roundStep: 'morale', morale: [{ id: 'a', roll: null, optional: false }] })
+    expect(skipMorale('a')(called)).toBe(called)
   })
 })
 

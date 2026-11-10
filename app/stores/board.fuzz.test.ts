@@ -35,7 +35,7 @@ import { hasGrant } from '../domain/character/rules/effects'
 import { hasAbility } from '../domain/abilities'
 import { getCombinedMoves } from '../domain/scene/rules/combinedMove'
 import { getDeclaredCarriedMoves } from '../domain/scene/rules/carriedMove'
-import { adapted, archer, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
+import { adapted, archer, ferocious, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
@@ -717,7 +717,8 @@ function roundChangePlays(): Play[] {
         const owed = h.state().morale.filter((m) => m.roll === null && h.state().characters[m.id])
         if (!owed.length) return
         const call = pick(owed)
-        h.send({ kind: 'rollMorale', args: [call.id, pick(getMoraleModes(h.state().characters[call.id])), pick([true, false])] })
+        if (call.optional && pick([true, false])) h.send({ kind: 'skipMorale', args: [call.id] })
+        else h.send({ kind: 'rollMorale', args: [call.id, pick(getMoraleModes(h.state().characters[call.id])), pick([true, false])] })
       },
     },
   ]
@@ -749,7 +750,8 @@ function stepRoundChange(h: Harness, pick: Picker, until: RoundPhase | null = nu
     if (owed.length) {
       const id = pick(owed)
       h.send({ kind: getHoldOnBar(s, id) || pick([true, false]) ? 'letGo' : 'holdOn', args: [id] })
-    } else if (untested) h.send({ kind: 'rollMorale', args: [untested.id, pick(getMoraleModes(s.characters[untested.id])), pick([true, false])] })
+    } else if (untested?.optional && pick([true, false])) h.send({ kind: 'skipMorale', args: [untested.id] })
+    else if (untested) h.send({ kind: 'rollMorale', args: [untested.id, pick(getMoraleModes(s.characters[untested.id])), pick([true, false])] })
     else if (!getContinueBar(s)) h.send({ kind: 'continueRound', args: [] })
     else return
   }
@@ -1136,7 +1138,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
-  h.bring(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann')), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), adapted(archer('Fay')), walls.length ? torchbearer('Gus') : brawler('Gus'))
+  h.bring(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann')), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), adapted(archer('Fay')), ferocious(walls.length ? torchbearer('Gus') : brawler('Gus')))
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)

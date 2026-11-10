@@ -4286,7 +4286,7 @@
             }
           ]
         ],
-        "description": "The character can enrage themselves on a hit or crit in a morale test.",
+        "description": "The character can enrage themselves on a hit or crit in a morale test. They can decide to do a morale test in the beginning of any round during combat.",
         "effect": [],
         "recipes": [],
         "grants": [

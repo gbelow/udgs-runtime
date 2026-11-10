@@ -119,6 +119,14 @@ export function adapted(c: CampaignCharacter): CampaignCharacter {
   return grantAbility('adaptive-attitudes')(adopted)
 }
 
+// Ferocity adopted and its rage learned: a morale test chosen at any round's
+// beginning, a graze that enrages, and intimidation out of the combat surge
+// (abilities.tex "Ferocity").
+export function ferocious(c: CampaignCharacter): CampaignCharacter {
+  const adopted = { ...c, trainables: { ...c.trainables, conviction1: { ...c.trainables.conviction1, name: 'Ferocity' } } }
+  return (['hype-up', 'furious', 'brutality'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
+}
+
 // A brawler with a short sword in the other hand, which intercepts and is
 // bladed.
 export function swordBrawler(id: string): CampaignCharacter {
