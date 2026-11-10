@@ -1,4 +1,4 @@
-import { Ability, Buff, BuffCondition, BuffTarget, Character, Cost, Effect, Grant, Skills, Trigger } from '../../types'
+import { Ability, Buff, BuffCondition, BuffTarget, Character, Cost, Effect, Grant, Skills, SurgeAllow, Trigger } from '../../types'
 import type { RollMode } from '../../play/dice'
 import { ABILITIES, AbilityKey, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
@@ -45,6 +45,11 @@ export function getRollModes(character: Character, skill: keyof Skills, inFight:
     (m.skill === 'any' || m.skill === skill) &&
     (m.surge === null || !inFight || (isCampaignCharacter(character) && character.usedSurge === m.surge)))
   return ['normal', ...(['safe', 'risky'] as const).filter((mode) => allowed.some((m) => m.mode === mode))]
+}
+
+// What the character's learned abilities let a surge's AP pay for.
+export function getSurgeAllows(character: Character): SurgeAllow[] {
+  return getLearnedAbilities(character).flatMap((a) => a.surgeAllows)
 }
 
 // What each buff condition reads off the character.

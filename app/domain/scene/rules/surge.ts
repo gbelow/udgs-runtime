@@ -4,7 +4,7 @@ import { SURGES, type SurgeAllowance } from '../../tables'
 import { surgeKinds } from '../../lists'
 import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurged } from '../../character/rules/surge'
 import { ACTIONS, isReaction } from './actionCatalog'
-import { hasGrant } from '../../character/rules/effects'
+import { getSurgeAllows } from '../../character/rules/effects'
 import { isInGrapple } from './partners'
 import { getSurgeTurnBar, isInTurn } from './turn'
 
@@ -26,23 +26,38 @@ const ALLOWANCE_KINDS: Record<Exclude<SurgeAllowance, 'grapple' | 'escape'>, rea
   reflexes: ['evasion', 'guard', 'avoidExplosion', 'blockExplosion'],
 }
 
-// Whether the surge's AP may pay for the kind, for the character where they
-// stand. abilities.tex "Charge": "Learns to perform one attack with the APs
-// from a movement surge".
-function allows(state: SceneState, c: CampaignCharacter, surge: EarmarkedSurge, kind: ActionKind, maneuver?: string): boolean {
-  if (surge === 'movement' && kind === 'strike' && hasGrant(c, 'charge')) return true
-  return (SURGES[surge].allows as readonly SurgeAllowance[]).some((a) => {
-    if (a === 'grapple') return isInGrapple(state, c.id)
-    if (a === 'escape') return kind === 'grapple' && maneuver === 'escape' && isInGrapple(state, c.id)
-    return ALLOWANCE_KINDS[a].includes(kind)
-  })
+function inAllowance(state: SceneState, c: CampaignCharacter, a: SurgeAllowance, kind: ActionKind, maneuver?: string): boolean {
+  if (a === 'grapple') return isInGrapple(state, c.id)
+  if (a === 'escape') return kind === 'grapple' && maneuver === 'escape' && isInGrapple(state, c.id)
+  return ALLOWANCE_KINDS[a].includes(kind)
 }
 
-// abilities.tex "Charge": a strike paid while a movement surge's AP is left
-// is the charge, and "loses the rest of the AP from the surge".
-export function isChargeStrike(state: SceneState, action: Action): boolean {
+// The learned allowances of the surge that take in the kind (abilities.tex
+// "Charge": "Learns to perform one attack with the APs from a movement
+// surge").
+function getLearnedAllows(state: SceneState, c: CampaignCharacter, surge: EarmarkedSurge, kind: ActionKind, maneuver?: string) {
+  return getSurgeAllows(c).filter((a) => a.surge === surge && inAllowance(state, c, a.allows, kind, maneuver))
+}
+
+function allowedByRule(state: SceneState, c: CampaignCharacter, surge: EarmarkedSurge, kind: ActionKind, maneuver?: string): boolean {
+  return (SURGES[surge].allows as readonly SurgeAllowance[]).some((a) => inAllowance(state, c, a, kind, maneuver))
+}
+
+// Whether the surge's AP may pay for the kind, for the character where they
+// stand: by the surge itself or by what they have learned.
+function allows(state: SceneState, c: CampaignCharacter, surge: EarmarkedSurge, kind: ActionKind, maneuver?: string): boolean {
+  return allowedByRule(state, c, surge, kind, maneuver) || getLearnedAllows(state, c, surge, kind, maneuver).length > 0
+}
+
+// Whether the action, paid while a surge's AP is left, is one only a learned
+// allowance lets it pay for, and that allowance ends the surge with it
+// (abilities.tex "Charge": "loses the rest of the AP from the surge").
+export function endsSurge(state: SceneState, action: Action): boolean {
   const c = state.characters[action.actorId]
-  return action.kind === 'strike' && !!c && getBindingSurge(c) === 'movement' && hasGrant(c, 'charge')
+  const surge = c ? getBindingSurge(c) : null
+  if (!c || !surge) return false
+  const maneuver = action.kind === 'grapple' ? action.maneuver : undefined
+  return !allowedByRule(state, c, surge, action.kind, maneuver) && getLearnedAllows(state, c, surge, action.kind, maneuver).some((a) => a.endsSurge)
 }
 
 // Why the kind cannot be declared while a surge's AP is left, or null.

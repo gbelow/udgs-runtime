@@ -436,6 +436,13 @@ const ActionBase = {
   // The landed action that left this one as a follow-up for its actor to
   // take or pass up; null for anything else.
   followUpOf: str.nullable().default(null),
+  // Paid out of a surge's AP by an ability that lets it pay for the action
+  // and ends the surge with it (rules/surge.ts `endsSurge`), stamped as it is
+  // paid.
+  endsSurge: z.boolean().default(false),
+  // The trades of a recipe its actor has learned declared on the action, by
+  // recipe id (rules/modifiers.ts), beside the one recipe it was made under.
+  learnedModifiers: z.array(str).default([]),
   // The recipe this action was made under, by id (rules/recipes.ts): the
   // follow-up it opened, the contested strike it was declared as, or the
   // move it was declared with or carries; null for one no recipe gave.
@@ -732,9 +739,6 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD"
   opportunity: z.boolean().default(false),
-  // abilities.tex "Charge": paid out of a movement surge, whose AP left is
-  // lost with it
-  charge: z.boolean().default(false),
   ...ObjectAim,
   facts: DeliverySchema.nullable().default(null),
   ...Breakage,
@@ -945,9 +949,8 @@ export const SpellTestActionSchema = z.object({
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
-// An evade of a trample opens a step of the evader's (rules/sidestep.ts). A
-// `precise` one is made for 1 AP at -3 (abilities.tex "Precise Evasion").
-export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade'), modifiers: z.object({ precise: z.boolean().default(false) }).prefault({}) }).strip()
+// An evade of a trample opens a step of the evader's (rules/sidestep.ts).
+export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
 // combat.tex "Crash": the target of a trample standing firm — "The target
 // can spend 2AP+1STA to get +3 in this comparison"
 export const BraceActionSchema = z.object({ ...ActionBase, kind: z.literal('brace') }).strip()
@@ -1107,7 +1110,7 @@ export const OpportunityAttackActionSchema = z.object({
   // strike
   mode: z.enum(['strike', 'grapple']).default('strike'),
   maneuver: GrappleManeuverSchema.default('immobilize'),
-  modifiers: StrikeModifiersSchema.extend({ gentle: z.boolean().default(false) }).prefault({}),
+  modifiers: StrikeModifiersSchema.prefault({}),
 }).strip()
 
 // The holder of a sustained spray aiming it anew as a reaction, on the same
@@ -1231,8 +1234,7 @@ export const FleeFollowUpActionSchema = z.object({ ...ActionBase, kind: z.litera
 // "throw oneself along" for a knockdown, "stay immobilized yourself" for an
 // immobilization — and `item` what a disarm goes for. `unresisted` is the escape "Being stunned allows for", "without the
 // possibility of active resistance". `opportunity` is one made as an
-// opportunity attack. One `gentle` is made under abilities.tex "Gentle Art",
-// as is a resist with it; `winded` is an escape made without the STA
+// opportunity attack. `winded` is an escape made without the STA
 // (rules/modifiers.ts).
 export const GrappleActionSchema = z.object({
   ...ActionBase,
@@ -1242,7 +1244,7 @@ export const GrappleActionSchema = z.object({
   item: str.default(''),
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
-  modifiers: z.object({ gentle: z.boolean().default(false), winded: z.boolean().default(false) }).prefault({}),
+  modifiers: z.object({ winded: z.boolean().default(false) }).prefault({}),
   // abilities.tex "Grappling Combat": the special effect an attack's 5 HOP
   // bought, and the part it breaks
   effect: z.enum(GRAPPLING_EFFECTS).nullable().default(null),
@@ -1511,7 +1513,7 @@ export const SwimTestActionSchema = z.object({
 // rules for multiple characters as grapple"), boosting it or not; to "tag
 // along, spending movement AP to stay in the grapple, but not contributing
 // to either side"; or — held by nobody — to "let go and leave the grapple".
-export const ResistActionSchema = z.object({ ...ActionBase, kind: z.literal('resist'), modifiers: z.object({ gentle: z.boolean().default(false) }).prefault({}) }).strip()
+export const ResistActionSchema = z.object({ ...ActionBase, kind: z.literal('resist') }).strip()
 export const AssistActionSchema = z.object({ ...ActionBase, kind: z.literal('assist'), boost: z.boolean().default(false) }).strip()
 export const CarryActionSchema = z.object({ ...ActionBase, kind: z.literal('carry') }).strip()
 export const LetGoActionSchema = z.object({ ...ActionBase, kind: z.literal('letGo') }).strip()
@@ -1633,7 +1635,7 @@ export type DeclarableKind = Exclude<ActionKind, ReactionKind | { [K in ActionKi
 // own declared fields, each optional so a bare kind can be declared and
 // completed step by step, and the recipe it is declared with, if any.
 export type ActionDraft = {
-  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>> & { recipe?: string | null }
+  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>> & { recipe?: string | null; learnedModifiers?: string[] }
 }[ActionKind]
 
 // What a reactor may still say of the reaction they declared: the draft's

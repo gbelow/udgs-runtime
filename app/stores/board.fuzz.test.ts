@@ -1031,13 +1031,13 @@ function reflexShotPlay(h: Harness): Play[] {
 // with, made gently or not. Played only where someone has the ability, for
 // the same reason as the shelter.
 function gentlePlay(h: Harness): Play[] {
-  if (!Object.values(h.state().characters).some((c) => hasGrant(c, 'gentleArt'))) return []
+  if (!Object.values(h.state().characters).some((c) => hasAbility(c, 'gentle-art'))) return []
   return [{
     name: 'make a grapple test gently',
     weight: 2,
     run: (h, pick) => {
       const panel = getActionPanel(h.state())
-      const gentle = (modifiers: ModifierView[]) => modifiers.find((m) => m.key === 'gentle')
+      const gentle = (modifiers: ModifierView[]) => modifiers.find((m) => m.key.startsWith('gentle-art.'))
       const reactors = panel.reactors.filter((r) => gentle(r.modifiers))
       const own = gentle(panel.open?.modifiers ?? [])
       if (own && (reactors.length === 0 || pick([true, false]))) { if (pick([true, false])) h.send({ kind: 'amend', args: [own.press] }) }

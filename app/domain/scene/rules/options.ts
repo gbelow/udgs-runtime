@@ -327,7 +327,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       // none passes the one that came nearest says why
       case 'opportunityAttack': {
         const probe = (fields: Partial<ActionOf<'opportunityAttack'>>) => makeAction('opportunityAttack', { id: '', actorId: c.id, targetId: trigger.against ?? open.actorId, reactionTo: open.id, at: trigger.at, ...fields })
-        const catching = { catch: trigger.catchOnly === true, martialSpirit: false, tackle: false, gentle: false }
+        const catching = { catch: trigger.catchOnly === true, martialSpirit: false, tackle: false }
         const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant, modifiers: catching }))
         const maneuvers = getPartners(state, c.id).includes(open.actorId) ? getManeuversOf(c).map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
         const checks = [...strikes, ...maneuvers].map((a) => getOpportunityCheck(state, c, a))
@@ -654,10 +654,13 @@ function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
 }
 
 // An identity field holding fields of its own (`modifiers`) is the same
-// where each of those is.
+// where each of those is; one holding a list, where both hold the same items.
 function sameFields(a: unknown, b: unknown, identity: object): boolean {
   const field = (from: unknown, key: string): unknown => (from && typeof from === 'object' ? (from as Record<string, unknown>)[key] : undefined)
-  return Object.entries(identity).every(([key, unset]) => unset && typeof unset === 'object'
+  const items = (from: unknown, unset: unknown[]): string => JSON.stringify([...((from as unknown[] | undefined) ?? unset)].sort())
+  return Object.entries(identity).every(([key, unset]) => Array.isArray(unset)
+    ? items(field(a, key), unset) === items(field(b, key), unset)
+    : unset && typeof unset === 'object'
     ? sameFields(field(a, key), field(b, key), unset)
     : (field(a, key) ?? unset) === (field(b, key) ?? unset))
 }

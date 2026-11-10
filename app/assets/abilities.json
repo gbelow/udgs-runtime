@@ -54,6 +54,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -98,6 +99,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -154,6 +156,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -194,6 +197,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -250,6 +254,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -292,6 +297,7 @@
           "climbLeap"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -346,6 +352,7 @@
             "surge": null
           }
         ],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -384,6 +391,7 @@
             "surge": "movement"
           }
         ],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -418,6 +426,7 @@
           "climbUpright"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -472,6 +481,7 @@
             "surge": null
           }
         ],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -504,6 +514,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -538,6 +549,7 @@
           "softLanding"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -592,6 +604,7 @@
             "surge": null
           }
         ],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -624,6 +637,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -656,6 +670,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -700,6 +715,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -728,6 +744,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -756,6 +773,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -818,6 +836,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -864,6 +883,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -929,6 +949,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -978,6 +999,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1024,6 +1046,7 @@
           "bowTraining"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1089,6 +1112,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1138,6 +1162,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1198,6 +1223,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1263,6 +1289,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1312,6 +1339,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1361,6 +1389,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1407,6 +1436,7 @@
           "plantShield"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1459,6 +1489,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1524,6 +1555,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1573,6 +1605,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1632,6 +1665,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1688,6 +1722,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -1728,6 +1763,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1793,6 +1829,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1860,6 +1897,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1906,6 +1944,7 @@
           "bladeAlignment"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -1947,11 +1986,23 @@
         ],
         "description": "You can take a -2 penalty on grapple tests in exchange for reducing the STA cost by 1.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "gentleArt"
+        "recipes": [
+          {
+            "type": "modifier",
+            "on": "grappleTest",
+            "answering": null,
+            "offer": "toggle",
+            "cost": {
+              "operation": "+",
+              "AP": 0,
+              "STA": -1
+            },
+            "hit": -2
+          }
         ],
+        "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2026,6 +2077,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2072,6 +2124,7 @@
           "grapplingCombat"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2122,6 +2175,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2188,6 +2242,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2253,6 +2308,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2299,6 +2355,7 @@
           "fullCircleSweep"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2341,10 +2398,15 @@
         "description": "Learns to perform one attack with the APs from a movement surge, and loses the rest of the AP from the surge, if there is any.",
         "effect": [],
         "recipes": [],
-        "grants": [
-          "charge"
-        ],
+        "grants": [],
         "rollModes": [],
+        "surgeAllows": [
+          {
+            "surge": "movement",
+            "allows": "attacks",
+            "endsSurge": true
+          }
+        ],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2418,6 +2480,7 @@
           "tackle"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2471,6 +2534,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -2508,6 +2572,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2573,6 +2638,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2629,6 +2695,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -2669,6 +2736,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2734,6 +2802,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2790,6 +2859,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2831,11 +2901,23 @@
         ],
         "description": "Learns to use evade with 1 AP, but takes -3 to defend in doing so.",
         "effect": [],
-        "recipes": [],
-        "grants": [
-          "preciseEvade"
+        "recipes": [
+          {
+            "type": "modifier",
+            "on": "evade",
+            "answering": "strike",
+            "offer": "answer",
+            "cost": {
+              "operation": "set",
+              "AP": 1,
+              "STA": 0
+            },
+            "hit": -3
+          }
         ],
+        "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2906,6 +2988,7 @@
         ],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -2954,6 +3037,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3025,6 +3109,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3073,6 +3158,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3121,6 +3207,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3169,6 +3256,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3217,6 +3305,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3263,6 +3352,7 @@
           "deliberate"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -3293,6 +3383,7 @@
           "deliberate"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3341,6 +3432,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3389,6 +3481,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3435,6 +3528,7 @@
           "initiativeEdge"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3481,6 +3575,7 @@
           "perfectPreparation"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3529,6 +3624,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [
           {
             "on": {
@@ -3611,6 +3707,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3671,6 +3768,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -3715,6 +3813,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3763,6 +3862,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -3795,6 +3895,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3843,6 +3944,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3891,6 +3993,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3939,6 +4042,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -3987,6 +4091,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4035,6 +4140,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4067,6 +4173,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4115,6 +4222,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4165,6 +4273,7 @@
           "spiritOfBattle"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4213,6 +4322,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4261,6 +4371,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4293,6 +4404,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4341,6 +4453,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4389,6 +4502,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4421,6 +4535,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4469,6 +4584,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4501,6 +4617,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4533,6 +4650,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4581,6 +4699,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4613,6 +4732,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4661,6 +4781,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4693,6 +4814,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4741,6 +4863,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4773,6 +4896,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4821,6 +4945,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4853,6 +4978,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4901,6 +5027,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -4933,6 +5060,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -4981,6 +5109,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -5013,6 +5142,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5061,6 +5191,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5109,6 +5240,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5157,6 +5289,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5205,6 +5338,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5253,6 +5387,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5301,6 +5436,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5349,6 +5485,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5397,6 +5534,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5445,6 +5583,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5493,6 +5632,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5541,6 +5681,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5591,6 +5732,7 @@
           "clericSpells"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5639,6 +5781,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5687,6 +5830,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5735,6 +5879,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5774,6 +5919,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5813,6 +5959,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5852,6 +5999,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5891,6 +6039,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5930,6 +6079,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -5969,6 +6119,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6008,6 +6159,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6047,6 +6199,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6086,6 +6239,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6134,6 +6288,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6182,6 +6337,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6230,6 +6386,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6278,6 +6435,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6326,6 +6484,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6374,6 +6533,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6422,6 +6582,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6470,6 +6631,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6518,6 +6680,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6575,6 +6738,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6623,6 +6787,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6671,6 +6836,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6719,6 +6885,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6763,6 +6930,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6811,6 +6979,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6859,6 +7028,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6907,6 +7077,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -6955,6 +7126,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7003,6 +7175,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7051,6 +7224,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7099,6 +7273,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7147,6 +7322,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -7179,6 +7355,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7227,6 +7404,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7275,6 +7453,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7323,6 +7502,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7385,6 +7565,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7433,6 +7614,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7481,6 +7663,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7529,6 +7712,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7577,6 +7761,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7625,6 +7810,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7673,6 +7859,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7719,6 +7906,7 @@
           "battleCommands"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7765,6 +7953,7 @@
           "strategist"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -7795,6 +7984,7 @@
           "strategist"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7841,6 +8031,7 @@
           "prepared"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7887,6 +8078,7 @@
           "reactiveFighting"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7933,6 +8125,7 @@
           "improvedFeint"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -7988,6 +8181,7 @@
           "wizardSpells"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 2
       }
@@ -8034,6 +8228,7 @@
           "cheaperQuicken"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -8064,6 +8259,7 @@
           "concentratedDefense"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8117,6 +8313,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8161,6 +8358,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8214,6 +8412,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8271,6 +8470,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -8312,6 +8512,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -8353,6 +8554,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8406,6 +8608,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8459,6 +8662,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8512,6 +8716,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8565,6 +8770,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8618,6 +8824,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8680,6 +8887,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8733,6 +8941,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8777,6 +8986,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8843,6 +9053,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8896,6 +9107,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -8949,6 +9161,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9015,6 +9228,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9081,6 +9295,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9129,6 +9344,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9177,6 +9393,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9261,6 +9478,7 @@
           "humanoidHeight"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9352,6 +9570,7 @@
           "humanoidHeight"
         ],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9407,6 +9626,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9467,6 +9687,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9511,6 +9732,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9555,6 +9777,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9615,6 +9838,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9659,6 +9883,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9703,6 +9928,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9763,6 +9989,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9807,6 +10034,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -9851,6 +10079,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9899,6 +10128,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9938,6 +10168,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -9977,6 +10208,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10043,6 +10275,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10098,6 +10331,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10146,6 +10380,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10194,6 +10429,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10242,6 +10478,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10290,6 +10527,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10338,6 +10576,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10389,6 +10628,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10428,6 +10668,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10490,6 +10731,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -10536,6 +10778,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10565,6 +10808,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10604,6 +10848,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10643,6 +10888,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10682,6 +10928,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10730,6 +10977,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10778,6 +11026,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10826,6 +11075,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }
@@ -10874,6 +11124,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       },
@@ -10906,6 +11157,7 @@
         "recipes": [],
         "grants": [],
         "rollModes": [],
+        "surgeAllows": [],
         "attitudes": [],
         "freeSpells": 0
       }

@@ -1,5 +1,5 @@
-import type { Character, Delivery, Grant } from '../../types'
-import type { Action, ActionDraft, ActionOf, CostTerm, SceneState } from '../types'
+import type { Character, Delivery, Grant, ModifierRecipe } from '../../types'
+import type { Action, ActionDraft, ActionKind, ActionOf, CostTerm, SceneState } from '../types'
 import { getActionCost, type ActionCost } from '../../character/rules/actionCosts'
 import type { Term } from '../../character/rules/terms'
 import { ABILITIES, hasAbility } from '../../abilities'
@@ -10,7 +10,7 @@ import { getRootOf } from './log'
 import { canGrab, isGrappleRowOf } from './grapple'
 import { isSweepLink } from './sweep'
 import { ACTIONS, isReaction } from './actionCatalog'
-import { getRecipeLabel } from './recipes'
+import { getRecipeLabel, getRecipesOf, type RecipeEntry } from './recipes'
 import { canCarryStep, canDeclareOnMove, getCombinedMoves, getCombinedPrice, getCombinedTerms, type CombinedDefense } from './combinedMove'
 import { canDeclareCarried, getDeclaredCarriedMoves } from './carriedMove'
 import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
@@ -98,27 +98,43 @@ const STRIKE_MODIFIERS: Record<StrikeModifierKey, Modifier<StrikeContext>> = {
   },
 }
 
-// abilities.tex "Gentle Art": "You can take a -2 penalty on grapple tests in
-// exchange for reducing the STA cost by 1." A grapple test is a maneuver
-// and the resist against one; what a push is resisted with is Force.
-const GENTLE: Modifier = {
-  label: 'gentle art',
-  offer: 'toggle',
-  requires: 'gentleArt',
-  allowed: ({ action, answering }) => action.kind === 'grapple'
-    || (action.kind === 'opportunityAttack' && action.mode === 'grapple')
-    || (action.kind === 'resist' && answering?.kind === 'grapple'),
-  price: () => ({ add: { AP: 0, STA: -1 } }),
-  terms: () => [{ label: 'gentle art', value: -2 }],
+// The tests a learned trade (RecipeSchema `modifier`) may go with. A grapple
+// test is a maneuver, one an opportunity attack opens, and the resist against
+// one; what a push is resisted with is Force (abilities.tex "Gentle Art").
+const MODIFIER_ON: Record<ModifierRecipe['on'], { kinds: readonly ActionKind[]; allowed: (ctx: ModifierContext) => boolean }> = {
+  evade: { kinds: ['evade'], allowed: ({ action }) => action.kind === 'evade' },
+  grappleTest: {
+    kinds: ['grapple', 'opportunityAttack', 'resist'],
+    allowed: ({ action, answering }) => action.kind === 'grapple'
+      || (action.kind === 'opportunityAttack' && action.mode === 'grapple')
+      || (action.kind === 'resist' && answering?.kind === 'grapple'),
+  },
+}
+
+function getLearnedModifiers(actor: Character, kind: ActionKind): RecipeEntry<ModifierRecipe>[] {
+  return getRecipesOf(actor, 'modifier').filter((e) => MODIFIER_ON[e.recipe.on].kinds.includes(kind))
+}
+
+function toModifier(entry: RecipeEntry<ModifierRecipe>): Modifier {
+  const { on, answering, offer, cost, hit } = entry.recipe
+  const change = { AP: cost.AP, STA: cost.STA }
+  return {
+    label: entry.label,
+    offer,
+    allowed: (ctx) => MODIFIER_ON[on].allowed(ctx) && (answering === null || ctx.answering?.kind === answering),
+    price: () => (cost.operation === 'set' ? { set: change } : { add: change }),
+    terms: () => (hit !== 0 ? [{ label: entry.label, value: hit }] : []),
+  }
 }
 
 // combat.tex "Grapple Maneuvers" (the table's ruling): an escape may be made
-// without the STA at -5; one who has learned Gentle Art takes that trade at -2
-// instead (GENTLE), so the two never go together.
+// without the STA at -5; one who has learned a trade for grapple tests
+// (abilities.tex "Gentle Art") takes that instead, so the two never go
+// together.
 const WINDED: Modifier = {
   label: 'no stamina',
   offer: 'toggle',
-  allowed: ({ actor, action }) => action.kind === 'grapple' && action.maneuver === 'escape' && !hasGrant(actor, 'gentleArt'),
+  allowed: ({ actor, action }) => action.kind === 'grapple' && action.maneuver === 'escape' && !getRecipesOf(actor, 'modifier').some((e) => e.recipe.on === 'grappleTest'),
   price: () => ({ add: { AP: 0, STA: -1 } }),
   terms: () => [{ label: 'no stamina', value: -5 }],
 }
@@ -130,24 +146,8 @@ const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modif
   prepare: when(STRIKE_MODIFIERS, ({ action }) => action.kind === 'prepare' && action.main === 'strike'),
   // what an opportunity attack opens is a strike, or against a grapple
   // partner a maneuver (combat.tex "Grapple Maneuvers")
-  opportunityAttack: {
-    ...when(STRIKE_MODIFIERS, ({ action }) => action.kind === 'opportunityAttack' && action.mode === 'strike'),
-    gentle: GENTLE,
-  },
-  grapple: { gentle: GENTLE, winded: WINDED },
-  resist: { gentle: GENTLE },
-  // abilities.tex "Precise Evasion": "Learns to use evade with 1 AP, but
-  // takes -3 to defend in doing so"; a trample's evade is not tested
-  evade: {
-    precise: {
-      label: 'precise evasion',
-      offer: 'answer',
-      requires: 'preciseEvade',
-      allowed: ({ answering }) => answering?.kind === 'strike',
-      price: () => ({ set: { AP: 1, STA: 0 } }),
-      terms: () => [{ label: 'precise evasion', value: -3 }],
-    },
-  },
+  opportunityAttack: when(STRIKE_MODIFIERS, ({ action }) => action.kind === 'opportunityAttack' && action.mode === 'strike'),
+  grapple: { winded: WINDED },
 }
 
 // The modifiers, open only where the action is the one they go with.
@@ -157,14 +157,15 @@ function when<C extends ModifierContext, K extends string>(modifiers: Record<K, 
 }
 
 // A modifier as an action is declared with it: a yes-or-no of its own kind's
-// `modifiers`, or a recipe its actor has learned (rules/combinedMove.ts,
-// rules/carriedMove.ts), which the action names as its `recipe`.
-type Entry = { key: string; modifier: Modifier; recipe: boolean }
+// `modifiers` (`flag`), a move of a recipe its actor has learned
+// (rules/combinedMove.ts, rules/carriedMove.ts), which the action names as its
+// `recipe`, or a learned trade, one of its `learnedModifiers` (`learned`).
+type Entry = { key: string; modifier: Modifier; slot: 'flag' | 'recipe' | 'learned' }
 
 function getFlagEntries(action: { kind: Action['kind'] }): Entry[] {
   if (!(action.kind in DECLARATION_MODIFIERS)) return []
   const table = DECLARATION_MODIFIERS[action.kind as ModifierKind] as unknown as Record<string, Modifier>
-  return Object.entries(table).map(([key, modifier]) => ({ key, modifier, recipe: false }))
+  return Object.entries(table).map(([key, modifier]) => ({ key, modifier, slot: 'flag' }))
 }
 
 function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'actorId'>): Entry[] {
@@ -173,7 +174,7 @@ function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'acto
   const offer = isReaction(action.kind) ? 'answer' : 'toggle'
   const combined = getCombinedMoves(actor, action.kind).map((entry): Entry => ({
     key: entry.id,
-    recipe: true,
+    slot: 'recipe',
     modifier: {
       label: entry.label,
       offer,
@@ -184,7 +185,7 @@ function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'acto
   }))
   const carried = getDeclaredCarriedMoves(actor, action.kind).map((entry): Entry => ({
     key: entry.id,
-    recipe: true,
+    slot: 'recipe',
     modifier: {
       label: entry.label,
       offer,
@@ -192,7 +193,8 @@ function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'acto
       price: () => ({ add: { AP: 0, STA: 0 } }),
     },
   }))
-  return [...combined, ...carried]
+  const learned = getLearnedModifiers(actor, action.kind).map((entry): Entry => ({ key: entry.id, slot: 'learned', modifier: toModifier(entry) }))
+  return [...combined, ...carried, ...learned]
 }
 
 function isCombinedDefense(action: Action): action is CombinedDefense {
@@ -204,7 +206,8 @@ function getEntries(state: SceneState, action: Pick<Action, 'kind' | 'actorId'>)
 }
 
 function isDeclared(action: Action, entry: Entry): boolean {
-  if (entry.recipe) return action.recipe === entry.key
+  if (entry.slot === 'recipe') return action.recipe === entry.key
+  if (entry.slot === 'learned') return action.learnedModifiers.includes(entry.key)
   return 'modifiers' in action && (action.modifiers as Record<string, boolean>)[entry.key] === true
 }
 
@@ -293,13 +296,15 @@ export function getAnswerDrafts(state: SceneState, actorId: string, rootId: stri
   const flags = 'modifiers' in probe ? (probe.modifiers as Record<string, boolean>) : {}
   return answers
     .filter((e) => isOpen(e.modifier, ctx))
-    .map((e) => (e.recipe ? { ...draft, recipe: e.key } : { ...draft, modifiers: { ...flags, [e.key]: true } }) as ActionDraft)
+    .map((e) => (e.slot === 'recipe' ? { ...draft, recipe: e.key }
+      : e.slot === 'learned' ? { ...draft, learnedModifiers: [...(draft.learnedModifiers ?? []), e.key] }
+      : { ...draft, modifiers: { ...flags, [e.key]: true } }) as ActionDraft)
 }
 
 // What the answer is called for the modifier it was offered as, if any: a
 // recipe's beside the action it goes with.
 export function getAnswerLabel(draft: ActionDraft): string | null {
-  const recipe = draft.recipe ? getRecipeLabel(draft.recipe) : null
+  const recipe = [draft.recipe ?? null, ...(draft.learnedModifiers ?? [])].flatMap((id) => (id ? [getRecipeLabel(id)] : [])).find((label) => label !== null)
   if (recipe) return `${ACTIONS[draft.kind].label} (${recipe})`
   const modifiers = 'modifiers' in draft ? (draft.modifiers as Record<string, boolean> | undefined) : undefined
   return getFlagEntries(draft).find((e) => e.modifier.offer === 'answer' && modifiers?.[e.key])?.modifier.label ?? null
@@ -319,7 +324,9 @@ export function getModifierToggles(state: SceneState, action: Action): ModifierT
     const on = isDeclared(action, entry)
     const allowed = isOpen(modifier, ctx)
     if (!on && !allowed) return []
-    const press = (entry.recipe ? { recipe: on ? null : key } : { modifiers: { ...flags, [key]: !on } }) as Partial<ActionDraft>
+    const press = (entry.slot === 'recipe' ? { recipe: on ? null : key }
+      : entry.slot === 'learned' ? { learnedModifiers: on ? action.learnedModifiers.filter((k) => k !== key) : [...action.learnedModifiers, key] }
+      : { modifiers: { ...flags, [key]: !on } }) as Partial<ActionDraft>
     return [{ key, label: modifier.label, on, allowed, price: modifier.price(ctx), terms: modifier.terms?.(ctx) ?? [], press }]
   })
 }

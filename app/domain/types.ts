@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, COMPULSION_CONSTRAINTS, CREATURE_CATEGORIES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TEMPERAMENT_CONVICTIONS, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WORLDVIEW_CONVICTIONS, WOUND_EFFECTS } from './lists'
-import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
+import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, SURGE_ALLOWANCES, ShotKind, type SurgeAllowance } from './tables'
 
 const num = z.number()
 const str = z.string()
@@ -1190,6 +1190,21 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     cover: z.boolean().default(false),
     openWhen: z.enum(['martyrGuard']).nullable().default(null),
   }).strip(),
+  // `modifier`: a trade its holder may declare on a test of theirs
+  // (scene/rules/modifiers.ts). `on`: the tests it goes with, an evade or a
+  // grapple test (a maneuver, one an opportunity attack opens, the resist
+  // against one); `answering`: the action the test must answer, if any;
+  // `offer`: a toggle on the action, or an answer of its own, open where the
+  // action without it may not be; `cost`: added to the action's price or set
+  // in its place; `hit`: to its test.
+  z.object({
+    type: z.literal('modifier'),
+    on: z.enum(['evade', 'grappleTest']).default('evade'),
+    answering: z.enum(['strike']).nullable().default(null),
+    offer: z.enum(['toggle', 'answer']).default('toggle'),
+    cost: z.object({ operation: z.enum(['+', 'set']).default('+'), AP: num.default(0), STA: num.default(0) }).prefault({}),
+    hit: num.default(0),
+  }).strip(),
   // `carriedMove`: a careful move an action carries, bought with AP already
   // paid (scene/rules/carriedMove.ts). `on`: the action it goes with, or the
   // upkeep held spells pay at the round change; `when`: the condition the
@@ -1207,12 +1222,13 @@ export const RecipeSchema = z.discriminatedUnion('type', [
 export type Recipe = z.infer<typeof RecipeSchema>
 export type CombinedMoveRecipe = Extract<Recipe, { type: 'combinedMove' }>
 export type CarriedMoveRecipe = Extract<Recipe, { type: 'carriedMove' }>
+export type ModifierRecipe = Extract<Recipe, { type: 'modifier' }>
 
 // A capability a rule in the domain asks for by name, which an ability gives
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['preciseEvade', 'bladeAlignment', 'gentleArt', 'charge', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'cheaperQuicken'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'deliberate', 'initiativeEdge', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'improvedFeint', 'concentratedDefense', 'cheaperQuicken'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
@@ -1225,6 +1241,17 @@ export const RollModeGrantSchema = z.object({
   surge: SurgeKindSchema.nullable().default(null),
 }).strip()
 export type RollModeGrant = z.infer<typeof RollModeGrantSchema>
+
+// combat.tex "Action surge": a group of actions (SURGE_ALLOWANCES) an ability
+// lets the AP of an earmarked surge pay for, beyond what the surge allows,
+// and whether an action paid that way ends the surge, its AP left lost with
+// it (abilities.tex "Charge").
+export const SurgeAllowSchema = z.object({
+  surge: SurgeKindSchema.default('movement'),
+  allows: z.enum(Object.keys(SURGE_ALLOWANCES) as [SurgeAllowance, ...SurgeAllowance[]]).default('attacks'),
+  endsSurge: z.boolean().default(false),
+}).strip()
+export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 
 // abilities.tex "Promoted Attitudes", "Prohibited Attitudes": what moves a
 // conviction's XP in play, as data, read by character/rules/attitudes.ts.
@@ -1266,6 +1293,7 @@ const AbilityStageValues = {
   recipes: z.array(RecipeSchema).default([]), // the actions this stage gives in a fight
   grants: z.array(GrantSchema).default([]), // the capabilities this stage gives while learned
   rollModes: z.array(RollModeGrantSchema).default([]), // the safe and risky tests this stage allows while learned
+  surgeAllows: z.array(SurgeAllowSchema).default([]), // what this stage lets a surge's AP pay for while learned
   attitudes: z.array(AttitudeSchema).default([]), // what moves a conviction's XP in play while learned
   freeSpells: num.default(0), // spells learned with the stage, at no cost, among those the character has the knowledge for
 }

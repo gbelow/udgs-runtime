@@ -29,7 +29,7 @@ import { getModifierToggles } from '../rules/modifiers'
 import { giveUpHeld, giveUpSustained } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
-import { isChargeStrike } from '../rules/surge'
+import { endsSurge } from '../rules/surge'
 import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
 import { getPreparationAP } from '../rules/cunning'
 
@@ -502,7 +502,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, caller: Ca
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    const stamped = a.kind === 'strike' ? { ...a, charge: isChargeStrike(state, a) } : a
+    const stamped = { ...a, endsSurge: endsSurge(state, a) }
     const rolled = thrown(stamped)
     paid.push({ ...rolled, cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo, a.kind) : 0, preparationAP: getPreparationAP(state, rolled), step: a.id === root.id ? 'post' : 'done' })
   }
