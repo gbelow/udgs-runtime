@@ -1,5 +1,5 @@
 import { getRosterName } from '../../campaign/rules/roster'
-import type { CampaignCharacter, Degree, Item } from '../../types'
+import type { CampaignCharacter, Character, Degree, Item } from '../../types'
 import type { ExplorationAction } from '../../lists'
 import type { Ambient, CampaignState, Party, PlaceChange } from '../../campaign/types'
 import type { Camp, Exploring, Group, GroupKind } from '../types'
@@ -11,6 +11,7 @@ import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getRestsPerDay } from '../../character/rules/recovery'
+import { hasGrant } from '../../character/rules/effects'
 import { getClockOf, getDay, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar, isNight } from '../../campaign/rules/clock'
 import { changePlace, getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, getPlaceKey, isOutsideSettlement, isPartyAway, isSamePlace, type PlaceNow } from '../../campaign/rules/place'
 import { getEvent } from '../../campaign/rules/events'
@@ -130,6 +131,15 @@ export function getRestExposure(t: Exploring, partyId: string): number {
   const { exposure, tags } = getPlaceNow(t, partyId)
   const warms = !tags || tags.includes('cold') || tags.includes('insects')
   return Math.max(0, exposure - camp.shelter - (camp.fire && warms ? 1 : 0))
+}
+
+// The exposure one member of the party rests at: the camp's, less 1 for a
+// furred one on cold ground, off the map on any (abilities.tex "Fur":
+// "resist exposure to cold").
+export function getRestExposureOf(t: Exploring, partyId: string, c: Character): number {
+  const { tags } = getPlaceNow(t, partyId)
+  const furred = hasGrant(c, 'fur') && (!tags || tags.includes('cold'))
+  return Math.max(0, getRestExposure(t, partyId) - (furred ? 1 : 0))
 }
 
 // The shelters of the node the party may camp in: one a plan of the party

@@ -10241,7 +10241,9 @@
         "description": "Becomes Furry, granting +3 on tests to resist exposure to cold and gives a natural armor of 2xDM INS.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "fur"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

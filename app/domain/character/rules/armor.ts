@@ -1,12 +1,21 @@
 import { Armor, Character, Item } from '../../types'
 import { getItemArmor, getItemScale } from '../../item/rules/items'
-import { getSize } from './size'
+import { getDM, getSize } from './size'
+import { hasGrant } from './effects'
 
 // The armor the character's body presents: the worn item's, at the size the
 // item is made for, over whatever the creature is underneath. A worn item
 // that resolves to nothing is treated as not there.
 export function getArmor(c: Character): Armor {
-  return (c.worn && getItemArmor(c.worn)) || c.armor
+  return (c.worn && getItemArmor(c.worn)) || getNaturalArmor(c)
+}
+
+// The creature's own hide: the stored one, with what a mutation gives where
+// it does better (abilities.tex "Fur": "a natural armor of 2xDM INS").
+export function getNaturalArmor(c: Character): Armor {
+  if (!hasGrant(c, 'fur')) return c.armor
+  const INS = 2 * getDM(c)
+  return INS > c.armor.INS ? { ...c.armor, INS } : c.armor
 }
 
 // gear.tex "Closed helmet": a helmet worn with its visor down.

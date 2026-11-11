@@ -14,7 +14,7 @@ import { describeRoll } from '../../play/test'
 import { addExhaustion, addIL, healByRest, store } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
+  getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposureOf, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery, isResurrecting } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
@@ -655,7 +655,7 @@ function closeParty(t: Exploring, partyId: string, opening: Opening, test: Teste
   if (start.fire) camp = { ...camp, firewood: Math.max(0, camp.firewood - 1), fire: camp.firewood > 1 }
 
   const cast = castOver(t, partyId, players, forced, test)
-  const exposure = getRestExposure(t, partyId)
+  const exposure = (c: CampaignCharacter) => getRestExposureOf(t, partyId, c)
   const day = getDay(party.clock as number)
   let count: Record<string, number> = {}
   const risers = getPartyMembers(state, partyId).filter((id) => state.characters[id] && isResurrecting(state.characters[id]))
@@ -667,7 +667,7 @@ function closeParty(t: Exploring, partyId: string, opening: Opening, test: Teste
     if (!canRestHeal(t, id)) continue
     count = { ...count, [id]: count[id] + 1 }
     stay.rested.push(name(id))
-    characters[id] = rest(characters[id], exposure, 0)
+    characters[id] = rest(characters[id], exposure(characters[id]), 0)
   }
   for (const id of players) {
     const drank = spendPotion(characters[id])
@@ -677,7 +677,7 @@ function closeParty(t: Exploring, partyId: string, opening: Opening, test: Teste
     if (resting) count = { ...count, [id]: count[id] + 1 }
     if (resting) stay.rested.push(name(id))
     else if (!spent && !casting) stay.idle.push(name(id))
-    const planned = resting ? rest(drank, exposure, cast.bonus[id] ?? 0)
+    const planned = resting ? rest(drank, exposure(drank), cast.bonus[id] ?? 0)
       : spent ? drank
       : addExhaustion(1 + (cast.exhaustion[id] ?? 0))(drank)
     characters[id] = payWear(wear)(planned)
