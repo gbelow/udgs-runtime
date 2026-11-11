@@ -10651,10 +10651,12 @@
             }
           ]
         ],
-        "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Turns ears into an active sense, but take -2 sensory penalty when doing so.",
+        "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Reduces sensory penalty from hearing to -2. Hearing becomes an active sense during the character's turn, but has only 20m range.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "batEars"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

@@ -691,8 +691,8 @@ const senseEntry = (d: SenseDefaults) => makeSenseSchema(d).prefault({})
 
 export const SensesSchema = z.object({
   vision: senseEntry({ name: 'Vision', rangePenalty: 3, active: true, reactive: true, penalty: 0, range: null, hasSense: true }),
-  hearing: senseEntry({ name: 'Hearing', rangePenalty: 5, active: false, reactive: true, penalty: 3, range: null, hasSense: true }),
-  smell: senseEntry({ name: 'Smell', rangePenalty: 5, active: true, reactive: false, penalty: 5, range: 0, hasSense: true }),
+  hearing: senseEntry({ name: 'Hearing', rangePenalty: 5, active: false, reactive: true, penalty: 5, range: null, hasSense: true }),
+  smell: senseEntry({ name: 'Smell', rangePenalty: 5, active: true, reactive: false, penalty: 10, range: 0, hasSense: true }),
   touch: senseEntry({ name: 'Touch', rangePenalty: 100, active: true, reactive: true, penalty: 3, range: 0, hasSense: true }),
   synesthesia: senseEntry({ name: 'Synesthesia', rangePenalty: 100, active: true, reactive: true, penalty: 0, range: 0, hasSense: false }),
 }).strip()
@@ -1261,7 +1261,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir', 'tireless', 'adaptiveSleep', 'resurrection', 'metabolicControl', 'bearNose'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir', 'tireless', 'adaptiveSleep', 'resurrection', 'metabolicControl', 'bearNose', 'batEars'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when

@@ -37,7 +37,7 @@
       "bonus": 0,
       "active": false,
       "reactive": true,
-      "penalty": 3,
+      "penalty": 5,
       "range": null,
       "hasSense": true
     },
