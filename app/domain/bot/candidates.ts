@@ -8,9 +8,8 @@ import { amendAction, declareAction } from '../scene/commands/action'
 import { getInjuryPenalty } from '../character/rules/afflictions'
 import { getLiveFoes, type Party } from './party'
 import { getArmedAttacks, type Armed } from './weapons'
-import { readAttacks, type Reading } from './reading'
-import { canAfford } from '../character/rules/cost'
-import { isCombatStarted } from '../scene/rules/started'
+import { canPay, getReadings, getSpentCost, getUnanswered } from './reading'
+import { getSpots, walkMove } from './position'
 import { getFightName } from '../scene/rules/fighters'
 import { play, type Move, type Played } from './move'
 
@@ -25,7 +24,7 @@ export type Candidate = {
 
 // The move pressed from the turn as it stood, if the action it declares got
 // past its commit: one refused stays open at `define`.
-function committing(state: SceneState, id: string, move: Move, newId: () => string): (dice: Dice) => Played | null {
+export function committing(state: SceneState, id: string, move: Move, newId: () => string): (dice: Dice) => Played | null {
   return (dice) => {
     const played = play(state, move, dice, newId)
     const open = getOpenAction(played.state)
@@ -66,21 +65,15 @@ export function getAttackCandidates(state: SceneState, party: Party, id: string,
     }))
 }
 
-// What a reading is worth for what it costs: the IL it adds over its two
-// dice, for each AP and STA it takes with the overflow spent.
-function perCost(r: Reading): number {
-  const spent = (r.low.AP + r.low.STA + r.high.AP + r.high.STA) / 2
-  return (r.low.IL + r.high.IL) / 2 / Math.max(1, r.cost.AP + r.cost.STA + spent)
-}
-
 // Every attack the character can pay for on every foe in reach, by the quick
-// reading (reading.ts): first those on a foe that cannot pay for a defense
-// against it, where the reading is what the attack does, then the most IL for
-// what it costs.
+// reading of the blow alone (reading.ts), unanswered: the most IL for what it
+// costs. Cheap enough for every turn of a fight played on.
 export function getReadAttackCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
-  const read = getLiveFoes(state, party).flatMap((foe) => readAttacks(state, id, foe, newId).map((reading) => ({ reading, foe })))
-    .filter(({ reading }) => canAfford(state.characters[id], reading.cost, isCombatStarted(state)))
-    .sort((a, b) => Number(a.reading.defended) - Number(b.reading.defended) || perCost(b.reading) - perCost(a.reading))
+  const attacker = state.characters[id]
+  const read = getLiveFoes(state, party).flatMap((foe) => getReadings(state, id, foe, false)
+    .filter((reading) => canPay(state, attacker, reading.cost))
+    .map((reading) => ({ reading, foe, worth: getUnanswered(reading) / Math.max(1, getSpentCost(reading)) })))
+    .sort((a, b) => b.worth - a.worth)
   const armed = getArmed(state, id, newId)
   return read.flatMap(({ reading, foe }): Candidate[] => {
     const made = armed.find((a) => a.kind === reading.kind && a.option.weaponKey === reading.weaponKey && a.option.attack === reading.attack && a.option.variant === reading.variant && a.targets.includes(foe))
@@ -111,11 +104,19 @@ export function getApproachCandidates(state: SceneState, party: Party, id: strin
     if (!best) return []
     return [{
       label: `move (${movement}) ${best.to.steps} cells, ${best.gap} from the nearest foe`,
-      play: committing(state, id, [{ kind: 'declare', args: [id, { kind: 'move' }] }, { kind: 'amend', args: [{ movement, path: best.to.path }] }, { kind: 'commit', args: [] }], newId),
+      play: committing(state, id, walkMove(id, movement, best.to.path), newId),
     }]
   })
 }
 
+// The walks to the cells the position finder (position.ts) puts first.
+export function getPositionCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
+  return getSpots(state, party, id, newId).map((spot) => ({
+    label: `move (${spot.movement}) ${spot.to.steps} cells to (${spot.to.cell.q},${spot.to.cell.r}): deals ${spot.offense.toFixed(1)}, takes ${spot.danger.toFixed(1)}, draws ${spot.drawn.toFixed(1)}`,
+    play: committing(state, id, walkMove(id, spot.movement, spot.to.path), newId),
+  }))
+}
+
 export function getCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
-  return [...getAttackCandidates(state, party, id, newId), ...getApproachCandidates(state, party, id, newId)]
+  return [...getAttackCandidates(state, party, id, newId), ...getPositionCandidates(state, party, id, newId)]
 }

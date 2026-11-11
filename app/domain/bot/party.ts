@@ -23,9 +23,12 @@ import { isDead } from '../character/rules/afflictions'
 // answer it. `defensive`: the bot attacks a foe only once it has no defense left
 // to answer with, and holds until then. 1: a defense only a reaction surge pays
 // for is not counted, so the attack is the one that draws it; 2: any defense is.
-export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; samples: number; exchange: number; drain: number; defensive: number }
+// `reserve`: what the defenses a side can still pay for are worth against what
+// the other side's are (value.ts), the AP kept back to defend with; `ap` counts
+// what AP is worth besides, and is left at nothing since `reserve` weighs it.
+export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; samples: number; exchange: number; drain: number; defensive: number; reserve: number }
 
-export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0.005, sta: 0.005, horizon: 3, patience: 0.03, samples: 5, exchange: 1, drain: 0.02, defensive: 0 }
+export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0, sta: 0.005, horizon: 3, patience: 0.03, samples: 5, exchange: 1, drain: 0.02, defensive: 0, reserve: 1 }
 
 // The side a bot plays: the characters it controls. Everyone else in the fight
 // is its foe.

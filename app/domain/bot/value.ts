@@ -9,14 +9,17 @@ import { getOutcomes } from '../scene/projections/outcomes'
 import { answerOpen } from './answer'
 import { getLiveFoes, isMember, isStanding, type Party, type Tuning } from './party'
 import { aimStrike, getStrikes } from './weapons'
+import { getDefenseWorth } from './reading'
 
 // How well a state stands for a party, in fractions of a character's way to
 // death: the wounds its foes carry less the wounds its own do, less what the
 // foes could still do to it from here, less the ground between its acting
 // character and the nearest foe, plus the AP and STA it has left over its
-// foes'. Higher is better.
+// foes', plus what the defenses it can still pay for would take off the foes'
+// best attacks on it, over what the foes' would take off its own. Higher is
+// better.
 
-export type Value = { total: number; wounds: number; threat: number; engage: number; resources: number; waiting: number; exchange: number }
+export type Value = { total: number; wounds: number; threat: number; engage: number; resources: number; reserve: number; waiting: number; exchange: number }
 
 const FACES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -86,5 +89,6 @@ export function evaluate(state: SceneState, party: Party, actorId: string, tunin
   const ap = (c: CampaignCharacter) => c.resources.AP
   const sta = (c: CampaignCharacter) => c.resources.STA
   const resources = tuning.ap * (left(party.members, ap) - left(foes, ap)) + tuning.sta * (left(party.members, sta) - left(foes, sta))
-  return { total: wounds - threat - engage + resources, wounds, threat, engage, resources, waiting: 0, exchange: 0 }
+  const reserve = tuning.reserve > 0 ? tuning.reserve * (getDefenseWorth(state, party.members, foes) - getDefenseWorth(state, foes, party.members.filter((id) => isStanding(state, id)))) : 0
+  return { total: wounds - threat - engage + resources + reserve, wounds, threat, engage, resources, reserve, waiting: 0, exchange: 0 }
 }

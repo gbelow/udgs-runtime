@@ -35,8 +35,9 @@ function fingerprint(text: string): string {
 
 const CATALOGS = fingerprint(JSON.stringify([weapons, armors, ammo, items, containers, abilities]))
 
-function carried(c: CampaignCharacter): Omit<CampaignCharacter, 'resources' | 'usedSurge' | 'surgeFloor'> {
-  const { resources: _resources, usedSurge: _usedSurge, surgeFloor: _surgeFloor, ...rest } = c
+// what a face shows of the resources (`shown`) goes with them
+function carried(c: CampaignCharacter): Omit<CampaignCharacter, 'resources' | 'usedSurge' | 'surgeFloor' | 'shown'> {
+  const { resources: _resources, usedSurge: _usedSurge, surgeFloor: _surgeFloor, shown: _shown, ...rest } = c
   return rest
 }
 

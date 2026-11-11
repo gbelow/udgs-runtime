@@ -2,7 +2,9 @@ import type { Action, SceneState } from '../scene/types'
 import { getPayableCost } from '../scene/rules/action'
 import { getLiveReactionsTo, getOpenAction } from '../scene/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
-import { isMember, type Party, type Tuning } from './party'
+import { getLiveFoes, isMember, type Party, type Tuning } from './party'
+import { getOpportunities } from './opportunity'
+import { settleWith } from './open'
 import { expectedLoss } from './value'
 
 // What the attack a character has just committed is worth before any die is
@@ -32,11 +34,31 @@ function getAnswers(state: SceneState, party: Party, actorId: string, newId: () 
   return { targetId, answers }
 }
 
-export function getExchange(state: SceneState, party: Party, actorId: string, tuning: Tuning, newId: () => string): number {
+// combat.tex "Opportunity Attack": a foe's opportunity attack on the attack,
+// one the foe's own reckoning says is worth making (opportunity.ts), answers
+// it too. It lands first, and the attack may come to nothing, so what the
+// attack takes is read from the exchange played out with it, the dice at a
+// middling and at a high value, not from the preview.
+const DICE = [4, 9]
+
+function getOpportunityAnswers(state: SceneState, parties: readonly Party[], party: Party, targetId: string, newId: () => string): number[] {
+  const open = getOpenAction(state)
+  const target = state.characters[targetId]
+  if (!open || !target) return []
+  const foes: Party = { members: getLiveFoes(state, party) }
+  const settle = settleWith(parties, newId)
+  const before = target.injuries.injuryLevel
+  return foes.members.flatMap((foe) => getOpportunities(state, foes, foe, open, newId, settle)
+    .filter((o) => o.worth > 0)
+    .map((o) => DICE.reduce((sum, die) => sum + Math.max(0, (settle(o.played.state, () => die).characters[targetId]?.injuries.injuryLevel ?? before) - before), 0) / DICE.length / target.injuries.deathThreshold))
+}
+
+export function getExchange(state: SceneState, parties: readonly Party[], party: Party, actorId: string, tuning: Tuning, newId: () => string): number {
   const found = getAnswers(state, party, actorId, newId)
   if (!found) return 0
   const gained = [{ state, spent: 0, surged: false }, ...found.answers].map((a) => tuning.exchange * expectedLoss(a.state, found.targetId) + tuning.drain * a.spent)
-  return Math.min(...gained)
+  const opportunities = getOpportunityAnswers(state, parties, party, found.targetId, newId).map((taken) => tuning.exchange * taken)
+  return Math.min(...gained, ...opportunities)
 }
 
 // Whether the attack the character has just committed on a foe has a target

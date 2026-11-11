@@ -3,10 +3,11 @@ import { rollD10, seededRng, type Dice } from '../play/dice'
 import { getFightName } from '../scene/rules/fighters'
 import { getHistory, getLog, getOpenAction } from '../scene/rules/log'
 import { defend, getDefenseOptions } from './answer'
+import { getOpportunities } from './opportunity'
 import { getCandidates } from './candidates'
 import { hold } from './engine'
 import { getExchange, isAnswerable } from './exchange'
-import { playOut, type Answerer } from './open'
+import { playOut, settleWith, type Answerer } from './open'
 import { getTuning, isMember, type Party } from './party'
 import { rollout } from './rollout'
 import type { Trace } from './trace'
@@ -24,22 +25,24 @@ type Option = { label: string; play: (dice: Dice) => SceneState | null; waiting?
 
 function mean(values: Value[]): Value {
   const of = (part: keyof Value) => values.reduce((sum, v) => sum + v[part], 0) / values.length
-  return { total: of('total'), wounds: of('wounds'), threat: of('threat'), engage: of('engage'), resources: of('resources'), waiting: of('waiting'), exchange: of('exchange') }
+  return { total: of('total'), wounds: of('wounds'), threat: of('threat'), engage: of('engage'), resources: of('resources'), reserve: of('reserve'), waiting: of('waiting'), exchange: of('exchange') }
 }
 
 // An option's value to `actorId`'s party: played out with each of the sample
 // dice, everyone but `decided` answering by reflex, and the fight played on
-// for the party's horizon. Null when it does not come off.
+// for the party's horizon. Null when it does not come off. What the option is
+// worth as committed (exchange.ts) is read once: committing throws no die.
 function score(parties: readonly Party[], party: Party, actorId: string, option: Option, decided: readonly string[], newId: () => string, seed: number): Value | null {
   const tuning = getTuning(party)
   const values: Value[] = []
+  let exchange: number | null = null
   for (let k = 0; k < tuning.samples; k++) {
     const rng = seededRng(seed + k)
     const dice: Dice = (explodes) => rollD10(explodes, rng)
     const played = option.play(dice)
     if (!played) return null
     if (tuning.defensive > 0 && isAnswerable(played, party, actorId, tuning.defensive > 1, newId)) return null
-    const exchange = getExchange(played, party, actorId, tuning, newId)
+    exchange ??= getExchange(played, parties, party, actorId, tuning, newId)
     const settled = playOut(played, parties, dice, newId, decided)
     const end = evaluate(tuning.horizon > 0 ? rollout(settled, parties, dice, newId, tuning.horizon) : settled, party, actorId, tuning, newId)
     values.push({ ...end, total: end.total + exchange - (option.waiting ?? 0), waiting: -(option.waiting ?? 0), exchange })
@@ -66,7 +69,7 @@ function pick(state: SceneState, parties: readonly Party[], party: Party, actorI
     kind,
     actorId,
     actor: getFightName(state, actorId),
-    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, threat: value.threat, engage: value.engage, resources: value.resources, waiting: value.waiting, exchange: value.exchange })),
+    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, threat: value.threat, engage: value.engage, resources: value.resources, reserve: value.reserve, waiting: value.waiting, exchange: value.exchange })),
     chosen: scored.indexOf(best),
   })
   return best.index
@@ -98,16 +101,19 @@ export function chooseTurnAction(state: SceneState, parties: readonly Party[], p
   return chosen && comesOff(state, chosen, id) ? chosen : null
 }
 
-// How a member of the party who may defend against the committed action
-// answers it, or null when none does.
+// How a member of the party who may answer the committed action does, with a
+// defense or an opportunity attack, or null when none does.
 export function chooseAnswer(state: SceneState, parties: readonly Party[], party: Party, open: RootAction, newId: () => string, trace?: Trace): Played | null {
   if (isMember(party, open.actorId)) return null
   for (const id of party.members) {
     const believed = getBelief(state, party, id)
-    const declared = getDefenseOptions(believed, id, open).flatMap((o) => {
-      const next = defend(believed, id, open, o, newId)
-      return next ? [{ label: `${o.draft.kind}${o.surge ? ' (surge)' : ''}`, played: next }] : []
-    })
+    const declared = [
+      ...getDefenseOptions(believed, id, open).flatMap((o) => {
+        const next = defend(believed, id, open, o, newId)
+        return next ? [{ label: `${o.draft.kind}${o.surge ? ' (surge)' : ''}`, played: next }] : []
+      }),
+      ...getOpportunities(believed, party, id, open, newId, settleWith(parties, newId)),
+    ]
     if (declared.length === 0) continue
     const options: Option[] = [{ label: 'no defense', play: () => believed }, ...declared.map((d) => ({ label: d.label, play: () => d.played.state }))]
     const chosen = pick(believed, parties, party, id, 'answer', options, [id], newId, trace)

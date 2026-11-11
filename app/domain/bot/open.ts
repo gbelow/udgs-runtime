@@ -3,6 +3,7 @@ import type { Dice } from '../play/dice'
 import { getOpenAction } from '../scene/rules/log'
 import { getAwaited } from '../scene/rules/options'
 import { answerOpen } from './answer'
+import { bestOpportunity, getAnswerWorth, type Settle } from './opportunity'
 import { findParty, type Party } from './party'
 import { passUp, tableMove } from './table'
 import { play, type Played } from './move'
@@ -15,11 +16,36 @@ import { getAim } from '../scene/rules/aim'
 // or null.
 export type Answerer = (state: SceneState, parties: readonly Party[], open: RootAction, newId: () => string) => Played | null
 
-// The cheapest defense, unweighed, from everyone but those named.
+// The cheapest defense, unweighed, from anyone.
+export const defendOnly: Answerer = (state, parties, open, newId) => {
+  for (const party of parties) {
+    const answered = answerOpen(state, party, open, newId)
+    if (answered) return answered
+  }
+  return null
+}
+
+// The exchange the committed action opened, played to its end with everyone
+// defending by reflex alone: for weighing an opportunity attack.
+export function settleWith(parties: readonly Party[], newId: () => string): Settle {
+  return (state, dice) => playOut(state, parties, dice, newId, [], defendOnly)
+}
+
+// How a party answers by reflex, from everyone but those named: the cheapest
+// defense, unweighed; where an opportunity attack the exchange comes out
+// better with is offered as well, whichever of the two the same reckoning
+// (opportunity.ts) says is worth more.
 export function reflexAnswer(skip: readonly string[] = []): Answerer {
   return (state, parties, open, newId) => {
     for (const party of parties) {
-      const answered = answerOpen(state, party, open, newId, skip)
+      const settle = settleWith(parties, newId)
+      const defense = answerOpen(state, party, open, newId, skip)
+      const opportunity = bestOpportunity(state, party, open, newId, settle, skip)
+      if (opportunity && defense) {
+        const defender = String(defense.move[0]?.args[0] ?? '')
+        return getAnswerWorth(state, party, defender, defense.state, settle) >= opportunity.worth ? defense : opportunity.played
+      }
+      const answered = defense ?? opportunity?.played
       if (answered) return answered
     }
     return null
@@ -73,12 +99,12 @@ function isAnswerOwed(state: SceneState, parties: readonly Party[]): boolean {
 
 // The open action played to its end, everyone answering by reflex bar `skip`,
 // the table pressing what nobody owes. For trying an option out on a copy.
-export function playOut(state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string, skip: readonly string[] = []): SceneState {
+export function playOut(state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string, skip: readonly string[] = [], answer: Answerer = reflexAnswer(skip)): SceneState {
   let current = state
   for (let i = 0; i < 30; i++) {
     const open = getOpenAction(current)
     if (!open) return current
-    const next = stepOpen(current, parties, open, dice, newId, reflexAnswer(skip)) ?? tableMove(current, parties, dice, newId)
+    const next = stepOpen(current, parties, open, dice, newId, answer) ?? tableMove(current, parties, dice, newId)
     if (!next || next.state === current) return current
     current = next.state
   }

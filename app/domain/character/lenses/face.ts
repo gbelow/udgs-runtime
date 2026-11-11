@@ -7,10 +7,11 @@ import { getSTA } from '../rules/characteristics'
 // wears and holds in the open and where it is wounded. The table's ruling:
 // how hurt it is (its injury level) shows too, and of its AP and its STA only
 // which third of a round's AP and of its STA is left (`shown`), never the
-// numbers. The rest of the sheet reads as an empty one, so what is worked out
+// numbers. The surge it has made this round shows, as it is declared at the
+// table. The rest of the sheet reads as an empty one, so what is worked out
 // against it is an estimate.
-type Face = Pick<CampaignCharacter, 'id' | 'name' | 'token' | 'size' | 'footprint' | 'height' | 'armor' | 'body' | 'stance' | 'hasGauntlets' | 'hasHelm' | 'visorOpen' | 'worn' | 'held' | 'onBack'>
-export const FACE_KEYS: (keyof Face)[] = ['id', 'name', 'token', 'size', 'footprint', 'height', 'armor', 'body', 'stance', 'hasGauntlets', 'hasHelm', 'visorOpen', 'worn', 'held', 'onBack']
+type Face = Pick<CampaignCharacter, 'id' | 'name' | 'token' | 'size' | 'footprint' | 'height' | 'armor' | 'body' | 'stance' | 'hasGauntlets' | 'hasHelm' | 'visorOpen' | 'worn' | 'held' | 'onBack' | 'usedSurge'>
+export const FACE_KEYS: (keyof Face)[] = ['id', 'name', 'token', 'size', 'footprint', 'height', 'armor', 'body', 'stance', 'hasGauntlets', 'hasHelm', 'visorOpen', 'worn', 'held', 'onBack', 'usedSurge']
 
 const blank = CampaignCharacterSchema.parse({})
 const faces = new WeakMap<CampaignCharacter, CampaignCharacter>()
