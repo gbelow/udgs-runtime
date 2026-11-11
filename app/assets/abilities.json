@@ -10292,7 +10292,9 @@
         "description": "Scales: Makes the skin resemble that of a crocodile. Gives a natural armor of +4xDM RES.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "scales"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

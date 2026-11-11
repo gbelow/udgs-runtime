@@ -11,11 +11,13 @@ export function getArmor(c: Character): Armor {
 }
 
 // The creature's own hide: the stored one, with what a mutation gives where
-// it does better (abilities.tex "Fur": "a natural armor of 2xDM INS").
+// it does better (abilities.tex "Fur": "a natural armor of 2xDM INS";
+// "Scales": "a natural armor of +4xDM RES").
 export function getNaturalArmor(c: Character): Armor {
-  if (!hasGrant(c, 'fur')) return c.armor
-  const INS = 2 * getDM(c)
-  return INS > c.armor.INS ? { ...c.armor, INS } : c.armor
+  const dm = getDM(c)
+  const INS = hasGrant(c, 'fur') ? Math.max(c.armor.INS, 2 * dm) : c.armor.INS
+  const RES = hasGrant(c, 'scales') ? Math.max(c.armor.RES, 4 * dm) : c.armor.RES
+  return INS === c.armor.INS && RES === c.armor.RES ? c.armor : { ...c.armor, INS, RES }
 }
 
 // gear.tex "Closed helmet": a helmet worn with its visor down.
