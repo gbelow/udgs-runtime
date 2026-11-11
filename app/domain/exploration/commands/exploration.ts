@@ -16,7 +16,7 @@ import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
   getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
-import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
+import { getRestHealing, getRestRecovery, isResurrecting } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
 import { getDay, getPlayingParties } from '../../campaign/rules/clock'
 import { getEvent } from '../../campaign/rules/events'
@@ -230,7 +230,7 @@ function spendPotion(c: CampaignCharacter): CampaignCharacter {
 // survival.tex "Rest": exhaustion lowers and IL heals, by negative amounts on
 // ground rough enough to work against the character.
 function rest(c: CampaignCharacter, exposure: number, bonus: number): CampaignCharacter {
-  const recovered = addExhaustion(-getRestRecovery(exposure))(c)
+  const recovered = addExhaustion(-getRestRecovery(c, exposure))(c)
   const healing = getRestHealing(c, exposure, bonus)
   return healByRest(healing)(recovered)
 }
@@ -658,9 +658,17 @@ function closeParty(t: Exploring, partyId: string, opening: Opening, test: Teste
   const exposure = getRestExposure(t, partyId)
   const day = getDay(party.clock as number)
   let count: Record<string, number> = {}
-  for (const id of players) count[id] = getRestsToday(t, id)
+  const risers = getPartyMembers(state, partyId).filter((id) => state.characters[id] && isResurrecting(state.characters[id]))
+  for (const id of [...players, ...risers]) count[id] = getRestsToday(t, id)
   const characters = { ...state.characters }
   const stay: StayResult = { party: party.name, rested: [], idle: [] }
+  // abilities.tex "Resurrection": the body rests after the character dies
+  for (const id of risers) {
+    if (!canRestHeal(t, id)) continue
+    count = { ...count, [id]: count[id] + 1 }
+    stay.rested.push(name(id))
+    characters[id] = rest(characters[id], exposure, 0)
+  }
   for (const id of players) {
     const drank = spendPotion(characters[id])
     const spent = working.has(id)

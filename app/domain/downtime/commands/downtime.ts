@@ -16,7 +16,7 @@ import { getKnowledgeShortfallDL, getMethodSkill } from '../../character/rules/s
 import { getBuffBonus } from '../../character/rules/effects'
 import { knowledgeName } from '../../character/rules/knowledge'
 import { getLearnedLevel } from '../../character/rules/skillRef'
-import { getRestRecovery } from '../../character/rules/recovery'
+import { getRestRecovery, getRestsPerDay } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
 import { record } from '../../campaign/commands/journal'
@@ -52,7 +52,7 @@ const fed = (c: CampaignCharacter): CampaignCharacter => ({ ...c, resources: { .
 // by the second day": the first day lowers it as three rests do, and it is
 // gone after.
 function liveDay(c: CampaignCharacter, plan: Plan, day: number): CampaignCharacter {
-  const rested = day === 0 ? addExhaustion(-3 * getRestRecovery(getPlanExposure(plan)))(c) : addExhaustion(-c.resources.exhaustion)(c)
+  const rested = day === 0 ? addExhaustion(-getRestsPerDay(c) * getRestRecovery(c, getPlanExposure(plan)))(c) : addExhaustion(-c.resources.exhaustion)(c)
   const healing = getDowntimeHealing(rested, plan)
   return healByRest(healing)(rested)
 }

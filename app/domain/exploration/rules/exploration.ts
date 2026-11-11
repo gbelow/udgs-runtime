@@ -10,6 +10,7 @@ import { getAwareness, getSTA } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
+import { getRestsPerDay } from '../../character/rules/recovery'
 import { getClockOf, getDay, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar, isNight } from '../../campaign/rules/clock'
 import { changePlace, getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, getPlaceKey, isOutsideSettlement, isPartyAway, isSamePlace, type PlaceNow } from '../../campaign/rules/place'
 import { getEvent } from '../../campaign/rules/events'
@@ -152,8 +153,6 @@ export function knowsEvent(t: Exploring, ids: string[], key: string): boolean {
 
 // survival.tex "Rest": "Resting only heals 3 times per day. Any further
 // resting does not heal nor lower exhaustion and just counts as being idle."
-const RESTS_PER_DAY = 3
-
 // The rests that have healed the character today.
 export function getRestsToday(t: Exploring, id: string): number {
   const rests = t.exploration.rests[id]
@@ -162,7 +161,8 @@ export function getRestsToday(t: Exploring, id: string): number {
 }
 
 export function canRestHeal(t: Exploring, id: string): boolean {
-  return getRestsToday(t, id) < RESTS_PER_DAY
+  const c = t.campaign.characters[id]
+  return !!c && getRestsToday(t, id) < getRestsPerDay(c)
 }
 
 // survival.tex "Exhaustion": "Any ET where the character starts with

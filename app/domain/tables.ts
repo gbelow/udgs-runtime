@@ -261,6 +261,16 @@ export const STR_REQ_PER_SIZE = 5
 // 10 IL".
 export const RESERVOIR_CAPACITY = 10
 
+// survival.tex "Rest": "Resting only heals 3 times per day"; abilities.tex
+// "Adaptive Sleep": "rest 6 ETs per day".
+export const RESTS_PER_DAY = 3
+export const ADAPTIVE_RESTS_PER_DAY = 6
+
+// survival.tex "Rest": "lowers exhaustion by 3 - exposure/2"; abilities.tex
+// "Tireless": "Base exhaustion recovery per rest is increased to 4."
+export const REST_RECOVERY = 3
+export const TIRELESS_REST_RECOVERY = 4
+
 // HOP a hit gets or loses beyond its roll from what the attack meets, by what
 // they come from (a purchase's own are its `gives`). gear.tex "Ultra
 // fast(UF)": "gets +2 HOPs on hit"; "Closed helmet": "hits to the head lose 5

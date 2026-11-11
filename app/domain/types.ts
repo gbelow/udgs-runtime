@@ -1258,7 +1258,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir', 'tireless', 'adaptiveSleep', 'resurrection', 'metabolicControl'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when

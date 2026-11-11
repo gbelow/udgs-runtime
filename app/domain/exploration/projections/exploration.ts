@@ -306,7 +306,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const exposure = getRestExposure(t, partyId)
   const healing = getRestHealing(c, exposure)
   const rest: PlanOption = canRestHeal(t, id)
-    ? { plan: 'rest', label: 'rest', IL: healing < 0 ? -healing : -Math.min(healing, c.injuries.injuryLevel), exhaustion: -Math.min(getRestRecovery(exposure), c.resources.exhaustion), hunger: 0, thirst: 0, idle: false, selected: plan === 'rest' }
+    ? { plan: 'rest', label: 'rest', IL: healing < 0 ? -healing : -Math.min(healing, c.injuries.injuryLevel), exhaustion: -Math.min(getRestRecovery(c, exposure), c.resources.exhaustion), hunger: 0, thirst: 0, idle: false, selected: plan === 'rest' }
     : { ...idle, plan: 'rest', label: 'rest', selected: plan === 'rest' }
   const groups = Object.entries(getGroups(t, partyId)).map(([groupId, g], i): PlanOption => ({
     plan: { group: groupId }, label: `${g.kind} ${i + 1}`, IL: getWear(c, getExplorationAction(g.kind)), exhaustion: 1, hunger: 0, thirst: 0, idle: false, selected: g.members.includes(id),

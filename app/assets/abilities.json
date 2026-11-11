@@ -8863,7 +8863,9 @@
         "description": "Adds Biomancy to health when resting.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "metabolicControl"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -9978,10 +9980,12 @@
             }
           ]
         ],
-        "description": "The body performs sleeps after the character dies. If the character goes back to the living range of IL, they come back to life.",
+        "description": "The body rests after the character dies. If the character goes back to the living range of IL, they come back to life.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "resurrection"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -10034,10 +10038,12 @@
             }
           ]
         ],
-        "description": "Exhaustion is divided by 3 in a long rest.",
+        "description": "Base exhaustion recovery per rest is increased to 4.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "tireless"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -10083,10 +10089,12 @@
             }
           ]
         ],
-        "description": "Learns to perform multiple sleeps per day. Infection only happens once per day.",
+        "description": "Learns to rest 6 ETs per day effectively.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "adaptiveSleep"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
