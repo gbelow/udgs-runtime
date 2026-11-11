@@ -398,6 +398,9 @@ export const ItemSchema = z.object({
   // story.tex "Learning tests": what reading it teaches, a map of a region;
   // absent for what teaches nothing
   learning: LearningTestSchema.optional(),
+  // spells.tex "Wizard": the spells a grimoire holds, by key; empty for what
+  // is no grimoire
+  grimoire: z.array(str).default([]),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb"), and the id of the character it was cut from
   part: z.lazy(() => BodyPartSchema).optional(),
@@ -716,7 +719,8 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // creature's size, `bow:STR` the STR a bow is drawn with, `reach:throw` a
 // throw's reach, in percent, `castDL:` what a choice made before a cast's
 // roll adds to its DL, per extension for `extend`, and `resist:compulsion`
-// what a morale test gets against the compulsion it would activate).
+// what a morale test gets against the compulsion it would activate, and
+// `downtime:` the test of an activity).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -736,6 +740,7 @@ export const BUFF_TARGETS = [
   ...prefixed('reach', ['throw'] as const),
   ...prefixed('castDL', ['quicken', 'extend'] as const),
   ...prefixed('resist', ['compulsion'] as const),
+  ...prefixed('downtime', ['celebrate'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
@@ -1294,7 +1299,9 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 // surge. `refusedProtection`: the holder let an attack on an ally go by
 // without the protection surge it offered them, and the ally took damage of
 // tier 2 or more from it. `knowledgeLevel`: the holder gained a level of a
-// specific knowledge.
+// specific knowledge. `grimoireSpell`: they learned a spell from a grimoire.
+// `celebrate`: they celebrated. `uncelebrated`: ten days of downtime passed
+// for them without a celebration.
 export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('test'),
@@ -1320,6 +1327,9 @@ export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('protectionSurge') }).strip(),
   z.object({ event: z.literal('refusedProtection') }).strip(),
   z.object({ event: z.literal('knowledgeLevel') }).strip(),
+  z.object({ event: z.literal('grimoireSpell') }).strip(),
+  z.object({ event: z.literal('celebrate') }).strip(),
+  z.object({ event: z.literal('uncelebrated') }).strip(),
 ])
 export type AttitudeEvent = z.infer<typeof AttitudeEventSchema>
 

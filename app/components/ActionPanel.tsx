@@ -609,6 +609,7 @@ function SpellButton({ option, onCast, onQuicken }: { option: SpellOptionView, o
     <span className='inline-flex items-center gap-1'>
       <ActionKey disabled={!option.castable} title={option.reason ?? undefined} cost={costLabel(option.cost)} onClick={onCast}>
         {option.name} <span className='font-mono font-normal opacity-70'>DL {option.DL ?? '?'}</span>
+        {option.grimoire ? <span className='font-normal opacity-70'>from {option.grimoire}, risky</span> : null}
         {option.conditions ? <span className='font-normal opacity-70'>if {option.conditions}</span> : null}
       </ActionKey>
       {option.quickenable ? <ActionKey title={`quicken: DL ${option.quickenedDL ?? ''}, no surge`} onClick={onQuicken}>quicken</ActionKey> : null}

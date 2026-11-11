@@ -12,7 +12,8 @@
     "light": null,
     "food": null,
     "price": 1500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Dagger": {
     "name": "Dagger",
@@ -27,7 +28,8 @@
     "light": null,
     "food": null,
     "price": 300,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Club": {
     "name": "Club",
@@ -42,7 +44,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Stiletto": {
     "name": "Stiletto",
@@ -57,7 +60,8 @@
     "light": null,
     "food": null,
     "price": 500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Whip": {
     "name": "Whip",
@@ -72,7 +76,8 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Short Sword": {
     "name": "Short Sword",
@@ -87,7 +92,8 @@
     "light": null,
     "food": null,
     "price": 800,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Rapier": {
     "name": "Rapier",
@@ -102,7 +108,8 @@
     "light": null,
     "food": null,
     "price": 1000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Short Spear": {
     "name": "Short Spear",
@@ -117,7 +124,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Mace": {
     "name": "Mace",
@@ -132,7 +140,8 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Battle Axe": {
     "name": "Battle Axe",
@@ -147,7 +156,8 @@
     "light": null,
     "food": null,
     "price": 500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Longsword": {
     "name": "Longsword",
@@ -162,7 +172,8 @@
     "light": null,
     "food": null,
     "price": 1200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Pike": {
     "name": "Pike",
@@ -177,7 +188,8 @@
     "light": null,
     "food": null,
     "price": 30,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Halberd": {
     "name": "Halberd",
@@ -192,7 +204,8 @@
     "light": null,
     "food": null,
     "price": 1200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Warhammer": {
     "name": "Warhammer",
@@ -207,7 +220,8 @@
     "light": null,
     "food": null,
     "price": 1200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Bardiche": {
     "name": "Bardiche",
@@ -222,7 +236,8 @@
     "light": null,
     "food": null,
     "price": 1000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Greatsword": {
     "name": "Greatsword",
@@ -237,7 +252,8 @@
     "light": null,
     "food": null,
     "price": 1800,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Net": {
     "name": "Net",
@@ -252,7 +268,8 @@
     "light": null,
     "food": null,
     "price": 300,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Grappling Hook and Rope": {
     "name": "Grappling Hook and Rope",
@@ -267,7 +284,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Grenade": {
     "name": "Grenade",
@@ -285,7 +303,8 @@
     "consume": null,
     "tags": [
       "grenade"
-    ]
+    ],
+    "grimoire": []
   },
   "Short Bow": {
     "name": "Short Bow",
@@ -300,7 +319,8 @@
     "light": null,
     "food": null,
     "price": 500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Long Bow": {
     "name": "Long Bow",
@@ -315,7 +335,8 @@
     "light": null,
     "food": null,
     "price": 800,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Heavy Bow": {
     "name": "Heavy Bow",
@@ -330,7 +351,8 @@
     "light": null,
     "food": null,
     "price": 1000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Crossbow": {
     "name": "Crossbow",
@@ -345,7 +367,8 @@
     "light": null,
     "food": null,
     "price": 800,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Arbalest": {
     "name": "Arbalest",
@@ -360,7 +383,8 @@
     "light": null,
     "food": null,
     "price": 1200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Wooden Shield": {
     "name": "Wooden Shield",
@@ -375,7 +399,8 @@
     "light": null,
     "food": null,
     "price": 100,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Metal Shield": {
     "name": "Metal Shield",
@@ -390,7 +415,8 @@
     "light": null,
     "food": null,
     "price": 1500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Wooden Tower": {
     "name": "Wooden Tower",
@@ -405,7 +431,8 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Clothing": {
     "name": "Clothing",
@@ -420,7 +447,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Fur Coat": {
     "name": "Fur Coat",
@@ -435,7 +463,8 @@
     "light": null,
     "food": null,
     "price": 300,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Gambeson": {
     "name": "Gambeson",
@@ -450,7 +479,8 @@
     "light": null,
     "food": null,
     "price": 500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Padded Armor": {
     "name": "Padded Armor",
@@ -465,7 +495,8 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Chain Shirt": {
     "name": "Chain Shirt",
@@ -480,7 +511,8 @@
     "light": null,
     "food": null,
     "price": 2000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Hauberk": {
     "name": "Hauberk",
@@ -495,7 +527,8 @@
     "light": null,
     "food": null,
     "price": 3000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Brigandine": {
     "name": "Brigandine",
@@ -510,7 +543,8 @@
     "light": null,
     "food": null,
     "price": 5000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Half Armor": {
     "name": "Half Armor",
@@ -525,7 +559,8 @@
     "light": null,
     "food": null,
     "price": 6000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Full Armor": {
     "name": "Full Armor",
@@ -540,7 +575,8 @@
     "light": null,
     "food": null,
     "price": 10000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Reinforced Armor": {
     "name": "Reinforced Armor",
@@ -555,7 +591,8 @@
     "light": null,
     "food": null,
     "price": 15000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Bodkin Arrow": {
     "name": "Bodkin Arrow",
@@ -570,7 +607,8 @@
     "light": null,
     "food": null,
     "price": 5,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Broadhead Arrow": {
     "name": "Broadhead Arrow",
@@ -585,7 +623,8 @@
     "light": null,
     "food": null,
     "price": 5,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Bodkin Bolt": {
     "name": "Bodkin Bolt",
@@ -600,7 +639,8 @@
     "light": null,
     "food": null,
     "price": 5,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Broadhead Bolt": {
     "name": "Broadhead Bolt",
@@ -615,7 +655,8 @@
     "light": null,
     "food": null,
     "price": 5,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Alcohol": {
     "name": "Alcohol",
@@ -631,7 +672,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Oil Flask": {
     "name": "Oil Flask",
@@ -647,7 +689,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Pitch Pot": {
     "name": "Pitch Pot",
@@ -662,7 +705,8 @@
     "light": null,
     "food": null,
     "price": 50,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Smoke Bundle": {
     "name": "Smoke Bundle",
@@ -677,7 +721,8 @@
     "light": null,
     "food": null,
     "price": 1,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Torch": {
     "name": "Torch",
@@ -692,7 +737,8 @@
     "light": 5,
     "food": null,
     "price": 1,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Smoke Grenade": {
     "name": "Smoke Grenade",
@@ -710,7 +756,8 @@
     "consume": null,
     "tags": [
       "grenade"
-    ]
+    ],
+    "grimoire": []
   },
   "Anticoagulant Poison": {
     "name": "Anticoagulant Poison",
@@ -725,7 +772,8 @@
     "light": null,
     "food": null,
     "price": 500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Paralytic Poison": {
     "name": "Paralytic Poison",
@@ -740,7 +788,8 @@
     "light": null,
     "food": null,
     "price": 1000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Necrotic Poison": {
     "name": "Necrotic Poison",
@@ -755,7 +804,8 @@
     "light": null,
     "food": null,
     "price": 800,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Soporific Poison": {
     "name": "Soporific Poison",
@@ -770,7 +820,8 @@
     "light": null,
     "food": null,
     "price": 600,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Caltrops": {
     "name": "Caltrops",
@@ -785,7 +836,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Tripwire": {
     "name": "Tripwire",
@@ -800,7 +852,8 @@
     "light": null,
     "food": null,
     "price": 1,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Rolling Log": {
     "name": "Rolling Log",
@@ -815,7 +868,8 @@
     "light": null,
     "food": null,
     "price": 50,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Alchemical Torch": {
     "name": "Alchemical Torch",
@@ -833,7 +887,8 @@
     "consume": null,
     "tags": [
       "alchemical torch"
-    ]
+    ],
+    "grimoire": []
   },
   "Superior Alchemical Torch": {
     "name": "Superior Alchemical Torch",
@@ -851,7 +906,8 @@
     "consume": null,
     "tags": [
       "alchemical torch"
-    ]
+    ],
+    "grimoire": []
   },
   "Alchemical Prism": {
     "name": "Alchemical Prism",
@@ -869,7 +925,8 @@
     "consume": null,
     "tags": [
       "alchemical prism"
-    ]
+    ],
+    "grimoire": []
   },
   "Electrite": {
     "name": "Electrite",
@@ -895,7 +952,8 @@
     "consume": null,
     "tags": [
       "electrite"
-    ]
+    ],
+    "grimoire": []
   },
   "Superior Electrite": {
     "name": "Superior Electrite",
@@ -921,7 +979,8 @@
     "consume": null,
     "tags": [
       "electrite"
-    ]
+    ],
+    "grimoire": []
   },
   "Magnetite": {
     "name": "Magnetite",
@@ -936,7 +995,8 @@
     "light": null,
     "food": null,
     "price": 1000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Fire Stone": {
     "name": "Fire Stone",
@@ -959,7 +1019,8 @@
     "light": null,
     "food": null,
     "price": 3000,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Flamethrower": {
     "name": "Flamethrower",
@@ -991,7 +1052,8 @@
     "loaded": null,
     "tags": [
       "flamethrower"
-    ]
+    ],
+    "grimoire": []
   },
   "Venomous Frog Corpse": {
     "name": "Venomous Frog Corpse",
@@ -1006,7 +1068,8 @@
     "light": null,
     "food": null,
     "price": 500,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Soul Stone": {
     "name": "Soul Stone",
@@ -1024,7 +1087,8 @@
     "consume": null,
     "tags": [
       "soul stone"
-    ]
+    ],
+    "grimoire": []
   },
   "Condenser": {
     "name": "Condenser",
@@ -1042,7 +1106,8 @@
     "consume": null,
     "tags": [
       "condenser"
-    ]
+    ],
+    "grimoire": []
   },
   "Simple Healing": {
     "name": "Simple Healing",
@@ -1074,7 +1139,8 @@
       ],
       "ETs": 0,
       "doses": 1
-    }
+    },
+    "grimoire": []
   },
   "Medium Healing": {
     "name": "Medium Healing",
@@ -1106,7 +1172,8 @@
       ],
       "ETs": 0,
       "doses": 1
-    }
+    },
+    "grimoire": []
   },
   "Good Healing": {
     "name": "Good Healing",
@@ -1138,7 +1205,8 @@
       ],
       "ETs": 0,
       "doses": 1
-    }
+    },
+    "grimoire": []
   },
   "Darkseeing": {
     "name": "Darkseeing",
@@ -1168,7 +1236,8 @@
       ],
       "ETs": 1,
       "doses": 1
-    }
+    },
+    "grimoire": []
   },
   "Bandages": {
     "name": "Bandages",
@@ -1183,7 +1252,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Splint": {
     "name": "Splint",
@@ -1201,7 +1271,8 @@
     "consume": null,
     "tags": [
       "splint"
-    ]
+    ],
+    "grimoire": []
   },
   "Cocaine": {
     "name": "Cocaine",
@@ -1220,7 +1291,8 @@
       "effects": [],
       "ETs": 0,
       "doses": 5
-    }
+    },
+    "grimoire": []
   },
   "Morphine": {
     "name": "Morphine",
@@ -1239,7 +1311,8 @@
       "effects": [],
       "ETs": 0,
       "doses": 5
-    }
+    },
+    "grimoire": []
   },
   "Ayahuasca": {
     "name": "Ayahuasca",
@@ -1258,7 +1331,8 @@
       "effects": [],
       "ETs": 0,
       "doses": 5
-    }
+    },
+    "grimoire": []
   },
   "Antidote": {
     "name": "Antidote",
@@ -1277,7 +1351,8 @@
       "effects": [],
       "ETs": 0,
       "doses": 5
-    }
+    },
+    "grimoire": []
   },
   "Copper Coin": {
     "name": "Copper Coin",
@@ -1293,7 +1368,8 @@
     "food": null,
     "price": 1,
     "currency": true,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Silver Coin": {
     "name": "Silver Coin",
@@ -1309,7 +1385,8 @@
     "food": null,
     "price": 10,
     "currency": true,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Gold Coin": {
     "name": "Gold Coin",
@@ -1325,7 +1402,8 @@
     "food": null,
     "price": 100,
     "currency": true,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Oilcloth": {
     "name": "Oilcloth",
@@ -1340,7 +1418,8 @@
     "light": null,
     "food": null,
     "price": 50,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Small Tent": {
     "name": "Small Tent",
@@ -1355,7 +1434,8 @@
     "light": null,
     "food": null,
     "price": 100,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Large Tent": {
     "name": "Large Tent",
@@ -1370,7 +1450,8 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Hammock": {
     "name": "Hammock",
@@ -1385,7 +1466,8 @@
     "light": null,
     "food": null,
     "price": 50,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Bedroll": {
     "name": "Bedroll",
@@ -1400,7 +1482,8 @@
     "light": null,
     "food": null,
     "price": 40,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Oil Lamp": {
     "name": "Oil Lamp",
@@ -1415,7 +1498,8 @@
     "light": 5,
     "food": null,
     "price": 100,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Flint": {
     "name": "Flint",
@@ -1430,7 +1514,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Firewood": {
     "name": "Firewood",
@@ -1445,7 +1530,8 @@
     "light": null,
     "food": null,
     "price": 2,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Rope": {
     "name": "Rope",
@@ -1460,7 +1546,8 @@
     "light": null,
     "food": null,
     "price": 50,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Canteen": {
     "name": "Canteen",
@@ -1475,7 +1562,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Jug": {
     "name": "Jug",
@@ -1490,7 +1578,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Shovel": {
     "name": "Shovel",
@@ -1505,7 +1594,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Pot": {
     "name": "Pot",
@@ -1520,7 +1610,8 @@
     "light": null,
     "food": null,
     "price": 50,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Vial": {
     "name": "Vial",
@@ -1535,7 +1626,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Chalk": {
     "name": "Chalk",
@@ -1550,7 +1642,8 @@
     "light": null,
     "food": null,
     "price": 5,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Insect Repellant": {
     "name": "Insect Repellant",
@@ -1565,7 +1658,8 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Sharpening Stone": {
     "name": "Sharpening Stone",
@@ -1580,7 +1674,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Fur Cloak": {
     "name": "Fur Cloak",
@@ -1595,7 +1690,8 @@
     "light": null,
     "food": null,
     "price": 100,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Muffled Boots": {
     "name": "Muffled Boots",
@@ -1610,7 +1706,8 @@
     "camouflage": null,
     "food": null,
     "price": 100,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Camouflage": {
     "name": "Camouflage",
@@ -1625,7 +1722,8 @@
     "light": null,
     "food": null,
     "price": 20,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Snow Shoes": {
     "name": "Snow Shoes",
@@ -1640,7 +1738,8 @@
     "light": null,
     "food": null,
     "price": 100,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Armor Repair Kit": {
     "name": "Armor Repair Kit",
@@ -1655,7 +1754,8 @@
     "light": null,
     "food": null,
     "price": 200,
-    "consume": null
+    "consume": null,
+    "grimoire": []
   },
   "Ration": {
     "name": "Ration",
@@ -1670,6 +1770,31 @@
     "light": null,
     "food": 3,
     "price": null,
-    "consume": null
+    "consume": null,
+    "grimoire": []
+  },
+  "Animancer's Grimoire": {
+    "name": "Animancer's Grimoire",
+    "description": "A wizard casts the spells written in it without learning them, risky and harder for every knowledge point missing; or learns them in downtime.",
+    "type": "utility",
+    "bulk": 1,
+    "refId": "",
+    "charge": null,
+    "source": null,
+    "camouflage": null,
+    "muffles": false,
+    "light": null,
+    "food": null,
+    "price": 5000,
+    "consume": null,
+    "grimoire": [
+      "soothe",
+      "charm",
+      "pacify",
+      "frighten",
+      "offend",
+      "sleep",
+      "suggestion"
+    ]
   }
 }

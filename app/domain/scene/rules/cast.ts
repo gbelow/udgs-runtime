@@ -2,14 +2,15 @@ import { getFragileDLTerms } from './fragile'
 import { isCombatStarted } from './started'
 import type { CampaignCharacter, Delivery, Item } from '../../types'
 import { findReadyItem } from '../../item/rules/containers'
-import type { ActionRoll, CastAction, SceneState, Deliveries, Link, SpellTestAction } from '../types'
+import type { Action, ActionRoll, CastAction, SceneState, Deliveries, Link, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
 import { getAction, getSpawned } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getGearCastingDL, getSpellGear, getQuickenDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTest, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getGrimoireDL, getCastConditions, getCastSize, getCastingDL, getGearCastingDL, getSpellGear, getQuickenDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTest, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
+import { getGrimoireFor, getGrimoireSpells } from '../../character/rules/grimoire'
 import { getRollModes, isSpellActive } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getCastLink, mayCastWhileConcentrating } from '../../character/rules/concentration'
@@ -154,6 +155,8 @@ export function canSaveGraze(state: SceneState, root: CastAction): boolean {
 // (spells.tex "Quicken Spell").
 export type SpellOption = {
   key: SpellKey
+  // the grimoire it is read from, when the caster has not learned it
+  grimoire: string | null
   DL: number | null
   quickenedDL: number | null
   cost: ActionCost
@@ -182,17 +185,26 @@ function reasonAgainst(c: CampaignCharacter, key: SpellKey, charged: boolean): s
   return canCastSpell(c, key, false, charged) ? null : 'needs a focus surge'
 }
 
+// spells.tex "Wizard": a spell read from a grimoire "must be done in a risky
+// manner".
+export function isGrimoireCast(caster: CampaignCharacter, root: Action): boolean {
+  return root.kind === 'cast' && isSpellKey(root.key) && getGrimoireFor(caster, root.key) !== null
+}
+
 export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellOption[] {
   const charged = isCombatStarted(state)
   const linkDL = getLinkDL(state, c)
-  return (Object.keys(c.spells) as SpellKey[]).filter(isSpellKey).map((key) => {
+  const keys = [...(Object.keys(c.spells) as SpellKey[]).filter(isSpellKey), ...getGrimoireSpells(c).map((g) => g.key)]
+  return keys.map((key) => {
     const spell = SPELLS[key]
     const boardBar = getSpellBoardBar(state, c, key)
     const gearDL = getGearCastingDL(spell, getSpellGear(c, key))
+    const grimoireDL = getGrimoireDL(c, key)
     return {
       key,
-      DL: getCastingDL(spell, 0, linkDL, gearDL),
-      quickenedDL: getCastingDL(spell, getQuickenDL(c), linkDL, gearDL),
+      grimoire: getGrimoireFor(c, key)?.name ?? null,
+      DL: getCastingDL(spell, 0, linkDL, gearDL, grimoireDL),
+      quickenedDL: getCastingDL(spell, getQuickenDL(c), linkDL, gearDL, grimoireDL),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
       castable: !boardBar && canCastSpell(c, key, false, charged),
       quickenable: !boardBar && canCastSpell(c, key, true, charged),

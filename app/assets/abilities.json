@@ -5153,7 +5153,19 @@
           ]
         ],
         "description": "Gains +1 bonus to celebrate.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "downtime:celebrate",
+              "operation": "+",
+              "value": 1,
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
@@ -5186,7 +5198,19 @@
           ]
         ],
         "description": "Gains +2 bonus to celebrate.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "downtime:celebrate",
+              "operation": "+",
+              "value": 1,
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
@@ -5219,7 +5243,19 @@
           ]
         ],
         "description": "Gains +3 bonus to celebrate.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "downtime:celebrate",
+              "operation": "+",
+              "value": 1,
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
@@ -5280,6 +5316,77 @@
             },
             "conviction": "Hedonism",
             "XP": 1
+          },
+          {
+            "on": {
+              "event": "grimoireSpell"
+            },
+            "conviction": "Hedonism",
+            "XP": 1
+          }
+        ],
+        "studies": []
+      }
+    ]
+  },
+  "hedonist-attitudes": {
+    "family": "Hedonist Attitudes",
+    "section": "Hedonism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Hedonism",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Promoted: gains 1 XP each time they celebrate. Prohibited: loses 1 XP each time they spend 10 days of downtime without celebrating.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
+        "surgeAllows": [],
+        "attitudes": [
+          {
+            "on": {
+              "event": "celebrate"
+            },
+            "conviction": "Hedonism",
+            "XP": 1
+          },
+          {
+            "on": {
+              "event": "uncelebrated"
+            },
+            "conviction": "Hedonism",
+            "XP": -1
           }
         ],
         "studies": []

@@ -12,6 +12,9 @@ import { PROFICIENCY_TALENTS, SKILL_TALENTS, getTrainableRaisePrice, isSkillKey,
 import { getAbilityTrainingPrice } from '../../character/rules/abilities'
 import { getLongCampHealing } from '../../character/rules/recovery'
 import { isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
+import { SPELLS, isSpellKey } from '../../spells'
+import { getSpellLearnBlocks } from '../../character/rules/spells'
+import { getCarriedItems } from '../../item/rules/items'
 import { isDead } from '../../character/rules/afflictions'
 import { getPartyMembers, getPlace, isOutsideSettlement, isPartyAway } from '../../campaign/rules/place'
 import { getClockOf, getPlayBar, getPlayingParties, getSequenceBar, getTimeBar } from '../../campaign/rules/clock'
@@ -173,6 +176,12 @@ export function getLivingCost(state: CampaignState, id: string, level: LivingLev
   return Math.ceil(COST_OF_LIVING[level].cost * (getSettlement(state, id)?.living ?? 1))
 }
 
+// story.tex "Celebrate": "Living standard x 10" over its 10 days, so a day of
+// it costs the standard once more, wherever the character is housed.
+export function getCelebrationCost(state: CampaignState, id: string, plan: Plan): number {
+  return plan.block?.kind === 'celebrate' ? getLivingCost(state, id, plan.living) : 0
+}
+
 // The exposure the character rests at: their living standard's, or none
 // when someone houses them.
 export function getPlanExposure(plan: Plan): number {
@@ -219,6 +228,7 @@ export function getAffordableDays(t: Downtime, id: string, days: number): number
   for (let day = 0; day < days; day++) {
     purse -= living
     if (plan.block?.kind === 'training' && day <= last) purse -= plan.block.rate
+    if (day <= last) purse -= getCelebrationCost(t.campaign, id, plan)
     if (plan.block && day === last) purse += getBlockSettlement(plan.block, c)
     if (purse < 0) return day
   }
@@ -244,6 +254,14 @@ export function getBlockBar(block: Block, c: Character): string | null {
     case 'learning':
       if (!knowledgeName(block.knowledge)) return 'name the knowledge'
       return isFormalKnowledge(knowledgeName(block.knowledge)) ? `${knowledgeName(block.knowledge)} is a formal knowledge: train it instead` : null
+    case 'spell': {
+      if (!isSpellKey(block.spell)) return 'name the spell'
+      if (SPELLS[block.spell].DL === null) return 'no casting DL'
+      const refused = getSpellLearnBlocks(block.spell)(c).wizard
+      if (refused) return refused === 'learned' ? `${SPELLS[block.spell].name} is already learned` : refused
+      const book = block.grimoireId ? getCarriedItems(c).find((i) => i.id === block.grimoireId) : null
+      return block.grimoireId && !book?.grimoire.includes(block.spell) ? 'the grimoire does not hold it' : null
+    }
     default: return null
   }
 }

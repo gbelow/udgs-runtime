@@ -15,8 +15,9 @@ import { getCallResult, type DieCall } from '../../play/calls'
 // of theirs ended with nothing prepared and nothing held, a round of the
 // fight ended (what afflicted them then, whether they made the combat surge
 // in it), they made their protection surge, or they let one go by and the
-// ally it was offered for was hurt, or they gained a level of a specific
-// knowledge.
+// ally it was offered for was hurt, they gained a level of a specific
+// knowledge, learned a spell from a grimoire, celebrated, or let ten days of
+// downtime pass without.
 export type AttitudeHappening =
   | { event: 'test'; skill: keyof Skills | null; value: number; DL: number; degree: Degree; mode: RollMode }
   | { event: 'die'; mode: RollMode; face: number }
@@ -28,6 +29,9 @@ export type AttitudeHappening =
   | { event: 'protectionSurge' }
   | { event: 'refusedProtection' }
   | { event: 'knowledgeLevel' }
+  | { event: 'grimoireSpell' }
+  | { event: 'celebrate' }
+  | { event: 'uncelebrated' }
 
 const among = <T,>(listed: readonly T[], value: T): boolean => listed.length === 0 || listed.includes(value)
 
@@ -49,6 +53,9 @@ function matches(on: AttitudeEvent, happened: AttitudeHappening): boolean {
     case 'protectionSurge':
     case 'refusedProtection':
     case 'knowledgeLevel':
+    case 'grimoireSpell':
+    case 'celebrate':
+    case 'uncelebrated':
       return happened.event === on.event
   }
 }

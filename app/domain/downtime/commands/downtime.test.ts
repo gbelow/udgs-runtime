@@ -7,9 +7,12 @@ import { passETs } from '../../campaign/commands/clock'
 import { DowntimeStateSchema, type Downtime, type TrainingTarget } from '../types'
 import { chooseActivity, chooseTraining, decideTraining, setBlock } from './plans'
 import { answerDowntime, passDays } from './downtime'
-import { getAffordableDays, getDowntimeBar } from '../rules/downtime'
+import { getAffordableDays, getDowntimeBar, getLivingCost } from '../rules/downtime'
 import { grantAbility } from '../../character/commands/abilities'
 import { ABILITIES } from '../../abilities'
+import { holdItem } from '../../item/commands/hands'
+import { getPayable } from '../../item/rules/money'
+import { ItemSchema } from '../../types'
 
 const strike: TrainingTarget = { kind: 'trainable', key: 'strike' }
 
@@ -86,5 +89,65 @@ describe('Excitement', () => {
     const gained = Object.values(done.campaign.characters.a.specificKnowledges).reduce((sum, level) => sum + level, 0)
     expect(gained).toBeGreaterThan(0)
     expect(done.campaign.characters.a.trainables.conviction1.XP).toBe(gained * ABILITIES.excitement.attitudes[0].XP)
+  })
+})
+
+const hedonist = (t: Downtime, abilities: Parameters<typeof grantAbility>[0][]): Downtime => {
+  const a = abilities.reduce((acc, key) => grantAbility(key)(acc), t.campaign.characters.a)
+  const trainables = { ...a.trainables, conviction1: { ...a.trainables.conviction1, name: 'Hedonism', value: 2, XP: 0 }, sorcery: { ...a.trainables.sorcery, value: 40 } }
+  return { ...t, campaign: { ...t.campaign, characters: { a: { ...a, trainables } } } }
+}
+const hedonismXP = (t: Downtime) => t.campaign.characters.a.trainables.conviction1.XP
+const attitude = (family: 'excitement' | 'hedonist-attitudes', event: string) => ABILITIES[family].attitudes.find((x) => x.on.event === event)?.XP ?? 0
+
+function passTen(t: Downtime): Downtime {
+  const called = passDays(10)(t)
+  const [call] = Object.values(called.downtime.calls)
+  return call ? answerDowntime(call.id, 7, 'entered')(called) : called
+}
+
+// spells.tex "Wizard": "The wizard can learn spells from a grimoire or through
+// experimentation during downtime in 10 days [...] learn on a hit or crit";
+// abilities.tex "Excitement": "spell learned from a grimoire".
+describe('learning a spell', () => {
+  const book = getCatalogItem("Animancer's Grimoire")!
+  const key = book.grimoire[0]
+  const study = (fromBook: boolean) => {
+    const start = hedonist(withPurse(10000), ['magic-theory', 'excitement'])
+    const held = holdItem(ItemSchema.parse(book))(start.campaign.characters.a)
+    const grimoireId = held.held[0].id
+    const ready = { ...start, campaign: { ...start.campaign, characters: { a: held } } }
+    return setBlock('a', { spell: key, grimoireId: fromBook ? grimoireId : '' })(chooseActivity('a', 'spell')(ready))
+  }
+
+  it('teaches the spell as a wizard’s, and pays Excitement when it came from a grimoire', () => {
+    const done = passTen(study(true))
+    expect(done.campaign.characters.a.spells[key as keyof typeof done.campaign.characters.a.spells]?.method).toBe('wizard')
+    expect(hedonismXP(done)).toBe(attitude('excitement', 'grimoireSpell'))
+  })
+
+  it('pays nothing for one worked out by experiment', () => {
+    const done = passTen(study(false))
+    expect(done.campaign.characters.a.spells[key as keyof typeof done.campaign.characters.a.spells]?.method).toBe('wizard')
+    expect(hedonismXP(done)).toBe(0)
+  })
+})
+
+// story.tex "Celebrate": "Living standard x 10" over 10 days; abilities.tex
+// "Hedonism": "Gains 1 XP each time they celebrate", "Loses 1 XP each time they
+// spend 10 days of downtime without celebrating".
+describe('celebrating', () => {
+  const idle = () => hedonist(withPurse(10000), ['hedonist-attitudes'])
+  const celebrating = () => setBlock('a', { DL: 0 })(chooseActivity('a', 'celebrate')(idle()))
+  const purse = (t: Downtime) => getPayable(t.campaign.characters.a)
+
+  it('costs the living standard once more each of its days', () => {
+    const rate = getLivingCost(idle().campaign, 'a', 'medium')
+    expect(purse(passTen(idle())) - purse(passTen(celebrating()))).toBe(rate * 10)
+  })
+
+  it('pays the conviction, and takes from one who let ten days pass without', () => {
+    expect(hedonismXP(passTen(celebrating()))).toBe(attitude('hedonist-attitudes', 'celebrate'))
+    expect(hedonismXP(passTen(idle()))).toBe(attitude('hedonist-attitudes', 'uncelebrated'))
   })
 })

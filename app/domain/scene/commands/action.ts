@@ -33,6 +33,7 @@ import { actionSurge } from '../../character/commands/actionSurge'
 import { endsSurge } from '../rules/surge'
 import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
 import { getPreparedCrit } from '../rules/cunning'
+import { isGrimoireCast } from '../rules/cast'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -403,7 +404,7 @@ function rollWith(caller: Caller, newId: () => string): Updater {
     if (!actor || !areReactionsComplete(state, open)) return state
 
     const rootTest = getRootTest(state, open)
-    const mode = open.kind === 'move' || open.kind === 'spellTest' ? open.mode : 'normal'
+    const mode = open.kind === 'move' || open.kind === 'spellTest' ? open.mode : isGrimoireCast(actor, open) ? 'risky' : 'normal'
     const own = open.kind !== 'move' || needsOwnDie(state, open)
     const test = rootTest && own ? testFor(caller, open, rootTest, open.kind, mode) : null
     if (!test && own && ACTIONS[open.kind].die) return state

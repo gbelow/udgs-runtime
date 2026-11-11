@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Hourglass, X } from 'lucide-react'
 import { Button, CollectionSelect, IconButton, NumberInput, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
-import { useDowntime, useDowntimeAnswer, useDowntimeCalls, useDowntimeCommands, useDowntimeDiceBar, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
+import { useDowntime, useDowntimeAnswer, useDowntimeCalls, useDowntimeCommands, useDowntimeDiceBar, useDowntimeResults, useDowntimeSpan, useSkillOptions, useSpellStudy, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
 import { ACTIVITIES, isTableTerm, type Activity } from '../domain/downtime/types';
 import { useGmBar } from '../hooks/useControl';
@@ -129,9 +129,11 @@ const ACTIVITY_HINTS: Record<Activity, string> = {
   job: 'a wage a day, tested at the end',
   doctor: 'IL healed for a price',
   learning: 'levels of a specific knowledge, tested at the end',
+  spell: 'a spell learned from a grimoire or by experiment, tested at the end',
+  celebrate: 'a celebration, charged the living standard again each day',
 }
 
-// story.tex "Downtime": the four things a character can spend their days on,
+// story.tex "Downtime": the things a character can spend their days on,
 // one at a time; the one chosen stays marked and opens its details.
 function ActivityPicker({ character: c, commands }: { character: DowntimeCharacterView, commands: Commands }){
 
@@ -212,6 +214,8 @@ function ActivityRow({ id, view: v, commands }: { id: string, view: BlockView, c
             {b.gains.map((g, i) => <NumberInput key={i} className='w-8' aria-label={`gain ${i}`} {...barred(gmBar)} value={g} onChange={(e) => setLearningGain(id, i, num(e.target.value))} />)}
           </>
           : null}
+        {b.kind === 'celebrate' ? <>{testPicker}{field('DL', 'DL', b.DL)}</> : null}
+        {b.kind === 'spell' ? <SpellPicker id={id} spell={b.spell} grimoireId={b.grimoireId} set={set} /> : null}
         {b.kind === 'training' ?
           <>
             <Button size='xs' tone='good' active={b.decision === 'accepted'} {...barred(gmBar)} onClick={() => decide(id, 'accepted')}>trainer found</Button>
@@ -225,6 +229,25 @@ function ActivityRow({ id, view: v, commands }: { id: string, view: BlockView, c
       </span>
       {v.bar ? <span className='text-xs text-bad'>{v.bar}</span> : null}
     </div>
+  )
+}
+
+// spells.tex "Wizard": the spell to learn, from a grimoire carried or by experiment.
+function SpellPicker({ id, spell, grimoireId, set }: { id: string, spell: string, grimoireId: string, set: (patch: Record<string, unknown>) => void }){
+  const { spells, books } = useSpellStudy(id)
+  const book = books.find((b) => b.id === grimoireId)
+  const offered = book ? spells.filter((s) => book.spells.includes(s.key)) : spells
+  return(
+    <>
+      <select aria-label='grimoire' className={selectClass} value={grimoireId} onChange={(e) => set({ grimoireId: e.target.value, spell: '' })}>
+        <option value=''>by experiment</option>
+        {books.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+      </select>
+      <select aria-label='spell' className={selectClass} value={spell} onChange={(e) => set({ spell: e.target.value })}>
+        <option value=''>spell…</option>
+        {offered.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
+      </select>
+    </>
   )
 }
 

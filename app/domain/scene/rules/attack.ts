@@ -8,7 +8,7 @@ import { setDistance } from './board/geometry'
 import { CLIMB_REDO_PENALTY } from '../../tables'
 import { getAimedPlace } from '../../character/rules/body'
 import { SPELLS, isSpellKey } from '../../spells'
-import { getExtendDL, getGearCastingDL, getQuickenDL, getSpellGear } from '../../character/rules/spells'
+import { getExtendDL, getGearCastingDL, getGrimoireDL, getQuickenDL, getSpellGear } from '../../character/rules/spells'
 import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
@@ -490,7 +490,8 @@ function getShotDLTerms(state: SceneState, root: ActionOf<'shoot'>): Term[] {
 // spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:
 // Increases spell DL by 3", moved by the caster's abilities (`getQuickenDL`);
 // "Extend Spell", 3 per extension (`getExtendDL`); "Telepathic Link": "Each simultaneous link increases the difficulty of spellcasting
-// test by 3".
+// test by 3"; "Wizard": "For every knowledge point missing compared to the
+// object's requirement, increase difficulty by 5" (a spell read from a grimoire).
 function getSpellDLTerms(state: SceneState, root: ActionOf<'cast'>): Term[] {
   const caster = state.characters[root.actorId]
   if (!isSpellKey(root.key)) return []
@@ -500,6 +501,7 @@ function getSpellDLTerms(state: SceneState, root: ActionOf<'cast'>): Term[] {
   return [
     { label: 'spell DL', value: SPELLS[root.key].DL ?? 0 },
     ...(gear && gearDL !== 0 ? [{ label: gear.name, value: gearDL }] : []),
+    ...(caster && getGrimoireDL(caster, root.key) !== 0 ? [{ label: 'knowledge missing', value: getGrimoireDL(caster, root.key) }] : []),
     ...(root.quicken ? [{ label: 'quicken', value: getQuickenDL(caster) }] : []),
     ...(root.extend > 0 ? [{ label: `extend ×${root.extend}`, value: root.extend * getExtendDL(caster) }] : []),
     ...(links > 0 ? [{ label: 'links', value: links }] : []),

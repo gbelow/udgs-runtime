@@ -5,11 +5,14 @@ import { LIVING_LEVELS, knowledges_list, type LivingLevel } from '../../lists'
 import type { SeenCampaign } from '../../campaign/types'
 import type { Activity, Block, Downtime, DowntimeResult, DowntimeState, SkillRef, TrainingTarget } from '../types'
 import { ABILITY_FAMILIES, type FamilyKey } from '../../abilities'
+import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
+import { getKnowledgeShortfallDL, getMethodSkill, getSpellLearnBlocks } from '../../character/rules/spells'
+import { getCarriedItems } from '../../item/rules/items'
 import { perPair, perState } from '../../perState'
 import { describeOutcome } from '../../play/test'
 import { formatMoney, getPayable } from '../../item/rules/money'
 import {
-  getActivity, getAffordableDays, getBlockBar, getBlockDays, getDefaultSpan, getDoctorHealing, getDowntimeBar, getDowntimeCharacters,
+  getActivity, getAffordableDays, getBlockBar, getCelebrationCost, getBlockDays, getDefaultSpan, getDoctorHealing, getDowntimeBar, getDowntimeCharacters,
   getDowntimeHealing, getJobTraining, getLivingCost, getLivingExposure, getPlan, getPlanDays, getPlanExposure, getSelfTrainingTest, getSettlement,
   getSkillName, getSkillValue, getTargetName, getTrainingLevel, getXPToNext,
 } from '../rules/downtime'
@@ -78,11 +81,18 @@ function selfTest(target: TrainingTarget, c: Character): DowntimeTest | null {
   return test ? { skill: test.skill, DL: test.DL, label: '2× talent vs 2× training level' } : null
 }
 
+// spells.tex "Wizard": the test that learns a spell, the casting skill against the
+// spell's DL raised for the knowledge missing.
+function spellTest(key: string, c: Character): DowntimeTest | null {
+  if (!isSpellKey(key)) return null
+  return { skill: getMethodSkill(c, SPELLS[key], 'wizard'), DL: (SPELLS[key].DL ?? 0) + getKnowledgeShortfallDL(c, key), label: 'sorcery with knowledge' }
+}
+
 function skillTest(ref: SkillRef, DL: number, c: Character): DowntimeTest {
   return { skill: getSkillValue(ref)(c), DL, label: getSkillName(ref) }
 }
 
-function blockView(c: CampaignCharacter, block: Block, elapsed: number): BlockView {
+function blockView(c: CampaignCharacter, block: Block, elapsed: number, celebration: number): BlockView {
   const days = getBlockDays(block)
   const base = { block, lastDay: days - elapsed, elapsed, bar: getBlockBar(block, c), testId: 'test' in block ? skillId(block.test) : null }
   switch (block.kind) {
@@ -104,6 +114,13 @@ function blockView(c: CampaignCharacter, block: Block, elapsed: number): BlockVi
       const healed = getDoctorHealing(block, c)
       return { ...base, label: 'doctor', cost: `${formatMoney(block.price)} per IL × ${healed} IL = ${formatMoney(block.price * healed)}`, test: null, yields: `heals up to ${healed} IL (${block.capacity} a day, IL then wounds)` }
     }
+    case 'spell':
+      return { ...base, label: `learning ${isSpellKey(block.spell) ? SPELLS[block.spell].name : '…'}`, cost: '—', test: spellTest(block.spell, c), yields: block.grimoireId ? 'the spell, on a hit or crit' : 'the spell by experiment, on a hit or crit' }
+    case 'celebrate':
+      return {
+        ...base, label: `celebrate (${getSkillName(block.test)})`, cost: `${formatMoney(celebration)} a day more`,
+        test: skillTest(block.test, block.DL, c), yields: 'a celebration',
+      }
     case 'learning':
       return {
         ...base, label: `learning ${block.knowledge || '…'}`, cost: '—', test: skillTest(block.test, block.DL, c),
@@ -129,7 +146,7 @@ function characterView(t: Downtime, id: string, days: number, active: string | n
     planDays: getPlanDays(plan),
     affordable,
     short: affordable < days,
-    block: plan.block ? blockView(c, plan.block, plan.elapsed) : null,
+    block: plan.block ? blockView(c, plan.block, plan.elapsed, getCelebrationCost(t.campaign, id, plan)) : null,
     activity: getActivity(plan),
     training: plan.block?.kind === 'training' || plan.block?.kind === 'self' ? { id: targetId(plan.block.target), withTrainer: plan.block.kind === 'training' } : null,
   }
@@ -192,4 +209,16 @@ export const getSkillOptions = perState((c: Character): SkillOption[] => [
 // What days of downtime came to, a line for each character's result.
 export function getDowntimeResultLines(results: DowntimeResult[]): string[] {
   return results.map((r) => `${r.name} · ${r.what}${describeOutcome(r.roll, r.note)}`)
+}
+
+// spells.tex "Wizard": what a wizard may study to learn a spell: the spells
+// they could learn that way, and the grimoires they carry with what each holds.
+export type SpellStudy = { spells: { key: SpellKey; name: string }[]; books: { id: string; name: string; spells: SpellKey[] }[] }
+
+export function getSpellStudy(c: Character): SpellStudy {
+  const keys = (Object.keys(SPELLS) as SpellKey[]).filter((key) => getSpellLearnBlocks(key)(c).wizard === '' && SPELLS[key].DL !== null)
+  return {
+    spells: keys.map((key) => ({ key, name: SPELLS[key].name })).sort((a, b) => a.name.localeCompare(b.name)),
+    books: getCarriedItems(c).filter((i) => i.grimoire.length > 0).map((i) => ({ id: i.id, name: i.name, spells: i.grimoire.filter(isSpellKey).filter((key) => keys.includes(key)) })),
+  }
 }

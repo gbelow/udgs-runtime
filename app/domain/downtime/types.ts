@@ -46,13 +46,18 @@ export const BlockSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('doctor'), days: z.number().default(1), capacity: z.number().default(4), price: z.number().default(10) }),
   // story.tex "Learning tests": a month spent learning
   z.object({ kind: z.literal('learning'), days: z.number().default(30) }).extend(LearningTestSchema.shape),
+  // spells.tex "Wizard": a spell learned from a grimoire, or by experimentation
+  // where none is named, in 10 days
+  z.object({ kind: z.literal('spell'), days: z.number().default(10), spell: z.string().default(''), grimoireId: z.string().default('') }),
+  // story.tex "Celebrate": persuasion or deception against a DL the table enters
+  z.object({ kind: z.literal('celebrate'), days: z.number().default(10), test: SkillRefSchema, DL: z.number().default(5) }),
 ])
 export type Block = z.infer<typeof BlockSchema>
 export type BlockKind = Block['kind']
 
 // story.tex "Downtime": what a character can spend their days on; a training
 // is with a trainer or alone.
-export const ACTIVITIES = ['training', 'job', 'doctor', 'learning'] as const
+export const ACTIVITIES = ['training', 'job', 'doctor', 'learning', 'spell', 'celebrate'] as const
 export type Activity = (typeof ACTIVITIES)[number]
 
 // One character's downtime: how they live, whether someone houses them, and
@@ -65,6 +70,8 @@ export const PlanSchema = z.object({
   block: BlockSchema.nullable().default(null),
   elapsed: z.number().default(0),
   at: z.number().default(0),
+  // the days of downtime lived since a celebration, counted to ten
+  idle: z.number().default(0),
 })
 export type Plan = z.infer<typeof PlanSchema>
 

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { LivingLevel } from "../domain/lists";
 import type { Activity, TrainingTarget } from "../domain/downtime/types";
 import { DECISIONS } from "../domain/downtime/types";
-import { getDowntimeResultLines, getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePanel, type SkillOption, type TrainingOption } from "../domain/downtime/projections/downtime";
+import { getDowntimeResultLines, getDowntimePanel, getSkillOptions, getSpellStudy, getTrainingOptions, type DowntimePanel, type SkillOption, type SpellStudy, type TrainingOption } from "../domain/downtime/projections/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getCallRows, getDiceBar, type CallRow } from "../domain/play/calls";
@@ -42,6 +42,12 @@ export function useDowntimeResults(): string[] {
 export function useTrainingOptions(id: string): TrainingOption[] {
   const c = useCampaignStore((s) => s.characters[id]);
   return c ? getTrainingOptions(c) : [];
+}
+
+// The spells the character could learn as a wizard, and the grimoires they carry.
+export function useSpellStudy(id: string): SpellStudy {
+  const c = useCampaignStore((s) => s.characters[id]);
+  return useMemo(() => (c ? getSpellStudy(c) : { spells: [], books: [] }), [c]);
 }
 
 // What the character's activity can be tested with.

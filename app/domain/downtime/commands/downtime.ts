@@ -10,6 +10,10 @@ import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
 import { meetAttitudes } from '../../character/commands/attitudes'
+import { learnSpell } from '../../character/commands/spells'
+import { SPELLS, isSpellKey } from '../../spells'
+import { getKnowledgeShortfallDL, getMethodSkill } from '../../character/rules/spells'
+import { getBuffBonus } from '../../character/rules/effects'
 import { knowledgeName } from '../../character/rules/knowledge'
 import { getLearnedLevel } from '../../character/rules/skillRef'
 import { getRestRecovery } from '../../character/rules/recovery'
@@ -22,8 +26,12 @@ import { getRosterModeOf } from '../../campaign/rules/roster'
 import { ETS_PER_DAY, describeSpan, getClockOf, getPlayingParties } from '../../campaign/rules/clock'
 import {
   getBlockDays, getBlockSettlement, getDoctorHealing, getDowntimeBar, getDowntimeCharacters, getDowntimeHealing, getJobTraining,
-  getLivingCost, getPlan, getPlanExposure, getSelfTrainingTest, getSelfTrainingXP, getSkillName, getSkillTest, getTargetName, getToExplorationBar,
+  getCelebrationCost, getLivingCost, getPlan, getPlanExposure, getSelfTrainingTest, getSelfTrainingXP, getSkillName, getSkillTest, getTargetName, getToExplorationBar,
 } from '../rules/downtime'
+
+// abilities.tex "Hedonism": "Loses 1 XP each time they spend 10 days of downtime
+// without celebrating".
+const UNCELEBRATED_DAYS = 10
 
 function addXP(target: TrainingTarget, XP: number): <C extends Character>(c: C) => C {
   const train = (c: Character): Character => {
@@ -111,6 +119,26 @@ function resolveBlock(id: string, c: CampaignCharacter, block: Block, test: Test
       const gained = Array.from({ length: Math.max(0, level - held) }, () => meetAttitudes({ event: 'knowledgeLevel' }))
       return { c: gained.reduce((acc, meet) => meet(acc), raiseSpecificKnowledge(name, level)(c)), result: { what, roll: rolled, note } }
     }
+    // spells.tex "Wizard": "Make a test using the same skill as the one to cast
+    // the spell and learn on a hit or crit", the DL raised by 5 for every
+    // knowledge point missing
+    case 'spell': {
+      if (!isSpellKey(block.spell)) return { c, result: { what: 'learning a spell', roll: null, note: 'no spell named' } }
+      const spell = SPELLS[block.spell]
+      const what = `learning ${spell.name}${block.grimoireId ? ' from a grimoire' : ' by experiment'}`
+      const rolled = roll(what, { skill: getMethodSkill(c, spell, 'wizard'), DL: (spell.DL ?? 0) + getKnowledgeShortfallDL(c, block.spell), explodes: false, scale: 'overflow', grazes: true })
+      if (!rolled) return waiting(what)
+      if (rolled.degree !== 'hit' && rolled.degree !== 'critical') return { c, result: { what, roll: rolled, note: 'not learned' } }
+      const learned = learnSpell(block.spell, 'wizard')(c) as CampaignCharacter
+      return { c: block.grimoireId ? meetAttitudes({ event: 'grimoireSpell' })(learned) : learned, result: { what, roll: rolled, note: 'learned' } }
+    }
+    // story.tex "Celebrate": persuasion or deception against a DL
+    case 'celebrate': {
+      const what = `celebrate (${getSkillName(block.test)})`
+      const made = getSkillTest(block.test, block.DL)(c)
+      const rolled = roll(what, { ...made, skill: made.skill + getBuffBonus(c, 'downtime:celebrate') })
+      return rolled ? { c: meetAttitudes({ event: 'celebrate' })(c), result: { what, roll: rolled, note: 'celebrated' } } : waiting(what)
+    }
   }
 }
 
@@ -131,7 +159,10 @@ function liveDays(t: Downtime, id: string, days: number, test: Tester): Lived {
   let spent = 0
   for (let day = 0; day < days; day++) {
     c = liveDay(fed(c), plan, day)
-    spent += living
+    spent += living + getCelebrationCost(t.campaign, id, plan)
+    const idle = plan.block?.kind === 'celebrate' ? 0 : plan.idle + 1
+    if (idle >= UNCELEBRATED_DAYS) c = meetAttitudes({ event: 'uncelebrated' })(c)
+    plan = { ...plan, idle: idle >= UNCELEBRATED_DAYS ? 0 : idle }
     const block = plan.block
     if (!block) continue
     if (block.kind === 'training') spent += block.rate

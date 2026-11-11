@@ -16,6 +16,7 @@ import { ABILITIES, hasAbility, isAbilityKey } from '../../abilities'
 import { mayCastWhileConcentrating } from './concentration'
 import { getBuffBonus, hasGrant, isAbilityActive, isSpellActive } from './effects'
 import { getUnmetRequirements, holdsRequirement, requirementLabel, requirementsLabel } from './requirements'
+import { getGrimoireFor } from './grimoire'
 
 // spells.tex "Learning spells".
 
@@ -47,7 +48,7 @@ export function getMethodSkill(c: Character, spell: Spell, method: SpellMethod):
 // with XP, never below what the method gives for free.
 export function getSpellSkill(c: Character, key: SpellKey): number {
   const learned = c.spells[key]
-  if (!learned) return 0
+  if (!learned) return getGrimoireFor(c, key) ? getMethodSkill(c, SPELLS[key], 'wizard') : 0
   return Math.max(learned.practice, getMethodSkill(c, SPELLS[key], learned.method))
 }
 
@@ -107,12 +108,28 @@ export function canClaimFreeSpell(key: SpellKey): (c: Character) => boolean {
   return (c: Character) => canLearnSpell(key, 'wizard')(c) && hasSpellKnowledge(c, key)
 }
 
+// spells.tex "Wizard": "For every knowledge point missing compared to the
+// object's requirement, increase difficulty by 5" — what a wizard's test with
+// a spell they have not learned adds to its DL.
+export function getKnowledgeShortfallDL(c: Character, key: SpellKey): number {
+  const spell = SPELLS[key]
+  const name = getCastingKnowledge(c, spell)
+  const required = spell.knowledge.find((k) => k.name === name)?.level ?? 0
+  return 5 * Math.max(0, required - getKnowledge(name)(c))
+}
+
+// What casting a spell from a grimoire adds to its DL, none for a spell
+// learned.
+export function getGrimoireDL(c: Character, key: SpellKey): number {
+  return getGrimoireFor(c, key) ? getKnowledgeShortfallDL(c, key) : 0
+}
+
 // spells.tex "Casting spells": the DL a cast is rolled against, raised by
 // Quicken when the caster forgoes the focus surge, and by what the links the
 // caster holds add (spells.tex "Telepathic Link"), `linkDL`. `quickenDL` is
 // what Quicken adds (`getQuickenDL`), 0 for a cast that is not quickened.
-export function getCastingDL(spell: Spell, quickenDL: number, linkDL = 0, gearDL = 0): number | null {
-  return spell.DL === null ? null : spell.DL + quickenDL + linkDL + gearDL
+export function getCastingDL(spell: Spell, quickenDL: number, linkDL = 0, gearDL = 0, grimoireDL = 0): number | null {
+  return spell.DL === null ? null : spell.DL + quickenDL + linkDL + gearDL + grimoireDL
 }
 
 // What the gear a spell is cast with adds to its DL: a fine item lowers it,
@@ -349,7 +366,7 @@ export function canCastSpell(c: Character, key: SpellKey, quicken: boolean, char
 // requirements met. What a spell held over to the next round still needs when
 // it finishes (combat.tex "Concentration").
 export function isCastPossible(c: Character, key: SpellKey): boolean {
-  if (!isCampaignCharacter(c) || !(key in c.spells)) return false
+  if (!isCampaignCharacter(c) || !(key in c.spells || getGrimoireFor(c, key))) return false
   const spell = SPELLS[key]
   if (spell.DL === null || isCastOverETs(key)) return false
   return meetsCastRequirements(c, key) && hasChargeTarget(c, key) && mayCastWhileConcentrating(c, key)
