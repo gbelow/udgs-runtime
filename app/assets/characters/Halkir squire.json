@@ -766,9 +766,9 @@
       "XP": 0,
       "type": "ability"
     },
-    "infrared-vision": {
+    "owl-eyes": {
       "value": 1,
-      "name": "infrared-vision",
+      "name": "owl-eyes",
       "XP": 0,
       "type": "ability"
     },

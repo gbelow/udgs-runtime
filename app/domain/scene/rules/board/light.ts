@@ -142,7 +142,8 @@ export function getLightOf(state: SceneState, id: string): LightLevel {
 }
 
 // gear.tex "Darkseeing": "Allows seeing in dim light at high quality" — dim
-// light is no impairment to whoever has it in them.
+// light is no impairment to whoever has it in them, or has Owl Eyes
+// (abilities.tex "Owl Eyes").
 export function seesInDimLight(c: CampaignCharacter): boolean {
   return isSuppressed(c, 'light:dim')
 }

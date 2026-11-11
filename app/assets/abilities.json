@@ -10614,7 +10614,18 @@
           ]
         ],
         "description": "Modifies the eyes to be able to see well at night, but not absolute darkness.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "Owl Eyes",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "Owl Eyes",
+              "target": "light:dim",
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [],
         "rollModes": [],
