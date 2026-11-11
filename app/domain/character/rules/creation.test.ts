@@ -149,8 +149,8 @@ describe('karma at creation', () => {
   })
 
   it('is funded by flaws', () => {
-    const flawed = buyCreationStage('glutton', 1)(buyCreationStage('alcoholic', 1)(chosen()))
-    expect(problemsBesidesUnspent(raiseDEX(flawed))).toEqual([])
+    const flawed = buyCreationStage('ugly', 1)(chosen())
+    expect(getCreationBalances(flawed).karma.budget - getCreationBalances(chosen()).karma.budget).toBe(-ABILITIES.ugly.karma)
   })
 })
 

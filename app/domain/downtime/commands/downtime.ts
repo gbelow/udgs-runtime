@@ -9,6 +9,7 @@ import { getDowntimeResultLines } from '../projections/downtime'
 import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
+import { meetAttitudes } from '../../character/commands/attitudes'
 import { knowledgeName } from '../../character/rules/knowledge'
 import { getLearnedLevel } from '../../character/rules/skillRef'
 import { getRestRecovery } from '../../character/rules/recovery'
@@ -107,7 +108,8 @@ function resolveBlock(id: string, c: CampaignCharacter, block: Block, test: Test
       if (!rolled) return waiting(what)
       const { held, level } = getLearnedLevel(block, rolled.degree)(c)
       const note = level > held ? `${name} ${held} → ${level}` : 'nothing learned'
-      return { c: raiseSpecificKnowledge(name, level)(c), result: { what, roll: rolled, note } }
+      const gained = Array.from({ length: Math.max(0, level - held) }, () => meetAttitudes({ event: 'knowledgeLevel' }))
+      return { c: gained.reduce((acc, meet) => meet(acc), raiseSpecificKnowledge(name, level)(c)), result: { what, roll: rolled, note } }
     }
   }
 }

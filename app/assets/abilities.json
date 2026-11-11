@@ -5063,449 +5063,6 @@
       }
     ]
   },
-  "self-control": {
-    "family": "Self-Control",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 1,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "The character has +1 to will in any test that forces them to deny a vice.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 3,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "The character has +2 to will in any test that forces them to deny a vice.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 5,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "The character has +3 to will in any test that forces them to deny a vice.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "tolerance": {
-    "family": "Tolerance",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 2,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "The mental penalty for being intoxicated decreases by 1|2.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 4,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "The character ignores the effect of tired and exhausted when intoxicated.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "showman": {
-    "family": "Showman",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 2,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Gains +1 to the persuasion test if they have the vice \"center of attention.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 4,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Gains +2 to the persuasion test if they have the vice \"center of attention.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "light-fingers": {
-    "family": "Light Fingers",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 2,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +1 for prestidigitation if they have the vice \"Kleptomaniac.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 4,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +2 for prestidigitation if they have the vice \"Kleptomaniac.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "seducer": {
-    "family": "Seducer",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 2,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +1 for seduction tests if they have the vice \"Nymphomaniac.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 4,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +2 for seduction tests if they have the vice \"Nymphomaniac.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
   "sharp-tongue": {
     "family": "Sharp Tongue",
     "section": "Hedonism",
@@ -5538,131 +5095,18 @@
             {
               "kind": "trainable",
               "name": "Hedonism",
-              "level": 2,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +1 for taunting if they have the limit action of \"Abusive.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
               "level": 4,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Receives +2 for taunting if they have the limit action of \"Abusive.\"",
+        "description": "Also rallies their team when they taunt an enemy.",
         "effect": [],
         "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "sly-words": {
-    "family": "Sly Words",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 2,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "grants": [
+          "rallyingTaunt"
         ],
-        "description": "Receives +1 for persuasion tests if they have the limit action of \"Traitor.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      },
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 4,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives +2 for persuasion tests if they have the limit action of \"Traitor.\"",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -5702,6 +5146,39 @@
             {
               "kind": "trainable",
               "name": "Hedonism",
+              "level": 1,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Gains +1 bonus to celebrate.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
+        "surgeAllows": [],
+        "attitudes": [],
+        "studies": []
+      },
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Hedonism",
               "level": 3,
               "op": ">=",
               "not": false
@@ -5716,23 +5193,7 @@
         "surgeAllows": [],
         "attitudes": [],
         "studies": []
-      }
-    ]
-  },
-  "rallying-taunt": {
-    "family": "Rallying Taunt",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
+      },
       {
         "XPcost": 0,
         "karma": 0,
@@ -5751,13 +5212,13 @@
             {
               "kind": "trainable",
               "name": "Hedonism",
-              "level": 3,
+              "level": 5,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Also rallies their team when they taunt an enemy.",
+        "description": "Gains +3 bonus to celebrate.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -5768,8 +5229,8 @@
       }
     ]
   },
-  "lucky-streak": {
-    "family": "Lucky Streak",
+  "excitement": {
+    "family": "Excitement",
     "section": "Hedonism",
     "activation": "passive",
     "cost": {
@@ -5800,68 +5261,27 @@
             {
               "kind": "trainable",
               "name": "Hedonism",
-              "level": 3,
+              "level": 2,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Gains the ability to roll exploded die twice and pick the most extreme option.",
+        "description": "+1 Hedonism XP for every specific knowledge level gained and spell learned from a grimoire.",
         "effect": [],
         "recipes": [],
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "bookworm": {
-    "family": "Bookworm",
-    "section": "Hedonism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Hedonism",
-              "level": 3,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "attitudes": [
+          {
+            "on": {
+              "event": "knowledgeLevel"
+            },
+            "conviction": "Hedonism",
+            "XP": 1
+          }
         ],
-        "description": "+1 XP for each book read. Learning a spell from the grimoire counts as a book.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
         "studies": []
       }
     ]
@@ -6397,366 +5817,6 @@
           ]
         ],
         "description": "A state that can use all the deity's abilities and spells with the deity's skill level. This works like a possession. The character is incapable of acting against the deity's principles and may have its actions vetoed by the GM.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "alcoholic": {
-    "family": "Alcoholic",
-    "section": "Vices",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Penalty of -3 for morale tests if not intoxicated, bonus of +1 if intoxicated. Gains 1/2/3 Hedonism XP for entering combat while Intoxicated I/II/III, respectively.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "center-of-attention": {
-    "family": "Center of Attention",
-    "section": "Vices",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "+1 Hedonism XP for each time successfully distracting or provoking someone and -1 if failing.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "kleptomaniac": {
-    "family": "Kleptomaniac",
-    "section": "Vices",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "May be compelled to steal something. Must make a will test with a difficulty of 5 to avoid being compelled. Loses 1 XP if not stealing and gains 1 Hedonism XP if attempting to steal.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "nymphomaniac": {
-    "family": "Nymphomaniac",
-    "section": "Vices",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives -3 to resist seduction tests. Gains 1 Hedonism XP each time they successfully seduce someone, but loses 1 XP whenever they fail.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "glutton": {
-    "family": "Glutton",
-    "section": "Vices",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives -3 mental if suffering any distress from hunger.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "explosive": {
-    "family": "Explosive",
-    "section": "Traumas",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives -3 on any test to resist becoming angry or to calm down when already furious.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "phobia": {
-    "family": "Phobia",
-    "section": "Traumas",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Choose the object of the phobia. Has a morale penalty when in the presence of the phobia's object. Gains 1 Ferocity XP if incapacitating the target of fear.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "fear-of-heights": {
-    "family": "Fear of Heights",
-    "section": "Traumas",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives -5 for morale tests when in high places, with a risk of falling.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "insomnia": {
-    "family": "Insomnia",
-    "section": "Traumas",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": -6,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "Receives -2 to health when trying to rest, but gains +2 to detection while unconscious.",
         "effect": [],
         "recipes": [],
         "grants": [],

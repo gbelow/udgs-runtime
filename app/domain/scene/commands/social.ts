@@ -5,6 +5,7 @@ import { getSocialValue } from '../rules/morale'
 import { getSpeakingRound } from '../rules/roundChange'
 import { isVoided } from '../rules/opportunity'
 import { getHeard } from '../rules/social'
+import { hasGrant } from '../../character/rules/effects'
 import { markStress } from './stress'
 
 // What was said, written as the pressure it puts on each hearer's morale test,
@@ -24,7 +25,7 @@ export function speak(state: SceneState, id: string, kind: Pressure['kind'], val
 export function landSocial(state: SceneState, action: SocialActionRecord | TauntAction): SceneState {
   const c = state.characters[action.actorId]
   if (!c || isVoided(state, action)) return state
-  if (action.kind === 'taunt') return action.targetId ? speak(state, c.id, 'taunt', getSocialValue(c, 'taunt'), [action.targetId]) : state
+  if (action.kind === 'taunt') return action.targetId ? rallyingTaunt(speak(state, c.id, 'taunt', getSocialValue(c, 'taunt'), [action.targetId]), c.id) : state
   switch (action.say) {
     case 'intimidate':
     case 'rally':
@@ -45,6 +46,13 @@ export function landSocial(state: SceneState, action: SocialActionRecord | Taunt
 export function rally(state: SceneState, id: string): SceneState {
   const c = state.characters[id]
   return c ? speak(state, id, 'rally', getSocialValue(c, 'rally'), getHeard(state, id, 'rally')) : state
+}
+
+// abilities.tex "Sharp Tongue": "Also rallies their team when they taunt an
+// enemy".
+function rallyingTaunt(state: SceneState, id: string): SceneState {
+  const c = state.characters[id]
+  return c && hasGrant(c, 'rallyingTaunt') ? rally(state, id) : state
 }
 
 // creating.tex "Limit Stress Actions": the table finds nobody for the abusive

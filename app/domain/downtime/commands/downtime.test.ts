@@ -5,9 +5,11 @@ import { addItemToContainer, putOnFromCatalog, receive } from '../../item/comman
 import { CampaignStateSchema } from '../../campaign/types'
 import { passETs } from '../../campaign/commands/clock'
 import { DowntimeStateSchema, type Downtime, type TrainingTarget } from '../types'
-import { chooseTraining, decideTraining } from './plans'
+import { chooseActivity, chooseTraining, decideTraining, setBlock } from './plans'
 import { answerDowntime, passDays } from './downtime'
 import { getAffordableDays, getDowntimeBar } from '../rules/downtime'
+import { grantAbility } from '../../character/commands/abilities'
+import { ABILITIES } from '../../abilities'
 
 const strike: TrainingTarget = { kind: 'trainable', key: 'strike' }
 
@@ -68,5 +70,21 @@ describe('days that call for a die', () => {
     const passed = answerDowntime(call.id, 7, 'entered')(called)
     expect(passed.campaign.parties.p.clock).toBeGreaterThan(0)
     expect(passed.downtime.results.find((r) => r.roll)?.roll).toMatchObject({ die: 7, source: 'entered' })
+  })
+})
+
+// abilities.tex "Excitement": "+1 Hedonism XP for every specific knowledge level gained".
+describe('Excitement', () => {
+  it('pays Hedonism XP for each level a learning test gains', () => {
+    const start = withPurse(10000)
+    const a = grantAbility('excitement')(start.campaign.characters.a)
+    const hedonist = { ...a, trainables: { ...a.trainables, conviction1: { ...a.trainables.conviction1, name: 'Hedonism', value: 2, XP: 0 } } }
+    const learning = setBlock('a', { knowledge: 'Haldor Town', DL: 0, gains: [3, 3, 3, 3], max: 3 })(chooseActivity('a', 'learning')({ ...start, campaign: { ...start.campaign, characters: { a: hedonist } } }))
+    const called = passDays(30)(learning)
+    const [call] = Object.values(called.downtime.calls)
+    const done = call ? answerDowntime(call.id, 7, 'entered')(called) : called
+    const gained = Object.values(done.campaign.characters.a.specificKnowledges).reduce((sum, level) => sum + level, 0)
+    expect(gained).toBeGreaterThan(0)
+    expect(done.campaign.characters.a.trainables.conviction1.XP).toBe(gained * ABILITIES.excitement.attitudes[0].XP)
   })
 })

@@ -1250,7 +1250,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'repositionTwice', 'overrule', 'subjugate', 'mockery'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'repositionTwice', 'overrule', 'subjugate', 'mockery'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
@@ -1293,7 +1293,8 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 // `protectionSurge`: the holder made their protection
 // surge. `refusedProtection`: the holder let an attack on an ally go by
 // without the protection surge it offered them, and the ally took damage of
-// tier 2 or more from it.
+// tier 2 or more from it. `knowledgeLevel`: the holder gained a level of a
+// specific knowledge.
 export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('test'),
@@ -1318,6 +1319,7 @@ export const AttitudeEventSchema = z.discriminatedUnion('event', [
   }).strip(),
   z.object({ event: z.literal('protectionSurge') }).strip(),
   z.object({ event: z.literal('refusedProtection') }).strip(),
+  z.object({ event: z.literal('knowledgeLevel') }).strip(),
 ])
 export type AttitudeEvent = z.infer<typeof AttitudeEventSchema>
 
