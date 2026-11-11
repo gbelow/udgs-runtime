@@ -50,7 +50,7 @@ export const characterCommands = {
     (c) => (field === 'distance' ? movementLenses[key] : movementCostLenses[key][field]).set(c, value)),
   setSenseNumber: edit((_, key: keyof Senses, field: 'bonus' | 'penalty', value: number) => (c) => senseLenses[key][field].set(c, value)),
   setSenseRange: edit((_, key: keyof Senses, value: number | null) => (c) => senseLenses[key].range.set(c, value)),
-  setSenseFlag: edit((_, key: keyof Senses, field: 'hasSense' | 'active' | 'reactive', value: boolean) => (c) => senseLenses[key][field].set(c, value)),
+  setSenseFlag: edit((_, key: keyof Senses, field: 'hasSense' | 'active' | 'reactive' | 'partial', value: boolean) => (c) => senseLenses[key][field].set(c, value)),
   setMisc: edit((_, key: keyof typeof miscLenses, value: number) => (c) => miscLenses[key].set(c, value)),
   setTrainableName: edit((_, key: keyof Trainables, name: string) => (c) => makeTrainableNameLens<Character>(key).set(c, name)),
   setTag: edit((_, level: TagLevel, tag: string) => (c) => tagLenses[level].set(c, tag)),

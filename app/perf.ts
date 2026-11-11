@@ -41,6 +41,7 @@ function buildEntries(): ProjectionEntry[] {
     list.push({ name: `sense.${k}.reactive`, get: (c) => s.reactive.get(c), set: (c, v) => s.reactive.set(c, v as boolean) });
     list.push({ name: `sense.${k}.active`, get: (c) => s.active.get(c), set: (c, v) => s.active.set(c, v as boolean) });
     list.push({ name: `sense.${k}.hasSense`, get: (c) => s.hasSense.get(c), set: (c, v) => s.hasSense.set(c, v as boolean) });
+    list.push({ name: `sense.${k}.partial`, get: (c) => s.partial.get(c), set: (c, v) => s.partial.set(c, v as boolean) });
   }
   for (const [k, g] of Object.entries(magicGetters))
     list.push({ name: `magic.${k}`, get: (c) => (g as (c: Character) => unknown)(c) });

@@ -10518,11 +10518,23 @@
         "XPcost": 0,
         "karma": 10,
         "talent": [],
-        "requirements": [],
-        "description": "Modifies the nose to become very sensitive and can transform it into a snout. Removes the -5 penalty to smell.",
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Modifies the nose to become very sensitive and can transform it into a snout. Increases smell radius to 10m at partial impairment.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "bearNose"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

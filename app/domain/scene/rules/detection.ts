@@ -1,9 +1,10 @@
-import type { CampaignCharacter, Character, Senses, Skills } from '../../types'
+import type { CampaignCharacter, Character, Sense, Senses, Skills } from '../../types'
 import type { Action, Board, SceneState, Coord, Direction } from '../types'
 import { BAD_VISIBILITY_PENALTY, FOG_VISION_RADIUS, SkillPenaltyTable } from '../../tables'
 import { getDetectionTerms } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getSenseBonus } from '../../character/lenses/senses'
+import { getSenses } from '../../character/rules/senses'
 import { getAfflictedSense } from '../../character/rules/afflictions'
 import { getCamouflage } from '../../item/rules/items'
 import { getSituationalAfflictions } from './situational'
@@ -52,15 +53,17 @@ export function getActionHeading(state: SceneState, action: Action, board: Board
 
 export type Impairment = 'none' | 'partial' | 'total'
 
-type Impair = (state: SceneState, observerId: string, targetId: string, range: number | null) => Impairment
+type Impair = (state: SceneState, observerId: string, targetId: string, sense: Sense) => Impairment
 
 // A sense that reaches as far as its range: null for no limit, 0 for what it
-// touches, a grapple partner.
-const byRange: Impair = (state, o, t, range) => {
-  if (range === null) return 'none'
-  if (range === 0) return getPartners(state, o).includes(t) ? 'none' : 'total'
+// touches, a grapple partner. What is within it is taken in whole, or partly
+// for a sense that is `partial`.
+const byRange: Impair = (state, o, t, { range, partial }) => {
+  const within = partial ? 'partial' : 'none'
+  if (range === null) return within
+  if (range === 0) return getPartners(state, o).includes(t) ? within : 'total'
   const distance = getDistanceBetween(state, o, t)
-  return distance === null || distance <= range ? 'none' : 'total'
+  return distance === null || distance <= range ? within : 'total'
 }
 
 // combat.tex "Vision": how much of what stands on `at` an eye on `from`
@@ -119,7 +122,7 @@ function isCamouflaged(state: SceneState, id: string): boolean {
 // combat.tex "Afflictions": "Blind: ... Cannot use vision", "Deaf: ... Cannot
 // use hearing".
 function canUse(state: SceneState, c: Character, sense: keyof Senses): boolean {
-  return c.senses[sense].hasSense && !getAfflictedSense(c, sense, getSituationalAfflictions(state, c.id)).lost
+  return getSenses(c)[sense].hasSense && !getAfflictedSense(c, sense, getSituationalAfflictions(state, c.id)).lost
 }
 
 // Ground that totally impairs a sense of whoever looks into it: fog and smoke,
@@ -152,10 +155,11 @@ export function isNearBlindGround(state: SceneState, id: string, radius: number)
   const from = getPlacedFootprint(state, id)
   const terrain = state.board?.terrain
   if (!c || !from || !terrain) return false
-  const senses = (Object.keys(TOTAL_INTO) as (keyof Senses)[]).filter((s) => c.senses[s].active && canUse(state, c, s))
+  const own = getSenses(c)
+  const senses = (Object.keys(TOTAL_INTO) as (keyof Senses)[]).filter((s) => own[s].active && canUse(state, c, s))
   const cells = state.board?.light === 'dark' ? from.flatMap((at) => disk(at, radius)) : Object.keys(terrain).flatMap((key) => parseCoordKey(key) ?? [])
   return cells.some((cell) => setDistance(from, [cell]) <= radius && isBlindingGround(state, cell)
-    && senses.every((s) => TOTAL_INTO[s](state, from, [cell], c.senses[s].range)))
+    && senses.every((s) => TOTAL_INTO[s](state, from, [cell], own[s].range)))
 }
 
 // What an observer's sense is aimed at: a character, or cells of the ground.
@@ -169,7 +173,7 @@ export type Toward = string | readonly Coord[]
 // sensory penalty when targeting anything there").
 function getSensoryTermsOf(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses, impairment: Impairment): Term[] {
   return [
-    { label: `${sense} penalty`, value: -observer.senses[sense].penalty },
+    { label: `${sense} penalty`, value: -getSenses(observer)[sense].penalty },
     { label: 'afflictions', value: -getAfflictedSense(observer, sense, getSituationalAfflictions(state, observer.id)).penalty },
     { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, observer, toward) : 0 },
   ]
@@ -203,7 +207,10 @@ function getVisibilityTerm(state: SceneState, observer: CampaignCharacter, towar
 // How much of cells of the ground a sense of the observer takes in from where
 // they stand: `IMPAIRMENTS` of a place, line of sight kept along `eyes`.
 function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from: Coord[], at: Coord[], sense: keyof Senses, eyes: Eyes = LEVEL_EYES, floor?: number): Impairment {
-  if (sense !== 'vision') return TOTAL_INTO[sense](state, from, at, observer.senses[sense].range) ? 'total' : 'none'
+  if (sense !== 'vision') {
+    const { range, partial } = getSenses(observer)[sense]
+    return TOTAL_INTO[sense](state, from, at, range) ? 'total' : partial ? 'partial' : 'none'
+  }
   if (state.board && !seesAcross(state.board, from, at, eyes)) return 'total'
   return seeInto(state, from, at, () => seesInDimLight(observer), floor, state.board?.placements[observer.id]?.elevation)
 }
@@ -220,13 +227,14 @@ export function getCellSenser(state: SceneState, observerId: string): (cell: Coo
   const board = state.board
   if (!c || !from || !board) return () => true
   const feet = board.placements[observerId]?.elevation ?? 0
-  const senses = (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).filter((sense) => c.senses[sense].active && canUse(state, c, sense))
+  const own = getSenses(c)
+  const senses = (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).filter((sense) => own[sense].active && canUse(state, c, sense))
   return (cell, floor = getTerrainAt(board, cell, feet).floor) => from.some((own) => sameCell(own, cell))
     || senses.some((sense) => getImpairmentInto(state, c, from, [cell], sense, getEyesToward(state, observerId, floor), floor) !== 'total')
 }
 
 function getImpairment(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses): Impairment {
-  if (typeof toward === 'string') return IMPAIRMENTS[sense](state, observer.id, toward, observer.senses[sense].range)
+  if (typeof toward === 'string') return IMPAIRMENTS[sense](state, observer.id, toward, getSenses(observer)[sense])
   const from = getPlacedFootprint(state, observer.id)
   return from && toward.length > 0 ? getImpairmentInto(state, observer, from, [...toward], sense) : 'none'
 }
@@ -243,7 +251,7 @@ export function getSensoryPenalty(state: SceneState, actorId: string, toward: To
   const c = state.characters[actorId]
   if (!c || toward === actorId) return null
   return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).reduce<SensoryPenalty | null>((best, sense) => {
-    if (!c.senses[sense][use] || !canUse(state, c, sense)) return best
+    if (!getSenses(c)[sense][use] || !canUse(state, c, sense)) return best
     const impairment = getImpairment(state, c, toward, sense)
     if (impairment === 'total') return best
     const penalty = -sumTerms(getSensoryTermsOf(state, c, toward, sense, impairment))
@@ -285,8 +293,9 @@ export function getSenseReaches(state: SceneState, observerId: string, targetId:
   if (!observer || !state.characters[targetId] || observerId === targetId) return []
   return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).flatMap((sense) => {
     if (!canUse(state, observer, sense)) return []
-    const { active, reactive, range } = observer.senses[sense]
-    const impairment = IMPAIRMENTS[sense](state, observerId, targetId, range)
+    const senses = getSenses(observer)
+    const { active, reactive } = senses[sense]
+    const impairment = IMPAIRMENTS[sense](state, observerId, targetId, senses[sense])
     if (impairment === 'total') return []
     const terms = getDetectionTermsThrough(state, observer, targetId, sense, impairment)
     return [{ sense, active, reactive, impairment, terms, detection: sumTerms(terms) }]

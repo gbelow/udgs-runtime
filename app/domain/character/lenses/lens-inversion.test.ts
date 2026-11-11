@@ -104,7 +104,7 @@ describe('lens inversion — senses', () => {
   })
 
   it.each(senses)('the boolean lenses of "%s" round-trip both ways', (sense) => {
-    for (const field of ['active', 'reactive', 'hasSense'] as const) {
+    for (const field of ['active', 'reactive', 'hasSense', 'partial'] as const) {
       const lens = senseLenses[sense][field]
       for (const value of [true, false]) {
         expect(lens.get(lens.set(subject(), value))).toBe(value)

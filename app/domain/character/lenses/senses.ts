@@ -1,6 +1,7 @@
 import { Character, Lens, Sense, Senses } from "../../types";
 import { composeLens, makeInvertingSetter, makePropLens } from "./factories";
 import { getBuffBonus } from "../rules/effects";
+import { getSenses } from "../rules/senses";
 
 export const sensesLens: Lens<Character, Senses> = makePropLens<Character, "senses">("senses");
 
@@ -8,8 +9,15 @@ export function makeSenseEntryLens(senseName: keyof Senses): Lens<Character, Sen
   return composeLens(sensesLens, makePropLens<Senses, keyof Senses>(senseName));
 }
 
+// A field of a sense as it is in play, mutations and all, set on the
+// character's own stored sense.
+function makeSenseFieldLens<K extends keyof Sense>(senseName: keyof Senses, field: K): Lens<Character, Sense[K]> {
+  const stored = composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, K>(field));
+  return { get: (c) => getSenses(c)[senseName][field], set: stored.set };
+}
+
 export function makeSenseRangePenaltyLens(senseName: keyof Senses): Lens<Character, number> {
-  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "rangePenalty">("rangePenalty"));
+  return makeSenseFieldLens(senseName, "rangePenalty");
 }
 
 // The stored bonus plus what abilities add to the sense.
@@ -24,23 +32,27 @@ export function makeSenseBonusLens(senseName: keyof Senses): Lens<Character, num
 }
 
 export function makeSenseActiveLens(senseName: keyof Senses): Lens<Character, boolean> {
-  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "active">("active"));
+  return makeSenseFieldLens(senseName, "active");
 }
 
 export function makeSenseReactiveLens(senseName: keyof Senses): Lens<Character, boolean> {
-  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "reactive">("reactive"));
+  return makeSenseFieldLens(senseName, "reactive");
 }
 
 export function makeSensePenaltyLens(senseName: keyof Senses): Lens<Character, number> {
-  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "penalty">("penalty"));
+  return makeSenseFieldLens(senseName, "penalty");
 }
 
 // combat.tex "Smell": "Range of smell is 0, by default" — in metres, null
 // for a sense that reaches as far as it is triggered.
 export function makeSenseRangeLens(senseName: keyof Senses): Lens<Character, number | null> {
-  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "range">("range"));
+  return makeSenseFieldLens(senseName, "range");
+}
+
+export function makeSensePartialLens(senseName: keyof Senses): Lens<Character, boolean> {
+  return makeSenseFieldLens(senseName, "partial");
 }
 
 export function makeSenseHasSenseLens(senseName: keyof Senses): Lens<Character, boolean> {
-  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "hasSense">("hasSense"));
+  return makeSenseFieldLens(senseName, "hasSense");
 }

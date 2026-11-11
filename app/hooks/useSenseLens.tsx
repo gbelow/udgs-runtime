@@ -22,7 +22,7 @@ export function useSenseRange(senseName: keyof Senses) {
   return [value, setValue] as const;
 }
 
-export function useSenseFlag(senseName: keyof Senses, field: 'hasSense' | 'active' | 'reactive') {
+export function useSenseFlag(senseName: keyof Senses, field: 'hasSense' | 'active' | 'reactive' | 'partial') {
   const lens = senseLenses[senseName][field];
   const update = useActiveCharacterUpdate();
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? false;

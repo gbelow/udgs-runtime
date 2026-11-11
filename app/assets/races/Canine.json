@@ -9,9 +9,7 @@
     "INT": -1,
     "SPI": 2
   },
-  "abilities": [
-    "bear-nose"
-  ],
+  "abilities": [],
   "category": "beast",
   "size": 3,
   "footprint": [
@@ -50,8 +48,9 @@
       "active": true,
       "reactive": false,
       "penalty": 5,
-      "range": 0,
-      "hasSense": true
+      "range": 10,
+      "hasSense": true,
+      "partial": true
     },
     "touch": {
       "name": "Touch",

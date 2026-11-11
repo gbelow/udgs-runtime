@@ -6,7 +6,7 @@ import type { Senses } from '../domain/types';
 
 const SENSES: (keyof Senses)[] = ['vision', 'hearing', 'smell', 'touch', 'synesthesia']
 
-function Flag({ sense, field }: { sense: keyof Senses, field: 'hasSense' | 'active' | 'reactive' }) {
+function Flag({ sense, field }: { sense: keyof Senses, field: 'hasSense' | 'active' | 'reactive' | 'partial' }) {
   const [value, setValue] = useSenseFlag(sense, field)
   return <input type='checkbox' className='justify-self-center accent-accent' aria-label={`${sense} ${field}`} checked={value} onChange={(e) => setValue(e.target.checked)} />
 }
@@ -25,12 +25,14 @@ function Range({ sense }: { sense: keyof Senses }) {
 
 // combat.tex "Senses": which senses the character has, which detect actively
 // and which react, the sensory penalty of relying on each the bonus each
-// adds to awareness and how far each reaches.
+// adds to awareness, how far each reaches and whether what is within that
+// reach is only partly taken in, as they are in play: what a mutation they
+// hold changes is shown changed.
 export function SensesPanel() {
   return (
     <div className='flex flex-col gap-1'>
       <SectionLabel>Senses</SectionLabel>
-      <div className='grid grid-cols-[auto_repeat(6,minmax(0,1fr))] sm:grid-cols-[auto_repeat(3,2.5rem)_repeat(3,minmax(0,4rem))] gap-x-2 gap-y-1 items-center w-fit'>
+      <div className='grid grid-cols-[auto_repeat(7,minmax(0,1fr))] sm:grid-cols-[auto_repeat(3,2.5rem)_repeat(3,minmax(0,4rem))_2.5rem] gap-x-2 gap-y-1 items-center w-fit'>
         <span />
         <SectionLabel className='text-center'>has</SectionLabel>
         <SectionLabel className='text-center'>active</SectionLabel>
@@ -38,6 +40,7 @@ export function SensesPanel() {
         <SectionLabel className='text-center'>penalty</SectionLabel>
         <SectionLabel className='text-center'>bonus</SectionLabel>
         <SectionLabel className='text-center'>metres</SectionLabel>
+        <SectionLabel className='text-center'>partial</SectionLabel>
         {SENSES.map((s) => (
           <div key={s} className='contents'>
             <span className='text-xs text-muted'>{s}</span>
@@ -47,6 +50,7 @@ export function SensesPanel() {
             <Value sense={s} field='penalty' />
             <Value sense={s} field='bonus' />
             <Range sense={s} />
+            <Flag sense={s} field='partial' />
           </div>
         ))}
       </div>
