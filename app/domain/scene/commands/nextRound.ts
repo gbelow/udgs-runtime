@@ -5,7 +5,7 @@ import { expireUsedAbilities } from '../../character/commands/abilities'
 import { applyTrigger } from '../../character/commands/effects'
 import { suffocate, bleed } from '../../character/commands/bleed'
 import { burnAtRoundStart, burnScorch } from '../../character/commands/deliver'
-import { hasAffliction, isDead } from '../../character/rules/afflictions'
+import { getAfflictions, hasAffliction, isDead } from '../../character/rules/afflictions'
 import { rollPercent } from '../../play/dice'
 import type { Caller, Throw } from '../../play/calls'
 import { calling } from './calling'
@@ -18,7 +18,7 @@ import { payCost } from '../../character/commands/cost'
 import type { SceneState, Updater } from '../types'
 import { getHazardOf } from '../rules/board/hazard'
 import { getPlayingOutBar } from '../rules/log'
-import { isSuffocating } from '../rules/situational'
+import { getSituationalAfflictions, isSuffocating } from '../rules/situational'
 import { getMoraleCalled, getMoraleVolunteers } from '../rules/morale'
 import { getHeldCalled } from '../rules/heldTest'
 import { getHeldActions } from '../rules/hold'
@@ -67,28 +67,30 @@ function startAP(c: CampaignCharacter): CampaignCharacter {
 // lose or join: its AP start at the round's, and its change opens at the
 // morale tests. Refused while any action is still being played out, so that
 // whatever it committed to is paid in the round it was committed in. The
-// round that ends is met by the attitudes of whoever spent it enraged
-// (`meetRage`), before its surges are cleared.
+// round that ends is met by the attitudes of whoever ends it afflicted
+// (`meetRoundEnd`), before its surges are cleared.
 export function nextRound(thrown: Throw): Updater {
   return calling({ kind: 'nextRound' }, thrown, (caller) => (initial) => {
     if (initial.roundStep !== null || getPlayingOutBar(initial)) return initial
-    const state = meetRage(initial)
+    const state = meetRoundEnd(initial)
     const receive = state.round === 0 ? startAP : receiveAP
     const moved = { ...state, chase: endChaseRound(state) }
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) || isParked(moved, id) ? c : receive(wake(state, c))]))
-    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], contestModes: {}, lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], protectionMoves: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
+    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], contestModes: {}, lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], protectionMoves: [], mocked: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })
 }
 
-// abilities.tex "Ferocity": a round ends for whoever spent it enraged, with
-// a combat surge made in it or not, and their attitudes answer it.
-function meetRage(state: SceneState): SceneState {
+// abilities.tex "Ferocity", "Domination": a round ends for everyone in the
+// fight, under what afflicts them and with a combat surge made in it or not,
+// and their attitudes answer it.
+function meetRoundEnd(state: SceneState): SceneState {
   if (state.round === 0) return state
   return Object.entries(state.characters).reduce((s, [id, c]) => {
-    if (isDead(c) || isParked(state, id) || !hasAffliction(c, 'enraged')) return s
-    return updateCharacter(id, meetAttitudes({ event: 'enragedRound', combatSurge: c.usedSurge === 'combat' }), 'conviction attitude')(s)
+    const afflictions = getAfflictions(c, getSituationalAfflictions(s, id))
+    if (isDead(c) || isParked(state, id) || afflictions.length === 0) return s
+    return updateCharacter(id, meetAttitudes({ event: 'roundEnd', afflictions, combatSurge: c.usedSurge === 'combat' }), 'conviction attitude')(s)
   }, state)
 }
 

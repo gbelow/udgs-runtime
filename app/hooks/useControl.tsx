@@ -4,14 +4,17 @@ import { TAB_OWNER, useAppStore, useAppStoreApi, type AppState } from "../stores
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useTableStore } from "../stores/useTableStore";
+import { getControllerId } from "../domain/scene/rules/domination";
+import type { SceneState } from "../domain/scene/types";
 
 type ViewerFields = Pick<AppState, "profile" | "devServer" | "gmMode" | "profileList">;
 
 // Profile `profile` at a screen with GM mode `gmMode`, in the campaign in
-// play.
-const viewerOf = (app: ViewerFields, campaign: CampaignStore, profile: string | null, gmMode: boolean): Viewer => ({
+// play. A character dominated in the fight is played by whoever plays the
+// one dominating them (`getControllerId`).
+const viewerOf = (app: ViewerFields, campaign: CampaignStore, profile: string | null, gmMode: boolean, scene: SceneState = useCombatStore.getState()): Viewer => ({
   profile, role: getCampaignRole(campaign.file.members, profile, app.devServer), gmMode, profiles: app.profileList,
-  ownerOf: (id) => getOwner(id, campaign.owners),
+  ownerOf: (id) => getOwner(getControllerId(scene, id), campaign.owners),
 });
 
 // Who is at the screen, asked when it is asked: in a handler, as of the
@@ -68,6 +71,7 @@ export function useActorBar(actor: Actor): string | null {
   const gmMode = useAppStore((s) => s.gmMode);
   const profileList = useAppStore((s) => s.profileList);
   const app = { profile, devServer, gmMode, profileList };
+  useCombatStore((s) => s.dominations.map((d) => getControllerId(s, d.id)).join());
   return useCampaignStore((s) => getActorBar(actor, viewerOf(app, s, profile?.id ?? null, gmMode)));
 }
 

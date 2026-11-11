@@ -1715,7 +1715,9 @@ export type Pressure = z.infer<typeof PressureSchema>
 // nobody for is a coward). `acted` is whether the social action it compels has
 // been taken; `taken` whether their turn for it is over. `by` is the caster
 // whose spell the test was ('' for the round's own test), and `constraint`
-// what the spell binds the action to.
+// what the spell binds the action to. `overruledBy` is who gave the orders it
+// was substituted for (abilities.tex "Overrule"), '' for nobody, and
+// `contested` everyone who has tried to.
 export const CompulsionSchema = z.object({
   id: z.string(),
   action: z.enum(LIMIT_STRESS_ACTIONS),
@@ -1723,7 +1725,15 @@ export const CompulsionSchema = z.object({
   taken: z.boolean().default(false),
   by: z.string().default(''),
   constraint: z.enum(COMPULSION_CONSTRAINTS).nullable().default(null),
+  overruledBy: z.string().default(''),
+  contested: z.array(z.string()).default([]),
 })
+
+// combat.tex "Dominated": a character under another's control, by
+// `by`, and the DL breaking out of it is tested against ("the original DL",
+// abilities.tex "Subjugate": the score of the test that subjugated them).
+export const DominationSchema = z.object({ id: z.string(), by: z.string(), DL: num })
+export type Domination = z.infer<typeof DominationSchema>
 export type Compulsion = z.infer<typeof CompulsionSchema>
 export type MoraleRoll = z.infer<typeof MoraleRollSchema>
 export type MoraleCall = z.infer<typeof MoraleCallSchema>
@@ -1889,6 +1899,8 @@ export const SceneResumeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('followScene'), partyId: str }),
   z.object({ kind: z.literal('resolveChase') }),
   z.object({ kind: z.literal('cross'), partyId: str, skill: z.enum(CROSSING_SKILLS), DL: num }),
+  z.object({ kind: z.literal('overrule'), by: str, targetId: str, order: z.enum([...LIMIT_STRESS_ACTIONS, 'dominate']) }),
+  z.object({ kind: z.literal('breakFree'), id: str }),
 ])
 export type SceneResume = z.infer<typeof SceneResumeSchema>
 
@@ -1985,6 +1997,12 @@ export const SceneStateSchema = z.object({
   tablePressure: z.record(z.string(), num).default({}),
   // combat.tex "Surrender": who has flagged themselves surrendered
   surrendered: z.array(z.string()).default([]),
+  // combat.tex "Dominated": who is under whose control, kept across rounds
+  // while they stay dominated
+  dominations: z.array(DominationSchema).default([]),
+  // abilities.tex "Mockery": the actions of the round someone has been mocked
+  // for, by id, lapsing at its end
+  mocked: z.array(str).default([]),
   // combat.tex "Flee": whether the turn being taken is a flee, and the turns
   // waiting on it, the next first — each fleer's, then the turn the flee
   // interrupted, resumed where it was ("which is resumed after the flee")

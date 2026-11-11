@@ -1,3 +1,4 @@
+import { getFragileDLTerms } from './fragile'
 import { isCombatStarted } from './started'
 import type { CampaignCharacter, Delivery, Item } from '../../types'
 import { findReadyItem } from '../../item/rules/containers'
@@ -354,8 +355,9 @@ export function getSpellTestSkillTerms(state: SceneState, action: SpellTestActio
 
 // The caster's side of the test, term by term: the book's "Charisma" resolved
 // for the caster, and the "morale aggravators" the target is under as the
-// fight stands (combat.tex "Morale"), and what the enhancements bought on the
-// cast that opened the test add (spells.tex "Enhance Spell").
+// fight stands (combat.tex "Morale"), what the enhancements bought on the
+// cast that opened the test add (spells.tex "Enhance Spell"), and what
+// Exploit Weakness adds against a mentally weakened target.
 export function getSpellTestDLTerms(state: SceneState, action: SpellTestAction): Term[] {
   const caster = state.characters[action.actorId]
   const test = isSpellKey(action.key) ? getSpellTest(action.key) : null
@@ -369,6 +371,7 @@ export function getSpellTestDLTerms(state: SceneState, action: SpellTestAction):
     })),
     ...(enhanced ? [{ label: 'enhanced', value: enhanced }] : []),
     ...(action.targetId ? getSensoryTermsOfDL(state, caster.id, test.dl, action.targetId, 'active') : []),
+    ...(action.targetId ? getFragileDLTerms(state, caster, action.targetId) : []),
   ]
 }
 

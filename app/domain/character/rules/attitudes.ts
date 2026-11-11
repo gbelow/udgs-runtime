@@ -1,4 +1,4 @@
-import { TrainablesSchema, type Attitude, type AttitudeEvent, type Character, type Degree, type Skills, type Trainables } from '../../types'
+import { TrainablesSchema, type AfflictionKey, type Attitude, type AttitudeEvent, type Character, type Degree, type Skills, type Trainables } from '../../types'
 import { getConvictionLevel, getConvictionSlot, type ConvictionSlot } from './requirements'
 import { getLearnedAbilities } from './effects'
 import { ABILITY_FAMILIES, type FamilyKey } from '../../abilities'
@@ -10,17 +10,20 @@ import { getCallResult, type DieCall } from '../../play/calls'
 // What happened to a character in play that an attitude may answer: a test
 // they made scored (the skill, where it is known, and its value, the DL, the
 // degree, the way it was thrown), a die they threw for a test (the way, the face the
-// kept d10 showed), their limit stress action activated, an action they
-// prepared crit, a turn of theirs ended with nothing prepared and nothing
-// held, a round they spent enraged ended, they made their protection surge,
-// or they let one go by and the ally it was offered for was hurt.
+// kept d10 showed), their limit stress action activated, an enemy's
+// activated by what they said or cast, an action they prepared crit, a turn
+// of theirs ended with nothing prepared and nothing held, a round of the
+// fight ended (what afflicted them then, whether they made the combat surge
+// in it), they made their protection surge, or they let one go by and the
+// ally it was offered for was hurt.
 export type AttitudeHappening =
   | { event: 'test'; skill: keyof Skills | null; value: number; DL: number; degree: Degree; mode: RollMode }
   | { event: 'die'; mode: RollMode; face: number }
   | { event: 'limitStress' }
+  | { event: 'enemyStress' }
   | { event: 'preparedCrit' }
   | { event: 'unpreparedTurn' }
-  | { event: 'enragedRound'; combatSurge: boolean }
+  | { event: 'roundEnd'; afflictions: AfflictionKey[]; combatSurge: boolean }
   | { event: 'protectionSurge' }
   | { event: 'refusedProtection' }
 
@@ -34,9 +37,11 @@ function matches(on: AttitudeEvent, happened: AttitudeHappening): boolean {
         && (on.DLOverSkill === null || happened.DL >= happened.value + on.DLOverSkill)
     case 'die':
       return happened.event === 'die' && among(on.modes, happened.mode) && among(on.faces, happened.face)
-    case 'enragedRound':
-      return happened.event === 'enragedRound' && happened.combatSurge === on.combatSurge
+    case 'roundEnd':
+      return happened.event === 'roundEnd' && on.afflictions.some((a) => happened.afflictions.includes(a))
+        && (on.combatSurge === null || happened.combatSurge === on.combatSurge)
     case 'limitStress':
+    case 'enemyStress':
     case 'preparedCrit':
     case 'unpreparedTurn':
     case 'protectionSurge':
@@ -89,8 +94,9 @@ const FAMILY_KEYS = Object.keys(ABILITY_FAMILIES) as FamilyKey[]
 export const getStudyKey = (t: StudyTarget): string => (t.kind === 'trainable' ? `trainable:${t.key}` : `ability:${t.family}`)
 
 // What the XP of the conviction adopted on the slot may train, by the
-// studies of the learned abilities: the abilities of a section, one XP for
-// one (abilities.json "Cunning Studies"), or anything trained with XP but
+// studies of the learned abilities: the abilities of a section or the
+// trainables named, one XP for one (abilities.json "Cunning Studies",
+// abilities.tex "Silver Tongue"), or anything trained with XP but
 // the conviction itself, priced with the talent the study raises
 // (abilities.tex "Adaptive Learning": "as any type of XP considering the
 // character's talent +1"). Where several studies offer the same thing, the
@@ -102,6 +108,10 @@ export function getStudyOffers(c: Character, slot: ConvictionSlot): StudyOffer[]
   const offers = studies.flatMap((study): StudyOffer[] => {
     if (study.kind === 'section') {
       return FAMILY_KEYS.filter((f) => ABILITY_FAMILIES[f].section === study.section).map((family) => ({ target: { kind: 'ability', family }, name: ABILITY_FAMILIES[family].family, rate: 1 }))
+    }
+    if (study.kind === 'trainables') {
+      return study.keys.filter((key) => getTrainableRaisePrice(key)(c)?.currency === 'XP')
+        .map((key): StudyOffer => ({ target: { kind: 'trainable', key }, name: c.trainables[key].name, rate: 1 }))
     }
     const trainables = TRAINABLE_KEYS.filter((key) => key !== slot && getTrainableRaisePrice(key)(c)?.currency === 'XP')
       .map((key): StudyOffer => ({ target: { kind: 'trainable', key }, name: c.trainables[key].name, rate: getTalentReliefRate(key, study.talent)(c) }))

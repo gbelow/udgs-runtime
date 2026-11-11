@@ -7,6 +7,7 @@ import { getAction, getRootOf } from './log'
 import { getPrepared, getPreparationOf, getPreparationWithin } from './prepared'
 import { getPerformerId } from './performer'
 import { getPressingFactors } from './morale'
+import { isFragile } from './fragile'
 
 // The Cunning abilities (abilities.json, section "Cunning") that work on the
 // fight as it stands: what a test gets, what a preparation costs, and what a
@@ -49,6 +50,8 @@ export function getCunningReactionTerms(state: SceneState, reaction: Action): Te
 // abilities.tex "Bulwark": "+1|2 to defend and reflex when making the
 // protection surge to protect someone else": every defense and reflex made
 // once the surge is (the table's ruling).
+// abilities.tex "Exploit Weakness": "+1 to all tests against characters
+// affected by any mind altering status effects" (rules/fragile.ts).
 const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action, againstId: string | null) => CampaignCharacter | null> = {
   prepared: (state, action) => {
     const p = getPreparationOf(state, action)
@@ -69,6 +72,10 @@ const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action
   underPressure: (state, action) => {
     const actor = state.characters[action.actorId]
     return actor && getPressingFactors(state, action.actorId) >= 5 ? actor : null
+  },
+  fragile: (state, action, againstId) => {
+    const actor = getAgainst(state, action, againstId)
+    return actor && againstId && isFragile(state, againstId) ? actor : null
   },
   protecting: (state, action) => {
     const actor = state.characters[action.actorId]

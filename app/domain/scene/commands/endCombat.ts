@@ -42,6 +42,8 @@ export function endScene(state: SceneState, caller: Caller): SceneState {
     prepared: [],
     performed: [],
     protectionMoves: [],
+    mocked: [],
+    dominations: [],
     firstTurn: null,
     following: {},
     stealthTurns: [],

@@ -3137,6 +3137,76 @@
       }
     ]
   },
+  "dominating-attitudes": {
+    "family": "Dominating Attitudes",
+    "section": "Domination",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Domination",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Promoted: gains 1 XP each time an enemy triggers their limit stress action from a morale test the character weighed on with a social action, or from the character's spell. Prohibited: loses 1 XP each round that they finish afraid, confused or dominated.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
+        "surgeAllows": [],
+        "attitudes": [
+          {
+            "on": {
+              "event": "enemyStress"
+            },
+            "conviction": "Domination",
+            "XP": 1
+          },
+          {
+            "on": {
+              "event": "roundEnd",
+              "afflictions": [
+                "afraid",
+                "confused",
+                "dominated"
+              ],
+              "combatSurge": null
+            },
+            "conviction": "Domination",
+            "XP": -1
+          }
+        ],
+        "studies": []
+      }
+    ]
+  },
   "silver-tongue": {
     "family": "Silver Tongue",
     "section": "Domination",
@@ -3175,37 +3245,25 @@
             }
           ]
         ],
-        "description": "Receives +1 in Deception and Persuasion.",
-        "effect": [
-          {
-            "name": "",
-            "trigger": "instant",
-            "type": "buff",
-            "effect": {
-              "target": "skill:deception",
-              "operation": "+",
-              "value": 1,
-              "when": null
-            }
-          },
-          {
-            "name": "",
-            "trigger": "instant",
-            "type": "buff",
-            "effect": {
-              "target": "skill:persuasion",
-              "operation": "+",
-              "value": 1,
-              "when": null
-            }
-          }
-        ],
+        "description": "The character can learn charisma, insight, persuasion and deception with conviction XP. The XP also increases the progress of Domination.",
+        "effect": [],
         "recipes": [],
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
-        "studies": []
+        "studies": [
+          {
+            "kind": "trainables",
+            "keys": [
+              "charisma",
+              "insight",
+              "persuasion",
+              "deception"
+            ],
+            "conviction": "Domination"
+          }
+        ]
       }
     ]
   },
@@ -3214,7 +3272,7 @@
     "section": "Domination",
     "activation": "passive",
     "cost": {
-      "AP": 0,
+      "AP": 2,
       "STA": 0,
       "exhaustion": 0,
       "IL": 0,
@@ -3247,10 +3305,12 @@
             }
           ]
         ],
-        "description": "Can spend 2 AP as a reaction to another character's limit action to give them orders, substituting the target's limit action on a hit or crit in a persuasion vs morale DL that caused the limit action. ★ This cannot be used to stop magical effects.",
+        "description": "Can spend 2 AP as a reaction to another character's limit stress action to give them orders, substituting the target's limit stress action on a hit or crit in a persuasion or deception vs will test. ★ This cannot be used to stop magical effects.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "overrule"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -3263,7 +3323,7 @@
     "section": "Domination",
     "activation": "passive",
     "cost": {
-      "AP": 0,
+      "AP": 2,
       "STA": 0,
       "exhaustion": 0,
       "IL": 0,
@@ -3296,10 +3356,12 @@
             }
           ]
         ],
-        "description": "Any time you crit in any action against someone in combat or when they miss in one, you can mock them at the same time for 1 extra AP, which works as provocation and gets +2 to the provocation test.",
+        "description": "Any time you crit in any action against someone in combat or when they miss in one, you can mock them at the same time for 2 extra AP, which works as taunt and gets +1 to the provocation test.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "mockery"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -3307,12 +3369,12 @@
       }
     ]
   },
-  "backlash": {
-    "family": "★ Backlash",
+  "subjugate": {
+    "family": "Subjugate",
     "section": "Domination",
     "activation": "passive",
     "cost": {
-      "AP": 0,
+      "AP": 3,
       "STA": 0,
       "exhaustion": 0,
       "IL": 0,
@@ -3339,16 +3401,18 @@
             {
               "kind": "trainable",
               "name": "Domination",
-              "level": 4,
+              "level": 5,
               "op": ">=",
               "not": false
             }
           ]
         ],
-        "description": "Whenever an opponent uses suggestion or command and get a miss, they lose 2 AP.",
+        "description": "Costs 3 AP to do the same as Overrule, but instead of a limit stress action the target is given a command and becomes dominated.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "subjugate"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -3388,7 +3452,7 @@
             {
               "kind": "trainable",
               "name": "Domination",
-              "level": 5,
+              "level": 4,
               "op": ">=",
               "not": false
             }
@@ -3396,7 +3460,14 @@
         ],
         "description": "Gets +1 to all tests against characters affected by any mind altering status effects. ★ Also increases the DL of any spells used against such characters.",
         "effect": [],
-        "recipes": [],
+        "recipes": [
+          {
+            "type": "edge",
+            "when": "fragile",
+            "tests": "all",
+            "hit": 1
+          }
+        ],
         "grants": [],
         "rollModes": [],
         "surgeAllows": [],
@@ -4262,7 +4333,10 @@
         "attitudes": [
           {
             "on": {
-              "event": "enragedRound",
+              "event": "roundEnd",
+              "afflictions": [
+                "enraged"
+              ],
               "combatSurge": true
             },
             "conviction": "Ferocity",
@@ -4270,7 +4344,10 @@
           },
           {
             "on": {
-              "event": "enragedRound",
+              "event": "roundEnd",
+              "afflictions": [
+                "enraged"
+              ],
               "combatSurge": false
             },
             "conviction": "Ferocity",

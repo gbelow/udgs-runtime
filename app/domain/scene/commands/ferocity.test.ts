@@ -177,7 +177,7 @@ describe('Brutality', () => {
 // did not use combat surge"; the XP each moves is the catalog entry's.
 describe('Ferocious attitudes', () => {
   const attitudes = ABILITIES['ferocious-attitudes'].attitudes
-  const xpFor = (combatSurge: boolean) => attitudes.find((a) => a.on.event === 'enragedRound' && a.on.combatSurge === combatSurge)?.XP ?? 0
+  const xpFor = (combatSurge: boolean) => attitudes.find((a) => a.on.event === 'roundEnd' && a.on.combatSurge === combatSurge)?.XP ?? 0
   const adopted = (overrides: Partial<CampaignCharacter>) => {
     const c = fighter(['ferocious-attitudes'], overrides)
     return { ...c, trainables: { ...c.trainables, conviction1: { ...c.trainables.conviction1, name: 'Ferocity', value: 1, XP: 0 } } }

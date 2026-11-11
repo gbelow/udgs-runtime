@@ -16,6 +16,7 @@ import * as gmExplosionModule from './scene/commands/gmExplosion'
 import { EXPLOSION_DRAFT } from './scene/rules/impose'
 import * as moraleModule from './scene/commands/morale'
 import * as socialModule from './scene/commands/social'
+import * as dominationModule from './scene/commands/domination'
 import * as answerModule from './scene/commands/answer'
 import * as rosterModule from './campaign/commands/roster'
 import * as fightModule from './scene/commands/fight'
@@ -51,7 +52,7 @@ import armorsCatalog from '../assets/armors.json'
 // A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...gmExplosionModule, ...moraleModule, ...socialModule, ...answerModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...gmExplosionModule, ...moraleModule, ...socialModule, ...dominationModule, ...answerModule }
 const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...journalModule, ...namesModule, ...scenesModule, ...episodeModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
@@ -268,7 +269,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   setTablePressure: (s) => combatCommands.setTablePressure('a', 2)(deepFreeze(s)),
   landSocial: (s) => combatCommands.landSocial(deepFreeze(cleared(s)), SocialActionSchema.parse({ id: 'x', actorId: 'a', kind: 'social', say: 'rally' })),
   rally: (s) => combatCommands.rally(deepFreeze(cleared(s)), 'a'),
-  defaultToCoward: (s) => combatCommands.defaultToCoward('a')(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', compulsions: [{ id: 'a', action: 'abusive', acted: false, taken: false, by: '', constraint: null }] })),
+  defaultToCoward: (s) => combatCommands.defaultToCoward('a')(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', compulsions: [{ id: 'a', action: 'abusive', acted: false, taken: false, by: '', constraint: null, overruledBy: '', contested: [] }] })),
   resetCombat: combatCommands.resetCombat,
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
   endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),
@@ -358,6 +359,10 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   splitOff: (s) => combatCommands.splitOff('a', newId)(deepFreeze(partied(s))),
   renameParty: (s) => combatCommands.renameParty('x', 'Z')(deepFreeze(partied(s))),
   deleteParty: (s) => combatCommands.deleteParty('z')(deepFreeze(combatCommands.createParty('z', 'Z')(partied(s)))),
+  speak: (s) => combatCommands.speak(deepFreeze(partied(s)), 'a', 'taunt', 2, ['b']),
+  giveOrder: (s) => combatCommands.giveOrder('a', 'b', 'martyr', () => 9)(deepFreeze({ ...partied(s), characters: { ...s.characters, a: { ...s.characters.a, abilities: { ...s.characters.a.abilities, overrule: held('overrule', 1) } } }, compulsions: [{ id: 'b', action: 'coward', acted: false, taken: false, by: '', constraint: null, overruledBy: '', contested: [] }] })),
+  breakFree: (s) => combatCommands.breakFree('b', () => 9)(deepFreeze({ ...partied(s), characters: { ...s.characters, b: { ...s.characters.b, afflictions: ['dominated'] } }, dominations: [{ id: 'b', by: 'a', DL: 0 }] })),
+  mock: (s) => combatCommands.mock('a')(deepFreeze(partied(s))),
 }
 
 // The fight with `a` in party `x` and `b` in party `y`.

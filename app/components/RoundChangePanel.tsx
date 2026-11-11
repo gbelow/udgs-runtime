@@ -4,12 +4,12 @@ import { Card } from './SceneCards'
 import { BackToChase, ChaseSetup, JoinChaseFight } from './ChasePanel'
 import { ChaseTrack } from './ChaseTrack'
 import { Check, ChevronRight } from 'lucide-react'
-import { ActionKey, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
+import { ActionKey, Menu, MenuItem, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
 import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../hooks/useCombatState'
-import { GmLocked } from './Locks'
+import { GmLocked, LockedFor } from './Locks'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { RollButtons } from './DieCalls'
-import type { RoundCard, RoundChangeView, RoundStepView } from '../domain/scene/projections/roundChange'
+import type { OrdersRow, RoundCard, RoundChangeView, RoundStepView } from '../domain/scene/projections/roundChange'
 
 const HINTS: Partial<Record<RoundChangeView['phase'], string>> = {
   rest: 'pick a character to rest or speak from the bar below, with what is left of both rounds',
@@ -96,7 +96,7 @@ export function RoundChangePanel({ openMap }: { openMap: ((turn: number) => void
 function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | null }){
   const { holdOn, letGo } = useCombatCommands()
   const held = card.concentration
-  if (card.happened.length === 0 && !held && !card.morale && !card.stress) return null
+  if (card.happened.length === 0 && !held && !card.morale && !card.stress && card.orders.length === 0 && !card.dominated) return null
 
   return (
     <>
@@ -118,8 +118,29 @@ function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | nu
       ) : null}
       {card.morale ? <span className={card.morale.result ? 'text-muted' : 'text-bad'}>morale {card.morale.result || `DL ${card.morale.DL}: to test`}</span> : null}
       {card.stress ? <span className='text-bad'>{card.stress}</span> : null}
+      {card.dominated ? <span className='text-bad'>{card.dominated}</span> : null}
+      {card.orders.map((row) => <Orders key={row.by} row={row} targetId={card.id} />)}
       {onMap ? <ActionKey aria-label={`take the turn ${card.name}`} look='warn' onClick={onMap}>take the limit stress action on the map</ActionKey> : null}
     </>
+  )
+}
+
+// abilities.tex "Overrule", "Subjugate": someone who could give the
+// character orders in place of the limit stress action they owe, by the
+// orders they could give, each tested as it is chosen.
+function Orders({ row, targetId }: { row: OrdersRow; targetId: string }){
+  const { giveOrder } = useCombatCommands()
+  return (
+    <LockedFor id={row.by} className='flex flex-row items-center gap-1'>
+      <span className='text-muted'>orders from {row.name}</span>
+      <Menu label={`orders from ${row.name}`}>
+        {row.options.map((o) => (
+          <MenuItem key={o.order} bar={o.bar} onClick={() => giveOrder(row.by, targetId, o.order)}>
+            {o.order === 'dominate' ? 'subjugate: dominate under a command' : `overrule: ${o.order}`}
+          </MenuItem>
+        ))}
+      </Menu>
+    </LockedFor>
   )
 }
 

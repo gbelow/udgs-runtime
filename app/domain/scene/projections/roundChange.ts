@@ -4,6 +4,7 @@ import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getSustainedAbilities } from '../../character/rules/concentration'
 import { ROUND_PHASES, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold, type RoundPhase } from '../rules/roundChange'
 import { getStressOwed, getStressTurn } from '../rules/stress'
+import { getDominationLine, getOrderOptions, getOverrulable, type OrderOption } from '../rules/domination'
 import { describeChangeTo } from './episode'
 import { getMoraleRows, type MoraleRow } from './morale'
 import { getMoraleCalled } from '../rules/morale'
@@ -54,7 +55,14 @@ export type RoundCard = SceneCard & {
   concentration: RoundConcentration | null
   morale: MoraleRow | null
   stress: string | null
+  // abilities.tex "Overrule", "Subjugate": who could give orders in place of
+  // the limit stress action the character owes, and what each could order
+  orders: OrdersRow[]
+  // combat.tex "Dominated": whom the character is dominated by
+  dominated: string | null
 }
+
+export type OrdersRow = { by: string; name: string; options: OrderOption[] }
 
 export type RoundChangeView = {
   phase: RoundPhase
@@ -123,6 +131,16 @@ function getChaseStepLabel(state: SceneState): string {
   return getMoraleCalled(state).length > 0 ? 'on to the morale tests' : 'start the round'
 }
 
+// Who could overrule or subjugate the character in the limit stress action
+// they owe, each with the orders they could give.
+function getOrdersRows(state: SceneState, targetId: string): OrdersRow[] {
+  if (!getOverrulable(state, targetId)) return []
+  return Object.keys(state.characters)
+    .filter((by) => by !== targetId)
+    .map((by) => ({ by, name: getFightName(state, by), options: getOrderOptions(state, by, targetId) }))
+    .filter((row) => row.options.length > 0)
+}
+
 // The round change as the middle of the run screen shows it: its steps, where
 // it stands, and each character, by party, with what it has done to them and
 // what they still have to choose in it.
@@ -147,6 +165,8 @@ function buildRoundChange(state: SeenScene): RoundChangeView | null {
         concentration: state.roundStep === 'concentration' ? getConcentration(state, card.id) : null,
         morale: morale.find((r) => r.id === card.id) ?? null,
         stress: getStressOwed(state, card.id),
+        orders: getOrdersRows(state, card.id),
+        dominated: getDominationLine(state, card.id),
       })),
     })),
   }

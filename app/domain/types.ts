@@ -1217,11 +1217,12 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   // the turn against the one the test is against, or feinted them into the
   // turn being played, or the action is one the holder prepared, whoever
   // makes it, or the holder makes it while the fight weighs on them, or
-  // the holder defends someone else under their protection surge;
+  // the holder defends someone else under their protection surge, or the
+  // one the test is against is mentally weakened (scene/rules/fragile.ts);
   // `tests`: every test, or only reactions; `hit`: to the test.
   z.object({
     type: z.literal('edge'),
-    when: z.enum(['wonCunning', 'feinted', 'prepared', 'underPressure', 'protecting']).default('wonCunning'),
+    when: z.enum(['wonCunning', 'feinted', 'prepared', 'underPressure', 'protecting', 'fragile']).default('wonCunning'),
     tests: z.enum(['all', 'reactions']).default('all'),
     hit: num.default(0),
   }).strip(),
@@ -1249,7 +1250,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'repositionTwice'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'repositionTwice', 'overrule', 'subjugate', 'mockery'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
@@ -1282,11 +1283,14 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 // least `DLOverSkill` above that skill where one is given. `die`: a die the holder threw for a
 // test, in one of `modes`, showed one of `faces` (any when empty; a 9 that
 // explodes showed a 9). `limitStress`:
-// the holder's limit stress action was activated. `preparedCrit`: an action
+// the holder's limit stress action was activated. `enemyStress`: an enemy's
+// limit stress action was activated by a morale test the holder's social
+// action weighed on, or by the holder's spell. `preparedCrit`: an action
 // the holder prepared crit. `unpreparedTurn`: the holder's turn ended with
-// nothing prepared in it, and nothing held through the round. `enragedRound`:
-// a round the holder spent enraged ended, with a combat surge made in it or
-// not (`combatSurge`). `protectionSurge`: the holder made their protection
+// nothing prepared in it, and nothing held through the round. `roundEnd`:
+// a round of the fight ended with the holder under one of `afflictions`,
+// with a combat surge made in it or not (`combatSurge`, either when null).
+// `protectionSurge`: the holder made their protection
 // surge. `refusedProtection`: the holder let an attack on an ally go by
 // without the protection surge it offered them, and the ally took damage of
 // tier 2 or more from it.
@@ -1304,9 +1308,14 @@ export const AttitudeEventSchema = z.discriminatedUnion('event', [
     faces: z.array(num).default([]),
   }).strip(),
   z.object({ event: z.literal('limitStress') }).strip(),
+  z.object({ event: z.literal('enemyStress') }).strip(),
   z.object({ event: z.literal('preparedCrit') }).strip(),
   z.object({ event: z.literal('unpreparedTurn') }).strip(),
-  z.object({ event: z.literal('enragedRound'), combatSurge: z.boolean().default(true) }).strip(),
+  z.object({
+    event: z.literal('roundEnd'),
+    afflictions: z.array(z.lazy(() => AfflictionKeySchema)).default([]),
+    combatSurge: z.boolean().nullable().default(null),
+  }).strip(),
   z.object({ event: z.literal('protectionSurge') }).strip(),
   z.object({ event: z.literal('refusedProtection') }).strip(),
 ])
@@ -1324,12 +1333,14 @@ export const AttitudeSchema = z.object({
 export type Attitude = z.infer<typeof AttitudeSchema>
 
 // What the XP of `conviction` may train, the XP counting for the conviction
-// as well: the abilities of `section` (abilities.json "Cunning Studies"), or
-// anything priced in XP, priced as if each talent were `talent` higher
+// as well: the abilities of `section` (abilities.json "Cunning Studies"), the
+// trainables named in `keys` (abilities.tex "Silver Tongue"), or anything
+// priced in XP, priced as if each talent were `talent` higher
 // (abilities.tex "Adaptive Learning": "considering the character's talent
 // +1").
 export const StudySchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('section'), section: str.default(''), conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]) }).strip(),
+  z.object({ kind: z.literal('trainables'), keys: z.array(z.enum(Object.keys(TrainablesSchema.shape) as [keyof Trainables, ...(keyof Trainables)[]])).default([]), conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]) }).strip(),
   z.object({ kind: z.literal('any'), talent: num.default(1), conviction: z.enum(CONVICTION_NAMES).default(CONVICTION_NAMES[0]) }).strip(),
 ])
 export type Study = z.infer<typeof StudySchema>

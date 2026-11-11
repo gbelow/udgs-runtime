@@ -7,6 +7,7 @@ import { continueRound, holdOn, letGo, nextRound } from './nextRound'
 import { endCombat } from './endCombat'
 import { followScene } from './parked'
 import { resumeChase } from './chase'
+import { breakFree, giveOrder } from './domination'
 
 function resumeWith(resume: SceneResume, thrown: Throw, newId: () => string): Updater {
   const chase = resumeChase(resume, thrown)
@@ -24,6 +25,8 @@ function resumeWith(resume: SceneResume, thrown: Throw, newId: () => string): Up
     case 'letGo': return letGo(resume.id, thrown)
     case 'endCombat': return endCombat(thrown)
     case 'followScene': return followScene(resume.partyId, thrown)
+    case 'overrule': return giveOrder(resume.by, resume.targetId, resume.order, thrown)
+    case 'breakFree': return breakFree(resume.id, thrown)
     case 'resolveChase':
     case 'cross':
       return (state) => state

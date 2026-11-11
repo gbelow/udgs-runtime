@@ -11,7 +11,7 @@ import { usePartyCommands, useTableParties } from '../hooks/useParty';
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
+import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useBreakFreeBar, useMockery, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useGmFloorTools } from '../hooks/useBoard';
 import { ExplosionFields } from './ExplosionFields';
@@ -188,6 +188,7 @@ export function SceneActions(){
       <Locked bar={diceBar}>
       <ControlLocked>
         <TurnControl />
+        <MockButton />
       </ControlLocked>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -200,6 +201,21 @@ export function SceneActions(){
       <ActionPanel />
       </Locked>
     </>
+  )
+}
+
+// abilities.tex "Mockery": the active character mocks whoever their crit was
+// against, or whoever just missed them, as a taunt, for its AP.
+function MockButton(){
+  const view = useMockery()
+  const { mock } = useCombatCommands()
+  if (!view) return null
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <Tooltip text={view.bar ?? `a taunt with +1, for ${view.AP} AP`}>
+        <Button size='xs' aria-label='mock' disabled={view.bar !== null} onClick={mock}>{view.target ? `mock ${view.target}` : 'mock'}</Button>
+      </Tooltip>
+    </div>
   )
 }
 
@@ -216,7 +232,8 @@ export function GmSceneTools(){
   const [testOpen, setTestOpen] = useState(false)
   const [triggersOpen, setTriggersOpen] = useState(false)
   const cowardBar = useCowardBar()
-  const { defaultToCoward } = useCombatCommands()
+  const breakFreeBar = useBreakFreeBar()
+  const { defaultToCoward, breakFree } = useCombatCommands()
 
   return(
     <div className='flex flex-col gap-1'>
@@ -230,6 +247,9 @@ export function GmSceneTools(){
         </Tooltip>
         <Tooltip text={cowardBar ?? 'nobody for the active character to insult or negotiate with: they default to coward'}>
           <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} onClick={defaultToCoward}>default to coward</Button>
+        </Tooltip>
+        <Tooltip text={breakFreeBar ?? 'a command to the active character is a severe compulsion: they test insight or cunning against the DL that dominated them'}>
+          <Button size='xs' aria-label='break free' disabled={breakFreeBar !== null} onClick={breakFree}>break free</Button>
         </Tooltip>
       </div>
       {testOpen ? <ImposePanel /> : null}

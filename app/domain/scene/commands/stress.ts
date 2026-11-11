@@ -4,6 +4,7 @@ import { inflict } from '../../character/commands/addAffliction'
 import { getOpenAction } from '../rules/log'
 import { getNextStress, getStressTurns, isStressAutomatic } from '../rules/stress'
 import { getTurnHolder } from '../rules/turn'
+import { isEnemyOf } from '../rules/morale'
 import { updateCharacter } from './characters'
 import { beginTurn } from './sequence'
 import { meetAttitudes } from '../../character/commands/attitudes'
@@ -19,7 +20,7 @@ export function oweStress(state: SceneState): SceneState {
   return takeStressTurn(makeAutomatic({ ...state, compulsions: [...kept, ...stress] }, stress.filter((t) => t.taken)))
 }
 
-function makeAutomatic(state: SceneState, done: Compulsion[]): SceneState {
+export function makeAutomatic(state: SceneState, done: Compulsion[]): SceneState {
   return done.reduce((s, { id, action }) => {
     if (action === 'tanatosis') return updateCharacter(id, inflict(['unconscious']), 'limit stress')(s)
     return action === 'martyr' ? updateCharacter(id, actionSurge('reaction'), 'limit stress')(s) : s
@@ -30,7 +31,9 @@ function makeAutomatic(state: SceneState, done: Compulsion[]): SceneState {
 // actions — a miss activates one at once, in place of any the target still
 // owes, bound as the spell binds it (spells.tex "Overwhelming Terror",
 // "Provocative Mockery"); Pacify takes back one still owed. The turn it is
-// taken in begins once nothing is being played out (sequence.ts).
+// taken in begins once nothing is being played out (sequence.ts). An
+// enemy's caster meets it as Domination's attitude (abilities.tex
+// "Domination").
 export function compelByTest(state: SceneState, test: SpellTestAction): SceneState {
   const outcome = test.morale
   const id = test.targetId
@@ -38,8 +41,11 @@ export function compelByTest(state: SceneState, test: SpellTestAction): SceneSta
   const others = state.compulsions.filter((t) => t.id !== id || t.taken)
   if (outcome.pacified) return { ...state, compulsions: others }
   if (!outcome.compel) return state
-  const owed: Compulsion = { id, action: outcome.compel, acted: false, taken: isStressAutomatic(state, id, outcome.compel), by: test.actorId, constraint: outcome.constraint }
-  const activated = updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')(state)
+  const owed: Compulsion = { id, action: outcome.compel, acted: false, taken: isStressAutomatic(state, id, outcome.compel), by: test.actorId, constraint: outcome.constraint, overruledBy: '', contested: [] }
+  const activated = [
+    updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude'),
+    ...(isEnemyOf(state, test.actorId, id) ? [updateCharacter(test.actorId, meetAttitudes({ event: 'enemyStress' }), 'conviction attitude')] : []),
+  ].reduce((s, step) => step(s), state)
   return makeAutomatic({ ...activated, compulsions: [...others, owed] }, owed.taken ? [owed] : [])
 }
 

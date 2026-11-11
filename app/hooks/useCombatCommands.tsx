@@ -1,6 +1,7 @@
 import type { SurgeKind } from "../domain/types"
 import type { CalledKind } from "../domain/scene/rules/heldTest"
 import type { RollMode } from "../domain/play/dice"
+import type { Order } from "../domain/scene/rules/domination"
 import { useCombatStore } from "../stores/useCombatStore"
 import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
@@ -42,6 +43,9 @@ export function useCombatCommands() {
   const actionSurge = (kind: SurgeKind) => asPicked((id) => dispatch({ kind: "surge", args: [id, kind] }))()
   const follow = (targetId: string | null) => asPicked((id) => dispatch({ kind: "follow", args: [id, targetId] }))()
   const defaultToCoward =asPicked((id) => dispatch({ kind: "defaultToCoward", args: [id] }))
+  const mock = asPicked((id) => dispatch({ kind: "mock", args: [id] }))
+  const breakFree = asPicked((id) => dispatch({ kind: "breakFree", args: [id] }))
+  const giveOrder = (by: string, targetId: string, order: Order) => dispatch({ kind: "giveOrder", args: [by, targetId, order] })
   const endTurn = () => dispatch({ kind: "endTurn", args: [] })
   const rollContest = () => dispatch({ kind: "rollContest", args: [] })
   const nextRound = () => dispatch({ kind: "nextRound", args: [] })
@@ -66,5 +70,5 @@ export function useCombatCommands() {
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
   const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
-  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, breakFree, giveOrder, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
 }

@@ -1,7 +1,7 @@
 import type { MoraleRoll, SceneState, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getCompulsionDegree, getCompulsionResistance, getFatefulAP, getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey, getSkipMoraleBar, isLeftOpen } from '../rules/morale'
+import { getCompulsionDegree, getCompulsionResistance, getFatefulAP, getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey, getSkipMoraleBar, getStressAuthors, isLeftOpen } from '../rules/morale'
 import { resolveTest, type Test } from '../../play/test'
 import { payCost } from '../../character/commands/cost'
 import { updateCharacter } from './characters'
@@ -56,7 +56,8 @@ const withRoll = (state: SceneState, id: string, roll: MoraleRoll): SceneState =
 // What the test leaves the character is the outcome's (`getMoraleOutcome`).
 // The die, the test and an activated limit stress action move the
 // character's convictions by their attitudes (abilities.tex "Fatalism",
-// "Adaptation"). The last test of the round settled, the limit stress
+// "Adaptation"), and an activated one the convictions of the enemies whose
+// social action weighed on the test ("Domination"). The last test of the round settled, the limit stress
 // actions it activated are owed (`oweStress`).
 function settleMorale(id: string, roll: MoraleRoll): Updater {
   return (state) => {
@@ -66,6 +67,7 @@ function settleMorale(id: string, roll: MoraleRoll): Updater {
       updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)), 'morale test'),
       updateCharacter(id, meetEachAttitude(getThrowHappenings({ mode: roll.mode, die: roll.die, explodes: false, scored: { skill: 'will', value: roll.skill, DL: roll.DL, degree: roll.degree } })), 'conviction attitude'),
       ...(outcome.limitStress ? [updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')] : []),
+      ...(outcome.limitStress ? getStressAuthors(state, id).map((by) => updateCharacter(by, meetAttitudes({ event: 'enemyStress' }), 'conviction attitude')) : []),
     ].reduce((acc, step) => step(acc), state)
     const tested = withRoll(settled, id, { ...roll, limitStress: outcome.limitStress })
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)

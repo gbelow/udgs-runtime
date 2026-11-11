@@ -37,6 +37,20 @@ export function getPressure(state: SceneState, id: string): SocialPressure {
   }
 }
 
+// abilities.tex "Domination": who weighed on the character's morale test with
+// a social action, from a party other than theirs: every enemy whose
+// intimidation or taunt was said to them in the round before, the one
+// counted or not (the table's ruling).
+export function getStressAuthors(state: SceneState, id: string): string[] {
+  const said = state.pressure.filter((p) => p.target === id && p.round === state.round - 1 && (p.kind === 'intimidate' || p.kind === 'taunt'))
+  return [...new Set(said.map((p) => p.from))].filter((from) => isEnemyOf(state, from, id))
+}
+
+// Whether `a` is in the fight in another party than `b`.
+export function isEnemyOf(state: SceneState, a: string, b: string): boolean {
+  return a !== b && !!state.characters[a] && getPressureKey(state, a) !== getPressureKey(state, b)
+}
+
 // combat.tex "Morale", "Simplifying": the table's pressure is one number per
 // party; whoever is in none shares the key ''.
 export function getPressureKey(state: SceneState, id: string): string {

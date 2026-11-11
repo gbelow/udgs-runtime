@@ -28,6 +28,8 @@ import { hypeUp, keepMorale, rerollMorale, rollMorale, setTablePressure, skipMor
 import { backToChase, continueRound, holdOn, joinChaseFight, letGo, nextRound } from './nextRound'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
+import { breakFree, giveOrder, mock } from './domination'
+import type { Order } from '../rules/domination'
 import { agreeAllToEnd, endTurn, rollContest, setContestMode, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
 import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
@@ -163,6 +165,12 @@ export const sceneCommands = {
   rollHeld: command((ctx, id: string, kind: CalledKind, mode: RollMode, die?: number) => rollHeld(id, kind, mode, typed(ctx, die))).by(own),
   setTablePressure: command((_, partyId: string, value: number) => setTablePressure(partyId, value)).by(gm),
   defaultToCoward: command((_, id: string) => defaultToCoward(id)).by(own),
+  // abilities.tex "Domination": orders given to someone in their limit stress
+  // action, and a mock; breaking out of domination is tested when the GM
+  // judges a command a severe compulsion (combat.tex "Dominated")
+  giveOrder: command((ctx, by: string, targetId: string, order: Order) => giveOrder(by, targetId, order, ctx.thrower)).by(own),
+  mock: command((_, id: string) => mock(id)).by(own),
+  breakFree: command((ctx, id: string) => breakFree(id, ctx.thrower)).by(gm),
 
   // the fight's parties: a player moves only their own character
   moveToParty: command((_, id: string, partyId: string) => moveToParty(id, partyId)).by(own),

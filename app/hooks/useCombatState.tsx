@@ -4,6 +4,7 @@ import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../doma
 import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../domain/scene/projections/roundChange";
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
+import { getBreakFreeView, getMockeryView, type MockeryView } from "../domain/scene/projections/domination";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getGearBar } from "../domain/scene/rules/turn";
 import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getContestModeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
@@ -169,4 +170,16 @@ export function useHeldTests(): HeldTestRow[] {
 // character for a coward, or null.
 export function useCowardBar(): string | null {
   return useCombatStore((s) => (s.activeCharacterId ? getCowardBar(s, s.activeCharacterId) : NO_ONE));
+}
+
+// abilities.tex "Mockery": the active character's mock, null when they have
+// not learned it.
+export function useMockery(): MockeryView | null {
+  const view = useCombatStore(useShallow((s) => (s.activeCharacterId ? getMockeryView(s, s.activeCharacterId) : null)));
+  return view;
+}
+
+// combat.tex "Dominated": why the active character cannot test to break out.
+export function useBreakFreeBar(): string | null {
+  return useCombatStore((s) => (s.activeCharacterId ? getBreakFreeView(s, s.activeCharacterId) : NO_ONE));
 }

@@ -10,7 +10,7 @@ import { markStress } from './stress'
 // What was said, written as the pressure it puts on each hearer's morale test,
 // read at the next round's beginning (`getPressure`) — said at the round
 // change, the one it is changing to.
-function speak(state: SceneState, id: string, kind: Pressure['kind'], value: number, heard: string[]): SceneState {
+export function speak(state: SceneState, id: string, kind: Pressure['kind'], value: number, heard: string[]): SceneState {
   const round = getSpeakingRound(state)
   const said = heard.map((target) => ({ round, from: id, target, kind, value }))
   return { ...state, pressure: [...state.pressure.filter((p) => p.round >= round - 1), ...said] }

@@ -53,7 +53,7 @@ export function getStressTurns(state: SceneState): Compulsion[] {
   return state.morale
     .flatMap(({ id, roll }) => {
       const action = roll?.limitStress ? getStressAction(state, id) : null
-      return roll && action ? [{ margin: roll.score - roll.DL, turn: { id, action, acted: false, taken: isStressAutomatic(state, id, action), by: '', constraint: null } }] : []
+      return roll && action ? [{ margin: roll.score - roll.DL, turn: { id, action, acted: false, taken: isStressAutomatic(state, id, action), by: '', constraint: null, overruledBy: '', contested: [] } }] : []
     })
     .sort((a, b) => a.margin - b.margin)
     .map(({ turn }) => turn)
