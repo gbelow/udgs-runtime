@@ -245,6 +245,22 @@ export const SLICE_SHARE = 0.25
 export const SLICE_UNBLADED_SHARE = 0.5
 export const SMASH_DM = 1
 
+// gear.tex "Size Scaling": a weapon larger than the wielder uses STR-5 in the
+// contribution of STR to damage. abilities.tex "Large Hands": the penalty is
+// STR-2 for who has them. A weapon smaller than the wielder gives the
+// opposite, STR+5, with no change in AP.
+export const OVERSIZE_STR = 5
+export const LARGE_HANDS_STR = 2
+export const UNDERSIZE_STR = 5
+
+// gear.tex "STR x": the STR a weapon asks for, for every size it is above (or
+// below) the wielder's.
+export const STR_REQ_PER_SIZE = 5
+
+// abilities.tex "Regenerative Reservoir": "functions like a potion that heals
+// 10 IL".
+export const RESERVOIR_CAPACITY = 10
+
 // HOP a hit gets or loses beyond its roll from what the attack meets, by what
 // they come from (a purchase's own are its `gives`). gear.tex "Ultra
 // fast(UF)": "gets +2 HOPs on hit"; "Closed helmet": "hits to the head lose 5

@@ -61,7 +61,9 @@ export function scaleArmor(armor: Armor, scale: number): Armor {
 
 // gear.tex "Scaling weapons": "multiply damages and RES by the DM and reach
 // by the RM". Reach is a named range here, not a number, so only the DM half
-// is applied; the panel shows the size beside the name instead.
+// is applied; the panel shows the size beside the name instead. The damage is
+// multiplied where it is dealt (getStrikeDamage), so the STR on top of it
+// scales with the weapon too; here the row keeps the printed figures.
 export function scaleWeapon(weapon: Weapon, scale: number): Weapon {
   // Sizes run 1-7; scale-1 is the row in the size tables.
   const clampedScale = Math.max(1, Math.min(7, scale))
@@ -72,8 +74,6 @@ export function scaleWeapon(weapon: Weapon, scale: number): Weapon {
     scale: clampedScale,
     attacks: weapon.attacks.map(el => ({
       ...el,
-      blunt: Math.floor(el.blunt * dmgArr[scaleIndex]),
-      cut: Math.floor(el.cut * dmgArr[scaleIndex]),
       RES: Math.floor(el.RES * dmgArr[scaleIndex]),
 
     }))

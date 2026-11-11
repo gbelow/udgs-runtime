@@ -1,6 +1,7 @@
 import type { CampaignCharacter, HealEffect } from "../../types"
 import { getDeathIL } from "../rules/afflictions"
 import { getRecoveredSTA } from "../rules/characteristics"
+import { getReservoirCapacity } from "../rules/recovery"
 import { healWound, reattachPart } from "./wounds"
 
 // survival.tex "Hunger": "cannot be increased further than 30" — the band's
@@ -28,6 +29,22 @@ export const addExhaustion = (amount: number) => (c: CampaignCharacter): Campaig
 
 export const addIL = (amount: number) => (c: CampaignCharacter): CampaignCharacter =>
   ({ ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel + amount } })
+
+// abilities.tex "Regenerative Reservoir": healing that had no injury to mend
+// stays in the potion bank, which "functions like a potion", up to what the
+// reservoir holds. Without the ability nothing stays.
+export const store = (amount: number) => (c: CampaignCharacter): CampaignCharacter => {
+  const kept = Math.min(getReservoirCapacity(c), c.injuries.potion + Math.max(0, amount))
+  return kept > c.injuries.potion ? { ...c, injuries: { ...c.injuries, potion: kept } } : c
+}
+
+// survival.tex "Rest": a rest's healing mends IL, and negative amounts work
+// against the character; what finds no IL to mend is stored.
+export const healByRest = (healing: number) => (c: CampaignCharacter): CampaignCharacter => {
+  if (healing < 0) return addIL(-healing)(c)
+  const mended = Math.min(healing, c.injuries.injuryLevel)
+  return store(healing - mended)(heal(mended)(c))
+}
 
 export function heal( amount: number): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {

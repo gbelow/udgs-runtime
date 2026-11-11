@@ -1,7 +1,7 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
-import { getSize, getDM } from "./size";
-import { BOWS, DISTANCE_FREE, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { getSize, getDMAt } from "./size";
+import { BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
@@ -19,13 +19,27 @@ export function isOversize(weapon: Weapon, c: Character): boolean {
   return weapon.scale > getSize(c)
 }
 
+// A weapon that shoots is drawn or cocked by the arms of its wielder: one
+// larger than they are is beyond their reach, so it cannot be used at all. A
+// thrown weapon is not one that shoots.
 export function isWieldable(weapon: Weapon, c: Character): boolean {
-  return weapon.scale <= getSize(c) + 1
+  const shoots = weapon.attacks.some((atk) => getAttackKind(atk.range) === 'shoot')
+  return weapon.scale <= getSize(c) + (shoots ? 0 : 1)
 }
 
-// The STR that goes into this weapon's damage.
+// gear.tex "Size Scaling": a damage is multiplied by the DM of the weapon, not
+// of who wields it, STR included.
+export const getWeaponDM = (weapon: Weapon): number => getDMAt(weapon.scale)
+
+// The STR that goes into this weapon's damage: less with a weapon too large
+// for the wielder (abilities.tex "Large Hands" less so), more with one too
+// small.
 function getWieldSTR(weapon: Weapon, c: Character): number {
-  return getSTR(c) - (isOversize(weapon, c) ? 5 : 0)
+  if (isOversize(weapon, c)) {
+    const melee = weapon.attacks.some((atk) => getAttackKind(atk.range) === 'melee')
+    return getSTR(c) - (melee && hasGrant(c, 'largeHands') ? LARGE_HANDS_STR : OVERSIZE_STR)
+  }
+  return getSTR(c) + (weapon.scale < getSize(c) ? UNDERSIZE_STR : 0)
 }
 
 // combat.tex "Success Overflow", "Slice": "increase cutting damage by 25%",
@@ -37,14 +51,14 @@ export function getSliceBonus(times: number, cut: number, bladed: boolean): numb
 
 // combat.tex "Success Overflow", "Smash": "Increases blunt damage by 1xDM per
 // HOP".
-export function getSmashBonus(HOP: number, c: Character): number {
-  return Math.floor(HOP * SMASH_DM * getDM(c))
+export function getSmashBonus(HOP: number, weapon: Weapon): number {
+  return Math.floor(HOP * SMASH_DM * getWeaponDM(weapon))
 }
 
 // gear.tex "RES": the row's breakage threshold; abilities.tex "Blade
 // Alignment": "Increases the RES of bladed weapons, by 5xDM".
 export function getWeaponRES(atk: WeaponAttack, c: Character): number {
-  return atk.RES + (hasProperty(atk.properties, 'bladed') && hasGrant(c, 'bladeAlignment') ? Math.floor(5 * getDM(c)) : 0)
+  return atk.RES + (hasProperty(atk.properties, 'bladed') && hasGrant(c, 'bladeAlignment') ? Math.floor(5 * getDMAt(getSize(c))) : 0)
 }
 
 // gear.tex "Gear condition": "Sharp - Bladed weapon gets +x HOP on a hit".
@@ -54,18 +68,18 @@ export function getEdgeHOP(properties: readonly WeaponProperty[], edge: Edge | n
 
 // combat.tex "Braced Attack": "damage bonus of +1.5x STR x DM on a hit".
 export function getBracedBonus(weapon: Weapon, c: Character): number {
-  return Math.floor(1.5 * getWieldSTR(weapon, c) * getDM(c))
+  return Math.floor(1.5 * getWieldSTR(weapon, c) * getWeaponDM(weapon))
 }
 
 // combat.tex "Hook Attack": the trip "gets +STR/2 x DM damage if the opponent
 // attempts to perform an evasive jump and +STR x DM if they are running".
 export function getHookBonus(weapon: Weapon, c: Character, target: 'running' | 'jumping' | null): number {
   const multiplier = target === 'running' ? 1 : target === 'jumping' ? 0.5 : 0
-  return Math.floor(multiplier * getWieldSTR(weapon, c) * getDM(c))
+  return Math.floor(multiplier * getWieldSTR(weapon, c) * getWeaponDM(weapon))
 }
 
 export function getAPSurcharge(weapon: Weapon, c: Character): number {
-  return isOversize(weapon, c) ? 1 : 0
+  return isOversize(weapon, c) && !weapon.natural ? 1 : 0
 }
 
 // gear.tex "DEF": "The blocking value is equal to 2x STR if weapon is one
@@ -89,9 +103,14 @@ export function isStrike(atk: WeaponAttack): boolean {
 
 export type Damage = { blunt: number; cut: number }
 
-export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character): Damage {
-  const bonus = isStrike(atk) ? Math.floor(0.5 * getWieldSTR(weapon, c) * getDM(c)) : 0
-  return { blunt: atk.blunt + bonus, cut: atk.cut + bonus }
+// gear.tex "Size Scaling": the row's printed damage and the STR on top of it
+// are multiplied together by the weapon's DM. `STRshare` is how much of the
+// wielder's STR the attack adds (a strike 0.5, a heavy one more).
+export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character, extraSTR = 0): Damage {
+  const STRshare = (isStrike(atk) ? 0.5 : 0) + extraSTR
+  const bonus = STRshare * getWieldSTR(weapon, c)
+  const DM = getWeaponDM(weapon)
+  return { blunt: Math.floor((atk.blunt + bonus) * DM), cut: Math.floor((atk.cut + bonus) * DM) }
 }
 
 // combat.tex "Focus surge": "this surge is required to use ranged attacks" —
@@ -133,6 +152,13 @@ function isUntrainedBow(weapon: Weapon, c: Character): boolean {
 // bows."
 function getDrawSTR(weapon: Weapon, c: Character): number {
   return getSTR(c) + (isBow(weapon) ? getBuffBonus(c, 'bow:STR') : 0)
+}
+
+// gear.tex "STR x": the requirement is the row's for a weapon of the wielder's
+// size, and moves STR_REQ_PER_SIZE for every size the weapon is above or
+// below it.
+function getSTRRequirement(atk: WeaponAttack, weapon: Weapon, c: Character): number | null {
+  return atk.STRreq === undefined ? null : atk.STRreq + STR_REQ_PER_SIZE * (weapon.scale - getSize(c))
 }
 
 export type AttackVariant = {
@@ -203,15 +229,10 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
   const type = getAttackType(atk.range)
 
   return((c:Character) => {
-    // Every STR contribution to damage is scaled by DM (creating.tex "Damage
-    // Multiplier"), and every variation is a delta on the normal attack
-    // (combat.tex "Strike"), so they all start from its damage, not the row's.
-    const STRxDM = getWieldSTR(weapon, c) * getDM(c)
     const untrained = kind === 'shoot' && isUntrainedBow(weapon, c)
     const AP = atk.AP + getAPSurcharge(weapon, c) + (untrained ? 3 : 0)
     const { blunt, cut } = getStrikeDamage(atk, weapon, c)
     // combat.tex "Heavy Attack": "Bonus applies to blunt damage and cutting damage."
-    const plus = (bonus: number): Damage => ({ blunt: blunt + bonus, cut: cut + bonus })
 
     const heavy = (degree: number): AttackVariant => {
       const { penalty, STRmul } = HEAVY_DEGREES[degree]
@@ -222,7 +243,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
         AP: AP + cost.AP,
         STA: cost.STA,
         penalty,
-        ...plus(Math.floor(STRmul * STRxDM)),
+        ...getStrikeDamage(atk, weapon, c, STRmul),
         reach: null,
         distance: null,
       }
@@ -267,9 +288,10 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     if (hasProperty(atk.properties, 'braced')) attacks.push(braced)
     if (hasProperty(atk.properties, 'hook')) attacks.push(hook)
     // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
-    // use quick shot unless STR is +3 points higher than the requirement."
+    // use quick shot unless STR is +2 points higher than the requirement."
     if (kind === 'shoot' && !untrained) {
-      if (atk.STRreq === undefined || getDrawSTR(weapon, c) >= atk.STRreq + 3) attacks.push(quickShot)
+      const required = getSTRRequirement(atk, weapon, c)
+      if (required === null || getDrawSTR(weapon, c) >= required + 2) attacks.push(quickShot)
       attacks.push(snipe)
     }
 

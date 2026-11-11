@@ -1,6 +1,7 @@
 import { BodyPart, Character, Edge, Handed, Item, Weapon } from '../../types'
 import { getCatalogWeapon, getItemWeapon } from './items'
 import { getSize, scaleWeapon } from '../../character/rules/size'
+import { hasGrant } from '../../character/rules/effects'
 import { getWorkingParts } from '../../character/rules/body'
 
 // gear.tex "Small/One/Two hands": a stack is gripped by one hand or two. Any
@@ -91,13 +92,15 @@ function computeWieldedWeapons(c: Character): Wielded[] {
     return weapon ? [{ key: item.id, weapon, grip: getGrip(c, item.id), itemId: item.id, natural: false, broken: item.broken, edge: item.edge, loaded: item.loaded }] : []
   })
   const natural = new Map<string, number>()
+  const ofHands = new Set<string>()
   for (const part of getFreeParts(c)) {
     const name = getNaturalWeapon(c, part)
     if (name) natural.set(name, (natural.get(name) ?? 0) + 1)
+    if (name && part.location === 'hand') ofHands.add(name)
   }
   const fromParts = [...natural].flatMap(([name, grip]) => {
     const weapon = getCatalogWeapon(name)
-    return weapon ? [{ key: `natural:${name}`, weapon: scaleWeapon(weapon, getSize(c)), grip, itemId: '', natural: true, broken: false, edge: null, loaded: null }] : []
+    return weapon ? [{ key: `natural:${name}`, weapon: { ...scaleWeapon(weapon, getSize(c) + (ofHands.has(name) && hasGrant(c, 'largeHands') ? 1 : 0)), natural: true }, grip, itemId: '', natural: true, broken: false, edge: null, loaded: null }] : []
   })
   return [...held, ...fromParts]
 }

@@ -84,7 +84,7 @@ function addPhysical(damage: Damage, value: number): Damage {
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
   bust: (d) => ({ ...d, bust: true }),
   slice: (d, times, { properties }) => addTo(d, 'cut', getSliceBonus(times, getCut(d), hasProperty(properties, 'bladed'))),
-  smash: (d, times, { attacker }) => addTo(d, 'blunt', getSmashBonus(times, attacker)),
+  smash: (d, times, { weapon }) => addTo(d, 'blunt', getSmashBonus(times, weapon)),
   handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
   assassinate: (d) => d,
   braced: (d, _, { attacker, weapon }) => addPhysical(d, getBracedBonus(weapon, attacker)),

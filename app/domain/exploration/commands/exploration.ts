@@ -11,7 +11,7 @@ import { describeLearned, getAmbientLines, getETResultLines, type AmbientLanded 
 import { getLearnedLevel, getSkillName, getSkillTest } from '../../character/rules/skillRef'
 import { raiseSpecificKnowledge } from '../../character/commands/learning'
 import { describeRoll } from '../../play/test'
-import { addExhaustion, addIL, heal } from '../../character/commands/heal'
+import { addExhaustion, addIL, healByRest, store } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
   getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposure, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
@@ -221,10 +221,10 @@ export function adjustMet(index: number, adjust: number): ExplorationUpdater {
 
 // survival.tex "Healing Potions": "heal IL in the course of an ET. Healing
 // through potions does not increase hunger and thirst. Any healing that is
-// not used during the ET is lost."
+// not used during the ET is lost", but for what a reservoir keeps.
 function spendPotion(c: CampaignCharacter): CampaignCharacter {
   const healed = Math.min(c.injuries.potion, c.injuries.injuryLevel)
-  return { ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel - healed, potion: 0 } }
+  return store(c.injuries.potion - healed)({ ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel - healed, potion: 0 } })
 }
 
 // survival.tex "Rest": exhaustion lowers and IL heals, by negative amounts on
@@ -232,7 +232,7 @@ function spendPotion(c: CampaignCharacter): CampaignCharacter {
 function rest(c: CampaignCharacter, exposure: number, bonus: number): CampaignCharacter {
   const recovered = addExhaustion(-getRestRecovery(exposure))(c)
   const healing = getRestHealing(c, exposure, bonus)
-  return healing < 0 ? addIL(-healing)(recovered) : heal(Math.min(healing, recovered.injuries.injuryLevel))(recovered)
+  return healByRest(healing)(recovered)
 }
 
 // The party leaves exploration for downtime, refused as `getToDowntimeBar`

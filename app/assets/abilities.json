@@ -9325,10 +9325,12 @@
             }
           ]
         ],
-        "description": "Allows the use of melee weapons from a larger size category, but attacks cost +1 AP and have STR-3 in every move done with the weapon. The hands also count as a weapon of larger size, but don't get the AP cost increase.",
+        "description": "Allows the use of melee weapons from a larger size category, but attacks cost +1 AP and have STR-2 in every move done with the weapon. The hands also count as a weapon of larger size, but don't get the AP cost increase.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "largeHands"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -9910,7 +9912,9 @@
         "description": "The character has an internal reservoir that functions like a potion that heals 10 IL. The reservoir is filled by regular healing while they are resting and uninjured or when drinking a potion.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "regenerativeReservoir"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
