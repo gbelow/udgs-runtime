@@ -10,8 +10,10 @@ import ammoCatalog from '../../assets/ammo.json'
 import type { Party } from './party'
 
 // The fight as a bot weighs it: what a player in its place would see of it
-// (multiplayer-plan.md "Hidden information", `getSceneSeenBy`), and for each
-// foe it sees, a guess at what the foe's face (`getPublicFace`) does not show.
+// (multiplayer-plan.md "Hidden information", `getSceneSeenBy`): the sheets
+// of the characters of its owner (the party's members) in full, and of
+// everyone else it sees, allies played by someone else among them, a face,
+// with a guess at what the face (`getPublicFace`) does not show.
 // The table's ruling: a foe is taken to be as good as the character looking
 // at it, with its characteristics, skills and abilities, holding and wearing
 // what the foe is seen to, as hurt as it is seen to be, with the most AP and

@@ -30,8 +30,9 @@ export type Tuning = { threat: number; engage: number; ap: number; sta: number; 
 
 export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0, sta: 0.005, horizon: 3, patience: 0.03, samples: 5, exchange: 1, drain: 0.02, defensive: 0, reserve: 1 }
 
-// The side a bot plays: the characters it controls. Everyone else in the fight
-// is its foe.
+// The characters a bot plays, all of one owner (the GM, or a player), which it
+// sees in full (belief.ts). Its side is them and whoever the fight puts in a
+// party with one of them (`getSide`); everyone else is its foe.
 export type Party = {
   members: readonly string[]
   tuning?: Partial<Tuning>
@@ -55,8 +56,21 @@ export function isStanding(state: SceneState, id: string): boolean {
   return !!c && !isDead(c)
 }
 
-// Who the party still fights: not fallen, and not surrendered (combat.tex
-// "Surrender").
+// Whether the character is on the party's side: one of its members, or in
+// the same party of the fight as one of them, whoever plays it.
+export function isOnSide(state: SceneState, party: Party, id: string): boolean {
+  if (isMember(party, id)) return true
+  const own = state.partyOf[id]
+  return own !== undefined && party.members.some((m) => state.partyOf[m] === own)
+}
+
+// Everyone on the party's side still in the fight.
+export function getSide(state: SceneState, party: Party): string[] {
+  return Object.keys(state.characters).filter((id) => isOnSide(state, party, id))
+}
+
+// Who the party still fights: not on its side, not fallen, and not
+// surrendered (combat.tex "Surrender").
 export function getLiveFoes(state: SceneState, party: Party): string[] {
-  return Object.keys(state.characters).filter((id) => !isMember(party, id) && isStanding(state, id) && !state.surrendered.includes(id))
+  return Object.keys(state.characters).filter((id) => !isOnSide(state, party, id) && isStanding(state, id) && !state.surrendered.includes(id))
 }

@@ -2,7 +2,7 @@ import type { Action, SceneState } from '../scene/types'
 import { getPayableCost } from '../scene/rules/action'
 import { getLiveReactionsTo, getOpenAction } from '../scene/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
-import { getLiveFoes, isMember, type Party, type Tuning } from './party'
+import { getLiveFoes, isOnSide, type Party, type Tuning } from './party'
 import { getOpportunities } from './opportunity'
 import { settleWith } from './open'
 import { expectedLoss } from './value'
@@ -24,7 +24,7 @@ type Answer = { state: SceneState; spent: number; surged: boolean }
 // target could still declare against it.
 function getAnswers(state: SceneState, party: Party, actorId: string, newId: () => string): { targetId: string; answers: Answer[] } | null {
   const open = getOpenAction(state)
-  if (!open || open.actorId !== actorId || open.targetId === null || isMember(party, open.targetId)) return null
+  if (!open || open.actorId !== actorId || open.targetId === null || isOnSide(state, party, open.targetId)) return null
   const targetId = open.targetId
   const answers = getDefenseOptions(state, targetId, open).flatMap((option): Answer[] => {
     const declared = declareDefense(state, targetId, open, option, newId)

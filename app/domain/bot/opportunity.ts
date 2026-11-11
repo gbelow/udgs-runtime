@@ -7,7 +7,7 @@ import { getFreeAttackOptions, type AttackOption } from '../scene/rules/attack'
 import { canAnswer, getLiveReactionsTo } from '../scene/rules/log'
 import { getAvailableActions } from '../scene/rules/options'
 import { getDefenseWorth, getReadings, getUnanswered } from './reading'
-import { getLiveFoes, isMember, type Party } from './party'
+import { getLiveFoes, getSide, isOnSide, type Party } from './party'
 import type { Played } from './move'
 
 // combat.tex "Opportunity Attack": the opportunity attacks a bot may make on
@@ -41,7 +41,7 @@ function fraction(c: CampaignCharacter | undefined): number {
 
 function standing(state: SceneState, party: Party, id: string, foes: readonly string[]): number {
   const sum = (ids: readonly string[]) => ids.reduce((total, x) => total + fraction(state.characters[x]), 0)
-  return sum(foes) - sum(party.members) + getDefenseWorth(state, [id], foes)
+  return sum(foes) - sum(getSide(state, party)) + getDefenseWorth(state, [id], foes)
 }
 
 function outcome(from: SceneState, party: Party, id: string, settle: Settle): number {
@@ -58,7 +58,7 @@ export function getAnswerWorth(state: SceneState, party: Party, id: string, answ
 
 export function getOpportunities(state: SceneState, party: Party, id: string, open: RootAction, newId: () => string, settle: Settle): Opportunity[] {
   const c = state.characters[id]
-  if (!c || isMember(party, open.actorId) || !canAnswer(open, id) || reactionOf(state, open, id)) return []
+  if (!c || isOnSide(state, party, open.actorId) || !canAnswer(open, id) || reactionOf(state, open, id)) return []
   const options = getAvailableActions(state, id).filter((o) => o.available && o.draft.kind === 'opportunityAttack')
   if (options.length === 0) return []
   const without = outcome(state, party, id, settle)
@@ -67,7 +67,7 @@ export function getOpportunities(state: SceneState, party: Party, id: string, op
     const declared = declareReaction(id, draft, newId)(state)
     const reaction = reactionOf(declared, open, id)
     const targetId = reaction && 'targetId' in reaction ? reaction.targetId : null
-    if (!targetId || !state.characters[targetId]) return []
+    if (!targetId || !state.characters[targetId] || isOnSide(state, party, targetId)) return []
     const readings = getReadings(state, id, targetId, false)
     const hardest = (row: AttackOption) => {
       const r = readings.find((x) => x.kind === 'strike' && x.weaponKey === row.weaponKey && x.attack === row.attack && x.variant === row.variant)

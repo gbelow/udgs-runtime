@@ -8,7 +8,7 @@ import { getCandidates } from './candidates'
 import { hold } from './engine'
 import { getExchange, isAnswerable } from './exchange'
 import { playOut, settleWith, type Answerer } from './open'
-import { getTuning, isMember, type Party } from './party'
+import { getTuning, isOnSide, type Party } from './party'
 import { rollout } from './rollout'
 import type { Trace } from './trace'
 import { evaluate, type Value } from './value'
@@ -104,7 +104,7 @@ export function chooseTurnAction(state: SceneState, parties: readonly Party[], p
 // How a member of the party who may answer the committed action does, with a
 // defense or an opportunity attack, or null when none does.
 export function chooseAnswer(state: SceneState, parties: readonly Party[], party: Party, open: RootAction, newId: () => string, trace?: Trace): Played | null {
-  if (isMember(party, open.actorId)) return null
+  if (isOnSide(state, party, open.actorId)) return null
   for (const id of party.members) {
     const believed = getBelief(state, party, id)
     const declared = [

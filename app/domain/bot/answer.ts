@@ -3,7 +3,7 @@ import { isDeclarationComplete } from '../scene/rules/action'
 import { canAnswer, getLiveReactionsTo } from '../scene/rules/log'
 import { getAvailableActions, type ActionOption } from '../scene/rules/options'
 import { declareReaction } from '../scene/commands/action'
-import { isMember, type Party } from './party'
+import { isOnSide, type Party } from './party'
 import type { Played } from './move'
 
 // The reactions a bot makes: plain defenses, whose declaration is nothing but
@@ -44,7 +44,7 @@ export function defend(state: SceneState, id: string, open: RootAction, option: 
 // nobody has one. It stands in for the others' answers when an option is
 // played out.
 export function answerOpen(state: SceneState, party: Party, open: RootAction, newId: () => string, skip: readonly string[] = []): Played | null {
-  if (isMember(party, open.actorId)) return null
+  if (isOnSide(state, party, open.actorId)) return null
   for (const id of party.members.filter((m) => !skip.includes(m))) {
     for (const option of getDefenseOptions(state, id, open)) {
       const declared = defend(state, id, open, option, newId)

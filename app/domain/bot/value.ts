@@ -7,12 +7,12 @@ import { getSettled } from '../scene/rules/settle'
 import { resolveTest } from '../play/test'
 import { getOutcomes } from '../scene/projections/outcomes'
 import { answerOpen } from './answer'
-import { getLiveFoes, isMember, isStanding, type Party, type Tuning } from './party'
+import { getLiveFoes, getSide, isOnSide, isStanding, type Party, type Tuning } from './party'
 import { aimStrike, getStrikes } from './weapons'
 import { getDefenseWorth } from './reading'
 
 // How well a state stands for a party, in fractions of a character's way to
-// death: the wounds its foes carry less the wounds its own do, less what the
+// death: the wounds its foes carry less the wounds its side does (party.ts), less what the
 // foes could still do to it from here, less the ground between its acting
 // character and the nearest foe, plus the AP and STA it has left over its
 // foes', plus what the defenses it can still pay for would take off the foes'
@@ -57,7 +57,7 @@ function strongestStrike(state: SceneState, party: Party, foeId: string, newId: 
   const hardest = new Map<string, { locked: SceneState; target: string; loss: number }>()
   for (const kind of ['strike', 'shoot'] as const) {
     for (const strike of getStrikes(foeTurn, foeId, kind, newId)) {
-      for (const target of strike.targets.filter((t) => isMember(party, t) && isStanding(state, t))) {
+      for (const target of strike.targets.filter((t) => isOnSide(state, party, t) && isStanding(state, t))) {
         const locked = aimStrike(strike, target)
         const loss = expectedLoss(locked, target)
         const key = `${kind} ${target}`
@@ -82,13 +82,14 @@ function getGap(state: SceneState, actorId: string, foes: string[]): number {
 export function evaluate(state: SceneState, party: Party, actorId: string, tuning: Tuning, newId: () => string): Value {
   const foes = getLiveFoes(state, party)
   const sum = (ids: readonly string[]) => ids.reduce((total, id) => total + (state.characters[id] ? fraction(state.characters[id]) : 0), 0)
-  const wounds = sum(foes) - sum(party.members)
+  const side = getSide(state, party)
+  const wounds = sum(foes) - sum(side)
   const threat = tuning.threat > 0 ? tuning.threat * getThreat(state, party, newId) : 0
   const engage = tuning.engage * getGap(state, actorId, foes)
   const left = (ids: readonly string[], pick: (c: CampaignCharacter) => number) => ids.reduce((total, id) => total + (state.characters[id] ? pick(state.characters[id]) : 0), 0)
   const ap = (c: CampaignCharacter) => c.resources.AP
   const sta = (c: CampaignCharacter) => c.resources.STA
-  const resources = tuning.ap * (left(party.members, ap) - left(foes, ap)) + tuning.sta * (left(party.members, sta) - left(foes, sta))
-  const reserve = tuning.reserve > 0 ? tuning.reserve * (getDefenseWorth(state, party.members, foes) - getDefenseWorth(state, foes, party.members.filter((id) => isStanding(state, id)))) : 0
+  const resources = tuning.ap * (left(side, ap) - left(foes, ap)) + tuning.sta * (left(side, sta) - left(foes, sta))
+  const reserve = tuning.reserve > 0 ? tuning.reserve * (getDefenseWorth(state, side, foes) - getDefenseWorth(state, foes, side.filter((id) => isStanding(state, id)))) : 0
   return { total: wounds - threat - engage + resources + reserve, wounds, threat, engage, resources, reserve, waiting: 0, exchange: 0 }
 }
