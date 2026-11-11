@@ -15,6 +15,7 @@ import { getSituationalAfflictions, isImmobile } from './situational'
 import { isNearBlindGround } from './detection'
 import { isRunningInChase } from './chase'
 import { isParked } from './parked'
+import { getOwnEdgeTerms } from './cunning'
 
 // combat.tex "Social actions": what was said to the character in the round
 // before, "multiple intimidations and taunts don't stack. Only the highest
@@ -118,9 +119,12 @@ export function getMoraleModes(c: CampaignCharacter): RollMode[] {
   return getRollModes(c, 'will', true)
 }
 
+// The morale test, the tester's will with their edges against the DL.
 export function getMoraleTest(state: SceneState, id: string): Test | null {
   const c = state.characters[id]
-  return c ? { skill: getWill(c), DL: getMoraleDL(state, id), explodes: false, scale: 'degrees' } : null
+  if (!c) return null
+  const skill = [{ label: 'will', value: getWill(c) }, ...getOwnEdgeTerms(state, id)]
+  return { skill: sumTerms(skill), DL: getMoraleDL(state, id), explodes: false, scale: 'degrees', terms: { skill, DL: getAggravators(state, id) } }
 }
 
 const MORALE_AFFLICTIONS: readonly AfflictionKey[] = ['afraid', 'enraged', 'confused']

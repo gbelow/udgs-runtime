@@ -1,5 +1,6 @@
 import type { SceneState } from '../types'
 import type { RollMode } from '../../play/dice'
+import { describeThrow } from '../../character/rules/terms'
 import { getContestBar, getContenders, getContestMode, getContestModes, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getOpenAction } from '../rules/log'
 import { getEndCombatBar } from '../rules/fight'
@@ -77,7 +78,7 @@ function getStealthLine(state: SceneState): string {
 function getContestResult(state: SceneState): string {
   const contest = state.lastContest
   if (!contest) return ''
-  const rolls = contest.rolls.map((r) => `${getFightName(state, r.id)} ${r.score} (${r.die}+${r.skill}${r.mode === 'normal' ? '' : `, ${r.mode}`})`).join(' · ')
+  const rolls = contest.rolls.map((r) => `${getFightName(state, r.id)} ${r.score} (${describeThrow(r.die, r.skill, r.skillTerms, 'cunning', r.score)}${r.mode === 'normal' ? '' : `, ${r.mode}`})`).join(' · ')
   return `cunning contest: ${rolls} → ${getFightName(state, contest.winner)} takes the turn`
 }
 

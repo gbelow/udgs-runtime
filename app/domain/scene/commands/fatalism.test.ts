@@ -3,7 +3,9 @@ import { ActionSchema, SceneStateSchema, type SceneState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { TrainableSchema, type CampaignCharacter } from '../../types'
 import { ABILITIES } from '../../abilities'
-import { getMoraleOutcome, getMoraleTurnBar } from '../rules/morale'
+import { getMoraleOutcome, getMoraleTest, getMoraleTurnBar } from '../rules/morale'
+import { getHeldTest } from '../rules/heldTest'
+import { rollCunning } from '../rules/turn'
 import { getCunningTestTerms } from '../rules/cunning'
 import { keepMorale, rerollMorale, rollMorale } from './morale'
 import { getAfflictions } from '../../character/rules/afflictions'
@@ -74,6 +76,14 @@ describe('Grace Under Pressure', () => {
   it('adds to the test from 5 aggravating factors, and not below', () => {
     expect(gets(inFight(graceful, { tablePressure: { '': 5 } }))).toBe(hit)
     expect(gets(inFight(graceful, { tablePressure: { '': 4 } }))).toBe(0)
+  })
+
+  it('adds to the tests made as no action: the morale test, the contest for the turn, a test held for the round', () => {
+    const pressed = (c: CampaignCharacter) => inFight(c, { tablePressure: { '': 5 } })
+    const plain = fighter({})
+    expect(getMoraleTest(pressed(graceful), 'a')!.skill - getMoraleTest(pressed(plain), 'a')!.skill).toBe(hit)
+    expect(rollCunning(pressed(graceful), 'a', 0, 'normal').skill - rollCunning(pressed(plain), 'a', 0, 'normal').skill).toBe(hit)
+    expect(getHeldTest(pressed(graceful), 'a', 'stealth')!.skill - getHeldTest(pressed(plain), 'a', 'stealth')!.skill).toBe(hit)
   })
 
   it('is not switched off by a rally', () => {

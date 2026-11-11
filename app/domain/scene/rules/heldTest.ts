@@ -2,7 +2,7 @@ import type { Character } from '../../types'
 import { CALLED_TESTS } from '../../lists'
 import type { SceneState, HeldRoll, HeldTest } from '../types'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
-import { sumTerms, type Term } from '../../character/rules/terms'
+import { describeThrow, sumTerms, type Term } from '../../character/rules/terms'
 import type { RollMode } from '../../play/dice'
 import type { Test } from '../../play/test'
 import type { HeldKind } from './heldRoll'
@@ -12,6 +12,7 @@ import { getStealthTerms } from '../../character/rules/skills'
 import { getRollModes } from '../../character/rules/effects'
 import { getDegree } from '../../play/test'
 import { isParked } from './parked'
+import { getOwnEdgeTerms } from './cunning'
 
 export type CalledKind = (typeof CALLED_TESTS)[number]
 
@@ -62,7 +63,7 @@ const HELD_DEFS: Record<CalledKind, HeldDef> = {
 
 // The test as it was made, for the table to read.
 export function describeHeld(kind: CalledKind, roll: HeldRoll, DL: number): string {
-  const made = `${roll.mode} · ${kind} ${roll.skill} + die ${roll.die} = ${roll.score}`
+  const made = `${roll.mode} · ${describeThrow(roll.die, roll.skill, roll.skillTerms, kind, roll.score)}`
   return HELD_DEFS[kind].versus ? `${made} vs DL ${DL} → ${getDegree(roll.score, DL)}` : made
 }
 
@@ -91,11 +92,11 @@ export function getHeldCalled(state: SceneState): HeldTest[] {
   )
 }
 
-// The test a call is rolled as.
+// The test a call is rolled as, with the tester's edges.
 export function getHeldTest(state: SceneState, id: string, kind: CalledKind): Test | null {
   const c = state.characters[id]
   if (!c) return null
-  const skill = HELD_DEFS[kind].skill(c)
+  const skill = [...HELD_DEFS[kind].skill(c), ...getOwnEdgeTerms(state, id)]
   const DL = HELD_DEFS[kind].DL(state, id)
   return { skill: sumTerms(skill), DL, explodes: false, scale: 'degrees', terms: { skill, DL: [{ label: kind, value: DL }] } }
 }

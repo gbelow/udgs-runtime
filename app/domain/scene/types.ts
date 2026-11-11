@@ -1657,6 +1657,7 @@ export const MoraleRollSchema = z.object({
   mode: z.enum(ROLL_MODES),
   die: z.number(),
   skill: z.number(),
+  skillTerms: z.array(TermSchema).default([]),
   score: z.number(),
   DL: z.number(),
   degree: DegreeSchema,
@@ -1740,7 +1741,7 @@ export type MoraleCall = z.infer<typeof MoraleCallSchema>
 
 // A contest for the turn as it was rolled: each contender's cunning roll, in
 // the order they asked, the holder first, and who took the turn.
-export const ContestRollSchema = z.object({ id: z.string(), mode: z.enum(ROLL_MODES).default('normal'), die: z.number(), skill: z.number(), score: z.number() })
+export const ContestRollSchema = z.object({ id: z.string(), mode: z.enum(ROLL_MODES).default('normal'), die: z.number(), skill: z.number(), skillTerms: z.array(TermSchema).default([]), score: z.number() })
 export const ContestSchema = z.object({ rolls: z.array(ContestRollSchema), winner: z.string() })
 export type ContestRoll = z.infer<typeof ContestRollSchema>
 

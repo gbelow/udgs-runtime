@@ -25,7 +25,7 @@ function inFight(c: CampaignCharacter, extra: Partial<SceneState> = {}): SceneSt
 }
 
 function tested(degree: Degree): MoraleRoll {
-  return { mode: 'normal', die: 5, skill: 0, score: 5, DL: 5, degree, resisted: 0, limitStress: false, hyped: false, open: false, rerolled: false, enemyNear: true }
+  return { mode: 'normal', die: 5, skill: 0, skillTerms: [], score: 5, DL: 5, degree, resisted: 0, limitStress: false, hyped: false, open: false, rerolled: false, enemyNear: true }
 }
 
 // abilities.tex "Furious": "becomes enraged when they graze on a morale

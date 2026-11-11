@@ -21,8 +21,8 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
     const test = getMoraleTest(state, id)
     if (!test || getMoraleBar(state, id) || !getMoraleModes(state.characters[id]).includes(mode)) return state
     const thrown = getSceneModeOf(state)(id, mode)
-    const { die, score, degree } = resolveTest(test, (explodes) => rollModed(thrown, explodes, dice))
-    const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, score, DL: test.DL, degree, resisted: getCompulsionResistance(state.characters[id]), limitStress: false, hyped: false, open: false, rerolled: false, enemyNear }
+    const { die, score, degree, skillTerms } = resolveTest(test, (explodes) => rollModed(thrown, explodes, dice))
+    const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, skillTerms, score, DL: test.DL, degree, resisted: getCompulsionResistance(state.characters[id]), limitStress: false, hyped: false, open: false, rerolled: false, enemyNear }
     if (isLeftOpen(state.characters[id], degree)) return withRoll(state, id, { ...roll, open: true })
     return settleMorale(id, roll)(state)
   }

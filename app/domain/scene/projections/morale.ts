@@ -1,6 +1,7 @@
 import type { SceneState } from '../types'
 import { getAggravators, getFatefulBar, getHypeUpBar, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey, getSkipMoraleBar } from '../rules/morale'
 import { hasGrant } from '../../character/rules/effects'
+import { describeThrow } from '../../character/rules/terms'
 import type { RollMode } from '../../play/dice'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
@@ -47,7 +48,7 @@ function buildMoraleRows(state: SceneState): MoraleRow[] {
       aggravators: aggravators.map((t) => `${t.label} +${t.value}`).join(', '),
       bar: getMoraleBar(state, id),
       modes: getMoraleModes(state.characters[id]),
-      result: roll ? `${roll.open ? 'open · ' : ''}${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}${roll.resisted ? ` · +${roll.resisted} against the compulsion` : ''}${roll.rerolled ? ' · rerolled' : ''}${roll.hyped ? ' · hyped up' : ''}` : '',
+      result: roll ? `${roll.open ? 'open · ' : ''}${roll.mode} · ${describeThrow(roll.die, roll.skill, roll.skillTerms, 'will', roll.score)} vs DL ${roll.DL} → ${roll.degree}${roll.resisted ? ` · +${roll.resisted} against the compulsion` : ''}${roll.rerolled ? ' · rerolled' : ''}${roll.hyped ? ' · hyped up' : ''}` : '',
       limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,
       owed: getStressOwed(state, id),
       hypeUp: roll && hasGrant(state.characters[id], 'hypeUp') ? getHypeUpBar(state, id) ?? '' : null,

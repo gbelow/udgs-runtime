@@ -19,17 +19,31 @@ import { isFragile } from './fragile'
 // ---------------------------------------------------------------------------
 // What a test gets
 
+// A test as the edges read it: who makes it, who it is made against (null
+// for a test against no one, as a held test, the contest for the turn and the
+// morale test are), whether it answers an action, and the action it is the
+// test of (null where it is no action's). A condition that reads what the
+// test lacks does not hold. A spell's test is its target's die against the
+// caster's DL and reads no one's edges (the table's ruling).
+export type EdgeTest = { testerId: string; againstId: string | null; reacting: boolean; action: Action | null }
+
 // What the root's own test gets against whoever it is aimed at.
 export function getCunningTestTerms(state: SceneState, root: Action): Term[] {
   const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
-  return getEdgeTerms(state, root, root.targetId, opener?.reactionTo != null)
+  return getEdgeTerms(state, { testerId: root.actorId, againstId: root.targetId, reacting: opener?.reactionTo != null, action: root })
 }
 
 // What a reaction puts up against the action it answers, against whoever
 // made that action.
 export function getCunningReactionTerms(state: SceneState, reaction: Action): Term[] {
   const answered = reaction.reactionTo ? getRootOf(state, reaction) : null
-  return getEdgeTerms(state, reaction, answered?.actorId ?? null, true)
+  return getEdgeTerms(state, { testerId: reaction.actorId, againstId: answered?.actorId ?? null, reacting: true, action: reaction })
+}
+
+// What a test the character makes against no one, and as no action, gets: a
+// test held for the round, the contest for the turn, the morale test.
+export function getOwnEdgeTerms(state: SceneState, id: string): Term[] {
+  return getEdgeTerms(state, { testerId: id, againstId: null, reacting: false, action: null })
 }
 
 // The holder whose edges of the situation count for the test, or null when
@@ -52,52 +66,52 @@ export function getCunningReactionTerms(state: SceneState, reaction: Action): Te
 // once the surge is (the table's ruling).
 // abilities.tex "Exploit Weakness": "+1 to all tests against characters
 // affected by any mind altering status effects" (rules/fragile.ts).
-const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, action: Action, againstId: string | null) => CampaignCharacter | null> = {
-  prepared: (state, action) => {
-    const p = getPreparationOf(state, action)
+const EDGE_HOLDER: Record<EdgeRecipe['when'], (state: SceneState, test: EdgeTest) => CampaignCharacter | null> = {
+  prepared: (state, { action }) => {
+    const p = action && getPreparationOf(state, action)
     return (p && state.characters[p.actorId]) ?? null
   },
-  wonCunning: (state, action, againstId) => {
-    const actor = getAgainst(state, action, againstId)
+  wonCunning: (state, test) => {
+    const actor = getAgainst(state, test)
     const contest = state.lastContest
-    if (!actor || !againstId || !contest || contest.winner !== actor.id || state.inTurnCharacter !== actor.id) return null
+    if (!actor || !test.againstId || !contest || contest.winner !== actor.id || state.inTurnCharacter !== actor.id) return null
     const won = contest.rolls.find((r) => r.id === actor.id)
-    const lost = contest.rolls.find((r) => r.id === againstId)
+    const lost = contest.rolls.find((r) => r.id === test.againstId)
     return won && lost && lost.score < won.score ? actor : null
   },
-  feinted: (state, action, againstId) => {
-    const actor = getAgainst(state, action, againstId)
-    return actor && state.forcedBy === actor.id && state.forcedSurge === againstId && state.inTurnCharacter === againstId ? actor : null
+  feinted: (state, test) => {
+    const actor = getAgainst(state, test)
+    return actor && state.forcedBy === actor.id && state.forcedSurge === test.againstId && state.inTurnCharacter === test.againstId ? actor : null
   },
-  underPressure: (state, action) => {
-    const actor = state.characters[action.actorId]
-    return actor && getPressingFactors(state, action.actorId) >= 5 ? actor : null
+  underPressure: (state, { testerId }) => {
+    const tester = state.characters[testerId]
+    return tester && getPressingFactors(state, testerId) >= 5 ? tester : null
   },
-  fragile: (state, action, againstId) => {
-    const actor = getAgainst(state, action, againstId)
-    return actor && againstId && isFragile(state, againstId) ? actor : null
+  fragile: (state, test) => {
+    const actor = getAgainst(state, test)
+    return actor && test.againstId && isFragile(state, test.againstId) ? actor : null
   },
-  protecting: (state, action) => {
-    const actor = state.characters[action.actorId]
-    return actor && actor.usedSurge === 'protection' && action.reactionTo !== null ? actor : null
+  protecting: (state, { testerId, action }) => {
+    const tester = state.characters[testerId]
+    return tester && action && tester.usedSurge === 'protection' && action.reactionTo !== null ? tester : null
   },
 }
 
-// The actor of a test made against someone else.
-function getAgainst(state: SceneState, action: Action, againstId: string | null): CampaignCharacter | null {
-  return againstId && againstId !== action.actorId ? state.characters[action.actorId] ?? null : null
+// The maker of a test made against someone else.
+function getAgainst(state: SceneState, { testerId, againstId }: EdgeTest): CampaignCharacter | null {
+  return againstId && againstId !== testerId ? state.characters[testerId] ?? null : null
 }
 
 // What the test gets from every edge whose situation holds, one line per
 // ability, by the holder's learned abilities.
-function getEdgeTerms(state: SceneState, action: Action, againstId: string | null, reacting: boolean): Term[] {
+function getEdgeTerms(state: SceneState, test: EdgeTest): Term[] {
   const lines = new Map<string, number>()
   for (const when of Object.keys(EDGE_HOLDER) as EdgeRecipe['when'][]) {
-    const holder = EDGE_HOLDER[when](state, action, againstId)
+    const holder = EDGE_HOLDER[when](state, test)
     if (!holder) continue
     for (const ability of getLearnedAbilities(holder)) {
       for (const r of ability.recipes) {
-        if (r.type === 'edge' && r.when === when && (r.tests === 'all' || reacting)) lines.set(ability.family, (lines.get(ability.family) ?? 0) + r.hit)
+        if (r.type === 'edge' && r.when === when && (r.tests === 'all' || test.reacting)) lines.set(ability.family, (lines.get(ability.family) ?? 0) + r.hit)
       }
     }
   }

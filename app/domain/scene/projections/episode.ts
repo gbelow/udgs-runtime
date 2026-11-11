@@ -1,7 +1,7 @@
 import type { Outcome } from '../../types'
 import type { Action, ActionRoll, Change, SceneState, CostTerm, Detection, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import type { Term } from '../../character/rules/terms'
+import { addUpTerms, type Term } from '../../character/rules/terms'
 import { getActionName } from './labels'
 import { getActionReport, type ActionReport } from './outcomes'
 import { ACTIONS } from '../rules/actionCatalog'
@@ -206,16 +206,13 @@ function getDeclared(state: SceneState, action: Action): string[] {
 function getTestLine(roll: ActionRoll | null): TestLine | null {
   if (!roll) return null
   return {
-    sum: `${roll.die} (d10)${addUp(roll.skillTerms)} = ${roll.score}`,
-    against: `DL ${roll.DL}${roll.DLTerms.length > 0 ? ` = ${addUp(roll.DLTerms).slice(3)}` : ''}`,
+    sum: `${roll.die} (d10)${addUpTerms(roll.skillTerms)} = ${roll.score}`,
+    against: `DL ${roll.DL}${roll.DLTerms.length > 0 ? ` = ${addUpTerms(roll.DLTerms).slice(3)}` : ''}`,
     degree: roll.degree,
     margin: roll.score >= roll.DL ? `+${roll.score - roll.DL}` : `−${roll.DL - roll.score}`,
     source: roll.source ? describeSource(roll.source).trim() : '',
   }
 }
-
-// Terms as the rest of a sum, each led by its sign: " + 5 Strike − 2 dark".
-const addUp = (terms: Term[]): string => terms.map((t) => ` ${t.value < 0 ? '−' : '+'} ${Math.abs(t.value)} ${t.label}`).join('')
 
 function describeHeadline(target: string, outcome: Outcome): string {
   if (outcome.stopped) return `${target} intercepted`

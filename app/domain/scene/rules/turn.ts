@@ -19,6 +19,7 @@ import { getParkedReason, isParked } from './parked'
 import { getPartners } from './partners'
 import { isImmobile } from './situational'
 import { sumTerms } from '../../character/rules/terms'
+import { getOwnEdgeTerms } from './cunning'
 
 // play.tex "Combat": each character acts in turns "decided on a 'first to
 // ask, first to play' basis that can be contested by other characters". A
@@ -112,10 +113,11 @@ export function getContestWinner(rolls: ContestRoll[]): string | null {
 
 // One contender's cunning roll, the die kept as thrown in `mode` (it does
 // not explode: play.tex "Exploding die": only where it says), with the
-// routing bonus of a chase.
+// routing bonus of a chase and the roller's edges.
 export function rollCunning(state: SceneState, id: string, die: number, mode: RollMode): ContestRoll {
-  const skill = getCunning(state.characters[id]) + sumTerms(getRoutingTerms(state, id))
-  return { id, mode, die, skill, score: die + skill }
+  const skillTerms = [{ label: 'cunning', value: getCunning(state.characters[id]) }, ...getRoutingTerms(state, id), ...getOwnEdgeTerms(state, id)]
+  const skill = sumTerms(skillTerms)
+  return { id, mode, die, skill, skillTerms, score: die + skill }
 }
 
 // play.tex "Safe and risky tests": the ways the character may throw their
