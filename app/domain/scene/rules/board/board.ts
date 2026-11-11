@@ -9,6 +9,7 @@ import { add, angleBetween, angularGap, centroid, coordKey, crossingAt, disk, di
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 import { without } from '../../../utils'
+import { seededRng } from '../../../play/dice'
 import { getPieceCells, liftPiece } from './piece'
 
 // The board rules read the spatial facts of a fight off `state.board`.
@@ -114,6 +115,16 @@ export function getTerrainAt(board: Board, cell: Coord, height: number): Footing
   return reached.length > 0
     ? reached.reduce((a, b) => (b.floor > a.floor ? b : a))
     : floors.reduce((a, b) => (b.floor < a.floor ? b : a))
+}
+
+// combat.tex "Balance": the DL of the Balance test on a difficult cell,
+// "based on how slippery, unstable, long, and narrow the path is": the
+// ground's own DL, moved by up to its spread either way by a draw the board's
+// seed and the cell's place settle, so the same ground reads the same each time.
+export function getBalanceDLAt(board: Board, cell: Coord, terrain: TerrainCell): number {
+  if (terrain.DLSpread <= 0) return terrain.DL
+  const draw = seededRng((board.seed ^ Math.imul(cell.q, 73856093) ^ Math.imul(cell.r, 19349663)) | 0)()
+  return terrain.DL + Math.round((draw * 2 - 1) * terrain.DLSpread)
 }
 
 // The floor of the cell someone whose feet are at `feet` stands on, the

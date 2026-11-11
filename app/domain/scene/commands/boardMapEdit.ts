@@ -10,8 +10,8 @@ import { getPieceLevel } from '../rules/board/piece'
 export type BoardMapUpdater = (map: BoardMap) => BoardMap
 
 // A fresh map reaching `radius` along every axis, all open ground.
-export function newBoardMap(radius = 6): BoardMap {
-  return BoardMapSchema.parse({ extent: { q: radius, r: radius, s: radius } })
+export function newBoardMap(radius = 6, seed = 0): BoardMap {
+  return BoardMapSchema.parse({ extent: { q: radius, r: radius, s: radius }, seed })
 }
 
 function viaScene(map: BoardMap, change: (scene: ReturnType<typeof sceneOfMap>) => ReturnType<typeof sceneOfMap>): BoardMap {

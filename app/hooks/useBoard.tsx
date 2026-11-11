@@ -35,7 +35,7 @@ export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "li
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
 
-  const create = (radius: number) => dispatch({ kind: "createBoard", args: [radius] });
+  const create = (radius: number) => dispatch({ kind: "createBoard", args: [radius, Math.floor(Math.random() * 0x7fffffff)] });
   const remove = () => dispatch({ kind: "removeBoard", args: [] });
   const click = (c: Click, brush: TerrainBrush | null = null, reposition = false, radius = 0) => {
     const state = useCombatStore.getState();

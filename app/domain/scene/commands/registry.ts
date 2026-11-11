@@ -107,7 +107,7 @@ export const sceneCommands = {
   click: command((ctx, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null, radius?: number): Updater =>
     (state) => readOn(ctx.newId, state, click, brush, reposition, selected, radius ?? 0)?.apply(state) ?? state)
     .by((state, click, brush, reposition, selected, radius) => readOn(() => '', state, click, brush, reposition, selected, radius ?? 0)?.actor ?? null),
-  createBoard: command((_, radius: number) => createBoard(radius)).by(gm),
+  createBoard: command((_, radius: number, seed?: number) => createBoard(radius, seed)).by(gm),
   removeBoard: command(() => removeBoard).by(gm),
   resizeBoard: command((_, extent: BoardExtent) => resizeBoard(extent)).by(gm),
   light: command((_, level: LightLevel) => setLight(level)).by(gm),

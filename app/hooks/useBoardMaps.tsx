@@ -78,7 +78,7 @@ export function useBoardMapEditor(storeyAt: number, chosen: string | null, look:
     stored: (id) => boardMaps[id] && { map: boardMaps[id].map, shared: boardMaps[id].owner === null },
     keep: saveBoardMap,
     drop: deleteBoardMap,
-    fresh: () => newBoardMap(),
+    fresh: () => newBoardMap(6, Math.floor(Math.random() * 0x7fffffff)),
   });
 }
 

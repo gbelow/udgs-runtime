@@ -4,7 +4,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { DIRECTIONS, HEX_CORNERS, ROTATIONS, fromPlane, hexCorner, getChordEnds, getHexCorners, add, angleBetween, coordKey, extentCells, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane, type Grain, type Point } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
-import { getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor, getThinWallsOf, hasThinWalls } from '../rules/board/board'
+import { getBalanceDLAt, getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor, getThinWallsOf, hasThinWalls } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -688,7 +688,7 @@ function buildGround(board: Board, beyond: string[]): BoardGround {
       elevationLabel: elevationLabel(terrain?.elevation ?? 0),
       noise: terrain?.noise ?? 0,
       climbDL: terrain?.climbDL ?? null,
-      test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: terrain.DL } : null,
+      test: terrain?.liquid ? { kind: 'swim', DL: terrain.DL } : terrain?.difficult ? { kind: 'balance', DL: getBalanceDLAt(board, cell, terrain) } : null,
       soft: terrain?.soft ?? false,
       surface: getCellSurfaceName(board, key),
       art: artIndex(getCellArt(board, key)),

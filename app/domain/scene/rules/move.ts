@@ -11,7 +11,7 @@ import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
-import { getClimbBack, getClimbBound, getClimbTarget, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
+import { getClimbBack, getClimbBound, getClimbTarget, getBalanceDLAt, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
 import { getRollModes, hasGrant } from '../../character/rules/effects'
@@ -362,7 +362,10 @@ function getDifficultSteps(state: SceneState, action: MoveAction): { step: numbe
   const steps = getMovePlacements(state, action).slice(1)
   return getMoveSweep(state, action).flatMap((footprint, at) => {
     if (!touchesGround(action.movement, at === action.path.length - 1)) return []
-    const DLs = footprint.map((f) => getTerrainAt(board, f, steps[at].elevation).terrain).filter((t) => t?.difficult).map((t) => t!.DL)
+    const DLs = footprint.flatMap((f) => {
+      const t = getTerrainAt(board, f, steps[at].elevation).terrain
+      return t?.difficult ? [getBalanceDLAt(board, f, t)] : []
+    })
     return DLs.length > 0 ? [{ step: at + 1, DL: Math.max(...DLs) }] : []
   })
 }

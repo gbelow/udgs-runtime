@@ -201,6 +201,9 @@ export const TerrainCellSchema = z.object({
   // combat.tex "Balance": the DL of the difficult terrain test, "based on how
   // slippery, unstable, long, and narrow the path is" — the table's call
   DL: num.default(-5),
+  // how far a difficult cell's DL may stray from `DL` either way, each cell by
+  // its own place on the board (`getBalanceDLAt`); 0 is ground of one DL
+  DLSpread: num.min(0).default(0),
   // combat.tex "Climbing": the DL of climbing the face of this cell, "the quality
   // of the grips and the distance between holds"; null is a face with nothing
   // to hold, which only a climb no taller than the climber can cross
@@ -250,7 +253,7 @@ export type SurfaceArt = z.infer<typeof SurfaceArtSchema>
 // is the picture a cliff is drawn with where this is the higher ground; none
 // leaves the drop shaded.
 // Structure (walls, elevation) is not part of it; water is, as `liquid`.
-export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true, noise: true, soft: true, liquid: true, visibility: true }).extend({
+export const SurfaceSchema = TerrainCellSchema.pick({ difficult: true, DL: true, DLSpread: true, noise: true, soft: true, liquid: true, visibility: true }).extend({
   name: str.default(''),
   randomize: z.boolean().default(true),
   bleed: num.min(0).default(0.5),
@@ -372,6 +375,9 @@ export const BoardSchema = z.object({
   // the surface of every cell that names none, by its name in the surfaces
   // catalog; the rules do not read it
   surface: str.nullable().default(null),
+  // what tells this board's ground from another's of the same surface: the
+  // seed the spread of difficult cells is drawn from
+  seed: num.int().default(0),
   // where and how far the board is drawn; the rules do not care, the
   // simulation tool does.
   origin: CoordSchema.default({ q: 0, r: 0 }),

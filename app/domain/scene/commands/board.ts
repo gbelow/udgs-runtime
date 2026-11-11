@@ -30,8 +30,8 @@ import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
 // is open, so a fight in progress cannot have its ground changed under it.
 
 // A fresh, empty board reaching `radius` along every axis, everyone unplaced.
-export function createBoard(radius: number): Updater {
-  return (state) => (state.board ? state : { ...state, board: BoardSchema.parse({ extent: { q: radius, r: radius, s: radius } }) })
+export function createBoard(radius: number, seed = 0): Updater {
+  return (state) => (state.board ? state : { ...state, board: BoardSchema.parse({ extent: { q: radius, r: radius, s: radius }, seed }) })
 }
 
 // Takes the board away: the fight goes on with no grid, everyone in reach,
@@ -134,6 +134,7 @@ function laidCell<T extends TerrainCell>(current: T, name: string, surface: Surf
     liquid,
     difficult: !current.blocking && !liquid && surface.difficult,
     DL: liquid && !surface.liquid ? current.DL : surface.DL,
+    DLSpread: surface.difficult ? surface.DLSpread : 0,
     noise: surface.noise,
     soft: surface.soft,
     visibility: surface.visibility,
