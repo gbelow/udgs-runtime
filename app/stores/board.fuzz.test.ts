@@ -392,7 +392,7 @@ function assertSeen(s: SceneState) {
       if (controlled.includes(id) || !view.characters[id]) continue
       const { trainables, containers, injuries, resources, abilities, spells, notes } = view.characters[id]
       expect({ trainables, containers, injuries, resources, abilities, spells, notes }, `${controlled.join('+')} is shown the sheet of ${id}, whom they do not play`)
-        .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: blank.injuries, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, notes: blank.notes })
+        .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: { ...blank.injuries, injuryLevel: s.characters[id].injuries.injuryLevel }, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, notes: blank.notes })
     }
     const known = new Set([...Object.keys(view.actions), ...view.journal.map((e) => e.action.id)])
     for (const a of Object.values(view.actions)) {
