@@ -6,6 +6,7 @@
      fg / muted              values and text, labels+derived+disabled
      accent                  selected, active, focus, primary action — never harm
      good                    pending equip/store flows, positive terms
+     caution                 between good and bad: a middling third left
      bad                     injury, affliction, negative terms, dead, delete
    Umber is the default; the others are selected with data-theme on <html>
    (see app/theme.ts). */
@@ -18,6 +19,7 @@
   --muted: #93826A;
   --accent: #D1934F;
   --good: #5CB87A;
+  --caution: #D9B44A;
   --bad: #DC4C4C;
 
   /* Injury stages, one per multiple of 10 IL (combat.tex "Injury level"):
@@ -38,6 +40,7 @@
   --muted: #7E93AD;
   --accent: #8DC8EE;
   --good: #3ECF8E;
+  --caution: #F5C451;
   --bad: #E5484D;
 }
 
@@ -50,6 +53,7 @@
   --muted: #7E93AD;
   --accent: #D69A52;
   --good: #3ECF8E;
+  --caution: #F5C451;
   --bad: #E5484D;
 }
 
@@ -62,6 +66,7 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-good: var(--good);
+  --color-caution: var(--caution);
   --color-bad: var(--bad);
   --color-injury-1: var(--injury-1);
   --color-injury-2: var(--injury-2);

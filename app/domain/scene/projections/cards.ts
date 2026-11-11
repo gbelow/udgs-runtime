@@ -1,5 +1,5 @@
 import type { SeenScene } from '../types'
-import type { AfflictionKey } from '../../types'
+import type { AfflictionKey, Third } from '../../types'
 import { perState } from '../../perState'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { getSituationalAfflictions } from '../rules/situational'
@@ -11,8 +11,9 @@ import { CombatRosterEntry, getRosterParties } from './roster'
 export type SceneCard = CombatRosterEntry & {
   isInTurn: boolean
   dead: boolean
-  AP: number
-  STA: number
+  // a number on a sheet the viewer plays, a third left on a face
+  AP: number | { third: Third }
+  STA: number | { third: Third }
   IL: number
   bleed: number
   burning: number
@@ -31,8 +32,8 @@ function buildSceneCards(state: SeenScene): SceneCardParty[] {
         ...entry,
         isInTurn: entry.id === state.inTurnCharacter,
         dead: isDead(c),
-        AP: c.resources.AP,
-        STA: c.resources.STA,
+        AP: c.shown ? { third: c.shown.AP } : c.resources.AP,
+        STA: c.shown ? { third: c.shown.STA } : c.resources.STA,
         IL: c.injuries.injuryLevel,
         bleed: c.injuries.bleed,
         burning: c.injuries.burning,

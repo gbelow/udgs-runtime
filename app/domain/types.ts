@@ -1626,7 +1626,15 @@ export type LearnedSpell = z.infer<typeof LearnedSpellSchema>
 // die came to, and the HOPs it left to spend on improvements. One slot for
 // spells and attacks alike — a new roll replaces it, a round change clears it.
 
+// multiplayer-plan.md "Hidden information": which third of a round's AP, and
+// of its STA, a character is seen to have left: 0 the lowest, 2 the highest.
+export const ThirdSchema = z.union([z.literal(0), z.literal(1), z.literal(2)])
+export type Third = z.infer<typeof ThirdSchema>
+
 const CampaignValues = {
+  // what a viewer who does not play the character is shown of its AP and
+  // STA, in place of the numbers; null on the character's own sheet
+  shown: z.object({ AP: ThirdSchema, STA: ThirdSchema }).strip().nullable().default(null),
   injuries: InjuriesSchema.partial().default({}).transform(v => InjuriesSchema.parse(v)),
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),

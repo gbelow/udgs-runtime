@@ -24,6 +24,19 @@ export function SceneCards(){
   )
 }
 
+const THIRDS = [
+  { label: 'low', className: 'bg-bad' },
+  { label: 'middling', className: 'bg-caution' },
+  { label: 'high', className: 'bg-good' },
+] as const
+
+// What is left of a resource: the number, or on a token only the third.
+function Left({ value }: { value: SceneCard['AP'] }){
+  if (typeof value === 'number') return <span className='font-mono text-fg'>{value}</span>
+  const third = THIRDS[value.third]
+  return <span title={`${third.label} (a third)`} aria-label={third.label} className={`inline-block w-2 h-2 rounded-full ${third.className}`} />
+}
+
 // One character's card; a click picks them, and what is passed in sits under
 // it.
 export function Card({ card, picked = false, onClick, children }: { card: SceneCard, picked?: boolean, onClick: () => void, children?: ReactNode }){
@@ -44,8 +57,8 @@ export function Card({ card, picked = false, onClick, children }: { card: SceneC
           {card.role && card.role !== 'none' ? <span className='ml-auto text-[10px] text-muted'>{card.role}</span> : null}
         </div>
         <div className='flex flex-row flex-wrap gap-x-2.5 text-xs text-muted'>
-          <span>AP <span className='font-mono text-fg'>{card.AP}</span></span>
-          <span>STA <span className='font-mono text-fg'>{card.STA}</span></span>
+          <span>AP <Left value={card.AP} /></span>
+          <span>STA <Left value={card.STA} /></span>
           <span>IL <span className='font-mono text-fg'>{card.IL}</span></span>
           {card.bleed ? <span className='text-bad'>bleed <span className='font-mono'>{card.bleed}</span></span> : null}
           {card.burning ? <span className='text-bad'>burning <span className='font-mono'>{card.burning}</span></span> : null}

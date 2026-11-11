@@ -2,18 +2,16 @@ import type { ActionKind, AttackAction, SceneState, HOPPurchase, RootAction } fr
 import type { Outcome } from '../types'
 import type { Dice } from '../play/dice'
 import { rollOrPay } from '../scene/commands/action'
-import { spendHOP } from '../scene/commands/choices'
 import { appendActions } from '../scene/commands/log'
-import { getAttackFacts, getHOPOptions } from '../scene/rules/damage'
+import { getAttackFacts } from '../scene/rules/damage'
 import { getBreakOdds, getBreakRisks } from '../scene/rules/breakage'
 import { injuryMap } from '../tables'
 import { getDefaultAim, getFreeAttackOptions } from '../scene/rules/attack'
 import { getPayableCost } from '../scene/rules/action'
-import { getSettled } from '../scene/rules/settle'
 import { getAction, getOpenAction } from '../scene/rules/log'
-import { getOutcomes } from '../scene/projections/outcomes'
 import { getStrikeDefenses } from './defenses'
 import { getStrikes, type Strike } from './weapons'
+import { spendBest, type Spend } from './overflow'
 
 // What an attack would do to one foe as the fight stands, for a bot choosing
 // among its attacks: every row and variation the attacker can pay for and
@@ -137,8 +135,6 @@ export function isWorthTheAP(attack: Pick<AttackEstimate, 'bestCase'>): boolean 
   return (attack.bestCase.tier ?? -1) >= WORTH_TIER
 }
 
-type Spend = { purchases: HOPPurchase[]; AP: number; STA: number }
-
 // The d10 as (value, probability). Where the test explodes, a 9 adds d6s while
 // they show 6 and a 0 subtracts them; the tail is cut at two d6s and the rest
 // folded into the last value.
@@ -166,13 +162,6 @@ function scripted(value: number, flags?: boolean[]): Dice {
   }
 }
 
-// What a blow comes to, to rank by: death, then injury level, then tier, then
-// bleeding, then the damage that got through.
-function rank(o: Outcome | null): number {
-  if (!o) return -1
-  return (o.dead ? 1e9 : 0) + o.IL * 1e6 + ((o.tier ?? -1) + 1) * 1e4 + o.bleed * 1e2 + o.arrived.blunt + o.arrived.cut
-}
-
 const NO_DEFENSE: Defense = { label: 'no defense', kind: 'none', declare: null, cost: { AP: 0, STA: 0 } }
 
 type Defense = { label: string; kind: ActionKind | 'none'; declare: ((state: SceneState, open: RootAction, newId: () => string) => SceneState | null) | null; cost: { AP: number; STA: number } }
@@ -187,33 +176,10 @@ export function estimateAttacks(state: SceneState, attackerId: string, targetId:
   if (!target || !state.characters[attackerId]) return []
   const room = Math.max(0, target.injuries.deathThreshold - target.injuries.injuryLevel)
 
-  const outcomeOn = (s: SceneState, open: RootAction): Outcome | null => getOutcomes(s, getSettled(s, open)).find((o) => o.id === targetId)?.outcome ?? null
-
   const aimed = (strike: Strike): SceneState => {
     const part = options.aim ? target.body.find((p) => p.location === options.aim && !p.lost) : undefined
     const aim = part ? { location: part.location, part: part.id } : getDefaultAim(target)
     return appendActions(strike.state, [{ ...strike.open, targetId, ...aim }])
-  }
-
-  // every way of spending the overflow of a hit, as states at `post`
-  const spends = (rolled: SceneState): { state: SceneState; spend: Spend }[] => {
-    const seen = new Set<string>()
-    const found: { state: SceneState; spend: Spend }[] = []
-    const walk = (s: SceneState, purchases: HOPPurchase[], AP: number, STA: number): void => {
-      const now = getOpenAction(s) as AttackAction
-      const key = JSON.stringify(now.spent)
-      if (seen.has(key) || found.length > 400) return
-      seen.add(key)
-      found.push({ state: s, spend: { purchases, AP, STA } })
-      for (const option of getHOPOptions(s, now)) {
-        if (!option.available) continue
-        const next = spendHOP(option.purchase)(s)
-        if (next === s) continue
-        walk(next, [...purchases, option.purchase], AP + (option.price?.AP ?? 0), STA + (option.price?.STA ?? 0))
-      }
-    }
-    walk(rolled, [], 0, 0)
-    return found
   }
 
   // the items the blow puts at risk as it lands, the armor left out
@@ -237,15 +203,8 @@ export function estimateAttacks(state: SceneState, attackerId: string, targetId:
     const now = getOpenAction(s)
     if (now && now.step === 'post' && (now.kind === 'strike' || now.kind === 'shoot')) {
       const roll = now.roll
-      const unspent = outcomeOn(s, now)
-      const choices = roll?.degree === 'hit' ? spends(s) : [{ state: s, spend: { purchases: [], AP: 0, STA: 0 } }]
-      let best = { outcome: unspent, spend: choices[0].spend, state: choices[0].state }
-      for (const c of choices) {
-        const o = outcomeOn(c.state, getOpenAction(c.state) as RootAction)
-        const better = rank(o) - rank(best.outcome) || best.spend.AP + best.spend.STA - (c.spend.AP + c.spend.STA)
-        if (better > 0) best = { outcome: o, spend: c.spend, state: c.state }
-      }
-      return { degree: roll?.degree ?? 'miss', score: roll?.score ?? 0, DL: roll?.DL ?? 0, HOP: roll?.HOP ?? 0, best: best.outcome, spend: best.spend, unspent, breaks: breaksOf(best.state, getOpenAction(best.state) as AttackAction) }
+      const best = spendBest(s, now, targetId)
+      return { degree: roll?.degree ?? 'miss', score: roll?.score ?? 0, DL: roll?.DL ?? 0, HOP: roll?.HOP ?? 0, best: best.outcome, spend: best.spend, unspent: best.unspent, breaks: breaksOf(best.state, getOpenAction(best.state) as AttackAction) }
     }
     const landed = getAction(s, openId)
     if (!landed || (landed.kind !== 'strike' && landed.kind !== 'shoot')) return null

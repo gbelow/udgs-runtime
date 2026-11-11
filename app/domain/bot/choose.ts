@@ -1,7 +1,7 @@
 import type { SceneState, RootAction } from '../scene/types'
 import { rollD10, seededRng, type Dice } from '../play/dice'
 import { getFightName } from '../scene/rules/fighters'
-import { getHistory, getLog } from '../scene/rules/log'
+import { getHistory, getLog, getOpenAction } from '../scene/rules/log'
 import { defend, getDefenseOptions } from './answer'
 import { getCandidates } from './candidates'
 import { hold } from './engine'
@@ -11,7 +11,8 @@ import { getTuning, isMember, type Party } from './party'
 import { rollout } from './rollout'
 import type { Trace } from './trace'
 import { evaluate, type Value } from './value'
-import type { Played } from './move'
+import { applyMove, type Played } from './move'
+import { getBelief } from './belief'
 
 // Where a bot weighs its options: each is played out on a copy of the state
 // with the same few dice and the fight played on from there (rollout.ts), the
@@ -71,16 +72,30 @@ function pick(state: SceneState, parties: readonly Party[], party: Party, actorI
   return best.index
 }
 
-// What the character does with its turn: the option it weighs best, or null
-// to do nothing and keep what AP it has.
+// Whether a move chosen on what the character believes is taken by the table
+// as it really stands: it changes something, and leaves no action of the
+// character's refused at its commit. A walk into a space someone unseen
+// stands in is not.
+function comesOff(real: SceneState, played: Played, id: string): boolean {
+  let ids = 0
+  const after = applyMove(real, played.move, () => 5, () => `check${++ids}`)
+  const open = getOpenAction(after)
+  return after !== real && !(open?.actorId === id && open.step === 'define')
+}
+
+// What the character does with its turn, weighed on the fight as it believes
+// it to stand (belief.ts): the option it weighs best, or null to do nothing
+// and keep what AP it has.
 export function chooseTurnAction(state: SceneState, parties: readonly Party[], party: Party, id: string, dice: Dice, newId: () => string, trace?: Trace): Played | null {
-  const candidates = getCandidates(state, party, id, newId)
+  const believed = getBelief(state, party, id)
+  const candidates = getCandidates(believed, party, id, newId)
   if (candidates.length === 0) return null
   const options: Option[] = [
-    { label: 'hold', play: () => hold(state, id)?.state ?? null, waiting: getTuning(party).patience * (state.round - 1) },
+    { label: 'hold', play: () => hold(believed, id)?.state ?? null, waiting: getTuning(party).patience * (believed.round - 1) },
     ...candidates.map((c) => ({ label: c.label, play: (d: Dice) => c.play(d)?.state ?? null })),
   ]
-  return candidates[pick(state, parties, party, id, 'turn', options, [], newId, trace) - 1]?.play(dice) ?? null
+  const chosen = candidates[pick(believed, parties, party, id, 'turn', options, [], newId, trace) - 1]?.play(dice) ?? null
+  return chosen && comesOff(state, chosen, id) ? chosen : null
 }
 
 // How a member of the party who may defend against the committed action
@@ -88,14 +103,15 @@ export function chooseTurnAction(state: SceneState, parties: readonly Party[], p
 export function chooseAnswer(state: SceneState, parties: readonly Party[], party: Party, open: RootAction, newId: () => string, trace?: Trace): Played | null {
   if (isMember(party, open.actorId)) return null
   for (const id of party.members) {
-    const declared = getDefenseOptions(state, id, open).flatMap((o) => {
-      const next = defend(state, id, open, o, newId)
+    const believed = getBelief(state, party, id)
+    const declared = getDefenseOptions(believed, id, open).flatMap((o) => {
+      const next = defend(believed, id, open, o, newId)
       return next ? [{ label: `${o.draft.kind}${o.surge ? ' (surge)' : ''}`, played: next }] : []
     })
     if (declared.length === 0) continue
-    const options: Option[] = [{ label: 'no defense', play: () => state }, ...declared.map((d) => ({ label: d.label, play: () => d.played.state }))]
-    const chosen = pick(state, parties, party, id, 'answer', options, [id], newId, trace)
-    if (chosen > 0) return declared[chosen - 1].played
+    const options: Option[] = [{ label: 'no defense', play: () => believed }, ...declared.map((d) => ({ label: d.label, play: () => d.played.state }))]
+    const chosen = pick(believed, parties, party, id, 'answer', options, [id], newId, trace)
+    if (chosen > 0 && comesOff(state, declared[chosen - 1].played, id)) return declared[chosen - 1].played
   }
   return null
 }
