@@ -8,20 +8,29 @@ import { getOpenAction } from '../scene/rules/log'
 import { getAvailableActions } from '../scene/rules/options'
 import { amendAction, declareAction } from '../scene/commands/action'
 import { getLiveFoes, type Party } from './party'
-import { getBestOf, getBestReading, getReadings, type Reading } from './reading'
+import { getBestOf, getBestReading, getDrawnByAction, getReadings, getUnanswered, type Reading } from './reading'
+import { surge } from '../scene/commands/turn'
+import { getSurgeTurnBar } from '../scene/rules/turn'
+import { canSurge } from '../character/rules/surge'
 import { applyMove, type Move } from './move'
 
 // Where to walk, as a means to an attack. For each foe the character could
 // attack from somewhere it can reach and still pay for the attack, the cells
-// it could attack that foe from are looked at, the cheapest first: of these,
-// the walk that draws the least from the opportunity attacks it draws, then
-// the one where the foes could do the least to it, then the shortest. Where
-// it can attack no one this turn, it runs at the nearest foe as far as it can,
-// to the cell nearer that foe where the foes could do the least to it. All in
-// IL, read off the quick readings (reading.ts), the foes where they stand.
+// it could attack that foe from are looked at, where it stands and the
+// cheapest walks: of these, the one that draws the least from opportunity
+// attacks (those the walk draws, and for a shot those the shot draws from
+// whoever has it in melee reach), then the one where the foes could do the
+// least to it, then the shortest. Where it can attack no one this turn, it
+// runs at the nearest foe as far as it can, to the cell nearer that foe where
+// the foes could do the least to it. And where a foe could hurt it where it
+// stands and its surge is still to make, it may run away instead: a movement
+// surge and a run as far from the foes as it reaches. All in harm
+// (harm.ts), read off the quick readings (reading.ts), the foes where they stand.
 
 export type Spot = {
   movement: 'basic' | 'run'
+  // made with a movement surge first
+  surged: boolean
   to: ReachableCell
   // the most it could do from there to the foe it walks to attack
   offense: number
@@ -45,13 +54,14 @@ function standingAt(state: SceneState, id: string, at: Placement, paid: { AP: nu
   return { ...moved, characters: { ...moved.characters, [id]: { ...c, resources: { ...c.resources, AP: c.resources.AP - paid.AP, STA: c.resources.STA - paid.STA } } } }
 }
 
-export function walkMove(id: string, movement: 'basic' | 'run', path: Coord[]): Move {
-  return [{ kind: 'declare', args: [id, { kind: 'move' }] }, { kind: 'amend', args: [{ movement, path }] }, { kind: 'commit', args: [] }]
+export function walkMove(id: string, movement: 'basic' | 'run', path: Coord[], surged = false): Move {
+  return [...(surged ? [{ kind: 'surge', args: [id, 'movement'] }] as Move : []), { kind: 'declare', args: [id, { kind: 'move' }] }, { kind: 'amend', args: [{ movement, path }] }, { kind: 'commit', args: [] }]
 }
 
 // The foes the panel offers an opportunity attack on the walk once it is
 // committed.
 function drawnBy(state: SceneState, id: string, movement: 'basic' | 'run', to: ReachableCell, foes: string[], newId: () => string): string[] {
+  if (to.steps === 0) return []
   const committed = applyMove(state, walkMove(id, movement, to.path), () => 5, newId)
   const open = getOpenAction(committed)
   if (!open || open.actorId !== id || open.step !== 'react') return []
@@ -59,6 +69,24 @@ function drawnBy(state: SceneState, id: string, movement: 'basic' | 'run', to: R
 }
 
 type Walk = { movement: 'basic' | 'run'; to: ReachableCell; at: Placement }
+
+// The reachable cells for each kind of movement, from the state as it stands
+// (a surge made or not), less those in a foe's space.
+function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () => string): Walk[] {
+  const declared = declareAction(id, { kind: 'move' }, newId)(state)
+  if (getOpenAction(declared)?.kind !== 'move') return []
+  const walks: Walk[] = []
+  for (const movement of ['basic', 'run'] as const) {
+    const moving = amendAction({ movement })(declared)
+    const aimed = getOpenAction(moving)
+    if (aimed?.kind !== 'move') continue
+    for (const to of getReachableCells(moving, aimed)) {
+      if (setDistance([to.cell], foeCells) === 0) continue
+      walks.push({ movement, to, at: getPathPlacements(moving, aimed, to.path).at(-1) ?? { ...state.board!.placements[id], cell: to.cell } })
+    }
+  }
+  return walks
+}
 
 const costOf = (to: ReachableCell) => to.cost.AP + to.cost.STA
 
@@ -68,19 +96,7 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
   const self = state.characters[id]
   const origin = state.board?.placements[id]?.cell
   if (!origin || foeCells.size === 0 || !self) return []
-  const declared = declareAction(id, { kind: 'move' }, newId)(state)
-  if (getOpenAction(declared)?.kind !== 'move') return []
-
-  const walks: Walk[] = []
-  for (const movement of ['basic', 'run'] as const) {
-    const moving = amendAction({ movement })(declared)
-    const aimed = getOpenAction(moving)
-    if (aimed?.kind !== 'move') continue
-    for (const to of getReachableCells(moving, aimed)) {
-      if (setDistance([to.cell], [...foeCells.values()]) === 0) continue
-      walks.push({ movement, to, at: getPathPlacements(moving, aimed, to.path).at(-1) ?? { ...state.board!.placements[id], cell: to.cell } })
-    }
-  }
+  const walks = getWalks(state, id, [...foeCells.values()], newId)
 
   // What one character can do to another changes from cell to cell only with
   // the gap between them, so the readings are kept by gap as they are made,
@@ -94,16 +110,20 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
     return byGap.get(memo)!
   }
   const me = (walk: Walk) => ({ ...self, resources: { ...self.resources, AP: self.resources.AP - walk.to.cost.AP, STA: self.resources.STA - walk.to.cost.STA } })
-  const offense = (walk: Walk, foe: string) => getBestOf(state, read(walk, id, foe, false), me(walk), state.characters[foe])?.IL ?? 0
-  const danger = (walk: Walk) => [...foeCells.keys()].reduce((sum, foe) => sum + (getBestOf(state, read(walk, foe, id, true), state.characters[foe], me(walk))?.IL ?? 0), 0)
-  const drawn = (walk: Walk) => {
+  const offense = (walk: Walk, foe: string) => getBestOf(state, read(walk, id, foe, false), me(walk), state.characters[foe])?.harm ?? 0
+  const danger = (walk: Walk) => [...foeCells.keys()].reduce((sum, foe) => sum + (getBestOf(state, read(walk, foe, id, true), state.characters[foe], me(walk))?.harm ?? 0), 0)
+  const drawn = (walk: Walk, shooting: boolean) => {
     const there = standingAt(state, id, walk.at, walk.to.cost)
-    return drawnBy(state, id, walk.movement, walk.to, foes, newId).reduce((sum, foe) => sum + (getBestReading(there, foe, id)?.IL ?? 0), 0)
+    const walked = drawnBy(state, id, walk.movement, walk.to, foes, newId).reduce((sum, foe) => sum + (getBestReading(there, foe, id)?.harm ?? 0), 0)
+    return walked + (shooting ? getDrawnByAction(there, id, foes) : 0)
   }
-  const spot = (walk: Walk, dealt: number): Spot => {
+  // Whether the attack the character would make on the foe from there is a
+  // shot, the hardest it could pay for.
+  const shoots = (walk: Walk, foe: string) => getBestOf(state, read(walk, id, foe, false), me(walk), state.characters[foe])?.reading.kind === 'shoot'
+  const spot = (walk: Walk, dealt: number, shooting = false, surged = false): Spot => {
     const taken = danger(walk)
-    const lost = drawn(walk)
-    return { movement: walk.movement, to: walk.to, offense: dealt, danger: taken, drawn: lost, gap: setDistance([walk.to.cell], [...foeCells.values()]), score: dealt - taken - lost }
+    const lost = drawn(walk, shooting)
+    return { movement: walk.movement, surged, to: walk.to, offense: dealt, danger: taken, drawn: lost, gap: setDistance([walk.to.cell], [...foeCells.values()]), score: dealt - taken - lost }
   }
   const best = (spots: Spot[]) => spots.reduce<Spot | null>((a, b) => (!a || b.drawn < a.drawn || (b.drawn === a.drawn && (b.danger < a.danger || (b.danger === a.danger && costOf(b.to) < costOf(a.to)))) ? b : a), null)
 
@@ -120,33 +140,61 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
     const from = byCost.filter((walk) => offense(walk, foe) > 0)
     return from.length > 0 ? [{ foe, from, most: Math.max(...from.map((walk) => offense(walk, foe))) }] : []
   }).sort((a, b) => b.most - a.most).slice(0, TARGETS)
+  const offered = new Map<string, Spot>()
+  const offer = (s: Spot | null) => { if (s && s.to.steps > 0) offered.set(`${s.surged} ${s.to.cell.q},${s.to.cell.r}`, s) }
+  const here: Walk = { movement: 'basic', to: { cell: origin, steps: 0, cost: { AP: 0, STA: 0 }, path: [] }, at: state.board!.placements[id] }
   if (targets.length > 0) {
-    const here: Walk = { movement: 'basic', to: { cell: origin, steps: 0, cost: { AP: 0, STA: 0 }, path: [] }, at: state.board!.placements[id] }
-    const stay = danger(here)
-    const offered = new Map<string, Spot>()
     for (const { foe, from } of targets) {
-      const chosen = best(from.slice(0, SHORTLIST).map((walk) => spot(walk, offense(walk, foe))))
-      // Where the foe can be attacked from here, a walk is worth it only to
-      // stand where the foes could do less, drawing nothing on the way.
-      if (!chosen || (offense(here, foe) > 0 && (chosen.drawn > 0 || chosen.danger >= stay))) continue
-      offered.set(`${chosen.to.cell.q},${chosen.to.cell.r}`, chosen)
+      // For a shot, the cells it draws the least from are looked at first.
+      const exposure = (walk: Walk) => (shoots(walk, foe) ? getDrawnByAction(standingAt(state, id, walk.at, walk.to.cost), id, foes) : 0)
+      const nearest = from.map((walk) => ({ walk, exposed: exposure(walk) })).sort((a, b) => a.exposed - b.exposed || costOf(a.walk.to) - costOf(b.walk.to)).slice(0, SHORTLIST).map(({ walk }) => walk)
+      const looked = [...(offense(here, foe) > 0 ? [here] : []), ...nearest]
+      offer(best(looked.map((walk) => spot(walk, offense(walk, foe), shoots(walk, foe)))))
     }
-    return [...offered.values()]
+  } else {
+    offer(approach())
   }
+  offer(flight())
+  return [...offered.values()]
 
   // No one to attack this turn: run at the nearest foe as far as the AP goes.
-  const [nearest] = [...foeCells.entries()].sort((a, b) => setDistance([origin], [a[1]]) - setDistance([origin], [b[1]]))
-  const now = setDistance([origin], [nearest[1]])
-  for (const movement of ['run', 'basic'] as const) {
-    const nearer = walks.filter((walk) => walk.movement === movement && setDistance([walk.to.cell], [nearest[1]]) < now)
-    if (nearer.length === 0) continue
-    const most = Math.max(...nearer.map((walk) => walk.to.cost.AP))
-    const furthest = nearer.filter((walk) => walk.to.cost.AP === most)
-      .map((walk) => ({ walk, danger: danger(walk) }))
-      .sort((a, b) => a.danger - b.danger)
-      .slice(0, SHORTLIST)
-    const chosen = best(furthest.map(({ walk }) => spot(walk, 0)))
-    return chosen ? [chosen] : []
+  function approach(): Spot | null {
+
+    const [nearest] = [...foeCells.entries()].sort((a, b) => setDistance([origin!], [a[1]]) - setDistance([origin!], [b[1]]))
+    const now = setDistance([origin!], [nearest[1]])
+    for (const movement of ['run', 'basic'] as const) {
+      const nearer = walks.filter((walk) => walk.movement === movement && setDistance([walk.to.cell], [nearest[1]]) < now)
+      if (nearer.length === 0) continue
+      const most = Math.max(...nearer.map((walk) => walk.to.cost.AP))
+      const furthest = nearer.filter((walk) => walk.to.cost.AP === most)
+        .map((walk) => ({ walk, danger: danger(walk) }))
+        .sort((a, b) => a.danger - b.danger)
+        .slice(0, SHORTLIST)
+      return best(furthest.map(({ walk }) => spot(walk, 0)))
+    }
+    return null
   }
-  return []
+
+  // What the foes could do to the character at a cell whatever AP they
+  // have: each one's hardest blow alone.
+  function potential(walk: Walk): number {
+    return [...foeCells.keys()].reduce((sum, foe) => sum + Math.max(0, ...read(walk, foe, id, false).map(getUnanswered)), 0)
+  }
+
+  // Running away, besides repositioning: a movement surge and a run as far
+  // from the foes as it reaches, of the farthest cells the one where the foes
+  // could do the least to it whatever their AP, when a foe could hurt it where
+  // it stands.
+  function flight(): Spot | null {
+    if (getSurgeTurnBar(state, id, 'movement') || !canSurge('movement')(self!) || potential(here) === 0) return null
+    const surged = surge(id, 'movement')(state)
+    const away = getWalks(surged, id, [...foeCells.values()], newId).filter((walk) => walk.movement === 'run')
+      .map((walk) => ({ walk, gap: setDistance([walk.to.cell], [...foeCells.values()]) }))
+    const farthest = Math.max(...away.map((a) => a.gap))
+    if (away.length === 0 || farthest <= setDistance([origin!], [...foeCells.values()])) return null
+    const [chosen] = away.filter((a) => a.gap === farthest)
+      .map(({ walk }) => ({ walk, potential: potential(walk) }))
+      .sort((a, b) => a.potential - b.potential || costOf(a.walk.to) - costOf(b.walk.to))
+    return spot(chosen.walk, 0, false, true)
+  }
 }

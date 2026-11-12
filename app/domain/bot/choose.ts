@@ -26,7 +26,7 @@ type Option = { label: string; play: (dice: Dice) => SceneState | null; waiting?
 
 function mean(values: Value[]): Value {
   const of = (part: keyof Value) => values.reduce((sum, v) => sum + v[part], 0) / values.length
-  return { total: of('total'), wounds: of('wounds'), threat: of('threat'), engage: of('engage'), resources: of('resources'), reserve: of('reserve'), waiting: of('waiting'), exchange: of('exchange') }
+  return { total: of('total'), wounds: of('wounds'), pressure: of('pressure'), potential: of('potential'), engage: of('engage'), resources: of('resources'), waiting: of('waiting'), exchange: of('exchange') }
 }
 
 // The dice every option is tried with: a middling and a high one, as the
@@ -37,7 +37,7 @@ const DICE = [4, 9]
 // everyone but `decided` answering by reflex, and the fight played on for the
 // party's horizon. Null when it does not come off. What the option is worth as
 // committed (exchange.ts) is read once: committing throws no die.
-function score(parties: readonly Party[], party: Party, actorId: string, option: Option, decided: readonly string[], newId: () => string): Value | null {
+function score(start: SceneState, parties: readonly Party[], party: Party, actorId: string, option: Option, decided: readonly string[], newId: () => string): Value | null {
   const tuning = getTuning(party)
   const values: Value[] = []
   let exchange: number | null = null
@@ -48,7 +48,7 @@ function score(parties: readonly Party[], party: Party, actorId: string, option:
     if (tuning.defensive > 0 && isAnswerable(played, party, actorId, tuning.defensive > 1, newId)) return null
     exchange ??= getExchange(played, parties, party, actorId, tuning, newId)
     const settled = playOut(played, parties, dice, newId, decided)
-    const end = evaluate(tuning.horizon > 0 ? rollout(settled, parties, dice, newId, tuning.horizon) : settled, party, actorId, tuning)
+    const end = evaluate(tuning.horizon > 0 ? rollout(settled, parties, dice, newId, tuning.horizon) : settled, party, actorId, tuning, start)
     values.push({ ...end, total: end.total + exchange - (option.waiting ?? 0), waiting: -(option.waiting ?? 0), exchange })
   }
   return mean(values)
@@ -56,7 +56,7 @@ function score(parties: readonly Party[], party: Party, actorId: string, option:
 
 function pick(state: SceneState, parties: readonly Party[], party: Party, actorId: string, kind: 'turn' | 'answer', options: Option[], decided: readonly string[], newId: () => string, trace?: Trace): number {
   const scored = options.flatMap((option, index) => {
-    const value = score(parties, party, actorId, option, decided, newId)
+    const value = score(state, parties, party, actorId, option, decided, newId)
     return value ? [{ index, label: option.label, value }] : []
   })
   if (scored.length === 0) return -1
@@ -65,7 +65,7 @@ function pick(state: SceneState, parties: readonly Party[], party: Party, actorI
     kind,
     actorId,
     actor: getFightName(state, actorId),
-    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, threat: value.threat, engage: value.engage, resources: value.resources, reserve: value.reserve, waiting: value.waiting, exchange: value.exchange })),
+    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, pressure: value.pressure, potential: value.potential, engage: value.engage, resources: value.resources, waiting: value.waiting, exchange: value.exchange })),
     chosen: scored.indexOf(best),
   })
   return best.index

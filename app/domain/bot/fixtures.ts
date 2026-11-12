@@ -34,6 +34,14 @@ export function archer(id: string): CampaignCharacter {
   return { ...(regripItem(bow.id, 2)(holdItem(bow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
 }
 
+// The archer with a short sword in a quick slot of the belt as well, to fight
+// with at close quarters.
+export function skirmisher(id: string): CampaignCharacter {
+  const c = archer(id)
+  const sword = ItemSchema.parse({ name: 'Short Sword', type: 'weapon', refId: 'Short Sword', bulk: 1 })
+  return { ...c, containers: addItemToContainer('Belt', 'quick', sword)(c).containers }
+}
+
 // The archer with an empty crossbow instead and bolts in the quiver, which
 // must be reloaded before every shot (gear.tex "Reload").
 export function crossbowman(id: string): CampaignCharacter {
@@ -160,6 +168,13 @@ export function swordBrawler(id: string): CampaignCharacter {
 
 // A spear in one hand and a shield in the other, trained: every defence is
 // open to them, a guard against a shot among them (combat.tex "Guard").
+// The fighter with a short sword in one hand and a wooden shield in the other.
+export function swordsman(id: string): CampaignCharacter {
+  const sword = ItemSchema.parse({ name: 'Short Sword', type: 'weapon', refId: 'Short Sword', bulk: 1 })
+  const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+  return regripItem(shield.id, 1)(holdItem(shield)(regripItem(sword.id, 1)(holdItem(sword)(fighter(id)))))
+}
+
 export function warden(id: string): CampaignCharacter {
   const spear = shortSpear()
   const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })

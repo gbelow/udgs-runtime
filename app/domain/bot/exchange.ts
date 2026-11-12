@@ -4,6 +4,7 @@ import { getLiveReactionsTo, getOpenAction } from '../scene/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
 import { getLiveFoes, isOnSide, type Party, type Tuning } from './party'
 import { getOpportunities } from './opportunity'
+import { getHarmTaken } from './harm'
 import { settleWith } from './open'
 import { expectedLoss } from './value'
 
@@ -47,10 +48,9 @@ function getOpportunityAnswers(state: SceneState, parties: readonly Party[], par
   if (!open || !target) return []
   const foes: Party = { members: getLiveFoes(state, party) }
   const settle = settleWith(parties, newId)
-  const before = target.injuries.injuryLevel
   return foes.members.flatMap((foe) => getOpportunities(state, foes, foe, open, newId, settle)
     .filter((o) => o.worth > 0)
-    .map((o) => DICE.reduce((sum, die) => sum + Math.max(0, (settle(o.played.state, () => die).characters[targetId]?.injuries.injuryLevel ?? before) - before), 0) / DICE.length / target.injuries.deathThreshold))
+    .map((o) => DICE.reduce((sum, die) => sum + getHarmTaken(state, settle(o.played.state, () => die), targetId), 0) / DICE.length))
 }
 
 export function getExchange(state: SceneState, parties: readonly Party[], party: Party, actorId: string, tuning: Tuning, newId: () => string): number {

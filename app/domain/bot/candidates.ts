@@ -1,4 +1,5 @@
 import type { SceneState, Coord } from '../scene/types'
+import type { CampaignCharacter } from '../types'
 import type { Dice } from '../play/dice'
 import { setDistance } from '../scene/rules/board/geometry'
 import { getOpenAction } from '../scene/rules/log'
@@ -8,7 +9,7 @@ import { amendAction, declareAction } from '../scene/commands/action'
 import { getInjuryPenalty } from '../character/rules/afflictions'
 import { getLiveFoes, type Party } from './party'
 import { getArmedAttacks, type Armed } from './weapons'
-import { canPay, getReadings, getSpentCost, getUnanswered } from './reading'
+import { canPay, getBestOf, getReadings, getSpentCost, getUnanswered } from './reading'
 import { getSpots, walkMove } from './position'
 import { getFightName } from '../scene/rules/fighters'
 import { play, type Move, type Played } from './move'
@@ -112,11 +113,57 @@ export function getApproachCandidates(state: SceneState, party: Party, id: strin
 // The walks to the cells the position finder (position.ts) puts first.
 export function getPositionCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   return getSpots(state, party, id, newId).map((spot) => ({
-    label: `move (${spot.movement}) ${spot.to.steps} cells to (${spot.to.cell.q},${spot.to.cell.r}): deals ${spot.offense.toFixed(1)}, takes ${spot.danger.toFixed(1)}, draws ${spot.drawn.toFixed(1)}`,
-    play: committing(state, id, walkMove(id, spot.movement, spot.to.path), newId),
+    label: `${spot.surged ? 'surge and ' : ''}${spot.movement === 'run' ? 'run' : 'walk'} ${spot.to.steps} to (${spot.to.cell.q},${spot.to.cell.r}): deals ${+spot.offense.toFixed(2)}, takes ${+spot.danger.toFixed(2)}, draws ${+spot.drawn.toFixed(2)}`,
+    play: committing(state, id, walkMove(id, spot.movement, spot.to.path, spot.surged), newId),
   }))
 }
 
+// A shooter a foe has in melee reach may fight it there instead, when what it
+// would strike with hits harder than what it shoots with (the quick reading,
+// as the foe would answer). A melee weapon in a quick slot is drawn if it
+// carries one ("Drawing items in combat", at the price the sheet charges):
+// with the weapons it shoots with kept in one hand where the other is then
+// free for it, else dropped first (combat.tex "Putting items away":
+// "Dropping items on the floor costs 0 AP"). With none to draw, it strikes
+// with what is left in hand once they are dropped.
+export function getSwitchCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
+  const c = state.characters[id]
+  const foes = getLiveFoes(state, party)
+  const shot = getArmed(state, id, newId).filter((a) => a.kind === 'shoot').map((a) => a.option.weaponKey)
+  if (!c || shot.length === 0 || !foes.some((foe) => getReadings(state, foe, id, false).some((r) => r.kind === 'strike'))) return []
+  const ranged = c.held.filter((item) => shot.includes(item.id))
+  const hardest = (s: SceneState, kind: 'strike' | 'shoot') => Math.max(0, ...foes.map((foe) =>
+    getBestOf(s, getReadings(s, id, foe).filter((r) => r.kind === kind), s.characters[id], s.characters[foe])?.harm ?? 0))
+  const shooting = hardest(state, 'shoot')
+  const gear = (kind: string, args: unknown[]) => ({ kind: 'editGear', args: [id, { kind, args }, false] }) as Move[number]
+  const keep: Move = ranged.map((item) => gear('regripItem', [item.id, 1]))
+  const drop: Move = ranged.map((item) => gear('dropItem', [item.id]))
+  const draws: Move[] = [[], ...getQuickWeapons(c).map(({ containerKey, itemId }): Move => [gear('drawItem', [containerKey, itemId])])]
+  const switches = draws.flatMap((draw): { move: Move; state: SceneState }[] => {
+    const kept = play(state, [...keep, ...draw], () => 5, newId).state
+    if (draw.length > 0 && kept.characters[id].held.length > c.held.length) return [{ move: [...keep, ...draw], state: kept }]
+    const move = [...drop, ...draw]
+    return [{ move, state: play(state, move, () => 5, newId).state }]
+  }).filter((s) => hardest(s.state, 'strike') > shooting)
+  return switches.flatMap(({ move, state: switched }) => {
+    const dropped = move.some((m) => (m.args[1] as { kind?: string } | undefined)?.kind === 'dropItem')
+    const drew = move.some((m) => (m.args[1] as { kind?: string } | undefined)?.kind === 'drawItem')
+    const how = [dropped ? `drop ${ranged.map((item) => item.name).join(' and ')}` : null, drew ? 'draw' : null].filter(Boolean).join(', ')
+    return getArmed(switched, id, newId).filter((a) => a.kind === 'strike').flatMap((armed) => armed.targets.filter((t) => foes.includes(t)).map((target) => ({
+      label: `${how}: ${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
+      play: committing(state, id, [...move, ...armed.move, { kind: 'target', args: [target] }, { kind: 'commit', args: [] }], newId),
+    })))
+  }).slice(0, SWITCHES_TRIED)
+}
+
+const SWITCHES_TRIED = 3
+
+// The weapons waiting in quick slots.
+function getQuickWeapons(c: CampaignCharacter | undefined): { containerKey: string; itemId: string }[] {
+  if (!c) return []
+  return Object.entries(c.containers).flatMap(([containerKey, container]) => container.slots.quick.items.filter((item) => item.type === 'weapon').map((item) => ({ containerKey, itemId: item.id })))
+}
+
 export function getCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
-  return [...getAttackCandidates(state, party, id, newId), ...getPositionCandidates(state, party, id, newId)]
+  return [...getAttackCandidates(state, party, id, newId), ...getSwitchCandidates(state, party, id, newId), ...getPositionCandidates(state, party, id, newId)]
 }
