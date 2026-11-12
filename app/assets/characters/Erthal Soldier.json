@@ -311,7 +311,8 @@
       "reactive": true,
       "penalty": 0,
       "range": null,
-      "hasSense": true
+      "hasSense": true,
+      "partial": false
     },
     "hearing": {
       "name": "Hearing",
@@ -321,7 +322,8 @@
       "reactive": true,
       "penalty": 5,
       "range": null,
-      "hasSense": true
+      "hasSense": true,
+      "partial": false
     },
     "smell": {
       "name": "Smell",
@@ -331,7 +333,8 @@
       "reactive": false,
       "penalty": 10,
       "range": 0,
-      "hasSense": true
+      "hasSense": true,
+      "partial": false
     },
     "touch": {
       "name": "Touch",
@@ -341,7 +344,8 @@
       "reactive": true,
       "penalty": 3,
       "range": 0,
-      "hasSense": true
+      "hasSense": true,
+      "partial": false
     },
     "synesthesia": {
       "name": "Synesthesia",
@@ -351,7 +355,8 @@
       "reactive": true,
       "penalty": 0,
       "range": 0,
-      "hasSense": false
+      "hasSense": false,
+      "partial": false
     }
   },
   "movement": {
@@ -468,7 +473,7 @@
       "name": "left hand",
       "location": "hand",
       "grip": true,
-      "itemId": "8be1d03b-e7bf-4191-93e4-e393b65fa6ff",
+      "itemId": "68795664-5507-49c5-a016-98dc45426220",
       "naturalWeapon": "Unarmed",
       "aimPenalty": 10,
       "maxTier": 2,
@@ -503,7 +508,7 @@
       "name": "right hand",
       "location": "hand",
       "grip": true,
-      "itemId": "508ba0de-daac-4c68-aea7-a751619e3bf7",
+      "itemId": "68795664-5507-49c5-a016-98dc45426220",
       "naturalWeapon": "Unarmed",
       "aimPenalty": 10,
       "maxTier": 2,
@@ -617,6 +622,7 @@
     "refId": "PaddedArmor",
     "charge": null,
     "source": null,
+    "casting": null,
     "broken": false,
     "edge": null,
     "fuel": null,
@@ -625,19 +631,21 @@
     "loaded": null,
     "light": null,
     "consume": null,
-    "food": null
+    "food": null,
+    "grimoire": []
   },
   "held": [
     {
-      "id": "8be1d03b-e7bf-4191-93e4-e393b65fa6ff",
+      "id": "68795664-5507-49c5-a016-98dc45426220",
       "name": "Pike",
       "description": "",
       "type": "weapon",
       "amount": 1,
-      "bulk": 3,
+      "bulk": 4,
       "refId": "Pike",
       "charge": null,
       "source": null,
+      "casting": null,
       "broken": false,
       "edge": null,
       "fuel": null,
@@ -646,50 +654,8 @@
       "loaded": null,
       "light": null,
       "consume": null,
-      "food": null
-    },
-    {
-      "id": "508ba0de-daac-4c68-aea7-a751619e3bf7",
-      "name": "Backpack",
-      "description": "",
-      "type": "container",
-      "amount": 1,
-      "bulk": 3,
-      "refId": "Backpack",
-      "charge": null,
-      "source": null,
-      "container": {
-        "name": "Backpack",
-        "kind": "backpack",
-        "slots": {
-          "quick": {
-            "numSlots": 0,
-            "slotBulk": 1,
-            "items": []
-          },
-          "medium": {
-            "numSlots": 12,
-            "slotBulk": 2,
-            "items": []
-          },
-          "large": {
-            "numSlots": 2,
-            "slotBulk": 3,
-            "items": []
-          }
-        },
-        "burden": 4,
-        "bulk": 3
-      },
-      "broken": false,
-      "edge": null,
-      "fuel": null,
-      "camouflage": null,
-      "muffles": false,
-      "loaded": null,
-      "light": null,
-      "consume": null,
-      "food": null
+      "food": null,
+      "grimoire": []
     }
   ],
   "onBack": null,
@@ -712,6 +678,7 @@
               "refId": "",
               "charge": null,
               "source": null,
+              "casting": null,
               "broken": false,
               "edge": null,
               "fuel": null,
@@ -720,7 +687,8 @@
               "loaded": null,
               "light": null,
               "consume": null,
-              "food": null
+              "food": null,
+              "grimoire": []
             },
             {
               "id": "3a336463-2751-4705-9e35-be17953434b4",
@@ -732,6 +700,7 @@
               "refId": "Coin Pouch",
               "charge": null,
               "source": null,
+              "casting": null,
               "container": {
                 "name": "Coin Pouch",
                 "kind": "pouch",
@@ -755,6 +724,7 @@
                         "refId": "",
                         "charge": null,
                         "source": null,
+                        "casting": null,
                         "broken": false,
                         "edge": null,
                         "fuel": null,
@@ -763,7 +733,8 @@
                         "loaded": null,
                         "light": null,
                         "consume": null,
-                        "food": null
+                        "food": null,
+                        "grimoire": []
                       },
                       {
                         "id": "50221483-cb39-4e68-a529-b7ca2833b2ec",
@@ -775,6 +746,7 @@
                         "refId": "",
                         "charge": null,
                         "source": null,
+                        "casting": null,
                         "broken": false,
                         "edge": null,
                         "fuel": null,
@@ -783,7 +755,8 @@
                         "loaded": null,
                         "light": null,
                         "consume": null,
-                        "food": null
+                        "food": null,
+                        "grimoire": []
                       }
                     ]
                   },
@@ -804,7 +777,8 @@
               "loaded": null,
               "light": null,
               "consume": null,
-              "food": null
+              "food": null,
+              "grimoire": []
             },
             {
               "id": "826a6cea-fab4-4d78-b0f9-0eb8349b27ee",
@@ -816,6 +790,7 @@
               "refId": "",
               "charge": null,
               "source": null,
+              "casting": null,
               "broken": false,
               "edge": null,
               "fuel": "alcohol",
@@ -824,7 +799,8 @@
               "loaded": null,
               "light": null,
               "consume": null,
-              "food": null
+              "food": null,
+              "grimoire": []
             },
             {
               "id": "c156a86c-72ed-464d-bccf-89a6101eb273",
@@ -836,6 +812,7 @@
               "refId": "",
               "charge": null,
               "source": null,
+              "casting": null,
               "broken": false,
               "edge": null,
               "fuel": null,
@@ -844,7 +821,8 @@
               "loaded": null,
               "light": 5,
               "consume": null,
-              "food": null
+              "food": null,
+              "grimoire": []
             }
           ]
         },
@@ -861,15 +839,32 @@
       },
       "burden": 3,
       "bulk": 2
+    },
+    "Backpack": {
+      "name": "Backpack",
+      "kind": "backpack",
+      "slots": {
+        "quick": {
+          "numSlots": 0,
+          "slotBulk": 1,
+          "items": []
+        },
+        "medium": {
+          "numSlots": 12,
+          "slotBulk": 2,
+          "items": []
+        },
+        "large": {
+          "numSlots": 2,
+          "slotBulk": 3,
+          "items": []
+        }
+      },
+      "burden": 4,
+      "bulk": 3
     }
   },
   "abilities": {
-    "large-hands": {
-      "value": 1,
-      "name": "large-hands",
-      "XP": 0,
-      "type": "ability"
-    },
     "regenerative-reservoir": {
       "value": 1,
       "name": "regenerative-reservoir",
@@ -879,6 +874,12 @@
     "charge": {
       "value": 1,
       "name": "charge",
+      "XP": 0,
+      "type": "ability"
+    },
+    "large-hands": {
+      "value": 1,
+      "name": "large-hands",
       "XP": 0,
       "type": "ability"
     }

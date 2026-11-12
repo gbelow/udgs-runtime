@@ -73,7 +73,7 @@ export function getAttackCandidates(state: SceneState, party: Party, id: string,
 // costs. Cheap enough for every turn of a fight played on.
 export function getReadAttackCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const attacker = state.characters[id]
-  const read = getLiveFoes(state, party).flatMap((foe) => getReadings(state, id, foe, false)
+  const read = getLiveFoes(state, party).flatMap((foe) => getReadings(state, id, foe)
     .filter((reading) => canPay(state, attacker, reading.cost))
     .map((reading) => ({ reading, foe, worth: getUnanswered(reading) / Math.max(1, getSpentCost(reading)) })))
     .sort((a, b) => b.worth - a.worth)

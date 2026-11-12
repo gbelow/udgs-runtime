@@ -1,70 +1,85 @@
 import type { CampaignCharacter } from '../types'
-import type { SceneState } from '../scene/types'
-import type { Dice } from '../play/dice'
+import type { RootAction, SceneState } from '../scene/types'
+import { replaceActions } from '../scene/commands/log'
 import { rollOrPay } from '../scene/commands/action'
+import type { Dice } from '../play/dice'
 import { getPayableCost } from '../scene/rules/action'
-import { getAction, getOpenAction } from '../scene/rules/log'
+import { getAction, getLiveActions, getOpenAction } from '../scene/rules/log'
 import { getRootTest } from '../scene/rules/attack'
+import { getSettled } from '../scene/rules/settle'
+import { getOutcomes } from '../scene/projections/outcomes'
+import { resolveTest } from '../play/test'
 import { isCombatStarted } from '../scene/rules/started'
 import { canAfford } from '../character/rules/cost'
 import { getSTA } from '../character/rules/characteristics'
 import { spendBest } from './overflow'
 import { getStrikeDefenses, type StrikeDefense } from './defenses'
-import { getEvaluationKey } from './evaluation'
+import { getEvaluationKey, getPairKey } from './evaluation'
 import { aimStrike, getStrikes } from './weapons'
 import { isDead } from '../character/rules/afflictions'
 import { isImmobile } from '../scene/rules/situational'
 import { getOutcomeHarm, isOutOfFight } from './harm'
 import { SURGES } from '../tables'
 
-// A quick look at what an attack could do to one foe, cheap enough to be
-// taken on every turn of a fight played on (estimate.ts weighs it all, and
-// is not): the injury it adds with the die at a middling and at a high value,
-// the overflow of a hit spent on whatever does the most (overflow.ts), when
-// the foe does not answer it (against its standard deflection, creating.tex
-// "Standard Deflection") and against each defense the foe could answer with.
-// It is read with both sides rested; what either can pay for is asked of the
-// reading when it is used, against what they have then.
+// A quick look at what an attack could do to one foe, cheap enough to be taken
+// on every turn of a fight played on: the harm it takes from the foe on
+// average when the foe does not answer it (against its standard deflection,
+// creating.tex "Standard Deflection") and against each defense the foe could
+// answer with. It is read with both sides rested; what either can pay for is
+// asked of the reading when it is used, against what they have then.
+//
+// How often an attack hits is the skill over the DL alone (play.tex "How skills
+// work": a hit is the d10, 0 to 9 and never exploding here, plus the skill over
+// the DL by 5, a graze by 0, so 50% to hit when they are equal and 10 points
+// more or less for each point between them). The harm of a hit and of a graze
+// (harm.ts) are each read from one played out at the middle of the faces that
+// give it, the overflow of a hit spent on whatever does the most (overflow.ts).
+// A defense has no die: it sets the DL the attack is tested against, and so
+// changes how often it hits and grazes, not what either does. What a defense
+// needs is those two harms and its own chances, so it costs no die, and is read
+// only when asked for, once.
 
 export type Dealt = { harm: number; AP: number; STA: number }
 
-export type DefenseReading = { kind: string; cost: { AP: number; STA: number }; low: Dealt; high: Dealt }
+// `expected` is what the attack takes from the target on average: the chance of
+// a hit times the harm of one, and the chance of a graze times the harm of one
+// (a graze is a miss for an attack that does not graze). `spend` is the AP and
+// STA the overflow of a hit is spent with, on top of the attack. `defenses` is
+// `expected` for each answer the target could make, with what it costs the
+// target to make it.
+export type DefenseChance = { cost: { AP: number; STA: number }; expected: number }
+export type Reading = { kind: 'strike' | 'shoot'; weaponKey: string; attack: string; variant: string; cost: { AP: number; STA: number }; expected: number; spend: number; defenses: () => DefenseChance[] }
 
-export type Reading = {
-  kind: 'strike' | 'shoot'
-  weaponKey: string
-  attack: string
-  variant: string
-  cost: { AP: number; STA: number }
-  // what the blow costs the foe (harm.ts) against its SD, the die at 4 and
-  // at 9, and what spending the overflow costs on top of the attack
-  low: Dealt
-  high: Dealt
-  // the same against each defense the foe could make, rested
-  defenses: DefenseReading[]
-}
-
-const LOW = 4
-const HIGH = 9
 const REST_AP = 99
 
 // The attack's die at `value`, then nines for whatever else is thrown.
 function scripted(value: number): Dice {
   let thrown = 0
-  return () => (thrown++ === 0 ? value : HIGH)
+  return () => (thrown++ === 0 ? value : 9)
 }
 
-function dealt(locked: SceneState, openId: string, target: CampaignCharacter, die: number): Dealt {
-  const targetId = target.id
+// What the attack waiting on its die comes to when the die shows `face` (any
+// number: the faces that matter to a defense that moves the DL are not only
+// 0 to 9), read off the action put at `post` with that roll, without pressing
+// the roll. A hit's overflow is spent at its best (overflow.ts). Where an answer
+// is declared, it may be tested with a die of its own, so the roll is pressed
+// as the table does.
+function dealtAt(locked: SceneState, target: CampaignCharacter, face: number): Dealt {
+  const g=(globalThis as any).__p??={};g.dealt=(g.dealt??0)+1 //PERFPROBE
+  const open = getOpenAction(locked)
+  const test = open && getRootTest(locked, open)
+  if (!open || !test) return { harm: 0, AP: 0, STA: 0 }
   let ids = 0
-  const rolled = rollOrPay(scripted(die), () => `reading${++ids}`)(locked)
-  const open = getOpenAction(rolled)
-  if (open && open.step === 'post' && (open.kind === 'strike' || open.kind === 'shoot')) {
-    const best = spendBest(rolled, open, targetId)
+  const answered = getLiveActions(locked).length > 1
+  const posted = { ...open, roll: resolveTest(test, () => face), step: 'post' } as RootAction
+  const rolled = answered ? rollOrPay(scripted(face), () => `reading${++ids}`)(locked) : replaceActions(locked, [posted])
+  const rolledOpen = answered ? getOpenAction(rolled) : posted
+  if (rolledOpen && rolledOpen.step === 'post' && (rolledOpen.kind === 'strike' || rolledOpen.kind === 'shoot')) {
+    const best = spendBest(rolled, rolledOpen, target.id)
     return { harm: getOutcomeHarm(target, best.outcome), AP: best.spend.AP, STA: best.spend.STA }
   }
-  const landed = getAction(rolled, openId)?.results?.find((r) => r.targetId === targetId)?.outcome
-  return { harm: getOutcomeHarm(target, landed ?? null), AP: 0, STA: 0 }
+  if (answered) return { harm: getOutcomeHarm(target, getAction(rolled, open.id)?.results?.find((r) => r.targetId === target.id)?.outcome ?? null), AP: 0, STA: 0 }
+  return { harm: getOutcomeHarm(target, getOutcomes(rolled, getSettled(rolled, posted)).find((o) => o.id === target.id)?.outcome ?? null), AP: 0, STA: 0 }
 }
 
 // An evasive jump is read at its first landing alone: where it lands seldom
@@ -84,109 +99,92 @@ function rested(state: SceneState, ids: string[]): SceneState {
   return { ...state, characters: { ...state.characters, ...Object.fromEntries(ids.map((id) => [id, rest(state.characters[id])])) } }
 }
 
+function once<T>(make: () => T): () => T {
+  let made: { value: T } | null = null
+  return () => (made ??= { value: make() }).value
+}
+
+// The skill over the DL the attack waiting on its die is tested with: a face
+// adds to it to make the overflow of the test (play.tex "How skills work"), a hit
+// at 5 and over, a graze at 0 and over.
+function edgeOf(state: SceneState): { edge: number; DL: number } | null {
+  const open = getOpenAction(state)
+  const test = open && getRootTest(state, open)
+  return test ? { edge: test.skill - test.DL, DL: test.DL } : null
+}
+
+// What the blow does depends on the overflow it comes to and the DL it was made
+// against (the deflection a defense replaces), not on the die that made it. So
+// the harm at each overflow is kept once for the attack, the pair of characters
+// and the DL, whatever the gap or cell, and read off the attack at the die that
+// gives that overflow.
+const breakpointTables = new Map<string, Map<number, Dealt>>()
+
+function breakpointsFor(key: string): Map<number, Dealt> {
+  const known = breakpointTables.get(key)
+  if (known) return known
+  if (breakpointTables.size >= MOST_KEPT) breakpointTables.clear()
+  const made = new Map<number, Dealt>()
+  breakpointTables.set(key, made)
+  return made
+}
+
+// A miss and a graze are each one entry whatever the overflow; a hit has one for
+// each HOP it can spend.
+const MISS = -1
+const GRAZE = 0
+const breakpoint = (reached: number) => (reached < 0 ? MISS : reached < 5 ? GRAZE : reached)
+
+// The attack's average over the ten faces from the breakpoints, each read when
+// first needed, as the attack stands (`state`: undefended, or with a defense
+// declared, whose label is part of the key). A miss does no harm to a target that
+// does not answer; one that does may take the blow or lose its weapon to it
+// whatever the die shows, so every face is read.
+function averageOver(state: SceneState, target: CampaignCharacter, key: string, label: string): { harm: number; spend: number } {
+  const at = edgeOf(state)
+  if (!at) return { harm: 0, spend: 0 }
+  const points = breakpointsFor(`${key} ${label} ${at.DL}`)
+  const answered = getLiveActions(state).length > 1
+  let harm = 0
+  let spend = 0
+  for (let face = 0; face <= 9; face++) {
+    const reached = face + at.edge
+    if (reached < 0 && !answered) continue
+    const point = breakpoint(reached)
+    const dealt = points.get(point) ?? dealtAt(state, target, face)
+    points.set(point, dealt)
+    harm += dealt.harm / 10
+    spend += reached >= 5 ? (dealt.AP + dealt.STA) / 10 : 0
+  }
+  return { harm, spend }
+}
+
+function readHit(locked: SceneState, target: CampaignCharacter, attackerId: string, newId: () => string, key: string): { expected: number; spend: number; defenses: () => DefenseChance[] } {
+  const defenses = once((): DefenseChance[] => { const g=(globalThis as any).__p;g.defN=(g.defN??0)+1;const t0=performance.now();const ds=getStrikeDefenses(locked, target.id, attackerId);g.listMs=(g.listMs??0)+performance.now()-t0;g.defCount=(g.defCount??0)+ds.length;const r= ds.filter(firstJump()).flatMap((defense): DefenseChance[] => { const t1=performance.now(); //PERFPROBE
+    const declared = defense.declare(locked, getOpenAction(locked)!, newId)
+    g.declMs=(g.declMs??0)+performance.now()-t1;const t2=performance.now();const out:DefenseChance[]= declared ? [{ cost: defense.cost, expected: averageOver(declared, target, key, `${defense.kind} ${defense.cost.AP}/${defense.cost.STA}`).harm }] : [];g.avgMs=(g.avgMs??0)+performance.now()-t2;return out //PERFPROBE
+  });g.defMs=(g.defMs??0)+performance.now()-t0;return r}) //PERFPROBE
+  const unanswered = averageOver(locked, target, key, 'none')
+  return { expected: unanswered.harm, spend: unanswered.spend, defenses }
+}
+
 // The ids a reading makes are its own, so that reading never changes the ids
-// the table gives out after it.
-// `answered` false leaves the defenses out, for a reading of the blow alone.
-export function readAttacks(state: SceneState, attackerId: string, targetId: string, answered = true): Reading[] {
+// the table gives out after it. Every attack the attacker has on the target as
+// they stand, both rested.
+export function readAttacks(state: SceneState, attackerId: string, targetId: string): Reading[] {
   let ids = 0
   const newId = () => `read${++ids}`
   const target = state.characters[targetId]
   if (!target || !state.characters[attackerId]) return []
   const fresh = rested(state, [attackerId, targetId])
+  const pair = getPairKey(state, attackerId, targetId)
   return (['strike', 'shoot'] as const).flatMap((kind) => getStrikes(fresh, attackerId, kind, newId)
     .filter((strike) => strike.targets.includes(targetId))
     .map((strike): Reading => {
       const locked = aimStrike(strike, targetId)
-      const openId = strike.open.id
       const priced = getPayableCost(locked, strike.open)
-      const defenses = (answered ? getStrikeDefenses(locked, targetId, attackerId) : []).filter(firstJump()).flatMap((defense): DefenseReading[] => {
-        const declared = defense.declare(locked, getOpenAction(locked)!, newId)
-        return declared ? [{ kind: defense.kind, cost: defense.cost, low: dealt(declared, openId, target, LOW), high: dealt(declared, openId, target, HIGH) }] : []
-      })
-      return {
-        kind,
-        weaponKey: strike.open.weaponKey,
-        attack: strike.open.attack,
-        variant: strike.open.variant,
-        cost: { AP: priced?.AP ?? 0, STA: priced?.STA ?? 0 },
-        low: dealt(locked, openId, target, LOW),
-        high: dealt(locked, openId, target, HIGH),
-        defenses,
-      }
+      return { kind, weaponKey: strike.open.weaponKey, attack: strike.open.attack, variant: strike.open.variant, cost: { AP: priced?.AP ?? 0, STA: priced?.STA ?? 0 }, ...readHit(locked, target, attackerId, newId, `${pair} ${kind} ${strike.open.weaponKey} ${strike.open.attack} ${strike.open.variant}`) }
     }))
-}
-
-// What an attack comes to when nothing answers it. How often it hits is the
-// skill difference alone (play.tex "How skills work": a hit is the d10, 0 to 9
-// and never exploding here, plus the skill over the DL by 5, so 50% when they
-// are equal and 10 points more or less for each point between them). The harm
-// of a hit (harm.ts) is read from one hit played out at the middle of the faces
-// that hit.
-// `expected` is what the attack takes from the target on average (harm.ts):
-// the chance of a hit times the harm of one, and the chance of a graze times the
-// harm of one (a graze is a miss for an attack that does not graze).
-// `defenses` is the same for each answer the target could make (rested), with
-// what it costs the target to make it: a defense has no die, it sets the DL the
-// attack is tested against.
-export type DefenseChance = { cost: { AP: number; STA: number }; expected: number }
-export type HitReading = { kind: 'strike' | 'shoot'; weaponKey: string; attack: string; variant: string; cost: { AP: number; STA: number }; expected: number; defenses: DefenseChance[] }
-
-// The die that has to be at least this to hit, from the skill over the DL.
-function lowestHit(state: SceneState): number {
-  const open = getOpenAction(state)
-  const test = open && getRootTest(state, open)
-  return test ? Math.max(0, 5 - (test.skill - test.DL)) : 10
-}
-
-const chanceOf = (lowest: number) => (lowest > 9 ? 0 : (10 - lowest) / 10)
-
-// The harm of a hit is read from one played out at the middle of the faces that
-// hit, and of a graze at the middle of the faces that graze.
-function expectedHarm(state: SceneState, openId: string, target: CampaignCharacter): number {
-  const hits = lowestHit(state)
-  const grazes = Math.max(0, hits - 5)
-  const pHit = chanceOf(hits)
-  const pGraze = chanceOf(grazes) - pHit
-  const hit = pHit > 0 ? pHit * dealt(state, openId, target, Math.round((hits + 9) / 2)).harm : 0
-  const graze = pGraze > 0 ? pGraze * dealt(state, openId, target, Math.round((grazes + Math.min(hits, 10) - 1) / 2)).harm : 0
-  return hit + graze
-}
-
-function readHit(locked: SceneState, openId: string, target: CampaignCharacter, attackerId: string, newId: () => string): { expected: number; defenses: DefenseChance[] } {
-  const defenses = getStrikeDefenses(locked, target.id, attackerId).filter(firstJump()).flatMap((defense): DefenseChance[] => {
-    const declared = defense.declare(locked, getOpenAction(locked)!, newId)
-    return declared ? [{ cost: defense.cost, expected: expectedHarm(declared, openId, target) }] : []
-  })
-  return { expected: expectedHarm(locked, openId, target), defenses }
-}
-
-// Every attack the attacker has on the target as they stand, both rested.
-export function readHits(state: SceneState, attackerId: string, targetId: string): HitReading[] {
-  let ids = 0
-  const newId = () => `hit${++ids}`
-  const target = state.characters[targetId]
-  if (!target || !state.characters[attackerId]) return []
-  const fresh = rested(state, [attackerId, targetId])
-  return (['strike', 'shoot'] as const).flatMap((kind) => getStrikes(fresh, attackerId, kind, newId)
-    .filter((strike) => strike.targets.includes(targetId))
-    .map((strike): HitReading => {
-      const locked = aimStrike(strike, targetId)
-      const priced = getPayableCost(locked, strike.open)
-      return { kind, weaponKey: strike.open.weaponKey, attack: strike.open.attack, variant: strike.open.variant, cost: { AP: priced?.AP ?? 0, STA: priced?.STA ?? 0 }, ...readHit(locked, strike.open.id, target, attackerId, newId) }
-    }))
-}
-
-const hitsKept = new Map<string, HitReading[]>()
-
-export function getHits(state: SceneState, attackerId: string, targetId: string): HitReading[] {
-  if (!canFight(state, attackerId) || !state.characters[targetId]) return []
-  const key = `${state.board?.light ?? ''} ${getEvaluationKey(state, attackerId, targetId)}`
-  const known = hitsKept.get(key)
-  if (known) return known
-  if (hitsKept.size >= MOST_KEPT) hitsKept.clear()
-  const made = readHits(state, attackerId, targetId)
-  hitsKept.set(key, made)
-  return made
 }
 
 // Readings are kept under what they are made of: what both characters carry,
@@ -211,8 +209,6 @@ function keptFor(state: SceneState): Map<string, Reading[]> {
   return readings
 }
 
-// `answered` false asks for the blow alone (no defense read), which a
-// reading with the defenses also answers.
 // Whether the character can attack at all: alive, and not immobile (combat.tex
 // "Immobile": "cannot use any combat or movement skills other than escape").
 // Readings are made rested, so what keeps one from fighting is asked here.
@@ -221,41 +217,39 @@ export function canFight(state: SceneState, id: string): boolean {
   return !!c && !isDead(c) && !isImmobile(state, c)
 }
 
-export function getReadings(state: SceneState, attackerId: string, targetId: string, answered = true): Reading[] {
+export function getReadings(state: SceneState, attackerId: string, targetId: string): Reading[] {
+  const g=(globalThis as any).__p??={};g.readCalls=(g.readCalls??0)+1 //PERFPROBE
   if (!canFight(state, attackerId) || !state.characters[targetId]) return []
   const readings = keptFor(state)
   const key = `${state.board?.light ?? ''} ${getEvaluationKey(state, attackerId, targetId)}`
-  const known = readings.get(`answered ${key}`) ?? (answered ? undefined : readings.get(`alone ${key}`))
+  const known = readings.get(key)
   if (known) return known
+  {const g=(globalThis as any).__p;g.readMiss=(g.readMiss??0)+1;const t=`${attackerId}>${targetId}@${JSON.stringify([state.board?.placements[attackerId]?.cell,state.board?.placements[targetId]?.cell])}`;(g.triples??={})[t]=((g.triples[t])??[]);g.triples[t].push(key);const t0=performance.now();const r=readAttacks(state, attackerId, targetId);g.readMs=(g.readMs??0)+performance.now()-t0;readings.set(key,r);return r} //PERFPROBE
   if (readings.size >= MOST_KEPT) readings.clear()
-  const made = readAttacks(state, attackerId, targetId, answered)
-  readings.set(`${answered ? 'answered' : 'alone'} ${key}`, made)
+  const made = readAttacks(state, attackerId, targetId)
+  readings.set(key, made)
   return made
-}
-
-function mean(d: { low: Dealt; high: Dealt }): number {
-  return (d.low.harm + d.high.harm) / 2
-}
-
-// What the attack adds on average over its two dice when nothing answers it.
-export function getUnanswered(reading: Reading): number {
-  return mean(reading)
 }
 
 export function canPay(state: SceneState, c: CampaignCharacter, cost: { AP: number; STA: number }): boolean {
   return canAfford(c, cost, isCombatStarted(state))
 }
 
-// What the attack adds on average over its two dice, the foe answering with
-// the defense it can pay for that leaves the least, or with none.
-export function getAnswered(state: SceneState, reading: Reading, target: CampaignCharacter): { harm: number; defended: boolean } {
-  const answers = reading.defenses.filter((d) => canPay(state, target, d.cost)).map(mean)
-  return answers.length === 0 ? { harm: mean(reading), defended: false } : { harm: Math.min(mean(reading), ...answers), defended: true }
+// What the attack adds on average when nothing answers it.
+export function getUnanswered(reading: Reading): number {
+  return reading.expected
 }
 
-// What the attack costs with the overflow spent, over its two dice.
+// What the attack adds on average, the foe answering with the defense it can
+// pay for that leaves the least, or with none.
+export function getAnswered(state: SceneState, reading: Reading, target: CampaignCharacter): { harm: number; defended: boolean } {
+  const answers = reading.defenses().filter((d) => canPay(state, target, d.cost)).map((d) => d.expected)
+  return answers.length === 0 ? { harm: reading.expected, defended: false } : { harm: Math.min(reading.expected, ...answers), defended: true }
+}
+
+// What the attack costs with the overflow of a hit spent.
 export function getSpentCost(reading: Reading): number {
-  return reading.cost.AP + reading.cost.STA + (reading.low.AP + reading.low.STA + reading.high.AP + reading.high.STA) / 2
+  return reading.cost.AP + reading.cost.STA + reading.spend
 }
 
 export type Best = { reading: Reading; harm: number; unanswered: number }
@@ -267,7 +261,7 @@ export function getBestOf(state: SceneState, readings: readonly Reading[], attac
   for (const reading of readings) {
     if (!canPay(state, attacker, reading.cost)) continue
     const harm = getAnswered(state, reading, target).harm
-    if (!best || harm > best.harm) best = { reading, harm, unanswered: mean(reading) }
+    if (!best || harm > best.harm) best = { reading, harm, unanswered: reading.expected }
   }
   return best
 }
@@ -317,7 +311,7 @@ export function getDrawnByAction(state: SceneState, id: string, foes: readonly s
   return foes.reduce((sum, foe) => {
     const c = state.characters[foe]
     if (!c || isDead(c)) return sum
-    const blows = getReadings(state, foe, id, false).filter((r) => r.kind === 'strike' && canAnswer(state, c, r.cost)).map(mean)
+    const blows = getReadings(state, foe, id).filter((r) => r.kind === 'strike' && canAnswer(state, c, r.cost)).map(getUnanswered)
     return sum + Math.max(0, ...blows)
   }, 0)
 }

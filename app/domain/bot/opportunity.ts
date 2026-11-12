@@ -66,7 +66,7 @@ export function getOpportunities(state: SceneState, party: Party, id: string, op
     const reaction = reactionOf(declared, open, id)
     const targetId = reaction && 'targetId' in reaction ? reaction.targetId : null
     if (!targetId || !state.characters[targetId] || isOnSide(state, party, targetId)) return []
-    const readings = getReadings(state, id, targetId, false)
+    const readings = getReadings(state, id, targetId)
     const hardest = (row: AttackOption) => {
       const r = readings.find((x) => x.kind === 'strike' && x.weaponKey === row.weaponKey && x.attack === row.attack && x.variant === row.variant)
       return r ? getUnanswered(r) : 0

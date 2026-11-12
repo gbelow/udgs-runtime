@@ -98,15 +98,15 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
   // each from the first cell at that gap; the blow alone for what the
   // character could do, answered for what the foes could.
   const byGap = new Map<string, Reading[]>()
-  const read = (walk: Walk, from: string, on: string, answered: boolean) => {
+  const read = (walk: Walk, from: string, on: string) => {
     const apart = setDistance([walk.to.cell], [foeCells.get(from === id ? on : from)!])
-    const memo = `${from}>${on}@${apart} ${answered}`
-    if (!byGap.has(memo)) byGap.set(memo, getReadings(standingAt(state, id, walk.at, walk.to.cost), from, on, answered))
+    const memo = `${from}>${on}@${apart}`
+    if (!byGap.has(memo)) byGap.set(memo, getReadings(standingAt(state, id, walk.at, walk.to.cost), from, on))
     return byGap.get(memo)!
   }
   const me = (walk: Walk) => ({ ...self, resources: { ...self.resources, AP: self.resources.AP - walk.to.cost.AP, STA: self.resources.STA - walk.to.cost.STA } })
-  const offense = (walk: Walk, foe: string) => getBestOf(state, read(walk, id, foe, false), me(walk), state.characters[foe])?.harm ?? 0
-  const danger = (walk: Walk) => [...foeCells.keys()].reduce((sum, foe) => sum + (getBestOf(state, read(walk, foe, id, true), state.characters[foe], me(walk))?.harm ?? 0), 0)
+  const offense = (walk: Walk, foe: string) => getBestOf(state, read(walk, id, foe), me(walk), state.characters[foe])?.harm ?? 0
+  const danger = (walk: Walk) => [...foeCells.keys()].reduce((sum, foe) => sum + (getBestOf(state, read(walk, foe, id), state.characters[foe], me(walk))?.harm ?? 0), 0)
   const drawn = (walk: Walk, shooting: boolean) => {
     const there = standingAt(state, id, walk.at, walk.to.cost)
     const walked = drawnBy(state, id, walk.movement, walk.to, foes, newId).reduce((sum, foe) => sum + (getBestReading(there, foe, id)?.harm ?? 0), 0)
@@ -114,7 +114,7 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
   }
   // Whether the attack the character would make on the foe from there is a
   // shot, the hardest it could pay for.
-  const shoots = (walk: Walk, foe: string) => getBestOf(state, read(walk, id, foe, false), me(walk), state.characters[foe])?.reading.kind === 'shoot'
+  const shoots = (walk: Walk, foe: string) => getBestOf(state, read(walk, id, foe), me(walk), state.characters[foe])?.reading.kind === 'shoot'
   const spot = (walk: Walk, dealt: number, shooting = false, surged = false): Spot => {
     const taken = danger(walk)
     const lost = drawn(walk, shooting)
@@ -172,7 +172,7 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
   // What the foes could do to the character at a cell whatever AP they
   // have: each one's hardest blow alone.
   function potential(walk: Walk): number {
-    return [...foeCells.keys()].reduce((sum, foe) => sum + Math.max(0, ...read(walk, foe, id, false).map(getUnanswered)), 0)
+    return [...foeCells.keys()].reduce((sum, foe) => sum + Math.max(0, ...read(walk, foe, id).map(getUnanswered)), 0)
   }
 
   // Running away, besides repositioning: a movement surge and a run as far

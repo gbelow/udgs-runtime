@@ -43,6 +43,29 @@ function canonical(value: unknown): string {
     : v)
 }
 
+// What decides how much harm an attack does at each overflow, whatever the gap
+// between the two, the resources they hold, the DL it is made against (a part of
+// the reading's own key) or how hurt the target is: everything either carries
+// but the injuries and the afflictions, bar what is known to reach the harm: the
+// wounds already on each, the injury level of each once it has reached its injury
+// threshold, and a target lying prone. Checked by trying every affliction and
+// every injury on each of the two, and by reading the same tables with the full
+// key in a fight.
+function forHarm(c: CampaignCharacter, attacker: boolean): unknown {
+  const { injuries, afflictions, ...rest } = carried(c)
+  return [rest, injuries.wounds, injuries.injuryLevel >= injuries.injuryThreshold ? injuries.injuryLevel : 0, !attacker && afflictions.includes('prone')]
+}
+
+export function getPairKey(state: SceneState, attackerId: string, targetId: string): string {
+  const pair = [attackerId, targetId]
+  return canonical([
+    forHarm(state.characters[attackerId], true),
+    forHarm(state.characters[targetId], false),
+    state.binds.filter((b) => b.members.some((m) => pair.includes(m))),
+    CATALOGS,
+  ])
+}
+
 export function getEvaluationKey(state: SceneState, attackerId: string, targetId: string): string {
   const pair = [attackerId, targetId]
   return canonical([

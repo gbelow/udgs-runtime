@@ -5,7 +5,7 @@ import { getSTA } from '../character/rules/characteristics'
 import { ROUND_AP } from '../tables'
 import { isOutOfFight } from './harm'
 import { costOf, getWalks, standingAt, type Walk } from './position'
-import { canAnswer, canFight, canPay, getHits, type HitReading } from './reading'
+import { canAnswer, canFight, canPay, getReadings, type Reading } from './reading'
 import { getEvaluationKey } from './evaluation'
 import { DEFAULT_TUNING, type Tuning } from './party'
 
@@ -50,6 +50,7 @@ function keptFor(state: SceneState): Map<string, number> {
 }
 
 export function getThreat(state: SceneState, foeId: string, targetId: string, newId: () => string, kind: ThreatKind = 'potential', weights: Weights = DEFAULT_TUNING, extra = 0): number {
+  const g=(globalThis as any).__p??={};g.threatCalls=(g.threatCalls??0)+1 //PERFPROBE
   const foe = state.characters[foeId]
   const here = state.board?.placements[foeId]?.cell
   const there = state.board?.placements[targetId]?.cell
@@ -59,6 +60,7 @@ export function getThreat(state: SceneState, foeId: string, targetId: string, ne
   const key = `${kind} ${weights.undefended} ${weights.forced} ${extra} ${here.q},${here.r} ${there.q},${there.r} ${resources} ${state.board?.light ?? ''} ${getEvaluationKey(state, foeId, targetId)}`
   const cached = known.get(key)
   if (cached !== undefined) return cached
+  ;{const g=(globalThis as any).__p;g.threatMiss=(g.threatMiss??0)+1;g.threatSize=known.size} //PERFPROBE
   if (known.size >= MOST_KEPT) known.clear()
   const made = makeThreat(state, foeId, targetId, newId, kind, weights, extra)
   known.set(key, made)
@@ -79,17 +81,23 @@ function cheapestPerGap(target: Coord): (cells: ReachableCell[]) => ReachableCel
   }
 }
 
-// What an attack is worth to the one who makes it, given what the target pays
-// to answer it: the least over the target's answers, since the target answers
-// with the one that leaves the attacker least. Not answering counts as paying
-// `undefended`. A defense the target cannot afford now is not an answer (an
-// immediate reading); a potential reading lets it pay for any. An attack that
-// does no harm but makes the target pay is still a threat, so no answer takes
-// the worth below `forced` of what the attack is worth unanswered.
-export function getHitWorth(state: SceneState, hit: HitReading, targetId: string, kind: ThreatKind, weights: Weights): number {
+// What an attack is worth to the one who makes it when nothing answers it.
+export function getUnansweredWorth(hit: Reading, weights: Weights): number {
+  return hit.expected * weights.undefended
+}
+
+// What an attack is worth given what the target pays to answer it: the least
+// over the target's answers, since the target answers with the one that leaves
+// the attacker least. Not answering counts as paying `undefended`. A defense the
+// target cannot afford now is not an answer (an immediate reading); a potential
+// reading lets it pay for any. An attack that does no harm but makes the target
+// pay is still a threat, so no answer takes the worth below `forced` of what the
+// attack is worth unanswered. No answer leaves more than the attack is worth
+// unanswered, so that is the most it can come to.
+export function getHitWorth(state: SceneState, hit: Reading, targetId: string, kind: ThreatKind, weights: Weights): number {
   const target = state.characters[targetId]
-  const answers = hit.defenses.filter((d) => kind === 'potential' || canAnswer(state, target, d.cost))
-  const alone = hit.expected * weights.undefended
+  const alone = getUnansweredWorth(hit, weights)
+  const answers = hit.defenses().filter((d) => kind === 'potential' || canAnswer(state, target, d.cost))
   return Math.max(weights.forced * alone, Math.min(alone, ...answers.map((d) => d.expected * (d.cost.AP + d.cost.STA))))
 }
 
@@ -106,11 +114,19 @@ function makeThreat(state: SceneState, foeId: string, targetId: string, newId: (
   const walks = [here, ...getWalks(rested, foeId, [cell], newId, ['basic'], cheapestPerGap(cell))]
   let threat = 0
   for (const walk of walks) {
+  const g=(globalThis as any).__p??={};g.walks=(g.walks??0)+walks.length //PERFPROBE
     if (setDistance([walk.to.cell], [cell]) === 0) continue
     const standing = standingAt(rested, foeId, walk.at, walk.to.cost)
-    for (const hit of getHits(standing, foeId, targetId)) {
-      if (kind === 'immediate' && !canPay(standing, standing.characters[foeId], hit.cost)) continue
-      threat = Math.max(threat, getHitWorth(standing, hit, targetId, kind, weights) / Math.max(1, extra + costOf(walk.to) + hit.cost.AP + hit.cost.STA))
+    const cost = (hit: Reading) => Math.max(1, extra + costOf(walk.to) + hit.cost.AP + hit.cost.STA)
+    // The attacks that can pay, the best unanswered first: once one cannot beat
+    // the threat found, its answers are not read, and neither are the rest.
+    const open = getReadings(standing, foeId, targetId)
+      .filter((hit) => kind !== 'immediate' || canPay(standing, standing.characters[foeId], hit.cost))
+      .map((hit) => ({ hit, most: getUnansweredWorth(hit, weights) / cost(hit) }))
+      .sort((a, b) => b.most - a.most)
+    for (const { hit, most } of open) {
+      if (most <= threat) break
+      threat = Math.max(threat, getHitWorth(standing, hit, targetId, kind, weights) / cost(hit))
     }
   }
   return threat
