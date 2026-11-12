@@ -32,6 +32,9 @@ export type AttitudeHappening =
   | { event: 'grimoireSpell' }
   | { event: 'celebrate' }
   | { event: 'uncelebrated' }
+  | { event: 'attackedSurrendered' }
+  | { event: 'allyAttackedSurrendered' }
+  | { event: 'surrendersSpared' }
 
 const among = <T,>(listed: readonly T[], value: T): boolean => listed.length === 0 || listed.includes(value)
 
@@ -56,6 +59,9 @@ function matches(on: AttitudeEvent, happened: AttitudeHappening): boolean {
     case 'grimoireSpell':
     case 'celebrate':
     case 'uncelebrated':
+    case 'attackedSurrendered':
+    case 'allyAttackedSurrendered':
+    case 'surrendersSpared':
       return happened.event === on.event
   }
 }

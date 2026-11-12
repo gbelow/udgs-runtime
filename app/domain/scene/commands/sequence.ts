@@ -29,6 +29,7 @@ import { closeTurn } from './closeTurn'
 import { layToRest, updateCharacter } from './characters'
 import { meetAttitudes } from '../../character/commands/attitudes'
 import { meetUnprotected } from './protection'
+import { meetAttackOnSurrendered } from './providence'
 import { getTestMode } from '../../character/rules/effects'
 import { passFirstMoverAP } from './stoicism'
 import { getResults } from './results'
@@ -94,7 +95,7 @@ export function land(state: SceneState, open: RootAction, newId: () => string, c
   const resolved = { ...settled, results: getResults(state, settled) }
   const redone = redoClimb(replaceActions(state, [resolved]), resolved, caller)
   if (caller.waiting()) return state
-  const landed = meetUnprotected(meetTested(breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved), resolved), resolved)
+  const landed = meetAttackOnSurrendered(meetUnprotected(meetTested(breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved), resolved), resolved), resolved)
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
   return advance(appendActions(landOnTable(fled, resolved), followUps), newId, caller)

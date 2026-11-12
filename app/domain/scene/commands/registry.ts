@@ -29,6 +29,7 @@ import { backToChase, continueRound, holdOn, joinChaseFight, letGo, nextRound } 
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
 import { breakFree, giveOrder, mock } from './domination'
+import { leadershipRally } from './inspiringDeed'
 import type { Order } from '../rules/domination'
 import { agreeAllToEnd, endTurn, rollContest, setContestMode, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
 import {
@@ -170,6 +171,8 @@ export const sceneCommands = {
   // judges a command a severe compulsion (combat.tex "Dominated")
   giveOrder: command((ctx, by: string, targetId: string, order: Order) => giveOrder(by, targetId, order, ctx.thrower)).by(own),
   mock: command((_, id: string) => mock(id)).by(own),
+  // abilities.tex "Leadership": a rally once every morale test is made
+  leadershipRally: command((_, id: string) => leadershipRally(id)).by(own),
   breakFree: command((ctx, id: string) => breakFree(id, ctx.thrower)).by(gm),
 
   // the fight's parties: a player moves only their own character

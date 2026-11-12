@@ -64,6 +64,10 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   // the table's judgment of how the fight weighs on each party
   tablePressure: hide({}),
   surrendered: unseen,
+  surrenderers: unseen,
+  compelledSurrender: unseen,
+  braved: unseen,
+  moraleRallies: unseen,
   dominations: unseen,
   mocked: (ids, c) => ids.filter((id) => c.visible.has(id)),
   fleeing: keep,

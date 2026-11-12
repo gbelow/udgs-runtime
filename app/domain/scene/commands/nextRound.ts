@@ -76,7 +76,7 @@ export function nextRound(thrown: Throw): Updater {
     const receive = state.round === 0 ? startAP : receiveAP
     const moved = { ...state, chase: endChaseRound(state) }
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) || isParked(moved, id) ? c : receive(wake(state, c))]))
-    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], contestModes: {}, lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], protectionMoves: [], mocked: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
+    const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], contestModes: {}, lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], protectionMoves: [], mocked: [], braved: [], moraleRallies: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
   })
@@ -148,12 +148,21 @@ function stepOn(state: SceneState, caller: Caller): SceneState {
       const begun = beginChase(state)
       const called = getMoraleCalled(begun)
       const volunteers = getMoraleVolunteers(begun, called)
-      if (called.length === 0 && volunteers.length === 0) return { ...begun, roundStep: null, chase: endChaseRoundChange(begun) }
+      if (called.length === 0 && volunteers.length === 0) return resumeTurns(begun)
       return { ...begun, roundStep: 'morale', morale: [...called.map((id) => ({ id, roll: null, optional: false })), ...volunteers.map((id) => ({ id, roll: null, optional: true }))] }
     }
-    case 'morale': return { ...state, roundStep: null, chase: endChaseRoundChange(state) }
+    case 'morale': return resumeTurns(state)
     default: return state
   }
+}
+
+// The round change is over and the turns go on. What a rally lent its caller
+// for the round (abilities.tex "Leadership") is spent with it, but for a
+// rally made once every morale test was: that one is for the round that
+// begins.
+function resumeTurns(state: SceneState): SceneState {
+  const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, c.rallied && !state.moraleRallies.includes(id) ? { ...c, rallied: false } : c]))
+  return { ...state, characters, moraleRallies: [], roundStep: null, chase: endChaseRoundChange(state) }
 }
 
 // combat.tex "Chain order of running": a chase round runs into the next with

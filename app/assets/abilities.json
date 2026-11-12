@@ -5393,8 +5393,79 @@
       }
     ]
   },
-  "right-to-trial": {
-    "family": "Right to Trial",
+  "justice": {
+    "family": "Justice",
+    "section": "Providentialism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Providentialism",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Whenever a creature surrenders, they must grant it the right to a trial. Gains 2 XP at the end of a combat where everyone that surrendered survives. Loses 4 XP if they attack someone who has surrendered. Loses 1 XP if anyone else on the team attacks someone who has surrendered.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
+        "surgeAllows": [],
+        "attitudes": [
+          {
+            "on": {
+              "event": "surrendersSpared"
+            },
+            "conviction": "Providentialism",
+            "XP": 2
+          },
+          {
+            "on": {
+              "event": "attackedSurrendered"
+            },
+            "conviction": "Providentialism",
+            "XP": -4
+          },
+          {
+            "on": {
+              "event": "allyAttackedSurrendered"
+            },
+            "conviction": "Providentialism",
+            "XP": -1
+          }
+        ],
+        "studies": []
+      }
+    ]
+  },
+  "leadership": {
+    "family": "Leadership",
     "section": "Providentialism",
     "activation": "passive",
     "cost": {
@@ -5431,108 +5502,233 @@
             }
           ]
         ],
-        "description": "Whenever they are about to kill a creature considered intelligent, they must grant it the right to a trial. If it truly agrees to follow the moral code, the character is prohibited from killing it, mutilating it, putting it in life-threatening situations, or allowing others to do so. Gains 2 XP each time they spare someone or a group of people.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "keeper-of-promises": {
-    "family": "Keeper of Promises",
-    "section": "Providentialism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
+        "description": "The character gains +1 to all skills in a round when they rallied their team. Can rally after an ally triggered their limit stress action in the morale phase.",
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:strike",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
             }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Providentialism",
-              "level": 1,
-              "op": ">=",
-              "not": false
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:defend",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
             }
-          ]
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:reflex",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:accuracy",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:grapple",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:SD",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:stealth",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:prestidigitation",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:balance",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:detection",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:health",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:force",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:swim",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:climb",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:explore",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:cunning",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:will",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:persuasion",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:deception",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "skill:insight",
+              "operation": "+",
+              "value": 1,
+              "when": "rallied"
+            }
+          }
         ],
-        "description": "Whenever they make a relevant promise and manage to fulfill it, they gain at least 1 XP. They can earn more for larger promises.",
-        "effect": [],
         "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "honesty": {
-    "family": "Honesty",
-    "section": "Providentialism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Providentialism",
-              "level": 1,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "grants": [
+          "leadership"
         ],
-        "description": "Whenever the character or someone on their team is lying, make a Will test DL 5. If they succeed or crit, they must rectify the lie (this does not mean they are obliged to expose the truth). If they do not lie, regardless of passing the test, they gain 1 XP.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -5540,8 +5736,8 @@
       }
     ]
   },
-  "steady-purpose": {
-    "family": "Steady Purpose",
+  "against-the-odds": {
+    "family": "Against the Odds",
     "section": "Providentialism",
     "activation": "passive",
     "cost": {
@@ -5578,10 +5774,12 @@
             }
           ]
         ],
-        "description": "Gains the ability to make any test safely and preferring numbers closer to 6 instead of 5 if the test is in line to complete a promise.",
+        "description": "Gains +1 AP in any round an opponent uses intimidation.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "againstTheOdds"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -5589,8 +5787,8 @@
       }
     ]
   },
-  "judge": {
-    "family": "Judge",
+  "mercy": {
+    "family": "Mercy",
     "section": "Providentialism",
     "activation": "passive",
     "cost": {
@@ -5627,10 +5825,12 @@
             }
           ]
         ],
-        "description": "Gains +2 in social actions whenever judging surrendered opponents. ★ Also gains +2 to mind altering spells against them.",
+        "description": "Enemies that trigger their limit stress action after being intimidated by the character are compelled to surrender until they hit in a morale test.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "mercy"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -5638,8 +5838,8 @@
       }
     ]
   },
-  "inspiring-rally": {
-    "family": "Inspiring Rally",
+  "inspiring-deed": {
+    "family": "Inspiring Deed",
     "section": "Providentialism",
     "activation": "passive",
     "cost": {
@@ -5676,59 +5876,12 @@
             }
           ]
         ],
-        "description": "Rally adds the full +Charisma to the next morale test of the team.",
+        "description": "Rallies their team any time they roll a 9 on the dice.",
         "effect": [],
         "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
-  "undaunted-oath": {
-    "family": "Undaunted Oath",
-    "section": "Providentialism",
-    "activation": "passive",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": false,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "category",
-              "name": "humanoid",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "trainable",
-              "name": "Providentialism",
-              "level": 5,
-              "op": ">=",
-              "not": false
-            }
-          ]
+        "grants": [
+          "inspiringDeed"
         ],
-        "description": "When the character is trying to fulfill a promise and receives a wound, they can immediately perform an action surge, even if they have no STA.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

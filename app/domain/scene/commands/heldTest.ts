@@ -8,6 +8,7 @@ import { getSceneModeOf } from '../rules/test'
 import { getThrowHappenings } from '../../character/rules/attitudes'
 import { meetEachAttitude } from '../../character/commands/attitudes'
 import { updateCharacter } from './characters'
+import { inspire } from './inspiringDeed'
 import { getDegree, resolveTest } from '../../play/test'
 import { sink } from './swim'
 
@@ -43,7 +44,7 @@ export function rollHeld(id: string, kind: CalledKind, mode: RollMode, dice: Dic
     const { die, degree } = resolveTest(test, (explodes) => rollModed(thrown, explodes, dice))
     const DL = getHeldDL(state, id, kind)
     const happened = getThrowHappenings({ mode: thrown, die, explodes: test.explodes, scored: DL === null ? null : { skill: kind, value: test.skill, DL, degree } })
-    return updateCharacter(id, meetEachAttitude(happened), 'conviction attitude')(writeHeld(id, kind, thrown, die)(state))
+    return inspire(updateCharacter(id, meetEachAttitude(happened), 'conviction attitude')(writeHeld(id, kind, thrown, die)(state)), id, happened)
   }
 }
 

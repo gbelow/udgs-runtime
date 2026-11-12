@@ -9,6 +9,9 @@ import { oweStress } from './stress'
 import { meetAttitudes, meetEachAttitude } from '../../character/commands/attitudes'
 import { getThrowHappenings } from '../../character/rules/attitudes'
 import { getSceneModeOf } from '../rules/test'
+import { getMercifulTo } from '../rules/providence'
+import { compelSurrender, releaseFromMercy } from './providence'
+import { inspire } from './inspiringDeed'
 
 // combat.tex "Combat morale test": the character's will test against the DL
 // of the moment, thrown in a way their abilities allow (`getMoraleModes`), or
@@ -63,13 +66,20 @@ function settleMorale(id: string, roll: MoraleRoll): Updater {
   return (state) => {
     const c = state.characters[id]
     const outcome = getMoraleOutcome(c, roll.degree, getCompulsionDegree(c, roll.score, roll.DL), roll.enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
+    const happened = getThrowHappenings({ mode: roll.mode, die: roll.die, explodes: false, scored: { skill: 'will', value: roll.skill, DL: roll.DL, degree: roll.degree } })
+    // abilities.tex "Mercy": the limit stress action an intimidation of a Mercy
+    // holder activated is a surrender in its place
+    const merciful = outcome.limitStress && getMercifulTo(state, id).length > 0
     const settled = [
       updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)), 'morale test'),
-      updateCharacter(id, meetEachAttitude(getThrowHappenings({ mode: roll.mode, die: roll.die, explodes: false, scored: { skill: 'will', value: roll.skill, DL: roll.DL, degree: roll.degree } })), 'conviction attitude'),
+      updateCharacter(id, meetEachAttitude(happened), 'conviction attitude'),
       ...(outcome.limitStress ? [updateCharacter(id, meetAttitudes({ event: 'limitStress' }), 'conviction attitude')] : []),
       ...(outcome.limitStress ? getStressAuthors(state, id).map((by) => updateCharacter(by, meetAttitudes({ event: 'enemyStress' }), 'conviction attitude')) : []),
+      (acc: SceneState) => inspire(acc, id, happened),
+      (acc: SceneState) => (merciful ? compelSurrender(acc, id) : acc),
+      (acc: SceneState) => (roll.degree === 'hit' || roll.degree === 'critical' ? releaseFromMercy(acc, id) : acc),
     ].reduce((acc, step) => step(acc), state)
-    const tested = withRoll(settled, id, { ...roll, limitStress: outcome.limitStress })
+    const tested = withRoll(settled, id, { ...roll, limitStress: outcome.limitStress && !merciful })
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)
   }
 }

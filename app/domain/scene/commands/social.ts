@@ -7,6 +7,8 @@ import { isVoided } from '../rules/opportunity'
 import { getHeard } from '../rules/social'
 import { hasGrant } from '../../character/rules/effects'
 import { markStress } from './stress'
+import { updateCharacter } from './characters'
+import { braveTheOdds, raiseSurrenderFlag } from './providence'
 
 // What was said, written as the pressure it puts on each hearer's morale test,
 // read at the next round's beginning (`getPressure`) — said at the round
@@ -14,7 +16,15 @@ import { markStress } from './stress'
 export function speak(state: SceneState, id: string, kind: Pressure['kind'], value: number, heard: string[]): SceneState {
   const round = getSpeakingRound(state)
   const said = heard.map((target) => ({ round, from: id, target, kind, value }))
-  return { ...state, pressure: [...state.pressure.filter((p) => p.round >= round - 1), ...said] }
+  const spoken = { ...state, pressure: [...state.pressure.filter((p) => p.round >= round - 1), ...said] }
+  return kind === 'rally' ? lendLeadership(spoken, id) : spoken
+}
+
+// abilities.tex "Leadership": "+1 to all skills in a round when they rallied
+// their team", the buff the ability lists while `rallied` holds.
+function lendLeadership(state: SceneState, id: string): SceneState {
+  const c = state.characters[id]
+  return c && hasGrant(c, 'leadership') && !c.rallied ? updateCharacter(id, (x) => ({ ...x, rallied: true }), 'Leadership')(state) : state
 }
 
 // combat.tex "Social actions": what a social action leaves once it lands,
@@ -28,14 +38,15 @@ export function landSocial(state: SceneState, action: SocialActionRecord | Taunt
   if (action.kind === 'taunt') return action.targetId ? rallyingTaunt(speak(state, c.id, 'taunt', getSocialValue(c, 'taunt'), [action.targetId]), c.id) : state
   switch (action.say) {
     case 'intimidate':
+      return braveTheOdds(speak(state, c.id, 'intimidate', getSocialValue(c, 'intimidate'), getHeard(state, c.id, 'intimidate')), c.id)
     case 'rally':
-      return speak(state, c.id, action.say, getSocialValue(c, action.say), getHeard(state, c.id, action.say))
+      return speak(state, c.id, 'rally', getSocialValue(c, 'rally'), getHeard(state, c.id, 'rally'))
     case 'insult':
       return markStress(c.id, { acted: true })(speak(state, c.id, 'insult', INSULT_BONUS, getHeard(state, c.id, 'insult')))
     case 'negotiate':
       return getStressSocial(state, c.id) === 'negotiate' ? markStress(c.id, { acted: true })(state) : state
     case 'surrender':
-      return state.surrendered.includes(c.id) ? state : { ...state, surrendered: [...state.surrendered, c.id] }
+      return raiseSurrenderFlag(state, c.id)
     case 'unsurrender':
       return { ...state, surrendered: state.surrendered.filter((s) => s !== c.id) }
   }

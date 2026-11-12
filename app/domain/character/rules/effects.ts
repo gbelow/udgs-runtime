@@ -77,6 +77,8 @@ const BUFF_CONDITIONS: Record<BuffCondition, (c: Character) => boolean> = {
   // combat.tex "Afflictions": enraged is put on by a morale test and never
   // forced, so the stored list holds it
   enraged: (c) => isCampaignCharacter(c) && c.afflictions.includes('enraged'),
+  // abilities.tex "Leadership": the round the character rallied their team in
+  rallied: (c) => isCampaignCharacter(c) && c.rallied,
 }
 
 function holdsWhen(character: Character, when: BuffCondition | null): boolean {

@@ -22,5 +22,6 @@ export function leaveFight(c: CampaignCharacter): CampaignCharacter {
     usedSurge: null,
     surgeFloor: null,
     runsFree: false,
+    rallied: false,
   }
 }

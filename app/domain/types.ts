@@ -753,7 +753,7 @@ export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarge
 
 // A state of the character a buff, a suppression or a surge allowance holds
 // only in (character/rules/effects.ts `BUFF_CONDITIONS` says what each reads).
-export const BuffConditionSchema = z.enum(['movementSurge', 'noGauntlets', 'enraged'])
+export const BuffConditionSchema = z.enum(['movementSurge', 'noGauntlets', 'enraged', 'rallied'])
 export type BuffCondition = z.infer<typeof BuffConditionSchema>
 
 export const BuffSchema = z.object({
@@ -1261,7 +1261,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir', 'tireless', 'adaptiveSleep', 'resurrection', 'metabolicControl', 'bearNose', 'batEars', 'fur', 'scales'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'leadership', 'againstTheOdds', 'mercy', 'inspiringDeed', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir', 'tireless', 'adaptiveSleep', 'resurrection', 'metabolicControl', 'bearNose', 'batEars', 'fur', 'scales'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when
@@ -1307,7 +1307,10 @@ export type SurgeAllow = z.infer<typeof SurgeAllowSchema>
 // tier 2 or more from it. `knowledgeLevel`: the holder gained a level of a
 // specific knowledge. `grimoireSpell`: they learned a spell from a grimoire.
 // `celebrate`: they celebrated. `uncelebrated`: ten days of downtime passed
-// for them without a celebration.
+// for them without a celebration. `attackedSurrendered`: the holder attacked
+// someone who had surrendered; `allyAttackedSurrendered`: someone else on
+// the holder's team did. `surrendersSpared`: a combat ended with someone
+// having surrendered in it, and everyone who did alive.
 export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({
     event: z.literal('test'),
@@ -1336,6 +1339,9 @@ export const AttitudeEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('grimoireSpell') }).strip(),
   z.object({ event: z.literal('celebrate') }).strip(),
   z.object({ event: z.literal('uncelebrated') }).strip(),
+  z.object({ event: z.literal('attackedSurrendered') }).strip(),
+  z.object({ event: z.literal('allyAttackedSurrendered') }).strip(),
+  z.object({ event: z.literal('surrendersSpared') }).strip(),
 ])
 export type AttitudeEvent = z.infer<typeof AttitudeEventSchema>
 
@@ -1650,6 +1656,9 @@ const CampaignValues = {
   // surge", for the rest of the turn it was made in, which is also how long
   // abilities.tex "Tactical Movement" lasts
   runsFree: z.boolean().default(false),
+  // abilities.tex "Leadership": the character rallied their team in the
+  // round, which is how long the bonus it gives lasts
+  rallied: z.boolean().default(false),
   active: z.array(ActiveEntrySchema).default([]),
   // effects delivered and not yet applied: each waits on the target's own
   // test for its degree

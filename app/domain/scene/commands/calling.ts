@@ -4,6 +4,7 @@ import { getSceneModeOf } from '../rules/test'
 import { getCallHappenings } from '../../character/rules/attitudes'
 import { meetEachAttitude } from '../../character/commands/attitudes'
 import { updateCharacter } from './characters'
+import { inspire } from './inspiringDeed'
 
 // A scene command that throws dice, run over the calls the scene has made.
 // Each die is thrown the way its roller throws a test of its skill
@@ -28,7 +29,7 @@ export function calling(resume: SceneResume, thrown: Throw, run: (caller: Caller
 function meetCalls(state: SceneState, calls: Calls): SceneState {
   return Object.values(calls).reduce((s, call) => {
     const happened = getCallHappenings(call)
-    return happened.length > 0 ? updateCharacter(call.roller, meetEachAttitude(happened), 'conviction attitude')(s) : s
+    return happened.length > 0 ? inspire(updateCharacter(call.roller, meetEachAttitude(happened), 'conviction attitude')(s), call.roller, happened) : s
   }, state)
 }
 

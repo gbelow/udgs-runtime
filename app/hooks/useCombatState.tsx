@@ -5,6 +5,7 @@ import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../d
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getBreakFreeView, getMockeryView, type MockeryView } from "../domain/scene/projections/domination";
+import { getLeadershipView, type LeadershipView } from "../domain/scene/projections/providence";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getGearBar } from "../domain/scene/rules/turn";
 import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getContestModeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
@@ -177,6 +178,12 @@ export function useCowardBar(): string | null {
 export function useMockery(): MockeryView | null {
   const view = useCombatStore(useShallow((s) => (s.activeCharacterId ? getMockeryView(s, s.activeCharacterId) : null)));
   return view;
+}
+
+// abilities.tex "Leadership": the active character's rally at the round
+// change, null when they have not learned it.
+export function useLeadership(): LeadershipView | null {
+  return useCombatStore(useShallow((s) => (s.activeCharacterId ? getLeadershipView(s, s.activeCharacterId) : null)));
 }
 
 // combat.tex "Dominated": why the active character cannot test to break out.

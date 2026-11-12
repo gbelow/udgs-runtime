@@ -11,7 +11,7 @@ import { usePartyCommands, useTableParties } from '../hooks/useParty';
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useBreakFreeBar, useMockery, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
+import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useGmFloorTools } from '../hooks/useBoard';
 import { ExplosionFields } from './ExplosionFields';
@@ -189,6 +189,7 @@ export function SceneActions(){
       <ControlLocked>
         <TurnControl />
         <MockButton />
+        <LeadershipButton />
       </ControlLocked>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -214,6 +215,21 @@ function MockButton(){
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <Tooltip text={view.bar ?? `a taunt with +1, for ${view.AP} AP`}>
         <Button size='xs' aria-label='mock' disabled={view.bar !== null} onClick={mock}>{view.target ? `mock ${view.target}` : 'mock'}</Button>
+      </Tooltip>
+    </div>
+  )
+}
+
+// abilities.tex "Leadership": the active character rallies their team once
+// everyone has rolled their morale test.
+function LeadershipButton(){
+  const view = useLeadership()
+  const { leadershipRally } = useCombatCommands()
+  if (!view) return null
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <Tooltip text={view.bar ?? `a rally for ${view.AP} AP`}>
+        <Button size='xs' aria-label='leadership rally' disabled={view.bar !== null} onClick={leadershipRally}>rally</Button>
       </Tooltip>
     </div>
   )

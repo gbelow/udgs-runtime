@@ -24,7 +24,7 @@ export function removeFromCombat(id: string): Updater {
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
     const { [id]: _cover, ...bodyCover } = state.bodyCover
     const { [id]: _party, ...partyOf } = state.partyOf
-    const left = dropEmptyFightParties({ ...state, characters: without(state.characters, id), partyOf, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) }, [state.partyOf[id]])
+    const left = dropEmptyFightParties({ ...state, characters: without(state.characters, id), partyOf, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), surrenderers: state.surrenderers.filter((s) => s !== id), compelledSurrender: state.compelledSurrender.filter((s) => s !== id), braved: state.braved.filter((s) => s !== id), moraleRallies: state.moraleRallies.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) }, [state.partyOf[id]])
     return settleBinds(left)
   }
 }
@@ -42,7 +42,7 @@ export function layToRest(state: SceneState): SceneState {
   return dead.reduce((given, c) => {
     const s = withdrawActions(given, getHeldActions(given).filter((h) => h.actorId === c.id).map((h) => h.id), 'failed')
     const { [c.id]: _party, ...partyOf } = s.partyOf
-    const left = dropEmptyFightParties({ ...s, partyOf, inTurnCharacter: s.inTurnCharacter === c.id ? '' : s.inTurnCharacter, surrendered: s.surrendered.filter((id) => id !== c.id), binds: s.binds.filter((g) => !g.members.includes(c.id)) }, [s.partyOf[c.id]])
+    const left = dropEmptyFightParties({ ...s, partyOf, inTurnCharacter: s.inTurnCharacter === c.id ? '' : s.inTurnCharacter, surrendered: s.surrendered.filter((id) => id !== c.id), compelledSurrender: s.compelledSurrender.filter((id) => id !== c.id), binds: s.binds.filter((g) => !g.members.includes(c.id)) }, [s.partyOf[c.id]])
     return settleBinds(left)
   }, chased)
 }

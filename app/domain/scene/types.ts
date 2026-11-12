@@ -2004,6 +2004,18 @@ export const SceneStateSchema = z.object({
   tablePressure: z.record(z.string(), num).default({}),
   // combat.tex "Surrender": who has flagged themselves surrendered
   surrendered: z.array(z.string()).default([]),
+  // abilities.tex "Justice": everyone who has surrendered in the fight, kept
+  // after they unflag, until the combat ends
+  surrenderers: z.array(z.string()).default([]),
+  // abilities.tex "Mercy": who was compelled to surrender, and stays so until
+  // they hit in a morale test
+  compelledSurrender: z.array(z.string()).default([]),
+  // abilities.tex "Against the Odds": who has had the round's AP, by id,
+  // lapsing at its end
+  braved: z.array(str).default([]),
+  // abilities.tex "Leadership": who rallied at the round change once every
+  // morale test was made, whose bonus is for the round that begins
+  moraleRallies: z.array(str).default([]),
   // combat.tex "Dominated": who is under whose control, kept across rounds
   // while they stay dominated
   dominations: z.array(DominationSchema).default([]),

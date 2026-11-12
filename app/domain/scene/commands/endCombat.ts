@@ -6,6 +6,7 @@ import { expireUsedAbilities } from '../../character/commands/abilities'
 import { getHeldActions } from '../rules/hold'
 import { getEndCombatBar } from '../rules/fight'
 import { finishHeld } from './hold'
+import { meetSurrendersSpared } from './providence'
 
 // The combat or chase ends and everyone stays in the scene: what the end of a
 // fight does to each (`leaveFight`), and the scene goes back to before its
@@ -16,11 +17,16 @@ export function endCombat(thrown: Throw): Updater {
 }
 
 // The combat ends, whatever ended it: the table, or a chase that is over.
-export function endScene(state: SceneState, caller: Caller): SceneState {
+export function endScene(scene: SceneState, caller: Caller): SceneState {
+  const state = meetSurrendersSpared(scene)
   const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, leaveFight(expireUsedAbilities(c))]))
   const ended = {
     ...state,
     characters,
+    surrenderers: [],
+    compelledSurrender: [],
+    braved: [],
+    moraleRallies: [],
     round: 0,
     roundStep: null,
     chase: null,

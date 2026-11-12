@@ -143,6 +143,15 @@ export function guardian(c: CampaignCharacter): CampaignCharacter {
   return (['protection-surge', 'bulwark-2', 'rallying-guard', 'guardian-s-vigor-2'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
 }
 
+// Providentialism adopted as the worldview and its abilities learned: a
+// rally after a team mate's limit stress and after a 9, an enemy
+// intimidated into surrender, AP against intimidation, and Justice's
+// attitudes toward the surrendered (abilities.tex "Providentialism").
+export function providential(c: CampaignCharacter): CampaignCharacter {
+  const adopted = { ...c, trainables: { ...c.trainables, conviction2: { ...c.trainables.conviction2, name: 'Providentialism' } } }
+  return (['justice', 'leadership', 'against-the-odds', 'mercy', 'inspiring-deed'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
+}
+
 // A brawler with a short sword in the other hand, which intercepts and is
 // bladed.
 export function swordBrawler(id: string): CampaignCharacter {

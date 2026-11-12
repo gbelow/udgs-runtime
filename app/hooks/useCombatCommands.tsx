@@ -44,6 +44,7 @@ export function useCombatCommands() {
   const follow = (targetId: string | null) => asPicked((id) => dispatch({ kind: "follow", args: [id, targetId] }))()
   const defaultToCoward =asPicked((id) => dispatch({ kind: "defaultToCoward", args: [id] }))
   const mock = asPicked((id) => dispatch({ kind: "mock", args: [id] }))
+  const leadershipRally = asPicked((id) => dispatch({ kind: "leadershipRally", args: [id] }))
   const breakFree = asPicked((id) => dispatch({ kind: "breakFree", args: [id] }))
   const giveOrder = (by: string, targetId: string, order: Order) => dispatch({ kind: "giveOrder", args: [by, targetId, order] })
   const endTurn = () => dispatch({ kind: "endTurn", args: [] })
@@ -70,5 +71,5 @@ export function useCombatCommands() {
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
   const resetCombat = () => sendTable({ kind: "resetFight", args: [] })
 
-  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, breakFree, giveOrder, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, leadershipRally, breakFree, giveOrder, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, deleteParty, removeCharacter }
 }
