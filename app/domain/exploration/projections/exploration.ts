@@ -20,6 +20,7 @@ import {
   type AmbientOn,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
+import { getContributingEffects, getDrain } from '../../character/rules/effects'
 import { getChargeTargets } from '../../character/rules/spells'
 import { getCarriedItems } from '../../item/rules/items'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -311,10 +312,12 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const groups = Object.entries(getGroups(t, partyId)).map(([groupId, g], i): PlanOption => ({
     plan: { group: groupId }, label: `${g.kind} ${i + 1}`, IL: getWear(c, getExplorationAction(g.kind)), exhaustion: 1, hunger: 0, thirst: 0, idle: false, selected: g.members.includes(id),
   }))
-  // the terrain's wear, which every plan pays on top
+  // the terrain's wear, which every plan pays on top, and what the character
+  // holds switched on costs an ET
   const wear = getTerrainWear(state, party)
+  const held = getDrain(getContributingEffects(c), 'end_et')
   const worn = (o: PlanOption): PlanOption =>
-    ({ ...o, IL: o.IL + wear.IL, exhaustion: o.exhaustion + wear.exhaustion, hunger: o.hunger + wear.hunger, thirst: o.thirst + wear.thirst })
+    ({ ...o, IL: o.IL + wear.IL + held.IL, exhaustion: o.exhaustion + wear.exhaustion + held.exhaustion, hunger: o.hunger + wear.hunger, thirst: o.thirst + wear.thirst })
   const castPanel = getCastPanel(t, id)
   const plannedCast = t.exploration.casts[id]
   const cast: PlanOption[] = castPanel.spells.length > 0

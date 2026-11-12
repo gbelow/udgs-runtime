@@ -33,7 +33,7 @@ export function getMoraleSpellTargets(state: SceneState, root: CastAction): stri
   if (link) return getLinkedTargets(state, root.actorId, link).filter((id) => !isDeadIn(state, id))
   if (spell.target === 'target') return root.targetId && !isDeadIn(state, root.targetId) ? [root.targetId] : []
   return Object.keys(state.characters).filter((id) => id !== root.actorId && !isDeadIn(state, id)
-    && getSenseReaches(state, root.actorId, id).some((r) => r.sense === 'synesthesia' && r.active))
+    && getSenseReaches(state, root.actorId, id).some((r) => r.sense === 'synesthesia'))
 }
 
 // spells.tex "Suggestion": "The limit stress actions triggered can be either

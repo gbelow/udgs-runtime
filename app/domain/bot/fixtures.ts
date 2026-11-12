@@ -5,7 +5,7 @@ import { holdItem, regripItem } from '../item/commands/hands'
 import { addItemToContainer } from '../item/commands/items'
 import { putOnFromCatalog } from '../item/commands/containers'
 import { getCatalogItem } from '../item/rules/items'
-import { grantAbility } from '../character/commands/abilities'
+import { grantAbility, toggleAbility } from '../character/commands/abilities'
 import { makeName } from '../instances'
 
 // Fighters and boards for the bots' test and simulator to play with.
@@ -48,16 +48,15 @@ export function crossbowman(id: string): CampaignCharacter {
 // A caster holding a flamethrower (spells.tex "Flamethrower"), the focus surge
 // spent, with the spells that ask for nothing in hand besides, the morale
 // spells and Spiritual Strike among them, the healing spells cast in a
-// round and one that takes an ET, synesthesia for those that reach
+// round and one that takes an ET, synesthesia held for those that reach
 // every mind it takes in (abilities.tex "Synesthesia"), and every stage of
 // Battle Mage, to quicken cheaply and defend while concentrating.
 export function mage(id: string): CampaignCharacter {
   const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
   const spells = ['flamethrower', 'telepathic-link', 'pain', 'sleep', 'frighten', 'offend', 'pacify', 'suggestion', 'overwhelming-terror', 'provocative-mockery', 'spiritual-strike', 'defibrillate', 'clotting-touch', 'regenerate']
   const known = Object.fromEntries(spells.map((key) => [key, { method: 'intuitive' as const, practice: 6 }]))
-  const caster = fighter(id)
-  const senses = { ...caster.senses, synesthesia: { ...caster.senses.synesthesia, hasSense: true, range: 10 } }
-  return grantAbility('battle-mage-2')({ ...holdItem(flamethrower)({ ...caster, senses }), spells: known, usedSurge: 'focus' })
+  const caster = toggleAbility('synesthesia-1')(grantAbility('synesthesia-2')(fighter(id))) as CampaignCharacter
+  return grantAbility('battle-mage-2')({ ...holdItem(flamethrower)(caster), spells: known, usedSurge: 'focus' })
 }
 
 // A fighter with a gauntlet in hand, which grabs (gear.tex "Grapple I/II"),

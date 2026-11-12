@@ -72,6 +72,13 @@ export function toggleAbility(key: AbilityKey): (c: Character) => Character {
   }
 }
 
+// Switches off every toggle ability the character holds.
+export function switchOffToggles<C extends Character>(c: C): C {
+  if (!isCampaignCharacter(c)) return c
+  const active = c.active.filter((e) => !(e.kind === 'ability' && isAbilityKey(e.key) && ABILITIES[e.key].activation === 'toggle'))
+  return active.length === c.active.length ? c : { ...c, active }
+}
+
 // A fired ability's turn is over at the round change: once its upkeep is
 // paid it stops contributing. Toggles and held spells stay.
 export function expireUsedAbilities(c: CampaignCharacter): CampaignCharacter {

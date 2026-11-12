@@ -774,7 +774,10 @@ export const SuppressionSchema = z.object({
 
 export type Suppression = z.infer<typeof SuppressionSchema>
 
-export const TriggerSchema = z.enum(['instant', 'end_round', 'toggle'])
+// When an effect falls due: `instant` as it is applied, `end_round` at a
+// fight's round change, `end_et` as an ET of exploration closes (what a held
+// ability costs out of combat, abilities.tex "Synesthesia").
+export const TriggerSchema = z.enum(['instant', 'end_round', 'end_et', 'toggle'])
 export type Trigger = z.infer<typeof TriggerSchema>
 
 // play.tex "Degrees of success". An attack never lands the critical: past a
@@ -1262,7 +1265,7 @@ export type EdgeRecipe = Extract<Recipe, { type: 'edge' }>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'leadership', 'againstTheOdds', 'mercy', 'inspiringDeed', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir', 'tireless', 'adaptiveSleep', 'resurrection', 'metabolicControl', 'bearNose', 'batEars', 'fur', 'scales'])
+export const GrantSchema = z.enum(['bladeAlignment', 'grapplingCombat', 'tackle', 'plantShield', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'climbUpright', 'climbLeap', 'humanoidHeight', 'spiritOfBattle', 'hypeUp', 'furious', 'brutality', 'perfectPreparation', 'battleCommands', 'strategist', 'prepared', 'reactiveFighting', 'concentratedDefense', 'reserveClause', 'firstMover', 'flowState', 'fateful', 'unshakable', 'protectionSurge', 'rallyingGuard', 'rallyingTaunt', 'leadership', 'againstTheOdds', 'mercy', 'inspiringDeed', 'repositionTwice', 'overrule', 'subjugate', 'mockery', 'largeHands', 'regenerativeReservoir', 'tireless', 'adaptiveSleep', 'resurrection', 'metabolicControl', 'bearNose', 'batEars', 'fur', 'scales', 'blindCombat'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // play.tex "Safe and risky tests": "This mechanic can only be used when

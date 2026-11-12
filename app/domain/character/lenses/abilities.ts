@@ -50,13 +50,18 @@ function learningPrice(c: Character, key: AbilityKey): string {
 }
 
 // How the ability is held, in the words the book used for its Usage field:
-// always on, fired for a price, or switched on and paid per turn.
+// always on, fired for a price, or switched on and paid per turn (and per
+// ET out of combat, where it says).
 function usageLabel(key: AbilityKey): string {
   const ability = ABILITIES[key]
   switch (ability.activation) {
     case 'passive': return 'passive'
     case 'active': return priceLabel(ability.cost)
-    case 'toggle': return `sustained, ${priceLabel(getDrain(ability.effect, 'end_round'))}/turn`
+    case 'toggle': {
+      const perTurn = `sustained, ${priceLabel(getDrain(ability.effect, 'end_round'))}/turn`
+      const perET = getDrain(ability.effect, 'end_et')
+      return Object.values(perET).some((v) => v !== 0) ? `${perTurn}, ${priceLabel(perET)}/ET` : perTurn
+    }
   }
 }
 

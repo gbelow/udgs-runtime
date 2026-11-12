@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character, Sense, Senses, Skills } from '../../types'
 import type { Action, Board, SceneState, Coord, Direction } from '../types'
-import { BAD_VISIBILITY_PENALTY, FOG_VISION_RADIUS, SkillPenaltyTable } from '../../tables'
+import { BAD_VISIBILITY_PENALTY, FALL, FOG_VISION_RADIUS, SkillPenaltyTable } from '../../tables'
 import { getDetectionTerms } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getSenseBonus } from '../../character/lenses/senses'
@@ -8,8 +8,8 @@ import { getSenses, getSensesInTurn } from '../../character/rules/senses'
 import { getAfflictedSense } from '../../character/rules/afflictions'
 import { getCamouflage } from '../../item/rules/items'
 import { getSituationalAfflictions } from './situational'
-import { coordKey, directionTo, disk, parseCoordKey, sameCell, setDistance, walkOut } from './board/geometry'
-import { getDistanceBetween, getEyesToward, getPlacedFootprint, getTerrainAt, hasLineOfSight, LEVEL_EYES, seesAcross, type Eyes } from './board/board'
+import { add, coordKey, DIRECTIONS, directionTo, disk, parseCoordKey, ROTATIONS, sameCell, setDistance, walkOut } from './board/geometry'
+import { getDistanceBetween, getEyesToward, getPlacedFootprint, getTerrainAt, hasLineOfSight, isFloorBetween, LEVEL_EYES, seesAcross, type Eyes } from './board/board'
 import { getCellHazard, getHazardAt } from './board/hazard'
 import { crossesThinWall, isFootprintOpen, readGround } from './board/ground'
 import { getPartners } from './partners'
@@ -102,6 +102,84 @@ function hears(state: SceneState, observerId: string, at: readonly Coord[], rang
   return !cells || at.some((cell) => cells.has(coordKey(cell)))
 }
 
+// A sense that reaches as far as its range walks.
+const byWalk: Impair = (state, o, t, { range, partial }) => {
+  const at = getPlacedFootprint(state, t)
+  return !at || hears(state, o, at, range) ? (partial ? 'partial' : 'none') : 'total'
+}
+
+// A floor of a cell: the cell and the height of the floor there.
+const floorKey = (cell: Coord, floor: number) => `${coordKey(cell)}@${floor}`
+
+// abilities.tex "Synesthesia": "The volume of perception is filled as if it
+// were gas. Solid impermeable objects block the radius of synesthesia". The
+// floors it fills within `range` metres of the observer: around walls on a
+// floor, as a walk would go, and up or down within a cell wherever no solid
+// floor lies between (a stairwell, a lattice), the metres climbed counted.
+// It spreads at the height of the ground and of every storey, and fills a
+// floor it passes less than a cliff over. Null off the board. Worked out
+// once per fight state, observer and range.
+const filled = new WeakMap<SceneState, Map<string, Set<string> | null>>()
+function getFilledFloors(state: SceneState, observerId: string, range: number): Set<string> | null {
+  const known = filled.get(state) ?? new Map<string, Set<string> | null>()
+  filled.set(state, known)
+  const key = `${observerId}:${range}`
+  if (known.has(key)) return known.get(key)!
+  const board = state.board
+  const from = getPlacedFootprint(state, observerId)
+  const ground = readGround(state, observerId)
+  if (!board || !from || !ground) {
+    known.set(key, null)
+    return null
+  }
+  const feet = board.placements[observerId]?.elevation ?? 0
+  const heights = [...new Set([feet, 0, ...board.levels.map((l) => l.floor)])].sort((a, b) => a - b)
+  const out = new Set<string>()
+  const best = new Map<string, number>()
+  let queue: { cell: Coord; height: number; cost: number }[] = []
+  const push = (cell: Coord, height: number, cost: number) => {
+    const node = `${coordKey(cell)}|${height}`
+    if (cost > range || (best.get(node) ?? Infinity) <= cost) return
+    best.set(node, cost)
+    queue.push({ cell, height, cost })
+  }
+  for (const cell of from) push(cell, feet, 0)
+  while (queue.length > 0) {
+    queue.sort((a, b) => a.cost - b.cost)
+    const [{ cell, height, cost }, ...rest] = queue
+    queue = rest
+    if (best.get(`${coordKey(cell)}|${height}`)! < cost) continue
+    const under = getTerrainAt(board, cell, height).floor
+    if (Math.abs(height - under) < FALL.minHeight) out.add(floorKey(cell, under))
+    const floor = ground.at(height)
+    for (const d of ROTATIONS) {
+      const next = add(cell, DIRECTIONS[d])
+      if (isFootprintOpen([next], floor) && !crossesThinWall([next], floor, cell, next)) push(next, height, cost + 1)
+    }
+    const i = heights.indexOf(height)
+    for (const h of [heights[i - 1], heights[i + 1]]) {
+      if (h !== undefined && !isFloorBetween(board, cell, height, h)) push(cell, h, cost + Math.abs(h - height))
+    }
+  }
+  known.set(key, out)
+  return out
+}
+
+// Whether the perimeter of synesthesia fills a floor any of `at` stands on,
+// at the height of feet `feet`; everywhere for one with no range, and off
+// the board.
+function fills(state: SceneState, observerId: string, at: readonly Coord[], feet: number, range: number | null): boolean {
+  if (range === null) return true
+  const floors = getFilledFloors(state, observerId, range)
+  const board = state.board
+  return !floors || !board || at.some((cell) => floors.has(floorKey(cell, getTerrainAt(board, cell, feet).floor)))
+}
+
+const byFill: Impair = (state, o, t, { range, partial }) => {
+  const at = getPlacedFootprint(state, t)
+  return !at || fills(state, o, at, state.board?.placements[t]?.elevation ?? 0, range) ? (partial ? 'partial' : 'none') : 'total'
+}
+
 // combat.tex "Vision": how much of what stands on `at` an eye on `from`
 // takes in, the ground between aside. "Darkness and light": "Anyone in the
 // light radius is visible and anyone out is not. Dim light means partial
@@ -139,15 +217,12 @@ const IMPAIRMENTS: Record<keyof Senses, Impair> = {
   },
   // combat.tex "Hearing": "triggered by a sound event", as far as its range
   // walks; nothing on the board muffles one yet
-  hearing: (state, o, t, { range, partial }) => {
-    const at = getPlacedFootprint(state, t)
-    return !at || hears(state, o, at, range) ? (partial ? 'partial' : 'none') : 'total'
-  },
+  hearing: byWalk,
   // combat.tex "Smell": "Range of smell is 0, by default"
   smell: byRange,
   // combat.tex "Touch": "an active and reactive sense with 0m range"
   touch: byRange,
-  synesthesia: byRange,
+  synesthesia: byFill,
 }
 
 // combat.tex "Camouflage": "an item necessary to turn an area into a stealth
@@ -182,7 +257,7 @@ const TOTAL_INTO: Record<keyof Senses, TotalInto> = {
   hearing: (state, o, _from, at, range) => !hears(state, o, at, range),
   smell: isBeyond,
   touch: isBeyond,
-  synesthesia: isBeyond,
+  synesthesia: (state, o, _from, at, range) => !fills(state, o, at, state.board?.placements[o]?.elevation ?? 0, range),
 }
 
 // combat.tex "Morale", "Sensory limitation": whether there is ground within

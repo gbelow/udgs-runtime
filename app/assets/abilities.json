@@ -8390,7 +8390,7 @@
             }
           ]
         ],
-        "description": "Range/Area: Animancy meters radius. Duration: instantaneous. Out of combat, costs 2 exhaustion per ET instead. Maintains an energy perimeter that amplifies perception. This character can see invisible things as if they were visible within a sphere around them. The volume of perception is filled as if it were gas. Solid impermeable objects block the radius of synesthesia.",
+        "description": "Usage: sustained, 1 STA/turn or 2 exhaustion/ET. Range: 5 meters. Maintains an energy perimeter that amplifies perception, which is a passive sense with no sensory penalty. This character can detect invisible things within a sphere around them. The volume of perception is filled as if it were gas. Solid impermeable objects block the radius of synesthesia.",
         "effect": [
           {
             "name": "",
@@ -8400,6 +8400,18 @@
               "AP": 0,
               "STA": 1,
               "exhaustion": 0,
+              "IL": 0,
+              "ET": 0
+            }
+          },
+          {
+            "name": "",
+            "trigger": "end_et",
+            "type": "cost",
+            "effect": {
+              "AP": 0,
+              "STA": 0,
+              "exhaustion": 2,
               "IL": 0,
               "ET": 0
             }
@@ -8432,7 +8444,7 @@
             }
           ]
         ],
-        "description": "Range/Area: Animancy meters radius. Duration: instantaneous. Out of combat, costs 2 exhaustion per ET instead. Doubles the normal radius.",
+        "description": "Usage: sustained, 1 STA/turn or 2 exhaustion/ET. Range: 10 meters. Maintains an energy perimeter that amplifies perception, which is a passive sense with no sensory penalty. This character can detect invisible things within a sphere around them. The volume of perception is filled as if it were gas. Solid impermeable objects block the radius of synesthesia.",
         "effect": [
           {
             "name": "",
@@ -8442,6 +8454,18 @@
               "AP": 0,
               "STA": 1,
               "exhaustion": 0,
+              "IL": 0,
+              "ET": 0
+            }
+          },
+          {
+            "name": "",
+            "trigger": "end_et",
+            "type": "cost",
+            "effect": {
+              "AP": 0,
+              "STA": 0,
+              "exhaustion": 2,
               "IL": 0,
               "ET": 0
             }
@@ -8474,7 +8498,7 @@
             }
           ]
         ],
-        "description": "Range/Area: Animancy meters radius. Duration: instantaneous. Out of combat, costs 2 exhaustion per ET instead. Triples the normal and increased radius.",
+        "description": "Usage: sustained, 1 STA/turn or 2 exhaustion/ET. Range: 20 meters. Maintains an energy perimeter that amplifies perception, which is a passive sense with no sensory penalty. This character can detect invisible things within a sphere around them. The volume of perception is filled as if it were gas. Solid impermeable objects block the radius of synesthesia.",
         "effect": [
           {
             "name": "",
@@ -8484,6 +8508,18 @@
               "AP": 0,
               "STA": 1,
               "exhaustion": 0,
+              "IL": 0,
+              "ET": 0
+            }
+          },
+          {
+            "name": "",
+            "trigger": "end_et",
+            "type": "cost",
+            "effect": {
+              "AP": 0,
+              "STA": 0,
+              "exhaustion": 2,
               "IL": 0,
               "ET": 0
             }
@@ -8541,10 +8577,12 @@
             }
           ]
         ],
-        "description": "Uses synesthesia as an active sense. Does not receive any distance penalties and does not receive any penalty for using a closed helmet while synesthesia is active against characters within its range.",
+        "description": "Uses synesthesia as an active sense.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "blindCombat"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

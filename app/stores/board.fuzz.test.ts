@@ -1516,12 +1516,15 @@ describe('a chase with no board', () => {
   // A round of running was followed by the fight's whole round change, its
   // rest, joining and morale steps each waiting on the table, before anyone
   // could declare again. The table's ruling: runners have none of them.
+  // Holding on to what one keeps going is a choice, so that step stays.
   it('runs one chase round into the next with no fight round change between', () => {
     const { h } = openChase(1, 'shooting')
     for (const p of getDeclareOrder(h.state())) h.send({ kind: 'declareChase', args: [p, { move: 'run', scout: null, hideModifier: 0 }] })
     confirmAll(h)
     h.send({ kind: 'resolveChase', args: [] })
     h.send({ kind: 'nextRound', args: [] })
+    for (const id of getConcentrationOwed(h.state())) h.send({ kind: 'holdOn', args: [id] })
+    if (getRoundPhase(h.state()) === 'concentration') h.send({ kind: 'continueRound', args: [] })
     expect(getRoundPhase(h.state())).toBeNull()
     expect(h.state().morale).toEqual([])
     expect(getChasePanel(h.state()).rows.find((r) => r.declares)?.moves.some((m) => m.bar === null)).toBe(true)

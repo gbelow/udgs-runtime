@@ -30,6 +30,8 @@ import { without } from '../../utils'
 import { addParty, setPartySequence, updateCampaignMap } from '../../campaign/commands/parties'
 import { meetCalls, updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
+import { applyTrigger } from '../../character/commands/effects'
+import { switchOffToggles } from '../../character/commands/abilities'
 import { getRosterModeOf } from '../../campaign/rules/roster'
 import { takeDose } from '../../character/commands/consume'
 import { chargeItem, consumeItem } from '../../item/commands/hands'
@@ -243,8 +245,11 @@ export function toDowntime(partyId: string): ExplorationUpdater {
     if (getToDowntimeBar(t, partyId)) return t
     const members = getPartyMembers(t.campaign, partyId)
     const casts = Object.fromEntries(Object.entries(t.exploration.casts).filter(([id]) => !members.includes(id)))
+    // the table's ruling: nothing is held switched on in downtime
+    const characters = { ...t.campaign.characters }
+    for (const id of members) if (characters[id]) characters[id] = switchOffToggles(characters[id])
     return {
-      campaign: setPartySequence(partyId, 'downtime')(t.campaign),
+      campaign: setPartySequence(partyId, 'downtime')({ ...t.campaign, characters }),
       exploration: {
         ...t.exploration, groups: without(t.exploration.groups, partyId), camps: without(t.exploration.camps, partyId), casts,
         resting: t.exploration.resting.filter((id) => !members.includes(id)),
@@ -635,7 +640,7 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
 // land on the camp, in the order they were resolved, casts are cast, resters
 // rest, and everyone else not spent on a plan is idle; survival.tex
 // "Exhaustion": every ET but a rest adds +1 exhaustion. Everyone pays the
-// terrain's wear. Every group that travelled somewhere leaves as a party of
+// terrain's wear, and what they hold switched on costs an ET. Every group that travelled somewhere leaves as a party of
 // its own, taking what it found, unless it was the whole party, which leaves
 // its camp behind instead.
 function closeParty(t: Exploring, partyId: string, opening: Opening, test: Tester, newId: () => string): PartyET {
@@ -680,7 +685,8 @@ function closeParty(t: Exploring, partyId: string, opening: Opening, test: Teste
     const planned = resting ? rest(drank, exposure(drank), cast.bonus[id] ?? 0)
       : spent ? drank
       : addExhaustion(1 + (cast.exhaustion[id] ?? 0))(drank)
-    characters[id] = payWear(wear)(planned)
+    // what everything the character holds switched on costs an ET
+    characters[id] = applyTrigger('end_et')(payWear(wear)(planned))
   }
   // what the casts put on their targets lands once the ET's rest is had, so
   // healing banked as a potion's is spent over the next
