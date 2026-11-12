@@ -1,7 +1,7 @@
 import { isCombatStarted } from './started'
 import type { CampaignCharacter } from '../../types'
+import { getFightCunningTerms } from './centralIntelligence'
 import { canSurgeAtAll } from '../../character/rules/surge'
-import { getCunningTerms } from '../../character/rules/skills'
 import type { Term } from '../../character/rules/terms'
 import type { SceneState, FeintAction } from '../types'
 import { getMeleeDistance, getMeleeRange } from './board/board'
@@ -33,11 +33,12 @@ export function getFeintBar(state: SceneState, c: CampaignCharacter): string | n
 }
 
 // The actor's cunning against the target's, each with a pursuer's routing
-// bonus (rules/chase.ts).
+// bonus (rules/chase.ts) and the cunning a linked caster lends
+// (abilities.tex "Central Intelligence").
 export function getFeintTerms(state: SceneState, root: FeintAction): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[root.actorId]
   const target = root.targetId ? state.characters[root.targetId] : undefined
-  return actor && target ? { skill: [...getCunningTerms(actor), ...getRoutingTerms(state, actor.id)], DL: [...getCunningTerms(target), ...getRoutingTerms(state, target.id)] } : null
+  return actor && target ? { skill: [...getFightCunningTerms(state, actor.id), ...getRoutingTerms(state, actor.id)], DL: [...getFightCunningTerms(state, target.id), ...getRoutingTerms(state, target.id)] } : null
 }
 
 // "On a hit or crit, the target is forced to take their turn and use one

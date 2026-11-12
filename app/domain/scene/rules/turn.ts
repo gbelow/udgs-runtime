@@ -1,5 +1,6 @@
 import { getDiceBar } from '../../play/calls'
 import { isCombatStarted } from './started'
+import { getFightCunningTerms } from './centralIntelligence'
 import type { SurgeKind } from '../../types'
 import type { SceneState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
@@ -12,7 +13,6 @@ import { getHeldTurnBar } from './heldRoll'
 import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } from './stress'
 import type { RollMode } from '../../play/dice'
 import { getRollModes } from '../../character/rules/effects'
-import { getCunning } from '../../character/rules/skills'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
 import { getParkedReason, isParked } from './parked'
@@ -113,9 +113,12 @@ export function getContestWinner(rolls: ContestRoll[]): string | null {
 
 // One contender's cunning roll, the die kept as thrown in `mode` (it does
 // not explode: play.tex "Exploding die": only where it says), with the
-// routing bonus of a chase and the roller's edges.
+// routing bonus of a chase and the roller's edges; the cunning a linked
+// caster lends where it is higher (abilities.tex "Central Intelligence").
 export function rollCunning(state: SceneState, id: string, die: number, mode: RollMode): ContestRoll {
-  const skillTerms = [{ label: 'cunning', value: getCunning(state.characters[id]) }, ...getRoutingTerms(state, id), ...getOwnEdgeTerms(state, id)]
+  const own = getFightCunningTerms(state, id)
+  const cunning = own.length === 1 ? own[0] : { label: 'cunning', value: sumTerms(own) }
+  const skillTerms = [cunning, ...getRoutingTerms(state, id), ...getOwnEdgeTerms(state, id)]
   const skill = sumTerms(skillTerms)
   return { id, mode, die, skill, skillTerms, score: die + skill }
 }

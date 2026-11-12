@@ -1,5 +1,6 @@
 import { LIMIT_STRESS_ACTIONS, type LimitStressAction } from '../../lists'
 import type { CampaignCharacter, Grant } from '../../types'
+import { getFightCunningTerms } from './centralIntelligence'
 import type { Action, Compulsion, Domination, SceneState } from '../types'
 import type { Test } from '../../play/test'
 import { ABILITIES } from '../../abilities'
@@ -106,13 +107,14 @@ export function getControllerId(state: SceneState, id: string): string {
 }
 
 // combat.tex "Dominated": "an Insight or Cunning test against the original
-// DL", the better of the two.
+// DL", the better of the two; the cunning a linked caster lends counts
+// (abilities.tex "Central Intelligence").
 export function getBreakFreeTest(state: SceneState, id: string): Test | null {
   const c = state.characters[id]
   const d = getDomination(state, id)
   if (!c || !d) return null
   const own = getSituationalAfflictions(state, id)
-  const skill = Math.max(sumTerms(skillTermGetters.insight(c, own)), sumTerms(skillTermGetters.cunning(c, own)))
+  const skill = Math.max(sumTerms(skillTermGetters.insight(c, own)), sumTerms(getFightCunningTerms(state, id)))
   return { skill, DL: d.DL, explodes: false, scale: 'degrees' }
 }
 
