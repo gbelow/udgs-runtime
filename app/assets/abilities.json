@@ -9599,7 +9599,7 @@
             }
           ]
         ],
-        "description": "Allows the use of melee weapons from a larger size category, but attacks cost +1 AP and have STR-2 in every move done with the weapon. The hands also count as a weapon of larger size, but don't get the AP cost increase.",
+        "description": "Allows the use of melee weapons from a larger size category, but attacks cost +1 AP and have STR-3 in every move done with the weapon. The hands also count as a weapon of larger size, but don't get the AP cost increase.",
         "effect": [],
         "recipes": [],
         "grants": [

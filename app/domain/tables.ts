@@ -247,10 +247,10 @@ export const SMASH_DM = 1
 
 // gear.tex "Size Scaling": a weapon larger than the wielder uses STR-5 in the
 // contribution of STR to damage. abilities.tex "Large Hands": the penalty is
-// STR-2 for who has them. A weapon smaller than the wielder gives the
+// STR-3 for who has them. A weapon smaller than the wielder gives the
 // opposite, STR+5, with no change in AP.
 export const OVERSIZE_STR = 5
-export const LARGE_HANDS_STR = 2
+export const LARGE_HANDS_STR = 3
 export const UNDERSIZE_STR = 5
 
 // gear.tex "STR x": the STR a weapon asks for, for every size it is above (or

@@ -18,7 +18,7 @@ export function WeaponPanel(){
           <div key={panel.key} className='flex flex-col gap-1'>
             <div className='flex flex-row flex-wrap gap-x-3 gap-y-0.5 items-baseline text-xs'>
               <span className='text-sm'>{panel.name}</span>
-              <span className='text-muted'>size {panel.scale}{!panel.wieldable ? <span className='text-bad'> · too large to wield</span> : panel.oversize ? <span className='text-bad'> · oversize: +1 AP, STR−5</span> : ''}</span>
+              <span className='text-muted'>size {panel.scale}{!panel.wieldable ? <span className='text-bad'> · too large to wield</span> : panel.oversize ? <span className='text-bad'> · oversize: {panel.oversizeAP ? `+${panel.oversizeAP} AP, ` : ''}STR−{panel.oversizeSTR}</span> : ''}</span>
               {panel.shield && <span className='text-muted'>{panel.shield.body ? 'body shield' : 'shield'} · cover +{panel.shield.cover}</span>}
               <span className='text-muted'>{panel.natural ? `${panel.grip} free` : `${panel.grip}h`}</span>
             </div>

@@ -31,14 +31,18 @@ export function isWieldable(weapon: Weapon, c: Character): boolean {
 // of who wields it, STR included.
 export const getWeaponDM = (weapon: Weapon): number => getDMAt(weapon.scale)
 
+// The STR an oversize weapon takes from its wielder's damage
+// (abilities.tex "Large Hands" less for a melee weapon); 0 for one that fits.
+export function getOversizeSTRPenalty(weapon: Weapon, c: Character): number {
+  if (!isOversize(weapon, c)) return 0
+  const melee = weapon.attacks.some((atk) => getAttackKind(atk.range) === 'melee')
+  return melee && hasGrant(c, 'largeHands') ? LARGE_HANDS_STR : OVERSIZE_STR
+}
+
 // The STR that goes into this weapon's damage: less with a weapon too large
-// for the wielder (abilities.tex "Large Hands" less so), more with one too
-// small.
+// for the wielder, more with one too small.
 function getWieldSTR(weapon: Weapon, c: Character): number {
-  if (isOversize(weapon, c)) {
-    const melee = weapon.attacks.some((atk) => getAttackKind(atk.range) === 'melee')
-    return getSTR(c) - (melee && hasGrant(c, 'largeHands') ? LARGE_HANDS_STR : OVERSIZE_STR)
-  }
+  if (isOversize(weapon, c)) return getSTR(c) - getOversizeSTRPenalty(weapon, c)
   return getSTR(c) + (weapon.scale < getSize(c) ? UNDERSIZE_STR : 0)
 }
 

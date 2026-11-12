@@ -4,7 +4,7 @@ import { getHardness } from '../../item/rules/items'
 import { injuryMap } from '../../tables'
 import { getAttackKind, getAttackPropertyLabels, getAttackType } from '../../weaponProperties'
 import { getArmor } from '../rules/armor'
-import { getAPSurcharge, getBlockValue, getReloadCost, getStrikeDamage, getWeaponRES, isOversize, isWieldable, needsFocus } from '../rules/gear'
+import { getAPSurcharge, getBlockValue, getOversizeSTRPenalty, getReloadCost, getStrikeDamage, getWeaponRES, isOversize, isWieldable, needsFocus } from '../rules/gear'
 import { getTGH } from '../rules/misc'
 import { getTierThreshold } from '../rules/damage'
 
@@ -99,6 +99,10 @@ export type WeaponPanelView = {
   scale: number
   // gear.tex "Size Scaling": one size above the wielder, and priced for it.
   oversize: boolean
+  // The STR the oversize weapon takes from damage; 0 when it fits.
+  oversizeSTR: number
+  // The AP every attack with it costs on top; 0 when it fits or is natural.
+  oversizeAP: number
   // gear.tex "Size Scaling": two or more above, and unusable in the hands.
   wieldable: boolean
   grip: number
@@ -123,6 +127,8 @@ export function getWeaponPanels(c: Character, charged: boolean): WeaponPanelView
     name: weapon.name,
     scale: weapon.scale,
     oversize: isOversize(weapon, c),
+    oversizeSTR: getOversizeSTRPenalty(weapon, c),
+    oversizeAP: getAPSurcharge(weapon, c),
     wieldable: isWieldable(weapon, c),
     grip,
     itemId,
@@ -147,6 +153,8 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.name,
         panel.scale,
         panel.oversize,
+        panel.oversizeSTR,
+        panel.oversizeAP,
         panel.wieldable,
         panel.grip,
         panel.itemId,
