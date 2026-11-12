@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit",
     "duel": "tsx tools/duel.ts",
     "fight": "tsx tools/fight.ts",
-    "damage": "tsx tools/damage.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "test:fuzz": "vitest run --config vitest.fuzz.config.ts",

@@ -51,7 +51,7 @@ function parse(argv: string[]): Args {
     sides: [words.slice(0, split), words.slice(split + 1)],
     seed: Number(flags.get('seed') ?? 1),
     rounds: Number(flags.get('rounds') ?? 5),
-    distance: Number(flags.get('distance') ?? 6),
+    distance: Number(flags.get('distance') ?? 20),
     out: flags.get('out') ?? null,
     tune,
   }
@@ -90,7 +90,6 @@ function standingTable(state: SceneState, ids: readonly string[]): string[] {
 // against it.
 const PARTS = [
   ['wounds', (o: OptionScore) => o.wounds],
-  ['pressure', (o: OptionScore) => o.pressure],
   ['potential', (o: OptionScore) => o.potential],
   ['engage', (o: OptionScore) => -o.engage],
   ['resources', (o: OptionScore) => o.resources],
@@ -122,7 +121,7 @@ function main(): void {
   args.sides.forEach((specs, side) => specs.forEach((spec, k) => {
     const id = `${side === 0 ? 'a' : 'b'}${k + 1}`
     characters.push(makeFighter(spec, id, `${side === 0 ? 'A' : 'B'}${k + 1}`))
-    placements[id] = [side === 0 ? 0 : args.distance, k * 2]
+    placements[id] = [side === 0 ? 0 : args.distance, k]
     members[side].push(id)
   }))
   let state = fixtures.board(placements, ...characters)

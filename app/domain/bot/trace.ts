@@ -5,7 +5,6 @@ export type OptionScore = {
   label: string
   value: number
   wounds: number
-  pressure: number
   potential: number
   engage: number
   resources: number

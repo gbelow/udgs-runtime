@@ -18,8 +18,8 @@ import type { Played } from './move'
 // party's, and what the character's own defenses are still worth against its
 // foes (reading.ts). Most of what it is worth may be what it does to the
 // action it answers: an attack of its own lands first, and its target may give
-// that action up to defend. The rows tried are the two the quick reading says
-// hit hardest unanswered. Whether to make one is the bot's to weigh.
+// that action up to defend. Every row it may declare is tried. Whether to make
+// one is the bot's to weigh.
 
 export type Opportunity = { id: string; label: string; played: Played; worth: number }
 
@@ -29,7 +29,6 @@ export type Settle = (state: SceneState, dice: Dice) => SceneState
 const CATCHING = { catch: true, martialSpirit: false, tackle: false }
 
 const DICE = [4, 9]
-const ROWS_TRIED = 2
 
 function reactionOf(state: SceneState, open: RootAction, id: string) {
   return getLiveReactionsTo(state, open.id).find((r) => r.actorId === id)
@@ -83,7 +82,6 @@ export function getOpportunities(state: SceneState, party: Party, id: string, op
         return []
       })
       .sort((x, y) => hardest(y.row) - hardest(x.row))
-      .slice(0, ROWS_TRIED)
     const made = rows.map(({ row, fields, amended }): Opportunity => ({
       id,
       label: `opportunity attack ${row.weapon} ${row.attack} (${row.variant})`,

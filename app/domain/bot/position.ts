@@ -43,12 +43,7 @@ export type Spot = {
   score: number
 }
 
-// How many foes a walk is offered to attack, and how many of the cheapest
-// cells to attack each from are looked at.
-const TARGETS = 2
-const SHORTLIST = 6
-
-function standingAt(state: SceneState, id: string, at: Placement, paid: { AP: number; STA: number }): SceneState {
+export function standingAt(state: SceneState, id: string, at: Placement, paid: { AP: number; STA: number }): SceneState {
   const c = state.characters[id]
   const moved = withPlacements(state, { [id]: at })
   return { ...moved, characters: { ...moved.characters, [id]: { ...c, resources: { ...c.resources, AP: c.resources.AP - paid.AP, STA: c.resources.STA - paid.STA } } } }
@@ -68,11 +63,11 @@ function drawnBy(state: SceneState, id: string, movement: 'basic' | 'run', to: R
   return foes.filter((foe) => getAvailableActions(committed, foe).some((o) => o.available && o.draft.kind === 'opportunityAttack'))
 }
 
-type Walk = { movement: 'basic' | 'run'; to: ReachableCell; at: Placement }
+export type Walk = { movement: 'basic' | 'run'; to: ReachableCell; at: Placement }
 
 // The reachable cells for each kind of movement, from the state as it stands
 // (a surge made or not), less those in a foe's space.
-function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () => string): Walk[] {
+export function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () => string): Walk[] {
   const declared = declareAction(id, { kind: 'move' }, newId)(state)
   if (getOpenAction(declared)?.kind !== 'move') return []
   const walks: Walk[] = []
@@ -88,7 +83,7 @@ function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () =>
   return walks
 }
 
-const costOf = (to: ReachableCell) => to.cost.AP + to.cost.STA
+export const costOf = (to: ReachableCell) => to.cost.AP + to.cost.STA
 
 export function getSpots(state: SceneState, party: Party, id: string, newId: () => string): Spot[] {
   const foes = getLiveFoes(state, party)
@@ -139,7 +134,7 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
   const targets = [...foeCells.keys()].flatMap((foe) => {
     const from = byCost.filter((walk) => offense(walk, foe) > 0)
     return from.length > 0 ? [{ foe, from, most: Math.max(...from.map((walk) => offense(walk, foe))) }] : []
-  }).sort((a, b) => b.most - a.most).slice(0, TARGETS)
+  }).sort((a, b) => b.most - a.most)
   const offered = new Map<string, Spot>()
   const offer = (s: Spot | null) => { if (s && s.to.steps > 0) offered.set(`${s.surged} ${s.to.cell.q},${s.to.cell.r}`, s) }
   const here: Walk = { movement: 'basic', to: { cell: origin, steps: 0, cost: { AP: 0, STA: 0 }, path: [] }, at: state.board!.placements[id] }
@@ -147,7 +142,7 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
     for (const { foe, from } of targets) {
       // For a shot, the cells it draws the least from are looked at first.
       const exposure = (walk: Walk) => (shoots(walk, foe) ? getDrawnByAction(standingAt(state, id, walk.at, walk.to.cost), id, foes) : 0)
-      const nearest = from.map((walk) => ({ walk, exposed: exposure(walk) })).sort((a, b) => a.exposed - b.exposed || costOf(a.walk.to) - costOf(b.walk.to)).slice(0, SHORTLIST).map(({ walk }) => walk)
+      const nearest = from.map((walk) => ({ walk, exposed: exposure(walk) })).sort((a, b) => a.exposed - b.exposed || costOf(a.walk.to) - costOf(b.walk.to)).map(({ walk }) => walk)
       const looked = [...(offense(here, foe) > 0 ? [here] : []), ...nearest]
       offer(best(looked.map((walk) => spot(walk, offense(walk, foe), shoots(walk, foe)))))
     }
@@ -169,7 +164,6 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
       const furthest = nearer.filter((walk) => walk.to.cost.AP === most)
         .map((walk) => ({ walk, danger: danger(walk) }))
         .sort((a, b) => a.danger - b.danger)
-        .slice(0, SHORTLIST)
       return best(furthest.map(({ walk }) => spot(walk, 0)))
     }
     return null

@@ -4,6 +4,7 @@ import type { Dice } from '../play/dice'
 import { rollOrPay } from '../scene/commands/action'
 import { getPayableCost } from '../scene/rules/action'
 import { getAction, getOpenAction } from '../scene/rules/log'
+import { getRootTest } from '../scene/rules/attack'
 import { isCombatStarted } from '../scene/rules/started'
 import { canAfford } from '../character/rules/cost'
 import { getSTA } from '../character/rules/characteristics'
@@ -115,6 +116,51 @@ export function readAttacks(state: SceneState, attackerId: string, targetId: str
     }))
 }
 
+// What an attack comes to when nothing answers it. How often it hits is the
+// skill difference alone (play.tex "How skills work": a hit is the d10, 0 to 9
+// and never exploding here, plus the skill over the DL by 5, so 50% when they
+// are equal and 10 points more or less for each point between them). The harm
+// of a hit is read from one hit played out at the middle of the faces that hit.
+export type HitReading = { kind: 'strike' | 'shoot'; weaponKey: string; attack: string; variant: string; cost: { AP: number; STA: number }; hitChance: number; hitHarm: number }
+
+function readHit(locked: SceneState, openId: string, target: CampaignCharacter): { hitChance: number; hitHarm: number } {
+  const open = getOpenAction(locked)
+  const test = open && getRootTest(locked, open)
+  if (!test) return { hitChance: 0, hitHarm: 0 }
+  const lowest = Math.max(0, 5 - (test.skill - test.DL))
+  if (lowest > 9) return { hitChance: 0, hitHarm: 0 }
+  return { hitChance: (10 - lowest) / 10, hitHarm: dealt(locked, openId, target, Math.round((lowest + 9) / 2)).harm }
+}
+
+// Every attack the attacker has on the target as they stand, both rested.
+export function readHits(state: SceneState, attackerId: string, targetId: string): HitReading[] {
+  let ids = 0
+  const newId = () => `hit${++ids}`
+  const target = state.characters[targetId]
+  if (!target || !state.characters[attackerId]) return []
+  const fresh = rested(state, [attackerId, targetId])
+  return (['strike', 'shoot'] as const).flatMap((kind) => getStrikes(fresh, attackerId, kind, newId)
+    .filter((strike) => strike.targets.includes(targetId))
+    .map((strike): HitReading => {
+      const locked = aimStrike(strike, targetId)
+      const priced = getPayableCost(locked, strike.open)
+      return { kind, weaponKey: strike.open.weaponKey, attack: strike.open.attack, variant: strike.open.variant, cost: { AP: priced?.AP ?? 0, STA: priced?.STA ?? 0 }, ...readHit(locked, strike.open.id, target) }
+    }))
+}
+
+const hitsKept = new Map<string, HitReading[]>()
+
+export function getHits(state: SceneState, attackerId: string, targetId: string): HitReading[] {
+  if (!canFight(state, attackerId) || !state.characters[targetId]) return []
+  const key = `${state.board?.light ?? ''} ${getEvaluationKey(state, attackerId, targetId)}`
+  const known = hitsKept.get(key)
+  if (known) return known
+  if (hitsKept.size >= MOST_KEPT) hitsKept.clear()
+  const made = readHits(state, attackerId, targetId)
+  hitsKept.set(key, made)
+  return made
+}
+
 // Readings are kept under what they are made of: what both characters carry,
 // the gap between them, their grapples and the catalogs (evaluation.ts
 // `getEvaluationKey`), on a board's ground, its levels and its pieces as they
@@ -220,56 +266,6 @@ export function getDefenseWorth(state: SceneState, members: readonly string[], f
     }
   }
   return saved
-}
-
-// The most attacks one character is taken to make in a reckoning of its AP.
-const MOST_ATTACKS = 12
-
-// What `attackers` could do to `defenders` with the AP and STA each has left
-// this round, in harm (harm.ts): each attacker in turn spends what it has on
-// the attack that does the most harm for what it costs, again and again until
-// it can pay for none, and each attack is answered by the defense that leaves
-// the least of those the target can still pay for out of what it has left,
-// which then pays for it. A defender harmed whole takes no more.
-export function getPressure(state: SceneState, attackers: readonly string[], defenders: readonly string[]): number {
-  const pool = new Map<string, CampaignCharacter>()
-  const now = (id: string) => pool.get(id) ?? state.characters[id]
-  const pay = (id: string, cost: { AP: number; STA: number }) => {
-    const c = now(id)
-    pool.set(id, { ...c, resources: { ...c.resources, AP: c.resources.AP - cost.AP, STA: c.resources.STA - cost.STA } })
-  }
-  const added = new Map<string, number>()
-  const room = (id: string) => 1 - (added.get(id) ?? 0)
-  let pressure = 0
-  for (const attackerId of attackers) {
-    if (!canFight(state, attackerId)) continue
-    for (let n = 0; n < MOST_ATTACKS; n++) {
-      let best: { reading: Reading; targetId: string; harm: number; answer: DefenseReading | null; worth: number } | null = null
-      for (const targetId of defenders) {
-        if (isOutOfFight(state.characters[targetId]) || room(targetId) <= 0) continue
-        for (const reading of getReadings(state, attackerId, targetId)) {
-          if (!canPay(state, now(attackerId), reading.cost)) continue
-          let harm = mean(reading)
-          let answer: DefenseReading | null = null
-          for (const d of reading.defenses) {
-            if (mean(d) < harm && canPay(state, now(targetId), d.cost)) {
-              harm = mean(d)
-              answer = d
-            }
-          }
-          harm = Math.min(harm, room(targetId))
-          const worth = harm / Math.max(1, getSpentCost(reading))
-          if (harm > 0 && (!best || worth > best.worth)) best = { reading, targetId, harm, answer, worth }
-        }
-      }
-      if (!best) break
-      pay(attackerId, best.reading.cost)
-      if (best.answer) pay(best.targetId, best.answer.cost)
-      added.set(best.targetId, (added.get(best.targetId) ?? 0) + best.harm)
-      pressure += best.harm
-    }
-  }
-  return pressure
 }
 
 // Whether the character could pay for an answer costing `cost`: with what it

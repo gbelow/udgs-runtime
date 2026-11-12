@@ -1,29 +1,18 @@
-import { isCombatStarted } from '../scene/rules/started'
 import type { CampaignCharacter } from '../types'
 import type { SceneState } from '../scene/types'
 import { setDistance } from '../scene/rules/board/geometry'
-import { canAfford } from '../character/rules/cost'
-import { getSTA } from '../character/rules/characteristics'
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
 import ammo from '../../assets/ammo.json'
 import items from '../../assets/items.json'
 import containers from '../../assets/containers.json'
 import abilities from '../../assets/abilities.json'
-import { estimateAttacks, guardedBy, rankAttacks, type AttackEstimate } from './estimate'
 
 // What an attack comes to is a property of the two characters and the gap
-// between them, not of how much AP and STA they happen to hold. The estimate is
-// therefore made once, with both of them rested, and kept under what it was made
-// of: everything either carries but its resources and the surge it has used,
-// the distance between them, the grapples they are in and the catalogs the gear
-// is read from. It is read back against the resources they have now: the
-// attacks the attacker can pay for, each against the answers the target can
-// still pay for.
-
-export type Evaluations = Record<string, AttackEstimate[]>
-
-const REST_AP = 99
+// between them, not of how much AP and STA they happen to hold. A reading is
+// therefore kept under what it was made of: everything either carries but its
+// resources and the surge it has used, the distance between them, the grapples
+// they are in and the catalogs the gear is read from.
 
 // What the catalogs say, as a short hash: a character stores which item it holds,
 // and the numbers an attack comes to are read from the catalog when it is asked.
@@ -63,37 +52,4 @@ export function getEvaluationKey(state: SceneState, attackerId: string, targetId
     state.binds.filter((b) => b.members.some((m) => pair.includes(m))),
     CATALOGS,
   ])
-}
-
-function rested(state: SceneState, attackerId: string, targetId: string): SceneState {
-  const rest = (c: CampaignCharacter): CampaignCharacter => ({ ...c, surgeFloor: null, resources: { ...c.resources, AP: REST_AP, STA: getSTA(c) } })
-  return { ...state, characters: { ...state.characters, [attackerId]: rest(state.characters[attackerId]), [targetId]: rest(state.characters[targetId]) } }
-}
-
-// The distribution over the attacker's die is the weight of an estimate and
-// nothing here reads it again.
-function slim(e: AttackEstimate): AttackEstimate {
-  const answers = e.defenses.map((d) => ({ ...d, byDie: [] }))
-  return { ...e, defenses: answers, guarded: { ...e.guarded, byDie: [] } }
-}
-
-export function evaluate(store: Evaluations, state: SceneState, attackerId: string, targetId: string): AttackEstimate[] {
-  if (!state.characters[attackerId] || !state.characters[targetId]) return []
-  const key = getEvaluationKey(state, attackerId, targetId)
-  return (store[key] ??= estimateAttacks(rested(state, attackerId, targetId), attackerId, targetId).map(slim))
-}
-
-// The attacks the attacker can pay for now, each against the answers the
-// target can pay for now.
-export function getStanding(store: Evaluations, state: SceneState, attackerId: string, targetId: string): AttackEstimate[] {
-  const attacker = state.characters[attackerId]
-  const target = state.characters[targetId]
-  if (!attacker || !target) return []
-  return evaluate(store, state, attackerId, targetId)
-    .filter((e) => canAfford(attacker, e.cost, isCombatStarted(state)))
-    .map((e) => guardedBy(e, e.defenses.filter((d) => d.kind === 'none' || canAfford(target, d.cost, isCombatStarted(state)))))
-}
-
-export function getBestAttack(store: Evaluations, state: SceneState, attackerId: string, targetId: string): AttackEstimate | null {
-  return rankAttacks(getStanding(store, state, attackerId, targetId))[0] ?? null
 }

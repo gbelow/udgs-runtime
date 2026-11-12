@@ -38,11 +38,6 @@ function byWounds(state: SceneState): (a: string, b: string) => number {
   return (a, b) => getInjuryPenalty(state.characters[b]) - getInjuryPenalty(state.characters[a])
 }
 
-// The variations of a row that are tried against one target, the most
-// promising first (rules/attack.ts ranks them); the rest are left out to keep
-// the options looked at few.
-const VARIANTS_TRIED = 3
-
 function attackOn(state: SceneState, id: string, armed: Armed, target: string, newId: () => string): Candidate {
   return {
     label: `${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
@@ -56,14 +51,8 @@ function getArmed(state: SceneState, id: string, newId: () => string): Armed[] {
 
 export function getAttackCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const foes = getLiveFoes(state, party)
-  const tried = new Map<string, number>()
   return getArmed(state, id, newId).flatMap((armed) =>
-    armed.targets.filter((t) => foes.includes(t)).sort(byWounds(armed.state)).flatMap((target): Candidate[] => {
-      const key = `${armed.kind} ${armed.option.weapon} ${armed.option.attack} ${target}`
-      const count = tried.get(key) ?? 0
-      tried.set(key, count + 1)
-      return count >= VARIANTS_TRIED ? [] : [attackOn(state, id, armed, target, newId)]
-    }))
+    armed.targets.filter((t) => foes.includes(t)).sort(byWounds(armed.state)).map((target) => attackOn(state, id, armed, target, newId)))
 }
 
 // Every attack the character can pay for on every foe in reach, by the quick
@@ -153,10 +142,8 @@ export function getSwitchCandidates(state: SceneState, party: Party, id: string,
       label: `${how}: ${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
       play: committing(state, id, [...move, ...armed.move, { kind: 'target', args: [target] }, { kind: 'commit', args: [] }], newId),
     })))
-  }).slice(0, SWITCHES_TRIED)
+  })
 }
-
-const SWITCHES_TRIED = 3
 
 // The weapons waiting in quick slots.
 function getQuickWeapons(c: CampaignCharacter | undefined): { containerKey: string; itemId: string }[] {

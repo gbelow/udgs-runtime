@@ -3,11 +3,9 @@ import { isDead } from '../character/rules/afflictions'
 
 // The numbers a bot weighs its options with, all in the same unit: harm, a
 // share of a character in the fight (harm.ts).
-// `pressure`: what the party's side could still do to its foes this round
-// with the AP each has left, against what the foes could do to it with
-// theirs (reading.ts `getPressure`), read off the attacks rather than played
-// out. `potential`: the same, one attack each whatever AP is left, for what
-// the next round holds. `engage`: what each cell between
+// `potential`: what the party's side could do to its foes with one attack
+// each whatever AP is left, against what the foes could do to it, for what the
+// next round holds. `engage`: what each cell between
 // the character and its nearest foe costs, so that two bots do not wait on
 // each other for ever. `ap`, `sta`: what a point of AP or STA the party has
 // left, against what its foes have, is worth. AP is worth what it can still
@@ -15,7 +13,7 @@ import { isDead } from '../character/rules/afflictions'
 // counts for nothing until an option is looked at that far ahead. `horizon`:
 // how many rounds, counting the one it is in, the fight is played on after an
 // option, by the bot that does not weigh (0: none, the state it leaves is
-// valued as it stands, `pressure` standing for what each side would do next). `patience`: what holding costs for each round the fight
+// valued as it stands, `potential` standing for what each side would do next). `patience`: what holding costs for each round the fight
 // has already gone on, so that bots that each wait for the other to come do not
 // wait for ever.
 // `exchange`, `drain`: what an attack is worth as it is committed, besides what
@@ -25,11 +23,9 @@ import { isDead } from '../character/rules/afflictions'
 // answer it. `defensive`: the bot attacks a foe only once it has no defense left
 // to answer with, and holds until then. 1: a defense only a reaction surge pays
 // for is not counted, so the attack is the one that draws it; 2: any defense is.
-// `ap` counts what AP is worth besides, and is left at nothing since
-// `pressure` weighs it.
-export type Tuning = { pressure: number; potential: number; engage: number; ap: number; sta: number; horizon: number; patience: number; exchange: number; drain: number; defensive: number }
+export type Tuning = { potential: number; engage: number; ap: number; sta: number; horizon: number; patience: number; exchange: number; drain: number; defensive: number }
 
-export const DEFAULT_TUNING: Tuning = { pressure: 1, potential: 0.25, engage: 0.02, ap: 0, sta: 0.005, horizon: 0, patience: 0.03, exchange: 1, drain: 0.02, defensive: 0 }
+export const DEFAULT_TUNING: Tuning = { potential: 0.25, engage: 0.02, ap: 0, sta: 0.005, horizon: 0, patience: 0.03, exchange: 1, drain: 0.02, defensive: 0 }
 
 // The characters a bot plays, all of one owner (the GM, or a player), which it
 // sees in full (belief.ts). Its side is them and whoever the fight puts in a

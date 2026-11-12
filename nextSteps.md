@@ -23,6 +23,7 @@ Improve Chase UI/ playability
 
 ### combat abilities/spells
 - terrain altering spells
+- invisible stuff
 
 ### Content primitives for combat
 - explosions with multiple instances
@@ -32,12 +33,7 @@ Improve Chase UI/ playability
 - environmental effects - storm, avalanche
 
 ### sequence
-- corrosive damage
 - curse at beginning of round
-
-### convictions
-- promoted actions
-- limit actions and compulsions
 
 
 ### knowledge actions
@@ -147,3 +143,10 @@ intercepting with bare hands - damage or not?
 ## conviction attitudes
 - done: abilities carry `attitudes` (event + XP on a conviction); Fatalism automated (will hit at DL >= will +1/+2, limit stress -2); manual conviction XP +/- on the sheet
 - next: the other convictions (Stoicism, Adaptation, Domination, Ferocity, Guardian); will tests against morale spells and outside fights; auto-grant conviction abilities; end of session (negative XP loses a level, renounce at 0 with -4)
+
+
+allow dealing damage to own character. click deal 10 damage blunt.
+
+Large Hands, Beautiful, Ugly, Regenerative Reservoir, Resurrection, Tireless, Adaptive Sleep, Amplified Pheromones
+
+think about scene win conditions
