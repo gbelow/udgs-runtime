@@ -26,7 +26,7 @@ type Option = { label: string; play: (dice: Dice) => SceneState | null; waiting?
 
 function mean(values: Value[]): Value {
   const of = (part: keyof Value) => values.reduce((sum, v) => sum + v[part], 0) / values.length
-  return { total: of('total'), wounds: of('wounds'), potential: of('potential'), engage: of('engage'), resources: of('resources'), waiting: of('waiting'), exchange: of('exchange') }
+  return { total: of('total'), wounds: of('wounds'), potential: of('potential'), immediate: of('immediate'), engage: of('engage'), resources: of('resources'), waiting: of('waiting'), exchange: of('exchange') }
 }
 
 // The dice every option is tried with: a middling and a high one, as the
@@ -65,7 +65,7 @@ function pick(state: SceneState, parties: readonly Party[], party: Party, actorI
     kind,
     actorId,
     actor: getFightName(state, actorId),
-    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, potential: value.potential, engage: value.engage, resources: value.resources, waiting: value.waiting, exchange: value.exchange })),
+    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, potential: value.potential, immediate: value.immediate, engage: value.engage, resources: value.resources, waiting: value.waiting, exchange: value.exchange })),
     chosen: scored.indexOf(best),
   })
   return best.index

@@ -120,16 +120,44 @@ export function readAttacks(state: SceneState, attackerId: string, targetId: str
 // skill difference alone (play.tex "How skills work": a hit is the d10, 0 to 9
 // and never exploding here, plus the skill over the DL by 5, so 50% when they
 // are equal and 10 points more or less for each point between them). The harm
-// of a hit is read from one hit played out at the middle of the faces that hit.
-export type HitReading = { kind: 'strike' | 'shoot'; weaponKey: string; attack: string; variant: string; cost: { AP: number; STA: number }; hitChance: number; hitHarm: number }
+// of a hit (harm.ts) is read from one hit played out at the middle of the faces
+// that hit.
+// `expected` is what the attack takes from the target on average (harm.ts):
+// the chance of a hit times the harm of one, and the chance of a graze times the
+// harm of one (a graze is a miss for an attack that does not graze).
+// `defenses` is the same for each answer the target could make (rested), with
+// what it costs the target to make it: a defense has no die, it sets the DL the
+// attack is tested against.
+export type DefenseChance = { cost: { AP: number; STA: number }; expected: number }
+export type HitReading = { kind: 'strike' | 'shoot'; weaponKey: string; attack: string; variant: string; cost: { AP: number; STA: number }; expected: number; defenses: DefenseChance[] }
 
-function readHit(locked: SceneState, openId: string, target: CampaignCharacter): { hitChance: number; hitHarm: number } {
-  const open = getOpenAction(locked)
-  const test = open && getRootTest(locked, open)
-  if (!test) return { hitChance: 0, hitHarm: 0 }
-  const lowest = Math.max(0, 5 - (test.skill - test.DL))
-  if (lowest > 9) return { hitChance: 0, hitHarm: 0 }
-  return { hitChance: (10 - lowest) / 10, hitHarm: dealt(locked, openId, target, Math.round((lowest + 9) / 2)).harm }
+// The die that has to be at least this to hit, from the skill over the DL.
+function lowestHit(state: SceneState): number {
+  const open = getOpenAction(state)
+  const test = open && getRootTest(state, open)
+  return test ? Math.max(0, 5 - (test.skill - test.DL)) : 10
+}
+
+const chanceOf = (lowest: number) => (lowest > 9 ? 0 : (10 - lowest) / 10)
+
+// The harm of a hit is read from one played out at the middle of the faces that
+// hit, and of a graze at the middle of the faces that graze.
+function expectedHarm(state: SceneState, openId: string, target: CampaignCharacter): number {
+  const hits = lowestHit(state)
+  const grazes = Math.max(0, hits - 5)
+  const pHit = chanceOf(hits)
+  const pGraze = chanceOf(grazes) - pHit
+  const hit = pHit > 0 ? pHit * dealt(state, openId, target, Math.round((hits + 9) / 2)).harm : 0
+  const graze = pGraze > 0 ? pGraze * dealt(state, openId, target, Math.round((grazes + Math.min(hits, 10) - 1) / 2)).harm : 0
+  return hit + graze
+}
+
+function readHit(locked: SceneState, openId: string, target: CampaignCharacter, attackerId: string, newId: () => string): { expected: number; defenses: DefenseChance[] } {
+  const defenses = getStrikeDefenses(locked, target.id, attackerId).filter(firstJump()).flatMap((defense): DefenseChance[] => {
+    const declared = defense.declare(locked, getOpenAction(locked)!, newId)
+    return declared ? [{ cost: defense.cost, expected: expectedHarm(declared, openId, target) }] : []
+  })
+  return { expected: expectedHarm(locked, openId, target), defenses }
 }
 
 // Every attack the attacker has on the target as they stand, both rested.
@@ -144,7 +172,7 @@ export function readHits(state: SceneState, attackerId: string, targetId: string
     .map((strike): HitReading => {
       const locked = aimStrike(strike, targetId)
       const priced = getPayableCost(locked, strike.open)
-      return { kind, weaponKey: strike.open.weaponKey, attack: strike.open.attack, variant: strike.open.variant, cost: { AP: priced?.AP ?? 0, STA: priced?.STA ?? 0 }, ...readHit(locked, strike.open.id, target) }
+      return { kind, weaponKey: strike.open.weaponKey, attack: strike.open.attack, variant: strike.open.variant, cost: { AP: priced?.AP ?? 0, STA: priced?.STA ?? 0 }, ...readHit(locked, strike.open.id, target, attackerId, newId) }
     }))
 }
 

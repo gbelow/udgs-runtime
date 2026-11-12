@@ -6,6 +6,7 @@ export type OptionScore = {
   value: number
   wounds: number
   potential: number
+  immediate: number
   engage: number
   resources: number
   waiting: number

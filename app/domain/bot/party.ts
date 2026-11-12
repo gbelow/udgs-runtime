@@ -3,9 +3,11 @@ import { isDead } from '../character/rules/afflictions'
 
 // The numbers a bot weighs its options with, all in the same unit: harm, a
 // share of a character in the fight (harm.ts).
-// `potential`: what the party's side could do to its foes with one attack
-// each whatever AP is left, against what the foes could do to it, for what the
-// next round holds. `engage`: what each cell between
+// `potential`: what the party's side threatens its foes with (threat.ts: their
+// best attack per point of cost with a rested round), against what the foes
+// threaten it with, for what the next round holds. `immediate`: what the foes
+// threaten the acting character with now, on their own turns, with the AP and
+// STA they have. `engage`: what each cell between
 // the character and its nearest foe costs, so that two bots do not wait on
 // each other for ever. `ap`, `sta`: what a point of AP or STA the party has
 // left, against what its foes have, is worth. AP is worth what it can still
@@ -23,9 +25,18 @@ import { isDead } from '../character/rules/afflictions'
 // answer it. `defensive`: the bot attacks a foe only once it has no defense left
 // to answer with, and holds until then. 1: a defense only a reaction surge pays
 // for is not counted, so the attack is the one that draws it; 2: any defense is.
-export type Tuning = { potential: number; engage: number; ap: number; sta: number; horizon: number; patience: number; exchange: number; drain: number; defensive: number }
+// `switchBelow`: a weapon is switched for a rested round when the threat with the
+// one in hand is under this and the other's is over it; for this turn it is
+// switched when the threat after paying for the switch is the greater.
+// `forced`: the least an attack is worth, as a share of what it is worth
+// unanswered, however it is answered: making the target pay is a threat even
+// when it does no harm.
+// `undefended`: what a target that does not answer an attack is counted to pay
+// for it, in the unit of AP a defense costs (threat.ts); lower for a bot that
+// thinks little of defending.
+export type Tuning = { potential: number; immediate: number; undefended: number; forced: number; switchBelow: number; engage: number; ap: number; sta: number; horizon: number; patience: number; exchange: number; drain: number; defensive: number }
 
-export const DEFAULT_TUNING: Tuning = { potential: 0.25, engage: 0.02, ap: 0, sta: 0.005, horizon: 0, patience: 0.03, exchange: 1, drain: 0.02, defensive: 0 }
+export const DEFAULT_TUNING: Tuning = { potential: 1, immediate: 1, undefended: 1, forced: 0.3, switchBelow: 0.05, engage: 0.02, ap: 0, sta: 0.005, horizon: 0, patience: 0.03, exchange: 1, drain: 0.02, defensive: 0 }
 
 // The characters a bot plays, all of one owner (the GM, or a player), which it
 // sees in full (belief.ts). Its side is them and whoever the fight puts in a

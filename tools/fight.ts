@@ -91,6 +91,7 @@ function standingTable(state: SceneState, ids: readonly string[]): string[] {
 const PARTS = [
   ['wounds', (o: OptionScore) => o.wounds],
   ['potential', (o: OptionScore) => o.potential],
+  ['immediate', (o: OptionScore) => o.immediate],
   ['engage', (o: OptionScore) => -o.engage],
   ['resources', (o: OptionScore) => o.resources],
   ['exchange', (o: OptionScore) => o.exchange],

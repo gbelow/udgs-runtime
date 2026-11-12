@@ -6,10 +6,10 @@ import { getOpenAction } from '../scene/rules/log'
 import type { ReachableCell } from '../scene/rules/move'
 import { getReachableCells } from '../scene/rules/board/reach'
 import { amendAction, declareAction } from '../scene/commands/action'
-import { getInjuryPenalty } from '../character/rules/afflictions'
-import { getLiveFoes, type Party } from './party'
+import { getLiveFoes, getSide, getTuning, type Party } from './party'
+import { getThreat } from './threat'
 import { getArmedAttacks, type Armed } from './weapons'
-import { canPay, getBestOf, getReadings, getSpentCost, getUnanswered } from './reading'
+import { canPay, getReadings, getSpentCost, getUnanswered } from './reading'
 import { getSpots, walkMove } from './position'
 import { getFightName } from '../scene/rules/fighters'
 import { play, type Move, type Played } from './move'
@@ -33,9 +33,19 @@ export function committing(state: SceneState, id: string, move: Move, newId: () 
   }
 }
 
-// The most wounded first.
-function byWounds(state: SceneState): (a: string, b: string) => number {
-  return (a, b) => getInjuryPenalty(state.characters[b]) - getInjuryPenalty(state.characters[a])
+// The foe to attack (threat.ts): the one that threatens the party's side most
+// with a rested round, among those the character threatens most as things
+// stand. Foes it has no attack on now are not in the running. Sorted best
+// first; the foes the character threatens not at all follow, by the threat
+// they pose.
+function byThreat(state: SceneState, party: Party, id: string, newId: () => string): (a: string, b: string) => number {
+  const side = getSide(state, party)
+  const tuning = getTuning(party)
+  const foes = getLiveFoes(state, party)
+  const posed = new Map(foes.map((foe) => [foe, Math.max(0, ...side.map((target) => getThreat(state, foe, target, newId, 'potential', tuning)))]))
+  const mine = new Map(foes.map((foe) => [foe, getThreat(state, id, foe, newId, 'immediate', tuning)]))
+  const worth = (foe: string) => (posed.get(foe) ?? 0) * (mine.get(foe) ?? 0)
+  return (a, b) => worth(b) - worth(a) || (mine.get(b) ?? 0) - (mine.get(a) ?? 0) || (posed.get(b) ?? 0) - (posed.get(a) ?? 0)
 }
 
 function attackOn(state: SceneState, id: string, armed: Armed, target: string, newId: () => string): Candidate {
@@ -51,8 +61,11 @@ function getArmed(state: SceneState, id: string, newId: () => string): Armed[] {
 
 export function getAttackCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const foes = getLiveFoes(state, party)
-  return getArmed(state, id, newId).flatMap((armed) =>
-    armed.targets.filter((t) => foes.includes(t)).sort(byWounds(armed.state)).map((target) => attackOn(state, id, armed, target, newId)))
+  const order = byThreat(state, party, id, newId)
+  const armed = getArmed(state, id, newId)
+  const targets = [...new Set(armed.flatMap((a) => a.targets.filter((t) => foes.includes(t))))].sort(order)
+  const chosen = targets[0]
+  return armed.flatMap((a) => (a.targets.includes(chosen) ? [attackOn(state, id, a, chosen, newId)] : []))
 }
 
 // Every attack the character can pay for on every foe in reach, by the quick
@@ -107,23 +120,30 @@ export function getPositionCandidates(state: SceneState, party: Party, id: strin
   }))
 }
 
-// A shooter a foe has in melee reach may fight it there instead, when what it
-// would strike with hits harder than what it shoots with (the quick reading,
-// as the foe would answer). A melee weapon in a quick slot is drawn if it
-// carries one ("Drawing items in combat", at the price the sheet charges):
-// with the weapons it shoots with kept in one hand where the other is then
-// free for it, else dropped first (combat.tex "Putting items away":
+// A shooter may take up a melee weapon instead (a melee weapon in a quick slot
+// is drawn if it carries one, "Drawing items in combat", at the price the sheet
+// charges): with the weapons it shoots with kept in one hand where the other
+// is then free for it, else dropped first (combat.tex "Putting items away":
 // "Dropping items on the floor costs 0 AP"). With none to draw, it strikes
 // with what is left in hand once they are dropped.
+//
+// It is offered when the switch pays in threat (threat.ts). For this turn:
+// the immediate threat after the switch, the AP and STA it costs counted into
+// the cost of the attack, is greater than the threat now; the switch and the
+// attack on a foe are then one option. For a rested round: the potential
+// threat now is under `switchBelow` and the other weapon's is over it; the
+// switch alone is then the option.
 export function getSwitchCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const c = state.characters[id]
   const foes = getLiveFoes(state, party)
   const shot = getArmed(state, id, newId).filter((a) => a.kind === 'shoot').map((a) => a.option.weaponKey)
-  if (!c || shot.length === 0 || !foes.some((foe) => getReadings(state, foe, id, false).some((r) => r.kind === 'strike'))) return []
+  if (!c || shot.length === 0 || foes.length === 0) return []
+  const tuning = getTuning(party)
+  const { switchBelow } = tuning
+  const threat = (s: SceneState, kind: 'potential' | 'immediate', extra = 0) => Math.max(0, ...foes.map((foe) => getThreat(s, id, foe, newId, kind, tuning, extra)))
+  const nowImmediate = threat(state, 'immediate')
+  const nowPotential = threat(state, 'potential')
   const ranged = c.held.filter((item) => shot.includes(item.id))
-  const hardest = (s: SceneState, kind: 'strike' | 'shoot') => Math.max(0, ...foes.map((foe) =>
-    getBestOf(s, getReadings(s, id, foe).filter((r) => r.kind === kind), s.characters[id], s.characters[foe])?.harm ?? 0))
-  const shooting = hardest(state, 'shoot')
   const gear = (kind: string, args: unknown[]) => ({ kind: 'editGear', args: [id, { kind, args }, false] }) as Move[number]
   const keep: Move = ranged.map((item) => gear('regripItem', [item.id, 1]))
   const drop: Move = ranged.map((item) => gear('dropItem', [item.id]))
@@ -133,15 +153,21 @@ export function getSwitchCandidates(state: SceneState, party: Party, id: string,
     if (draw.length > 0 && kept.characters[id].held.length > c.held.length) return [{ move: [...keep, ...draw], state: kept }]
     const move = [...drop, ...draw]
     return [{ move, state: play(state, move, () => 5, newId).state }]
-  }).filter((s) => hardest(s.state, 'strike') > shooting)
-  return switches.flatMap(({ move, state: switched }) => {
+  })
+  return switches.flatMap(({ move, state: switched }): Candidate[] => {
+    const after = switched.characters[id]
+    const paid = c.resources.AP - after.resources.AP + c.resources.STA - after.resources.STA
     const dropped = move.some((m) => (m.args[1] as { kind?: string } | undefined)?.kind === 'dropItem')
     const drew = move.some((m) => (m.args[1] as { kind?: string } | undefined)?.kind === 'drawItem')
     const how = [dropped ? `drop ${ranged.map((item) => item.name).join(' and ')}` : null, drew ? 'draw' : null].filter(Boolean).join(', ')
-    return getArmed(switched, id, newId).filter((a) => a.kind === 'strike').flatMap((armed) => armed.targets.filter((t) => foes.includes(t)).map((target) => ({
-      label: `${how}: ${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
-      play: committing(state, id, [...move, ...armed.move, { kind: 'target', args: [target] }, { kind: 'commit', args: [] }], newId),
-    })))
+    if (threat(switched, 'immediate', paid) > nowImmediate) {
+      return getArmed(switched, id, newId).filter((a) => a.kind === 'strike').flatMap((armed) => armed.targets.filter((t) => foes.includes(t)).map((target) => ({
+        label: `${how}: ${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
+        play: committing(state, id, [...move, ...armed.move, { kind: 'target', args: [target] }, { kind: 'commit', args: [] }], newId),
+      })))
+    }
+    if (nowPotential < switchBelow && threat(switched, 'potential') > switchBelow) return [{ label: how, play: committing(state, id, move, newId) }]
+    return []
   })
 }
 

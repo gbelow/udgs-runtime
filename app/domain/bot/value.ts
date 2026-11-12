@@ -6,9 +6,10 @@ import { getOpenAction } from '../scene/rules/log'
 import { getSettled } from '../scene/rules/settle'
 import { resolveTest } from '../play/test'
 import { getOutcomes } from '../scene/projections/outcomes'
-import { getLiveFoes, getSide, isOnSide, isStanding, type Party, type Tuning } from './party'
+import { getLiveFoes, getSide, isOnSide, type Party, type Tuning } from './party'
 import { getHarmTaken, getOutcomeHarm, isOutOfFight } from './harm'
-import { canFight, getReadings, getUnanswered } from './reading'
+import { canFight } from './reading'
+import { getSideThreat } from './threat'
 
 // How well a state stands for a party, in harm (harm.ts), against where the
 // decision began: the harm its foes took less the harm its side did (party.ts);
@@ -17,7 +18,7 @@ import { canFight, getReadings, getUnanswered } from './reading'
 // its acting character and the nearest foe; plus the AP and STA it has left
 // over its foes'. Higher is better.
 
-export type Value = { total: number; wounds: number; potential: number; engage: number; resources: number; waiting: number; exchange: number }
+export type Value = { total: number; wounds: number; potential: number; immediate: number; engage: number; resources: number; waiting: number; exchange: number }
 
 const FACES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -42,22 +43,6 @@ export function expectedLoss(state: SceneState, targetId: string): number {
   return taken / FACES.length
 }
 
-// What `attackers` could do to `defenders` from where they stand, whatever AP
-// they have left: for each defender and each attacker, the attacker's best
-// attack on it as it would answer (reading.ts), as if both were rested, in
-// fractions of its way to death.
-function getPotential(state: SceneState, attackers: readonly string[], defenders: readonly string[]): number {
-  let potential = 0
-  for (const id of defenders) {
-    const c = state.characters[id]
-    if (isOutOfFight(c)) continue
-    for (const attacker of attackers) {
-      if (isStanding(state, attacker)) potential += Math.max(0, ...getReadings(state, attacker, id).map((r) => getUnanswered(r)))
-    }
-  }
-  return potential
-}
-
 function getGap(state: SceneState, actorId: string, foes: string[]): number {
   const from = state.board?.placements[actorId]?.cell
   const there = foes.flatMap((f) => state.board?.placements[f]?.cell ?? [])
@@ -69,11 +54,12 @@ export function evaluate(state: SceneState, party: Party, actorId: string, tunin
   const side = getSide(state, party)
   const taken = (ids: readonly string[]) => ids.reduce((total, id) => total + getHarmTaken(start, state, id), 0)
   const wounds = taken(Object.keys(start.characters).filter((id) => !isOnSide(start, party, id))) - taken(getSide(start, party))
-  const potential = tuning.potential > 0 ? tuning.potential * (getPotential(state, side, foes) - getPotential(state, foes, side)) : 0
+  const potential = tuning.potential > 0 ? tuning.potential * (getSideThreat(state, side, foes, 'potential', tuning) - getSideThreat(state, foes, side, 'potential', tuning)) : 0
+  const immediate = tuning.immediate > 0 ? -tuning.immediate * getSideThreat(state, foes, [actorId], 'immediate', tuning) : 0
   const engage = tuning.engage * getGap(state, actorId, foes)
   const left = (ids: readonly string[], pick: (c: CampaignCharacter) => number) => ids.reduce((total, id) => total + (state.characters[id] ? pick(state.characters[id]) : 0), 0)
   const ap = (c: CampaignCharacter) => c.resources.AP
   const sta = (c: CampaignCharacter) => c.resources.STA
   const resources = tuning.ap * (left(side, ap) - left(foes, ap)) + tuning.sta * (left(side, sta) - left(foes, sta))
-  return { total: wounds + potential - engage + resources, wounds, potential, engage, resources, waiting: 0, exchange: 0 }
+  return { total: wounds + potential + immediate - engage + resources, wounds, potential, immediate, engage, resources, waiting: 0, exchange: 0 }
 }

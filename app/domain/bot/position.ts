@@ -66,17 +66,17 @@ function drawnBy(state: SceneState, id: string, movement: 'basic' | 'run', to: R
 export type Walk = { movement: 'basic' | 'run'; to: ReachableCell; at: Placement }
 
 // The reachable cells for each kind of movement, from the state as it stands
-// (a surge made or not), less those in a foe's space.
-export function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () => string): Walk[] {
+// (a surge made or not), less those in a foe's space, narrowed to the cells
+// `pick` keeps before the path to each is drawn.
+export function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () => string, movements: readonly ('basic' | 'run')[] = ['basic', 'run'], pick: (cells: ReachableCell[]) => ReachableCell[] = (cells) => cells): Walk[] {
   const declared = declareAction(id, { kind: 'move' }, newId)(state)
   if (getOpenAction(declared)?.kind !== 'move') return []
   const walks: Walk[] = []
-  for (const movement of ['basic', 'run'] as const) {
+  for (const movement of movements) {
     const moving = amendAction({ movement })(declared)
     const aimed = getOpenAction(moving)
     if (aimed?.kind !== 'move') continue
-    for (const to of getReachableCells(moving, aimed)) {
-      if (setDistance([to.cell], foeCells) === 0) continue
+    for (const to of pick(getReachableCells(moving, aimed).filter((cell) => setDistance([cell.cell], foeCells) > 0))) {
       walks.push({ movement, to, at: getPathPlacements(moving, aimed, to.path).at(-1) ?? { ...state.board!.placements[id], cell: to.cell } })
     }
   }
