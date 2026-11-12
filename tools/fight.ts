@@ -182,4 +182,4 @@ function main(): void {
   console.log(`${ended || `No side fell in ${args.rounds} rounds.`} ${times.length} decision steps in ${(total / 1000).toFixed(1)} s.\n${file}`)
 }
 
-main(); process.on("exit",()=>{const g=(globalThis as any).__p;const T=g.triples;delete g.triples;console.log(JSON.stringify(g));const multi=Object.entries(T).filter(([k,v]:any)=>v.length>1);console.log("triples",Object.keys(T).length,"with repeats",multi.length);const [k,v]:any=multi.sort((a:any,b:any)=>b[1].length-a[1].length)[0]??[];if(v){console.log(k,v.length);const a=JSON.parse(v[0].slice(v[0].indexOf(" ")+1)),b=JSON.parse(v[1].slice(v[1].indexOf(" ")+1));const diff=(x:any,y:any,p:string):void=>{if(JSON.stringify(x)===JSON.stringify(y))return;if(x&&y&&typeof x==="object"&&typeof y==="object"){for(const kk of new Set([...Object.keys(x),...Object.keys(y)]))diff(x[kk],y[kk],p+"."+kk)}else console.log(p,JSON.stringify(x)?.slice(0,200),"=>",JSON.stringify(y)?.slice(0,200))};diff(a,b,"")}}) //PERFPROBE
+main()

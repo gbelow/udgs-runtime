@@ -141,6 +141,18 @@ function getPotionEffects(character: Character): Effect[] {
 // held spells while on, potions while they last. Read off the catalogs every
 // time — the character holds only references.
 export function getContributingEffects(character: Character): Effect[] {
+  const known = contributing.get(character)
+  if (known) return known
+  const effects = collectContributingEffects(character)
+  contributing.set(character, effects)
+  return effects
+}
+
+// A character is replaced, never changed, so what contributes to one is
+// collected once.
+const contributing = new WeakMap<Character, Effect[]>()
+
+function collectContributingEffects(character: Character): Effect[] {
   const passive = getLearnedAbilities(character)
     .filter((a) => a.activation === 'passive')
     .flatMap((a) => a.effect)

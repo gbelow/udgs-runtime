@@ -50,7 +50,6 @@ function keptFor(state: SceneState): Map<string, number> {
 }
 
 export function getThreat(state: SceneState, foeId: string, targetId: string, newId: () => string, kind: ThreatKind = 'potential', weights: Weights = DEFAULT_TUNING, extra = 0): number {
-  const g=(globalThis as any).__p??={};g.threatCalls=(g.threatCalls??0)+1 //PERFPROBE
   const foe = state.characters[foeId]
   const here = state.board?.placements[foeId]?.cell
   const there = state.board?.placements[targetId]?.cell
@@ -60,7 +59,6 @@ export function getThreat(state: SceneState, foeId: string, targetId: string, ne
   const key = `${kind} ${weights.undefended} ${weights.forced} ${extra} ${here.q},${here.r} ${there.q},${there.r} ${resources} ${state.board?.light ?? ''} ${getEvaluationKey(state, foeId, targetId)}`
   const cached = known.get(key)
   if (cached !== undefined) return cached
-  ;{const g=(globalThis as any).__p;g.threatMiss=(g.threatMiss??0)+1;g.threatSize=known.size} //PERFPROBE
   if (known.size >= MOST_KEPT) known.clear()
   const made = makeThreat(state, foeId, targetId, newId, kind, weights, extra)
   known.set(key, made)
@@ -114,7 +112,6 @@ function makeThreat(state: SceneState, foeId: string, targetId: string, newId: (
   const walks = [here, ...getWalks(rested, foeId, [cell], newId, ['basic'], cheapestPerGap(cell))]
   let threat = 0
   for (const walk of walks) {
-  const g=(globalThis as any).__p??={};g.walks=(g.walks??0)+walks.length //PERFPROBE
     if (setDistance([walk.to.cell], [cell]) === 0) continue
     const standing = standingAt(rested, foeId, walk.at, walk.to.cost)
     const cost = (hit: Reading) => Math.max(1, extra + costOf(walk.to) + hit.cost.AP + hit.cost.STA)

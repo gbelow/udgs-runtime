@@ -85,7 +85,14 @@ export function hasAbility(c: Character, key: string): boolean {
 }
 
 // Every stage learned. A family saved before a rename is skipped rather than
-// thrown on.
+// thrown on. A character's abilities are replaced, never changed, so the
+// stages are worked out once for each.
+const learned = new WeakMap<Character['abilities'], AbilityKey[]>()
+
 export function getLearnedAbilityKeys(c: Character): AbilityKey[] {
-  return Object.keys(c.abilities).filter(isFamilyKey).flatMap((family) => FAMILY_STAGES[family].slice(0, getAbilityLevel(c, family)))
+  const known = learned.get(c.abilities)
+  if (known) return known
+  const keys = Object.keys(c.abilities).filter(isFamilyKey).flatMap((family) => FAMILY_STAGES[family].slice(0, getAbilityLevel(c, family)))
+  learned.set(c.abilities, keys)
+  return keys
 }

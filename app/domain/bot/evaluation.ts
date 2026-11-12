@@ -25,10 +25,8 @@ function fingerprint(text: string): string {
 const CATALOGS = fingerprint(JSON.stringify([weapons, armors, ammo, items, containers, abilities]))
 
 // what a face shows of the resources (`shown`) goes with them
-function carried(c: CampaignCharacter): Omit<CampaignCharacter, 'resources' | 'usedSurge' | 'surgeFloor' | 'shown'> {
-  const { resources: _resources, usedSurge: _usedSurge, surgeFloor: _surgeFloor, shown: _shown, ...rest } = c
-  return rest
-}
+const NOT_CARRIED: readonly string[] = ['resources', 'usedSurge', 'surgeFloor', 'shown']
+const NOT_HARM: readonly string[] = [...NOT_CARRIED, 'injuries', 'afflictions']
 
 function gapBetween(state: SceneState, a: string, b: string): number | null {
   const ca = state.board?.placements[a]?.cell
@@ -43,6 +41,34 @@ function canonical(value: unknown): string {
     : v)
 }
 
+// A character and each part of it are replaced, never changed, so the text of
+// a part is made once and shared by every character that keeps that part.
+const partTexts = new WeakMap<object, string>()
+
+function partText(value: unknown): string {
+  if (!value || typeof value !== 'object') return canonical(value)
+  const known = partTexts.get(value)
+  if (known !== undefined) return known
+  const text = canonical(value)
+  partTexts.set(value, text)
+  return text
+}
+
+// The character as text, but for the parts `leftOut` names.
+function textWithout(memo: WeakMap<CampaignCharacter, string>, leftOut: readonly string[]): (c: CampaignCharacter) => string {
+  return (c) => {
+    const known = memo.get(c)
+    if (known !== undefined) return known
+    const parts = c as unknown as Record<string, unknown>
+    const text = `{${Object.keys(parts).filter((k) => !leftOut.includes(k) && parts[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${partText(parts[k])}`).join(',')}}`
+    memo.set(c, text)
+    return text
+  }
+}
+
+const carriedText = textWithout(new WeakMap(), NOT_CARRIED)
+const harmText = textWithout(new WeakMap(), NOT_HARM)
+
 // What decides how much harm an attack does at each overflow, whatever the gap
 // between the two, the resources they hold, the DL it is made against (a part of
 // the reading's own key) or how hurt the target is: everything either carries
@@ -51,28 +77,31 @@ function canonical(value: unknown): string {
 // threshold, and a target lying prone. Checked by trying every affliction and
 // every injury on each of the two, and by reading the same tables with the full
 // key in a fight.
-function forHarm(c: CampaignCharacter, attacker: boolean): unknown {
-  const { injuries, afflictions, ...rest } = carried(c)
-  return [rest, injuries.wounds, injuries.injuryLevel >= injuries.injuryThreshold ? injuries.injuryLevel : 0, !attacker && afflictions.includes('prone')]
+function forHarm(c: CampaignCharacter, attacker: boolean): string {
+  const { injuries, afflictions } = c
+  return `${harmText(c)} ${partText(injuries.wounds)} ${injuries.injuryLevel >= injuries.injuryThreshold ? injuries.injuryLevel : 0} ${!attacker && afflictions.includes('prone')}`
+}
+
+function bindsOf(state: SceneState, attackerId: string, targetId: string): string {
+  const pair = [attackerId, targetId]
+  return canonical(state.binds.filter((b) => b.members.some((m) => pair.includes(m))))
 }
 
 export function getPairKey(state: SceneState, attackerId: string, targetId: string): string {
-  const pair = [attackerId, targetId]
-  return canonical([
+  return [
     forHarm(state.characters[attackerId], true),
     forHarm(state.characters[targetId], false),
-    state.binds.filter((b) => b.members.some((m) => pair.includes(m))),
+    bindsOf(state, attackerId, targetId),
     CATALOGS,
-  ])
+  ].join(' | ')
 }
 
 export function getEvaluationKey(state: SceneState, attackerId: string, targetId: string): string {
-  const pair = [attackerId, targetId]
-  return canonical([
-    carried(state.characters[attackerId]),
-    carried(state.characters[targetId]),
+  return [
+    carriedText(state.characters[attackerId]),
+    carriedText(state.characters[targetId]),
     gapBetween(state, attackerId, targetId),
-    state.binds.filter((b) => b.members.some((m) => pair.includes(m))),
+    bindsOf(state, attackerId, targetId),
     CATALOGS,
-  ])
+  ].join(' | ')
 }

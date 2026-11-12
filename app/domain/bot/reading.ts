@@ -65,7 +65,6 @@ function scripted(value: number): Dice {
 // is declared, it may be tested with a die of its own, so the roll is pressed
 // as the table does.
 function dealtAt(locked: SceneState, target: CampaignCharacter, face: number): Dealt {
-  const g=(globalThis as any).__p??={};g.dealt=(g.dealt??0)+1 //PERFPROBE
   const open = getOpenAction(locked)
   const test = open && getRootTest(locked, open)
   if (!open || !test) return { harm: 0, AP: 0, STA: 0 }
@@ -160,10 +159,10 @@ function averageOver(state: SceneState, target: CampaignCharacter, key: string, 
 }
 
 function readHit(locked: SceneState, target: CampaignCharacter, attackerId: string, newId: () => string, key: string): { expected: number; spend: number; defenses: () => DefenseChance[] } {
-  const defenses = once((): DefenseChance[] => { const g=(globalThis as any).__p;g.defN=(g.defN??0)+1;const t0=performance.now();const ds=getStrikeDefenses(locked, target.id, attackerId);g.listMs=(g.listMs??0)+performance.now()-t0;g.defCount=(g.defCount??0)+ds.length;const r= ds.filter(firstJump()).flatMap((defense): DefenseChance[] => { const t1=performance.now(); //PERFPROBE
+  const defenses = once((): DefenseChance[] => getStrikeDefenses(locked, target.id, attackerId).filter(firstJump()).flatMap((defense): DefenseChance[] => {
     const declared = defense.declare(locked, getOpenAction(locked)!, newId)
-    g.declMs=(g.declMs??0)+performance.now()-t1;const t2=performance.now();const out:DefenseChance[]= declared ? [{ cost: defense.cost, expected: averageOver(declared, target, key, `${defense.kind} ${defense.cost.AP}/${defense.cost.STA}`).harm }] : [];g.avgMs=(g.avgMs??0)+performance.now()-t2;return out //PERFPROBE
-  });g.defMs=(g.defMs??0)+performance.now()-t0;return r}) //PERFPROBE
+    return declared ? [{ cost: defense.cost, expected: averageOver(declared, target, key, `${defense.kind} ${defense.cost.AP}/${defense.cost.STA}`).harm }] : []
+  }))
   const unanswered = averageOver(locked, target, key, 'none')
   return { expected: unanswered.harm, spend: unanswered.spend, defenses }
 }
@@ -218,13 +217,11 @@ export function canFight(state: SceneState, id: string): boolean {
 }
 
 export function getReadings(state: SceneState, attackerId: string, targetId: string): Reading[] {
-  const g=(globalThis as any).__p??={};g.readCalls=(g.readCalls??0)+1 //PERFPROBE
   if (!canFight(state, attackerId) || !state.characters[targetId]) return []
   const readings = keptFor(state)
   const key = `${state.board?.light ?? ''} ${getEvaluationKey(state, attackerId, targetId)}`
   const known = readings.get(key)
   if (known) return known
-  {const g=(globalThis as any).__p;g.readMiss=(g.readMiss??0)+1;const t=`${attackerId}>${targetId}@${JSON.stringify([state.board?.placements[attackerId]?.cell,state.board?.placements[targetId]?.cell])}`;(g.triples??={})[t]=((g.triples[t])??[]);g.triples[t].push(key);const t0=performance.now();const r=readAttacks(state, attackerId, targetId);g.readMs=(g.readMs??0)+performance.now()-t0;readings.set(key,r);return r} //PERFPROBE
   if (readings.size >= MOST_KEPT) readings.clear()
   const made = readAttacks(state, attackerId, targetId)
   readings.set(key, made)

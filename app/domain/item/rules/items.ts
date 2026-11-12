@@ -135,14 +135,26 @@ export function getItemWeapon(item: Item): Weapon | undefined {
 // The catalog weapon as printed, made for a size 3 creature.
 export function getCatalogWeapon(key: string): Weapon | undefined {
   const raw = (weaponsCatalog as Record<string, unknown>)[key]
-  return raw ? WeaponSchema.parse(raw) : undefined
+  return raw ? parsedOnce(raw, (r) => WeaponSchema.parse(r)) : undefined
 }
 
 // The armor an item is, at the size the item has been scaled to.
 export function getItemArmor(item: Item): Armor | undefined {
   if (item.type !== 'armor' || !item.refId) return undefined
   const raw = (armorsCatalog as Record<string, unknown>)[item.refId]
-  return raw ? scaleArmor(ArmorSchema.parse(raw), getItemScale(item)) : undefined
+  return raw ? scaleArmor(parsedOnce(raw, (r) => ArmorSchema.parse(r)), getItemScale(item)) : undefined
+}
+
+// A catalog entry is parsed the first time it is asked for: the entry is
+// replaced, never changed, when the catalog is.
+const parsed = new WeakMap<object, unknown>()
+
+function parsedOnce<T>(raw: unknown, parse: (raw: unknown) => T): T {
+  const known = parsed.get(raw as object)
+  if (known !== undefined) return known as T
+  const made = parse(raw)
+  parsed.set(raw as object, made)
+  return made
 }
 
 // gear.tex "Electrite": the damage a stone or device puts out, times what
