@@ -2008,7 +2008,7 @@ export const SceneStateSchema = z.object({
   // after they unflag, until the combat ends
   surrenderers: z.array(z.string()).default([]),
   // abilities.tex "Mercy": who was compelled to surrender, and stays so until
-  // they hit in a morale test
+  // the round ends
   compelledSurrender: z.array(z.string()).default([]),
   // abilities.tex "Against the Odds": who has had the round's AP, by id,
   // lapsing at its end

@@ -19,17 +19,18 @@ export function raiseSurrenderFlag(state: SceneState, id: string): SceneState {
   }
 }
 
-// abilities.tex "Mercy": the enemy is "compelled to surrender until they hit
-// in a morale test".
+// abilities.tex "Mercy": the enemy is "compelled to surrender until the end of
+// the round" (`endRoundOfMercy`).
 export function compelSurrender(state: SceneState, id: string): SceneState {
   const flagged = raiseSurrenderFlag(state, id)
   return { ...flagged, compelledSurrender: flagged.compelledSurrender.includes(id) ? flagged.compelledSurrender : [...flagged.compelledSurrender, id] }
 }
 
-// abilities.tex "Mercy": "until they hit in a morale test": a hit or a crit
-// frees them to unflag themselves, and no earlier.
-export function releaseFromMercy(state: SceneState, id: string): SceneState {
-  return state.compelledSurrender.includes(id) ? { ...state, compelledSurrender: state.compelledSurrender.filter((c) => c !== id) } : state
+// abilities.tex "Mercy": the round is over: the surrender it compelled is
+// lifted, the flag with it (the table's ruling: they did not choose it).
+export function endRoundOfMercy(state: SceneState): SceneState {
+  if (state.compelledSurrender.length === 0) return state
+  return { ...state, surrendered: state.surrendered.filter((id) => !state.compelledSurrender.includes(id)), compelledSurrender: [] }
 }
 
 // abilities.tex "Against the Odds": "Gains +1 AP in any round an opponent

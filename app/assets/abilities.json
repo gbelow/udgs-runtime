@@ -5787,8 +5787,8 @@
       }
     ]
   },
-  "mercy": {
-    "family": "Mercy",
+  "inspiring-deed": {
+    "family": "Inspiring Deed",
     "section": "Providentialism",
     "activation": "passive",
     "cost": {
@@ -5825,11 +5825,11 @@
             }
           ]
         ],
-        "description": "Enemies that trigger their limit stress action after being intimidated by the character are compelled to surrender until they hit in a morale test.",
+        "description": "Rallies their team any time they roll a 9 on the dice.",
         "effect": [],
         "recipes": [],
         "grants": [
-          "mercy"
+          "inspiringDeed"
         ],
         "rollModes": [],
         "surgeAllows": [],
@@ -5838,8 +5838,8 @@
       }
     ]
   },
-  "inspiring-deed": {
-    "family": "Inspiring Deed",
+  "mercy": {
+    "family": "Mercy",
     "section": "Providentialism",
     "activation": "passive",
     "cost": {
@@ -5876,12 +5876,93 @@
             }
           ]
         ],
-        "description": "Rallies their team any time they roll a 9 on the dice.",
+        "description": "Enemies that trigger their limit stress action after being intimidated by the character are compelled to surrender until the end of the round.",
         "effect": [],
         "recipes": [],
         "grants": [
-          "inspiringDeed"
+          "mercy"
         ],
+        "rollModes": [],
+        "surgeAllows": [],
+        "attitudes": [],
+        "studies": []
+      }
+    ]
+  },
+  "oathbound": {
+    "family": "Oathbound",
+    "section": "Providentialism",
+    "activation": "passive",
+    "cost": {
+      "AP": 0,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": false,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [
+          [
+            {
+              "kind": "category",
+              "name": "humanoid",
+              "level": 0,
+              "op": ">=",
+              "not": false
+            }
+          ],
+          [
+            {
+              "kind": "trainable",
+              "name": "Providentialism",
+              "level": 5,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
+        "description": "Gains +1 bonus to Charisma. A hit or crit in the morale test prevents the character from being immobile by shock or IL.",
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "characteristic:charisma",
+              "operation": "+",
+              "value": 1,
+              "when": null
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "wound:shocked",
+              "when": "steeled"
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "suppression",
+            "effect": {
+              "name": "",
+              "target": "collapse",
+              "when": "steeled"
+            }
+          }
+        ],
+        "recipes": [],
+        "grants": [],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],

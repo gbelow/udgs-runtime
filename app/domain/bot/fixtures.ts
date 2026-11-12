@@ -149,7 +149,7 @@ export function guardian(c: CampaignCharacter): CampaignCharacter {
 // attitudes toward the surrendered (abilities.tex "Providentialism").
 export function providential(c: CampaignCharacter): CampaignCharacter {
   const adopted = { ...c, trainables: { ...c.trainables, conviction2: { ...c.trainables.conviction2, name: 'Providentialism' } } }
-  return (['justice', 'leadership', 'against-the-odds', 'mercy', 'inspiring-deed'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
+  return (['justice', 'leadership', 'against-the-odds', 'inspiring-deed', 'mercy', 'oathbound'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), adopted)
 }
 
 // A brawler with a short sword in the other hand, which intercepts and is

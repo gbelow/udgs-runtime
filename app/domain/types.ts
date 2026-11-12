@@ -746,6 +746,7 @@ export const BUFF_TARGETS = [
   ...prefixed('reach', ['throw'] as const),
   ...prefixed('castDL', ['quicken', 'extend'] as const),
   ...prefixed('resist', ['compulsion'] as const),
+  ...prefixed('characteristic', ['charisma'] as const),
   ...prefixed('downtime', ['celebrate'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
@@ -753,7 +754,7 @@ export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarge
 
 // A state of the character a buff, a suppression or a surge allowance holds
 // only in (character/rules/effects.ts `BUFF_CONDITIONS` says what each reads).
-export const BuffConditionSchema = z.enum(['movementSurge', 'noGauntlets', 'enraged', 'rallied'])
+export const BuffConditionSchema = z.enum(['movementSurge', 'noGauntlets', 'enraged', 'rallied', 'steeled'])
 export type BuffCondition = z.infer<typeof BuffConditionSchema>
 
 export const BuffSchema = z.object({
@@ -1659,6 +1660,9 @@ const CampaignValues = {
   // abilities.tex "Leadership": the character rallied their team in the
   // round, which is how long the bonus it gives lasts
   rallied: z.boolean().default(false),
+  // abilities.tex "Oathbound": the character hit or crit in a morale test,
+  // which is how long the protection it gives lasts
+  steeled: z.boolean().default(false),
   active: z.array(ActiveEntrySchema).default([]),
   // effects delivered and not yet applied: each waits on the target's own
   // test for its degree

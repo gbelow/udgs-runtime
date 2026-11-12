@@ -22,7 +22,7 @@ import type { Party } from './party'
 
 // What the face shows, and what a fight puts on a character, which the face
 // shows as far as it shows anything.
-const SHOWN = [...FACE_KEYS, 'shown', 'injuries', 'afflictions', 'resources', 'usedSurge', 'surgeFloor', 'runsFree', 'rallied', 'active', 'pending'] as const
+const SHOWN = [...FACE_KEYS, 'shown', 'injuries', 'afflictions', 'resources', 'usedSurge', 'surgeFloor', 'runsFree', 'rallied', 'steeled', 'active', 'pending'] as const
 
 // gear.tex "Quiver": "carries 20 arrows or bolts".
 const QUIVER = 20

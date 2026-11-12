@@ -83,7 +83,8 @@ export const getAwareness = (c: Character) => c.trainables.awareness.value
 export const getSorcery = (c: Character) => c.trainables.sorcery.value
 export const getConviction1 = (c: Character) => c.trainables.conviction1.value
 export const getConviction2 = (c: Character) => c.trainables.conviction2.value
-export const getCharisma = (c: Character) => c.trainables.charisma.value
+// abilities.tex "Oathbound": "Gains +1 bonus to Charisma"
+export const getCharisma = (c: Character) => c.trainables.charisma.value + getBuffBonus(c, 'characteristic:charisma')
 export const getDevotion = (c: Character) => c.trainables.devotion.value
 
 // Breakdown registry paralleling `characteristicLenses`. Only the derived

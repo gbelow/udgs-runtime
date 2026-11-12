@@ -10,7 +10,7 @@ import { meetAttitudes, meetEachAttitude } from '../../character/commands/attitu
 import { getThrowHappenings } from '../../character/rules/attitudes'
 import { getSceneModeOf } from '../rules/test'
 import { getMercifulTo } from '../rules/providence'
-import { compelSurrender, releaseFromMercy } from './providence'
+import { compelSurrender } from './providence'
 import { inspire } from './inspiringDeed'
 
 // combat.tex "Combat morale test": the character's will test against the DL
@@ -77,7 +77,9 @@ function settleMorale(id: string, roll: MoraleRoll): Updater {
       ...(outcome.limitStress ? getStressAuthors(state, id).map((by) => updateCharacter(by, meetAttitudes({ event: 'enemyStress' }), 'conviction attitude')) : []),
       (acc: SceneState) => inspire(acc, id, happened),
       (acc: SceneState) => (merciful ? compelSurrender(acc, id) : acc),
-      (acc: SceneState) => (roll.degree === 'hit' || roll.degree === 'critical' ? releaseFromMercy(acc, id) : acc),
+      // abilities.tex "Oathbound": a hit or a crit in the morale test steels the
+      // character for the round that begins
+      updateCharacter(id, (c) => (roll.degree === 'hit' || roll.degree === 'critical' ? { ...c, steeled: true } : c), 'morale test'),
     ].reduce((acc, step) => step(acc), state)
     const tested = withRoll(settled, id, { ...roll, limitStress: outcome.limitStress && !merciful })
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)

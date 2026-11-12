@@ -59,7 +59,7 @@ export function getSocialSayBar(state: SceneState, c: CampaignCharacter, say: So
     // at any time, as long as it is not dominated"; free
     case 'unsurrender':
       if (!state.surrendered.includes(c.id)) return 'not surrendered'
-      // abilities.tex "Mercy": "until they hit in a morale test"
+      // abilities.tex "Mercy": "until the end of the round"
       if (state.compelledSurrender.includes(c.id)) return 'compelled to surrender'
       return getAfflictions(c, getSituationalAfflictions(state, c.id)).includes('dominated') ? 'dominated' : null
   }

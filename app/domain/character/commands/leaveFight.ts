@@ -23,5 +23,6 @@ export function leaveFight(c: CampaignCharacter): CampaignCharacter {
     surgeFloor: null,
     runsFree: false,
     rallied: false,
+    steeled: false,
   }
 }

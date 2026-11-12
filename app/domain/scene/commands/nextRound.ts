@@ -31,6 +31,7 @@ import { updateCharacter } from './characters'
 import { isParked } from '../rules/parked'
 import { getMembers } from '../rules/fighters'
 import { getHoldOnDiscount } from '../rules/stoicism'
+import { endRoundOfMercy } from './providence'
 import { meetAttitudes } from '../../character/commands/attitudes'
 
 // The round change (rules/roundChange.ts has its order). `nextRound` opens
@@ -74,8 +75,8 @@ export function nextRound(thrown: Throw): Updater {
     if (initial.roundStep !== null || getPlayingOutBar(initial)) return initial
     const state = meetRoundEnd(initial)
     const receive = state.round === 0 ? startAP : receiveAP
-    const moved = { ...state, chase: endChaseRound(state) }
-    const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) || isParked(moved, id) ? c : receive(wake(state, c))]))
+    const moved = { ...endRoundOfMercy(state), chase: endChaseRound(state) }
+    const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, unsteel(isDead(c) || isParked(moved, id) ? c : receive(wake(state, c)))]))
     const begun: SceneState = { ...moved, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', turnQueue: [], fleers: [], contenders: [], contestModes: {}, lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], performed: [], protectionMoves: [], mocked: [], braved: [], moraleRallies: [], firstTurn: null, following: {}, stealthTurns: [], compulsions: [], concentration: [], chaseIntents: {}, roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, caller)
     return state.round === 0 ? continueWith(caller)(continueWith(caller)(called)) : passIdle(called, caller)
@@ -93,6 +94,10 @@ function meetRoundEnd(state: SceneState): SceneState {
     return updateCharacter(id, meetAttitudes({ event: 'roundEnd', afflictions, combatSurge: c.usedSurge === 'combat' }), 'conviction attitude')(s)
   }, state)
 }
+
+// abilities.tex "Oathbound": what a hit or a crit in the morale test lent is
+// for the round it began, which is over.
+const unsteel = (c: CampaignCharacter): CampaignCharacter => (c.steeled ? { ...c, steeled: false } : c)
 
 function wake(state: SceneState, c: CampaignCharacter): CampaignCharacter {
   return state.compulsions.some((t) => t.id === c.id && t.action === 'tanatosis') ? cure(['unconscious'])(c) : c

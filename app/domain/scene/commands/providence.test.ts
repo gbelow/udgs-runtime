@@ -6,12 +6,13 @@ import { grantAbility } from '../../character/commands/abilities'
 import { ABILITIES, type AbilityKey } from '../../abilities'
 import { getConvictionSlot } from '../../character/rules/requirements'
 import { getThrowHappenings } from '../../character/rules/attitudes'
-import { getDeathIL } from '../../character/rules/afflictions'
+import { getDeathIL, getInjuryCapacity, hasAffliction } from '../../character/rules/afflictions'
+import { getCharisma } from '../../character/rules/characteristics'
 import { skillTermGetters } from '../../character/rules/skills'
 import { sumTerms } from '../../character/rules/terms'
 import { getSocialSayBar } from '../rules/social'
 import { endCombat } from './endCombat'
-import { continueRound } from './nextRound'
+import { continueRound, nextRound } from './nextRound'
 import { inspire, leadershipRally } from './inspiringDeed'
 import { getSocialCost } from '../rules/social'
 import { rollMorale } from './morale'
@@ -177,10 +178,9 @@ describe('Leadership', () => {
 
 // abilities.tex "Mercy": "Enemies that trigger their limit stress action
 // after being intimidated by the character are compelled to surrender until
-// they hit in a morale test."
+// the end of the round."
 describe('Mercy', () => {
   const MISS = 1
-  const HIT = 10
   // `a` intimidated `b` in the round before; `b` is called to its morale test
   const called = (abilities: AbilityKey[]) => inFight(abilities, {
     roundStep: 'morale',
@@ -203,13 +203,54 @@ describe('Mercy', () => {
     expect(after.surrendered).toEqual([])
   })
 
-  it('lets them unflag once they hit in a morale test', () => {
-    const state = called(['mercy'])
-    const compelled = { ...rollMorale('b', 'normal', true, () => MISS)(state) }
-    // the next round's test, with nothing weighing on it, so that the high die hits
-    const next = { ...compelled, morale: [{ id: 'b', roll: null, optional: false }], pressure: [] }
-    const freed = rollMorale('b', 'normal', true, () => HIT)(next)
-    expect(freed.compelledSurrender).not.toContain('b')
-    expect(getSocialSayBar(freed, freed.characters.b, 'unsurrender')).toBeNull()
+  // abilities.tex "Mercy": "until the end of the round", whatever the morale
+  // test after it came to
+  it('keeps them surrendered through the round, and lifts it, flag and all, when the round ends', () => {
+    const compelled = rollMorale('b', 'normal', true, () => MISS)(called(['mercy']))
+    const quiet = { ...compelled, morale: [], roundStep: null, inTurnCharacter: '', pressure: [] }
+    const ended = nextRound(() => 5)(quiet)
+    expect(ended.round).toBe(quiet.round + 1)
+    expect(ended.compelledSurrender).toEqual([])
+    expect(ended.surrendered).not.toContain('b')
+  })
+})
+
+// abilities.tex "Oathbound": "Gains +1 bonus to Charisma. A hit or crit in the
+// morale test prevents the character from being immobile by shock or IL."
+describe('Oathbound', () => {
+  const MISS = 1
+  const HIT = 10
+  // the premise: an immobile character takes no morale test (combat.tex "Out
+  // of the fight"), so the test is made one point under injury capacity
+  const called = () => {
+    const state = inFight(['oathbound'], { roundStep: 'morale', morale: [{ id: 'a', roll: null, optional: false }] })
+    return updateCharacter('a', (c) => ({ ...c, injuries: { ...c.injuries, injuryLevel: getInjuryCapacity(c) - 1 } }))(state)
+  }
+  // the blow in the round that takes them to injury capacity
+  const struck = (s: SceneState) => updateCharacter('a', (c) => ({ ...c, injuries: { ...c.injuries, injuryLevel: getInjuryCapacity(c) } }))(s)
+  const immobile = (s: SceneState) => hasAffliction(s.characters.a, 'immobile')
+
+  it('keeps a hit or a crit from collapsing at injury capacity, for the round', () => {
+    const steeled = struck(rollMorale('a', 'normal', true, () => HIT)(called()))
+    expect(steeled.characters.a.steeled).toBe(true)
+    expect(immobile(steeled)).toBe(false)
+  })
+
+  it('does nothing after a miss', () => {
+    const missed = struck(rollMorale('a', 'normal', true, () => MISS)(called()))
+    expect(missed.characters.a.steeled).toBe(false)
+    expect(immobile(missed)).toBe(true)
+  })
+
+  it('is over with the round', () => {
+    const steeled = struck(rollMorale('a', 'normal', true, () => HIT)(called()))
+    const ended = nextRound(() => 5)({ ...steeled, morale: [], roundStep: null, inTurnCharacter: '' })
+    expect(ended.characters.a.steeled).toBe(false)
+    expect(immobile(ended)).toBe(true)
+  })
+
+  it('adds its Charisma', () => {
+    const bonus = ABILITIES.oathbound.effect.flatMap((e) => (e.type === 'buff' && e.effect.target === 'characteristic:charisma' ? [e.effect.value] : []))[0]
+    expect(getCharisma(inFight(['oathbound']).characters.a) - getCharisma(inFight([]).characters.a)).toBe(bonus)
   })
 })
