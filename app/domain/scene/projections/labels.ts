@@ -61,6 +61,8 @@ function getDraftLabel(state: SceneState, actorId: string, option: ActionOption)
       return getOpportunityLabel(state, actorId, draft.at ?? null)
     case 'retarget':
       return draft.at ? `${ACTIONS.retarget.label} at step ${draft.at}` : ACTIONS.retarget.label
+    case 'counterspell':
+      return draft.at ? `${ACTIONS.counterspell.label} at step ${draft.at}` : ACTIONS.counterspell.label
     case 'prepared': {
       const prepared = draft.preparedId ? findPrepared(state, draft.preparedId) : null
       return prepared?.main ? `prepared ${prepared.main}` : ACTIONS.prepared.label

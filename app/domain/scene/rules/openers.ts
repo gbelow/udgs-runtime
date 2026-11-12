@@ -15,6 +15,7 @@ import { getInterruptionOf } from './interruption'
 import { withSweepArc } from './sweep'
 import { getEscapeAfterBlast, getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
 import { getReactionDegree } from './explosion'
+import { getCounterspellCast, isInCounterspellReach } from './counterspell'
 
 // What each reaction opens, and when. `before` is played out between the
 // root's roll and its effect (combat.tex "Opportunity Attack": "The attack
@@ -120,6 +121,22 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
       return { state: placed, action }
     },
   },
+  // abilities.tex "Counterspell": fought like an opportunity attack, before
+  // the root's effect with a mover stood one space short of the stretch that
+  // fired it, and passed over once the counterspeller's synesthesia no
+  // longer takes them in there; it opens the Spiritual Strike, which rolls
+  // its own casting test
+  counterspell: {
+    before: (state, root, reaction, newId) => {
+      if (getOpenedBy(state, reaction)) return null
+      if (getOpportunityStop(state, root) !== null || !isOpportunityReached(state, root, reaction)) return null
+      const placed = getOpportunityState(state, reaction)
+      const target = reaction.targetId ?? root.actorId
+      if (!isInCounterspellReach(placed, reaction.actorId, target)) return null
+      const action = getCounterspellCast(placed, reaction, newId())
+      return action ? { state: placed, action } : null
+    },
+  },
   // combat.tex "Coordinated Shots": the shots hit at the same point as the
   // lead's — each joined shot is played out before its effect, in the order
   // they were declared, and lands on the target's one defense. The table's
@@ -157,9 +174,9 @@ export function getOpener<K extends ReactionKind>(reaction: { kind: K }): Opener
 export function getReactionsInOrder(state: SceneState, root: RootAction): ReactionAction[] {
   const reactions = getReactionsTo(state, root.id).filter(isReactionAction)
   const drawn = getDrawnOpportunityAttacks(state, root).map(({ reaction }) => reaction)
-  const aimed = reactions.filter((r) => r.kind === 'retarget')
+  const aimed = reactions.filter((r) => r.kind === 'retarget' || r.kind === 'counterspell')
   const byStep = [...drawn, ...aimed].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
-  return [...byStep, ...reactions.filter((r) => r.kind !== 'opportunityAttack' && r.kind !== 'retarget' && r.kind !== 'prepared')]
+  return [...byStep, ...reactions.filter((r) => r.kind !== 'opportunityAttack' && r.kind !== 'retarget' && r.kind !== 'counterspell' && r.kind !== 'prepared')]
 }
 
 // The reactions whose follow-ups the landed root generates: its own — but a

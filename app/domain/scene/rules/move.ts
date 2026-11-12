@@ -25,9 +25,9 @@ import { getDegree } from '../../play/test'
 import { isCampaignCharacter } from '../../utils'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
-import { getInterruptionOf } from './interruption'
+import { getInterruptionBy, getInterruptionOf } from './interruption'
 import { isKnockedDownByHook } from './grapple'
-import { findOpenRoot, getAction, getAncestry, getDrawnOpportunityAttacks, getReactionsTo } from './log'
+import { findOpenRoot, getAction, getAncestry, getDrawnOpportunityAttacks, getOpenedBy, getReactionsTo } from './log'
 import { getFleeStep } from './flee'
 import { withDisplaced } from './displace'
 import { isBackwardMove } from './combinedMove'
@@ -415,10 +415,25 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
 // further, running or not. combat.tex "Crash": the higher force of the
 // target blocks passage, and "A draw blocks passage" — a braced blow's or a
 // catch's crash too. A movement the rules force goes on through an
-// interruption, as a run does.
-export function getMoveOverride(state: SceneState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample'; by: Action } | null {
+// interruption, as a run does. abilities.tex "Counterspell": a spiritual
+// attack that interrupts the mover stops them as a blow would; whichever
+// stops them first along the path does.
+type MoveOverride = { step: number; stop: 'reaction' | 'jump' | 'trample'; by: Action }
+export function getMoveOverride(state: SceneState, action: MoveAction): MoveOverride | null {
   const mover = state.characters[action.actorId]
   const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', RUN_START_AP) : 0
+  const stoppable = (at: number) => !action.forced && ((action.movement !== 'run' && action.movement !== 'jump') || at - 1 < starting)
+    && (action.movement !== 'climb' || isTrivialClimb(state, action))
+  const spelled = getReactionsTo(state, action.id).flatMap((reaction): MoveOverride[] => {
+    if (reaction.kind !== 'counterspell' || reaction.at === null || !stoppable(reaction.at)) return []
+    const cast = getOpenedBy(state, reaction)
+    return cast?.step === 'done' && getInterruptionBy(state, cast, action.actorId) !== 'none' ? [{ step: reaction.at - 1, stop: 'reaction', by: cast }] : []
+  })
+  const struck = getStrikeOverride(state, action, starting)
+  return [...spelled, ...(struck ? [struck] : [])].reduce<MoveOverride | null>((first, o) => (first === null || o.step < first.step ? o : first), null)
+}
+
+function getStrikeOverride(state: SceneState, action: MoveAction, starting: number): MoveOverride | null {
   for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.step !== 'done') continue
     const stoppable = !action.forced && ((action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting)

@@ -1136,6 +1136,17 @@ export const RetargetActionSchema = z.object({
   at: num.nullable().default(null),
 }).strip()
 
+// abilities.tex "Counterspell": Spiritual Strike cast as a reaction against
+// anyone within the caster's synesthesia, on the same triggers as an
+// opportunity attack (the table's ruling): it opens the cast, with its own
+// casting test, before the action it answers lands. `at` is the path step of
+// a move at which it fired.
+export const CounterspellActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('counterspell'),
+  at: num.nullable().default(null),
+}).strip()
+
 // combat.tex "Coordinated Shots": a shot at the target of one being made,
 // declared in full as a reaction to it — the row, the way of shooting, where
 // it aims and what it is loaded with — and opened as a shot of its own before
@@ -1548,6 +1559,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   InterceptActionSchema,
   OpportunityAttackActionSchema,
   RetargetActionSchema,
+  CounterspellActionSchema,
   JoinShotActionSchema,
   CounterattackActionSchema,
   PreparedActionSchema,

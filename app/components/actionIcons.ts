@@ -30,6 +30,7 @@ export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
   prepared: TimerReset,
   opportunityAttack: Zap,
   retarget: Target,
+  counterspell: Sparkles,
   joinShot: Users,
   follow: Route,
   flee: DoorOpen,

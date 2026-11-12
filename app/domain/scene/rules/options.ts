@@ -1,5 +1,7 @@
 import { getDiceBar } from '../../play/calls'
 import { isCombatStarted } from './started'
+import { ABILITIES } from '../../abilities'
+import { COUNTERSPELL, getCounterspellBar } from './counterspell'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { getMedicineBar, getMedicineCost } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
@@ -373,6 +375,12 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         const key = trigger.key
         if (!key || !isSpellKey(key)) return []
         return [answer({ kind, key, at: trigger.at }, getRepeatCost(key), isImmobile(state, c) ? 'immobile' : getFireAgainBar(state, c, key))]
+      }
+      // abilities.tex "Counterspell": the ability's price, open to whoever can
+      // pay it and the Spiritual Strike it casts
+      case 'counterspell': {
+        const own = { AP: ABILITIES[COUNTERSPELL].cost.AP, STA: ABILITIES[COUNTERSPELL].cost.STA }
+        return [answer({ kind, at: trigger.at }, own, gate ?? getCounterspellBar(c, isCombatStarted(state)))]
       }
       // combat.tex "Coordinated Shots": a shot of their own, so it is open
       // only to someone who can pay for one that reaches the target

@@ -24,6 +24,7 @@ import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
 import { getSweepTargets, isSweep, isSweepLink } from './sweep'
 import { detect, type Detected } from './stealth'
+import { getCounterspellReach, isInCounterspellReach } from './counterspell'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -91,7 +92,7 @@ function getDrawnTriggers(state: SceneState, root: RootAction): Trigger[] {
   const own = getKindTriggers(state, root)
   const triggers = own
   const opportunity = getOpeningReaction(state, root) !== null
-  const isOpportunity = (t: Trigger) => t.kind === 'opportunityAttack' || t.kind === 'retarget'
+  const isOpportunity = (t: Trigger) => t.kind === 'opportunityAttack' || t.kind === 'retarget' || t.kind === 'counterspell'
   // combat.tex "Concentration", "Opportunity Attack": the attacks an action
   // held over draws are fought as it is declared, and what answers its effect
   // comes when it finishes
@@ -221,12 +222,15 @@ function isOpenedByReaction(state: SceneState, root: StrikeAction): boolean {
 }
 
 // combat.tex "Opportunity Attack": a triggering action is answered by
-// anyone who threatens the one attempting it with a melee weapon, and a
-// held spray by anyone it reaches.
+// anyone who threatens the one attempting it with a melee weapon, a held
+// spray by anyone it reaches, and a counterspell by anyone whose synesthesia
+// takes them in (abilities.tex "Counterspell", the table's ruling).
 function opportunityTriggers(state: SceneState, actorId: string): Trigger[] {
   const attacks = getMeleeThreateners(state, actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
   const retargets = getMeleeThreateners(state, actorId, sprayReach).flatMap((id) => retargetsOf(state.characters[id], null))
-  return [...attacks, ...retargets]
+  const counterspells = Object.keys(state.characters).filter((id) => id !== actorId && isInCounterspellReach(state, id, actorId))
+    .map((id): Trigger => ({ characterId: id, kind: 'counterspell', at: null }))
+  return [...attacks, ...retargets, ...counterspells]
 }
 
 // combat.tex "Reflex": the target may answer a shot with evasion or guard.
@@ -301,7 +305,9 @@ function dragOpportunities(state: SceneState, root: DragAction): Trigger[] {
     .map(({ id, ...hit }): Trigger => ({ characterId: id, kind: 'opportunityAttack', ...hit }))
   const retargets = dragApproaches(state, root, sprayReach)
     .flatMap(({ id, at, against }) => retargetsOf(state.characters[id], at, against))
-  return [...attacks, ...retargets]
+  const counterspells = dragApproaches(state, root, getCounterspellReach)
+    .map(({ id, ...hit }): Trigger => ({ characterId: id, kind: 'counterspell', ...hit }))
+  return [...attacks, ...retargets, ...counterspells]
 }
 
 // The first step of the block at which each third party, within `reachOf`
@@ -412,6 +418,11 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     const spray = sprayReach(state.characters[id])
     const aimed = spray > 0 ? getApproachStep(reaches, spray) : null
     if (aimed !== null) triggers.push(...retargetsOf(state.characters[id], aimed))
+    // abilities.tex "Counterspell": moving towards the counterspeller within
+    // their synesthesia, which must still take the mover in when it is cast
+    const perimeter = getCounterspellReach(state.characters[id])
+    const sensed = perimeter > 0 ? getApproachStep(reaches, perimeter) : null
+    if (sensed !== null) triggers.push({ characterId: id, kind: 'counterspell', at: sensed })
     if (range === 0) continue
     const approach = getApproachStep(reaches, range)
     if (approach !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: approach })

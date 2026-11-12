@@ -8,7 +8,8 @@ import { ACTIONS, getActionDef, isAttackAction, isReaction } from './actionCatal
 import { sameCell } from './board/geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell, isCastPossible } from '../../character/rules/spells'
-import { hasAbility } from '../../abilities'
+import { ABILITIES, hasAbility } from '../../abilities'
+import { COUNTERSPELL } from './counterspell'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
@@ -221,6 +222,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
       return getAttackVariant(c, getCutStrike(action), isCombatStarted(state)) !== null
     case 'blast':
     case 'retarget':
+    case 'counterspell':
     case 'release':
     case 'slip':
     case 'feint':
@@ -361,6 +363,10 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     // AP and STA is paid the same, off the sheet
     case 'cast':
       return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null
+    // abilities.tex "Counterspell": "reaction, 1 STA", on top of the cast it
+    // opens
+    case 'counterspell':
+      return { AP: ABILITIES[COUNTERSPELL].cost.AP, STA: ABILITIES[COUNTERSPELL].cost.STA }
     case 'fireAgain':
       return isSpellKey(action.key) ? getRepeatCost(action.key) : null
     case 'block':

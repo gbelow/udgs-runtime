@@ -39,14 +39,16 @@ function isTiedCounterStrike(state: SceneState, landed: Action): boolean {
 export type StampedInterruption = Action['interruptions'][number]
 
 // What the action, as it lands, does to the actions it was given rise by:
-// the interruption it lands on each one's actor. Whichever of those has not
-// landed yet carries it (`interruptions`); one that already has took effect
-// first, and is not broken by it.
+// the interruption it lands on each one's actor, a cast's by what it
+// delivered (abilities.tex "Counterspell": a spiritual attack before the
+// action it answers). Whichever of those has not landed yet carries it
+// (`interruptions`); one that already has took effect first, and is not
+// broken by it.
 export function getInterruptionsLanding(state: SceneState, landing: Action): { on: Action; interruption: StampedInterruption }[] {
   if (landing.reactionTo !== null) return []
   const tie = isTiedCounterStrike(state, landing)
   return getGivenRiseBy(state, landing).flatMap((on) => {
-    const level = getInterruptionOf(landing, on.actorId)
+    const level = landing.kind === 'cast' ? getInterruptionBy(state, landing, on.actorId) : getInterruptionOf(landing, on.actorId)
     return level === 'none' ? [] : [{ on, interruption: { by: landing.id, level, tie } }]
   })
 }

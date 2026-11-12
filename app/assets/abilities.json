@@ -8650,7 +8650,7 @@
     "activation": "active",
     "cost": {
       "AP": 0,
-      "STA": 2,
+      "STA": 1,
       "exhaustion": 0,
       "IL": 0,
       "ET": 0
@@ -8687,7 +8687,7 @@
             }
           ]
         ],
-        "description": "Learns to cast spiritual strike as a reaction against anyone within synesthesia range.",
+        "description": "Learns to cast spiritual strike as a reaction as a quickened spell against anyone within synesthesia range.",
         "effect": [],
         "recipes": [],
         "grants": [],

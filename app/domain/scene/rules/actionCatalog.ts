@@ -106,6 +106,9 @@ export const ACTIONS = {
   // a held spray aimed anew in answer to the same triggers, priced by the
   // fireAgain it opens
   retarget:    { label: 'retarget', rule: "the table's ruling",     type: 'reaction', price: null,          reactsTo: ['strike', 'move'], die: false, identity: { key: '', at: null } },
+  // abilities.tex "Counterspell": the ability's price, and the cast it opens
+  // pays the spell's
+  counterspell: { label: 'counterspell', rule: 'abilities.tex "Counterspell"', type: 'reaction', price: null,        reactsTo: ['strike', 'move'], die: false, identity: { at: null } },
   // combat.tex "Coordinated Shots": priced by the shot it opens
   joinShot:    { label: 'join shot', rule: 'combat.tex "Coordinated Shots"',    type: 'reaction', price: null,          reactsTo: ['shoot'],  die: false },
   follow:      { label: 'follow', rule: 'combat.tex "Follow"',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },

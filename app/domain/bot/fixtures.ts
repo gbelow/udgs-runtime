@@ -49,14 +49,15 @@ export function crossbowman(id: string): CampaignCharacter {
 // spent, with the spells that ask for nothing in hand besides, the morale
 // spells and Spiritual Strike among them, the healing spells cast in a
 // round and one that takes an ET, synesthesia held for those that reach
-// every mind it takes in (abilities.tex "Synesthesia"), and every stage of
-// Battle Mage, to quicken cheaply and defend while concentrating.
+// every mind it takes in (abilities.tex "Synesthesia") and to counterspell
+// whoever it takes in, and every stage of Battle Mage, to quicken cheaply and
+// defend while concentrating.
 export function mage(id: string): CampaignCharacter {
   const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
   const spells = ['flamethrower', 'telepathic-link', 'pain', 'sleep', 'frighten', 'offend', 'pacify', 'suggestion', 'overwhelming-terror', 'provocative-mockery', 'spiritual-strike', 'defibrillate', 'clotting-touch', 'regenerate']
   const known = Object.fromEntries(spells.map((key) => [key, { method: 'intuitive' as const, practice: 6 }]))
   const caster = toggleAbility('synesthesia-1')(grantAbility('synesthesia-2')(fighter(id))) as CampaignCharacter
-  return grantAbility('battle-mage-2')({ ...holdItem(flamethrower)(caster), spells: known, usedSurge: 'focus' })
+  return grantAbility('counterspell')(grantAbility('battle-mage-2')({ ...holdItem(flamethrower)(caster), spells: known, usedSurge: 'focus' }))
 }
 
 // A fighter with a gauntlet in hand, which grabs (gear.tex "Grapple I/II"),

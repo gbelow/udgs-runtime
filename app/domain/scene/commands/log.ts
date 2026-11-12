@@ -238,7 +238,7 @@ export function pruneReactions(state: SceneState): SceneState {
   const open = getOpenAt(state, 'react')
   if (!open) return state
   const live = getLiveReactionsTo(state, open.id)
-  const dropped = live.filter((a) => findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' || a.kind === 'retarget' || a.kind === 'flee' ? a.at : undefined }) === null)
+  const dropped = live.filter((a) => findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' || a.kind === 'retarget' || a.kind === 'counterspell' || a.kind === 'flee' ? a.at : undefined }) === null)
   return withdrawActions(state, dropped.map((a) => a.id), 'noLongerTriggered')
 }
 
