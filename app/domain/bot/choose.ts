@@ -1,7 +1,7 @@
 import type { SceneState, RootAction } from '../scene/types'
-import { rollD10, seededRng, type Dice } from '../play/dice'
+import type { Dice } from '../play/dice'
 import { getFightName } from '../scene/rules/fighters'
-import { getHistory, getLog, getOpenAction } from '../scene/rules/log'
+import { getOpenAction } from '../scene/rules/log'
 import { defend, getDefenseOptions } from './answer'
 import { getOpportunities } from './opportunity'
 import { getCandidates } from './candidates'
@@ -16,8 +16,9 @@ import { applyMove, type Played } from './move'
 import { getBelief } from './belief'
 
 // Where a bot weighs its options: each is played out on a copy of the state
-// with the same few dice and the fight played on from there (rollout.ts), the
-// state it comes to is valued (value.ts), and the best average wins. Ties go
+// with the same two dice, the fight played on from there for the party's
+// horizon (rollout.ts), the state it comes to is valued (value.ts), and the
+// best average wins. Ties go
 // to the first listed, which is to do nothing.
 
 // `waiting` is what taking the option costs besides what comes of it.
@@ -28,39 +29,34 @@ function mean(values: Value[]): Value {
   return { total: of('total'), wounds: of('wounds'), threat: of('threat'), engage: of('engage'), resources: of('resources'), reserve: of('reserve'), waiting: of('waiting'), exchange: of('exchange') }
 }
 
-// An option's value to `actorId`'s party: played out with each of the sample
-// dice, everyone but `decided` answering by reflex, and the fight played on
-// for the party's horizon. Null when it does not come off. What the option is
-// worth as committed (exchange.ts) is read once: committing throws no die.
-function score(parties: readonly Party[], party: Party, actorId: string, option: Option, decided: readonly string[], newId: () => string, seed: number): Value | null {
+// The dice every option is tried with: a middling and a high one, as the
+// attacks are read (reading.ts).
+const DICE = [4, 9]
+
+// An option's value to `actorId`'s party: played out with each of the dice,
+// everyone but `decided` answering by reflex, and the fight played on for the
+// party's horizon. Null when it does not come off. What the option is worth as
+// committed (exchange.ts) is read once: committing throws no die.
+function score(parties: readonly Party[], party: Party, actorId: string, option: Option, decided: readonly string[], newId: () => string): Value | null {
   const tuning = getTuning(party)
   const values: Value[] = []
   let exchange: number | null = null
-  for (let k = 0; k < tuning.samples; k++) {
-    const rng = seededRng(seed + k)
-    const dice: Dice = (explodes) => rollD10(explodes, rng)
+  for (const die of DICE) {
+    const dice: Dice = () => die
     const played = option.play(dice)
     if (!played) return null
     if (tuning.defensive > 0 && isAnswerable(played, party, actorId, tuning.defensive > 1, newId)) return null
     exchange ??= getExchange(played, parties, party, actorId, tuning, newId)
     const settled = playOut(played, parties, dice, newId, decided)
-    const end = evaluate(tuning.horizon > 0 ? rollout(settled, parties, dice, newId, tuning.horizon) : settled, party, actorId, tuning, newId)
+    const end = evaluate(tuning.horizon > 0 ? rollout(settled, parties, dice, newId, tuning.horizon) : settled, party, actorId, tuning)
     values.push({ ...end, total: end.total + exchange - (option.waiting ?? 0), waiting: -(option.waiting ?? 0), exchange })
   }
   return mean(values)
 }
 
-// The dice an option is tried with differ from one decision to the next, and
-// are the same for every option of one: they are made from where the fight
-// stands, so that no run of dice colours every choice alike.
-function getSampleSeed(state: SceneState, actorId: string): number {
-  const named = [...actorId].reduce((hash, ch) => Math.imul(hash, 31) + ch.charCodeAt(0), 7)
-  return (Math.imul(state.round, 1000003) + Math.imul(getLog(state).length, 7919) + Math.imul(getHistory(state).length, 31) + named) >>> 0
-}
-
 function pick(state: SceneState, parties: readonly Party[], party: Party, actorId: string, kind: 'turn' | 'answer', options: Option[], decided: readonly string[], newId: () => string, trace?: Trace): number {
   const scored = options.flatMap((option, index) => {
-    const value = score(parties, party, actorId, option, decided, newId, getSampleSeed(state, actorId))
+    const value = score(parties, party, actorId, option, decided, newId)
     return value ? [{ index, label: option.label, value }] : []
   })
   if (scored.length === 0) return -1

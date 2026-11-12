@@ -6,10 +6,8 @@ import { getOpenAction } from '../scene/rules/log'
 import { getSettled } from '../scene/rules/settle'
 import { resolveTest } from '../play/test'
 import { getOutcomes } from '../scene/projections/outcomes'
-import { answerOpen } from './answer'
-import { getLiveFoes, getSide, isOnSide, isStanding, type Party, type Tuning } from './party'
-import { aimStrike, getStrikes } from './weapons'
-import { getDefenseWorth } from './reading'
+import { getLiveFoes, getSide, isStanding, type Party, type Tuning } from './party'
+import { getBestReading, getDefenseWorth } from './reading'
 
 // How well a state stands for a party, in fractions of a character's way to
 // death: the wounds its foes carry less the wounds its side does (party.ts), less what the
@@ -49,28 +47,17 @@ export function expectedLoss(state: SceneState, targetId: string): number {
   return taken / FACES.length / target.injuries.deathThreshold
 }
 
-// The most one foe could take from the party with a single attack from where
-// it stands. Each attack is first sized as if undefended; the party's answer
-// is weighed for the hardest hitting one against each of its targets.
-function strongestStrike(state: SceneState, party: Party, foeId: string, newId: () => string): number {
-  const foeTurn = { ...state, inTurnCharacter: foeId }
-  const hardest = new Map<string, { locked: SceneState; target: string; loss: number }>()
-  for (const kind of ['strike', 'shoot'] as const) {
-    for (const strike of getStrikes(foeTurn, foeId, kind, newId)) {
-      for (const target of strike.targets.filter((t) => isOnSide(state, party, t) && isStanding(state, t))) {
-        const locked = aimStrike(strike, target)
-        const loss = expectedLoss(locked, target)
-        const key = `${kind} ${target}`
-        if (loss > (hardest.get(key)?.loss ?? -1)) hardest.set(key, { locked, target, loss })
-      }
-    }
+// What the foes could still do to the side from where they stand: for each of
+// the side and each foe, the foe's best attack on it as it would answer
+// (reading.ts), in fractions of its way to death.
+function getThreat(state: SceneState, side: readonly string[], foes: readonly string[]): number {
+  let threat = 0
+  for (const id of side) {
+    const c = state.characters[id]
+    if (!c || !isStanding(state, id)) continue
+    for (const foe of foes) threat += (getBestReading(state, foe, id)?.IL ?? 0) / c.injuries.deathThreshold
   }
-  const answered = [...hardest.values()].map(({ locked, target }) => expectedLoss(answerOpen(locked, party, getOpenAction(locked)!, newId)?.state ?? locked, target))
-  return Math.max(0, ...answered)
-}
-
-function getThreat(state: SceneState, party: Party, newId: () => string): number {
-  return getLiveFoes(state, party).reduce((sum, foe) => sum + strongestStrike(state, party, foe, newId), 0)
+  return threat
 }
 
 function getGap(state: SceneState, actorId: string, foes: string[]): number {
@@ -79,12 +66,12 @@ function getGap(state: SceneState, actorId: string, foes: string[]): number {
   return from && there.length > 0 ? setDistance([from], there) : 0
 }
 
-export function evaluate(state: SceneState, party: Party, actorId: string, tuning: Tuning, newId: () => string): Value {
+export function evaluate(state: SceneState, party: Party, actorId: string, tuning: Tuning): Value {
   const foes = getLiveFoes(state, party)
   const sum = (ids: readonly string[]) => ids.reduce((total, id) => total + (state.characters[id] ? fraction(state.characters[id]) : 0), 0)
   const side = getSide(state, party)
   const wounds = sum(foes) - sum(side)
-  const threat = tuning.threat > 0 ? tuning.threat * getThreat(state, party, newId) : 0
+  const threat = tuning.threat > 0 ? tuning.threat * getThreat(state, side, foes) : 0
   const engage = tuning.engage * getGap(state, actorId, foes)
   const left = (ids: readonly string[], pick: (c: CampaignCharacter) => number) => ids.reduce((total, id) => total + (state.characters[id] ? pick(state.characters[id]) : 0), 0)
   const ap = (c: CampaignCharacter) => c.resources.AP

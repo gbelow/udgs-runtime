@@ -6,17 +6,21 @@ import { getOpenAction } from '../scene/rules/log'
 import { getSettled } from '../scene/rules/settle'
 import { getOutcomes } from '../scene/projections/outcomes'
 
-// The overflow of a hit (HOP) spent on whatever does the most to the target:
-// every way of spending it the attack offers is tried, and the blow it comes
-// to is ranked by death, then injury level, then tier, then bleeding, then
-// the damage that got through; of two that come to the same, the cheaper.
+// The overflow of a hit (HOP) spent the way a player would: first what is
+// bought for the attack it was declared as or adds HOP (assassinate, a braced
+// or a hook attack), then the rest on one kind of damage. Penetrating, where
+// it is open, does more than slicing, so the cutting way is bust and then
+// slice, and smash for what slicing leaves; the blunt way is smash for all
+// of it. Whichever comes to more is kept, ranked by death, then injury level,
+// then tier, then bleeding, then the damage that got through.
 
 export type Spend = { purchases: HOPPurchase[]; AP: number; STA: number }
 
 export type Spent = { state: SceneState; outcome: Outcome | null; unspent: Outcome | null; spend: Spend }
 
-// Past this many ways of spending it, the rest are not tried.
-const MOST_TRIED = 400
+const FIRST: HOPPurchase[] = ['assassinate', 'braced', 'hook']
+const CUTTING: HOPPurchase[] = ['bust', 'slice', 'smash']
+const BLUNT: HOPPurchase[] = ['smash']
 
 export function rankOutcome(o: Outcome | null): number {
   if (!o) return -1
@@ -27,37 +31,36 @@ export function outcomeOn(state: SceneState, open: RootAction, targetId: string)
   return getOutcomes(state, getSettled(state, open)).find((o) => o.id === targetId)?.outcome ?? null
 }
 
-// Every way of spending the overflow of the attack at `post`, as states.
-function getSpends(rolled: SceneState): { state: SceneState; spend: Spend }[] {
-  const seen = new Set<string>()
-  const found: { state: SceneState; spend: Spend }[] = []
-  const walk = (s: SceneState, purchases: HOPPurchase[], AP: number, STA: number): void => {
-    const now = getOpenAction(s) as AttackAction
-    const key = JSON.stringify(now.spent)
-    if (seen.has(key) || found.length > MOST_TRIED) return
-    seen.add(key)
-    found.push({ state: s, spend: { purchases, AP, STA } })
-    for (const option of getHOPOptions(s, now)) {
-      if (!option.available) continue
-      const next = spendHOP(option.purchase)(s)
-      if (next === s) continue
-      walk(next, [...purchases, option.purchase], AP + (option.price?.AP ?? 0), STA + (option.price?.STA ?? 0))
+type Bought = { state: SceneState; spend: Spend }
+
+// Each purchase in turn, as many times as the overflow pays for it.
+function buyAll(from: Bought, purchases: readonly HOPPurchase[]): Bought {
+  let { state, spend } = from
+  for (const purchase of purchases) {
+    for (;;) {
+      const option = getHOPOptions(state, getOpenAction(state) as AttackAction).find((o) => o.purchase === purchase)
+      if (!option?.available) break
+      const next = spendHOP(purchase)(state)
+      if (next === state) break
+      state = next
+      spend = { purchases: [...spend.purchases, purchase], AP: spend.AP + (option.price?.AP ?? 0), STA: spend.STA + (option.price?.STA ?? 0) }
     }
   }
-  walk(rolled, [], 0, 0)
-  return found
+  return { state, spend }
 }
 
 // The attack rolled and waiting at `post`, its overflow spent at its best on
 // `targetId`; only a hit has any to spend.
 export function spendBest(rolled: SceneState, open: AttackAction, targetId: string): Spent {
   const unspent = outcomeOn(rolled, open, targetId)
-  const choices = open.roll?.degree === 'hit' ? getSpends(rolled) : [{ state: rolled, spend: { purchases: [], AP: 0, STA: 0 } }]
-  let best: Spent = { state: choices[0].state, outcome: unspent, unspent, spend: choices[0].spend }
-  for (const c of choices) {
-    const o = outcomeOn(c.state, getOpenAction(c.state) as RootAction, targetId)
-    const better = rankOutcome(o) - rankOutcome(best.outcome) || best.spend.AP + best.spend.STA - (c.spend.AP + c.spend.STA)
-    if (better > 0) best = { state: c.state, outcome: o, unspent, spend: c.spend }
+  const none: Spent = { state: rolled, outcome: unspent, unspent, spend: { purchases: [], AP: 0, STA: 0 } }
+  if (open.roll?.degree !== 'hit') return none
+  const first = buyAll({ state: rolled, spend: none.spend }, FIRST)
+  let best = none
+  for (const way of [CUTTING, BLUNT]) {
+    const bought = buyAll(first, way)
+    const outcome = outcomeOn(bought.state, getOpenAction(bought.state) as RootAction, targetId)
+    if (rankOutcome(outcome) > rankOutcome(best.outcome)) best = { state: bought.state, outcome, unspent, spend: bought.spend }
   }
   return best
 }

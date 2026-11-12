@@ -4,8 +4,8 @@ import { isDead } from '../character/rules/afflictions'
 // The numbers a bot weighs its options with, all in the same unit: a fraction
 // of a character's way to death (injury level over its death threshold).
 // `threat`: how much the damage the foes could still do from where an option
-// leaves the party counts against it; it is left at nothing when `horizon` has
-// the foes' turns played out. `engage`: what each cell between
+// leaves the party counts against it, read off their attacks (reading.ts)
+// rather than played out. `engage`: what each cell between
 // the character and its nearest foe costs, so that two bots do not wait on
 // each other for ever. `ap`, `sta`: what a point of AP or STA the party has
 // left, against what its foes have, is worth. AP is worth what it can still
@@ -13,9 +13,9 @@ import { isDead } from '../character/rules/afflictions'
 // counts for nothing until an option is looked at that far ahead. `horizon`:
 // how many rounds, counting the one it is in, the fight is played on after an
 // option, by the bot that does not weigh (0: none, the state it leaves is
-// valued as it stands). `patience`: what holding costs for each round the fight
+// valued as it stands, `threat` standing for what the foes would do next). `patience`: what holding costs for each round the fight
 // has already gone on, so that bots that each wait for the other to come do not
-// wait for ever. `samples`: how many dice each option is played with.
+// wait for ever.
 // `exchange`, `drain`: what an attack is worth as it is committed, besides what
 // comes of it in the fight played on (exchange.ts): `exchange` weighs the
 // damage it takes on average over the die, once its target has answered as it
@@ -26,9 +26,9 @@ import { isDead } from '../character/rules/afflictions'
 // `reserve`: what the defenses a side can still pay for are worth against what
 // the other side's are (value.ts), the AP kept back to defend with; `ap` counts
 // what AP is worth besides, and is left at nothing since `reserve` weighs it.
-export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; samples: number; exchange: number; drain: number; defensive: number; reserve: number }
+export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; exchange: number; drain: number; defensive: number; reserve: number }
 
-export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0, sta: 0.005, horizon: 3, patience: 0.03, samples: 5, exchange: 1, drain: 0.02, defensive: 0, reserve: 1 }
+export const DEFAULT_TUNING: Tuning = { threat: 1, engage: 0.02, ap: 0, sta: 0.005, horizon: 0, patience: 0.03, exchange: 1, drain: 0.02, defensive: 0, reserve: 1 }
 
 // The characters a bot plays, all of one owner (the GM, or a player), which it
 // sees in full (belief.ts). Its side is them and whoever the fight puts in a
