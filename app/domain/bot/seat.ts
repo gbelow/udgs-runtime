@@ -1,6 +1,5 @@
 import type { SceneState } from '../scene/types'
 import { applySceneCommand, type CommandContext, type SceneCommand } from '../scene/commands/registry'
-import { getSceneSeenBy } from '../scene/projections/seen'
 import type { Viewer } from '../profiles'
 import { rollD10, rollModed, seededRng, type Dice } from '../play/dice'
 import { getBelief } from './belief'
@@ -25,10 +24,14 @@ import { getTablePress } from './autoTable'
 //    stands in the way, whatever else the seats might still do;
 // 4. every other seat with something open to it is asked, the same way.
 //
-// What a seat is asked with is read off the fight as it sees it, by the bot's
-// own reads of the panels (bot/table.ts), as a player's screen reads them off
-// the fight it is shown. A decision the seat may not make is written down and
-// the seat counts as waiting. When nothing moves, the fight is stalled.
+// What is open to a seat (its buttons, its choices, what the table waits on
+// it for) is read off the fight itself, by the panels' own reads (bot/table.ts),
+// so that it is the table's answer, then kept to the seat's members: a rule
+// run on the fight as the seat sees it would read a foe's hidden sheet as an
+// empty one and answer otherwise. What the seat may know of the fight, to
+// decide on, is the fight as it sees it (`view`). A decision the seat may not
+// make is written down and the seat counts as waiting. When nothing moves, the
+// fight is stalled.
 
 export type Seat = { id: string; members: readonly string[]; box: Box }
 
@@ -73,9 +76,9 @@ function present(state: SceneState, seat: Seat): string[] {
 }
 
 // What the seat may know and press now, or null when it has nothing at all.
-function inputOf(state: SceneState, seen: SceneState, seat: Seat, members: string[], waits: Wait[], opts: StepOptions): SeatInput | null {
-  const buttons = getMyButtons(seen, members)
-  const choices = getMyChoices(seen, members)
+function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[], opts: StepOptions): SeatInput | null {
+  const buttons = getMyButtons(state, members)
+  const choices = getMyChoices(state, members)
   if (waits.length === 0 && buttons.length === 0 && choices.length === 0) return null
   let view: SceneState | null = null
   return {
@@ -104,8 +107,7 @@ export function step(state: SceneState, seats: readonly Seat[], opts: StepOption
   const round = [...seats.slice(start), ...seats.slice(0, start)]
   const asked = round.map((seat) => {
     const members = present(state, seat)
-    const seen = getSceneSeenBy(state, new Set(members))
-    return { seat, members, seen, waits: getWaits(seen, members) }
+    return { seat, members, waits: getWaits(state, members) }
   })
   const owed = asked.filter((a) => a.waits.length > 0)
   const moved = askSeats(state, owed, opts, entries)
@@ -124,14 +126,14 @@ export function step(state: SceneState, seats: readonly Seat[], opts: StepOption
 
 // The seats asked in turn; the fight after the first whose presses moved it,
 // or null when none did.
-function askSeats(state: SceneState, asked: { seat: Seat; members: string[]; seen: SceneState; waits: Wait[] }[], opts: StepOptions, entries: Entry[]): SceneState | null {
-  for (const { seat, members, seen, waits } of asked) {
+function askSeats(state: SceneState, asked: { seat: Seat; members: string[]; waits: Wait[] }[], opts: StepOptions, entries: Entry[]): SceneState | null {
+  for (const { seat, members, waits } of asked) {
     if (members.length === 0) continue
-    const input = inputOf(state, seen, seat, members, waits, opts)
+    const input = inputOf(state, seat, members, waits, opts)
     if (!input) continue
     const decision: Decision = seat.box(input)
     if (decision.kind === 'wait') continue
-    const commands = toCommands(seen, input, decision, opts.ctx)
+    const commands = toCommands(state, input, decision, opts.ctx)
     if (!commands.ok) {
       entries.push({ by: seat.id, why: decision.why, sent: [], refused: commands.refused })
       continue
@@ -150,6 +152,8 @@ export type RunEnd = 'ended' | 'stalled' | 'cap'
 export type Run = {
   state: SceneState
   end: RunEnd
+  // the last round the fight reached
+  rounds: number
   // for a stalled fight, what the table still waits on and from whom
   stalled: { seat: string; waits: Wait[] }[]
   log: Entry[]
@@ -187,6 +191,7 @@ export function run(start: SceneState, seats: readonly Seat[], { seed, autoTable
   let state = start
   let started = start.round > 0
   let from = 0
+  let rounds = start.round
   for (let i = 0; i < maxSteps; i++) {
     if (started && state.round === 0) return finish('ended')
     if (state.round > maxRounds) return finish('cap')
@@ -197,6 +202,7 @@ export function run(start: SceneState, seats: readonly Seat[], { seed, autoTable
     if (moved.state === state) return finish('stalled')
     state = moved.state
     started ||= state.round > 0
+    rounds = Math.max(rounds, state.round)
   }
   return finish('cap')
 
@@ -204,6 +210,6 @@ export function run(start: SceneState, seats: readonly Seat[], { seed, autoTable
     const stalled = end === 'stalled'
       ? seats.map((seat) => ({ seat: seat.id, waits: getWaits(state, present(state, seat)) })).filter((s) => s.waits.length > 0)
       : []
-    return { state, end, stalled, log, record: { table: false, start, sent: log.flatMap((e) => e.sent) } }
+    return { state, end, rounds, stalled, log, record: { table: false, start, sent: log.flatMap((e) => e.sent) } }
   }
 }

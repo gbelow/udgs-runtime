@@ -8,12 +8,12 @@ import { getOpenAction } from '../scene/rules/log'
 
 // What comes out of a decision box, and what goes into it. The box is a pure
 // function of what its seat may know (`SeatInput`) to one decision, with the
-// reason for it, for the log. Everything in the input is read off the fight
-// as the seat sees it (`getSceneSeenBy`), the fight a player in the seat is
-// shown, so a bot is offered what that player would be. Whatever it decides
-// is turned into presses here (`toCommands`), refused when it is not open to
-// the seat; the presses are then sent to the table as the seat, which refuses
-// again what the seat may not do.
+// reason for it, for the log. What is open to the seat is read off the fight
+// itself and kept to its members, as the panels of a player in the seat read
+// it; what the seat may know of the fight is the fight as it sees it (`view`).
+// Whatever it decides is turned into presses here (`toCommands`), refused when
+// it is not open to the seat; the presses are then sent to the table as the
+// seat, which refuses again what the seat may not do.
 
 export type Decision = { why: string } & (
   // one of the buttons or choices in the input, pressed as it is offered
@@ -46,7 +46,7 @@ export type Box = (input: SeatInput) => Decision
 
 export type Executed = { ok: true; commands: SceneCommand[] } | { ok: false; refused: string }
 
-// The presses a decision comes to on the fight as the seat sees it. A press
+// The presses a decision comes to on the fight. A press
 // must be one of those the seat was offered; a declaration and a settlement
 // are pressed as the builders press them (bot/declare.ts), and refused as
 // they refuse. Nothing of the fight they were pressed on is handed back, only

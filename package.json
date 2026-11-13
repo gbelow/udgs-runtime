@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "bench": "tsx tools/bench-sense.ts",
+    "arena": "tsx tools/arena.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "test:fuzz": "vitest run --config vitest.fuzz.config.ts",

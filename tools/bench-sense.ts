@@ -1,10 +1,8 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { openHarness } from '../app/stores/boardHarness'
-import { useCombatStore } from '../app/stores/useCombatStore'
-import { makeBoardMap } from '../app/domain/scene/factories'
-import { SceneStateSchema, type SceneState, type RootAction } from '../app/domain/scene/types'
+import { type SceneState, type RootAction } from '../app/domain/scene/types'
+import { ARENA, SCENARIOS, setUp as setUpScenario, type Scenario } from './lib/scenarios'
 import { toUpdater, type SceneCommand } from '../app/domain/scene/commands/registry'
 import { getOpenAction } from '../app/domain/scene/rules/log'
 import { getAvailableActions, getAwaited } from '../app/domain/scene/rules/options'
@@ -41,23 +39,6 @@ import { passRound } from '../app/domain/scene/fixtures'
 //
 // The report goes to reports/bench-sense.md.
 
-const ARENA = 'Arena 1'
-const COMMON = ['Erthal Soldier', 'Halkir squire', 'Human Noble', 'Surbit Thief']
-
-type Scenario = { name: string; red: [string, [number, number]][]; blue: [string, [number, number]][] }
-
-const side = (cells: [number, number][]): [string, [number, number]][] => COMMON.map((who, i) => [who, cells[i]])
-
-// The north of the arena is open grass; the middle has a house with walls on
-// the west and a walled square on the east, so the last scenario's sides
-// stand partly out of each other's sight.
-const SCENARIOS: Scenario[] = [
-  { name: 'duel, engaged', red: [['Erthal Soldier', [0, -8]]], blue: [['Surbit Thief', [1, -8]]] },
-  { name: 'duel, apart', red: [['Erthal Soldier', [-6, -8]]], blue: [['Surbit Thief', [6, -8]]] },
-  { name: 'four a side, open', red: side([[-5, -9], [-5, -8], [-5, -7], [-6, -7]]), blue: side([[5, -9], [5, -8], [5, -7], [6, -8]]) },
-  { name: 'four a side, houses', red: side([[-6, -2], [-6, 0], [-6, 2], [-7, 1]]), blue: side([[6, -2], [6, 0], [6, 2], [7, -1]]) },
-]
-
 function flag(name: string, fallback: number): number {
   const at = process.argv.indexOf(`--${name}`)
   return at >= 0 ? Number(process.argv[at + 1]) : fallback
@@ -67,36 +48,11 @@ const COLD = flag('cold', 20)
 const WARM = flag('warm', 200)
 const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null
 
-const readJson = (file: string): unknown => JSON.parse(readFileSync(path.join(process.cwd(), file), 'utf-8'))
-
 // The fight as the table leaves it once everyone is placed and the first round
 // has begun: no turn taken yet.
 function setUp(scenario: Scenario): { state: SceneState; red: string[]; blue: string[] } {
-  const h = openHarness(() => 5)
-  const ids = (who: [string, [number, number]][]) => who.map(([name, cell]) => {
-    const before = new Set(Object.keys(h.state().characters))
-    h.bring(readJson(`app/assets/characters/${name}.json`) as never)
-    const id = Object.keys(h.state().characters).find((k) => !before.has(k))
-    if (!id) throw new Error(`${name} was not brought in`)
-    return { id, cell }
-  })
-  const red = ids(scenario.red)
-  const blue = ids(scenario.blue)
-  h.loadMap(makeBoardMap({ ...(readJson(`app/assets/boards/${ARENA}.json`) as object), name: ARENA }))
-  for (const { id, cell } of [...red, ...blue]) {
-    useCombatStore.getState().setActiveCharacter(id)
-    h.cell(...cell)
-    const at = h.state().board?.placements[id]?.cell
-    if (!at || at.q !== cell[0] || at.r !== cell[1]) throw new Error(`${scenario.name}: could not place ${id} at ${cell}`)
-  }
-  for (const [side, members] of [['Red', red], ['Blue', blue]] as const) {
-    const before = new Set(Object.keys(h.state().parties))
-    h.send({ kind: 'createParty', args: [side] })
-    const partyId = Object.keys(h.state().parties).find((k) => !before.has(k))!
-    for (const { id } of members) h.send({ kind: 'moveToParty', args: [id, partyId] })
-  }
-  const started = passRound(() => 5)(SceneStateSchema.parse(h.state()))
-  return { state: started, red: red.map((m) => m.id), blue: blue.map((m) => m.id) }
+  const placed = setUpScenario(scenario)
+  return { ...placed, state: passRound(() => 5)(placed.state) }
 }
 
 let n = 0
