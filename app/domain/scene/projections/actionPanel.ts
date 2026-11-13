@@ -454,56 +454,38 @@ const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
 // two never need the roster switched between them.
-function buildActionPanel(state: SeenScene): ActionPanelView {
+// What the open action, and every answer to it, may be filled in with: the
+// panel's offers without what it shows besides (the test's terms, the costs,
+// the outcomes, the log), each gated as the panel shows it. The panel spreads
+// them into its view, and the open choices (projections/choices.ts) are read
+// off them, so both offer the same.
+export type OpenOffers = Pick<OpenActionView,
+  'actorId' | 'targetId' | 'spell' | 'quicken' | 'extend' | 'castItemId' | 'chargeItemId' | 'itemId' | 'suggestion' | 'movement' | 'steady'
+  | 'mode' | 'testModes' | 'climbSteps' | 'climbStops' | 'canLeap' | 'leap' | 'dive' | 'diveSteps' | 'flee' | 'theft' | 'grapples' | 'along'
+  | 'grappling' | 'disarm' | 'item' | 'ammoId' | 'floor' | 'openables' | 'potions' | 'push' | 'sweep' | 'modifiers'>
+
+export type ActionOffers = Pick<ActionPanelView,
+  'step' | 'prepare' | 'reactors' | 'attacks' | 'ammo' | 'spells' | 'gear' | 'chargeInto' | 'charges' | 'locations' | 'items' | 'targets'
+  | 'moves' | 'castHOP' | 'grazeSave' | 'restMove'> & { open: OpenOffers | null; hopOptions: HOPOptionView[] }
+
+const NO_OFFERS: Omit<ActionOffers, 'step'> = { open: null, prepare: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], moves: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, restMove: false, hopOptions: [] }
+
+function buildActionOffers(state: SceneState): ActionOffers {
   const step = getNextStep(state)
   const open = getOpenAction(state)
-  const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
-  const episodes = getRoundEpisodes(state)
-  const edits = getEditsSince(state)
-
-  if (!open) {
-    const own = active ? labelled(state, active.id, getAvailableActions(state, active.id)) : []
-    const follow = active ? getFollowOffer(state, active.id) : null
-    const categories = ACTION_CATEGORIES
-      .map((key) => ({ key, options: own.filter((o) => (getActionDef(o.draft.kind).category ?? 'tactical') === key) }))
-      .map((c) => {
-        const extras = follow && c.key === 'tactical' ? ['follow' as const] : []
-        const openExtras = extras.filter(() => follow?.bar === null)
-        return { ...c, extras, available: c.options.filter((o) => o.available).length + openExtras.length, total: c.options.length + extras.length }
-      })
-      .filter((c) => c.options.length > 0 || c.extras.length > 0)
-    return { ...EMPTY, follow, categories, episodes, edits, prepared: getPreparedRows(state) }
-  }
-
+  if (!open) return { ...NO_OFFERS, step }
   const actor = state.characters[open.actorId]
   const target = open.targetId ? state.characters[open.targetId] : undefined
-  const reactions = getReactionsTo(state, open.id)
   const attack = isAttackAction(open) ? open : null
   // a cut is swung with a row picked as a strike's is
   const swung = attack ?? (open.kind === 'cut' ? getCutStrike(open) : null)
   const explosion = open.kind === 'explosion' ? open : null
   const cast = open.kind === 'cast' ? open : null
   const gear = cast && actor ? getCastGear(actor, cast) : null
-  const blast = open.kind === 'blast' ? open : null
-  const laid = explosion ? getBlastOf(state, explosion) : blast
-  const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
   const move = open.kind === 'move' && open.step === 'define' ? open : null
-  const die = needsDie(state, open)
-  const goBar = step === 'react' ? getGoBar(state, open) : null
-  const payable = step === 'commit' && getPayableCost(state, open) !== null
-  const holds = step === 'commit' && !payable && getHoldCost(state, open) !== null
-  const cost = getOwnCost(state, open)
-  // the action as the resolve would settle it now: what a move will walk, what
-  // a rolled action will land
-  const settled = open.step === 'post' || open.kind === 'move' ? getSettled(state, open) : null
-  const facts = settled?.kind === 'move' ? settled.facts : null
   const grapple = open.kind === 'grapple' ? open : null
   const drag = open.kind === 'drag' ? open : null
-  const dragTerms = drag ? getDragSides(state, drag) : null
-  const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
-  const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
   const declaredTargets = getDeclaredTargets(state, open)
-  const hiddenTargets = getDeclaredHiddenTargets(state, open)
   const floorTargets = getDeclaredFloorTargets(state, open)
   const floorStruck = isAttackAction(open) ? getFloorObject(state, open) : null
   // the aim is offered once the attack has a target it may be aimed at
@@ -512,27 +494,16 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
   return {
     step,
     open: {
-      id: open.id,
-      label: getOpenLabel(state, open),
       actorId: open.actorId,
-      actor: getFightName(state, open.actorId),
-      target: target ? getFightName(state, target.id) : (floorStruck ? getItemLabel(floorStruck.item) : isAttackAction(open) && open.cell ? `space ${open.cell.q},${open.cell.r}` : null),
       targetId: open.targetId,
-      weapon: swung?.weaponKey ?? '',
-      attack: swung?.attack ?? '',
-      variant: swung?.variant ?? '',
-      location: attack?.location ?? 'chest',
-      area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? area.laid.center !== null : area.laid.direction !== null, aimable: isAimable(state, (explosion ?? blast)!) } : null,
-      source: explosion?.source ?? null,
-      itemId: explosion?.itemId ?? '',
       spell: cast && isSpellKey(cast.key) ? SPELLS[cast.key].name : '',
       quicken: cast?.quicken ?? false,
       extend: cast ? { times: cast.extend, DL: cast.extend * getExtendDL(actor) } : null,
       castItemId: gear?.itemId ?? '',
       chargeItemId: gear?.chargeItemId ?? '',
+      itemId: explosion?.itemId ?? '',
       suggestion: cast && getMoraleSpell(cast.key)?.effect.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,
       movement: open.kind === 'move' ? open.movement : 'basic',
-      path: open.kind === 'move' ? open.path : [],
       steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? { steps: getFiringSteps(open) } : null,
       mode: getShownMode(state, open),
       testModes: getTestModes(state, open),
@@ -542,14 +513,9 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       leap: open.kind === 'move' && open.leap,
       dive: open.kind === 'move' ? open.dive : 0,
       diveSteps: open.kind === 'move' ? getDiveSteps(state, open) : null,
-      walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
-      spawned: open.spawnedBy !== null,
-      required: isPreparedRequired(state, open),
       flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,
-      opportunity: open.kind === 'strike' && open.opportunity,
       theft: open.kind === 'steal' && isTheftChoiceOffered(open) ? open.take : null,
       grapples: open.kind === 'strike' && open.step === 'post' && !open.modifiers.tackle && canGrapple(state, open) ? open.grapples : null,
-      maneuver: grapple?.maneuver ?? null,
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       grappling: grapple && grapple.targetId && isGrapplingEffectOffered(grapple) ? getGrapplingView(state, grapple, grapple.targetId) : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
@@ -567,30 +533,11 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
         : [],
       potions: open.kind === 'drink' && open.step === 'define' && actor ? getTakeableHeld(actor).takeable.map((i) => ({ itemId: i.id, name: i.name })) : [],
       push: drag ? getPushView(state, drag) : null,
-      grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
-      cost,
-      openedBy: opener && isReactionAction(opener) ? { label: getActionName(opener), roll: opener.roll, budget: open.kind === 'move' ? open.budget : null } : null,
-      reactions: reactions.map((r) => ({
-        actor: getFightName(state, r.actorId),
-        label: getActionName(r),
-        cost: getOwnCost(state, r),
-        roll: r.roll,
-      })),
-      score: breakdown(rootTerms ? rootTerms.skill : dragTerms ? dragTerms.attacker : []),
-      DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
-      roll: open.roll,
       sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
       modifiers: open.step === 'define' ? getModifierViews(state, open) : [],
     },
-    episodes,
-    edits,
     prepare: open.kind === 'prepare' && open.step === 'define' ? getPrepareView(state, open) : null,
-    prepared: getPreparedRows(state),
-    categories: [],
-    follow: null,
     reactors: step === 'react' ? getReactors(state, open) : [],
-    awaited: step === 'react' ? getAwaited(state).map((id) => getFightName(state, id)) : [],
-    unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
           .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
@@ -616,8 +563,106 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       ...declaredTargets.map((id) => ({ id, name: getFightName(state, id), selected: id === open.targetId })),
       ...floorTargets.map((f) => ({ id: f.item.id, name: getItemLabel(f.item), selected: f.item.id === floorStruck?.item.id })),
     ],
+    moves: move && actor ? getMovementOptions(state, actor, move) : [],
+    hopOptions: attack && target && attack.step === 'post' && !isVoided(state, attack) ? getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) : [],
+    castHOP: cast && cast.step === 'post' ? { remaining: getCastHOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
+    grazeSave: cast && canSaveGraze(state, cast) ? GRAZE_SAVE_COST : null,
+    restMove: isRootAction(open) && canMoveWhileResting(state, open),
+  }
+}
+
+export const getActionOffers = perState(buildActionOffers)
+
+function buildActionPanel(state: SeenScene): ActionPanelView {
+  const open = getOpenAction(state)
+  const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
+  const episodes = getRoundEpisodes(state)
+  const edits = getEditsSince(state)
+
+  if (!open) {
+    const own = active ? labelled(state, active.id, getAvailableActions(state, active.id)) : []
+    const follow = active ? getFollowOffer(state, active.id) : null
+    const categories = ACTION_CATEGORIES
+      .map((key) => ({ key, options: own.filter((o) => (getActionDef(o.draft.kind).category ?? 'tactical') === key) }))
+      .map((c) => {
+        const extras = follow && c.key === 'tactical' ? ['follow' as const] : []
+        const openExtras = extras.filter(() => follow?.bar === null)
+        return { ...c, extras, available: c.options.filter((o) => o.available).length + openExtras.length, total: c.options.length + extras.length }
+      })
+      .filter((c) => c.options.length > 0 || c.extras.length > 0)
+    return { ...EMPTY, step: getNextStep(state), follow, categories, episodes, edits, prepared: getPreparedRows(state) }
+  }
+
+  const { open: offered, hopOptions, ...offers } = getActionOffers(state)
+  const step = offers.step
+  const target = open.targetId ? state.characters[open.targetId] : undefined
+  const reactions = getReactionsTo(state, open.id)
+  const attack = isAttackAction(open) ? open : null
+  const swung = attack ?? (open.kind === 'cut' ? getCutStrike(open) : null)
+  const explosion = open.kind === 'explosion' ? open : null
+  const blast = open.kind === 'blast' ? open : null
+  const laid = explosion ? getBlastOf(state, explosion) : blast
+  const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
+  const move = open.kind === 'move' && open.step === 'define' ? open : null
+  const die = needsDie(state, open)
+  const goBar = step === 'react' ? getGoBar(state, open) : null
+  const payable = step === 'commit' && getPayableCost(state, open) !== null
+  const holds = step === 'commit' && !payable && getHoldCost(state, open) !== null
+  const cost = getOwnCost(state, open)
+  // the action as the resolve would settle it now: what a move will walk, what
+  // a rolled action will land
+  const settled = open.step === 'post' || open.kind === 'move' ? getSettled(state, open) : null
+  const facts = settled?.kind === 'move' ? settled.facts : null
+  const grapple = open.kind === 'grapple' ? open : null
+  const drag = open.kind === 'drag' ? open : null
+  const dragTerms = drag ? getDragSides(state, drag) : null
+  const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
+  const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
+  const hiddenTargets = getDeclaredHiddenTargets(state, open)
+  const floorStruck = isAttackAction(open) ? getFloorObject(state, open) : null
+
+  return {
+    ...offers,
+    open: {
+      ...offered!,
+      id: open.id,
+      label: getOpenLabel(state, open),
+      actor: getFightName(state, open.actorId),
+      target: target ? getFightName(state, target.id) : (floorStruck ? getItemLabel(floorStruck.item) : isAttackAction(open) && open.cell ? `space ${open.cell.q},${open.cell.r}` : null),
+      weapon: swung?.weaponKey ?? '',
+      attack: swung?.attack ?? '',
+      variant: swung?.variant ?? '',
+      location: attack?.location ?? 'chest',
+      area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? area.laid.center !== null : area.laid.direction !== null, aimable: isAimable(state, (explosion ?? blast)!) } : null,
+      source: explosion?.source ?? null,
+      path: open.kind === 'move' ? open.path : [],
+      walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
+      spawned: open.spawnedBy !== null,
+      required: isPreparedRequired(state, open),
+      opportunity: open.kind === 'strike' && open.opportunity,
+      maneuver: grapple?.maneuver ?? null,
+      grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
+      cost,
+      openedBy: opener && isReactionAction(opener) ? { label: getActionName(opener), roll: opener.roll, budget: open.kind === 'move' ? open.budget : null } : null,
+      reactions: reactions.map((r) => ({
+        actor: getFightName(state, r.actorId),
+        label: getActionName(r),
+        cost: getOwnCost(state, r),
+        roll: r.roll,
+      })),
+      score: breakdown(rootTerms ? rootTerms.skill : dragTerms ? dragTerms.attacker : []),
+      DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
+      roll: open.roll,
+    },
+    episodes,
+    edits,
+    prepared: getPreparedRows(state),
+    categories: [],
+    follow: null,
+    awaited: step === 'react' ? getAwaited(state).map((id) => getFightName(state, id)) : [],
+    unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
     hidden: hiddenTargets.map((id) => ({ id, name: getFightName(state, id) })),
-    noTargets: step === 'target' && declaredTargets.length === 0 && hiddenTargets.length === 0 && floorTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
+    noTargets: step === 'target' && offers.targets.length === 0 && hiddenTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
     canCommit: step === 'commit' && (payable || holds),
@@ -628,18 +673,13 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     canPay: step === 'react' && !die && goBar === null,
     goBar,
     canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
-    restMove: isRootAction(open) && canMoveWhileResting(state, open),
-   
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
     canBack: step === 'react' && reactions.length > 0,
-    moves: move && actor ? getMovementOptions(state, actor, move) : [],
     reachable: move ? getReachableCells(state, move) : [],
     hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
-      ? { ...getHitHOP(state, attack), options: getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) }
+      ? { ...getHitHOP(state, attack), options: hopOptions }
       : { remaining: 0, total: 0, terms: [], options: [] },
     outcomes: open.step === 'post' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
-    castHOP: cast && cast.step === 'post' ? { remaining: getCastHOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
-    grazeSave: cast && canSaveGraze(state, cast) ? GRAZE_SAVE_COST : null,
     deliveries: settled?.kind === 'cast' ? getCastDeliveries(state, settled.facts ?? {}) : [],
   }
 }

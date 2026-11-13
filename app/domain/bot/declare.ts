@@ -1,9 +1,9 @@
-import type { ActionDraft, ActionKind, SceneState, SeenScene } from '../scene/types'
+import type { ActionDraft, ActionKind, SceneState } from '../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../scene/commands/registry'
 import { getAvailableActions } from '../scene/rules/options'
 import { getNextStep } from '../scene/rules/action'
 import { getOpenAction } from '../scene/rules/log'
-import { getActionPanel } from '../scene/projections/actionPanel'
+import { getActionOffers } from '../scene/projections/actionPanel'
 import { getOpenChoices, STEPPED_PARTS, type ChoicePart, type OpenChoice } from '../scene/projections/choices'
 
 // Declares a decision as the presses a person would make: the option, then
@@ -105,7 +105,7 @@ export function declare(start: SceneState, intent: Intent, ctx: CommandContext):
   }
 
   if (answer) {
-    const strike = getActionPanel(state as SeenScene).reactors.find((r) => r.id === actorId)?.strike
+    const strike = getActionOffers(state).reactors.find((r) => r.id === actorId)?.strike
     if (strike && !strike.complete) return refuse(`the answer still asks for ${asked(choices)}`)
     return { ok: true, commands, ready: state, state }
   }
