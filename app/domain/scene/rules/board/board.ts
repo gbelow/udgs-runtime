@@ -598,8 +598,19 @@ export function isStepWalled(floor: (cell: Coord) => TerrainCell | undefined, fr
 // Whether some cell of one set sees some cell of the other: a line between
 // them crossing no opaque blocking cell.
 export function seesAcross(board: Board, from: readonly Coord[], to: readonly Coord[], eyes: Eyes): boolean {
-  return from.some((a) => to.some((b) => !stoppedBetween(board, a, b, eyes, (t) => t.blocking && !t.transparent)))
+  const byTerrain = sightsKept.get(board.levels) ?? new WeakMap<Board['terrain'], Map<string, boolean>>()
+  sightsKept.set(board.levels, byTerrain)
+  const known = byTerrain.get(board.terrain) ?? new Map<string, boolean>()
+  byTerrain.set(board.terrain, known)
+  const key = `${from.map(coordKey).join(' ')}>${to.map(coordKey).join(' ')}@${eyes.from}:${eyes.to}`
+  const seen = known.get(key) ?? from.some((a) => to.some((b) => !stoppedBetween(board, a, b, eyes, (t) => t.blocking && !t.transparent)))
+  known.set(key, seen)
+  return seen
 }
+
+// A line across the ground is the ground's alone (its terrain and storeys),
+// whoever stands at its ends: kept by the ground, by its ends and heights.
+const sightsKept = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, boolean>>>()
 
 // Whether what is shot or thrown from some cell of one set can reach some cell
 // of the other: a line between them crossing no blocking cell, transparent or

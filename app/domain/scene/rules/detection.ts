@@ -1,4 +1,5 @@
-import type { CampaignCharacter, Character, Sense, Senses, Skills } from '../../types'
+import type { AfflictionKey, CampaignCharacter, Character, Sense, Senses, Skills } from '../../types'
+import { perState } from '../../perState'
 import type { Action, Board, SceneState, Coord, Direction } from '../types'
 import { BAD_VISIBILITY_PENALTY, FALL, FOG_VISION_RADIUS, SkillPenaltyTable } from '../../tables'
 import { getDetectionTerms } from '../../character/rules/skills'
@@ -52,10 +53,54 @@ export function getActionHeading(state: SceneState, action: Action, board: Board
   return there && !sameCell(here, there) ? directionTo(here, there) : null
 }
 
-// The senses the character has in the fight as it stands: in their own turn,
-// what a mutation adds then.
+// What the character senses with, of each sense: their senses in the fight as
+// it stands (in their own turn, what a mutation adds then), whether they can
+// use it ("Afflictions": "Blind: ... Cannot use vision"), and the terms every
+// test of it takes whatever it is aimed at: the detection skill, the sense's
+// bonus, its own sensory penalty and what afflictions add to it.
+type Sensing = { senses: Senses; usable: Record<keyof Senses, boolean>; terms: Record<keyof Senses, Term[]> }
+
+// It is the character's alone, with whether it is their turn and the
+// afflictions the fight puts on them: kept by the character, so that a fight
+// a press made without changing any of those reads it again.
+const sensings = new WeakMap<Character, Map<string, Sensing>>()
+const sensingsOf = perState((_: SceneState) => new Map<string, Sensing>())
+
+function getSensing(state: SceneState, c: Character): Sensing {
+  const here = sensingsOf(state)
+  const own = state.characters[c.id] === c
+  const known = own ? here.get(c.id) : undefined
+  if (known) return known
+  const inTurn = state.inTurnCharacter === c.id
+  const situational = getSituationalAfflictions(state, c.id)
+  const key = `${inTurn}|${situational.join(',')}`
+  const byKey = sensings.get(c) ?? new Map<string, Sensing>()
+  sensings.set(c, byKey)
+  const sensing = byKey.get(key) ?? makeSensing(c, inTurn, situational)
+  byKey.set(key, sensing)
+  if (own) here.set(c.id, sensing)
+  return sensing
+}
+
+function makeSensing(c: Character, inTurn: boolean, situational: readonly AfflictionKey[]): Sensing {
+  const senses = inTurn ? getSensesInTurn(c) : getSenses(c)
+  const kinds = Object.keys(IMPAIRMENTS) as (keyof Senses)[]
+  const detection = getDetectionTerms(c)
+  const afflicted = Object.fromEntries(kinds.map((sense) => [sense, getAfflictedSense(c, sense, situational)])) as Record<keyof Senses, { lost: boolean; penalty: number }>
+  return {
+    senses,
+    usable: Object.fromEntries(kinds.map((sense) => [sense, senses[sense].hasSense && !afflicted[sense].lost])) as Record<keyof Senses, boolean>,
+    terms: Object.fromEntries(kinds.map((sense) => [sense, [
+      ...detection,
+      { label: sense, value: getSenseBonus(c, sense) },
+      { label: `${sense} penalty`, value: -senses[sense].penalty },
+      { label: 'afflictions', value: -afflicted[sense].penalty },
+    ]])) as Record<keyof Senses, Term[]>,
+  }
+}
+
 function sensesOf(state: SceneState, c: Character): Senses {
-  return state.inTurnCharacter === c.id ? getSensesInTurn(c) : getSenses(c)
+  return getSensing(state, c).senses
 }
 
 export type Impairment = 'none' | 'partial' | 'total'
@@ -230,13 +275,20 @@ const IMPAIRMENTS: Record<keyof Senses, Impair> = {
 // character carries one. Matching it to the ground is the table's to judge.
 function isCamouflaged(state: SceneState, id: string): boolean {
   const c = state.characters[id]
-  return !!c && getCamouflage(c) !== null
+  return !!c && camouflageOf(c) !== null
+}
+
+// A character's camouflage is what they carry: kept by the character.
+const camouflages = new WeakMap<Character, number | null>()
+function camouflageOf(c: Character): number | null {
+  if (!camouflages.has(c)) camouflages.set(c, getCamouflage(c))
+  return camouflages.get(c)!
 }
 
 // combat.tex "Afflictions": "Blind: ... Cannot use vision", "Deaf: ... Cannot
 // use hearing".
 function canUse(state: SceneState, c: Character, sense: keyof Senses): boolean {
-  return sensesOf(state, c)[sense].hasSense && !getAfflictedSense(c, sense, getSituationalAfflictions(state, c.id)).lost
+  return getSensing(state, c).usable[sense]
 }
 
 // Ground that totally impairs a sense of whoever looks into it: fog and smoke,
@@ -286,22 +338,18 @@ export type Toward = string | readonly Coord[]
 // partly impaired, the bad visibility it is impaired by ("Visibility": "a
 // sensory penalty when targeting anything there").
 function getSensoryTermsOf(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses, impairment: Impairment): Term[] {
-  return [
-    { label: `${sense} penalty`, value: -sensesOf(state, observer)[sense].penalty },
-    { label: 'afflictions', value: -getAfflictedSense(observer, sense, getSituationalAfflictions(state, observer.id)).penalty },
-    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, observer, toward) : 0 },
-  ]
+  return [...getSensing(state, observer).terms[sense].slice(-2), visibilityOf(state, observer, toward, sense, impairment)]
+}
+
+function visibilityOf(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses, impairment: Impairment): Term {
+  return { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, observer, toward) : 0 }
 }
 
 // combat.tex "Detection": "A character adds the value of their best available
 // sense to awareness in detection tests. Any sensory penalties to a sense are
 // added too": the skill, the sense's own bonus and its sensory penalty.
 function getDetectionTermsThrough(state: SceneState, observer: CampaignCharacter, targetId: string, sense: keyof Senses, impairment: Impairment): Term[] {
-  return [
-    ...getDetectionTerms(observer),
-    { label: sense, value: getSenseBonus(observer, sense) },
-    ...getSensoryTermsOf(state, observer, targetId, sense, impairment),
-  ]
+  return [...getSensing(state, observer).terms[sense], visibilityOf(state, observer, targetId, sense, impairment)]
 }
 
 // The bad visibility a partly seen target is in: the ground's or the dim
@@ -310,7 +358,7 @@ function getDetectionTermsThrough(state: SceneState, observer: CampaignCharacter
 function getVisibilityTerm(state: SceneState, observer: CampaignCharacter, toward: Toward): number {
   const target = typeof toward === 'string' ? state.characters[toward] : undefined
   const at = typeof toward === 'string' ? getPlacedFootprint(state, toward) ?? [] : [...toward]
-  const camouflage = target ? getCamouflage(target) : null
+  const camouflage = target ? camouflageOf(target) : null
   const feet = typeof toward === 'string' ? state.board?.placements[toward]?.elevation : undefined
   const ground = getHazardAt(state, at, feet).visibility
   const dim = getLightAt(state, at, feet) === 'dim' && !seesInDimLight(observer)
@@ -402,12 +450,26 @@ export type SenseReach = { sense: keyof Senses; active: boolean; reactive: boole
 // Every sense of the observer that takes the target in at all, with how
 // impaired it is and what it detects at. Empty for an observer or target not
 // in the fight, and for oneself.
+// Read once per fight and pair: whether one sees the other and whether they
+// notice them both ask it.
 export function getSenseReaches(state: SceneState, observerId: string, targetId: string): SenseReach[] {
+  const known = reachesOf(state)
+  const key = `${observerId}>${targetId}`
+  const kept = known.get(key)
+  if (kept) return kept
+  const reaches = readSenseReaches(state, observerId, targetId)
+  known.set(key, reaches)
+  return reaches
+}
+
+const reachesOf = perState((_: SceneState) => new Map<string, SenseReach[]>())
+
+function readSenseReaches(state: SceneState, observerId: string, targetId: string): SenseReach[] {
   const observer = state.characters[observerId]
   if (!observer || !state.characters[targetId] || observerId === targetId) return []
+  const { senses, usable } = getSensing(state, observer)
   return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).flatMap((sense) => {
-    if (!canUse(state, observer, sense)) return []
-    const senses = sensesOf(state, observer)
+    if (!usable[sense]) return []
     const { active, reactive } = senses[sense]
     const impairment = IMPAIRMENTS[sense](state, observerId, targetId, senses[sense])
     if (impairment === 'total') return []
