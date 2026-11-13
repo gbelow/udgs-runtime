@@ -171,6 +171,21 @@ export function getAvailableActions(state: SceneState, characterId: string): Act
 // whoever asks "can anyone answer" all read the same list.
 const listed = new WeakMap<SceneState, Map<string, ActionOption[]>>()
 
+// The options open to the character now, as the buttons offer them: what
+// `getAvailableActions` lists open, without listing what it would only show
+// closed. With no action open, a surge opens none of their own (it only marks
+// one as needing it), and out of their turn only what is open out of turn
+// can be.
+export function getOpenOptions(state: SceneState, characterId: string): ActionOption[] {
+  const known = listed.get(state)?.get(characterId)
+  if (known) return known.filter((o) => o.available)
+  const c = state.characters[characterId]
+  if (!c) return []
+  if (getOpenAction(state)) return getAvailableActions(state, characterId).filter((o) => o.available)
+  const kinds = isCombatStarted(state) && !isInTurn(state, c.id) ? OPEN_OUT_OF_TURN : undefined
+  return closeWhileDiceWait(state, listOwn(state, c, kinds)).filter((o) => o.available)
+}
+
 function computeAvailableActions(state: SceneState, characterId: string): ActionOption[] {
   return closeWhileDiceWait(state, listAvailableActions(state, characterId))
 }
@@ -701,6 +716,9 @@ function closeWhileFleeing(state: SceneState, c: CampaignCharacter, options: Act
 // reactions and what they open — and a rest at the round change, the table's
 // ruling. Before the combat has started there are no turns, and anyone acts.
 const NOT_YOUR_TURN = 'not your turn'
+
+// the kinds of one's own that `closeOutOfTurn` may leave open
+const OPEN_OUT_OF_TURN: ReadonlySet<ActionKind> = new Set((Object.keys(OWN_OPTIONS) as DeclarableKind[]).filter((kind) => getActionDef(kind).rest || kind === 'social'))
 
 function closeOutOfTurn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
   return !isCombatStarted(state) || isInTurn(state, c.id) ? options : closeWith(options, (o) => (getActionDef(o.draft.kind).rest && getRoundPhase(state) === 'rest') || isUnsurrender(o.draft) ? null : NOT_YOUR_TURN)

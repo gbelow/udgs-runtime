@@ -2,7 +2,7 @@ import type { SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
 import { getOpenAction, getLiveReactionsTo, canAnswer } from '../rules/log'
-import { getAvailableActions, getGoBar } from '../rules/options'
+import { getGoBar, getOpenOptions } from '../rules/options'
 import { getHoldCost, getNextStep, getPayableCost, isPreparedRequired, needsDie } from '../rules/action'
 import { canAcceptSpellTest } from '../rules/cast'
 import { getContestBar, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, hasAgreedToEnd } from '../rules/turn'
@@ -88,7 +88,7 @@ function turnButtonsOf(state: SceneState, id: string): OpenButton[] {
 // Declaring with nothing open; answering the open action at its react step.
 function actionButtonsOf(state: SceneState, id: string): OpenButton[] {
   const open = getOpenAction(state)
-  const options = () => getAvailableActions(state, id).filter((o) => o.available)
+  const options = () => getOpenOptions(state, id)
   const name = getFightName(state, id)
   if (!open) return options().map((o): OpenButton => ({ command: { kind: 'declare', args: [id, o.draft] }, label: `${name}: ${getOptionLabel(state, id, o)}` }))
   if (getNextStep(state) !== 'react') return []
