@@ -136,8 +136,10 @@ click to what stands afterwards. It is admitted, under these terms.
   have, does something when pressed (of the cells, a few spread over the list), and any of them may be
   pressed as a play of its own; and after an exchange has been played out, nothing is left committed and
   waiting, once an answer still being declared has been taken back. The bot's builder (`bot/declare.ts`)
-  is played too, with a declaration picked off the panel's offers: every command it returns, made or
-  refused, does something when sent to the table.
+  is played too, declaring with picks taken off the panel's offers and settling what a rolled action
+  offers: every command it returns, made or refused, does something when sent to the table. A
+  prediction of the open action at a supposed roll (`bot/predict.ts`) leaves the fight as it was,
+  and every spend of its overflow it tries is one the table takes.
   A failure names its seed, step and the plays before it; pin what it found as a scenario.
   It also writes `reports/fuzz-replay-*.json`, the fight as the session began and every command
   it sent with the dice each drew, which `replay` (`boardHarness.ts`) plays back step by step.

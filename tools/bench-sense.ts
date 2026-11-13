@@ -17,6 +17,8 @@ import { getOutcomes } from '../app/domain/scene/projections/outcomes'
 import { getSceneSeenBy } from '../app/domain/scene/projections/seen'
 import { getBelief } from '../app/domain/bot/belief'
 import { getReach } from '../app/domain/bot/reach'
+import { declare, type Intent } from '../app/domain/bot/declare'
+import { bestSpend, predict } from '../app/domain/bot/predict'
 import { MOVEMENT_KINDS } from '../app/domain/lists'
 import { passRound } from '../app/domain/scene/fixtures'
 
@@ -26,7 +28,10 @@ import { passRound } from '../app/domain/scene/fixtures'
 // placed by a click, two parties made, the first round begun as the GM's next
 // round begins it, and a turn started. Each question is
 // asked cold (on a copy of the fight that shares no object with the one any
-// cache has seen) and warm (asked again of the same fight).
+// cache has seen) and warm (asked again of the same fight). Besides what it
+// reads, what it presses: a strike and a move declared whole by the builder
+// (bot/declare.ts), and a hit predicted with what its overflow buys
+// (bot/predict.ts), and its overflow spent on damage (`bestSpend`).
 //
 //   pnpm bench [--cold n] [--warm n] [--only text]
 //
@@ -94,8 +99,9 @@ function setUp(scenario: Scenario): { state: SceneState; red: string[]; blue: st
 
 let n = 0
 const newId = () => `bench${++n}`
+const ctx = { thrower: () => 5, newId }
 const press = (state: SceneState, ...commands: SceneCommand[]): SceneState =>
-  commands.reduce((s, command) => toUpdater(command, { thrower: () => 5, newId })(s), state)
+  commands.reduce((s, command) => toUpdater(command, ctx)(s), state)
 
 type Timing = { scenario: string; question: string; calls: number; cold: number[]; moved: number[]; warm: number }
 const timings: Timing[] = []
@@ -136,6 +142,26 @@ function measure(scenario: string, question: string, state: SceneState, ask: (s:
   } else timings.push({ scenario, question, calls: 1, cold, moved, warm })
 }
 
+// `ask` on `state` itself, COLD times, for what is only fast on the very state
+// an earlier answer was read in (a move declared on the state its reach was
+// read in); shown as cold, with no after-a-move column.
+function measureOn(scenario: string, question: string, state: SceneState, ask: (s: SceneState) => unknown): void {
+  if (ONLY && !question.includes(ONLY)) return
+  const cold: number[] = []
+  for (let i = 0; i < COLD; i++) {
+    const t0 = performance.now()
+    ask(state)
+    cold.push(performance.now() - t0)
+  }
+  const known = timings.find((t) => t.scenario === scenario && t.question === question)
+  const warm = mean(cold)
+  if (known) {
+    known.calls++
+    known.cold.push(...cold)
+    known.warm += warm
+  } else timings.push({ scenario, question, calls: 1, cold, moved: [], warm })
+}
+
 function needsFocus(state: SceneState, id: string): boolean {
   const c = state.characters[id]
   return getFreeAttackOptions(state, c, 'shoot').length === 0 && hasUnfocusedRow(c, 'shoot', isCombatStarted(state))
@@ -174,6 +200,15 @@ function benchCharacter(scenario: string, setUpState: SceneState, id: string, si
   measure(scenario, 'ping (getOpenAction + getAwaited)', turn, (s) => [getOpenAction(s), getAwaited(s)])
 
   measure(scenario, 'reach (getReach: fastest movement, surged)', turn, (s) => getReach(s, id))
+  const reach = getReach(turn, id)
+  if (reach?.cells.length) {
+    const far = reach.cells.reduce((a, b) => (b.steps > a.steps ? b : a))
+    const move: Intent = { actorId: id, option: { kind: 'move' }, picks: [{ part: 'movement', value: reach.movement }, { part: 'cell', value: far.cell }] }
+    // on a copy the reach is walked again; on the state it was read in, the
+    // builder finds it walked
+    measure(scenario, 'declare a move (builder: movement, farthest cell, commit)', reach.from, (s) => declare(s, move, ctx))
+    measureOn(scenario, 'declare a move on the state its reach was read in', reach.from, (s) => declare(s, move, ctx))
+  }
   if (!ONLY) missedBy(scenario, turn, id)
 
   let previewed = false
@@ -195,6 +230,15 @@ function benchCharacter(scenario: string, setUpState: SceneState, id: string, si
         const at = getOpenAction(s) as RootAction
         return getOutcomes(s, getSettled(s, at))
       })
+      const strike: Intent = { actorId: id, option: { kind }, picks: [{ part: 'row', value: { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant } }, { part: 'target', value: target }] }
+      measure(scenario, `declare a ${kind} (builder: row, target, commit)`, ready, (s) => declare(s, strike, ctx))
+      const hit = predict(committed, { degree: 'hit', HOP: 5 }, [], ctx)
+      measure(scenario, 'predict a hit, HOP 5, nothing bought', committed, (s) => predict(s, { degree: 'hit', HOP: 5 }, [], ctx))
+      for (const buy of hit.ok ? hit.buys.filter((b) => b.part === 'overflow') : []) {
+        measure(scenario, 'predict a hit, HOP 5, one purchase', committed, (s) => predict(s, { degree: 'hit', HOP: 5 }, [{ part: buy.part, value: buy.value }], ctx))
+      }
+      measure(scenario, 'spend the overflow of a hit on damage, HOP 5', committed, (s) => bestSpend(s, { degree: 'hit', HOP: 5 }, [], ctx))
+      measure(scenario, 'spend the overflow of a hit on damage, HOP 15', committed, (s) => bestSpend(s, { degree: 'hit', HOP: 15 }, [], ctx))
     }
   }
 }
@@ -216,7 +260,7 @@ const lines = [
   '',
   '| scenario | question | asked of | cold mean | cold max | after a move | warm mean |',
   '|---|---|---:|---:|---:|---:|---:|',
-  ...timings.map((t) => `| ${t.scenario} | ${t.question} | ${t.calls} | ${ms(mean(t.cold))} | ${ms(Math.max(...t.cold))} | ${ms(mean(t.moved))} | ${ms(t.warm / t.calls)} |`),
+  ...timings.map((t) => `| ${t.scenario} | ${t.question} | ${t.calls} | ${ms(mean(t.cold))} | ${ms(Math.max(...t.cold))} | ${t.moved.length ? ms(mean(t.moved)) : '-'} | ${ms(t.warm / t.calls)} |`),
   '',
   '## Cells the reach misses',
   '',

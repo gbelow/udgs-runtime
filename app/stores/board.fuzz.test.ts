@@ -39,7 +39,8 @@ import { adapted, archer, fatalist, guardian, ferocious, bomber, crossbowman, br
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenButtons } from '../domain/scene/projections/buttons'
 import { getOpenChoices } from '../domain/scene/projections/choices'
-import { declare, type Intent, type Pick } from '../domain/bot/declare'
+import { declare, settle, type Intent, type Pick } from '../domain/bot/declare'
+import { bestSpend, predict } from '../domain/bot/predict'
 import { toUpdater } from '../domain/scene/commands/registry'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
@@ -356,6 +357,8 @@ function plays(): Play[] {
     { name: 'press an open button', weight: 3, run: pressAnOpenButton },
     { name: 'fill in what the declaration offers', weight: 4, run: pressAnOpenChoice },
     { name: 'declare through the builder', weight: 3, run: declareThroughTheBuilder },
+    { name: 'settle through the builder', weight: 3, run: settleThroughTheBuilder },
+    { name: 'predict the open action', weight: 2, run: predictTheOpenAction },
     ...roundChangePlays(),
   ]
 }
@@ -573,6 +576,50 @@ function declareThroughTheBuilder(h: Harness, pick: Picker) {
     h.send(command)
     expect(h.state(), `the builder pressed ${command.kind} but the table took nothing from it`).not.toBe(before)
   }
+}
+
+// What is chosen once the die is thrown, settled by the bot's builder
+// (`settle`, bot/declare.ts) from a few of the choices offered, picked on the
+// side: made or refused, every command it returns does something at the table.
+function settleThroughTheBuilder(h: Harness, pick: Picker) {
+  const s = h.state()
+  const open = getOpenAction(s)
+  if (open?.step !== 'post') return
+  let n = 0
+  const ctx = { thrower: () => 5, newId: () => `settled-${n++}` }
+  let aside: SceneState = s
+  const picks: Pick[] = []
+  for (let i = 0; i < 3; i++) {
+    const offered = getOpenChoices(aside).filter((c) => c.actorId === open.actorId && !c.chosen)
+    if (!offered.length) break
+    const c = pick(offered)
+    aside = toUpdater(c.command, ctx)(aside)
+    picks.push({ part: c.part, value: c.value })
+  }
+  for (const command of settle(s, picks, ctx).commands) {
+    const before = h.state()
+    h.send(command)
+    expect(h.state(), `settling pressed ${command.kind} but the table took nothing from it`).not.toBe(before)
+  }
+}
+
+// The open action predicted at a supposed roll (bot/predict.ts), buying one
+// of what the overflow offers at it, and its overflow spent on damage
+// (`bestSpend`): read on the side, it leaves the fight as it was, and every
+// spend it tries is made of purchases the table offers, so none is refused.
+function predictTheOpenAction(h: Harness, pick: Picker) {
+  const s = h.state()
+  const ctx = { thrower: () => 5, newId: () => 'predicted' }
+  const roll = { degree: pick(['miss', 'graze', 'hit'] as const), HOP: pick([0, 3, 8]) }
+  const first = predict(s, roll, [], ctx)
+  const buys = first.ok ? first.buys : []
+  if (buys.length) {
+    const b = pick(buys)
+    predict(s, roll, [{ part: b.part, value: b.value }], ctx)
+  }
+  const spent = bestSpend(s, roll, [], ctx)
+  if (spent.ok) for (const t of spent.tried) expect(t.prediction.ok ? null : t.prediction.refused, `spending ${t.purchases.map((p) => p.value).join(', ')} was refused`).toBeNull()
+  expect(h.state(), 'a prediction changed the fight').toBe(s)
 }
 
 // One of the open buttons, whichever it is, pressed as its hook would send it.
