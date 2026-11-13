@@ -10,7 +10,7 @@ import { hasAffliction } from '../../character/rules/afflictions'
 import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
-import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
+import { DIRECTIONS, ROTATIONS, cellNumber, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
 import { getClimbBack, getClimbBound, getClimbTarget, getBalanceDLAt, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
@@ -98,11 +98,12 @@ export function getMovePrice(state: SceneState, c: Character, action: MoveAction
   }
   const climbed = action.movement === 'climb' ? getClimbDegree(state, action) : null
   const moved = plan ? Math.min(plan.metres, cells) : cells
-  const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), getSwimDegrees(state, action, cells), getMoveBlock(state, c, action, climbed))
+  const swum = action.movement === 'swim' ? getSwimDegrees(state, action, cells) : []
+  const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), swum, getMoveBlock(state, c, action, climbed))
   // the table's ruling: each floor a climb up stands up on on the way costs
   // the standing up; a climb down comes onto them standing
   const stands = plan && plan.face.up && cells >= plan.metres ? plan.stands : 0
-  const stand = getPostureCost(c, 'stand')
+  const stand = stands > 0 ? getPostureCost(c, 'stand') : NO_COST
   return { AP: Math.max(0, cost.AP + leap.AP + stands * stand.AP - action.prepaid), STA: (runsFree(c, action.movement) ? 0 : cost.STA) + leap.STA + stands * stand.STA }
 }
 
@@ -705,22 +706,24 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : path.length === 1 ? start : (drawn.at(-2) ?? from.cell))
   // how high the feet are on each cell the walk has come to, the first way it
   // came there; a jump's are where it set out
-  const feet = new Map([[coordKey(start), drawn.length > 0 ? getMovePlacements(state, action).at(-1)?.elevation ?? from.elevation : from.elevation]])
-  const floorAt = (cell: Coord) => ground.at(kind === 'jump' ? from.elevation : feet.get(coordKey(cell)) ?? from.elevation)
+  const feet = new Map([[cellNumber(start), drawn.length > 0 ? getMovePlacements(state, action).at(-1)?.elevation ?? from.elevation : from.elevation]])
+  const floorAt = (cell: Coord) => ground.at(kind === 'jump' ? from.elevation : feet.get(cellNumber(cell)) ?? from.elevation)
   const wetAt = (cell: Coord) => isWet(getFootprint(c, { ...from, cell }), floorAt(cell))
   // a step is entered the same way whatever heading it is come at from
-  const entered = new Map<string, boolean>()
+  const entered = new Map<number, Map<number, boolean>>()
   const enter = (cell: Coord, path: Coord[]) => {
     const before = stepFrom(path)
-    const key = `${coordKey(before)}>${coordKey(cell)}`
-    const known = entered.get(key)
+    const into = cellNumber(cell)
+    const fromBefore = entered.get(cellNumber(before)) ?? new Map<number, boolean>()
+    entered.set(cellNumber(before), fromBefore)
+    const known = fromBefore.get(into)
     if (known !== undefined) return known
     const bound = kind === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
     const floor = bound ? ground.at(bound.floor) : floorAt(before)
     const footprint = getFootprint(c, { ...from, cell })
     const ok = (kind !== 'climb' || bound !== null) && isOnBoard(state, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater: wetAt(before), ceiling })
-    if (ok && !feet.has(coordKey(cell))) feet.set(coordKey(cell), floor.elevation(cell))
-    entered.set(key, ok)
+    if (ok && !feet.has(into)) feet.set(into, floor.elevation(cell))
+    fromBefore.set(into, ok)
     return ok
   }
   const heading = drawn.length > 0 ? directionTo(stepFrom([]), start) : null

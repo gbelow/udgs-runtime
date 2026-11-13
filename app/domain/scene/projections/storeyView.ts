@@ -58,7 +58,7 @@ export function getViewEye(state: SeenScene, picked: number | null | 'auto'): st
 // What the cell looks like is the drawn floor's; what it offers is the view's.
 const DRAWN: (keyof BoardGroundCell)[] = ['terrain', 'strength', 'elevation', 'wall', 'width', 'around', 'hex', 'elevationLabel', 'noise', 'climbDL', 'test', 'soft', 'surface', 'art', 'bledInto']
 
-const highest = (floors: Footing[]): Footing | undefined => floors.reduce<Footing | undefined>((a, b) => (!a || b.floor > a.floor ? b : a), undefined)
+const highest = (floors: readonly Footing[]): Footing | undefined => floors.reduce<Footing | undefined>((a, b) => (!a || b.floor > a.floor ? b : a), undefined)
 
 // A storey's cell that holds a thin wall and nothing else, no surface laid on
 // it: the wall stands there, but no floor of it is drawn at its height.
@@ -68,7 +68,7 @@ const isLatticeIn = (board: Board, key: string) => (f: Footing) => f.level !== n
 
 // What a cell is looked at as from a height, before anyone's eyes decide which
 // roofs are drawn: every floor in it, the one stood on, and the roofs over that.
-type Standing = { cell: Coord; floors: Footing[]; stand: Footing; over: Footing[] }
+type Standing = { cell: Coord; floors: readonly Footing[]; stand: Footing; over: Footing[] }
 
 const standingsOf = perParts<Map<string, Standing>>()
 
@@ -101,7 +101,7 @@ function getStandings(board: Board, ground: BoardGround, height: number | null):
 // For each cell: the floor stood on, the roof drawn over it if any, whether a
 // wall of the ground stands up through the floor looked from, the floor looked
 // at, and the floor drawn.
-type Look = { floors: Footing[]; stand: Footing; roof: Footing | undefined; wall: boolean; top: Footing; drawn: Footing }
+type Look = { floors: readonly Footing[]; stand: Footing; roof: Footing | undefined; wall: boolean; top: Footing; drawn: Footing }
 
 // The board drawn at a height with these roofs: its ground, the copy of the
 // board flattened to the floors drawn (null where every cell is drawn at its

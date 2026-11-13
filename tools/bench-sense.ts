@@ -28,7 +28,9 @@ import { passRound } from '../app/domain/scene/fixtures'
 // asked cold (on a copy of the fight that shares no object with the one any
 // cache has seen) and warm (asked again of the same fight).
 //
-//   pnpm bench [--cold n] [--warm n]
+//   pnpm bench [--cold n] [--warm n] [--only text]
+//
+// `--only` asks only the questions whose name holds the text, for profiling one.
 //
 // The report goes to reports/bench-sense.md.
 
@@ -56,6 +58,7 @@ function flag(name: string, fallback: number): number {
 
 const COLD = flag('cold', 20)
 const WARM = flag('warm', 200)
+const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(path.join(process.cwd(), file), 'utf-8'))
 
@@ -100,6 +103,7 @@ const timings: Timing[] = []
 // `ask` on `state` cold, COLD times on fresh copies, and warm, WARM times on
 // one copy already asked once.
 function measure(scenario: string, question: string, state: SceneState, ask: (s: SceneState) => unknown): void {
+  if (ONLY && !question.includes(ONLY)) return
   const cold: number[] = []
   for (let i = 0; i < COLD; i++) {
     const copy = structuredClone(state)
@@ -158,7 +162,7 @@ function benchCharacter(scenario: string, setUpState: SceneState, id: string, si
   measure(scenario, 'ping (getOpenAction + getAwaited)', turn, (s) => [getOpenAction(s), getAwaited(s)])
 
   measure(scenario, 'reach (getReach: fastest movement, surged)', turn, (s) => getReach(s, id))
-  missedBy(scenario, turn, id)
+  if (!ONLY) missedBy(scenario, turn, id)
 
   let previewed = false
   for (const kind of ['strike', 'shoot'] as const) {

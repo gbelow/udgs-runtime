@@ -76,14 +76,26 @@ export function getStoreyFloor(level: Level, cell: LevelCell): number {
   return level.floor + cell.elevation
 }
 
+// A board's ground and storeys are replaced, never changed, so the floors of a
+// cell are read once for each ground and storeys it is asked of.
+const floorsKept = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, readonly Footing[]>>>()
+
 // Every floor of the cell: the ground, and each storey's that is not a hole.
-export function getFloors(board: Board, cell: Coord): Footing[] {
+export function getFloors(board: Board, cell: Coord): readonly Footing[] {
   const key = coordKey(cell)
+  const byTerrain = floorsKept.get(board.levels) ?? new WeakMap<Board['terrain'], Map<string, readonly Footing[]>>()
+  floorsKept.set(board.levels, byTerrain)
+  const byCell = byTerrain.get(board.terrain) ?? new Map<string, readonly Footing[]>()
+  byTerrain.set(board.terrain, byCell)
+  const known = byCell.get(key)
+  if (known) return known
   const ground = board.terrain[key]
-  return [
+  const floors: readonly Footing[] = [
     { terrain: ground, floor: ground?.elevation ?? 0, level: null },
     ...board.levels.flatMap((l, level) => (l.terrain[key] && !l.terrain[key].hole ? [{ terrain: l.terrain[key], floor: getStoreyFloor(l, l.terrain[key]), level }] : [])),
   ]
+  byCell.set(key, floors)
+  return floors
 }
 
 // The solid floors over a floor `floor` high in the cell, a cliff or more
@@ -106,15 +118,52 @@ export function isFloorBetween(board: Board, cell: Coord, a: number, b: number):
 // stair is ground under a stairwell rising less than a cliff a step until it
 // meets the storey.
 export function getTerrainAt(board: Board, cell: Coord, height: number): Footing {
-  if (board.levels.length === 0) {
-    const ground = board.terrain[coordKey(cell)]
-    return { terrain: ground, floor: ground?.elevation ?? 0, level: null }
+  return getTerrainReader(board, height)(cell)
+}
+
+// `getTerrainAt` at one height, for asking of many cells.
+export function getTerrainReader(board: Board, height: number): (cell: Coord) => Footing {
+  const grid = gridFor(board, height)
+  const { q: oq, r: or } = board.origin
+  return (cell) => {
+    const dq = cell.q - oq + grid.radius
+    const dr = cell.r - or + grid.radius
+    if (dq < 0 || dr < 0 || dq >= grid.side || dr >= grid.side) return readTerrainAt(board, cell, height)
+    const at = dq * grid.side + dr
+    return (grid.cells[at] ??= readTerrainAt(board, cell, height))
   }
+}
+
+// What `getTerrainAt` finds, kept for each ground, storeys, extent and height
+// in a grid over the board's square of axial coordinates, filled as it is asked.
+type TerrainGrid = { radius: number; side: number; cells: (Footing | undefined)[] }
+
+const gridsKept = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, TerrainGrid>>>()
+
+function gridFor(board: Board, height: number): TerrainGrid {
+  const radius = Math.max(board.extent.q, board.extent.r, board.extent.s)
+  const byTerrain = gridsKept.get(board.levels) ?? new WeakMap<Board['terrain'], Map<string, TerrainGrid>>()
+  gridsKept.set(board.levels, byTerrain)
+  const byKey = byTerrain.get(board.terrain) ?? new Map<string, TerrainGrid>()
+  byTerrain.set(board.terrain, byKey)
+  const key = `${height} ${board.origin.q},${board.origin.r} ${radius}`
+  const known = byKey.get(key)
+  if (known) return known
+  const side = 2 * radius + 1
+  const made: TerrainGrid = { radius, side, cells: new Array<Footing | undefined>(side * side) }
+  byKey.set(key, made)
+  return made
+}
+
+function readTerrainAt(board: Board, cell: Coord, height: number): Footing {
   const floors = getFloors(board, cell)
-  const reached = floors.filter((f) => f.floor - height < FALL.minHeight)
-  return reached.length > 0
-    ? reached.reduce((a, b) => (b.floor > a.floor ? b : a))
-    : floors.reduce((a, b) => (b.floor < a.floor ? b : a))
+  let reached: Footing | null = null
+  let lowest = floors[0]
+  for (const f of floors) {
+    if (f.floor - height < FALL.minHeight && (!reached || f.floor > reached.floor)) reached = f
+    if (f.floor < lowest.floor) lowest = f
+  }
+  return reached ?? lowest
 }
 
 // combat.tex "Balance": the DL of the Balance test on a difficult cell,

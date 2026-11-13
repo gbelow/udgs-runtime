@@ -29,6 +29,12 @@ export function coordKey(c: Coord): string {
   return `${c.q},${c.r}`
 }
 
+// The same as a number, for a search that keys many cells: one for each cell
+// within 32768 of the origin on both axes.
+export function cellNumber(c: Coord): number {
+  return (c.q + 32768) * 65536 + (c.r + 32768)
+}
+
 export function parseCoordKey(key: string): Coord | null {
   const [q, r, ...rest] = key.split(',').map(Number)
   return rest.length === 0 && Number.isInteger(q) && Number.isInteger(r) ? { q, r } : null
@@ -72,8 +78,8 @@ export function sidesBetween(a: Direction, b: Direction): number {
 // walk to a heading: no step turns more than `turn` sides off the step
 // before it, nor the first off `heading` unless that is null.
 export function walkOut(start: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean, steer?: { heading: Direction | null; turn: number }): { cell: Coord; path: Coord[]; steps: number }[] {
-  const seen = new Set([coordKey(start)])
-  const reached = steer ? new Set([coordKey(start)]) : seen
+  const seen = new Set([cellNumber(start)])
+  const reached = steer ? new Set([cellNumber(start)]) : seen
   const found: { cell: Coord; path: Coord[]; steps: number }[] = []
   let frontier: { cell: Coord; path: Coord[]; heading: Direction | null }[] = [{ cell: start, path: [], heading: steer?.heading ?? null }]
   for (let steps = 1; frontier.length > 0 && further(steps); steps++) {
@@ -82,8 +88,8 @@ export function walkOut(start: Coord, further: (steps: number) => boolean, enter
       for (const d of ROTATIONS) {
         if (steer && heading !== null && sidesBetween(heading, d) > steer.turn) continue
         const n = add(cell, DIRECTIONS[d])
-        const at = coordKey(n)
-        const key = steer ? `${at}:${d}` : at
+        const at = cellNumber(n)
+        const key = steer ? at * 8 + d : at
         if (seen.has(key)) continue
         seen.add(key)
         const walked = [...path, n]
