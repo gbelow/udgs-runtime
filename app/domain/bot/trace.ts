@@ -9,7 +9,7 @@ export type OptionScore = {
   immediate: number
   engage: number
   resources: number
-  waiting: number
+  drained: number
   exchange: number
 }
 

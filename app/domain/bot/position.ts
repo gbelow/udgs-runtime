@@ -1,6 +1,12 @@
-import type { Coord, Placement, SceneState } from '../scene/types'
-import type { ReachableCell } from '../scene/rules/move'
-import { setDistance } from '../scene/rules/board/geometry'
+import type { Coord, MoveAction, Placement, SceneState } from '../scene/types'
+import type { MovementKind } from '../types'
+import { getMovePrice, type ReachableCell } from '../scene/rules/move'
+import { coordKey, sameCell, setDistance, walkOut } from '../scene/rules/board/geometry'
+import { getFootprint } from '../scene/rules/board/board'
+import { isTrampleable } from '../scene/rules/trample'
+import { isCombatStarted } from '../scene/rules/started'
+import { canAfford } from '../character/rules/cost'
+import { pickCell } from '../scene/commands/board'
 import { getReachableCells } from '../scene/rules/board/reach'
 import { getPathPlacements } from '../scene/rules/board/waypoint'
 import { withPlacements } from '../scene/rules/board/board'
@@ -26,9 +32,18 @@ import { applyMove, type Move } from './move'
 // stands and its surge is still to make, it may run away instead: a movement
 // surge and a run as far from the foes as it reaches. All in harm
 // (harm.ts), read off the quick readings (reading.ts), the foes where they stand.
+//
+// combat.tex "Trample": a walk whose path comes into anyone standing is a
+// trample. The table's ruling: a bot does not trample, so a walk to a spot
+// through someone is taken round everyone instead, or not at all.
+
+// The movements a bot walks with: a prone one only crawls (combat.tex
+// "Prone"), and the others are closed to it.
+export type Walking = Extract<MovementKind, 'basic' | 'run' | 'crawl'>
+const WALKING: readonly Walking[] = ['basic', 'run', 'crawl']
 
 export type Spot = {
-  movement: 'basic' | 'run'
+  movement: Walking
   // made with a movement surge first
   surged: boolean
   to: ReachableCell
@@ -49,13 +64,21 @@ export function standingAt(state: SceneState, id: string, at: Placement, paid: {
   return { ...moved, characters: { ...moved.characters, [id]: { ...c, resources: { ...c.resources, AP: c.resources.AP - paid.AP, STA: c.resources.STA - paid.STA } } } }
 }
 
-export function walkMove(id: string, movement: 'basic' | 'run', path: Coord[], surged = false): Move {
+export function walkMove(id: string, movement: MoveAction['movement'], path: Coord[], surged = false): Move {
   return [...(surged ? [{ kind: 'surge', args: [id, 'movement'] }] as Move : []), { kind: 'declare', args: [id, { kind: 'move' }] }, { kind: 'amend', args: [{ movement, path }] }, { kind: 'commit', args: [] }]
+}
+
+// combat.tex "Prone": "Can only crawl and stand up": standing, where the
+// panel offers it.
+export function getStandUp(state: SceneState, id: string, newId: () => string): Move | null {
+  const move = walkMove(id, 'stand', [])
+  const open = getOpenAction(applyMove(state, move.slice(0, 2), () => 5, newId))
+  return open?.kind === 'move' && open.movement === 'stand' ? move : null
 }
 
 // The foes the panel offers an opportunity attack on the walk once it is
 // committed.
-function drawnBy(state: SceneState, id: string, movement: 'basic' | 'run', to: ReachableCell, foes: string[], newId: () => string): string[] {
+function drawnBy(state: SceneState, id: string, movement: Walking, to: ReachableCell, foes: string[], newId: () => string): string[] {
   if (to.steps === 0) return []
   const committed = applyMove(state, walkMove(id, movement, to.path), () => 5, newId)
   const open = getOpenAction(committed)
@@ -63,12 +86,12 @@ function drawnBy(state: SceneState, id: string, movement: 'basic' | 'run', to: R
   return foes.filter((foe) => getAvailableActions(committed, foe).some((o) => o.available && o.draft.kind === 'opportunityAttack'))
 }
 
-export type Walk = { movement: 'basic' | 'run'; to: ReachableCell; at: Placement }
+export type Walk = { movement: Walking; to: ReachableCell; at: Placement }
 
 // The reachable cells for each kind of movement, from the state as it stands
 // (a surge made or not), less those in a foe's space, narrowed to the cells
 // `pick` keeps before the path to each is drawn.
-export function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () => string, movements: readonly ('basic' | 'run')[] = ['basic', 'run'], pick: (cells: ReachableCell[]) => ReachableCell[] = (cells) => cells): Walk[] {
+export function getWalks(state: SceneState, id: string, foeCells: Coord[], newId: () => string, movements: readonly Walking[] = WALKING, pick: (cells: ReachableCell[]) => ReachableCell[] = (cells) => cells): Walk[] {
   const declared = declareAction(id, { kind: 'move' }, newId)(state)
   if (getOpenAction(declared)?.kind !== 'move') return []
   const walks: Walk[] = []
@@ -85,6 +108,51 @@ export function getWalks(state: SceneState, id: string, foeCells: Coord[], newId
 
 export const costOf = (to: ReachableCell) => to.cost.AP + to.cost.STA
 
+// Whom a walk would trample, by the cells they stand in: everyone standing
+// but the walker (rules/trample.ts `isTrampleable`).
+function getStanding(state: SceneState, id: string): Map<string, string> {
+  const standing = new Map<string, string>()
+  for (const [other, placement] of Object.entries(state.board?.placements ?? {})) {
+    const c = state.characters[other]
+    if (other === id || !c || !isTrampleable(state, other)) continue
+    getFootprint(c, placement).forEach((cell) => standing.set(coordKey(cell), other))
+  }
+  return standing
+}
+
+// Whether the walk's path comes into anyone standing.
+function meetsAnyone(state: SceneState, id: string, path: Coord[], standing: Map<string, string>): boolean {
+  const self = state.characters[id]
+  const from = state.board?.placements[id]
+  if (!self || !from || standing.size === 0) return false
+  return path.some((cell) => getFootprint(self, { ...from, cell }).some((f) => standing.has(coordKey(f))))
+}
+
+// How many steps longer than the walk a way round may be.
+const DETOUR = 4
+
+// The walk to the same cell by a way round everyone standing, drawn on the
+// board as a player draws one, a cell at a time; null where there is none the
+// character can pay for.
+function getDetour(state: SceneState, id: string, walk: Pick<Walk, 'movement' | 'to'>, standing: Map<string, string>, newId: () => string): Walk | null {
+  const self = state.characters[id]
+  const from = state.board?.placements[id]
+  if (!self || !from) return null
+  const free = (cell: Coord) => getFootprint(self, { ...from, cell }).every((f) => !standing.has(coordKey(f)))
+  const steer = walk.movement === 'run' ? { heading: null, turn: 1 } : undefined
+  const way = walkOut(from.cell, (steps) => steps <= walk.to.steps + DETOUR, free, steer).find((w) => sameCell(w.cell, walk.to.cell))
+  if (!way) return null
+  let drawn = amendAction({ movement: walk.movement })(declareAction(id, { kind: 'move' }, newId)(state))
+  for (const cell of way.path) drawn = pickCell(cell, newId)(drawn)
+  const open = getOpenAction(drawn)
+  const end = open?.kind === 'move' ? open.path.at(-1) : undefined
+  if (open?.kind !== 'move' || !end || !sameCell(end, walk.to.cell)) return null
+  const cost = getMovePrice(drawn, self, { ...open, dive: 0, ledge: null }, open.path.length)
+  if (!canAfford(self, cost, isCombatStarted(state))) return null
+  const to: ReachableCell = { cell: end, steps: open.path.length, cost, path: open.path }
+  return { movement: walk.movement, to, at: getPathPlacements(drawn, open, open.path).at(-1) ?? { ...from, cell: end } }
+}
+
 export function getSpots(state: SceneState, party: Party, id: string, newId: () => string): Spot[] {
   const foes = getLiveFoes(state, party)
   const foeCells = new Map(foes.flatMap((f) => { const cell = state.board?.placements[f]?.cell; return cell ? [[f, cell] as const] : [] }))
@@ -92,6 +160,7 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
   const origin = state.board?.placements[id]?.cell
   if (!origin || foeCells.size === 0 || !self) return []
   const walks = getWalks(state, id, [...foeCells.values()], newId)
+  const standing = getStanding(state, id)
 
   // What one character can do to another changes from cell to cell only with
   // the gap between them, so the readings are kept by gap as they are made,
@@ -136,7 +205,14 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
     return from.length > 0 ? [{ foe, from, most: Math.max(...from.map((walk) => offense(walk, foe))) }] : []
   }).sort((a, b) => b.most - a.most)
   const offered = new Map<string, Spot>()
-  const offer = (s: Spot | null) => { if (s && s.to.steps > 0) offered.set(`${s.surged} ${s.to.cell.q},${s.to.cell.r}`, s) }
+  const offer = (s: Spot | null) => {
+    const clear = s && meetsAnyone(state, id, s.to.path, standing) ? (s.surged ? null : roundAbout(s)) : s
+    if (clear && clear.to.steps > 0) offered.set(`${clear.surged} ${clear.to.cell.q},${clear.to.cell.r}`, clear)
+  }
+  const roundAbout = (s: Spot) => {
+    const round = getDetour(state, id, s, standing, newId)
+    return round ? spot(round, s.offense) : null
+  }
   const here: Walk = { movement: 'basic', to: { cell: origin, steps: 0, cost: { AP: 0, STA: 0 }, path: [] }, at: state.board!.placements[id] }
   if (targets.length > 0) {
     for (const { foe, from } of targets) {
@@ -157,7 +233,7 @@ export function getSpots(state: SceneState, party: Party, id: string, newId: () 
 
     const [nearest] = [...foeCells.entries()].sort((a, b) => setDistance([origin!], [a[1]]) - setDistance([origin!], [b[1]]))
     const now = setDistance([origin!], [nearest[1]])
-    for (const movement of ['run', 'basic'] as const) {
+    for (const movement of ['run', 'basic', 'crawl'] as const) {
       const nearer = walks.filter((walk) => walk.movement === movement && setDistance([walk.to.cell], [nearest[1]]) < now)
       if (nearer.length === 0) continue
       const most = Math.max(...nearer.map((walk) => walk.to.cost.AP))

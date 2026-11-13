@@ -15,9 +15,7 @@ import { isDead } from '../character/rules/afflictions'
 // counts for nothing until an option is looked at that far ahead. `horizon`:
 // how many rounds, counting the one it is in, the fight is played on after an
 // option, by the bot that does not weigh (0: none, the state it leaves is
-// valued as it stands, `potential` standing for what each side would do next). `patience`: what holding costs for each round the fight
-// has already gone on, so that bots that each wait for the other to come do not
-// wait for ever.
+// valued as it stands, `potential` standing for what each side would do next).
 // `exchange`, `drain`: what an attack is worth as it is committed, besides what
 // comes of it in the fight played on (exchange.ts): `exchange` weighs the
 // damage it takes on average over the die, once its target has answered as it
@@ -34,9 +32,9 @@ import { isDead } from '../character/rules/afflictions'
 // `undefended`: what a target that does not answer an attack is counted to pay
 // for it, in the unit of AP a defense costs (threat.ts); lower for a bot that
 // thinks little of defending.
-export type Tuning = { potential: number; immediate: number; undefended: number; forced: number; switchBelow: number; engage: number; ap: number; sta: number; horizon: number; patience: number; exchange: number; drain: number; defensive: number }
+export type Tuning = { potential: number; immediate: number; undefended: number; forced: number; switchBelow: number; engage: number; ap: number; sta: number; horizon: number; exchange: number; drain: number; defensive: number }
 
-export const DEFAULT_TUNING: Tuning = { potential: 1, immediate: 1, undefended: 1, forced: 0.3, switchBelow: 0.05, engage: 0.02, ap: 0, sta: 0.005, horizon: 0, patience: 0.03, exchange: 1, drain: 0.02, defensive: 0 }
+export const DEFAULT_TUNING: Tuning = { potential: 1, immediate: 1, undefended: 1, forced: 0.3, switchBelow: 0.05, engage: 0.02, ap: 0, sta: 0.005, horizon: 0, exchange: 1, drain: 0.02, defensive: 0 }
 
 // The characters a bot plays, all of one owner (the GM, or a player), which it
 // sees in full (belief.ts). Its side is them and whoever the fight puts in a

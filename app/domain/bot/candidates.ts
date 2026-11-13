@@ -10,8 +10,9 @@ import { getLiveFoes, getSide, getTuning, type Party } from './party'
 import { getThreat } from './threat'
 import { getArmedAttacks, type Armed } from './weapons'
 import { canPay, getReadings, getSpentCost, getUnanswered } from './reading'
-import { getSpots, walkMove } from './position'
+import { getSpots, getStandUp, walkMove } from './position'
 import { getFightName } from '../scene/rules/fighters'
+import { getFreeHoldingHands } from '../item/rules/hands'
 import { play, type Move, type Played } from './move'
 
 // What a bot may do with its turn, each as a way to play it with a die:
@@ -115,68 +116,93 @@ export function getApproachCandidates(state: SceneState, party: Party, id: strin
 // The walks to the cells the position finder (position.ts) puts first.
 export function getPositionCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   return getSpots(state, party, id, newId).map((spot) => ({
-    label: `${spot.surged ? 'surge and ' : ''}${spot.movement === 'run' ? 'run' : 'walk'} ${spot.to.steps} to (${spot.to.cell.q},${spot.to.cell.r}): deals ${+spot.offense.toFixed(2)}, takes ${+spot.danger.toFixed(2)}, draws ${+spot.drawn.toFixed(2)}`,
+    label: `${spot.surged ? 'surge and ' : ''}${spot.movement === 'basic' ? 'walk' : spot.movement} ${spot.to.steps} to (${spot.to.cell.q},${spot.to.cell.r}): deals ${+spot.offense.toFixed(2)}, takes ${+spot.danger.toFixed(2)}, draws ${+spot.drawn.toFixed(2)}`,
     play: committing(state, id, walkMove(id, spot.movement, spot.to.path, spot.surged), newId),
   }))
 }
 
-// A shooter may take up a melee weapon instead (a melee weapon in a quick slot
-// is drawn if it carries one, "Drawing items in combat", at the price the sheet
-// charges): with the weapons it shoots with kept in one hand where the other
-// is then free for it, else dropped first (combat.tex "Putting items away":
-// "Dropping items on the floor costs 0 AP"). With none to draw, it strikes
-// with what is left in hand once they are dropped.
+// combat.tex "Prone": standing up, for one lying down who may.
+export function getStandCandidates(state: SceneState, id: string, newId: () => string): Candidate[] {
+  const stand = getStandUp(state, id, newId)
+  return stand ? [{ label: 'stand up', play: committing(state, id, stand, newId) }] : []
+}
+
+// A character may take up another weapon to fight with, or take up what it
+// holds another way: each weapon it holds or carries in a quick slot (drawn
+// from it, "Drawing items in combat", at the price the sheet charges), readied
+// three ways: drawn beside what it holds, each kept in one hand; alone, all
+// else in hand dropped first (combat.tex "Putting items away": "Dropping items
+// on the floor costs 0 AP"), in one hand; and so, gripped in both. What is
+// put away is dropped, never stowed. A way that leaves the hands as they are is
+// no switch.
 //
 // It is offered when the switch pays in threat (threat.ts). For this turn:
 // the immediate threat after the switch, the AP and STA it costs counted into
 // the cost of the attack, is greater than the threat now; the switch and the
 // attack on a foe are then one option. For a rested round: the potential
-// threat now is under `switchBelow` and the other weapon's is over it; the
-// switch alone is then the option.
+// threat now is under `switchBelow` and after the switch over it; the switch
+// alone is then the option.
 export function getSwitchCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const c = state.characters[id]
   const foes = getLiveFoes(state, party)
-  const shot = getArmed(state, id, newId).filter((a) => a.kind === 'shoot').map((a) => a.option.weaponKey)
-  if (!c || shot.length === 0 || foes.length === 0) return []
+  if (!c || foes.length === 0) return []
   const tuning = getTuning(party)
   const { switchBelow } = tuning
   const threat = (s: SceneState, kind: 'potential' | 'immediate', extra = 0) => Math.max(0, ...foes.map((foe) => getThreat(s, id, foe, newId, kind, tuning, extra)))
   const nowImmediate = threat(state, 'immediate')
-  const nowPotential = threat(state, 'potential')
-  const ranged = c.held.filter((item) => shot.includes(item.id))
+  let nowPotential: number | undefined
   const gear = (kind: string, args: unknown[]) => ({ kind: 'editGear', args: [id, { kind, args }, false] }) as Move[number]
-  const keep: Move = ranged.map((item) => gear('regripItem', [item.id, 1]))
-  const drop: Move = ranged.map((item) => gear('dropItem', [item.id]))
-  const draws: Move[] = [[], ...getQuickWeapons(c).map(({ containerKey, itemId }): Move => [gear('drawItem', [containerKey, itemId])])]
-  const switches = draws.flatMap((draw): { move: Move; state: SceneState }[] => {
-    const kept = play(state, [...keep, ...draw], () => 5, newId).state
-    if (draw.length > 0 && kept.characters[id].held.length > c.held.length) return [{ move: [...keep, ...draw], state: kept }]
-    const move = [...drop, ...draw]
-    return [{ move, state: play(state, move, () => 5, newId).state }]
+  const hands = (s: SceneState) => JSON.stringify([s.characters[id].held.map((item) => item.id), s.characters[id].body.map((part) => part.itemId)])
+  const now = hands(state)
+
+  const weapons = [
+    ...c.held.filter((item) => item.type === 'weapon').map((item) => ({ itemId: item.id, name: item.name, draw: [] as Move })),
+    ...getQuickWeapons(c).map(({ containerKey, itemId, name }) => ({ itemId, name, draw: [gear('drawItem', [containerKey, itemId])] as Move })),
+  ]
+  const tried = new Set([now])
+  const switches = weapons.flatMap(({ itemId, name, draw }) => {
+    const others = c.held.filter((item) => item.id !== itemId)
+    const drop: Move = others.map((item) => gear('dropItem', [item.id]))
+    const dropping = others.length > 0 ? `drop ${others.map((item) => item.name).join(' and ')}` : null
+    const drawing = draw.length > 0 ? `draw ${name}` : null
+    const ways: { before: Move; after: Move; how: string }[] = [
+      ...(draw.length > 0 ? [{ before: others.map((item) => gear('regripItem', [item.id, 1])), after: [], how: `draw ${name}` }] : []),
+      { before: drop, after: [], how: [dropping, drawing].filter(Boolean).join(', ') },
+      { before: drop, after: [gear('regripItem', [itemId, 2])], how: [dropping, drawing, `grip ${name} in both hands`].filter(Boolean).join(', ') },
+    ]
+    return ways.flatMap(({ before, after, how }) => {
+      const cleared = play(state, before, () => 5, newId).state
+      if (draw.length > 0 && getFreeHoldingHands(cleared.characters[id]).length === 0) return []
+      const move = [...before, ...draw, ...after]
+      const switched = play(cleared, [...draw, ...after], () => 5, newId).state
+      const held = hands(switched)
+      if (tried.has(held) || !switched.characters[id].held.some((item) => item.id === itemId)) return []
+      tried.add(held)
+      return [{ move, how, state: switched }]
+    })
   })
-  return switches.flatMap(({ move, state: switched }): Candidate[] => {
+
+  return switches.flatMap(({ move, how, state: switched }): Candidate[] => {
     const after = switched.characters[id]
     const paid = c.resources.AP - after.resources.AP + c.resources.STA - after.resources.STA
-    const dropped = move.some((m) => (m.args[1] as { kind?: string } | undefined)?.kind === 'dropItem')
-    const drew = move.some((m) => (m.args[1] as { kind?: string } | undefined)?.kind === 'drawItem')
-    const how = [dropped ? `drop ${ranged.map((item) => item.name).join(' and ')}` : null, drew ? 'draw' : null].filter(Boolean).join(', ')
     if (threat(switched, 'immediate', paid) > nowImmediate) {
-      return getArmed(switched, id, newId).filter((a) => a.kind === 'strike').flatMap((armed) => armed.targets.filter((t) => foes.includes(t)).map((target) => ({
+      return getArmed(switched, id, newId).flatMap((armed) => armed.targets.filter((t) => foes.includes(t)).map((target) => ({
         label: `${how}: ${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
         play: committing(state, id, [...move, ...armed.move, { kind: 'target', args: [target] }, { kind: 'commit', args: [] }], newId),
       })))
     }
+    nowPotential ??= threat(state, 'potential')
     if (nowPotential < switchBelow && threat(switched, 'potential') > switchBelow) return [{ label: how, play: committing(state, id, move, newId) }]
     return []
   })
 }
 
 // The weapons waiting in quick slots.
-function getQuickWeapons(c: CampaignCharacter | undefined): { containerKey: string; itemId: string }[] {
+function getQuickWeapons(c: CampaignCharacter | undefined): { containerKey: string; itemId: string; name: string }[] {
   if (!c) return []
-  return Object.entries(c.containers).flatMap(([containerKey, container]) => container.slots.quick.items.filter((item) => item.type === 'weapon').map((item) => ({ containerKey, itemId: item.id })))
+  return Object.entries(c.containers).flatMap(([containerKey, container]) => container.slots.quick.items.filter((item) => item.type === 'weapon').map((item) => ({ containerKey, itemId: item.id, name: item.name })))
 }
 
 export function getCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
-  return [...getAttackCandidates(state, party, id, newId), ...getSwitchCandidates(state, party, id, newId), ...getPositionCandidates(state, party, id, newId)]
+  return [...getStandCandidates(state, id, newId), ...getAttackCandidates(state, party, id, newId), ...getSwitchCandidates(state, party, id, newId), ...getPositionCandidates(state, party, id, newId)]
 }

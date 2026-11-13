@@ -10,15 +10,20 @@ import { getLiveFoes, getSide, isOnSide, type Party, type Tuning } from './party
 import { getHarmTaken, getOutcomeHarm, isOutOfFight } from './harm'
 import { canFight } from './reading'
 import { getSideThreat } from './threat'
+import { getLanded } from '../scene/rules/log'
+import { getPostureCost } from '../scene/rules/move'
+import { isProne } from '../scene/rules/board/ground'
+import { STUN_AP } from '../tables'
 
 // How well a state stands for a party, in harm (harm.ts), against where the
 // decision began: the harm its foes took less the harm its side did (party.ts);
 // what each side could do with a single attack from where it
 // stands whatever AP it has, the one less the other; less the ground between
 // its acting character and the nearest foe; plus the AP and STA it has left
-// over its foes'. Higher is better.
+// over its foes'; plus the AP the fight took from its foes that they did not
+// spend themselves, less what it took from its own side. Higher is better.
 
-export type Value = { total: number; wounds: number; potential: number; immediate: number; engage: number; resources: number; waiting: number; exchange: number }
+export type Value = { total: number; wounds: number; potential: number; immediate: number; engage: number; resources: number; drained: number; exchange: number }
 
 const FACES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -49,6 +54,24 @@ function getGap(state: SceneState, actorId: string, foes: string[]): number {
   return from && there.length > 0 ? setDistance([from], there) : 0
 }
 
+// The AP each character lost between the two states without spending it:
+// "Stun: An interrupt in which the target also loses 2 AP" (combat.tex
+// "Crash", and a blow that stuns), and for one who fell prone, what standing
+// up again costs them (combat.tex "Prone": "Can only crawl and stand up").
+export function getAPTaken(before: SceneState, after: SceneState): Map<string, number> {
+  const taken = new Map<string, number>()
+  const add = (id: string, AP: number) => taken.set(id, (taken.get(id) ?? 0) + AP)
+  for (const action of getLanded(after).slice(getLanded(before).length)) {
+    const crashes = [...(action.kind === 'move' ? action.facts?.trampled ?? [] : []), ...('trample' in action && action.trample ? [action.trample] : [])]
+    crashes.forEach((t) => t.stunned.forEach((id) => add(id, STUN_AP)))
+    ;(action.results ?? []).forEach((r) => add(r.targetId, r.outcome.apLoss))
+  }
+  for (const [id, c] of Object.entries(after.characters)) {
+    if (before.characters[id] && !isProne(before, id) && isProne(after, id) && !isOutOfFight(c)) add(id, getPostureCost(c, 'stand').AP)
+  }
+  return taken
+}
+
 export function evaluate(state: SceneState, party: Party, actorId: string, tuning: Tuning, start: SceneState): Value {
   const foes = getLiveFoes(state, party).filter((id) => canFight(state, id) && !isOutOfFight(state.characters[id]))
   const side = getSide(state, party)
@@ -61,5 +84,7 @@ export function evaluate(state: SceneState, party: Party, actorId: string, tunin
   const ap = (c: CampaignCharacter) => c.resources.AP
   const sta = (c: CampaignCharacter) => c.resources.STA
   const resources = tuning.ap * (left(side, ap) - left(foes, ap)) + tuning.sta * (left(side, sta) - left(foes, sta))
-  return { total: wounds + potential + immediate - engage + resources, wounds, potential, immediate, engage, resources, waiting: 0, exchange: 0 }
+  const lost = getAPTaken(start, state)
+  const drained = tuning.drain * [...lost].reduce((sum, [id, AP]) => sum + (isOnSide(start, party, id) ? -AP : AP), 0)
+  return { total: wounds + potential + immediate - engage + resources + drained, wounds, potential, immediate, engage, resources, drained, exchange: 0 }
 }

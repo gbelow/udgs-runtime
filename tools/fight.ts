@@ -94,8 +94,8 @@ const PARTS = [
   ['immediate', (o: OptionScore) => o.immediate],
   ['engage', (o: OptionScore) => -o.engage],
   ['resources', (o: OptionScore) => o.resources],
+  ['drained', (o: OptionScore) => o.drained],
   ['exchange', (o: OptionScore) => o.exchange],
-  ['waiting', (o: OptionScore) => o.waiting],
 ] as const
 
 function decisionLines(state: SceneState, d: Decision, ms: number): string[] {
