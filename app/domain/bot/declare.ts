@@ -24,6 +24,14 @@ import { getOpenChoices, STEPPED_PARTS, type ChoicePart, type OpenChoice } from 
 
 export type Pick = { part: ChoicePart; value: unknown }
 
+// a value as text with its keys in order, so two values that say the same compare equal
+function canon(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canon).join(',')}]`
+  if (value !== null && typeof value === 'object') return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${canon((value as Record<string, unknown>)[k])}`).join(',')}}`
+  return JSON.stringify(value)
+}
+const same = (a: unknown, b: unknown) => canon(a) === canon(b)
+
 export type Intent = {
   actorId: string
   // the option declared or the answer given, matched by the fields named
@@ -38,13 +46,6 @@ export type Declared =
   | { ok: true; commands: SceneCommand[]; ready: SceneState; state: SceneState }
   | { ok: false; commands: SceneCommand[]; state: SceneState; refused: string }
 
-// a value as text with its keys in order, so two values that say the same compare equal
-function canon(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canon).join(',')}]`
-  if (value !== null && typeof value === 'object') return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${canon((value as Record<string, unknown>)[k])}`).join(',')}}`
-  return JSON.stringify(value)
-}
-const same = (a: unknown, b: unknown) => canon(a) === canon(b)
 
 // parts no choice is ever marked chosen for: once pressed, they are made, and
 // one named twice is pressed twice (an overflow purchase bought twice)

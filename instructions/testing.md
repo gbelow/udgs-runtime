@@ -169,6 +169,10 @@ click to what stands afterwards. It is admitted, under these terms.
   its own, in any order with everything else; the offers and the board must show closed
   while a die waits, and every die called for a target's or a climber's test must be one
   the landing reads.
+  Beside it, `bots.fuzz.test.ts` seats bots on both sides of a fight with nobody as GM
+  (`bot/seat.ts` `run`, the table pressing for the GM, `bot/autoTable.ts`), each pressing
+  anything open to it at random, read off the fight as that seat sees it,, and asserts that every decision made
+  from what is open is taken and that the fight never stalls.
   It runs on its own, `pnpm test:fuzz`, outside `pnpm test:run`: run it before a commit and after
   any change to the scene. `FUZZ_SEEDS=n` runs n seeds of every session instead of the few it
   runs by default.

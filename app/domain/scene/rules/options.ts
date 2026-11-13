@@ -138,10 +138,16 @@ export function getGoBar(state: SceneState, root: Action): string | null {
   const awaited = getAwaited(state)
   if (awaited.length > 0) return `waiting on ${awaited.map((id) => getFightName(state, id)).join(', ')}: each answers or picks nothing`
   const reactions = getReactionsTo(state, root.id)
-  const unfinished = reactions.find((r) => !isDeclarationComplete(state, state.characters[r.actorId], r))
+  const unfinished = getUnfinishedAnswers(state, root)[0]
   if (unfinished) return `${getFightName(state, unfinished.actorId)}'s ${getActionDef(unfinished.kind).label} is not finished${unfinished.kind === 'opportunityAttack' ? `: ${getOpportunityBar(state, state.characters[unfinished.actorId], unfinished)}` : ''}`
   const broke = [root, ...reactions].find((a) => getPayableCost(state, a) === null)
   return broke ? `${getFightName(state, broke.actorId)} cannot pay for the ${getActionDef(broke.kind).label}` : null
+}
+
+// The answers to the root declared and not finished: who gave them still owes
+// the table the rest.
+export function getUnfinishedAnswers(state: SceneState, root: Action): Action[] {
+  return getReactionsTo(state, root.id).filter((r) => !isDeclarationComplete(state, state.characters[r.actorId], r))
 }
 
 // Everything the character may declare right now: their own actions while no

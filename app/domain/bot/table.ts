@@ -1,10 +1,11 @@
 import type { SceneState } from '../scene/types'
 import { isDead, getInjuryCapacity } from '../character/rules/afflictions'
 import { getOpenAction } from '../scene/rules/log'
-import { getAwaited } from '../scene/rules/options'
+import { getAwaited, getUnfinishedAnswers } from '../scene/rules/options'
 import { getTurnHolder } from '../scene/rules/turn'
 import { getConcentrationOwed } from '../scene/rules/roundChange'
 import { getButtonsOf, getSharedButtons, type OpenButton } from '../scene/projections/buttons'
+import { getOpenChoices, type OpenChoice } from '../scene/projections/choices'
 import { getCommandActor } from '../scene/commands/registry'
 
 // What a bot reads of the table besides the board: who is on which side, the
@@ -59,8 +60,16 @@ export function getMyButtons(state: SceneState, members: readonly string[], gm =
   })]
 }
 
+// The fills open to the members (scene/projections/choices.ts): what the
+// declaration or the answer they are making still takes, as their panel
+// offers it.
+export function getMyChoices(state: SceneState, members: readonly string[]): OpenChoice[] {
+  return getOpenChoices(state).filter((c) => members.includes(c.actorId))
+}
+
 // What the table waits on a member for, so the bot is pinged: an answer to the
-// action at `react` (`getAwaited`), a die it is called to throw, its own
+// action at `react` (`getAwaited`), or the rest of one given and not finished,
+// a die it is called to throw, its own
 // action still to be taken on (declared, or rolled and not landed), the turn it
 // holds with nothing open, and at the round change, its concentration and a
 // morale test it must make or settle.
@@ -68,7 +77,7 @@ export type Wait = { id: string; for: 'answer' | 'die' | 'action' | 'turn' | 'co
 
 export function getWaits(state: SceneState, members: readonly string[]): Wait[] {
   const open = getOpenAction(state)
-  const awaited = open?.step === 'react' ? getAwaited(state) : []
+  const awaited = open?.step === 'react' ? [...getAwaited(state), ...getUnfinishedAnswers(state, open).map((r) => r.actorId)] : []
   const owed = getConcentrationOwed(state)
   const holder = getTurnHolder(state)
   return members.flatMap((id): Wait[] => {
