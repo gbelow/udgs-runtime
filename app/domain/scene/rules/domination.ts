@@ -6,7 +6,7 @@ import type { Test } from '../../play/test'
 import { ABILITIES } from '../../abilities'
 import { getGrantingAbility } from '../../character/rules/effects'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { canAfford } from '../../character/rules/cost'
+import { canAfford, NOT_ENOUGH_AP } from '../../character/rules/cost'
 import { skillTermGetters } from '../../character/rules/skills'
 import { sumTerms } from '../../character/rules/terms'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -63,7 +63,7 @@ export function getOrderBar(state: SceneState, by: string, targetId: string, ord
   if (!getOverrulable(state, targetId)) return turn.overruledBy !== '' ? 'already overruled' : 'already acted on'
   if (turn.contested.includes(by)) return 'already tried'
   if (order === turn.action) return `already ${order}`
-  return canAfford(c, cost, isCombatStarted(state)) ? null : 'not enough AP'
+  return canAfford(c, cost, isCombatStarted(state)) ? null : NOT_ENOUGH_AP
 }
 
 // abilities.tex "Overrule": "a persuasion or deception vs will test": the
@@ -168,5 +168,5 @@ export function getMockeryBar(state: SceneState, mocker: string): string | null 
   if (!c || !cost) return 'has not learned Mockery'
   if (isDead(c) || hasAffliction(c, 'unconscious', getSituationalAfflictions(state, mocker))) return 'unconscious'
   if (!getMockable(state, mocker)) return 'nothing to mock: a crit against someone, or a miss against them, just now'
-  return canAfford(c, cost, isCombatStarted(state)) ? null : 'not enough AP'
+  return canAfford(c, cost, isCombatStarted(state)) ? null : NOT_ENOUGH_AP
 }

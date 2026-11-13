@@ -9,7 +9,7 @@ import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
 import { getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus, getWeaponRES } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
-import { canAfford } from '../../character/rules/cost'
+import { canAfford, CANNOT_AFFORD } from '../../character/rules/cost'
 import { getHardness } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
 import { hasChargeTrigger } from '../../character/rules/spells'
@@ -363,7 +363,7 @@ export function getHOPOptions(state: SceneState, root: AttackAction): HOPOption[
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
     if (cost > remaining) return closed('not enough HOP')
-    if (price && !canAfford(attacker, price, isCombatStarted(state))) return closed('cannot afford')
+    if (price && !canAfford(attacker, price, isCombatStarted(state))) return closed(CANNOT_AFFORD)
     return { purchase, cost, price, bought, available: true, reason: null, refundable }
   })
 }

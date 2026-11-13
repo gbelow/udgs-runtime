@@ -4,7 +4,7 @@ import type { Action, ActionOf, SceneState, Coord, Placement, PreparableKind, Pr
 import { SPELLS, isSpellKey } from '../../spells'
 import { getCastRange, getTargetEffects } from '../../character/rules/production'
 import { canCastSpell, getCastSize } from '../../character/rules/spells'
-import { canAfford } from '../../character/rules/cost'
+import { canAfford, CANNOT_AFFORD } from '../../character/rules/cost'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { isCampaignCharacter } from '../../utils'
 import { makeAction } from '../factories'
@@ -157,7 +157,7 @@ export function getPreparedBar(state: SceneState, c: CampaignCharacter, p: Prepa
   if (isImmobile(state, c)) return 'immobile'
   const cost = getMainCost(state, c, p)
   if (!cost) return 'cannot be made now'
-  return canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
+  return canAfford(c, cost, isCombatStarted(state)) ? null : CANNOT_AFFORD
 }
 
 // How much of the preparation's 2 AP of movement may be spent: what is left

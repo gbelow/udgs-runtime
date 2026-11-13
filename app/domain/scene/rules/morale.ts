@@ -1,3 +1,4 @@
+import { NOT_ENOUGH_AP } from '../../character/rules/cost'
 import type { AfflictionKey, CampaignCharacter, Degree } from '../../types'
 import type { SceneState, Pressure } from '../types'
 import { MORALE_AGGRAVATORS, MORALE_ENEMY_RADIUS, MORALE_LOW_STA, MORALE_SENSE_RADIUS, MORALE_TRIGGER, SOCIAL_BONUS } from '../../tables'
@@ -243,7 +244,7 @@ export function getFatefulBar(state: SceneState, id: string): string | null {
   if (!c || AP === null) return 'has not learned Fateful'
   if (!roll) return 'no morale test made'
   if (!roll.open) return roll.rerolled ? 'already rerolled' : 'the morale test is settled'
-  return c.resources.AP < AP ? 'not enough AP' : null
+  return c.resources.AP < AP ? NOT_ENOUGH_AP : null
 }
 
 // Why the character cannot keep the morale test they left open, or null.

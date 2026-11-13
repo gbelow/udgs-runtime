@@ -9,7 +9,7 @@ import { getHeard, getSocialCost } from './social'
 import { getMoraleTurnBar } from './morale'
 import { getSituationalAfflictions } from './situational'
 import { isCombatStarted } from './started'
-import { canAfford } from '../../character/rules/cost'
+import { canAfford, NOT_ENOUGH_AP } from '../../character/rules/cost'
 
 // The Providentialism abilities (abilities.tex "Providentialism") that work
 // on the fight: Justice's attitudes, Leadership, Against the Odds, Mercy and
@@ -51,7 +51,7 @@ export function getLeadershipRallyBar(state: SceneState, id: string): string | n
   if (getMoraleTurnBar(state)) return 'the morale tests are not all made'
   if (state.moraleRallies.includes(id)) return 'already rallied'
   if (getHeard(state, id, 'rally').length === 0) return 'nobody to rally'
-  return canAfford(c, getSocialCost(c, 'rally'), isCombatStarted(state)) ? null : 'not enough AP'
+  return canAfford(c, getSocialCost(c, 'rally'), isCombatStarted(state)) ? null : NOT_ENOUGH_AP
 }
 
 // ---------------------------------------------------------------------------

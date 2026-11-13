@@ -1,7 +1,8 @@
+import { NEEDS_FOCUS } from '../../character/rules/surge'
 import { isCombatStarted } from './started'
 import type { CampaignCharacter, Character, Item } from '../../types'
 import type { ActionOf, SceneState } from '../types'
-import { canAffordOrHold } from '../../character/rules/cost'
+import { canAffordOrHold, CANNOT_AFFORD } from '../../character/rules/cost'
 import { getReloadCost, needsReload } from '../../character/rules/gear'
 import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
 import { findWeaponRow, getRowStack, getWeaponRows, type WeaponRow } from './weaponRow'
@@ -26,7 +27,7 @@ export function getReloadRow(c: Character, action: ActionOf<'reload'>): WeaponRo
   return row && needsReload(row.atk) ? row : null
 }
 
-const SHOT_BARS: Record<Exclude<RowState, 'empty'>, string> = { closed: 'cannot be used', unfocused: 'needs a focus surge', open: 'already loaded', unloaded: 'already loaded' }
+const SHOT_BARS: Record<Exclude<RowState, 'empty'>, string> = { closed: 'cannot be used', unfocused: NEEDS_FOCUS, open: 'already loaded', unloaded: 'already loaded' }
 
 // Why the row cannot be reloaded right now, or null.
 export function getReloadBar(state: SceneState, c: CampaignCharacter, row: WeaponRow): string | null {
@@ -34,7 +35,7 @@ export function getReloadBar(state: SceneState, c: CampaignCharacter, row: Weapo
   if (shot !== 'empty') return SHOT_BARS[shot]
   if (isSeizedUse(state, c.id, row.wielded.key, row.atk.name, null)) return 'seized'
   if (getLoadableAmmo(c, row.weapon, row.atk).length === 0) return `no ${row.atk.ammo}s in a quick slot`
-  return canAffordOrHold(c, getReloadCost(row.atk, c), isCombatStarted(state)) ? null : 'cannot afford'
+  return canAffordOrHold(c, getReloadCost(row.atk, c), isCombatStarted(state)) ? null : CANNOT_AFFORD
 }
 
 // What the weapon holds once the reload lands: one of the stack it names.

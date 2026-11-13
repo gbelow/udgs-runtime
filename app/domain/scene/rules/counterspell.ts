@@ -3,7 +3,7 @@ import type { Action, ActionOf, SceneState } from '../types'
 import { makeAction } from '../factories'
 import { ABILITIES, hasAbility } from '../../abilities'
 import { SPELLS } from '../../spells'
-import { canAfford } from '../../character/rules/cost'
+import { canAfford, CANNOT_AFFORD } from '../../character/rules/cost'
 import { canCastSpell } from '../../character/rules/spells'
 import { getSenses } from '../../character/rules/senses'
 import { isCampaignCharacter } from '../../utils'
@@ -40,7 +40,7 @@ const QUICKENED = true
 export function getCounterspellBar(c: CampaignCharacter, charged: boolean): string | null {
   const spell = SPELLS[SPIRITUAL_STRIKE]
   const own = ABILITIES[COUNTERSPELL].cost
-  if (!canAfford(c, { AP: spell.cost.AP + own.AP, STA: spell.cost.STA + own.STA }, charged)) return 'cannot afford'
+  if (!canAfford(c, { AP: spell.cost.AP + own.AP, STA: spell.cost.STA + own.STA }, charged)) return CANNOT_AFFORD
   return canCastSpell(c, SPIRITUAL_STRIKE, QUICKENED, charged) ? null : 'cannot cast Spiritual Strike'
 }
 

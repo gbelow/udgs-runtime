@@ -1,3 +1,4 @@
+import { NOT_ENOUGH_AP } from '../../character/rules/cost'
 import type { Character, GearMove, Item, SlotKind } from '../../types'
 import { SlotKindSchema } from '../../types'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -18,7 +19,7 @@ export function getPayBar(c: Character, cost: ActionCost, charged: boolean): str
   if (!isCharged(c, charged)) return null
   const surge = getSurgeBar(c)
   if (surge) return surge
-  if (c.resources.AP < cost.AP) return 'not enough AP'
+  if (c.resources.AP < cost.AP) return NOT_ENOUGH_AP
   return c.resources.STA < cost.STA ? 'not enough STA' : null
 }
 

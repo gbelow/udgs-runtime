@@ -1,9 +1,10 @@
+import { NEEDS_FOCUS } from '../../character/rules/surge'
 import { isCombatStarted } from './started'
 import { DamageSchema, type CampaignCharacter, type Degree } from '../../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import type { Term } from '../../character/rules/terms'
 import { ABILITIES, hasAbility, type AbilityKey } from '../../abilities'
-import { canAfford, canAffordOrHold } from '../../character/rules/cost'
+import { canAfford, canAffordOrHold, CANNOT_AFFORD } from '../../character/rules/cost'
 import { getKnowledgeTestTerms } from '../../character/rules/knowledge'
 import { landed } from '../../character/rules/production'
 import type { CauterizeAction, FirstAidAction, SceneState } from '../types'
@@ -37,10 +38,10 @@ export function getMedicineCost(kind: MedicineKind): ActionCost {
 // and held over for want of the AP.
 export function getMedicineBar(state: SceneState, c: CampaignCharacter, kind: MedicineKind): string | null {
   if (!hasAbility(c, ABILITY[kind])) return `${ABILITIES[ABILITY[kind]].name} not learned`
-  if (isCombatStarted(state) && c.usedSurge !== 'focus') return 'needs the focus surge'
+  if (isCombatStarted(state) && c.usedSurge !== 'focus') return NEEDS_FOCUS
   if (getMedicineTargets(state, c.id).length === 0) return 'nobody bleeding within reach'
   const cost = getMedicineCost(kind)
-  return (isConcentrationAbility(kind) ? canAffordOrHold(c, cost, isCombatStarted(state)) : canAfford(c, cost, isCombatStarted(state))) ? null : 'cannot afford'
+  return (isConcentrationAbility(kind) ? canAffordOrHold(c, cost, isCombatStarted(state)) : canAfford(c, cost, isCombatStarted(state))) ? null : CANNOT_AFFORD
 }
 
 // Whether the catalog marks the ability the action is the use of as

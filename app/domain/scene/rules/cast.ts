@@ -1,3 +1,4 @@
+import { NEEDS_FOCUS } from '../../character/rules/surge'
 import { getFragileDLTerms } from './fragile'
 import { isCombatStarted } from './started'
 import type { CampaignCharacter, Delivery, Item } from '../../types'
@@ -182,7 +183,7 @@ function reasonAgainst(c: CampaignCharacter, key: SpellKey, charged: boolean): s
   if (!canAfford(c, spell.cost, charged)) return 'cannot pay for it'
   if (spell.DL === null) return 'no casting DL'
   if (!mayCastWhileConcentrating(c, key)) return 'concentrating'
-  return canCastSpell(c, key, false, charged) ? null : 'needs a focus surge'
+  return canCastSpell(c, key, false, charged) ? null : NEEDS_FOCUS
 }
 
 // spells.tex "Wizard": a spell read from a grimoire "must be done in a risky

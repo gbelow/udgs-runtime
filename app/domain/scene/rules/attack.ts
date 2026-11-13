@@ -1,3 +1,4 @@
+import { NEEDS_FOCUS } from '../../character/rules/surge'
 import { isCombatStarted } from './started'
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
 import { getFirstAidTerms } from './medicine'
@@ -206,7 +207,7 @@ export function hasUnfocusedRow(c: CampaignCharacter, kind: AttackAction['kind']
 
 // Why no row of the kind in hand can be fired, by the nearest any of them
 // comes to it.
-const ROW_BARS: [RowState, string][] = [['unfocused', 'needs a focus surge'], ['empty', 'needs reloading'], ['unloaded', 'no arrows or bolts in a quick slot']]
+const ROW_BARS: [RowState, string][] = [['unfocused', NEEDS_FOCUS], ['empty', 'needs reloading'], ['unloaded', 'no arrows or bolts in a quick slot']]
 
 export function getRowBar(c: CampaignCharacter, kind: AttackAction['kind'], charged: boolean): string {
   const states = new Set(getWeaponRows(c).map((row) => getRowState(c, row, kind, charged)))

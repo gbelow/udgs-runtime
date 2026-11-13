@@ -8,6 +8,11 @@ import { CampaignCharacter, Cost } from "../../types"
 // rest has overdrawn them (combat.tex "Rest"). Only a combat or chase that
 // has started charges AP and STA (`charged`); before it and away from it
 // they are not asked.
+// The reasons an option is closed for its price, so that what a surge would
+// open can be told from what it would not
+export const CANNOT_AFFORD = 'cannot afford'
+export const NOT_ENOUGH_AP = 'not enough AP'
+
 export function canAfford(c: CampaignCharacter, cost: Pick<Cost, 'AP' | 'STA'>, charged: boolean): boolean {
   return !charged || ((cost.AP <= 0 || c.resources.AP >= cost.AP) && c.resources.STA >= cost.STA)
 }

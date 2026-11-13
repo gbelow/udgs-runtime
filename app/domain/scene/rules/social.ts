@@ -1,3 +1,4 @@
+import { NOT_ENOUGH_AP } from '../../character/rules/cost'
 import { isCombatStarted } from './started'
 import type { CampaignCharacter } from '../../types'
 import type { SceneState, SocialSay } from '../types'
@@ -35,7 +36,7 @@ export function getSocialCost(c: CampaignCharacter, say: SocialSay): ActionCost 
 // combat.tex "Social actions": each "counts as a Rest action", so like a rest
 // it may overdraw the AP the round brings.
 function getSocialAPBar(state: SceneState, c: CampaignCharacter): string | null {
-  return canAffordRest(c, 'socialAction', isCombatStarted(state), getIncomingAP(state)) ? null : 'not enough AP'
+  return canAffordRest(c, 'socialAction', isCombatStarted(state), getIncomingAP(state)) ? null : NOT_ENOUGH_AP
 }
 
 // Why the character cannot say it now, beside what closes any of their own

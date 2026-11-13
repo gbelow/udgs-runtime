@@ -94,6 +94,9 @@ export function getSurgeRecovery(kind: SurgeKind): (c: CampaignCharacter) => num
   return (c: CampaignCharacter) => (kind === 'recovery' ? Math.max(0, getSTARegen(c) - RECOVERY_SURGE_SHORT) : 0)
 }
 
+// combat.tex "Action surge": a row a focus surge readies, closed until it is made
+export const NEEDS_FOCUS = 'needs a focus surge'
+
 // The character as a surge leaves them, whether or not it is open to them:
 // its STA spent and bled for, its AP granted, an earmarked surge's marked off
 // from the rest by the AP held before it (`surgeFloor`), and the STA the
