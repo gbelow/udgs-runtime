@@ -97,11 +97,13 @@ const newId = () => `bench${++n}`
 const press = (state: SceneState, ...commands: SceneCommand[]): SceneState =>
   commands.reduce((s, command) => toUpdater(command, { thrower: () => 5, newId })(s), state)
 
-type Timing = { scenario: string; question: string; calls: number; cold: number[]; warm: number }
+type Timing = { scenario: string; question: string; calls: number; cold: number[]; moved: number[]; warm: number }
 const timings: Timing[] = []
 
-// `ask` on `state` cold, COLD times on fresh copies, and warm, WARM times on
-// one copy already asked once.
+// `ask` on `state` cold, COLD times on fresh copies; after a move, COLD times
+// on a copy as the fight is after someone else's walk (a new state and new
+// placements, the ground and every sheet the same objects); and warm, WARM
+// times on one copy already asked once.
 function measure(scenario: string, question: string, state: SceneState, ask: (s: SceneState) => unknown): void {
   if (ONLY && !question.includes(ONLY)) return
   const cold: number[] = []
@@ -110,6 +112,15 @@ function measure(scenario: string, question: string, state: SceneState, ask: (s:
     const t0 = performance.now()
     ask(copy)
     cold.push(performance.now() - t0)
+  }
+  const fresh = structuredClone(state)
+  ask(fresh)
+  const moved: number[] = []
+  for (let i = 0; i < COLD; i++) {
+    const after = { ...fresh, board: fresh.board && { ...fresh.board, placements: { ...fresh.board.placements } } }
+    const t0 = performance.now()
+    ask(after)
+    moved.push(performance.now() - t0)
   }
   const copy = structuredClone(state)
   ask(copy)
@@ -120,8 +131,9 @@ function measure(scenario: string, question: string, state: SceneState, ask: (s:
   if (known) {
     known.calls++
     known.cold.push(...cold)
+    known.moved.push(...moved)
     known.warm += warm
-  } else timings.push({ scenario, question, calls: 1, cold, warm })
+  } else timings.push({ scenario, question, calls: 1, cold, moved, warm })
 }
 
 function needsFocus(state: SceneState, id: string): boolean {
@@ -200,11 +212,11 @@ for (const scenario of SCENARIOS) {
 const lines = [
   `# Sense bench`,
   '',
-  `${ARENA}, fighters from humanoid / common. Cold: ${COLD} fresh copies per character; warm: ${WARM} repeats on one copy. Times in ms per call, averaged over every character asked; "max" is the slowest cold call.`,
+  `${ARENA}, fighters from humanoid / common. Cold: ${COLD} fresh copies per character, sharing nothing with what any cache has seen; after a move: ${COLD} copies as the fight is after someone else walks; warm: ${WARM} repeats on one copy. Times in ms per call, averaged over every character asked; "max" is the slowest cold call.`,
   '',
-  '| scenario | question | asked of | cold mean | cold max | warm mean |',
-  '|---|---|---:|---:|---:|---:|',
-  ...timings.map((t) => `| ${t.scenario} | ${t.question} | ${t.calls} | ${ms(mean(t.cold))} | ${ms(Math.max(...t.cold))} | ${ms(t.warm / t.calls)} |`),
+  '| scenario | question | asked of | cold mean | cold max | after a move | warm mean |',
+  '|---|---|---:|---:|---:|---:|---:|',
+  ...timings.map((t) => `| ${t.scenario} | ${t.question} | ${t.calls} | ${ms(mean(t.cold))} | ${ms(Math.max(...t.cold))} | ${ms(mean(t.moved))} | ${ms(t.warm / t.calls)} |`),
   '',
   '## Cells the reach misses',
   '',

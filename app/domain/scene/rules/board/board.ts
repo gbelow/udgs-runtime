@@ -529,9 +529,13 @@ type ThinWall = { ends: [{ x: number; y: number }, { x: number; y: number }]; lo
 // The thin walls of the board, each standing from its floor up to the storey
 // laid over it (on the ground, as a wall of the ground does: no foot, up to
 // the lowest storey), or through its own storey's height.
-const thinWalls = new WeakMap<Board, ThinWall[]>()
+// They stand on the ground and the storeys alone, which are replaced, never
+// changed, so they are found once for each.
+const thinWalls = new WeakMap<Board['levels'], WeakMap<Board['terrain'], ThinWall[]>>()
 function getThinWalls(board: Board): ThinWall[] {
-  const known = thinWalls.get(board)
+  const byTerrain = thinWalls.get(board.levels) ?? new WeakMap<Board['terrain'], ThinWall[]>()
+  thinWalls.set(board.levels, byTerrain)
+  const known = byTerrain.get(board.terrain)
   if (known) return known
   const walls: ThinWall[] = []
   const lay = (cell: Coord, t: TerrainCell, low: number, high: number) => {
@@ -548,7 +552,7 @@ function getThinWalls(board: Board): ThinWall[] {
       if (cell && hasThinWalls(here)) lay(cell, here, getStoreyFloor(level, here), level.floor + level.height)
     }
   }
-  thinWalls.set(board, walls)
+  byTerrain.set(board.terrain, walls)
   return walls
 }
 

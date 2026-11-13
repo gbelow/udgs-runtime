@@ -96,6 +96,20 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
 // not shown.
 export function getSceneSeenBy(state: SceneState, controlled: ReadonlySet<string>, everything = false): SceneState {
   if (everything) return state
+  const byViewer = views.get(state) ?? new Map<string, SceneState>()
+  views.set(state, byViewer)
+  const key = [...controlled].sort().join('\n')
+  const known = byViewer.get(key)
+  if (known) return known
+  const made = censor(state, controlled)
+  byViewer.set(key, made)
+  return made
+}
+
+// A state is replaced, never changed, so what a viewer is shown of it is made once.
+const views = new WeakMap<SceneState, Map<string, SceneState>>()
+
+function censor(state: SceneState, controlled: ReadonlySet<string>): SceneState {
   const seen = getSeenBy(state, controlled)
   const hidden = new Set(Object.keys(state.characters).filter((id) => !seen.has(id)))
   if (hidden.size === 0 && Object.keys(state.characters).every((id) => controlled.has(id))) return state

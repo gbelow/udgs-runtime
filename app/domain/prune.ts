@@ -22,6 +22,7 @@ const aboutHidden = (row: unknown, hidden: Hidden): boolean => {
 // list their ids and the rows that are about them, a field that names one
 // reads '' (nobody). What holds none comes back as the same object.
 export function prune<T>(value: T, hidden: Hidden): T {
+  if (hidden.size === 0) return value
   if (Array.isArray(value)) {
     const kept = value.filter((v) => !(typeof v === 'string' && hidden.has(v)) && !aboutHidden(v, hidden)).map((v) => prune(v, hidden))
     return (kept.length === value.length && kept.every((v, i) => v === value[i]) ? value : kept) as T
