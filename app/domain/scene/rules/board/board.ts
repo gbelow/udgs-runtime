@@ -5,7 +5,7 @@ import { getHeight } from '../../../character/rules/size'
 import { FALL, REACH, RMArr } from '../../../tables'
 import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, crossingAt, disk, distance, getChordAt, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
+import { add, angleBetween, angularGap, cellNumber, centroid, coordKey, crossingAt, disk, distance, getChordAt, inExtent, line, parseCoordKey, rotate, sameCell, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow, getWeaponRows, isRowUsable } from '../weaponRow'
 import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 import { without } from '../../../utils'
@@ -351,18 +351,29 @@ export function getBody(state: SceneState, id: string): Body | null {
 // a blow cannot pass (what stops a shot, `firesAcross`), drawn from the
 // middle of one body's height to the other's; Infinity when every line is
 // stopped.
-const blows = new WeakMap<Board, Map<string, boolean>>()
+// What a line between two cells meets reads only the ground and the storeys,
+// so it is kept across moves, by the eye heights it is drawn between.
+const blows = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, Map<number, Map<number, boolean>>>>>()
 function getOpenDistance(board: Board | null, a: Body, b: Body): number {
   if (!board) return setDistance(a.footprint, b.footprint)
   const eyes = board.levels.length ? { from: a.feet + a.height / 2, to: b.feet + b.height / 2 } : LEVEL_EYES
-  const known = blows.get(board) ?? new Map<string, boolean>()
-  blows.set(board, known)
+  const byTerrain = blows.get(board.levels) ?? new WeakMap<Board['terrain'], Map<string, Map<number, Map<number, boolean>>>>()
+  blows.set(board.levels, byTerrain)
+  const byEyes = byTerrain.get(board.terrain) ?? new Map<string, Map<number, Map<number, boolean>>>()
+  byTerrain.set(board.terrain, byEyes)
+  const eyesKey = `${eyes.from}|${eyes.to}`
+  const known = byEyes.get(eyesKey) ?? new Map<number, Map<number, boolean>>()
+  byEyes.set(eyesKey, known)
   const stopped = (x: Coord, y: Coord) => {
-    const key = `${coordKey(x)}|${coordKey(y)}|${eyes.from}|${eyes.to}`
-    const met = known.get(key) ?? stoppedBetween(board, x, y, eyes, (t) => t.blocking)
-    known.set(key, met)
+    const from = cellNumber(x)
+    const fromHere = known.get(from) ?? new Map<number, boolean>()
+    known.set(from, fromHere)
+    const to = cellNumber(y)
+    const met = fromHere.get(to) ?? stoppedBetween(board, x, y, eyes, (t) => t.blocking)
+    fromHere.set(to, met)
     return met
   }
+  if (a.footprint.length === 1 && b.footprint.length === 1) return stopped(a.footprint[0], b.footprint[0]) ? Infinity : distance(a.footprint[0], b.footprint[0])
   const pairs = a.footprint.flatMap((x) => b.footprint.map((y) => ({ x, y, cells: distance(x, y) }))).sort((p, q) => p.cells - q.cells)
   return pairs.find((p) => !stopped(p.x, p.y))?.cells ?? Infinity
 }

@@ -25,6 +25,7 @@ import { isInTurn } from './turn'
 import { getSweepTargets, isSweep, isSweepLink } from './sweep'
 import { detect, type Detected } from './stealth'
 import { getCounterspellReach, isInCounterspellReach } from './counterspell'
+import { perPair } from '../../perState'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -72,9 +73,9 @@ function retargetsOf(c: Character, at: number | null, against?: string): Trigger
 // draws what it draws once, at its first target, and "do not draw attacks of
 // opportunity from any of its targets" — who answer it each on their own
 // strike, never on another's (no Protect either).
-export function getTriggers(state: SceneState, root: RootAction): Trigger[] {
-  return getDrawnTriggers(state, root).filter((t) => canReactTo(state, root, t))
-}
+// Read once per state and action, however many answerers ask.
+export const getTriggers: (state: SceneState, root: RootAction) => Trigger[] = perPair(({ a: state, b: root }) =>
+  getDrawnTriggers(state, root).filter((t) => canReactTo(state, root, t)))
 
 // What whoever the action would trigger made of its actor (combat.tex
 // "Actions in stealth"), each once and by a trigger they noticed it through
@@ -88,7 +89,9 @@ export function getReactorDetections(state: SceneState, root: RootAction): Detec
   })
 }
 
-function getDrawnTriggers(state: SceneState, root: RootAction): Trigger[] {
+const getDrawnTriggers: (state: SceneState, root: RootAction) => Trigger[] = perPair(({ a: state, b: root }) => readDrawnTriggers(state, root))
+
+function readDrawnTriggers(state: SceneState, root: RootAction): Trigger[] {
   const own = getKindTriggers(state, root)
   const triggers = own
   const opportunity = getOpeningReaction(state, root) !== null

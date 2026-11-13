@@ -18,6 +18,9 @@ export type Reach = {
   // made with a movement surge first
   surged: boolean
   cells: ReachableCell[]
+  // the state the move was declared in to read the reach: a click on one of
+  // the cells pressed on it finds the reach already walked
+  moving: SceneState
 }
 
 const NO_IDS = () => 'reach'
@@ -37,7 +40,7 @@ function read(state: SceneState, id: string): Reach | null {
   const moving = amendAction({ movement })(declareAction(id, { kind: 'move' }, NO_IDS)(from))
   const open = getOpenAction(moving)
   if (open?.kind !== 'move' || open.actorId !== id || open.movement !== movement) return null
-  return { movement, surged: surged !== state, cells: getReachableCells(moving, open) }
+  return { movement, surged: surged !== state, cells: getReachableCells(moving, open), moving }
 }
 
 // A state is replaced, never changed, so a character's reach in it is read once.
