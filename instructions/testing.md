@@ -134,7 +134,8 @@ click to what stands afterwards. It is admitted, under these terms.
   every button `getOpenButtons` shows open does something when pressed, and any of them may be pressed as a
   play of its own; every fill `getOpenChoices` offers the open declaration, and that it does not already
   have, does something when pressed (of the cells, a few spread over the list), and any of them may be
-  pressed as a play of its own; and after an exchange has been played out, nothing is left committed and
+  pressed as a play of its own, and a declaration that still asks for something and offers its actor
+  nothing to fill it in can be taken back; and after an exchange has been played out, nothing is left committed and
   waiting, once an answer still being declared has been taken back. The bot's builder (`bot/declare.ts`)
   is played too, declaring with picks taken off the panel's offers and settling what a rolled action
   offers: every command it returns, made or refused, does something when sent to the table. A

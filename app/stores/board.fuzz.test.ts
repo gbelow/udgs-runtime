@@ -38,6 +38,7 @@ import { getDeclaredCarriedMoves } from '../domain/scene/rules/carriedMove'
 import { adapted, archer, fatalist, guardian, ferocious, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, providential, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/scene/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenButtons } from '../domain/scene/projections/buttons'
+import { getNextStep } from '../domain/scene/rules/action'
 import { getOpenChoices } from '../domain/scene/projections/choices'
 import { declare, settle, type Intent, type Pick } from '../domain/bot/declare'
 import { bestSpend, predict } from '../domain/bot/predict'
@@ -528,7 +529,10 @@ function assertButtonsHold(h: Harness) {
 
 // Every fill the open declaration offers (`getOpenChoices`) and does not
 // already have does something when pressed. Of the cells a click picks, a few
-// spread over the list stand for the rest.
+// spread over the list stand for the rest. And no declaration is a dead end:
+// one that still asks for something offers its actor a fill, or else can be
+// taken back (one whose actor fell immobile while declaring a move can only be
+// taken back).
 function assertChoicesHold(h: Harness) {
   const s = h.state()
   let n = 0
@@ -538,6 +542,12 @@ function assertChoicesHold(h: Harness) {
   const sampled = cells.filter((_, i) => i % Math.max(1, Math.ceil(cells.length / 4)) === 0)
   for (const { command, label, actorId } of [...offered.filter((c) => c.part !== 'cell'), ...sampled]) {
     expect(toUpdater(command, ctx)(s), `${label} is offered to ${actorId} but pressing it does nothing`).not.toBe(s)
+  }
+  const open = getOpenAction(s)
+  const step = getNextStep(s)
+  if (open?.step === 'define' && (step === 'declare' || step === 'target' || step === 'aim') && !offered.some((c) => c.actorId === open.actorId)) {
+    const back = getOpenButtons(s).some(({ command }) => command.kind === 'cancel' || command.kind === 'skip')
+    expect(back, `${open.kind} ${open.id} still asks for ${step} but offers ${open.actorId} nothing to fill it and cannot be taken back`).toBe(true)
   }
 }
 

@@ -3118,7 +3118,7 @@
         {
           "kind": "trainable",
           "name": "Medicine",
-          "level": 4,
+          "level": 3,
           "op": ">=",
           "not": false
         }
