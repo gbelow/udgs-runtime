@@ -378,8 +378,8 @@ export const BoardSchema = z.object({
   // what tells this board's ground from another's of the same surface: the
   // seed the spread of difficult cells is drawn from
   seed: num.int().default(0),
-  // where and how far the board is drawn; the rules do not care, the
-  // simulation tool does.
+  // where and how far the board reaches: nothing moves off it (rules/move.ts),
+  // and the simulation tool and the drawing read it too.
   origin: CoordSchema.default({ q: 0, r: 0 }),
   extent: BoardExtentSchema.default({ q: 6, r: 6, s: 6 }),
 }).strip()

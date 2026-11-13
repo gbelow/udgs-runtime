@@ -10,7 +10,7 @@ import { hasAffliction } from '../../character/rules/afflictions'
 import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
-import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
+import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
 import { getClimbBack, getClimbBound, getClimbTarget, getBalanceDLAt, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
@@ -235,6 +235,12 @@ export function isLameBarred(kind: MovementKind): boolean {
 // ---------------------------------------------------------------------------
 // Whether a declared path may be walked
 
+// Whether a footprint lies wholly on the board: no move leaves it.
+function isOnBoard(state: SceneState, footprint: Coord[]): boolean {
+  const board = state.board
+  return !board || footprint.every((cell) => inExtent(board.origin, board.extent, cell))
+}
+
 // Whether the move as declared is one its actor can make: every step a
 // neighbour of the last, every footprint along the way off blocking cells
 // and in the water exactly when swimming, and the last one somewhere it may
@@ -276,7 +282,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
     const last = i === action.path.length - 1
     const footprint = sweep[i]
     const floor = ground.at(action.movement === 'jump' ? from.elevation : steps[action.movement === 'climb' ? i + 1 : i].elevation)
-    if (!mayStep(footprint, floor, cursor, cell, { movement: action.movement, lands: last, fromWater: wet, ceiling })) return false
+    if (!isOnBoard(state, footprint) || !mayStep(footprint, floor, cursor, cell, { movement: action.movement, lands: last, fromWater: wet, ceiling })) return false
     if (!isTetherKept(state, c.id, footprint)) return false
     if (last && !canEndAt(state, c, action, footprint, floor)) return false
     cursor = cell
@@ -711,7 +717,8 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
     if (known !== undefined) return known
     const bound = kind === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
     const floor = bound ? ground.at(bound.floor) : floorAt(before)
-    const ok = (kind !== 'climb' || bound !== null) && mayStep(getFootprint(c, { ...from, cell }), floor, before, cell, { movement: kind, lands: false, fromWater: wetAt(before), ceiling })
+    const footprint = getFootprint(c, { ...from, cell })
+    const ok = (kind !== 'climb' || bound !== null) && isOnBoard(state, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater: wetAt(before), ceiling })
     if (ok && !feet.has(coordKey(cell))) feet.set(coordKey(cell), floor.elevation(cell))
     entered.set(key, ok)
     return ok

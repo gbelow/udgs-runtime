@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "bench": "tsx tools/bench-sense.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "test:fuzz": "vitest run --config vitest.fuzz.config.ts",
