@@ -2,7 +2,7 @@ import type { CampaignCharacter } from '../../../types'
 import type { Board, SceneState, Coord, LightLevel } from '../../types'
 import { SPELL_LIGHT, WINDOW_LIGHT } from '../../../tables'
 import { LIGHT_LEVELS } from '../../../lists'
-import { coordKey, disk, distance, inExtent, line } from './geometry'
+import { coordKey, disk, distance, inExtent, line, parseCoordKey } from './geometry'
 import { getPlacedFootprint, getRoofs, getTerrainAt, isFloorBetween, seesAcross, type Footing } from './board'
 import { getHeight } from '../../../character/rules/size'
 import { perState } from '../../../perState'
@@ -130,7 +130,7 @@ function getAmbient(state: SceneState, cell: Coord, at: Footing): LightLevel {
 // the ground's alone (its terrain and storeys, the board's light and extent),
 // never who stands on it or what they hold: kept by the ground, so a step
 // taken does not light the board again.
-type Ground = { beams: Map<string, Beam>; ambients: Map<string, LightLevel> }
+type Ground = { beams: Map<string, Beam>; ambients: Map<string, LightLevel>; dark: Coord[] | null }
 const groundsKept = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, Ground>>>()
 
 function getGround(board: Board): Ground {
@@ -139,7 +139,7 @@ function getGround(board: Board): Ground {
   const byRest = byTerrain.get(board.terrain) ?? new Map<string, Ground>()
   byTerrain.set(board.terrain, byRest)
   const key = `${board.light}|${coordKey(board.origin)}|${board.extent.q},${board.extent.r},${board.extent.s}`
-  const ground = byRest.get(key) ?? { beams: new Map(), ambients: new Map() }
+  const ground = byRest.get(key) ?? { beams: new Map(), ambients: new Map(), dark: null }
   byRest.set(key, ground)
   return ground
 }
@@ -187,6 +187,19 @@ export function getCellLighting(state: SceneState, cell: Coord, feet?: number): 
 
 export function getCellLight(state: SceneState, cell: Coord, feet?: number): LightLevel {
   return getCellLighting(state, cell, feet).light
+}
+
+// The painted cells whose ground has no light of its own: a source only
+// brightens, so only these can be unlit. Kept by the ground.
+export function getDarkGround(state: SceneState): Coord[] {
+  const board = state.board
+  if (!board) return []
+  const ground = getGround(board)
+  ground.dark ??= Object.entries(board.terrain).flatMap(([key, terrain]) => {
+    const cell = parseCoordKey(key)
+    return cell && getAmbientOnce(state, cell, { terrain, floor: terrain.elevation, level: null }) === 'dark' ? [cell] : []
+  })
+  return ground.dark
 }
 
 // Whether no light reaches the cell.

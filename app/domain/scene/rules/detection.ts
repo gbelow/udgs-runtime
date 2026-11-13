@@ -15,7 +15,7 @@ import { getCellHazard, getHazardAt } from './board/hazard'
 import { crossesThinWall, isFootprintOpen, readGround } from './board/ground'
 import { getPartners } from './partners'
 import { getMoveOrigin } from './board/waypoint'
-import { getLightAt, isUnlit, seesInDimLight } from './board/light'
+import { getDarkGround, getLightAt, isUnlit, seesInDimLight } from './board/light'
 import { getAction } from './log'
 
 // combat.tex "Detection": what an observer's senses take in of a target, and
@@ -321,12 +321,35 @@ export function isNearBlindGround(state: SceneState, id: string, radius: number)
   const from = getPlacedFootprint(state, id)
   const terrain = state.board?.terrain
   if (!c || !from || !terrain) return false
+  const near = state.board?.light === 'dark'
+    ? from.flatMap((at) => disk(at, radius)).filter((cell) => setDistance(from, [cell]) <= radius && isBlindingGround(state, cell))
+    : getBlindingGround(state).filter((cell) => setDistance(from, [cell]) <= radius)
+  if (near.length === 0) return false
   const own = sensesOf(state, c)
   const senses = (Object.keys(TOTAL_INTO) as (keyof Senses)[]).filter((s) => own[s].active && canUse(state, c, s))
-  const cells = state.board?.light === 'dark' ? from.flatMap((at) => disk(at, radius)) : Object.keys(terrain).flatMap((key) => parseCoordKey(key) ?? [])
-  return cells.some((cell) => setDistance(from, [cell]) <= radius && isBlindingGround(state, cell)
-    && senses.every((s) => TOTAL_INTO[s](state, id, from, [cell], own[s].range)))
+  return near.some((cell) => senses.every((s) => TOTAL_INTO[s](state, id, from, [cell], own[s].range)))
 }
+
+// The painted cells that could blind, kept by the terrain: those painted with
+// bad visibility or carrying a layer, which may be smoke.
+const hazyKept = new WeakMap<Board['terrain'], Coord[]>()
+function getHazyGround(terrain: Board['terrain']): Coord[] {
+  const known = hazyKept.get(terrain)
+  if (known) return known
+  const cells = Object.entries(terrain).flatMap(([key, t]) => (t.visibility !== 'good' || t.layers.length > 0 ? parseCoordKey(key) ?? [] : []))
+  hazyKept.set(terrain, cells)
+  return cells
+}
+
+// The painted cells that blind whoever looks into them, worked out once per
+// fight for everyone it asks about: of those whose ground is dark or hazy,
+// as no other can be.
+const getBlindingGround = perState((state: SceneState): Coord[] => {
+  if (!state.board) return []
+  const candidates = new Map([...getDarkGround(state), ...getHazyGround(state.board.terrain)].map((cell) => [coordKey(cell), cell]))
+  const found = [...candidates.values()].filter((cell) => isBlindingGround(state, cell))
+  return found
+})
 
 // What an observer's sense is aimed at: a character, or cells of the ground.
 export type Toward = string | readonly Coord[]
