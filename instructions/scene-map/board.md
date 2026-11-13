@@ -65,8 +65,9 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   it paints each floor it reaches. A cone is aimed at a space at a height (`pitch`, toward the floor
   of the clicked cell the screen looked from, `getSprayPitch`) and opens as far up and down as across
   about it, seen from the attacker's feet; a body is in it when some of it, feet to head, is. Light is: a floor with a solid storey a cliff or more over it (`getRoofs`)
-  is under a roof and has no light of its own; it takes the light of an open floor outside it sees
-  through a window or a doorway, a step darker past `WINDOW_LIGHT.full` and none past `fading`, and a
+  is under a roof and has no light of its own; an open floor outside it sees through a window or a
+  doorway shines in as a beam, the light outside for `WINDOW_LIGHT.reach` in and `spread` around it,
+  a step darker out to `dimFactor` times both and none past, and a
   source's, which shines from its holder's eyes and never through a solid floor. A `lattice` storey cell (leaves, a grating) is stood on like a floor but
   closes nothing under it: a line passes it, and a climb up a face beside it is not stopped by it. One with neither raised ground nor a wall under it (a canopy over open ground) has nothing to climb, so it is reached only within the climber's start, as a stand up (`Face.overhead`), and a climb down from it goes no further than the hang (`Face.bare`): the climber then jumps off or lets go. The move search reaches each cell once, the first way it comes there,
   so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).

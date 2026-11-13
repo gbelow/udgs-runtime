@@ -2,7 +2,7 @@ import type { CampaignCharacter } from '../../../types'
 import type { SceneState, Coord, LightLevel } from '../../types'
 import { SPELL_LIGHT, WINDOW_LIGHT } from '../../../tables'
 import { LIGHT_LEVELS } from '../../../lists'
-import { coordKey, disk, distance, inExtent, sameCell } from './geometry'
+import { coordKey, disk, distance, inExtent, line } from './geometry'
 import { getPlacedFootprint, getRoofs, getTerrainAt, isFloorBetween, seesAcross, type Footing } from './board'
 import { getHeight } from '../../../character/rules/size'
 import { perState } from '../../../perState'
@@ -64,26 +64,75 @@ const getLights = perState((state: SceneState): Light[] => {
 const darker = (light: LightLevel): LightLevel => LIGHT_LEVELS[Math.min(LIGHT_LEVELS.indexOf(light) + 1, LIGHT_LEVELS.length - 1)]
 const brighter = (a: LightLevel, b: LightLevel): LightLevel => (LIGHT_LEVELS.indexOf(a) <= LIGHT_LEVELS.indexOf(b) ? a : b)
 
+const WINDOW_OUTER = WINDOW_LIGHT.reach * WINDOW_LIGHT.dimFactor
+const SPREAD_OUTER = WINDOW_LIGHT.spread * WINDOW_LIGHT.dimFactor
+
+// What reaches a cell along a line from the open: the light outside through
+// an opening, `core` within `reach` of the opening and `outer` within twice
+// that. Null where nothing lit sees it.
+type Beam = { core: LightLevel | null; outer: LightLevel | null }
+
+const skyAt = (state: SceneState, at: Footing): LightLevel => (at.terrain?.dark ? 'dark' : state.board!.light)
+
+function getBeam(state: SceneState, cell: Coord, at: Footing): Beam {
+  const board = state.board!
+  const roofed = (c: Coord) => getRoofs(board, c, at.floor).length > 0
+  if (!roofed(cell)) {
+    const sky = skyAt(state, at)
+    return sky === 'dark' ? { core: null, outer: null } : { core: sky, outer: sky }
+  }
+  const eyes = { from: at.floor + WINDOW_LIGHT.height, to: at.floor + WINDOW_LIGHT.height }
+  let core: LightLevel | null = null
+  let outer: LightLevel | null = null
+  for (const out of disk(cell, WINDOW_OUTER + 1)) {
+    if (!inExtent(board.origin, board.extent, out)) continue
+    const there = getTerrainAt(board, out, at.floor)
+    if (there.terrain?.blocking || roofed(out)) continue
+    const sky = skyAt(state, there)
+    if (sky === 'dark') continue
+    const steps = line(cell, out)
+    const depth = steps.findIndex((c) => !roofed(c))
+    if (depth < 0 || depth > WINDOW_OUTER || !seesAcross(board, [out], [cell], eyes)) continue
+    if (depth <= WINDOW_LIGHT.reach && (core === null || brighter(sky, core) === sky)) core = sky
+    if (outer === null || brighter(sky, outer) === sky) outer = sky
+  }
+  return { core, outer }
+}
+
 // The light a floor has with no source: dark where darkness is painted on it,
-// the board's under the sky, and under a roof the best that comes in from an
-// open floor outside it sees, by how far that is.
+// the board's under the sky, and under a roof the beams that come in through
+// an opening: the light outside within `spread` of a beam's core, a step
+// darker around it and beyond its reach, and dark past twice those.
 function getAmbient(state: SceneState, cell: Coord, at: Footing): LightLevel {
   const board = state.board!
   if (at.terrain?.dark) return 'dark'
   if (getRoofs(board, cell, at.floor).length === 0) return board.light
   const eyes = { from: at.floor + WINDOW_LIGHT.height, to: at.floor + WINDOW_LIGHT.height }
   let best: LightLevel = 'dark'
-  for (const out of disk(cell, WINDOW_LIGHT.fading)) {
-    if (sameCell(out, cell) || !inExtent(board.origin, board.extent, out)) continue
-    const there = getTerrainAt(board, out, at.floor)
-    if (there.terrain?.blocking || getRoofs(board, out, there.floor).length > 0) continue
-    const outside = there.terrain?.dark ? 'dark' : board.light
-    const light = distance(out, cell) <= WINDOW_LIGHT.full ? outside : darker(outside)
-    if (light !== brighter(light, best) || light === best) continue
-    if (seesAcross(board, [out], [cell], eyes)) best = light
+  const take = (light: LightLevel) => {
+    if (brighter(light, best) === light) best = light
+  }
+  for (const near of disk(cell, SPREAD_OUTER)) {
+    if (!inExtent(board.origin, board.extent, near)) continue
+    const there = getTerrainAt(board, near, at.floor)
+    if (there.terrain?.blocking) continue
+    const gap = distance(near, cell)
+    if (gap > 0 && !seesAcross(board, [near], [cell], eyes)) continue
+    const beam = getBeamOnce(state, near, there)
+    if (gap <= WINDOW_LIGHT.spread && beam.core) take(beam.core)
+    if (beam.outer) take(darker(beam.outer))
     if (best === board.light) break
   }
   return best
+}
+
+const getBeams = perState((_: SceneState) => new Map<string, Beam>())
+function getBeamOnce(state: SceneState, cell: Coord, at: Footing): Beam {
+  const known = getBeams(state)
+  const key = `${coordKey(cell)}@${at.floor}`
+  const beam = known.get(key) ?? getBeam(state, cell, at)
+  known.set(key, beam)
+  return beam
 }
 
 // Computed once per state and floor: a view asks for the light on every cell.

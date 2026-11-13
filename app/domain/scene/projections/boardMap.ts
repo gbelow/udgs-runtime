@@ -25,7 +25,7 @@ export function getBoardMapView(map: BoardMap, level: number | null = null, chos
   const floors = Object.entries(storey?.terrain ?? {}).filter(([, cell]) => !cell.hole)
   const seen = storey ? { ...map, levels: [], terrain: { ...map.terrain, ...Object.fromEntries(floors.map(([key, cell]) => [key, { ...cell, elevation: storey.floor + cell.elevation }])) } } : map
   const view = getBoardView({ ...sceneOfMap(seen), activeCharacterId: null })
-  const beyond = open ? WINDOW_LIGHT.fading : 0
+  const beyond = open ? WINDOW_LIGHT.reach * WINDOW_LIGHT.dimFactor + 1 : 0
   const lighting = sceneOfMap({ ...map, extent: { q: map.extent.q + beyond, r: map.extent.r + beyond, s: map.extent.s + beyond } })
   // the picture of the structure being edited stands on the map's anchor
   const own = getStandingOf('structure', map.art, view.cells.find((c) => c.key === coordKey(map.origin)), 0, Math.max(0, ...Object.values(map.terrain).filter((cell) => cell.piece === null).map((cell) => cell.elevation)), map.levels.filter((l) => l.piece === null).map((l) => l.floor))

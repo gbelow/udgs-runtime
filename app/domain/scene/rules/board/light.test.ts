@@ -66,19 +66,20 @@ describe('a Darkseeing potion', () => {
 })
 
 // The table's ruling: a floor under a roof is dark but for the light outside
-// that comes in through a window or a doorway, fading with distance from it,
-// and a source's; a floor between keeps a source to its own storey.
+// that comes in through a window or a doorway as a beam, and a source's; a
+// floor between keeps a source to its own storey.
 describe('light under a roof', () => {
-  const ROOM = WINDOW_LIGHT.fading + 2
+  const { reach, spread, dimFactor } = WINDOW_LIGHT
+  const ROOM = dimFactor * (reach + spread) + 2
   const FLOOR = 3
   const WINDOW = { q: ROOM + 1, r: 0 }
-  const OUTSIDE = ROOM + 2
   const along = (q: number): Coord => ({ q, r: 0 })
+  const deep = (depth: number): Coord => along(WINDOW.q - depth)
 
-  function house(window: boolean): SceneState {
+  function house(window: boolean, light: 'bright' | 'dim' = 'bright'): SceneState {
     const terrain = Object.fromEntries(ring({ q: 0, r: 0 }, ROOM + 1).map((c) => [coordKey(c), window && sameCell(c, WINDOW) ? { blocking: true, transparent: true } : { blocking: true }]))
     const roof = Object.fromEntries(disk({ q: 0, r: 0 }, ROOM).map((c) => [coordKey(c), {}]))
-    const board = BoardSchema.parse({ light: 'bright', extent: { q: ROOM + 4, r: ROOM + 4, s: ROOM + 4 }, terrain, levels: [{ floor: FLOOR, height: 3, terrain: roof }] })
+    const board = BoardSchema.parse({ light, extent: { q: ROOM + 4, r: ROOM + 4, s: ROOM + 4 }, terrain, levels: [{ floor: FLOOR, height: 3, terrain: roof }] })
     return { ...SceneStateSchema.parse({}), board }
   }
 
@@ -95,11 +96,17 @@ describe('light under a roof', () => {
     expect(getCellLight(s, along(0), FLOOR)).toBe('bright')
   })
 
-  it('takes the light outside through a window, fading away from it', () => {
+  it('takes the light outside through a window as a beam, a step darker around it and past its reach', () => {
     const s = house(true)
-    expect(getCellLight(s, along(OUTSIDE - WINDOW_LIGHT.full))).toBe('bright')
-    expect(getCellLight(s, along(OUTSIDE - WINDOW_LIGHT.fading))).toBe('dim')
-    expect(getCellLight(s, along(OUTSIDE - WINDOW_LIGHT.fading - 1))).toBe('dark')
+    expect(getCellLight(s, deep(reach))).toBe('bright')
+    expect(getCellLight(s, deep(reach + spread + 1))).toBe('dim')
+    expect(getCellLight(s, deep(dimFactor * (reach + spread) + 1))).toBe('dark')
+  })
+
+  it('lets a dim sky in a step darker still', () => {
+    const s = house(true, 'dim')
+    expect(getCellLight(s, deep(reach))).toBe('dim')
+    expect(getCellLight(s, deep(reach + spread + 1))).toBe('dark')
   })
 
   it('is lit by a source in the room, and not by one on the floor above', () => {
