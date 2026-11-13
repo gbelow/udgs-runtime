@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { useCombatStore } from './useCombatStore'
-import { brawler, fighter, spearman, warden } from '../domain/bot/fixtures'
+import { brawler, fighter, spearman, warden } from '../domain/scene/fixtures'
 import type { CampaignCharacter } from '../domain/types'
 import { payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { getAvailableActions } from '../domain/scene/rules/options'

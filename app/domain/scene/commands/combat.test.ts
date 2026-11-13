@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { passRound } from '../../bot/table'
+import { passRound } from '../fixtures'
 import { startTurn } from './turn'
 import { SceneStateSchema, type SceneState } from '../types'
 import { makeCampaignCharacter } from '../../factories'

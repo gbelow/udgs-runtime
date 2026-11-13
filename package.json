@@ -8,8 +8,6 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "duel": "tsx tools/duel.ts",
-    "fight": "tsx tools/fight.ts",
     "test": "vitest",
     "test:run": "vitest run",
     "test:fuzz": "vitest run --config vitest.fuzz.config.ts",

@@ -14,8 +14,8 @@ pnpm build    # production build with Turbopack
 pnpm start    # serve production build
 pnpm lint     # eslint
 pnpm test     # vitest (watch)
-pnpm test:run # vitest single run (without the board fuzzer and the slow bot tests)
-pnpm test:fuzz # the board fuzzer and the slow bot tests (FUZZ_SEEDS=n for a wider sweep)
+pnpm test:run # vitest single run (without the board fuzzer and the slow tests)
+pnpm test:fuzz # the board fuzzer and the slow tests (FUZZ_SEEDS=n for a wider sweep)
 pnpm relay    # the table relay for multiplayer (ws://localhost:8787, NEXT_PUBLIC_RELAY_URL)
 ```
 
@@ -43,7 +43,7 @@ The parts of play are split by the sequence that moves time, and meet only throu
 - `domain/downtime/` is the days sequence (`story.tex` "Downtime"): each character's living standard and the one activity they are on (training with a trainer the table accepts, training alone, job, doctor, learning test), resolved whole on its last day; time spent elsewhere while it is under way cancels it. Its state sits beside the campaign in the campaign store like exploration's, its commands take `{ campaign, downtime }`, and the days pass for every party in play on a timeline that is in downtime only with a plan every purse pays for. It imports neither exploration nor the scene.
 - `domain/play/` is the skill test and the dice (`play.tex` "How skills work"), shared by every part and importing none of them.
 
-`domain/bot/` is a player, not a part of the rules: pure functions that read a `SceneState` through the scene rules and answer with the same commands a person presses (`stepBot`, `playBot`). It decides nothing the book decides — what it may do is whatever `getAvailableActions` shows open — and a hook or server action drives it.
+`domain/bot/` is a player, not a part of the rules, and is being rebuilt from a clean slate (branch `bot-rebuild`). Its first blocks only gather what a player in its seat could know (the fight as seen, faces, positions, what it may press now, what waits on it) and declare a decision as the same commands a person presses; every choice, taking a turn included, belongs to the decision layer built on top. It decides nothing the book decides: what it may do is whatever the panel shows open.
 
 Before working in `scene/`, read `instructions/scene-map.md`: the action pipeline, the stack and its sequencing, and a map of every file. It points to detail files under `instructions/scene-map/` (mechanics, landing, board); read only the one the change touches.
 

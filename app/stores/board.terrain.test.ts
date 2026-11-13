@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { fighter } from '../domain/bot/fixtures'
+import { fighter } from '../domain/scene/fixtures'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { addLevel, paintTerrain } from '../domain/scene/commands/board'
 import { hasAffliction } from '../domain/character/rules/afflictions'

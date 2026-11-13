@@ -5,7 +5,7 @@ import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
 import { getAvailableActions } from '../rules/options'
 import { defRows, getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
-import { archer } from '../../bot/fixtures'
+import { archer, passRound } from '../fixtures'
 import { getBoardView } from '../projections/boardView'
 import { getHistory, getLog, getOpenAction } from '../rules/log'
 import { getTriggersFor } from '../rules/reactions'
@@ -15,7 +15,6 @@ import { add, coordKey, disk, DIRECTIONS, sameCell } from '../rules/board/geomet
 import { LEVEL_EYES, seesAcross } from '../rules/board/board'
 import { getReachableCells } from '../rules/board/reach'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawSpawnedAction } from './action'
-import { passRound } from '../../bot/table'
 
 // combat.tex "Preparing a reaction": "Any action can be prepared on a player's
 // turn, but doing so costs 1 AP. This allows the player to create any trigger

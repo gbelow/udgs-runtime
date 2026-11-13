@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { fighter, spearman } from '../domain/bot/fixtures'
+import { fighter, spearman } from '../domain/scene/fixtures'
 import { produceEffects } from '../domain/character/rules/production'
 import { SPELLS } from '../domain/spells'
 import { holdItem } from '../domain/item/commands/hands'

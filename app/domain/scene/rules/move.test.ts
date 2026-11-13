@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { makeCampaignCharacter } from '../../factories'
 import { getMovementSpeed } from '../../character/rules/movement'
 import { getEvasiveJumpPlacements, getMoveCost } from './move'
-import { board as onBoard, fighter } from '../../bot/fixtures'
+import { board as onBoard, fighter } from '../fixtures'
 import { TerrainCellSchema } from '../types'
 import { directionTo, distance } from './board/geometry'
 

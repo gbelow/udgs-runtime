@@ -17,7 +17,7 @@ import { cancelAction, commitAction, declareAction as declareOwnAction, declareR
 import { getBlastOf, getTerrainPaint } from '../rules/explosion'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
-import { crossbowman } from '../../bot/fixtures'
+import { crossbowman } from '../fixtures'
 import { toTable } from '../../play/calls'
 import { answerScene } from './answer'
 

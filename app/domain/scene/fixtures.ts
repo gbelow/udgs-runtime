@@ -1,4 +1,10 @@
-import { SceneStateSchema, type SceneState } from '../scene/types'
+import { SceneStateSchema, type SceneState } from './types'
+import type { Dice } from '../play/dice'
+import { nextRound } from './commands/nextRound'
+import { toUpdater, type SceneCommand } from './commands/registry'
+import { getHeldActions } from './rules/hold'
+import { getOwnCost } from './rules/action'
+import { getConcentrationOwed, getContinueBar, getHoldOnBar, getRoundPhase } from './rules/roundChange'
 import { makeCampaignCharacter } from '../factories'
 import { ItemSchema, type CampaignCharacter } from '../types'
 import { holdItem, regripItem } from '../item/commands/hands'
@@ -8,7 +14,7 @@ import { getCatalogItem } from '../item/rules/items'
 import { grantAbility, toggleAbility } from '../character/commands/abilities'
 import { makeName } from '../instances'
 
-// Fighters and boards for the bots' test and simulator to play with.
+// Fighters and boards for the tests to play with, and a round passed for them.
 
 export function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -216,4 +222,29 @@ export function board(placements: Record<string, [number, number]>, ...character
   const cells = Object.fromEntries(Object.entries(placements).map(([id, [q, r]]) => [id, { cell: { q, r } }]))
   const names = characters.reduce<Record<string, string>>((given, c) => ({ ...given, [c.id]: makeName(c.name, Object.values(given)) }), {})
   return { ...SceneStateSchema.parse({ round: 1, board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])), names }
+}
+
+// A concentrating character finishes the action they held when its AP are
+// there, else holds on to what they can, else lets go.
+function concentrate(state: SceneState): SceneCommand | null {
+  const owed = getConcentrationOwed(state)[0]
+  if (!owed) return null
+  const c = state.characters[owed]
+  const finishes = getHeldActions(state).some((h) => h.actorId === owed && (getOwnCost(state, h)?.AP ?? Infinity) <= c.resources.AP)
+  return { kind: finishes || getHoldOnBar(state, owed) ? 'letGo' : 'holdOn', args: [owed] }
+}
+
+// The round passes and its change is moved on as far as it goes with nobody
+// testing morale or taking a turn.
+export function passRound(dice: Dice): (state: SceneState) => SceneState {
+  return (state) => {
+    let current = nextRound(dice)(state)
+    while (getRoundPhase(current)) {
+      const command = concentrate(current) ?? (getContinueBar(current) ? null : { kind: 'continueRound', args: [] } as const)
+      const next = command ? toUpdater(command, { thrower: dice, newId: () => '' })(current) : current
+      if (next === current) return current
+      current = next
+    }
+    return current
+  }
 }

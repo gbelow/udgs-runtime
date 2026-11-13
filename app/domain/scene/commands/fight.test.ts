@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { loadIntoFight, removeFromFight, resetFight, returnFromFight, saveFightLog, sendPartyToFight, sendToFight } from './fight'
-import { passRound } from '../../bot/table'
+import { passRound } from '../fixtures'
 import { commitAction, declareAction } from './action'
 import { endCombat } from './endCombat'
 import { getNextRoundBar } from '../rules/turn'

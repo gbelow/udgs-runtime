@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { fighter } from '../domain/bot/fixtures'
+import { fighter } from '../domain/scene/fixtures'
 import { holdItem } from '../domain/item/commands/hands'
 import { ItemSchema } from '../domain/types'
 import { HazardLayerSchema, TerrainCellSchema, type Updater } from '../domain/scene/types'
