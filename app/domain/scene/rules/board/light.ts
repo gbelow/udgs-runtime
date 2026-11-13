@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../../types'
-import type { SceneState, Coord, LightLevel } from '../../types'
+import type { Board, SceneState, Coord, LightLevel } from '../../types'
 import { SPELL_LIGHT, WINDOW_LIGHT } from '../../../tables'
 import { LIGHT_LEVELS } from '../../../lists'
 import { coordKey, disk, distance, inExtent, line } from './geometry'
@@ -126,19 +126,34 @@ function getAmbient(state: SceneState, cell: Coord, at: Footing): LightLevel {
   return best
 }
 
-const getBeams = perState((_: SceneState) => new Map<string, Beam>())
+// A floor's light with no source, and the beams it is worked out from, are
+// the ground's alone (its terrain and storeys, the board's light and extent),
+// never who stands on it or what they hold: kept by the ground, so a step
+// taken does not light the board again.
+type Ground = { beams: Map<string, Beam>; ambients: Map<string, LightLevel> }
+const groundsKept = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, Ground>>>()
+
+function getGround(board: Board): Ground {
+  const byTerrain = groundsKept.get(board.levels) ?? new WeakMap<Board['terrain'], Map<string, Ground>>()
+  groundsKept.set(board.levels, byTerrain)
+  const byRest = byTerrain.get(board.terrain) ?? new Map<string, Ground>()
+  byTerrain.set(board.terrain, byRest)
+  const key = `${board.light}|${coordKey(board.origin)}|${board.extent.q},${board.extent.r},${board.extent.s}`
+  const ground = byRest.get(key) ?? { beams: new Map(), ambients: new Map() }
+  byRest.set(key, ground)
+  return ground
+}
+
 function getBeamOnce(state: SceneState, cell: Coord, at: Footing): Beam {
-  const known = getBeams(state)
+  const known = getGround(state.board!).beams
   const key = `${coordKey(cell)}@${at.floor}`
   const beam = known.get(key) ?? getBeam(state, cell, at)
   known.set(key, beam)
   return beam
 }
 
-// Computed once per state and floor: a view asks for the light on every cell.
-const getAmbients = perState((_: SceneState) => new Map<string, LightLevel>())
 function getAmbientOnce(state: SceneState, cell: Coord, at: Footing): LightLevel {
-  const known = getAmbients(state)
+  const known = getGround(state.board!).ambients
   const key = `${coordKey(cell)}@${at.floor}`
   const light = known.get(key) ?? getAmbient(state, cell, at)
   known.set(key, light)
