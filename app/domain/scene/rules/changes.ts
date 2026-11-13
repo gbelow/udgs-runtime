@@ -28,10 +28,12 @@ const COUNTERS: { what: string; read: (c: CampaignCharacter) => number }[] = [
   { what: 'worldview XP', read: (c) => c.trainables.conviction2.XP },
 ]
 
+// A character, the floor or the placements the same object before and after
+// have not changed, and are not compared.
 export function getChanges(before: SceneState, after: SceneState, phase: Phase): Change[] {
   const characters = Object.keys(after.characters).flatMap((id) => {
     const was = before.characters[id]
-    return was ? getCharacterChanges(id, was, after.characters[id], phase) : []
+    return was && was !== after.characters[id] ? getCharacterChanges(id, was, after.characters[id], phase) : []
   })
   return [...characters, ...getItemChanges(before, after, phase), ...getPlacementChanges(before, after, phase)]
 }
@@ -73,14 +75,16 @@ function diffSets(was: Set<string>, now: Set<string>): { name: string; gained: b
   ]
 }
 
-// Every item in the fight and where it is, by id.
-function getPlaces(state: SceneState): Map<string, { name: string; place: string }> {
+// Every item the holders hold (everyone, by default) and where it is, by id,
+// with what lies on the floor if `floor`.
+function getPlaces(state: SceneState, holders?: ReadonlySet<string>, floor = true): Map<string, { name: string; place: string }> {
   const places = new Map<string, { name: string; place: string }>()
   const add = (item: Item, place: string) => {
     places.set(item.id, { name: item.name || item.refId, place })
     for (const contained of Object.values(item.container?.slots ?? {}).flatMap((slot) => slot.items)) add(contained, `inside ${item.name || item.refId}`)
   }
   for (const c of Object.values(state.characters)) {
+    if (holders && !holders.has(c.id)) continue
     const owner = getFightName(state, c.id)
     for (const item of c.held) add(item, `${owner}'s hands`)
     if (c.onBack) add(c.onBack, `${owner}'s back`)
@@ -89,13 +93,20 @@ function getPlaces(state: SceneState): Map<string, { name: string; place: string
       for (const item of Object.values(container.slots).flatMap((slot) => slot.items)) add(item, `${owner}'s ${container.name || key}`)
     }
   }
-  for (const { item, cell } of state.floor) add(item, cell ? `the floor at ${cellText(cell)}` : 'the floor')
+  if (floor) for (const { item, cell } of state.floor) add(item, cell ? `the floor at ${cellText(cell)}` : 'the floor')
   return places
 }
 
+// An item moves only out of a holder that changed and into one that did, so
+// only those are read, unless the names the places are told by changed.
 function getItemChanges(before: SceneState, after: SceneState, phase: Phase): Change[] {
-  const was = getPlaces(before)
-  const now = getPlaces(after)
+  const named = before.names === after.names
+  const ids = new Set([...Object.keys(before.characters), ...Object.keys(after.characters)])
+  const holders = named ? new Set([...ids].filter((id) => before.characters[id] !== after.characters[id])) : undefined
+  const floor = !named || before.floor !== after.floor
+  if (holders && holders.size === 0 && !floor) return []
+  const was = getPlaces(before, holders, floor)
+  const now = getPlaces(after, holders, floor)
   const moved = [...now].flatMap(([id, { name, place }]): Change[] => {
     const from = was.get(id)?.place ?? 'nowhere'
     return from === place ? [] : [{ kind: 'move', phase, id: '', what: 'item', name, from, to: place }]
@@ -105,7 +116,7 @@ function getItemChanges(before: SceneState, after: SceneState, phase: Phase): Ch
 }
 
 function getPlacementChanges(before: SceneState, after: SceneState, phase: Phase): Change[] {
-  if (!after.board) return []
+  if (!after.board || before.board?.placements === after.board.placements) return []
   return Object.entries(after.board.placements).flatMap(([id, placed]): Change[] => {
     const was = before.board?.placements[id]
     if (!was) return []
