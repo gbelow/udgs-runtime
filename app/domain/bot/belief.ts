@@ -1,10 +1,11 @@
-import { AttributesSchema, ContainerSchema, ItemSchema, type AmmoKind, type Attributes, type CampaignCharacter, type Container, type Item } from '../types'
+import { AttributesSchema, ContainerSchema, ItemSchema, type AmmoKind, type Attributes, type CampaignCharacter, type Container, type Grant, type Item } from '../types'
+import { ABILITIES, ABILITY_FAMILY_OF, ABILITY_KEYS, heldAbility, isAbilityKey, type AbilityKey } from '../abilities'
 import type { SceneState } from '../scene/types'
 import { getSceneSeenBy } from '../scene/projections/seen'
 import { fillThird } from '../character/lenses/face'
 import { characteristicLenses, skillLenses } from '../character/lenses'
 import { getSTA } from '../character/rules/characteristics'
-import { ROUND_AP } from '../tables'
+import { ROUND_AP, SURGES } from '../tables'
 import { getWieldedWeapons } from '../item/rules/hands'
 import { getItemScale } from '../item/rules/items'
 import ammoCatalog from '../../assets/ammo.json'
@@ -18,8 +19,9 @@ import type { Party } from './party'
 // The table's ruling: what a foe's face does not show is known only by
 // ballpark, and the same whichever member of the party is looking. Its
 // attributes and its skills are each its real value rounded down to a multiple
-// of 3; of its talents, proficiencies and abilities nothing is known, so they
-// stay as an empty sheet has them. It holds and wears what it is seen to, is as
+// of 3; of its talents and proficiencies nothing is known, so they stay as an
+// empty sheet has them, and of its abilities only those the party has seen it
+// use in the fight, with what each requires. It holds and wears what it is seen to, is as
 // hurt as it is seen to be, has the most AP and STA of its own that the third it
 // is seen to have left could hold, and a full quiver for every weapon it holds
 // that shoots.
@@ -61,25 +63,77 @@ function ballparked(face: CampaignCharacter, real: CampaignCharacter): CampaignC
   return SKILLS.reduce<CampaignCharacter>((c, key) => skillLenses[key].set(c, ballpark(skillLenses[key].get(real))) as CampaignCharacter, attributed)
 }
 
-function guess(face: CampaignCharacter, real: CampaignCharacter | undefined): CampaignCharacter {
-  const known = real ? ballparked(face, real) : face
+// The abilities first, as the attributes and skills are set through what they
+// add.
+function guess(face: CampaignCharacter, real: CampaignCharacter | undefined, abilities: AbilityKey[]): CampaignCharacter {
+  const able = abilities.length > 0 ? { ...face, abilities: abilitiesOf(abilities) } : face
+  const known = real ? ballparked(able, real) : able
   const thirds = face.shown ?? { AP: 2, STA: 2 }
   const resources = { ...known.resources, AP: fillThird(thirds.AP, ROUND_AP), STA: fillThird(thirds.STA, getSTA(known)) }
   return { ...known, resources, containers: quiversFor(known) }
 }
 
-// A face and the sheet behind it are replaced, never changed, so the guess at
-// one is made once.
-const guesses = new WeakMap<CampaignCharacter, WeakMap<CampaignCharacter, CampaignCharacter>>()
+// The ability a recipe is learned with, by the recipe's id (`<ability>.<n>`);
+// null for a recipe every fighter has.
+function abilityOfRecipe(id: string | null): AbilityKey | null {
+  const key = id?.split('.')[0]
+  return key && isAbilityKey(key) ? key : null
+}
 
-function guessOnce(face: CampaignCharacter, real: CampaignCharacter | undefined): CampaignCharacter {
-  if (!real) return guess(face, real)
-  const byFace = guesses.get(real) ?? new WeakMap<CampaignCharacter, CampaignCharacter>()
+// The lowest stage that gives the grant, when a single family does: seen in
+// use, it could be any family that gives it.
+function grantedBy(grant: Grant): AbilityKey[] {
+  const giving = ABILITY_KEYS.filter((key) => ABILITIES[key].grants.includes(grant))
+  const families = new Set(giving.map((key) => ABILITY_FAMILY_OF[key]))
+  return families.size === 1 ? giving.slice(0, 1) : []
+}
+
+// The abilities and with them every one each requires.
+function withRequired(keys: AbilityKey[]): AbilityKey[] {
+  const known = new Set<AbilityKey>()
+  const add = (key: AbilityKey): void => {
+    if (known.has(key)) return
+    known.add(key)
+    ABILITIES[key].requires.filter(isAbilityKey).forEach(add)
+  }
+  keys.forEach(add)
+  return [...known]
+}
+
+// The abilities the party has seen the character use in the fight as it is
+// shown them (`getSceneSeenBy`): the recipe an action it saw was made under or
+// carried the trades of, and a surge only an ability gives, with every ability
+// these require.
+export function getSeenAbilities(seen: SceneState, id: string): AbilityKey[] {
+  const actions = [...Object.values(seen.actions), ...seen.journal.map((entry) => entry.action)].filter((a) => a.actorId === id)
+  const recipes = actions.flatMap((a) => [a.recipe, ...a.learnedModifiers].flatMap((r) => abilityOfRecipe(r) ?? []))
+  const surge = seen.characters[id]?.usedSurge
+  const learned = surge ? (SURGES[surge] as { learned?: Grant }).learned : undefined
+  return withRequired([...recipes, ...(learned ? grantedBy(learned) : [])])
+}
+
+// The abilities as a sheet holds them: each family at the highest stage known.
+function abilitiesOf(keys: AbilityKey[]): CampaignCharacter['abilities'] {
+  const levels = new Map<string, number>()
+  for (const key of keys) levels.set(ABILITY_FAMILY_OF[key], Math.max(levels.get(ABILITY_FAMILY_OF[key]) ?? 0, ABILITIES[key].stage))
+  return Object.fromEntries([...levels].map(([family, level]) => [family, heldAbility(family, level)]))
+}
+
+// A face and the sheet behind it are replaced, never changed, so the guess at
+// one is made once for the abilities seen.
+const guesses = new WeakMap<CampaignCharacter, WeakMap<CampaignCharacter, Map<string, CampaignCharacter>>>()
+
+function guessOnce(face: CampaignCharacter, real: CampaignCharacter | undefined, abilities: AbilityKey[]): CampaignCharacter {
+  if (!real) return guess(face, real, abilities)
+  const byFace = guesses.get(real) ?? new WeakMap<CampaignCharacter, Map<string, CampaignCharacter>>()
   guesses.set(real, byFace)
-  const known = byFace.get(face)
+  const bySeen = byFace.get(face) ?? new Map<string, CampaignCharacter>()
+  byFace.set(face, bySeen)
+  const key = [...abilities].sort().join(' ')
+  const known = bySeen.get(key)
   if (known) return known
-  const made = guess(face, real)
-  byFace.set(face, made)
+  const made = guess(face, real, abilities)
+  bySeen.set(key, made)
   return made
 }
 
@@ -88,6 +142,6 @@ export function getBelief(state: SceneState, party: Party, lookerId: string): Sc
   const seen = getSceneSeenBy(state, new Set(party.members))
   if (!seen.characters[lookerId]) return seen
   const characters = Object.fromEntries(Object.entries(seen.characters).map(([id, c]) =>
-    [id, party.members.includes(id) ? c : guessOnce(c, state.characters[id])]))
+    [id, party.members.includes(id) ? c : guessOnce(c, state.characters[id], getSeenAbilities(seen, id))]))
   return { ...seen, characters }
 }
