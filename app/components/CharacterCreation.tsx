@@ -166,7 +166,7 @@ const signed = (value: number): string => (value < 0 ? `${value}` : `+${value}`)
 // Step 1: the race the character was started from, kept in sight with what it
 // gave.
 function RacePreset() {
-  const { view, races, chooseRace } = useCreation()
+  const { view, races, chooseRace, toggleRaceTalent } = useCreation()
   const filter = useCollectionFilter('races')
   const race = view.race
   const picker = (
@@ -187,6 +187,14 @@ function RacePreset() {
             {race.bonuses.length ? race.bonuses.map((b) => <span key={b.label} className='font-mono'>{b.label} {signed(b.value)}</span>) : <span className='text-muted'>no bonuses</span>}
           </div>
           {race.abilities.length ? <span className='text-xs text-muted'>{race.abilities.join(', ')}</span> : null}
+          {race.talentChoices > 0 ? (
+            <div className='flex flex-row flex-wrap items-center gap-1 text-xs'>
+              <span className='text-muted'>+1 to {race.talentChoices} talents ({race.talentsLeft} left):</span>
+              {race.talents.map((t) => (
+                <Button key={t.key} size='xs' selected={t.picked} aria-pressed={t.picked} disabled={!t.open} onClick={() => toggleRaceTalent(t.key)}>{t.name}</Button>
+              ))}
+            </div>
+          ) : null}
         </>
       ) : <span className='text-xs text-muted'>no race chosen</span>}
     </Section>

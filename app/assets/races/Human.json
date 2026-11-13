@@ -1,8 +1,13 @@
 {
   "name": "Human",
-  "description": "Increases two talents by 1 at creation, and chooses one of Tireless, Large Hands and Beautiful.",
+  "description": "Increases two talents by 1 at creation.",
   "playable": true,
-  "bonuses": {},
+  "bonuses": {
+    "STR": 1,
+    "AGI": 1,
+    "STA": 1
+  },
+  "talentChoices": 2,
   "abilities": [],
   "category": "humanoid",
   "size": 3,

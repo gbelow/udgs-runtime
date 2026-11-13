@@ -6,11 +6,11 @@ import { getSpellCatalogRows, type SpellCatalogRow } from './spells'
 import { sumTerms, type Term } from '../rules/terms'
 import { groupBy, type Group } from '../../utils'
 import { getStartingWealthView, type StartingWealthView } from '../../item/projections/money'
-import { getAttributeBalance, getTrainableLimit } from '../rules/learning'
+import { getAttributeBalance, getTrainableLimit, type TalentKey } from '../rules/learning'
 import { skillTermGetters } from '../rules/skills'
 import { isFormalKnowledge } from '../rules/knowledge'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
-import { CREATION_POOLS, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getCreationProgress, getCreationProgressCap, getCreationAbilityProgress, getCreationAbilityProgressCap, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
+import { CREATION_POOLS, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getCreationProgress, getCreationProgressCap, getCreationAbilityProgress, getCreationAbilityProgressCap, getBoughtStageCount, getRacialLevel, getRaceTalents, type CreationPool } from '../rules/creation'
 
 // What buying the next level costs: its pool and amount; free for a stage the
 // book lists at no cost; null when it cannot be bought.
@@ -26,9 +26,11 @@ export type CreationRow = { key: keyof Trainables; name: string; value: number; 
 // The talent a focus ends with: its priority, the race's bonus and the karma
 // bought, each a term, and their sum.
 export type CreationTalent = { total: number; terms: Term[] }
-// The race the character is made from, as a preset: its bonuses and the
-// abilities it starts with.
-export type CreationRaceView = { name: string; bonuses: Term[]; abilities: string[] }
+// The race the character is made from, as a preset: its bonuses, the
+// abilities it starts with, and the talents it lets the player pick (`left`
+// still to pick; a talent is `open` while it is picked or one can be).
+export type CreationRaceTalent = { key: TalentKey; name: string; picked: boolean; open: boolean }
+export type CreationRaceView = { name: string; bonuses: Term[]; abilities: string[]; talentChoices: number; talentsLeft: number; talents: CreationRaceTalent[] }
 
 // One ability family as the creation tab shows it: its text and stages, the
 // level held, the stages the race gives (locked) and those bought on top, and
@@ -91,7 +93,18 @@ function getRaceView(d: CreationDraft): CreationRaceView | null {
     name: d.race.name,
     bonuses: Object.entries(d.race.bonuses).flatMap(([label, value]) => (value ? [{ label, value }] : [])),
     abilities: d.race.abilities.map((key) => (isAbilityKey(key) ? ABILITIES[key].name : key)),
+    ...getRaceTalentView(d),
   }
+}
+
+function getRaceTalentView(d: CreationDraft): Pick<CreationRaceView, 'talentChoices' | 'talentsLeft' | 'talents'> {
+  const talentChoices = d.race?.talentChoices ?? 0
+  const picked = getRaceTalents(d)
+  const full = picked.length >= talentChoices
+  const talents = talentChoices > 0
+    ? TalentsSchema.keyof().options.map((key) => ({ key, name: d.character.trainables[key].name, picked: picked.includes(key), open: picked.includes(key) || !full }))
+    : []
+  return { talentChoices, talentsLeft: talentChoices - picked.length, talents }
 }
 
 function getTalent(d: CreationDraft, focus: Focus): CreationTalent | null {

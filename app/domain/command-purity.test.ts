@@ -231,6 +231,7 @@ function creationSubject(): CreationDraft {
 
 const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   setCreationRace: creationCommands.setCreationRace(null),
+  toggleCreationRaceTalent: (d) => creationCommands.toggleCreationRaceTalent('INT')(deepFreeze({ ...d, race: d.race && { ...d.race, talentChoices: 2 }, raceTalents: ['CON'] })),
   setCreationName: creationCommands.setCreationName('Ann'),
   setCreationPriority: creationCommands.setCreationPriority('DEX', 'A'),
   setCreationNotes: creationCommands.setCreationNotes('a scar'),

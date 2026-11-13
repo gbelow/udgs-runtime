@@ -43,3 +43,10 @@ export const raceBonusLenses = Object.fromEntries(RACE_BONUS_KEYS.map((key) => [
   get: (c: Character) => c.raceDraft?.bonuses[key] ?? 0,
   set: (c: Character, value: number) => withRaceDraft(c, { bonuses: { ...c.raceDraft?.bonuses, [key]: value } }),
 }])) as Record<RaceBonusKey, Lens<Character, number>>
+
+// creating.tex "Races": how many talents the player picks at creation, each
+// raised by 1, as a dial.
+export const raceTalentChoicesLens: Lens<Character, number> = {
+  get: (c: Character) => c.raceDraft?.talentChoices ?? 0,
+  set: (c: Character, value: number) => withRaceDraft(c, { talentChoices: Math.max(0, Math.floor(value) || 0) }),
+}

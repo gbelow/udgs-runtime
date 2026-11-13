@@ -6,7 +6,7 @@ import { Button, IconButton, ListButton, Row, SectionLabel, StatTile, TextInput,
 import { MovementPanel } from './MovementPanel'
 import { SensesPanel } from './SensesPanel'
 import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor'
-import { useRace, useRaceAbilityOptions, useRaceBonus } from '../hooks/useRace'
+import { useRace, useRaceAbilityOptions, useRaceBonus, useRaceTalentChoices } from '../hooks/useRace'
 import { RACE_BONUS_KEYS, type RaceBonusKey } from '../domain/types'
 
 // The race tab: the saved races listed on the left, the race being made on
@@ -88,9 +88,18 @@ function RaceBonuses() {
   return (
     <div className='flex flex-col gap-1'>
       <SectionLabel>Bonuses</SectionLabel>
-      <Tiles>{RACE_BONUS_KEYS.map((key) => <BonusDial key={key} bonus={key} />)}</Tiles>
+      <Tiles>
+        {RACE_BONUS_KEYS.map((key) => <BonusDial key={key} bonus={key} />)}
+        <TalentChoicesDial />
+      </Tiles>
     </div>
   )
+}
+
+// How many talents a player picks to raise by 1 when making a character of the race.
+function TalentChoicesDial() {
+  const [value, setValue] = useRaceTalentChoices()
+  return <StatTile label='talents to pick' value={value} onChange={setValue} />
 }
 
 function RaceAbilities() {

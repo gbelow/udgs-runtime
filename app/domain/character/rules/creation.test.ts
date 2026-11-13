@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { makeCreationDraft } from '../../factories'
-import { FOCI, PRIORITIES, RaceSchema, TrainablesSchema, type CreationDraft, type Trainables } from '../../types'
+import { FOCI, PRIORITIES, RaceSchema, TalentsSchema, TrainablesSchema, type CreationDraft, type Trainables } from '../../types'
 import { CREATION_ATTRIBUTE, CREATION_TALENT } from '../../tables'
-import { buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from '../commands/creation'
+import { buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell, toggleCreationRaceTalent } from '../commands/creation'
 import { getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationBuild, getCreationCharges, getCreationPool, getCreationProblems, getCreationSpellRaises } from './creation'
 import { ABILITIES, ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, type FamilyKey } from '../../abilities'
 import { SPELL_LEARN_XP, getTrainableRaisePrice } from './learning'
@@ -67,6 +67,22 @@ describe('the race at creation', () => {
     const plain = buy(makeCreationDraft())
     const raced = buy(setCreationRace(RaceSchema.parse({ name: 'Strong', bonuses: { STR: 4 } }))(makeCreationDraft()))
     expect(getCreationBalances(raced).CON.spent).toBe(getCreationBalances(plain).CON.spent)
+  })
+})
+
+// creating.tex "Races", Humans: "Increases two talents by 1 at creation".
+describe('a talent picked for the race', () => {
+  const picking = setCreationRace(RaceSchema.parse({ name: 'Picking', talentChoices: 2 }))(makeCreationDraft())
+
+  it.each(TalentsSchema.keyof().options)('raises %s by 1', (key) => {
+    const picked = toggleCreationRaceTalent(key)(picking)
+    expect(getCreatedCharacter(picked).trainables[key].value).toBe(getCreatedCharacter(picking).trainables[key].value + 1)
+  })
+
+  it('is not picked past the choices the race gives', () => {
+    const [a, b, c] = TalentsSchema.keyof().options
+    const full = toggleCreationRaceTalent(b)(toggleCreationRaceTalent(a)(picking))
+    expect(toggleCreationRaceTalent(c)(full)).toBe(full)
   })
 })
 

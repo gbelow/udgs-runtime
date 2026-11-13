@@ -129,6 +129,7 @@ const RaceTraitsIngestSchema = z.object({
   description: z.string().catch(''),
   playable: z.boolean().catch(true),
   bonuses: z.unknown(),
+  talentChoices: z.number().int().nonnegative().catch(0),
   abilities: z.array(z.unknown()).catch([]),
 }).partial()
 

@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { addRaceAbility, editRace, removeRaceAbility } from "../domain/character/commands";
-import { getNaturalWeaponOptions, getRaceAbilityOptions, getRacePanel, raceBonusLenses, type RaceAbilityRow, type RacePanelView } from "../domain/character/lenses/race";
+import { getNaturalWeaponOptions, getRaceAbilityOptions, getRacePanel, raceBonusLenses, raceTalentChoicesLens, type RaceAbilityRow, type RacePanelView } from "../domain/character/lenses/race";
 import { getRaceOf } from "../domain/character/rules/race";
 import { makeRace } from "../domain/factories";
 import type { Character, RaceBonusKey, RaceDraft } from "../domain/types";
@@ -91,5 +91,12 @@ export function useRaceBonus(key: RaceBonusKey) {
   const update = useRaceStore((s) => s.updateRace);
   const value = useRaceStore((s) => lens.get(s.race));
   const setValue = (v: number) => update((c: Character) => lens.set(c, v));
+  return [value, setValue] as const;
+}
+
+export function useRaceTalentChoices() {
+  const update = useRaceStore((s) => s.updateRace);
+  const value = useRaceStore((s) => raceTalentChoicesLens.get(s.race));
+  const setValue = (v: number) => update((c: Character) => raceTalentChoicesLens.set(c, v));
   return [value, setValue] as const;
 }

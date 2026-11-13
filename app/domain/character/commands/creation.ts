@@ -3,15 +3,26 @@ import { FamilyKey } from '../../abilities'
 import type { SpellKey } from '../../spells'
 import type { LimitStressAction } from '../../lists'
 import { settleStartingWealth } from '../../item/commands/wealth'
-import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getCreationBuild, getRacialLevel, canClaimCreationSpell, getCreatedCharacter, getCreationProgressCap, getCreationAbilityProgressCap, hasProgress } from '../rules/creation'
+import { getBoughtStageCount, getRaceTalents, getCreationAbilityRaises, getCreationRaise, getCreationBuild, getRacialLevel, canClaimCreationSpell, getCreatedCharacter, getCreationProgressCap, getCreationAbilityProgressCap, hasProgress } from '../rules/creation'
 import { canLearnSpell } from '../rules/spells'
+import type { TalentKey } from '../rules/learning'
 
 // creating.tex "Character Creation", Step 1: the race the character is made
 // from, or none. Only the race changes; it is put on the character when its
 // prices are worked out (getCreationStart), so the name, the choices and
 // everything bought stay.
 export function setCreationRace(race: Race | null): (d: CreationDraft) => CreationDraft {
-  return (d: CreationDraft) => ({ ...d, race })
+  return (d: CreationDraft) => ({ ...d, race, raceTalents: d.raceTalents.slice(0, race?.talentChoices ?? 0) })
+}
+
+// creating.tex "Races", Humans: a talent picked for one of the race's talent
+// choices, or given back. None is picked past what the race gives.
+export function toggleCreationRaceTalent(key: TalentKey): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => {
+    const picked = getRaceTalents(d)
+    if (picked.includes(key)) return { ...d, raceTalents: picked.filter((k) => k !== key) }
+    return picked.length < (d.race?.talentChoices ?? 0) ? { ...d, raceTalents: [...picked, key] } : d
+  }
 }
 
 export function setCreationName(name: string): (d: CreationDraft) => CreationDraft {

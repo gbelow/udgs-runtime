@@ -44,8 +44,15 @@ const priorityTalent = (d: CreationDraft, key: keyof Trainables): number => (isT
 // bonuses wait for the end ("Add the attribute bonuses after step 4").
 export function getCreationStart(d: CreationDraft): Character {
   if (!d.race) return d.character
-  const bonuses = Object.fromEntries(Object.entries(d.race.bonuses).filter(([key]) => isTalent(key as keyof Trainables)))
+  const bonuses: Partial<Record<TalentKey, number>> = Object.fromEntries(Object.entries(d.race.bonuses).filter(([key]) => isTalent(key as keyof Trainables)))
+  for (const key of getRaceTalents(d)) bonuses[key] = (bonuses[key] ?? 0) + 1
   return getRacedCharacter({ ...d.race, bonuses })(d.character)
+}
+
+// creating.tex "Races", Humans: "Increases two talents by 1 at creation". The
+// talents picked for the race's choices, each once and no more than it gives.
+export function getRaceTalents(d: CreationDraft): TalentKey[] {
+  return [...new Set(d.raceTalents)].slice(0, d.race?.talentChoices ?? 0)
 }
 
 // The stages of a family the race gives, and the stages bought on top: the
@@ -330,7 +337,9 @@ export function getCreationProblems(d: CreationDraft): string[] {
   const { total, left } = getCreationFreeSpells(d, build)
   const overclaimed = left < 0 ? [`free spells: ${total - left} claimed of ${total}`] : []
   const { name, trainables } = d.character
+  const talentsLeft = (d.race?.talentChoices ?? 0) - getRaceTalents(d).length
   const unchosen = [
+    ...(talentsLeft > 0 ? [`choose ${talentsLeft} more ${talentsLeft === 1 ? 'talent' : 'talents'} for the race`] : []),
     ...(name.trim() ? [] : ['name the character']),
     ...(getConvictionSlot(trainables.conviction1.name) === 'conviction1' ? [] : ['choose a temperament']),
     ...(getConvictionSlot(trainables.conviction2.name) === 'conviction2' ? [] : ['choose a worldview']),

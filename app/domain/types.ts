@@ -1731,6 +1731,7 @@ const RaceTraits = {
   description: str.default(''),
   playable: z.boolean().default(true),
   bonuses: z.partialRecord(RaceBonusKeySchema, num).default({}),
+  talentChoices: num.default(0), // talents the player picks at creation, each raised by 1 ("Increases two talents by 1 at creation")
   abilities: z.array(str).default([]),
 }
 
@@ -1834,6 +1835,7 @@ export const TrainableKeySchema = z.enum(Object.keys(TrainablesSchema.shape) as 
 export const CreationDraftSchema = z.object({
   character: BaseCharacterSchema,
   race: RaceSchema.nullable().default(null),
+  raceTalents: z.array(TalentsSchema.keyof()).default([]), // the talents picked for the race's talent choices
   priorities: z.record(FocusSchema, PrioritySchema).default({ CON: 'A', SPI: 'B', INT: 'C', DEX: 'D', wealth: 'E' }),
   trainables: z.partialRecord(TrainableKeySchema, num).default({}),
   progress: z.partialRecord(TrainableKeySchema, num).default({}), // the XP put toward the next level of a skill, proficiency or knowledge, short of its price
