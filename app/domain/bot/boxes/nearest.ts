@@ -7,7 +7,7 @@ import { isCombatStarted } from '../../scene/rules/started'
 import { getMovementOptions } from '../../scene/rules/move'
 import { getReachableCells } from '../../scene/rules/board/reach'
 import { distance } from '../../scene/rules/board/geometry'
-import { hasAgreedToEnd } from '../../scene/rules/turn'
+import { getEndTurnBar, hasAgreedToEnd } from '../../scene/rules/turn'
 import type { OpenButton } from '../../scene/projections/buttons'
 import { declare, settle, type Intent } from '../declare'
 import { getSides } from '../table'
@@ -17,7 +17,8 @@ import type { Box, Decision, SeatInput } from '../decision'
 // nearest them and attacks it with the first weapon that reaches, and does
 // nothing else of its own will. It answers nothing (it passes), holds on to
 // what it concentrates on, makes the morale test it owes with its first mode,
-// is taken for a coward rather than do a limit stress action it owes, and
+// is taken for a coward rather than do a limit stress action it owes, makes a
+// surge the table holds it to, and
 // lands what it rolled with nothing bought. A turn is started only when
 // there is an attack or a step closer to make in it; otherwise the character
 // agrees to end the round.
@@ -149,5 +150,18 @@ function takeTurn(input: SeatInput, id: string, find: Find, press: Press): Decis
   if (plan?.kind === 'attack') return { kind: 'declare', intent: plan.intent, why: 'attacks the nearest foe' }
   if (plan?.kind === 'focus') return press(focus, 'focuses to shoot')
   if (plan?.kind === 'move') return { kind: 'declare', intent: plan.intent, why: 'walks to the nearest foe' }
-  return press(find('endTurn'), 'has nothing more to do this turn') ?? press(find('defaultToCoward', id), 'will not do the limit stress action it owes')
+  return press(find('endTurn'), 'has nothing more to do this turn') ?? press(find('defaultToCoward', id), 'will not do the limit stress action it owes') ?? forcedSurge(input, id)
+}
+
+// A surge the turn cannot end without (one the table forces on the
+// character): the first of its surges after which the turn can end or there
+// is something to do.
+function forcedSurge(input: SeatInput, id: string): Decision | null {
+  const view = input.view()
+  const surge = input.buttons.find((b) => {
+    if (b.command.kind !== 'surge' || argOf(b.command) !== id) return false
+    const after = trial(view, b.command)
+    return after !== view && (getEndTurnBar(after) === null || planTurn(after, input.members, id) !== null)
+  })
+  return surge ? { kind: 'press', pick: surge, why: `makes the ${String(surge.command.args[1])} surge it is held to` } : null
 }

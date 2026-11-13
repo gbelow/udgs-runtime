@@ -7,9 +7,9 @@ import { playFight, tally, type Fight } from '../app/domain/bot/arena'
 import type { Box } from '../app/domain/bot/decision'
 import type { SceneState } from '../app/domain/scene/types'
 import { nearestBox } from '../app/domain/bot/boxes/nearest'
-import { SCENARIOS, setUp, ARENA } from './lib/scenarios'
+import { CLOSE as SCENARIOS, setUp, ARENA } from './lib/scenarios'
 
-// Boxes played against each other on the catalog scenarios (tools/lib/scenarios.ts),
+// Boxes played against each other on the arena's scenarios (tools/lib/scenarios.ts `CLOSE`),
 // each seed twice with the boxes trading sides (bot/arena.ts), the fights shared
 // out over worker threads.
 //

@@ -27,6 +27,15 @@ export const SCENARIOS: Scenario[] = [
   { name: 'four a side, houses', red: side([[-6, -2], [-6, 0], [-6, 2], [-7, 1]]), blue: side([[6, -2], [6, 0], [6, 2], [7, -1]]) },
 ]
 
+// The arena's: the sides a few steps apart, so that everyone is in the fight
+// from the first round: out in the open, and one side in a house with the
+// other outside its wall.
+export const CLOSE: Scenario[] = [
+  { name: 'duel, engaged', red: [['Erthal Soldier', [0, -8]]], blue: [['Surbit Thief', [1, -8]]] },
+  { name: 'four a side, close', red: side([[-2, -9], [-2, -8], [-2, -7], [-3, -7]]), blue: side([[2, -9], [2, -8], [2, -7], [3, -8]]) },
+  { name: 'four a side, a wall between', red: side([[-1, -2], [-1, -1], [-2, 0], [-1, 0]]), blue: side([[2, -2], [2, -1], [1, 0], [2, 0]]) },
+]
+
 const readJson = (file: string): unknown => JSON.parse(readFileSync(path.join(process.cwd(), file), 'utf-8'))
 
 export function setUp(scenario: Scenario): { state: SceneState; red: string[]; blue: string[] } {
