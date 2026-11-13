@@ -37,6 +37,8 @@ import { getCombinedMoves } from '../domain/scene/rules/combinedMove'
 import { getDeclaredCarriedMoves } from '../domain/scene/rules/carriedMove'
 import { adapted, archer, fatalist, guardian, ferocious, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, providential, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/scene/fixtures'
 import { openHarness, type Harness } from './boardHarness'
+import { getOpenButtons } from '../domain/scene/projections/buttons'
+import { toUpdater } from '../domain/scene/commands/registry'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
 import { apply, diff } from '../net/diff'
@@ -349,6 +351,7 @@ function plays(): Play[] {
     { name: 'cancel', run: (h) => h.send({ kind: 'cancel', args: [] }) },
     { name: 'end turn', run: (h) => h.send({ kind: 'endTurn', args: [] }) },
     { name: 'next round', run: (h) => h.send({ kind: 'nextRound', args: [] }) },
+    { name: 'press an open button', weight: 3, run: pressAnOpenButton },
     ...roundChangePlays(),
   ]
 }
@@ -503,6 +506,25 @@ function assertOffersHold(h: Harness) {
   }
 }
 
+// The open buttons are the screen's promise too (scene/projections/buttons.ts):
+// each does something when pressed. Declaring and answering are the offers
+// above.
+function assertButtonsHold(h: Harness) {
+  const s = h.state()
+  let n = 0
+  const ctx = { thrower: () => 5, newId: () => `button-${n++}` }
+  for (const { command, label } of getOpenButtons(s)) {
+    if (command.kind === 'declare' || command.kind === 'react') continue
+    expect(toUpdater(command, ctx)(s), `${label} is open but pressing it does nothing`).not.toBe(s)
+  }
+}
+
+// One of the open buttons, whichever it is, pressed as its hook would send it.
+function pressAnOpenButton(h: Harness, pick: Picker) {
+  const open = getOpenButtons(h.state())
+  if (open.length) h.send(pick(open).command)
+}
+
 // With FUZZ_REPORT set, what the sessions did is written to
 // reports/fuzz-coverage.md: for every action in the catalogue, how many
 // actions stood at each of its steps. Seen after each command, so an
@@ -593,6 +615,7 @@ function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Pi
       assertSound(h, storage)
       if (storage) assertWire()
       assertOffersHold(h)
+      assertButtonsHold(h)
     } catch (e) {
       stop()
       const file = writeReplay(h, seed)
