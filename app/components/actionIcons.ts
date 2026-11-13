@@ -1,6 +1,6 @@
 import {
   Anchor, ArrowDown, ArrowUpFromLine, ArrowUpRight, BicepsFlexed, Bomb, BriefcaseMedical, Crosshair, DoorOpen, Drama, Droplets,
-  FlaskConical, Flame, Footprints, Grab, HandHelping, Megaphone, MessageCircle, MoveRight, MoveUpRight, Pause, RefreshCcw, Repeat,
+  Backpack, FlaskConical, Flame, Footprints, Grab, HandHelping, Megaphone, MessageCircle, MoveRight, MoveUpRight, Pause, RefreshCcw, Repeat,
   Repeat2, Route, Scissors, Shield, ShieldCheck, Sparkles, Sword, Swords, Target, Timer, TimerReset, Unlink, Users, Waves, Wind, Zap,
   type LucideIcon,
 } from 'lucide-react'
@@ -58,6 +58,7 @@ export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
   reload: RefreshCcw,
   extinguish: Droplets,
   plant: ShieldCheck,
+  gear: Backpack,
   rest: Pause,
   social: MessageCircle,
   taunt: Megaphone,

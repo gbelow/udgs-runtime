@@ -1,6 +1,7 @@
 import { isCombatStarted } from './started'
+import { getGearMoveCost } from '../../item/rules/moves'
 import type { Character } from '../../types'
-import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, OpenAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
+import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GearAction, GrappleAction, MoveAction, OpenAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getBody, getFlankers, isGuardingCells, isGuardingShot, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
 import { getBlastOf, getThreatenedIds } from './explosion'
@@ -135,6 +136,10 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     case 'steal': return opportunityTriggers(state, root.actorId)
     // abilities.tex "Crossbow and Shield": "1 Standard action"
     case 'plant': return opportunityTriggers(state, root.actorId)
+    // combat.tex "Opportunity Attack": a move with gear that has a price takes
+    // a standard action or more; a free one (a drop, a regrip, a draw from a
+    // quick slot) is none
+    case 'gear': return isPricedGearMove(state, root) ? opportunityTriggers(state, root.actorId) : []
     // combat.tex "Opportunity Attack": an action that requires concentration
     case 'firstAid':
     case 'cauterize': return requiresConcentration(root) ? opportunityTriggers(state, root.actorId) : []
@@ -217,6 +222,12 @@ function strikeTriggers(state: SceneState, root: StrikeAction): Trigger[] {
   // either opens is met with defenses, never a contested strike
   const counters: Trigger[] = contest && !isOpenedByReaction(state, root) ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
   return [...defenses, ...counters, ...protectors, ...flankers]
+}
+
+function isPricedGearMove(state: SceneState, root: GearAction): boolean {
+  const c = state.characters[root.actorId]
+  const cost = c && root.move ? getGearMoveCost(c, root.move) : null
+  return cost !== null && (cost.AP > 0 || cost.STA > 0)
 }
 
 function isOpenedByReaction(state: SceneState, root: StrikeAction): boolean {

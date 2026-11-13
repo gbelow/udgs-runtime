@@ -16,6 +16,8 @@ import { getSettled } from '../app/domain/scene/rules/settle'
 import { getOutcomes } from '../app/domain/scene/projections/outcomes'
 import { getSceneSeenBy } from '../app/domain/scene/projections/seen'
 import { getBelief } from '../app/domain/bot/belief'
+import { getMyButtons } from '../app/domain/bot/table'
+import { getOpenButtons } from '../app/domain/scene/projections/buttons'
 import { getReach } from '../app/domain/bot/reach'
 import { declare, type Intent } from '../app/domain/bot/declare'
 import { bestSpend, predict } from '../app/domain/bot/predict'
@@ -198,6 +200,8 @@ function benchCharacter(scenario: string, setUpState: SceneState, id: string, si
   measure(scenario, 'view + faces (getBelief)', turn, (s) => getBelief(s, side, id))
   measure(scenario, 'action options (getAvailableActions)', turn, (s) => getAvailableActions(s, id))
   measure(scenario, 'ping (getOpenAction + getAwaited)', turn, (s) => [getOpenAction(s), getAwaited(s)])
+  measure(scenario, 'buttons of the whole table (getOpenButtons)', turn, (s) => getOpenButtons(s))
+  measure(scenario, 'buttons of one seat (getMyButtons)', turn, (s) => getMyButtons(s, [id]))
 
   measure(scenario, 'reach (getReach: fastest movement, surged)', turn, (s) => getReach(s, id))
   const reach = getReach(turn, id)

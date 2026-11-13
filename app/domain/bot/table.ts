@@ -4,7 +4,7 @@ import { getOpenAction } from '../scene/rules/log'
 import { getAwaited } from '../scene/rules/options'
 import { getTurnHolder } from '../scene/rules/turn'
 import { getConcentrationOwed } from '../scene/rules/roundChange'
-import { getOpenButtons, type OpenButton } from '../scene/projections/buttons'
+import { getButtonsOf, getSharedButtons, type OpenButton } from '../scene/projections/buttons'
 import { getCommandActor } from '../scene/commands/registry'
 
 // What a bot reads of the table besides the board: who is on which side, the
@@ -46,15 +46,17 @@ export function getSides(state: SceneState, members: readonly string[]): Sides {
 }
 
 // The open buttons (scene/projections/buttons.ts) that act for one of the
-// members, or for the GM when the owner is the GM, or for anyone.
+// members, or for the GM when the owner is the GM, or for anyone: each
+// member's own, read for that member alone, and of the shared ones those
+// whose actor is one of them.
 export function getMyButtons(state: SceneState, members: readonly string[], gm = false): OpenButton[] {
-  return getOpenButtons(state).filter(({ command }) => {
+  return [...members.flatMap((id) => getButtonsOf(state, id)), ...getSharedButtons(state).filter(({ command }) => {
     const actor = getCommandActor(state, command)
     if (actor === null) return true
     if (actor === 'gm') return gm
     if ('id' in actor) return members.includes(actor.id)
     return 'anyOf' in actor && actor.anyOf.some((id) => members.includes(id))
-  })
+  })]
 }
 
 // What the table waits on a member for, so the bot is pinged: an answer to the

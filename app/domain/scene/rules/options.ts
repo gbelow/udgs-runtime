@@ -5,6 +5,7 @@ import { COUNTERSPELL, getCounterspellBar } from './counterspell'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { getMedicineBar, getMedicineCost } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
+import { getGearMoveBlock, getGearMoveCost, getGearMoves } from '../../item/rules/moves'
 import type { Action, ActionDraft, ActionKind, ActionOf, SceneState, DeclarableKind, RootAction, SocialSay } from '../types'
 import { getSocialCost, getSocialSayBar, getTauntBar } from './social'
 import { getStressSocial } from './stress'
@@ -570,6 +571,17 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     if (shields.length === 0) return [option({ kind: 'plant' }, cost, 'no body shield in hand')]
     return shields.map((shield) => option({ kind: 'plant', itemId: shield.id }, cost, !isPlaced(state, c) ? 'not on the board' : afford(state, c, cost)))
   },
+  // combat.tex "Drawing items in combat", "Putting items away": each move the
+  // actor's gear offers that nothing but its price stands in the way of
+  // (item/rules/moves.ts), at that price
+  gear: (state, c) => {
+    const charged = isCombatStarted(state)
+    return getGearMoves(c).flatMap((move) => {
+      if (getGearMoveBlock(c, move, charged) !== null) return []
+      const cost = getGearMoveCost(c, move)
+      return cost ? [option({ kind: 'gear', move }, cost, afford(state, c, cost))] : []
+    })
+  },
   // combat.tex "Preparing a reaction": 1 AP, whatever is prepared (free by
   // Strategist); it needs a board to be triggered on
   prepare: (state, c) => {
@@ -678,6 +690,12 @@ export function findOption(state: SceneState, characterId: string, draft: Action
   return getAvailableActions(state, characterId).find((o) => sameDraft(o.draft, draft)) ?? null
 }
 
+// A field holding a value made of fields (a gear move) is the same where it
+// says the same.
+function sameValue(a: unknown, b: unknown): boolean {
+  return a === b || (a !== null && b !== null && typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b))
+}
+
 // Two drafts are the same option when they are of one kind and agree on
 // every field the catalog names as telling that kind's options apart.
 function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
@@ -694,5 +712,5 @@ function sameFields(a: unknown, b: unknown, identity: object): boolean {
     ? items(field(a, key), unset) === items(field(b, key), unset)
     : unset && typeof unset === 'object'
     ? sameFields(field(a, key), field(b, key), unset)
-    : (field(a, key) ?? unset) === (field(b, key) ?? unset))
+    : sameValue(field(a, key) ?? unset, field(b, key) ?? unset))
 }

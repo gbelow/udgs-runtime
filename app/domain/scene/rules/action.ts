@@ -2,6 +2,7 @@ import { isCombatStarted } from './started'
 import { notices } from './stealth'
 import { getMedicineAbility, getMedicineCost, getMedicineTargets } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
+import { getGearMoveBlock, getGearMoveCost } from '../../item/rules/moves'
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionKind, ActionOf, AttackAction, SceneState, Coord, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction, isReaction } from './actionCatalog'
@@ -193,6 +194,9 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // cell next to the planter
     case 'plant':
       return isPlantDeclared(state, c, action)
+    // a move the actor's gear offers, nothing but its price standing in the way
+    case 'gear':
+      return action.move !== null && getGearMoveBlock(c, action.move, isCombatStarted(state)) === null
     // abilities.tex "Medicine": someone bleeding within reach
     case 'firstAid':
     case 'cauterize':
@@ -403,6 +407,9 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'prepare':
     case 'evasion':
       return getCatalogCost(c, action.kind)
+    // the move's own price (item/rules/moves.ts)
+    case 'gear':
+      return action.move ? getGearMoveCost(c, action.move) : null
     // what taking the item costs from where it lies (rules/loot.ts)
     case 'pickUp': {
       const found = findLoot(state, c.id, action.from, action.itemId)
@@ -736,6 +743,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'throw':
     case 'extinguish':
     case 'plant':
+    case 'gear':
     case 'drink':
     case 'firstAid':
     case 'cauterize':
@@ -891,6 +899,7 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
     case 'throw':
     case 'extinguish':
     case 'plant':
+    case 'gear':
     case 'drink':
     case 'reload':
     case 'social':

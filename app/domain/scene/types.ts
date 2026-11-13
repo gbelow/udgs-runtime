@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, GearMoveSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS, SURFACE_TARGETS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -1479,6 +1479,15 @@ export const PlantActionSchema = z.object({
   to: CoordSchema.nullable().default(null),
 }).strip()
 
+// combat.tex "Drawing items in combat", "Putting items away", gear.tex
+// "Donning and Doffing armor", "Shields": a move with the actor's own gear,
+// made as an action once the fight has started, at the move's price.
+export const GearActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('gear'),
+  move: GearMoveSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Rest": "an action that costs 4 AP and recovers STA by an
 // amount equal to STA/4".
 export const RestActionSchema = z.object({
@@ -1586,6 +1595,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ReloadActionSchema,
   ExtinguishActionSchema,
   PlantActionSchema,
+  GearActionSchema,
   RestActionSchema,
   SocialActionSchema,
   TauntActionSchema,
@@ -1629,6 +1639,7 @@ export type StealAction = z.infer<typeof StealActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
 export type PlantAction = z.infer<typeof PlantActionSchema>
+export type GearAction = z.infer<typeof GearActionSchema>
 export type DrinkAction = z.infer<typeof DrinkActionSchema>
 export type FirstAidAction = z.infer<typeof FirstAidActionSchema>
 export type CauterizeAction = z.infer<typeof CauterizeActionSchema>

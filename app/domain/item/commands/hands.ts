@@ -1,11 +1,11 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
-import { canBeHeld, getFreeHoldingHands, getGrip, getHeldItem, Grip } from '../rules/hands'
-import { canFitItem, findCarriedItem, findReadyItem, getContainer } from '../rules/containers'
+import { canBeHeld, canHoldWith, getFreeHoldingHands, getHeldItem, Grip } from '../rules/hands'
+import { findCarriedItem, findReadyItem, getContainer } from '../rules/containers'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
-import { MoveView, getDrawCost, getSlingView, getStoreCost, getUnslingView, isCharged } from '../rules/costs'
+import { getDrawCost, getStoreCost, isCharged } from '../rules/costs'
+import { findStack, getGearMoveBar, getPayBar } from '../rules/moves'
 import { addItemToContainer, duplicateItem, mapContainerItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
-import { getSurgeBar } from '../../character/rules/surge'
 import { getCastSize, getChargeTargets, getSpellGear, pickSpellGear } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { Improvements, drawOnFood, drawOnGear, produceEffects, settleTests } from '../../character/rules/production'
@@ -14,14 +14,11 @@ import { getConsume, getDosesLeft, getUnitDoses } from '../rules/consumables'
 // What changes the hands keeps whichever kind of character it was given.
 type HeldUpdater = <C extends Character>(c: C, charged?: boolean) => C
 
-// A character in a combat that has started pays the price or the move does
-// not happen; anywhere else nothing is charged. `null` is the refusal, so the
-// caller returns the character untouched. Nothing done with the hands is
-// anything a surge's AP allows, so none can be done while any is left.
+// The price paid, or null where `getPayBar` refuses it, so the caller
+// returns the character untouched.
 export function pay<C extends Character>(c: C, cost: ActionCost, charged: boolean): C | null {
   if (!isCharged(c, charged)) return c
-  if (getSurgeBar(c)) return null
-  if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
+  if (getPayBar(c, cost, charged)) return null
   const paid = cost.STA > 0 ? updateSTA(c.resources.STA - cost.STA)(c) : c
   return { ...paid, resources: { ...paid.resources, AP: paid.resources.AP - cost.AP } }
 }
@@ -66,8 +63,7 @@ export function holdItem(item: Item, hands: Grip = 1): HeldUpdater {
 // at no cost. The hand already on it stays; a second free hand joins or lets go.
 export function regripItem(itemId: string, hands: Grip): HeldUpdater {
   return <C extends Character>(c: C): C => {
-    const current = getGrip(c, itemId)
-    if (current === 0 || current === hands) return c
+    if (getGearMoveBar(c, { kind: 'regripItem', args: [itemId, hands] }, false)) return c
     if (hands === 1) {
       let kept = false
       return {
@@ -81,22 +77,16 @@ export function regripItem(itemId: string, hands: Grip): HeldUpdater {
       }
     }
     const joining = getFreeHoldingHands(c)[0]
-    if (!joining) {
-      throw new Error('No free hand to grip with')
-    }
     return { ...c, body: c.body.map((part) => (part.id === joining.id ? { ...part, itemId } : part)) }
   }
 }
 
 // The stack an id names in a container, and the slot group it sits in.
 export function findInContainer(c: Character, containerKey: string, itemId: string): { slot: SlotKind; item: Item } {
-  const container = getContainer(c, containerKey)
-  if (!container) {
+  if (!getContainer(c, containerKey)) {
     throw new Error(`Container "${containerKey}" not found`)
   }
-  const found = (Object.keys(container.slots) as SlotKind[]).flatMap((slot) =>
-    container.slots[slot].items.flatMap((item) => (item.id === itemId ? [{ slot, item }] : [])),
-  )[0]
+  const found = findStack(c, containerKey, itemId)
   if (!found) {
     throw new Error(`Item "${itemId}" not in container "${containerKey}"`)
   }
@@ -107,6 +97,7 @@ export function findInContainer(c: Character, containerKey: string, itemId: stri
 // for the hands, at the price of where it sat.
 export function drawItem(containerKey: string, itemId: string, hands: Grip = 1): CharacterUpdater {
   return (c: Character, charged = false) => {
+    if (getGearMoveBar(c, { kind: 'drawItem', args: [containerKey, itemId] }, charged) || !canHoldWith(c, findInContainer(c, containerKey, itemId).item, hands)) return c
     const found = findInContainer(c, containerKey, itemId)
     const paid = pay(c, getDrawCost(c, found.slot, found.item), charged)
     if (!paid) return c
@@ -120,36 +111,22 @@ export function drawItem(containerKey: string, itemId: string, hands: Grip = 1):
 export function storeItem(itemId: string, containerKey: string, slot: SlotKind): CharacterUpdater {
   return (c: Character, charged = false) => {
     const item = getHeldItem(c, itemId)
-    if (!item) return c
-    const container = getContainer(c, containerKey)
-    if (!container) {
-      throw new Error(`Container "${containerKey}" not found`)
-    }
-    if (!canFitItem(container, slot, item)) {
-      throw new Error(`Item "${item.name || item.refId}" does not fit in the ${slot} slots of container "${containerKey}"`)
-    }
+    if (!item || getGearMoveBar(c, { kind: 'storeItem', args: [itemId, containerKey, slot] }, charged)) return c
     const paid = pay(c, getStoreCost(c, slot, item), charged)
     if (!paid) return c
     return addItemToContainer(containerKey, slot, item)(release(paid, itemId))
   }
 }
 
-// gear.tex "Shields": each move to or from the back is a standard action,
-// once its view allows it.
-function payBackMove<C extends Character>(c: C, view: MoveView | null, what: string, charged: boolean): C | null {
-  if (!view) return null
-  if (!view.able) {
-    throw new Error(`Cannot ${what}: ${view.why}`)
-  }
-  return pay(c, getActionCost(c, 'standardAction'), charged)
-}
+// gear.tex "Shields": each move to or from the back is a standard action.
+const payBackMove = <C extends Character>(c: C, charged: boolean): C | null => pay(c, getActionCost(c, 'standardAction'), charged)
 
 // The held shield is slid to the back.
 export function slingShield(itemId: string): HeldUpdater {
   return <C extends Character>(c: C, charged = false): C => {
     const item = getHeldItem(c, itemId)
-    if (!item) return c
-    const paid = payBackMove(c, getSlingView(c, item, charged), `sling "${item.name || item.refId}"`, charged)
+    if (!item || getGearMoveBar(c, { kind: 'slingShield', args: [itemId] }, charged)) return c
+    const paid = payBackMove(c, charged)
     return paid ? { ...release(paid, itemId), onBack: item } : c
   }
 }
@@ -158,8 +135,8 @@ export function slingShield(itemId: string): HeldUpdater {
 export function unslingShield(): HeldUpdater {
   return <C extends Character>(c: C, charged = false): C => {
     const item = c.onBack
-    if (!item) return c
-    const paid = payBackMove(c, getUnslingView(c, item, charged), 'unsling the shield', charged)
+    if (!item || getGearMoveBar(c, { kind: 'unslingShield', args: [] }, charged)) return c
+    const paid = payBackMove(c, charged)
     return paid ? grip({ ...paid, onBack: null }, item, 1) : c
   }
 }
@@ -168,7 +145,7 @@ export function unslingShield(): HeldUpdater {
 // There is no floor off the combat board, so it is gone.
 export function throwOffShield(): HeldUpdater {
   return <C extends Character>(c: C, charged = false): C => {
-    const paid = c.onBack && pay(c, getActionCost(c, 'standardAction'), charged)
+    const paid = !getGearMoveBar(c, { kind: 'throwOffShield', args: [] }, charged) && payBackMove(c, charged)
     return paid ? { ...paid, onBack: null } : c
   }
 }
@@ -176,7 +153,7 @@ export function throwOffShield(): HeldUpdater {
 // combat.tex "Putting items away": "Dropping items on the floor costs 0 AP".
 // There is no floor yet, so the stack is gone.
 export function dropItem(itemId: string): HeldUpdater {
-  return <C extends Character>(c: C): C => (getHeldItem(c, itemId) ? release(c, itemId) : c)
+  return <C extends Character>(c: C): C => (getGearMoveBar(c, { kind: 'dropItem', args: [itemId] }, false) ? c : release(c, itemId))
 }
 
 // One object at hand changed: in the hands, or a quick slot. A lone one is

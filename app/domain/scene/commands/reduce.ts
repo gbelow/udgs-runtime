@@ -1,4 +1,6 @@
 import type { CampaignCharacter } from '../../types'
+import { toCharacterUpdater } from '../../character/commands/registry'
+import { getLetGoOf } from '../../item/rules/moves'
 import { HazardLayerSchema, type Action, type AttackAction, type Board, type SceneState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type ShootAction, type Tether, type Trample } from '../types'
 import { getFootprint, placeAt, withFloorAt } from '../rules/board/board'
 import { getDepthAfter, readWater } from '../rules/swim'
@@ -195,6 +197,8 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         // abilities.tex "Crossbow and Shield": the shield leaves the hand it
         // was planted from
         if (action.kind === 'plant') return c.id === action.actorId ? dropItem(action.itemId)(c) : c
+        // a move with gear, its price paid with the action
+        if (action.kind === 'gear') return c.id === action.actorId && action.move ? toCharacterUpdater(action.move, { dice: () => 0 })(c, false) as CampaignCharacter : c
         // gear.tex "Reload": one arrow or bolt leaves its stack and waits in
         // the weapon
         if (action.kind === 'reload') return c.id === action.actorId && action.loaded ? loadItem(action.weaponKey, action.loaded)(spendAmmo(c, action.ammoId)) : c
@@ -352,6 +356,12 @@ export function reduceFloor(state: SceneState, action: Action, phase: Phase): (f
       const planter = state.characters[action.actorId]
       const item = planter ? getHeldItem(planter, action.itemId) : undefined
       return item && action.to ? [...floor, onFloor(item, cellOf(action.actorId), { by: action.actorId, toward: action.to })] : floor
+    }
+    // what a move with gear lets go of, where its actor stands
+    if (action.kind === 'gear') {
+      const actor = state.characters[action.actorId]
+      const item = actor && action.move ? getLetGoOf(actor, action.move) : null
+      return item ? [...floor, onFloor(item, cellOf(action.actorId))] : floor
     }
     // lands where it was thrown, gone from wherever it lay before — a hand
     // leaves nothing behind on the floor

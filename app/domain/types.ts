@@ -449,6 +449,34 @@ export type ContainerKind = z.infer<typeof ContainerKindSchema>
 export const SlotKindSchema = z.enum(['quick', 'medium', 'large'])
 export type SlotKind = z.infer<typeof SlotKindSchema>
 
+// A move a character makes with gear they already have, written as the gear
+// command that makes it (character/commands/registry.ts `gearCommands`): what
+// is held regripped, dropped, slid to the back, put on, worn or put away; what
+// is on the back brought to the front or thrown off; what is in an open
+// container drawn, put on or worn; a container taken off; the armor taken off,
+// and the gauntlets, helmet and visor. A catalog pick is no move: an item out
+// of nowhere is the sheet's or the GM's.
+const GripSchema = z.union([z.literal(1), z.literal(2)])
+export const GearMoveSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('regripItem'), args: z.tuple([z.string(), GripSchema]) }),
+  z.object({ kind: z.literal('dropItem'), args: z.tuple([z.string()]) }),
+  z.object({ kind: z.literal('slingShield'), args: z.tuple([z.string()]) }),
+  z.object({ kind: z.literal('unslingShield'), args: z.tuple([]) }),
+  z.object({ kind: z.literal('throwOffShield'), args: z.tuple([]) }),
+  z.object({ kind: z.literal('putOnFromHands'), args: z.tuple([z.string()]) }),
+  z.object({ kind: z.literal('wearFromHands'), args: z.tuple([z.string()]) }),
+  z.object({ kind: z.literal('storeItem'), args: z.tuple([z.string(), z.string(), SlotKindSchema]) }),
+  z.object({ kind: z.literal('drawItem'), args: z.tuple([z.string(), z.string()]) }),
+  z.object({ kind: z.literal('putOnFromContainer'), args: z.tuple([z.string(), z.string()]) }),
+  z.object({ kind: z.literal('wearFromContainer'), args: z.tuple([z.string(), z.string()]) }),
+  z.object({ kind: z.literal('takeOffContainer'), args: z.tuple([z.string()]) }),
+  z.object({ kind: z.literal('doffArmor'), args: z.tuple([z.object({ containerKey: z.string(), slot: SlotKindSchema }).nullable()]) }),
+  z.object({ kind: z.literal('putGauntlets'), args: z.tuple([]) }),
+  z.object({ kind: z.literal('putHelm'), args: z.tuple([]) }),
+  z.object({ kind: z.literal('toggleVisor'), args: z.tuple([]) }),
+])
+export type GearMove = z.infer<typeof GearMoveSchema>
+
 // Every group stores the bulk its slots take: the Quick column prints it
 // ("4 medium", "8 small"), the other two are named after theirs, and scaling
 // a container moves all of them together (gear.tex "Scaling a container").

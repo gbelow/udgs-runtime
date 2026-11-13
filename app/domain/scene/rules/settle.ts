@@ -74,7 +74,8 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
     case 'taunt':
     case 'prepare':
     case 'extinguish': return { ...open, step: 'done' }
-    case 'plant': return { ...open, step: 'done' }
+    case 'plant':
+    case 'gear': return { ...open, step: 'done' }
     case 'pickUp': {
       const lying = findLoot(state, open.actorId, open.from, open.itemId)?.item
       return { ...open, step: 'done', picked: lying ? takeOne(lying, open.id) : null }

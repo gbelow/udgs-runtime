@@ -1,6 +1,6 @@
 import type { AfflictionKey, CampaignCharacter, Degree } from '../../types'
 import type { SceneState, Pressure } from '../types'
-import { MORALE_AGGRAVATORS, MORALE_LOW_STA, MORALE_SENSE_RADIUS, MORALE_TRIGGER, SOCIAL_BONUS } from '../../tables'
+import { MORALE_AGGRAVATORS, MORALE_ENEMY_RADIUS, MORALE_LOW_STA, MORALE_SENSE_RADIUS, MORALE_TRIGGER, SOCIAL_BONUS } from '../../tables'
 import { getAfflictions, getInjuryPenalty, hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getCharisma } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
@@ -16,6 +16,7 @@ import { isNearBlindGround } from './detection'
 import { isRunningInChase } from './chase'
 import { isParked } from './parked'
 import { getOwnEdgeTerms } from './cunning'
+import { getDistanceBetween } from './board/board'
 
 // combat.tex "Social actions": what was said to the character in the round
 // before, "multiple intimidations and taunts don't stack. Only the highest
@@ -50,6 +51,21 @@ export function getStressAuthors(state: SceneState, id: string): string[] {
 // Whether `a` is in the fight in another party than `b`.
 export function isEnemyOf(state: SceneState, a: string, b: string): boolean {
   return a !== b && !!state.characters[a] && getPressureKey(state, a) !== getPressureKey(state, b)
+}
+
+// combat.tex "Combat morale test": whether a living enemy is within
+// MORALE_ENEMY_RADIUS metres of the character (a cell is a metre), measured
+// on the board. Null where the board cannot tell: there is none, or the
+// character or an enemy out of that reach is not placed on it.
+export function getEnemyNear(state: SceneState, id: string): boolean | null {
+  let unmeasured = false
+  for (const other of Object.keys(state.characters)) {
+    if (!isEnemyOf(state, other, id) || isDead(state.characters[other])) continue
+    const apart = getDistanceBetween(state, id, other)
+    if (apart === null) unmeasured = true
+    else if (apart <= MORALE_ENEMY_RADIUS) return true
+  }
+  return unmeasured ? null : false
 }
 
 // combat.tex "Morale", "Simplifying": the table's pressure is one number per

@@ -33,10 +33,13 @@ export function isInTurn(state: SceneState, id: string): boolean {
 
 // Why the character cannot handle their gear now, or null: once the fight
 // has started, drawing, stowing, donning, dropping and every other move with
-// what they carry waits for their own turn, free or not. Before the first
-// round they are not yet fighting; the GM handles anyone's at any time.
+// what they carry is an action of its own (`gear`), free or not, so it waits
+// for their own turn and for nothing else to be open. Before the first round
+// they are not yet fighting; the GM handles anyone's at any time.
 export function getGearBar(state: SceneState, id: string, gm = false): string | null {
-  return !gm && state.round > 0 && !isInTurn(state, id) ? 'gear is handled only on their own turn' : null
+  if (gm || state.round === 0) return null
+  if (!isInTurn(state, id)) return 'gear is handled only on their own turn'
+  return getOpenAction(state) ? 'another action is open' : null
 }
 
 // Who holds the turn, if they are still in the fight.

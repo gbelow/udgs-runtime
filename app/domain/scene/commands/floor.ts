@@ -10,18 +10,19 @@ import { findFloorItem, onFloor } from '../rules/floor'
 import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
-import { getGearBar } from '../rules/turn'
+import { isDirectGearEdit } from './gear'
 import { getFightName } from '../rules/fighters'
 
 // What a character lets go of lands where they stand, and a holder who let
 // go of the last thing they could grapple with lets go of the grapple. A
-// move refused leaves the character as it was, and nothing lands; outside
-// their own turn only the GM lets go for them.
+// move refused leaves the character as it was, and nothing lands. Once the
+// fight has started only the GM lets go for them this way; a player's drop is
+// an action (commands/gear.ts).
 function landOnFloor(characterId: string, item: Item | null | undefined, letGo: <C extends Character>(c: C, charged?: boolean) => C, gm: boolean): Updater {
   return (state) => {
     const c = state.characters[characterId]
     if (!c || !item) return state
-    if (getGearBar(state, characterId, gm)) return state
+    if (!isDirectGearEdit(state, gm)) return state
     const after = letGo(c, isCombatStarted(state))
     if (after === c) return state
     return settleBinds({

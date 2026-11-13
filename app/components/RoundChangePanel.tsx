@@ -147,7 +147,8 @@ function Orders({ row, targetId }: { row: OrdersRow; targetId: string }){
 // combat.tex "Morale": the round begins with a will test for whoever the fight
 // has under stress, made normally, safely or riskily; a miss activates the
 // limit stress action, which the table plays out. Whether an enemy is within
-// 30 m is the table's to say, and so is the pressure the fight puts on each
+// 30 m is measured on the board, and the table's to say where the board cannot
+// tell, and so is the pressure the fight puts on each
 // fighter.
 function MoralePanel(){
   const rows = useMorale()
@@ -161,10 +162,11 @@ function MoralePanel(){
       <GmLocked>
         <div className='flex flex-row gap-3 items-center'>
           <SectionLabel>Morale</SectionLabel>
-          <label className='flex gap-1 items-center text-xs text-muted'>
-            <input type='checkbox' aria-label='enemyNear' checked={enemyNear} onChange={(e) => setEnemyNear(e.target.checked)} />
-            enemy within 30 m
-          </label>
+          {rows.some((r) => r.enemyNear === null) ?
+            <label className='flex gap-1 items-center text-xs text-muted'>
+              <input type='checkbox' aria-label='enemyNear' checked={enemyNear} onChange={(e) => setEnemyNear(e.target.checked)} />
+              enemy within 30 m
+            </label> : null}
         </div>
         <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
           <span>pressure</span>

@@ -1,7 +1,7 @@
 import type { MoraleRoll, SceneState, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getCompulsionDegree, getCompulsionResistance, getFatefulAP, getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey, getSkipMoraleBar, getStressAuthors, isLeftOpen } from '../rules/morale'
+import { getCompulsionDegree, getCompulsionResistance, getEnemyNear, getFatefulAP, getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey, getSkipMoraleBar, getStressAuthors, isLeftOpen } from '../rules/morale'
 import { resolveTest, type Test } from '../../play/test'
 import { payCost } from '../../character/commands/cost'
 import { updateCharacter } from './characters'
@@ -15,8 +15,9 @@ import { inspire } from './inspiringDeed'
 
 // combat.tex "Combat morale test": the character's will test against the DL
 // of the moment, thrown in a way their abilities allow (`getMoraleModes`), or
-// riskily while they keep to risky tests; `enemyNear` is whether an enemy is
-// within 30 m, told by the table. A test left open for a reroll
+// riskily while they keep to risky tests; whether an enemy is within 30 m is
+// measured on the board (`getEnemyNear`), and `enemyNear` is the table's word
+// for it where the board cannot tell. A test left open for a reroll
 // (abilities.tex "Fateful", `isLeftOpen`) is shown and settles later;
 // any other settles at once (`settleMorale`).
 export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice: Dice): Updater {
@@ -25,7 +26,7 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
     if (!test || getMoraleBar(state, id) || !getMoraleModes(state.characters[id]).includes(mode)) return state
     const thrown = getSceneModeOf(state)(id, mode)
     const { die, score, degree, skillTerms } = resolveTest(test, (explodes) => rollModed(thrown, explodes, dice))
-    const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, skillTerms, score, DL: test.DL, degree, resisted: getCompulsionResistance(state.characters[id]), limitStress: false, hyped: false, open: false, rerolled: false, enemyNear }
+    const roll: MoraleRoll = { mode: thrown, die, skill: test.skill, skillTerms, score, DL: test.DL, degree, resisted: getCompulsionResistance(state.characters[id]), limitStress: false, hyped: false, open: false, rerolled: false, enemyNear: getEnemyNear(state, id) ?? enemyNear }
     if (isLeftOpen(state.characters[id], degree)) return withRoll(state, id, { ...roll, open: true })
     return settleMorale(id, roll)(state)
   }

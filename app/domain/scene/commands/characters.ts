@@ -5,7 +5,7 @@ import type { SceneState, Updater } from '../types'
 import { getOpenAction } from '../rules/log'
 import { getHeldActions } from '../rules/hold'
 import { withdrawActions } from './log'
-import { getGearBar } from '../rules/turn'
+import { isDirectGearEdit } from './gear'
 import { settleBinds } from './bind'
 import { dropEmptyFightParties } from './parties'
 import { getChanges } from '../rules/changes'
@@ -70,14 +70,15 @@ export function impose(ids: string[], delivery: Delivery): Updater {
   return (state) => (getOpenAction(state) ? state : ids.reduce((acc, id) => updateCharacter(id, deliver(delivery), 'GM called a test')(acc), state))
 }
 
-// A move with the character's gear — drawing, stowing, donning, sliding a
-// shield — refused outside their own turn once the fight has started
-// (play.tex "Combat"). The GM moves anyone's gear at any time, and the log
-// keeps it as the GM's edit.
+// A move with the character's gear (drawing, stowing, donning, sliding a
+// shield) made at once: before the fight has started, or by the GM at any
+// time, which the log keeps as the GM's edit. Once it has started, a
+// player's is an action of its own (`gear`, commands/gear.ts).
 export function updateInventory(id: string, updater: (c: CampaignCharacter, charged: boolean) => CampaignCharacter, gm = false): Updater {
   return (state) => {
-    if (!state.characters[id]) return state
-    if (getGearBar(state, id, gm)) return state
-    return updateCharacter(id, updater, gm ? 'GM edit' : 'gear')(state)
+    const c = state.characters[id]
+    if (!c || !isDirectGearEdit(state, gm)) return state
+    const after = updater(c, isCombatStarted(state))
+    return after === c ? state : updateCharacter(id, () => after, gm ? 'GM edit' : 'gear')(state)
   }
 }

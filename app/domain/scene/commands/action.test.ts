@@ -20,6 +20,7 @@ import { SPELLS } from '../../spells'
 import { crossbowman } from '../fixtures'
 import { toTable } from '../../play/calls'
 import { answerScene } from './answer'
+import { toUpdater } from './registry'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
 const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: SceneState) =>
@@ -240,7 +241,8 @@ describe('the move made while resting', () => {
 })
 
 // play.tex "Combat": once the fight has started, gear is handled in one's
-// own turn, whether the move costs AP or not; the GM handles it at any time.
+// own turn, whether the move costs AP or not, as an action of its own (the
+// table's ruling); the GM handles it at any time.
 describe('gear moved outside one\'s own turn', () => {
   const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
   const belted = (id: string) => holdItem(dagger)(putOnFromCatalog(getCatalogItem('Belt')!)(fighter(id))) as CampaignCharacter
@@ -258,9 +260,21 @@ describe('gear moved outside one\'s own turn', () => {
     expect(updateInventory('a', regrip)(s)).toBe(s)
   })
 
-  it('allows it in their own turn', () => {
+  it('declares it as an action in their own turn, made once committed', () => {
     const s = started({ ...combat(belted('a')), inTurnCharacter: 'a' })
-    expect(updateInventory('a', stow)(s).characters.a.held).toHaveLength(0)
+    const declared = toUpdater({ kind: 'editGear', args: ['a', { kind: 'storeItem', args: [dagger.id, 'Belt', 'quick'] }, false] }, { thrower: () => 5, newId })(s)
+    expect(getOpenAction(declared)?.kind).toBe('gear')
+    expect(declared.characters.a.held).toHaveLength(1)
+    expect(commitAction(() => 5, newId)(declared).characters.a.held).toHaveLength(0)
+  })
+
+  // Seed 29 of the board fuzzer: a spear dropped while the throw it was
+  // committed to stood open left the throw stuck at its answers.
+  it('refuses it while an action of their own is open', () => {
+    const s = started({ ...combat(belted('a')), inTurnCharacter: 'a' })
+    const resting = declareAction('a', { kind: 'rest' }, newId)(s)
+    expect(getOpenAction(resting)?.kind).toBe('rest')
+    expect(toUpdater({ kind: 'dropToFloor', args: ['a', dagger.id, false] }, { thrower: () => 5, newId })(resting)).toBe(resting)
   })
 
   it('allows it before the fight starts', () => {

@@ -9,10 +9,15 @@ import { getContestBar, getEndTurnBar, getNextRoundBar, getRollContestBar, getSt
 import { getEndCombatBar } from '../rules/fight'
 import { isCombatStarted } from '../rules/started'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../rules/roundChange'
-import { getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getSkipMoraleBar } from '../rules/morale'
+import { getEnemyNear, getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getSkipMoraleBar } from '../rules/morale'
+import { getOrderOptions, getOverrulable } from '../rules/domination'
 import { getFightName } from '../rules/fighters'
 import { getCombatSurgeOptions } from './turn'
 import { getOptionLabel } from './labels'
+import { getHeldRows } from './heldTests'
+import { getCowardBar } from './morale'
+import { getMockeryView } from './domination'
+import { getLeadershipView } from './providence'
 
 // Every button that moves the fight on and is open now, whoever it acts for
 // (the registry's `getCommandActor` says that): taking and ending turns,
@@ -20,60 +25,87 @@ import { getOptionLabel } from './labels'
 // its steps, the round change, and the GM's next round and end. Each is the
 // command its button sends, gated by the same rules the screen shows it
 // closed by. What fills a declaration in (a row, a target, a path, what the
-// overflow buys) is not here: those are the open action's own choices.
+// overflow buys) is not here: those are the open action's own choices. The
+// round's tests and the limit stress actions are.
 //
-// A morale test is offered as the table's checkbox leaves it by default, with
-// an enemy near.
+// They come in two parts: the buttons that act for one character, read for
+// that character alone (`getButtonsOf`), so a seat at the table reads only its
+// own; and the ones that move the open action, the turn or the round on for
+// whoever it is up to (`getSharedButtons`).
+//
+// A morale test is offered as the board measures an enemy near
+// (`getEnemyNear`), and where it cannot tell, as the table's checkbox leaves
+// it by default, with one.
 
 export type OpenButton = { command: SceneCommand; label: string }
 
 export const getOpenButtons = perState((state: SceneState): OpenButton[] => [
-  ...turnButtons(state),
-  ...actionButtons(state),
-  ...roundChangeButtons(state),
-  ...tableButtons(state),
+  ...ids(state).flatMap((id) => getButtonsOf(state, id)),
+  ...getSharedButtons(state),
+])
+
+const byId = new WeakMap<SceneState, Map<string, OpenButton[]>>()
+
+export function getButtonsOf(state: SceneState, id: string): OpenButton[] {
+  const known = byId.get(state) ?? new Map<string, OpenButton[]>()
+  byId.set(state, known)
+  const made = known.get(id)
+  if (made) return made
+  const buttons = state.characters[id] ? [
+    ...turnButtonsOf(state, id),
+    ...actionButtonsOf(state, id),
+    ...roundChangeButtonsOf(state, id),
+    ...stressButtonsOf(state, id),
+  ] : []
+  known.set(id, buttons)
+  return buttons
+}
+
+export const getSharedButtons = perState((state: SceneState): OpenButton[] => [
+  ...button(getEndTurnBar(state) === null, { kind: 'endTurn', args: [] }, 'end the turn'),
+  ...button(getRollContestBar(state) === null, { kind: 'rollContest', args: [] }, 'roll the contest for the turn'),
+  ...openActionButtons(state),
+  ...button(!!getRoundPhase(state) && getContinueBar(state) === null, { kind: 'continueRound', args: [] }, 'on with the round change'),
+  ...button(getNextRoundBar(state) === null, { kind: 'nextRound', args: [] }, 'next round'),
+  ...button(getEndCombatBar(state) === null, { kind: 'endCombat', args: [] }, 'end the combat'),
 ])
 
 const button = (open: boolean, command: SceneCommand, label: string): OpenButton[] => (open ? [{ command, label }] : [])
 
 const ids = (state: SceneState) => Object.keys(state.characters)
 
-function turnButtons(state: SceneState): OpenButton[] {
-  const started = isCombatStarted(state)
-  const each = ids(state).flatMap((id): OpenButton[] => {
-    const name = getFightName(state, id)
-    return [
-      ...button(getStartTurnBar(state, id) === null, { kind: 'startTurn', args: [id] }, `${name}: start a turn`),
-      ...button(getContestBar(state, id) === null, { kind: 'toggleContest', args: [id] }, `${name}: ${state.contenders.includes(id) ? 'stop contesting' : 'contest'} the turn`),
-      ...button(started, { kind: 'toggleAgreeToEnd', args: [id] }, `${name}: ${hasAgreedToEnd(state, id) ? 'take back agreeing' : 'agree'} to end the round`),
-      ...getCombatSurgeOptions(state, id).flatMap((o) => button(o.available, { kind: 'surge', args: [id, o.kind] }, `${name}: ${o.kind} surge`)),
-    ]
-  })
+function turnButtonsOf(state: SceneState, id: string): OpenButton[] {
+  const name = getFightName(state, id)
   return [
-    ...each,
-    ...button(getEndTurnBar(state) === null, { kind: 'endTurn', args: [] }, 'end the turn'),
-    ...button(getRollContestBar(state) === null, { kind: 'rollContest', args: [] }, 'roll the contest for the turn'),
+    ...button(getStartTurnBar(state, id) === null, { kind: 'startTurn', args: [id] }, `${name}: start a turn`),
+    ...button(getContestBar(state, id) === null, { kind: 'toggleContest', args: [id] }, `${name}: ${state.contenders.includes(id) ? 'stop contesting' : 'contest'} the turn`),
+    ...button(isCombatStarted(state), { kind: 'toggleAgreeToEnd', args: [id] }, `${name}: ${hasAgreedToEnd(state, id) ? 'take back agreeing' : 'agree'} to end the round`),
+    ...getCombatSurgeOptions(state, id).flatMap((o) => button(o.available, { kind: 'surge', args: [id, o.kind] }, `${name}: ${o.kind} surge`)),
+    ...button(getMockeryView(state, id)?.bar === null, { kind: 'mock', args: [id] }, `${name}: mock`),
   ]
 }
 
-function actionButtons(state: SceneState): OpenButton[] {
+// Declaring with nothing open; answering the open action at its react step.
+function actionButtonsOf(state: SceneState, id: string): OpenButton[] {
   const open = getOpenAction(state)
-  const options = (id: string) => getAvailableActions(state, id).filter((o) => o.available)
-  if (!open) {
-    return ids(state).flatMap((id) => options(id).flatMap((o) => button(true, { kind: 'declare', args: [id, o.draft] }, `${getFightName(state, id)}: ${getOptionLabel(state, id, o)}`)))
-  }
+  const options = () => getAvailableActions(state, id).filter((o) => o.available)
+  const name = getFightName(state, id)
+  if (!open) return options().map((o): OpenButton => ({ command: { kind: 'declare', args: [id, o.draft] }, label: `${name}: ${getOptionLabel(state, id, o)}` }))
+  if (getNextStep(state) !== 'react') return []
+  return [
+    ...options().map((o): OpenButton => ({ command: { kind: 'react', args: [id, o.draft] }, label: `${name}: ${getOptionLabel(state, id, o)}` })),
+    ...button(canAnswer(open, id) && (!open.passed.includes(id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)), { kind: 'pass', args: [id] }, `${name}: pass`),
+  ]
+}
+
+function openActionButtons(state: SceneState): OpenButton[] {
+  const open = getOpenAction(state)
+  if (!open) return []
   const step = getNextStep(state)
   const reacting = step === 'react'
-  const answers = reacting
-    ? ids(state).flatMap((id): OpenButton[] => [
-        ...options(id).flatMap((o) => button(true, { kind: 'react', args: [id, o.draft] }, `${getFightName(state, id)}: ${getOptionLabel(state, id, o)}`)),
-        ...button(canAnswer(open, id) && (!open.passed.includes(id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)), { kind: 'pass', args: [id] }, `${getFightName(state, id)}: pass`),
-      ])
-    : []
   const go = reacting && getGoBar(state, open) === null
   const die = needsDie(state, open)
   return [
-    ...answers,
     ...button(reacting && getLiveReactionsTo(state, open.id).length > 0, { kind: 'back', args: [] }, 'take the last answer back'),
     ...button(go && die, { kind: 'roll', args: [] }, 'roll'),
     ...button(go && !die, { kind: 'pay', args: [] }, 'pay'),
@@ -85,33 +117,41 @@ function actionButtons(state: SceneState): OpenButton[] {
   ]
 }
 
-function roundChangeButtons(state: SceneState): OpenButton[] {
+// The round change: holding on or letting go, the morale test and what may
+// be chosen of it, and the rally once the tests are made.
+function roundChangeButtonsOf(state: SceneState, id: string): OpenButton[] {
   if (!getRoundPhase(state)) return []
-  const concentration = getConcentrationOwed(state).flatMap((id): OpenButton[] => [
-    ...button(getHoldOnBar(state, id) === null, { kind: 'holdOn', args: [id] }, `${getFightName(state, id)}: hold on`),
-    ...button(getLetGoBar(state, id) === null, { kind: 'letGo', args: [id] }, `${getFightName(state, id)}: let go`),
-  ])
-  const morale = state.morale.filter((m) => state.characters[m.id]).flatMap(({ id }): OpenButton[] => {
-    const name = getFightName(state, id)
-    const rollable = getMoraleBar(state, id) === null
-    return [
-      ...getMoraleModes(state.characters[id]).flatMap((mode) => button(rollable, { kind: 'rollMorale', args: [id, mode, true] }, `${name}: morale ${mode}`)),
-      ...button(getSkipMoraleBar(state, id) === null, { kind: 'skipMorale', args: [id] }, `${name}: skip the morale test`),
-      ...button(getKeepMoraleBar(state, id) === null, { kind: 'keepMorale', args: [id] }, `${name}: keep the morale roll`),
-      ...button(getFatefulBar(state, id) === null, { kind: 'rerollMorale', args: [id] }, `${name}: reroll morale`),
-      ...button(getHypeUpBar(state, id) === null, { kind: 'hypeUp', args: [id] }, `${name}: hype up`),
-    ]
-  })
+  const name = getFightName(state, id)
+  const concentration = getConcentrationOwed(state).includes(id) ? [
+    ...button(getHoldOnBar(state, id) === null, { kind: 'holdOn', args: [id] }, `${name}: hold on`),
+    ...button(getLetGoBar(state, id) === null, { kind: 'letGo', args: [id] }, `${name}: let go`),
+  ] : []
+  const morale = state.morale.some((m) => m.id === id) ? [
+    ...getMoraleModes(state.characters[id]).flatMap((mode) => button(getMoraleBar(state, id) === null, { kind: 'rollMorale', args: [id, mode, getEnemyNear(state, id) ?? true] }, `${name}: morale ${mode}`)),
+    ...button(getSkipMoraleBar(state, id) === null, { kind: 'skipMorale', args: [id] }, `${name}: skip the morale test`),
+    ...button(getKeepMoraleBar(state, id) === null, { kind: 'keepMorale', args: [id] }, `${name}: keep the morale roll`),
+    ...button(getFatefulBar(state, id) === null, { kind: 'rerollMorale', args: [id] }, `${name}: reroll morale`),
+    ...button(getHypeUpBar(state, id) === null, { kind: 'hypeUp', args: [id] }, `${name}: hype up`),
+  ] : []
   return [
     ...concentration,
     ...morale,
-    ...button(getContinueBar(state) === null, { kind: 'continueRound', args: [] }, 'on with the round change'),
+    ...button(getLeadershipView(state, id)?.bar === null, { kind: 'leadershipRally', args: [id] }, `${name}: rally`),
   ]
 }
 
-function tableButtons(state: SceneState): OpenButton[] {
+// What the round's tests and its limit stress actions ask of the character:
+// a test the round called them to (swimming), being taken for a coward, and
+// the orders they could give whoever owes a limit stress action.
+function stressButtonsOf(state: SceneState, id: string): OpenButton[] {
+  const name = getFightName(state, id)
+  const held = getHeldRows(state).filter((r) => r.id === id && r.bar === null).flatMap((r) =>
+    r.modes.map((mode): OpenButton => ({ command: { kind: 'rollHeld', args: [id, r.kind, mode] }, label: `${name}: ${r.kind} ${mode}` })))
+  const orders = ids(state).filter((target) => target !== id && getOverrulable(state, target)).flatMap((target) =>
+    getOrderOptions(state, id, target).flatMap((o) => button(o.bar === null, { kind: 'giveOrder', args: [id, target, o.order] }, `${name}: order ${getFightName(state, target)} to ${o.order}`)))
   return [
-    ...button(getNextRoundBar(state) === null, { kind: 'nextRound', args: [] }, 'next round'),
-    ...button(getEndCombatBar(state) === null, { kind: 'endCombat', args: [] }, 'end the combat'),
+    ...held,
+    ...button(getCowardBar(state, id) === null, { kind: 'defaultToCoward', args: [id] }, `${name}: take for a coward`),
+    ...orders,
   ]
 }

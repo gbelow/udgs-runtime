@@ -9,6 +9,8 @@ import { findPrepared } from '../rules/prepared'
 import { getHeldOf, isGivingUpHeld } from '../rules/hold'
 import { getAnswerLabel } from '../rules/modifiers'
 import { SPELLS, isSpellKey } from '../../spells'
+import type { Character, GearMove } from '../../types'
+import { findCarriedItem, getContainer } from '../../item/rules/containers'
 
 // What the panel calls things: actions, the options to declare them, and
 // the purchases a hit can make.
@@ -21,6 +23,7 @@ export function getActionName(action: ActionDraft): string {
   if (action.kind === 'social' && action.say) return action.say
   if (action.kind === 'fireAgain' && action.key !== undefined && isSpellKey(action.key)) return `${SPELLS[action.key].name} again`
   if (action.kind === 'releaseSpell' && action.key !== undefined && isSpellKey(action.key)) return `let go of ${SPELLS[action.key].name}`
+  if (action.kind === 'gear' && action.move) return GEAR_MOVE_NAMES[action.move.kind]
   return ACTIONS[action.kind].label
 }
 
@@ -67,8 +70,58 @@ function getDraftLabel(state: SceneState, actorId: string, option: ActionOption)
       const prepared = draft.preparedId ? findPrepared(state, draft.preparedId) : null
       return prepared?.main ? `prepared ${prepared.main}` : ACTIONS.prepared.label
     }
+    case 'gear': {
+      const c = state.characters[actorId]
+      return c && draft.move ? getGearMoveLabel(c, draft.move) : getActionName(draft)
+    }
     default:
       return getAnswerLabel(draft) ?? getActionName(draft)
+  }
+}
+
+const GEAR_MOVE_NAMES: Record<GearMove['kind'], string> = {
+  regripItem: 'regrip',
+  dropItem: 'drop',
+  slingShield: 'sling',
+  unslingShield: 'unsling the shield',
+  throwOffShield: 'throw off the shield',
+  putOnFromHands: 'put on',
+  wearFromHands: 'wear',
+  storeItem: 'put away',
+  drawItem: 'draw',
+  putOnFromContainer: 'put on',
+  wearFromContainer: 'wear',
+  takeOffContainer: 'take off',
+  doffArmor: 'take off the armor',
+  putGauntlets: 'gauntlets',
+  putHelm: 'helmet',
+  toggleVisor: 'visor',
+}
+
+// A move with gear as a button says it: what it does, to what, and where.
+function getGearMoveLabel(c: Character, move: GearMove): string {
+  const item = (id: string) => {
+    const found = findCarriedItem(c, id)?.item
+    return found ? found.name || found.refId : id
+  }
+  const container = (key: string) => getContainer(c, key)?.name ?? key
+  switch (move.kind) {
+    case 'regripItem': return `hold ${item(move.args[0])} in ${move.args[1] === 1 ? 'one hand' : 'two hands'}`
+    case 'storeItem': return `put ${item(move.args[0])} in the ${move.args[2]} slots of ${container(move.args[1])}`
+    case 'drawItem':
+    case 'putOnFromContainer':
+    case 'wearFromContainer': return `${GEAR_MOVE_NAMES[move.kind]} ${item(move.args[1])} from ${container(move.args[0])}`
+    case 'dropItem':
+    case 'slingShield':
+    case 'putOnFromHands':
+    case 'wearFromHands': return `${GEAR_MOVE_NAMES[move.kind]} ${item(move.args[0])}`
+    case 'takeOffContainer': return `take off ${container(move.args[0])}`
+    case 'doffArmor': return move.args[0] ? `take off the armor into the ${move.args[0].slot} slots of ${container(move.args[0].containerKey)}` : 'take off the armor'
+    case 'putGauntlets': return c.hasGauntlets ? 'take off the gauntlets' : 'put on the gauntlets'
+    case 'putHelm': return c.hasHelm ? 'take off the helmet' : 'put on the helmet'
+    case 'toggleVisor': return c.visorOpen ? 'close the visor' : 'open the visor'
+    case 'unslingShield':
+    case 'throwOffShield': return GEAR_MOVE_NAMES[move.kind]
   }
 }
 

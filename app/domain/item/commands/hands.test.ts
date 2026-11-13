@@ -72,7 +72,7 @@ describe('hands take one stack each', () => {
   it('refuses a stack when every holding hand is full', () => {
     const full = holding(carrying(), dagger(), dagger())
     expect(() => holdItem(coin())(full)).toThrow()
-    expect(() => drawItem('belt', 'x')(full)).toThrow()
+    expect(drawItem('belt', 'x')(full)).toBe(full)
   })
 
   it('never puts gear in a hand that cannot hold', () => {
@@ -83,7 +83,7 @@ describe('hands take one stack each', () => {
 
   it('needs a second free holding hand to grip with two', () => {
     const c = holding(carrying(), dagger(), dagger())
-    expect(() => regripItem(c.held[0].id, 2)(c)).toThrow()
+    expect(regripItem(c.held[0].id, 2)(c)).toBe(c)
   })
 })
 

@@ -203,7 +203,7 @@ export const SPELL_LIGHT: Record<string, number> = {
 // beam is as bright as outside for `reach` metres in and `spread` metres around
 // it; a step darker out to `dimFactor` times both, and dark beyond. The line is
 // drawn `height` metres over the floor.
-export const WINDOW_LIGHT = { reach: 3, spread: 1, dimFactor: 2, height: 1.5 }
+export const WINDOW_LIGHT = { reach: 4, spread: 1, dimFactor: 2, height: 1.5 }
 
 // combat.tex "Fog and smoke": "Opaque gases reduce vision radius of anyone
 // inside of it to 2m by default".
@@ -525,6 +525,9 @@ export const MORALE_TRIGGER = 3
 // STA": STA below this.
 export const MORALE_SENSE_RADIUS = 10
 export const MORALE_LOW_STA = 3
+// "Combat morale test": "The limit stress action only triggers if there is an
+// enemy within 30m".
+export const MORALE_ENEMY_RADIUS = 30
 
 // combat.tex "Social actions": intimidation, taunt and rally, each moving the
 // target's morale DL by 1 + charisma/2 (`bonus` + half the charisma, floored).

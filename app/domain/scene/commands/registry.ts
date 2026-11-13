@@ -22,6 +22,7 @@ import { dropToFloor, placeItem, removeFloorItem, throwOffShieldToFloor } from '
 import { setOffExplosion } from './gmExplosion'
 import { chargeByGM, setOffItem } from './gmCharge'
 import { impose, updateCharacter, updateInventory } from './characters'
+import { pressGear } from './gear'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
 import { hypeUp, keepMorale, rerollMorale, rollMorale, setTablePressure, skipMorale } from './morale'
@@ -120,20 +121,20 @@ export const sceneCommands = {
 
   // what a character lets go of, onto the floor: outside their own turn only
   // the GM lets go for them
-  dropToFloor: command((_, id: string, itemId: string, gm: boolean) => dropToFloor(id, itemId, gm)).by((_, id, _item, gm) => (gm ? 'gm' : { id })),
+  dropToFloor: command((ctx, id: string, itemId: string, gm: boolean) => pressGear(id, { kind: 'dropItem', args: [itemId] }, gm, dropToFloor(id, itemId, gm), ctx.newId)).by((_, id, _item, gm) => (gm ? 'gm' : { id })),
   placeItem: command((ctx, item: Item, cell: Coord) => placeItem(item, cell, ctx.newId)).by(gm),
   removeFloorItem: command((_, itemId: string) => removeFloorItem(itemId)).by(gm),
   setOffExplosion: command((ctx, draft: ExplosionDraft, cell: Coord) => setOffExplosion(draft, cell, ctx.newId)).by(gm),
   chargeByGM: command((ctx, itemId: string, draft: ExplosionDraft) => chargeByGM(itemId, draft, ctx.newId)).by(gm),
   setOffItem: command((ctx, itemId: string) => setOffItem(itemId, ctx.newId)).by(gm),
-  throwOffShield: command((_, id: string, gm: boolean) => throwOffShieldToFloor(id, gm)).by((_, id, gm) => (gm ? 'gm' : { id })),
+  throwOffShield: command((ctx, id: string, gm: boolean) => pressGear(id, { kind: 'throwOffShield', args: [] }, gm, throwOffShieldToFloor(id, gm), ctx.newId)).by((_, id, gm) => (gm ? 'gm' : { id })),
 
   // an edit to a character's sheet, and a move with their gear, which the
   // fight refuses outside their own turn unless the GM makes it
   edit: command((ctx, id: string, edit: CharacterCommand, gm: boolean) =>
     updateCharacter(id, sheet(ctx, edit), edit.kind === 'resolvePending' ? 'called test' : gm ? 'GM edit' : undefined)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
   editGear: command((ctx, id: string, edit: GearCommand, gm: boolean) =>
-    updateInventory(id, sheet(ctx, edit), gm)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
+    pressGear(id, edit, gm, updateInventory(id, sheet(ctx, edit), gm), ctx.newId)).by((_, id, _edit, gm) => (gm ? 'gm' : { id })),
 
   // a test the GM calls for, with the effect that rides on it
   impose: command((_, ids: string[], delivery: Delivery) => impose(ids, delivery)).by(gm),

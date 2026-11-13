@@ -1,5 +1,5 @@
 import type { SceneState } from '../types'
-import { getAggravators, getFatefulBar, getHypeUpBar, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey, getSkipMoraleBar } from '../rules/morale'
+import { getAggravators, getEnemyNear, getFatefulBar, getHypeUpBar, getMoraleBar, getMoraleDLOf, getMoraleModes, getPressureKey, getSkipMoraleBar } from '../rules/morale'
 import { hasGrant } from '../../character/rules/effects'
 import { describeThrow } from '../../character/rules/terms'
 import type { RollMode } from '../../play/dice'
@@ -19,6 +19,9 @@ export type MoraleRow = {
   modes: RollMode[]
   // the test as it was made, '' before it is
   result: string
+  // whether an enemy is within 30 m as the board measures it, null where the
+  // board cannot tell and the table says
+  enemyNear: boolean | null
   // the character's limit stress action as it stands when the test activated
   // it, else null
   limitStress: string | null
@@ -47,6 +50,7 @@ function buildMoraleRows(state: SceneState): MoraleRow[] {
       DL: roll?.DL ?? getMoraleDLOf(aggravators),
       aggravators: aggravators.map((t) => `${t.label} +${t.value}`).join(', '),
       bar: getMoraleBar(state, id),
+      enemyNear: getEnemyNear(state, id),
       modes: getMoraleModes(state.characters[id]),
       result: roll ? `${roll.open ? 'open · ' : ''}${roll.mode} · ${describeThrow(roll.die, roll.skill, roll.skillTerms, 'will', roll.score)} vs DL ${roll.DL} → ${roll.degree}${roll.resisted ? ` · +${roll.resisted} against the compulsion` : ''}${roll.rerolled ? ' · rerolled' : ''}${roll.hyped ? ' · hyped up' : ''}` : '',
       limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,

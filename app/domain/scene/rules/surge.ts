@@ -1,4 +1,5 @@
 import type { CampaignCharacter, SurgeKind } from '../../types'
+import { isUnpaidMove } from '../../item/rules/moves'
 import type { Action, ActionDraft, ActionKind, SceneState } from '../types'
 import { SURGES, type SurgeAllowance } from '../../tables'
 import { surgeKinds } from '../../lists'
@@ -17,11 +18,19 @@ const GRAPPLE_MOVEMENT: readonly ActionKind[] = ['drag', 'assist', 'carry']
 const FREE_KINDS: readonly ActionKind[] = ['releaseSpell']
 
 // What, within its kind, an allowance may tell an action by: a grapple's
-// maneuver (an escape), a social action's say (an intimidation).
+// maneuver (an escape), a social action's say (an intimidation), a gear
+// action's move (one nothing is paid for).
 export function getSurgeVariant(action: Action | ActionDraft): string | undefined {
   if (action.kind === 'grapple') return action.maneuver
   if (action.kind === 'social') return action.say
+  if (action.kind === 'gear') return action.move?.kind
   return undefined
+}
+
+// A move with gear nothing is paid for (item/rules/moves.ts `isUnpaidMove`)
+// is made whatever is left of a surge.
+function isFree(kind: ActionKind, variant?: string): boolean {
+  return FREE_KINDS.includes(kind) || (kind === 'gear' && variant !== undefined && isUnpaidMove(variant))
 }
 
 // The actions each allowance in SURGES names. "grapple" is not a list: it
@@ -72,7 +81,7 @@ export function endsSurge(state: SceneState, action: Action): boolean {
 // Why the kind cannot be declared while a surge's AP is left, or null.
 export function getSurgeBarFor(state: SceneState, c: CampaignCharacter, kind: ActionKind, variant?: string): string | null {
   const surge = getBindingSurge(c)
-  return !surge || FREE_KINDS.includes(kind) || allows(state, c, surge, kind, variant) ? null : `${surge} surge AP left`
+  return !surge || isFree(kind, variant) || allows(state, c, surge, kind, variant) ? null : `${surge} surge AP left`
 }
 
 // combat.tex "Flee": "The flee action can only use actions allowed by

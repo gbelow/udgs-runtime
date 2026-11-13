@@ -3,6 +3,7 @@ import { getDrawCost, getPutOnView } from '../rules/costs'
 import { canHoldWith, getHeldItem } from '../rules/hands'
 import { WORN_ONE_AT_A_TIME, getContainerItem, getContainerKey } from '../rules/containers'
 import { dropItem, findInContainer, holdItem, pay } from './hands'
+import { getGearMoveBar } from '../rules/moves'
 import { removeItemFromContainer } from './items'
 
 // gear.tex "Containers": "only one backpack, one bandolier and one belt at a
@@ -48,7 +49,7 @@ export function putOnFromCatalog(item: Item): CharacterUpdater {
 export function putOnFromHands(itemId: string): CharacterUpdater {
   return (c: Character, charged = false) => {
     const item = getHeldItem(c, itemId)
-    if (!item) return c
+    if (!item || getGearMoveBar(c, { kind: 'putOnFromHands', args: [itemId] }, charged)) return c
     const container = toPutOn(c, 'hand', item, charged)
     return equipContainer(getContainerKey(item), container)(dropItem(itemId)(c))
   }
@@ -57,6 +58,7 @@ export function putOnFromHands(itemId: string): CharacterUpdater {
 // From a slot: drawn at that slot's price and put on.
 export function putOnFromContainer(containerKey: string, itemId: string): CharacterUpdater {
   return (c: Character, charged = false) => {
+    if (getGearMoveBar(c, { kind: 'putOnFromContainer', args: [containerKey, itemId] }, charged)) return c
     const { slot, item } = findInContainer(c, containerKey, itemId)
     const container = toPutOn(c, slot, item, charged)
     const paid = pay(c, getDrawCost(c, slot, item), charged)
@@ -70,7 +72,7 @@ export function putOnFromContainer(containerKey: string, itemId: string): Charac
 export function takeOffContainer(key: string): CharacterUpdater {
   return (c: Character) => {
     const container = c.containers[key]
-    if (!container) return c
+    if (!container || getGearMoveBar(c, { kind: 'takeOffContainer', args: [key] }, false)) return c
     const { [key]: _removed, ...remaining } = c.containers
     const bare = { ...c, containers: remaining }
     const item = getContainerItem(key, container)

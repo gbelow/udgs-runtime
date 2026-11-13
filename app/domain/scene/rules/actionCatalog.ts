@@ -170,6 +170,9 @@ export const ACTIONS = {
   reload:      { label: 'reload', rule: 'gear.tex "Reload"',          type: 'action',   price: null,          reactsTo: [],         die: false, identity: { weaponKey: '', attack: '' }, category: 'gear' },
   // combat.tex "Fire": muffling a burning space, the actor's own or next to it
   extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false, category: 'care' },
+  // combat.tex "Drawing items in combat", "Putting items away", gear.tex
+  // "Donning and Doffing armor", "Shields": priced by the move (item/rules/moves.ts)
+  gear:        { label: 'handle gear', rule: 'combat.tex "Drawing items in combat", "Putting items away"; gear.tex "Donning and Doffing armor", "Shields"', type: 'action', price: null, reactsTo: [], die: false, identity: { move: null }, category: 'gear' },
   plant:       { label: 'plant shield', rule: 'abilities.tex "Crossbow and Shield"', type: 'action', price: 'standardAction', reactsTo: [], die: false, category: 'gear' },
   // combat.tex "Rest"
   rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false, rest: true, category: 'tactical' },
