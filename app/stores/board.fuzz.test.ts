@@ -38,6 +38,8 @@ import { getDeclaredCarriedMoves } from '../domain/scene/rules/carriedMove'
 import { adapted, archer, fatalist, guardian, ferocious, bomber, crossbowman, brawler, cunningTrained, mage, medic, meleeTrained, netter, providential, rangedTrained, serpent, spearman, swordBrawler, torchbearer, towerWarden, trained, warden } from '../domain/scene/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { getOpenButtons } from '../domain/scene/projections/buttons'
+import { getOpenChoices } from '../domain/scene/projections/choices'
+import { declare, type Intent, type Pick } from '../domain/bot/declare'
 import { toUpdater } from '../domain/scene/commands/registry'
 import { getOpenCalls, toThrower } from '../domain/play/calls'
 import { useCombatStore } from './useCombatStore'
@@ -352,6 +354,8 @@ function plays(): Play[] {
     { name: 'end turn', run: (h) => h.send({ kind: 'endTurn', args: [] }) },
     { name: 'next round', run: (h) => h.send({ kind: 'nextRound', args: [] }) },
     { name: 'press an open button', weight: 3, run: pressAnOpenButton },
+    { name: 'fill in what the declaration offers', weight: 4, run: pressAnOpenChoice },
+    { name: 'declare through the builder', weight: 3, run: declareThroughTheBuilder },
     ...roundChangePlays(),
   ]
 }
@@ -519,6 +523,58 @@ function assertButtonsHold(h: Harness) {
   }
 }
 
+// Every fill the open declaration offers (`getOpenChoices`) and does not
+// already have does something when pressed. Of the cells a click picks, a few
+// spread over the list stand for the rest.
+function assertChoicesHold(h: Harness) {
+  const s = h.state()
+  let n = 0
+  const ctx = { thrower: () => 5, newId: () => `choice-${n++}` }
+  const offered = getOpenChoices(s).filter((c) => !c.chosen)
+  const cells = offered.filter((c) => c.part === 'cell')
+  const sampled = cells.filter((_, i) => i % Math.max(1, Math.ceil(cells.length / 4)) === 0)
+  for (const { command, label, actorId } of [...offered.filter((c) => c.part !== 'cell'), ...sampled]) {
+    expect(toUpdater(command, ctx)(s), `${label} is offered to ${actorId} but pressing it does nothing`).not.toBe(s)
+  }
+}
+
+// One of the fills the open declaration offers, whichever it is.
+function pressAnOpenChoice(h: Harness, pick: Picker) {
+  const offered = getOpenChoices(h.state()).filter((c) => !c.chosen)
+  if (offered.length) h.send(pick(offered).command)
+}
+
+// A declaration made by the bot's builder (bot/declare.ts) from what the
+// panel offers: an option of someone's own, and a few parts of it picked off
+// the open choices on the side. Whether the builder makes it or refuses it,
+// every command it returns is one the table takes: sent as a press, each does
+// something.
+function declareThroughTheBuilder(h: Harness, pick: Picker) {
+  const s = h.state()
+  if (getOpenAction(s)) return
+  const ids = Object.keys(s.characters).filter((id) => ownOptions(h, id).length > 0)
+  if (!ids.length) return
+  const actorId = pick(ids)
+  const option = pick(ownOptions(h, actorId)).draft
+  let n = 0
+  const ctx = { thrower: () => 5, newId: () => `built-${n++}` }
+  let aside = toUpdater({ kind: 'declare', args: [actorId, option] }, ctx)(s)
+  const picks: Pick[] = []
+  for (let i = 0; i < 4; i++) {
+    const offered = getOpenChoices(aside).filter((c) => c.actorId === actorId && !c.chosen && !picks.some((p) => p.part === c.part))
+    if (!offered.length) break
+    const c = pick(offered)
+    aside = toUpdater(c.command, ctx)(aside)
+    picks.push({ part: c.part, value: c.value })
+  }
+  const made = declare(s, { actorId, option: option as Intent['option'], picks }, ctx)
+  for (const command of made.commands) {
+    const before = h.state()
+    h.send(command)
+    expect(h.state(), `the builder pressed ${command.kind} but the table took nothing from it`).not.toBe(before)
+  }
+}
+
 // One of the open buttons, whichever it is, pressed as its hook would send it.
 function pressAnOpenButton(h: Harness, pick: Picker) {
   const open = getOpenButtons(h.state())
@@ -616,6 +672,7 @@ function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Pi
       if (storage) assertWire()
       assertOffersHold(h)
       assertButtonsHold(h)
+      assertChoicesHold(h)
     } catch (e) {
       stop()
       const file = writeReplay(h, seed)

@@ -429,23 +429,24 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
     if (range === 0) continue
     const approach = getApproachStep(reaches, range)
     if (approach !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: approach })
-    // combat.tex "Catch": "someone tries to initiate a grapple against a
-    // running target" — one with a grapple row may grab a runner once the
-    // run has brought them within its reach, as nobody else may; fought, as
-    // every attack on a mover is, with the mover stood where the step before
-    // `at` left them — here, the first step in reach
-    const grab = root.movement === 'run' ? getMeleeRange(state.characters[id], isGrappleRow) : 0
-    if (grab > 0) {
-      const inReach = reaches.slice(1).findIndex((d) => d <= grab)
-      if (inReach >= 0 && !triggers.some((t) => t.characterId === id && t.at === inReach + 2)) triggers.push({ characterId: id, kind: 'opportunityAttack', at: inReach + 2, catchOnly: true })
-    }
+    if (root.movement !== 'run') continue
     // combat.tex "Hook Attack": "a reaction against running targets that
     // move away from the weapon within two spaces, which are both inside its
     // melee range"
     const hook = getMeleeRange(state.characters[id], (atk) => hasProperty(atk.properties, 'hook'))
-    if (root.movement !== 'run' || hook === 0) continue
-    const away = firstStep(reaches, (previous, now) => now > previous && now <= hook)
+    const away = hook > 0 ? firstStep(reaches, (previous, now) => now > previous && now <= hook) : null
     if (away !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: away })
+    // combat.tex "Catch": "someone tries to initiate a grapple against a
+    // running target" — one with a grapple row may grab a runner once the
+    // run has brought them within its reach, as nobody else may; fought, as
+    // every attack on a mover is, with the mover stood where the step before
+    // `at` left them — here, the first step in reach. Where an attack is
+    // already drawn at that step, the catch is declared on it (its toggle).
+    const grab = getMeleeRange(state.characters[id], isGrappleRow)
+    if (grab > 0) {
+      const inReach = reaches.slice(1).findIndex((d) => d <= grab)
+      if (inReach >= 0 && !triggers.some((t) => t.characterId === id && t.at === inReach + 2)) triggers.push({ characterId: id, kind: 'opportunityAttack', at: inReach + 2, catchOnly: true })
+    }
   }
   return triggers
 }

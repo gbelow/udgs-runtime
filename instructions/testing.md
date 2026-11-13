@@ -129,11 +129,15 @@ click to what stands afterwards. It is admitted, under these terms.
   active and in-turn characters are in the fight, no two standing footprints share a cell, the board
   draws every placed character, every link an action in the log holds names an action in the
   log or the journal, and a click on a board the view calls locked changes nothing.
-  Three more checks run over the panel's own promises: every option `getAvailableActions` shows open can be
+  Four more checks run over the panel's own promises: every option `getAvailableActions` shows open can be
   declared and does something, and every one it shows closed is refused with the state left as it was;
   every button `getOpenButtons` shows open does something when pressed, and any of them may be pressed as a
-  play of its own; and after an exchange has been played out, nothing is left committed and waiting, once an
-  answer still being declared has been taken back.
+  play of its own; every fill `getOpenChoices` offers the open declaration, and that it does not already
+  have, does something when pressed (of the cells, a few spread over the list), and any of them may be
+  pressed as a play of its own; and after an exchange has been played out, nothing is left committed and
+  waiting, once an answer still being declared has been taken back. The bot's builder (`bot/declare.ts`)
+  is played too, with a declaration picked off the panel's offers: every command it returns, made or
+  refused, does something when sent to the table.
   A failure names its seed, step and the plays before it; pin what it found as a scenario.
   It also writes `reports/fuzz-replay-*.json`, the fight as the session began and every command
   it sent with the dice each drew, which `replay` (`boardHarness.ts`) plays back step by step.

@@ -663,6 +663,18 @@ describe('an opportunity attack declared with a row it cannot pay for', () => {
 })
 
 describe('a hook attack', () => {
+  // Regression: a runner leaving over a prone fighter came into their grabbing
+  // reach on the step their unarmed hook reaches them going away, so that step
+  // drew a grab-only opportunity attack and the hook's beside it, and the hook
+  // attack was refused as a grab.
+  it('is open at the step a runner leaves over a prone fighter, one answer for that step', () => {
+    let s = onBoard({ d: [-1, 1], r: [0, 1] }, { ...fighter('d'), afflictions: ['prone' as const] }, fighter('r'))
+    s = declareAction('r', { kind: 'move' }, newId)(s)
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'run', path: [{ q: -1, r: 1 }, { q: -2, r: 1 }, { q: -3, r: 1 }] })(s))
+    const answers = getAvailableActions(s, 'd').filter((o) => o.draft.kind === 'opportunityAttack' && 'at' in o.draft && o.draft.at === 2)
+    expect(answers.map((o) => o.reason)).toEqual([null])
+  })
+
   // A halberdier hooks, at `location`, a runner setting off away from them,
   // the hook hitting; with its damage bought or not, and landed.
   function hookRunner(location: 'leg' | 'chest', buy: boolean): SceneState {
