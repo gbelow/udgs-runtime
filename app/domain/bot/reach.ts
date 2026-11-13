@@ -3,8 +3,7 @@ import type { SceneState } from '../scene/types'
 import { getMovementOptions, type ReachableCell } from '../scene/rules/move'
 import { getReachableCells } from '../scene/rules/board/reach'
 import { getOpenAction } from '../scene/rules/log'
-import { amendAction, declareAction } from '../scene/commands/action'
-import { surge } from '../scene/commands/turn'
+import { toUpdater, type SceneCommand } from '../scene/commands/registry'
 
 // Every cell the character could get to this turn. The table's ruling: a cell
 // any movement reaches, the fastest one reaches too, so the reach is the
@@ -18,12 +17,17 @@ export type Reach = {
   // made with a movement surge first
   surged: boolean
   cells: ReachableCell[]
-  // the state the move was declared in to read the reach: a click on one of
-  // the cells pressed on it finds the reach already walked
+  // the state the move was declared on (after the surge, where one was made),
+  // and the state it was declared in to read the reach: a click on one of the
+  // cells pressed on `moving`, or the same move declared on `from` by the
+  // builder (bot/declare.ts), finds the reach already walked
+  from: SceneState
   moving: SceneState
 }
 
-const NO_IDS = () => 'reach'
+// pressed as a person presses, so that the same move declared by the builder
+// (bot/declare.ts) on `from` is the same fight but for its id
+const press = (state: SceneState, command: SceneCommand) => toUpdater(command, { thrower: () => 0, newId: () => 'reach' })(state)
 
 function fastest(state: SceneState, id: string): MovementKind | null {
   const c = state.characters[id]
@@ -33,14 +37,25 @@ function fastest(state: SceneState, id: string): MovementKind | null {
 }
 
 function read(state: SceneState, id: string): Reach | null {
-  const surged = surge(id, 'movement')(state)
+  const surged = press(state, { kind: 'surge', args: [id, 'movement'] })
   const from = surged === state ? state : surged
   const movement = fastest(from, id)
   if (!movement) return null
-  const moving = amendAction({ movement })(declareAction(id, { kind: 'move' }, NO_IDS)(from))
+  const moving = press(press(from, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const open = getOpenAction(moving)
   if (open?.kind !== 'move' || open.actorId !== id || open.movement !== movement) return null
-  return { movement, surged: surged !== state, cells: getReachableCells(moving, open), moving }
+  const declared = declaredOn.get(from) ?? new Map<string, SceneState>()
+  declaredOn.set(from, declared)
+  declared.set(id, moving)
+  return { movement, surged: surged !== state, cells: getReachableCells(moving, open), from, moving }
+}
+
+const declaredOn = new WeakMap<SceneState, Map<string, SceneState>>()
+
+// The state a reach was read in, when its move was declared on this very
+// state for this character.
+export function getReachMove(state: SceneState, id: string): SceneState | null {
+  return declaredOn.get(state)?.get(id) ?? null
 }
 
 // A state is replaced, never changed, so a character's reach in it is read once.

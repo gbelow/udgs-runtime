@@ -3,6 +3,8 @@ import { toUpdater, type CommandContext, type SceneCommand } from '../scene/comm
 import { getAvailableActions } from '../scene/rules/options'
 import { getNextStep } from '../scene/rules/action'
 import { getOpenAction } from '../scene/rules/log'
+import { shareReach } from '../scene/rules/board/reach'
+import { getReachMove } from './reach'
 import { getActionOffers } from '../scene/projections/actionPanel'
 import { getOpenChoices, STEPPED_PARTS, type ChoicePart, type OpenChoice } from '../scene/projections/choices'
 
@@ -66,7 +68,11 @@ export function declare(start: SceneState, intent: Intent, ctx: CommandContext):
   if (drafts.length === 0) return refuse(`${intent.option.kind} is not offered to ${actorId} as named`)
   if (drafts.length > 1) return refuse(`${intent.option.kind} as named matches ${drafts.length} options: name more of it`)
   const answer = answering?.step === 'react'
+  // a move getReach (bot/reach.ts) declared on this same state has had its
+  // reach walked: the same move declared here shares it
+  const walked = getReachMove(state, actorId)
   if (!press(answer ? { kind: 'react', args: [actorId, drafts[0]] } : { kind: 'declare', args: [actorId, drafts[0]] })) return refuse(`declaring ${intent.option.kind} did nothing`)
+  if (walked) shareReach(walked, state)
 
   const mine = () => getOpenChoices(state).filter((c) => c.actorId === actorId)
   const made = new Set<number>()
@@ -89,6 +95,7 @@ export function declare(start: SceneState, intent: Intent, ctx: CommandContext):
         : of.find((c) => same(c.value, value))
       if (!step) continue
       if (!press(step.command)) return refuse(`${part} ${canon(value)} is offered but pressing it does nothing`)
+      if (walked) shareReach(walked, state)
       if (PRESSED_ONCE.includes(part)) made.add(i)
       moved = true
     }
