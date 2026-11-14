@@ -3,7 +3,7 @@ import { getSTR } from "./characteristics";
 import { getSize, getDMAt } from "./size";
 import { BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
-import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
+import { getAttackKind, getAttackType, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
 import { hasGrant } from "./effects"
 import { isCampaignCharacter } from "../../utils";
@@ -218,17 +218,19 @@ const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
 }
 const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
-// combat.tex "Sweeping Attack", made as the normal attack or as any heavy
-// one the row offers ("The variations can be combined, but braced and hook
-// attack cannot be combined with anything").
-const SWEEP = 'sweep'
+export function getHeavyName(degree: number): string {
+  return `heavy ${'I'.repeat(degree)}`
+}
 
-export function isSweepVariant(variant: string): boolean {
-  return variant === SWEEP || variant.endsWith(`+${SWEEP}`)
+// What a heavy attack of the degree adds to a strike with the row: its
+// price, its penalty to hit, and the blow it lands. combat.tex "Heavy
+// Attack": "Bonus applies to blunt damage and cutting damage."
+export function getHeavyVariation(atk: WeaponAttack, weapon: Weapon, c: Character, degree: number): { cost: ActionCost; penalty: number; blunt: number; cut: number } {
+  const { penalty, STRmul } = HEAVY_DEGREES[degree]
+  return { cost: getActionCost(c, HEAVY_ACTIONS[degree - 1]), penalty, ...getStrikeDamage(atk, weapon, c, STRmul) }
 }
 
 export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: Weapon }): (c: Character) => AttackVariant[] {
-  const heavyRange = getHeavyRange(atk)
   const kind = getAttackKind(atk.range)
   const type = getAttackType(atk.range)
 
@@ -236,22 +238,6 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     const untrained = kind === 'shoot' && isUntrainedBow(weapon, c)
     const AP = atk.AP + getAPSurcharge(weapon, c) + (untrained ? 3 : 0)
     const { blunt, cut } = getStrikeDamage(atk, weapon, c)
-    // combat.tex "Heavy Attack": "Bonus applies to blunt damage and cutting damage."
-
-    const heavy = (degree: number): AttackVariant => {
-      const { penalty, STRmul } = HEAVY_DEGREES[degree]
-      const cost = getActionCost(c, HEAVY_ACTIONS[degree - 1])
-      return {
-        name: `heavy${'I'.repeat(degree)}`,
-        type,
-        AP: AP + cost.AP,
-        STA: cost.STA,
-        penalty,
-        ...getStrikeDamage(atk, weapon, c, STRmul),
-        reach: null,
-        distance: null,
-      }
-    }
 
     // Variation prices are deltas on the row's AP (combat.tex "Strike").
     const quickCost = getActionCost(c, 'quickShot')
@@ -274,21 +260,10 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
 
     const attacks: AttackVariant[] = []
 
-    // gear.tex "Heavy I/II/III": a heavy range ("heavy I-II") sets its lower
-    // bound as the minimum and forbids the normal attack; a bare degree keeps
-    // it. `min === 0` carries that distinction out of getHeavyRange.
-    if (!heavyRange || heavyRange.min === 0) attacks.push(basic)
-    if (heavyRange) {
-      for (let degree = Math.max(1, heavyRange.min); degree <= heavyRange.max; degree++) {
-        attacks.push(heavy(degree))
-      }
-    }
-
-    // combat.tex "Sweeping Attack": "spends 1 additional AP on the attack"
-    if (kind === 'melee' && hasProperty(atk.properties, 'sweeping')) {
-      const sweepCost = getActionCost(c, 'sweep')
-      attacks.push(...attacks.map((v) => ({ ...v, name: v.name === basic.name ? SWEEP : `${v.name}+${SWEEP}`, AP: v.AP + sweepCost.AP, STA: v.STA + sweepCost.STA })))
-    }
+    // combat.tex "Strike": "The variations can be combined", so a heavy
+    // attack and a sweep are declared on the normal one (scene/rules/heavy.ts,
+    // scene/rules/sweep.ts), and are not variations of their own.
+    attacks.push(basic)
     if (hasProperty(atk.properties, 'braced')) attacks.push(braced)
     if (hasProperty(atk.properties, 'hook')) attacks.push(hook)
     // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot

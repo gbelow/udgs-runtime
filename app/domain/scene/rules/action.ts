@@ -65,7 +65,8 @@ import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparationOf, getPreparedDiscount, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
 import { getStrategistDiscount } from './cunning'
-import { getCombinedOf, getOpeningMove, isCombinedLanding } from './combinedMove'
+import { getCombinedOf, isCombinedLanding } from './combinedMove'
+import { getJumpTargets, isJumpLanded } from './attackJump'
 import { getFiringState, isSteadyPathLegal } from './steadyArms'
 import { getStrikeContext, isStrikeDeclarationOpen, isVariantOpen, type StrikeHolder } from './strikeDeclaration'
 import { addModifierLines, areModifiersOpen, getModifiedPrice, type ModifiedPrice } from './modifiers'
@@ -118,9 +119,9 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
   if (isUsedOutsideGrapple(state, action) || !areModifiersOpen(state, action)) return false
   switch (action.kind) {
     case 'strike':
-      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isJumpLanded(state, action) && isAimOnTarget(state, action)
     case 'shoot':
-      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isVariantOpen(state, action, action) && isShotLoaded(c, action) && isSteadyPathLegal(state, action) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isVariantOpen(state, action, action) && isShotLoaded(c, action) && isSteadyPathLegal(state, action) && isJumpLanded(state, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
     case 'explosion':
       return (action.source !== 'cast' || isSpellKey(action.key))
@@ -292,9 +293,6 @@ function getStrikeVariantCost(state: SceneState, c: CampaignCharacter, action: A
 // to be done to cannot be performed, and is passed up.
 export function isPreparedRequired(state: SceneState, action: Action): boolean {
   if (action.kind === 'move' && action.forced && action.step === 'define') return true
-  // abilities.tex "Lunge": the jump was made "while using an attack";
-  // "Jump Shot": to "perform a quick shot or throw"
-  if ((action.kind === 'strike' || action.kind === 'shoot') && action.step === 'define' && getOpeningMove(state, action) !== null) return isPerformable(state, action)
   if (action.preparedPart === null || action.step !== 'define') return false
   if (action.preparedPart === 'main') return isRoot(action) && isPerformable(state, action)
   const reaction = action.spawnedBy ? getAction(state, action.spawnedBy) : null
@@ -847,6 +845,8 @@ export function needsTarget(state: SceneState, action: Action): boolean {
 // not detected (combat.tex "Stealth in combat"). One compelled to attack
 // a caster aims at nobody else (rules/stress.ts).
 export function getTargetIds(state: SceneState, root: RootAction): string[] {
+  const jumping = root.kind === 'strike' || root.kind === 'shoot' ? getJumpTargets(state, root) : null
+  if (jumping) return jumping
   const at = root.kind === 'shoot' ? getFiringState(state, root) : state
   return getAimableIds(at, root).filter((id) => notices(at, root.actorId, id) && !isSheltered(at, root.actorId, id) && isCompelledTarget(at, root.actorId, id))
 }

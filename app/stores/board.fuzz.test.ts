@@ -1091,27 +1091,40 @@ function grapplingPlay(h: Harness): Play[] {
   }]
 }
 
-// abilities.tex "Lunge", "Jump Shot": a move of one's own declared with a
-// recipe that opens an attack from where it lands, landed where the board
-// offers, and the attack it opens played out. Played for every such recipe
+// abilities.tex "Lunge", "Jump Shot": an attack of one's own declared with a
+// recipe whose jump it carries before its die, aimed at a target, landed
+// where the board offers, and played out. Played for every such recipe
 // someone has, for the same reason as the shelter.
 function jumpAttackPlay(h: Harness): Play[] {
-  const recipes = [...new Map(Object.values(h.state().characters).flatMap((c) => getCombinedMoves(c, 'move')).map((e) => [e.id, e])).values()]
+  const kinds = ['strike', 'shoot'] as const
+  const recipes = [...new Map(Object.values(h.state().characters).flatMap((c) => kinds.flatMap((k) => getCombinedMoves(c, k))).map((e) => [e.id, e])).values()]
   return recipes.flatMap((entry): Play[] => {
-    const able = () => Object.values(h.state().characters).filter((c) => getCombinedMoves(c, 'move').some((e) => e.id === entry.id))
-    if (!able().length) return []
+    const kind = kinds.find((k) => (entry.recipe.with as readonly string[]).includes(k))
+    const able = () => Object.values(h.state().characters).filter((c) => kind && getCombinedMoves(c, kind).some((e) => e.id === entry.id))
+    if (!kind || !able().length) return []
     return [{
       name: entry.label,
       weight: 3,
       run: (h, pick) => {
-        h.select(pick(able().map((c) => c.name)))
-        h.startTurn()
-        const jump = ownOptions(h, h.active()!).find((o) => o.draft.kind === 'move')
-        if (!jump) return
-        h.declare({ kind: 'move', movement: entry.recipe.movement })
-        const toggle = getActionPanel(h.state()).open?.modifiers.find((m) => m.key === entry.id)
+        startTurnOf(h, pick, able().map((c) => c.id))
+        if (kind === 'shoot') h.send({ kind: 'surge', args: [h.active()!, 'focus'] })
+        const attack = ownOptions(h, h.active()!).find((o) => o.draft.kind === kind)
+        if (!attack) return
+        h.declare(attack.draft as ActionDraft)
+        const panel = () => getActionPanel(h.state())
+        const toggled = () => panel().open?.modifiers.find((m) => m.key === entry.id)
+        const rows = panel().attacks.filter((row) => {
+          h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
+          return toggled()?.allowed === true
+        })
+        if (!rows.length) return
+        const row = pick(rows)
+        h.send({ kind: 'amend', args: [{ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
+        const toggle = toggled()
         if (!toggle?.allowed) return
         h.send({ kind: 'amend', args: [toggle.press] })
+        const target = h.view().tokens.filter((t) => t.targetable)
+        if (target.length) h.click({ on: 'token', id: pick(target).id })
         const there = highlighted(h)
         if (there.length) h.click({ on: 'cell', cell: pick(there).cell })
         h.commit()

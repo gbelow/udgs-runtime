@@ -8,7 +8,7 @@ import { getHistory, getLiveReactionsTo, getLog, getOpenAction, getOpeningReacti
 import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
 import { getOptionLabel } from '../projections/labels'
-import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
+import { getAttackOptions, getDLTerms, getDefendingReaction, getOpportunityAction } from '../rules/attack'
 import { getOwnCost, isDeclarationComplete, needsDie } from '../rules/action'
 import { getEvasiveJumpPlacements } from '../rules/move'
 import { getChargeOptions } from '../rules/explosion'
@@ -650,15 +650,24 @@ describe('an opportunity attack declared with a row it cannot pay for', () => {
     const option = getAvailableActions(s, 'h').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!
     s = declareReaction('h', option.draft, newId)(s)
     const rootId = getOpenAction(s)!.id
-    const completeWith = (STA: number, o: { weaponKey: string; attack: string; variant: string }) => {
+    type Declared = { weaponKey: string; attack: string; variant: string; heavy: number }
+    const declaredWith = (STA: number, o: Declared) => {
       const poorer = { ...s, characters: { ...s.characters, h: { ...s.characters.h, resources: { ...s.characters.h.resources, STA } } } }
-      const amended = amendReaction('h', { weaponKey: o.weaponKey, attack: o.attack, variant: o.variant })(poorer)
-      const reaction = getLiveReactionsTo(amended, rootId).find((r) => r.actorId === 'h')!
+      const amended = amendReaction('h', { weaponKey: o.weaponKey, attack: o.attack, variant: o.variant, heavy: o.heavy })(poorer)
+      return { amended, reaction: getLiveReactionsTo(amended, rootId).find((r) => r.actorId === 'h')! }
+    }
+    const completeWith = (STA: number, o: Declared) => {
+      const { amended, reaction } = declaredWith(STA, o)
       return isDeclarationComplete(amended, amended.characters.h, reaction)
     }
-    const priced = getAttackOptions(s.characters.h, 'strike', true).filter((o) => o.STA > 0 && completeWith(o.STA, o))
+    const priceOf = (o: Declared) => {
+      const { amended, reaction } = declaredWith(s.characters.h.resources.STA, o)
+      return reaction.kind === 'opportunityAttack' ? getOwnCost(amended, getOpportunityAction(amended, reaction, 'blow'))?.STA ?? 0 : 0
+    }
+    const declarations = getAttackOptions(s.characters.h, 'strike', true).flatMap((o) => [0, 1, 2, 3].map((heavy) => ({ ...o, heavy })))
+    const priced = declarations.filter((o) => priceOf(o) > 0 && completeWith(priceOf(o), o))
     expect(priced.length).toBeGreaterThan(0)
-    for (const o of priced) expect(completeWith(o.STA - 1, o)).toBe(false)
+    for (const o of priced) expect(completeWith(priceOf(o) - 1, o)).toBe(false)
   })
 })
 
@@ -895,13 +904,15 @@ describe('a disarm an intercept opens', () => {
 // opportunity from any of its targets." The table's ruling: one roll per
 // target, the sweep paid once.
 describe('a sweeping attack', () => {
+  const SWEEPING = { sweep: true, catch: false, martialSpirit: false, tackle: false }
+
   // A longsword (reach 2) swung counterclockwise from `t1`, east of the attacker:
   // `t2` and `t3` a sixth and a third of a turn on, `hidden` behind `t2`,
   // `back` two thirds of a turn round, outside the semicircle.
   function sweepAt(t1: CampaignCharacter = fighter('t1')): SceneState {
     let s = onBoard({ atk: [0, 0], t1: [1, 0], t2: [1, -1], t3: [0, -1], hidden: [2, -2], back: [-1, 1] },
       wielder('atk', 'Longsword'), t1, fighter('t2'), fighter('t3'), fighter('hidden'), fighter('back'))
-    s = declareAction('atk', { kind: 'strike', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'counterclockwise' }, newId)(s)
+    s = declareAction('atk', { kind: 'strike', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'basic', modifiers: SWEEPING, sweepDirection: 'counterclockwise' }, newId)(s)
     return commitAction(() => 5, newId)(setTarget('t1')(s))
   }
 
@@ -932,7 +943,7 @@ describe('a sweeping attack', () => {
     let s = onBoard({ atk: [0, 0], t1: [1, 0], t2: [1, -1], far: [5, 0] }, wielder('atk', 'Longsword'), archer('t1'), fighter('t2'), fighter('far'))
     s = declareAction('t1', { kind: 'shoot', weaponKey: s.characters.t1.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
     s = commitAction(() => 5, newId)(setTarget('far')(s))
-    s = declareReaction('atk', { kind: 'opportunityAttack', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'counterclockwise' }, newId)(s)
+    s = declareReaction('atk', { kind: 'opportunityAttack', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'basic', modifiers: SWEEPING, sweepDirection: 'counterclockwise' }, newId)(s)
     const { landed } = playOut(s, MISS)
     expect(landed.filter((a) => a.kind === 'strike').map((a) => a.targetId)).toEqual(['t1', 't2'])
   })

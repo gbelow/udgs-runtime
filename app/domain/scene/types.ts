@@ -600,20 +600,33 @@ const SweepDeclaration = {
 // A strike as declared before the die, whatever declares it — on a turn, as
 // an opportunity attack or a counterattack, or prepared: what it is made
 // with, the way a sweep turns, and what it is made as besides. combat.tex
-// "Catch": a strike with a grapple row at a running target, whose hit is a
-// crash the catcher gets +3 in. abilities.tex "Martial Spirit": a spiritual
-// attack launched with the strike, its price added to the strike's.
-// "Tackle": a grab and a knockdown in the same strike. Each is a modifier
-// (rules/modifiers.ts).
+// "Strike": "The variations can be combined, but braced and hook attack
+// cannot be combined with anything", so the heavy degree and the sweep are
+// declared beside the variation, not as one. "Heavy Attack": the degree, 0
+// for none; below the row's minimum it is the minimum (rules/heavy.ts).
+// "Sweeping Attack": hits everything in a semicircle. "Catch": a strike with
+// a grapple row at a running target, whose hit is a crash the catcher gets
+// +3 in. abilities.tex "Martial Spirit": a spiritual attack launched with
+// the strike, its price added to the strike's. "Tackle": a grab and a
+// knockdown in the same strike. Each is a modifier (rules/modifiers.ts).
 export const StrikeModifiersSchema = z.object({
+  sweep: z.boolean().default(false),
   catch: z.boolean().default(false),
   martialSpirit: z.boolean().default(false),
   tackle: z.boolean().default(false),
 })
 export const StrikeDeclaration = {
   ...AttackMade,
+  heavy: num.default(0),
   ...SweepDeclaration,
   modifiers: StrikeModifiersSchema.prefault({}),
+}
+
+// abilities.tex "Lunge", "Jump Shot": where the jump an attack of one's own
+// carries before its die lands, picked once the target is
+// (rules/attackJump.ts); null while none is picked.
+const AttackJump = {
+  jumpTo: PlacementSchema.nullable().default(null),
 }
 
 // A shot as declared before the die, whatever declares it: what it is made
@@ -745,6 +758,7 @@ export const StrikeActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('strike'),
   ...StrikeDeclaration,
+  ...AttackJump,
   ...AttackAim,
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD"
@@ -787,6 +801,7 @@ export const ShootActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('shoot'),
   ...ShotDeclaration,
+  ...AttackJump,
   ...AttackAim,
   ...ObjectAim,
   facts: DeliverySchema.nullable().default(null),

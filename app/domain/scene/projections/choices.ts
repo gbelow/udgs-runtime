@@ -7,10 +7,11 @@ import { getReachableCells } from '../rules/board/reach'
 import { getAim } from '../rules/aim'
 import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
 import { getDragReach } from '../rules/drag'
-import { getEvasiveJumper } from '../rules/board/boardMode'
+import { getAttackLandings, getEvasiveJumper } from '../rules/board/boardMode'
 import { getEvasiveJumpPlacements } from '../rules/move'
 import { isAimable } from '../rules/explosion'
-import { ring } from '../rules/board/geometry'
+import { ring, sameCell } from '../rules/board/geometry'
+import { isJumpAttack } from '../rules/attackJump'
 import { getActionOffers, type ActionOffers, type ReactorOptions } from './actionPanel'
 import type { PrepareView } from './prepare'
 import type { ModifierView } from './modifiers'
@@ -179,6 +180,8 @@ function cellChoices(state: SceneState): OpenChoice[] {
     list.map((cell) => choice(actorId, 'cell', { q: cell.q, r: cell.r }, false, { kind: 'click', args: [{ on: 'cell', cell }, null, false, actorId] }, `${label} ${cell.q},${cell.r}`))
   const jumper = getEvasiveJumper(state)
   if (jumper) return cells(jumper, getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => p.cell), 'land at')
+  const landings = getAttackLandings(state)
+  if (landings.length > 0) return cells(open.actorId, landings.filter((p) => !(isJumpAttack(open) && open.jumpTo && sameCell(open.jumpTo.cell, p.cell))).map((p) => p.cell), 'jump to')
   if (open.kind === 'move' && open.step === 'define') return cells(open.actorId, getReachableCells(state, open).map((r) => r.cell), 'go to')
   if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) return cells(open.actorId, getReachableCells(state, getSteadyPath(state, open)).map((r) => r.cell), 'walk to')
   if (open.kind === 'drag' && open.step === 'define') return cells(open.actorId, getDragReach(state, open).map((r) => r.cell), 'push to')

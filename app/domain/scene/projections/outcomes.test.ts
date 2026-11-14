@@ -26,7 +26,7 @@ describe('the preview', () => {
     let n = 0
     const newId = () => `a${++n}`
     let s = combat(fighter('atk'), fighter('def'))
-    s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, newId)(s)
+    s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic', heavy: 1 }, newId)(s)
     s = setTarget('def')(s)
     s = commitAction(() => 5, newId)(s)
     s = rollAction(() => 30, newId)(s)

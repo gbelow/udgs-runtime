@@ -39,7 +39,7 @@ import { getFiringSteps, isSteadyShot } from '../rules/steadyArms'
 import { isRootAction } from '../rules/actionCatalog'
 import { getBreakableLimbs, getDisarmOptions, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
-import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rules/equipment'
+import { EQUIPMENT_ATTACK_PENALTY, getAimableItems } from '../rules/equipment'
 import { getFloorObject } from '../rules/floorAttack'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple, getGrapples } from '../rules/partners'
@@ -50,7 +50,6 @@ import { getLootCost, getLootLabel, getOpenables, getReachableLoot } from '../ru
 import { getStealable, isTheftChoiceOffered } from '../rules/steal'
 import { canThrowItem, getThrowables } from '../rules/throw'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
-import { isSweepVariant } from '../../character/rules/gear'
 import { GRAPPLING_EFFECTS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from '../../perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
@@ -196,7 +195,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             modes: declared.kind === 'opportunityAttack' ? getOpportunityModes(state, c, declared.targetId ?? '').map((mode) => ({ mode, press: { mode, weaponKey: '', attack: '', variant: '', ammoId: '', modifiers: getModifiersOff(declared) } as Partial<ActionDraft> })) : [],
             maneuvers: getManeuversOf(c).filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
-            sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
+            sweepDirection: declared.kind !== 'joinShot' && declared.modifiers.sweep ? declared.sweepDirection : null,
           }
         : null
       return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
@@ -540,7 +539,7 @@ function buildActionOffers(state: SceneState): ActionOffers {
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
-          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
+          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o) && (open.kind !== 'strike' || isSweepRowKept(state, open, o))))
           .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
     ammo: (open.kind === 'shoot' || open.kind === 'reload') && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],

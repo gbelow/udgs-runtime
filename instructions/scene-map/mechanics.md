@@ -124,9 +124,25 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   the shield is still in hand, against anything on the shooter's side of them: they can be neither
   seen nor shot from there. A shield planted (`plant`) is the same cover, read off the floor item's
   `planted` while its planter stands in its space and it is not broken; no action of theirs ends it.
-- **Sweeps** (`rules/sweep.ts`) — a sweeping variation (`isSweepVariant`, the normal or any
-  heavy attack plus the sweep's AP) is a chain of strikes, one per target, each rolled and
-  defended on its own. The first is declared with a `sweepDirection` — on a strike, or on the
+- **Strike variations** — combat.tex "Strike": "The variations can be combined, but braced and
+  hook attack cannot be combined with anything". The `variant` is only the way of striking
+  (normal, braced, hook; a shot's basic, quick or snipe); what combines with the normal strike is
+  declared beside it and offered as toggles by `rules/modifiers.ts`, each with its price and its
+  test terms: the heavy degree (`heavy`, `rules/heavy.ts`: one entry a degree, clamped to the
+  row's range, the minimum of a row that forbids the normal attack fixed; its blow is read by
+  `getAttackVariant`), the sweep (`modifiers.sweep`), and a jump the attack carries (its
+  `recipe`, below).
+- **Jumping attacks** (`rules/attackJump.ts`) — Lunge on a strike, Jump Shot on a quick shot or
+  throw: a `combinedMove` recipe `with` the attack, its price added to the attack's. Half a jump
+  (`reach: 'halfJump'`), towards the target or away from the threateners (`toward`), landing
+  only where the attack then reaches its target. While it is declared, its targets are those
+  some landing reaches, and once the target is picked the board offers the landings
+  (`getAttackLandings`, board mode `jump`) and the pick is the attack's `jumpTo`; the attack is
+  read from there (`getJumpingState`). Its commit opens the jump as a move spawned by the attack,
+  committed at once like a steady shot's first steps, free (`isCarriedByAttack`) and drawing
+  what any move draws; the attack waits at `react` until it has landed.
+- **Sweeps** (`rules/sweep.ts`) — a sweep (`isSweep`: the toggle, or a later strike of one) is a
+  chain of strikes, one per target, each rolled and defended on its own. The first is declared with a `sweepDirection` — on a strike, or on the
   opportunity attack or counterattack that opens one; on a board its commit, or its opening,
   writes the `arc` it reaches after its target (`getSweepArc`: in reach, within the
   semicircle, or the full turn with Death Spin, not fallen, not behind another). When a
@@ -135,8 +151,8 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   absorb it, `getPassedShare` in `character/rules/damage.ts`). Nothing opens once the share is
   0 — an intercept stopped it, or it was absorbed — or the arc is spent. On a fight without a
   board the next strike opens at `define`, for the attacker to aim at anyone not yet swept or
-  pass up. A later strike (`isSweepLink`: its `sweepOf` names the first, its `swept` who the sweep met before it) is prepaid, keeps the sweep's row
-  and variation, carries no charge, and draws no opportunity attack; the first draws none from
+  pass up. A later strike (`isSweepLink`: its `sweepOf` names the first, its `swept` who the sweep met before it) is prepaid, keeps the sweep's row,
+  variation and heavy degree, carries no charge, and draws no opportunity attack; the first draws none from
   any of the sweep's targets. None of the sweep's targets may protect another.
 - **Breakage** (`rules/breakage.ts`, `character/rules/breakage.ts`) — a block or guard that meets a
   graze or a miss puts the object in the way at risk, and a strike's own weapon takes the impact

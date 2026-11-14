@@ -11,7 +11,8 @@ import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/fighters'
 import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells } from '../rules/explosion'
-import { getBoardMode, getEvasiveJumper, getFloorPicker, type BoardMode } from '../rules/board/boardMode'
+import { getAttackLandings, getBoardMode, getEvasiveJumper, getFloorPicker, type BoardMode } from '../rules/board/boardMode'
+import { isJumpAttack } from '../rules/attackJump'
 import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost } from '../rules/move'
 import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
@@ -452,10 +453,11 @@ function buildBoardView(state: SeenScene): BoardView {
 
   // the landings open to the target of a committed strike, while the jump
   // is still theirs to declare
+  // and the landings of the jump an attack being declared carries
   const jumper = getEvasiveJumper(state)
-  const landings = new Set(jumper && open ? getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => coordKey(p.cell)) : [])
+  const landings = new Set((jumper && open ? getEvasiveJumpPlacements(state, jumper, open.actorId) : getAttackLandings(state)).map((p) => coordKey(p.cell)))
   const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
-  const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
+  const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : open && !jumper && isJumpAttack(open) && open.step === 'define' ? open.jumpTo?.cell ?? null : null
 
   // the explosion in play: the centres it may be aimed at, what it
   // threatens, and its zones once it is pointed. It stays aimable for as

@@ -391,7 +391,7 @@ export function SustainedPanel(){
 // rolling cunning at once.
 function TurnControl(){
   const { startTurn, toggleContest, contestMode, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, agreed, stealth } = useTurnControls()
+  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, agreed, stealth, duty } = useTurnControls()
   const modes = useContestModes()
 
   return(
@@ -429,6 +429,7 @@ function TurnControl(){
         </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
+      {duty ? <span className='text-sm text-bad font-medium'>{duty}</span> : null}
       {result ? <span className='text-xs text-muted'>{result}</span> : null}
       {stealth ? <span className='text-xs text-muted'>{stealth}</span> : null}
     </div>

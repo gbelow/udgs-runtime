@@ -14,6 +14,9 @@ Improve Chase UI/ playability
 
 ## Scene
 
+### GM action
+- player ask to do GM action
+
 ### terrain
 - items on the ground, containers in terrain
 
@@ -51,7 +54,6 @@ Improve Chase UI/ playability
 - combat surprise - team sides - combat start button
 - characters sharing same space
 - breaking cells
-- leave dead bodies on the fight
 
 
 -----------------------

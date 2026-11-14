@@ -1813,12 +1813,12 @@
             ],
             "movement": "jump",
             "order": "before",
-            "reach": "movement",
+            "reach": "halfJump",
             "toward": "awayFromThreateners",
             "defends": "any",
             "rows": "quickShotOrThrow",
             "cost": {
-              "operation": "set",
+              "operation": "+",
               "AP": 1,
               "STA": 1
             },
@@ -2777,7 +2777,7 @@
             }
           ]
         ],
-        "description": "Allows you to jump for 1 STA while using an attack as an action and attack from the final position. This movement triggers opportunity attacks and braced attacks normally.",
+        "description": "+1 STA on an attack to half-jump towards the target first and strike from where you land. The jump triggers opportunity attacks and braced attacks normally.",
         "effect": [],
         "recipes": [
           {
@@ -2787,12 +2787,12 @@
             ],
             "movement": "jump",
             "order": "before",
-            "reach": "movement",
-            "toward": "any",
+            "reach": "halfJump",
+            "toward": "towardTarget",
             "defends": "any",
             "rows": "any",
             "cost": {
-              "operation": "set",
+              "operation": "+",
               "AP": 0,
               "STA": 1
             },

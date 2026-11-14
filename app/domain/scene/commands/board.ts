@@ -21,6 +21,7 @@ import { getReachableCells } from '../rules/board/reach'
 import { canStandAt } from '../rules/board/ground'
 import { getMoveOrigin, getPathTurns, withoutLastSegment } from '../rules/board/waypoint'
 import { aimAtCell, amendAction, declareReaction } from './action'
+import { getAttackLandings } from '../rules/board/boardMode'
 import { aimExplosion, displaceTrampled } from './choices'
 import { getDragReach, getWalkerPlacement } from '../rules/drag'
 import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
@@ -464,6 +465,12 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
   if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) {
     const drawn = pickPathCell(state, getSteadyPath(state, open), cell)
     return own(drawn ? amendAction({ ...drawn, firedAt: null }) : unchanged)
+  }
+  // abilities.tex "Lunge", "Jump Shot": where the jump the attack carries lands
+  const landings = getAttackLandings(state)
+  if (landings.length > 0) {
+    const jumpTo = landings.find((p) => sameCell(p.cell, cell))
+    return own(jumpTo ? amendAction({ jumpTo }) : unchanged)
   }
   const aim = getAim(state, open)
   if (aim) {

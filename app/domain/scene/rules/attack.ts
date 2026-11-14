@@ -10,7 +10,7 @@ import { CLIMB_REDO_PENALTY } from '../../tables'
 import { getAimedPlace } from '../../character/rules/body'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getExtendDL, getGearCastingDL, getGrimoireDL, getQuickenDL, getSpellGear } from '../../character/rules/spells'
-import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
+import { AttackVariant, getDistancePenalty, getHeavyVariation, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
 import { getAGI } from '../../character/rules/characteristics'
@@ -38,6 +38,8 @@ import { getAction, getReactionsTo, getRootOf } from './log'
 import { getSensoryTerms, getSensoryTermsHere } from './detection'
 import { isDefense } from './actionCatalog'
 import { getModifierTerms } from './modifiers'
+import { getHeavyDegree } from './heavy'
+import { getJumpingState } from './attackJump'
 import { isGuardPlaced } from './protect'
 import { getCombinedOf, isStepPending } from './combinedMove'
 import { isDefensePlaced, isPreparedCancelled } from './prepared'
@@ -85,12 +87,17 @@ export function getRowState(c: Character, row: WeaponRow, kind: AttackAction['ki
 }
 
 // The variation an attack declared, priced against the attacker as they
-// stand; null while it names no row of the attack's kind the attacker can
-// fire.
+// stand, with the blow of the heavy degree it is struck at (rules/heavy.ts:
+// that degree's price and penalty are its modifier's, rules/modifiers.ts);
+// null while it names no row of the attack's kind the attacker can fire.
 export function getAttackVariant(c: Character, action: AttackAction, charged: boolean): AttackVariant | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
   if (!row || getRowState(c, row, action.kind, charged) !== 'open') return null
-  return findRowVariant(c, row, action.variant)
+  const variant = findRowVariant(c, row, action.variant)
+  const degree = 'heavy' in action ? getHeavyDegree(c, action) : 0
+  if (!variant || degree === 0) return variant
+  const { blunt, cut } = getHeavyVariation(row.atk, row.weapon, c, degree)
+  return { ...variant, blunt, cut }
 }
 
 // Where an attack is aimed until another place is picked: the target's
@@ -167,10 +174,18 @@ export type AttackOption = {
   distance: number | null
 }
 
+// A strike with a row that forbids the normal attack is struck at its
+// minimum heavy degree at least, and is listed at that degree's price
+// (rules/heavy.ts).
 export function getAttackOptions(c: Character, kind: AttackAction['kind'], charged: boolean): AttackOption[] {
   return getWeaponRows(c).flatMap((row) => {
     if (getRowState(c, row, kind, charged) !== 'open') return []
-    return getRowVariants(c, row).map((v) => ({
+    return getRowVariants(c, row).map((variant) => {
+      const degree = kind === 'strike' ? getHeavyDegree(c, { weaponKey: row.wielded.key, attack: row.atk.name, variant: variant.name }) : 0
+      if (degree === 0) return variant
+      const heavy = getHeavyVariation(row.atk, row.weapon, c, degree)
+      return { ...variant, AP: variant.AP + heavy.cost.AP, STA: variant.STA + heavy.cost.STA, penalty: variant.penalty + heavy.penalty, blunt: heavy.blunt, cut: heavy.cut }
+    }).map((v) => ({
       weaponKey: row.wielded.key,
       weapon: row.weapon.name,
       attack: row.atk.name,
@@ -254,7 +269,8 @@ function getShotDistance(state: SceneState, shot: ShootAction): number | null {
 // combat.tex "Attack and Defend": a grapple row "can use the grapple skill
 // instead of strike to attack during a grapple".
 function getAttackTerms(placed: SceneState, action: AttackAction): Term[] {
-  const state = action.kind === 'shoot' ? getFiringState(placed, action) : placed
+  const fired = action.kind === 'shoot' ? getFiringState(placed, action) : placed
+  const state = action.kind === 'strike' || action.kind === 'shoot' ? getJumpingState(fired, action) : fired
   const c = state.characters[action.actorId]
   if (!c) return []
   const variant = getAttackVariant(c, action, isCombatStarted(state))
@@ -268,7 +284,7 @@ function getAttackTerms(placed: SceneState, action: AttackAction): Term[] {
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     ...(shot && action.kind === 'shoot' ? [{ label: 'distance', value: -getDistancePenalty(getShotDistanceRate(shot, c), getShotDistance(state, action) ?? 0) }] : []),
     ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -getAimedPlace(action.targetId ? state.characters[action.targetId] : undefined, action).aimPenalty }]),
-    ...(action.kind === 'strike' || action.kind === 'shoot' ? getAnswerTerms(state, action) : []),
+    ...(action.kind === 'strike' || action.kind === 'shoot' ? [...getModifierTerms(state, action), ...getAnswerTerms(state, action)] : []),
     ...(skill === grapple ? [] : attackSensoryTerms(state, action, action.kind === 'strike' ? 'strike' : 'accuracy')),
     ...(skill === grapple ? [] : getRoutingTerms(state, action.actorId)),
   ]

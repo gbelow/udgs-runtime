@@ -8,7 +8,7 @@ import { perState } from '../../perState'
 import { getAwaited } from '../rules/options'
 import { getActionNoun } from './labels'
 import { getFightName } from '../rules/fighters'
-import { getCompelledSurge } from '../rules/stress'
+import { getCompelledSurge, getStressDuty } from '../rules/stress'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 import { getFollowOptions } from '../rules/follow'
 import { getStealthScore, getStealthTurn } from '../rules/stealth'
@@ -36,6 +36,9 @@ export type TurnControls = {
   // combat.tex "Actions in stealth": whom the holder began the turn hidden
   // from, and their stealth as the turn has left it; '' when hidden from nobody
   stealth: string
+  // creating.tex "Limit Stress Actions": what the holder's limit stress turn
+  // has them do; '' when the turn is no limit stress action
+  duty: string
 }
 
 export function getTurnControls(state: SceneState, id: string): TurnControls {
@@ -53,6 +56,7 @@ export function getTurnControls(state: SceneState, id: string): TurnControls {
     result: getContestResult(state),
     agreed: hasAgreedToEnd(state, id),
     stealth: getStealthLine(state),
+    duty: getStressDuty(state),
   }
 }
 

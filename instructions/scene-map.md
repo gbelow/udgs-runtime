@@ -230,8 +230,8 @@ resolveAction ─────────► land(top)
   counterattack), the moves defenses carry after the strike (a Technical Lift's stand up), escapes a stun opens, the spell tests a linked cast opens, the explosion
   a cast opens, the explosion a thrown object goes off as where it lands, what the strike's
   recipes open (a hook's knockdown, an intercept's disarm, then the abilities': a riposte),
-  a sweep's next target, the fall a move ended in, and on top the attack a move declared
-  with a combined move opens and the steps a steady shot walks after it. A voided root generates only what an
+  a sweep's next target, the fall a move ended in, and on top the steps a steady shot
+  walks after it. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
@@ -252,8 +252,9 @@ resolveAction ─────────► land(top)
   label read it from there. A new event, condition or opened kind is a word added to the
   schema and read here; the `Record`s over them do not compile until it is.
   The other two are moves. A `combinedMove` (`rules/combinedMove.ts`) is a movement of the
-  actor's own made with an action at a price of its own: declared on a move, it opens an
-  attack from where the move lands (Lunge, Jump Shot); carried by a block, intercept or
+  actor's own made with an action at a price of its own: carried by an attack of one's own,
+  it is a jump made before the die, opened at the commit (Lunge, Jump Shot,
+  `rules/attackJump.ts`); carried by a block, intercept or
   evasive jump, or a guard against a shot, it is a move made before the die, opened by `repositionDefenders` like a
   prepared defense's reposition and ending only where the defense can be made (Defender,
   Defensive Advance, the martyr's run, a rule recipe, and the protection surge's, which is
@@ -388,7 +389,7 @@ app/domain/scene/
 │   ├── tested.ts       the tests a landing action's instant deliveries leave their targets (and what follows a strike's blow), rolled with the dice they threw with it
 │   ├── declaration.ts  the declarations an attack is made with (`StrikeDeclaration`, `ShotDeclaration` in types.ts), copied whole by picks read off the schema
 │   ├── strikeDeclaration.ts one strike declaration, whatever declares it (a turn, an opportunity attack, a counterattack, a preparation, a recipe, a sweep): its context (what it answers, the step that drew it) and the variations open there
-│   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion), and every move recipe its actor has learned that goes with it (`recipe`: rules/combinedMove.ts, rules/carriedMove.ts), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
+│   ├── modifiers.ts    every yes-or-no an action is declared with besides what it is (each kind's `modifiers`: sweep, catch, Martial Spirit, Tackle, Gentle Art, Precise Evasion), a strike's heavy degrees, and every move recipe its actor has learned that goes with it (`recipe`: rules/combinedMove.ts, rules/carriedMove.ts), each with when it is allowed, its price, what it puts on the test, what it delivers with a blow, and whether it is offered as a toggle or as an answer of its own
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike or shot
@@ -417,7 +418,9 @@ app/domain/scene/
 │   ├── displace.ts     a won crash in the space the move ends in: who is displaced, the spaces the attacker may put them in (`getAim` 'displace', picked by `displaceTrampled`), the forced movement each is made into before the move lands (`land`), and where the move reads them meanwhile (`withDisplaced`)
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
-│   ├── combinedMove.ts a movement made with an action at its own price (RecipeSchema `combinedMove`): a move that opens an attack from where it lands (Lunge, Jump Shot: where it may land, a jump shot backward at half the jump, the rows the attack may use), the move a defense carries before its die (Defender, Defensive Advance, the martyr's run: its reach, where it may end, pending and lapsed) or after the strike (Technical Lift's stand up)
+│   ├── combinedMove.ts a movement made with an action at its own price (RecipeSchema `combinedMove`): the half jump an attack carries (`isHalfJump`, `isCarriedByAttack`, the rows a jump shot may use), the move a defense carries before its die (Defender, Defensive Advance, the martyr's run: its reach, where it may end, pending and lapsed) or after the strike (Technical Lift's stand up)
+│   ├── attackJump.ts   the jump an attack of one's own carries before its die (abilities.tex "Lunge", "Jump Shot"): when it may be declared, the half-jump landings towards the target or away from the threateners from which the attack reaches it (`getJumpLandings`), the targets while it is declared (`getJumpTargets`, read by `getTargetIds`), the fight read from the landing (`getJumpingState`), and the move the commit opens (`openAttackJump`)
+│   ├── heavy.ts        combat.tex "Heavy Attack": the degrees a strike may be heavy at (`getHeavyDegrees`) and the one it is (`getHeavyDegree`, clamped to the row's range)
 │   ├── carriedMove.ts  a careful move an action carries, bought with AP already paid (RecipeSchema `carriedMove`): the AP a rolled rest, cast rested through carries, the moves declared with an action (Steady Arms)
 │   ├── plant.ts        a body shield planted (abilities.tex "Crossbow and Shield"): the shields one may plant, the cells it may face
 │   ├── steadyArms.ts   a shot declared with a carried move on a path (abilities.tex "Steady Arms", rules/carriedMove.ts): the path and the step it is fired from are part of the shoot declaration; the steps before it are walked first as a move of their own (opened committed by `commitAction`), the shot is made from where they end, the steps after it are offered as a move once it has landed; the declaration reads the shooter as standing at the firing step (`getFiringState`). Both moves are bought with the shot's AP (`getCarriedMove`, shared with the move a rest allows)

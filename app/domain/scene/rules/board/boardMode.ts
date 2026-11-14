@@ -1,5 +1,5 @@
 import { getDiceBar } from '../../../play/calls'
-import type { SceneState } from '../../types'
+import type { Placement, SceneState } from '../../types'
 import { getOpenAction, findOpenRoot } from '../log'
 import { findOpenJump, findOption } from '../options'
 import { getAim } from '../aim'
@@ -8,10 +8,11 @@ import { getEvasiveJumpPlacements } from '../move'
 import { canPickUp } from '../floor'
 import { getReachableLoot } from '../loot'
 import { isSteadyShot } from '../steadyArms'
+import { getAttackJumpOf, getJumpLandings, isJumpAttack } from '../attackJump'
 
 // What a click on the board means depends on what the open action is waiting
-// for: a path, the landing of an evasive jump, the aim of an explosion, or
-// nothing the board can answer.
+// for: a path, the landing of an evasive jump or of the jump an attack
+// carries, the aim of an explosion, or nothing the board can answer.
 export type BoardMode = 'idle' | 'path' | 'jump' | 'aim' | 'locked'
 
 // The target of a committed strike whose evasive jump is still theirs to
@@ -19,6 +20,15 @@ export type BoardMode = 'idle' | 'path' | 'jump' | 'aim' | 'locked'
 export function getEvasiveJumper(state: SceneState): string | null {
   const open = getOpenAction(state)
   return open?.kind === 'strike' && open.step === 'react' && open.targetId && findOpenJump(state, open.targetId) ? open.targetId : null
+}
+
+// Where the jump the open attack is declared with may land, while it is
+// declared and aimed at its target (abilities.tex "Lunge", "Jump Shot").
+export function getAttackLandings(state: SceneState): Placement[] {
+  const open = getOpenAction(state)
+  if (!open || !isJumpAttack(open) || open.step !== 'define' || !open.targetId) return []
+  const entry = getAttackJumpOf(state, open)
+  return entry ? getJumpLandings(state, open, entry) : []
 }
 
 export function getBoardMode(state: SceneState): BoardMode {
@@ -29,6 +39,7 @@ export function getBoardMode(state: SceneState): BoardMode {
   if (open?.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) return 'path'
   const jumper = getEvasiveJumper(state)
   if (open && jumper && getEvasiveJumpPlacements(state, jumper, open.actorId).length > 0) return 'jump'
+  if (getAttackLandings(state).length > 0) return 'jump'
   const blast = findOpenRoot(state, 'blast')
   if ((blast !== null && isAimable(state, blast)) || getAim(state, open) !== null) return 'aim'
   return open ? 'locked' : 'idle'

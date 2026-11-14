@@ -32,6 +32,7 @@ import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { endsSurge } from '../rules/surge'
 import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
+import { getJumpingState, isJumpAttack, openAttackJump } from '../rules/attackJump'
 import { getPreparedCrit } from '../rules/cunning'
 import { isGrimoireCast } from '../rules/cast'
 
@@ -80,7 +81,7 @@ export function setTarget(targetId: string): Updater {
       return replaceActions(state, [{ ...open, targetId: null, object: targetId, cell: null, ...getDefaultAim(undefined) }])
     }
     if (!getTargetIds(state, open).includes(targetId)) return state
-    const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(isAttackAction(open) ? { object: '', cell: null } : {}) } : {}
+    const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(isAttackAction(open) ? { object: '', cell: null } : {}), ...(isJumpAttack(open) ? { jumpTo: null } : {}) } : {}
     return replaceActions(state, [{ ...open, targetId, ...retargeted }])
   }
 }
@@ -116,10 +117,13 @@ export function commitAction(thrown: Throw, newId: () => string): Updater {
     if (!cost && !hold) return state
     // combat.tex "Concentration": what it cannot be paid for, it is held over
     const committed: RootAction = { ...withCommitFacts(state, actor, open, toThrower(thrown).dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, step: 'react' }
-    const locked = replaceActions(state, [withStealthFacts(open.kind === 'shoot' ? getFiringState(state, open) : state, withMatesPassed(state, committed))])
+    const from = isJumpAttack(open) ? getJumpingState(open.kind === 'shoot' ? getFiringState(state, open) : state, open) : state
+    const locked = replaceActions(state, [withStealthFacts(from, withMatesPassed(state, committed))])
     // abilities.tex "Steady Arms": the steps walked before the shot is fired
-    // are played out first, and the shot goes on once they have landed
-    const walking = committed.kind === 'shoot' ? openSteadyLeg(state, committed, 'before', newId()) : null
+    // are played out first, and the shot goes on once they have landed; so is
+    // the jump an attack carries ("Lunge", "Jump Shot", rules/attackJump.ts)
+    const walking = (committed.kind === 'shoot' ? openSteadyLeg(state, committed, 'before', newId()) : null)
+      ?? (isJumpAttack(committed) ? openAttackJump(state, committed, newId()) : null)
     if (walking) return commitAction(thrown, newId)(appendActions(locked, [walking]))
     return hasOpenAnswer(locked) ? locked : rollOrPay(thrown, newId)(locked)
   }

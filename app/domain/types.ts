@@ -1211,14 +1211,15 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     hit: num.default(0),
   }).strip(),
   // `combinedMove`: a movement of the actor's own made with an action, at a
-  // price of its own (scene/rules/combinedMove.ts). `with` is the actions it
-  // goes with: an attack is declared on the move it follows, a defense
-  // carries the move itself. `order`: the move is made `before` the action,
-  // which is made from where it ends, or `after` it has landed, which an
-  // interruption cancels. `reach`: as far as the movement goes (a jump's
-  // length, a block of basic movement), one space, or the run the reaction
-  // or protection surge's AP buy. `toward`: anywhere, away from everyone threatening the
-  // actor, or nearer the attacker; a defense's move always ends where the
+  // price of its own (scene/rules/combinedMove.ts). `with` is the actions
+  // that carry it: an attack carries a jump before its die
+  // (scene/rules/attackJump.ts), a defense its move. `order`: the move is
+  // made `before` the action, which is made from where it ends, or `after`
+  // it has landed, which an interruption cancels. `reach`: as far as the
+  // movement goes (a jump's length, a block of basic movement), half a jump
+  // (an evasive jump's), one space, or the run the reaction or protection
+  // surge's AP buy. `toward`: anywhere, away from everyone threatening the
+  // actor, nearer the attacker, or nearer the attack's target; a defense's move always ends where the
   // defense can be made from, and `defends: 'ally'` makes it one for someone
   // else. `rows`: the rows the attack may be made with. `cost`: added to the
   // price of what carries it, set in its place, or (`movement`) the AP its
@@ -1231,8 +1232,8 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     with: z.array(z.enum(['strike', 'shoot', 'block', 'intercept', 'guard', 'evasiveJump'])).default([]),
     movement: z.enum(['jump', 'basic', 'run', 'stand']).default('jump'),
     order: z.enum(['before', 'after']).default('before'),
-    reach: z.enum(['movement', 'oneSpace', 'reactionSurge']).default('movement'),
-    toward: z.enum(['any', 'awayFromThreateners', 'towardAttacker']).default('any'),
+    reach: z.enum(['movement', 'halfJump', 'oneSpace', 'reactionSurge']).default('movement'),
+    toward: z.enum(['any', 'awayFromThreateners', 'towardAttacker', 'towardTarget']).default('any'),
     defends: z.enum(['any', 'ally']).default('any'),
     rows: z.enum(['any', 'quickShotOrThrow']).default('any'),
     cost: z.object({ operation: z.enum(['+', 'set', 'movement']).default('+'), AP: num.default(0), STA: num.default(0) }).prefault({}),

@@ -1,6 +1,8 @@
 import type { Character } from '../../types'
 import type { SceneState, Coord, StrikeAction } from '../types'
-import { isSweepVariant } from '../../character/rules/gear'
+import { SHOTS } from '../../tables'
+import { getAttackKind, hasProperty } from '../../weaponProperties'
+import { isFloorAttack } from './equipment'
 import { getPassedShare } from '../../character/rules/damage'
 import { hasGrant } from '../../character/rules/effects'
 import { angleBetween, centroid, directedTurn, distance, line, setDistance } from './board/geometry'
@@ -17,7 +19,18 @@ import { findWeaponRow } from './weaponRow'
 // what is left of the blow.
 
 export function isSweep(strike: StrikeAction): boolean {
-  return isSweepVariant(strike.variant)
+  return strike.modifiers.sweep || isSweepLink(strike)
+}
+
+// Whether the strike may be declared a sweep: with a melee row that has the
+// property (gear.tex "Sweeping: Allows for Sweeping attacks"), as the normal
+// attack, heavy or not (combat.tex "Strike": "braced and hook attack cannot
+// be combined with anything"), at a character rather than at something on the
+// floor, and as the blow that begins it.
+export function canSweep(c: Character, strike: StrikeAction): boolean {
+  const row = findWeaponRow(c, strike.weaponKey, strike.attack)
+  return !!row && getAttackKind(row.atk.range) === 'melee' && hasProperty(row.atk.properties, 'sweeping')
+    && strike.variant === SHOTS.shoot.variant && !isFloorAttack(strike) && !isSweepLink(strike)
 }
 
 // Whether the strike is a sweep's reach past its first target: made with
@@ -32,7 +45,8 @@ export function getSweepTargets(strike: StrikeAction): string[] {
   return [...strike.swept, ...(strike.targetId ? [strike.targetId] : []), ...strike.arc]
 }
 
-// A link keeps the row and variation the sweep was declared with.
+// A link keeps the row and variation the sweep was declared with, and its
+// heavy degree with them (opened with it, `openSweepLink`).
 export function isSweepRowKept(state: SceneState, strike: StrikeAction, option: Pick<StrikeAction, 'weaponKey' | 'attack' | 'variant'>): boolean {
   const first = strike.sweepOf ? getAction(state, strike.sweepOf) : null
   return first?.kind !== 'strike' || (option.weaponKey === first.weaponKey && option.attack === first.attack && option.variant === first.variant)

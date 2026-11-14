@@ -41,7 +41,7 @@ import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 import { getInterruptedClimb } from '../rules/move'
 import { getNextDisplacement } from '../rules/displace'
-import { getLapsedSteps, getMoveAttack, getMoveAttackOpened, getPendingStep, openStepsAfter } from '../rules/combinedMove'
+import { getLapsedSteps, getPendingStep, openStepsAfter } from '../rules/combinedMove'
 import { openSteadyLeg } from '../rules/steadyArms'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
@@ -263,8 +263,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // thrown object goes off as where it lands, what
 // the strike's recipes open (rules/recipes.ts: a hook's knockdown, an
 // intercept's disarm, a riposte); the sweep's next target, so the swing is
-// finished first; the fall a move ended in; and on top, the attack a move
-// opens and the steps a steady shot walks after it.
+// finished first; the fall a move ended in; and on top, the steps a steady
+// shot walks after it.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`, and none
 // is offered to one the action interrupted (`isInterruptedBy`), nor to one
@@ -296,7 +296,6 @@ function generateFollowUps(state: SceneState, root: RootAction, newId: () => str
     ...openSweepLink(state, root, newId),
     ...openSwimTest(state, root, newId),
     ...openFall(root, newId),
-    ...openMoveAttack(state, root, newId),
     ...openSteadyAfter(state, root, newId),
   ]
 }
@@ -306,14 +305,6 @@ function generateFollowUps(state: SceneState, root: RootAction, newId: () => str
 function openSteadyAfter(state: SceneState, root: RootAction, newId: () => string): Action[] {
   const walk = root.kind === 'shoot' ? openSteadyLeg(state, root, 'after', newId()) : null
   return walk ? [walk] : []
-}
-
-// abilities.tex "Lunge", "Jump Shot": the attack from where the move
-// landed, once the fall it may have ended in is played out
-// (rules/combinedMove.ts).
-function openMoveAttack(state: SceneState, root: RootAction, newId: () => string): Action[] {
-  const entry = root.kind === 'move' ? getMoveAttack(state, root) : null
-  return root.kind === 'move' && entry ? [getMoveAttackOpened(root, entry, newId())] : []
 }
 
 // combat.tex "Balance": a move that ended in a fall — down a jump, off a
@@ -347,7 +338,7 @@ function openSweepLink(state: SceneState, root: RootAction, newId: () => string)
   if (root.kind !== 'strike' || !isSweep(root)) return []
   const share = getNextShare(state, root)
   if (share === 0) return []
-  const base = { id: newId(), actorId: root.actorId, ...pickMade(root), sweepDirection: root.sweepDirection, share, spawnedBy: root.id, sweepOf: root.sweepOf ?? root.id, swept: [...root.swept, ...(root.targetId ? [root.targetId] : [])] }
+  const base = { id: newId(), actorId: root.actorId, ...pickMade(root), heavy: root.heavy, sweepDirection: root.sweepDirection, share, spawnedBy: root.id, sweepOf: root.sweepOf ?? root.id, swept: [...root.swept, ...(root.targetId ? [root.targetId] : [])] }
   if (state.board) {
     const next = getNextSwept(state, root)
     return next ? [makeAction('strike', { ...base, ...next, ...getDefaultAim(state.characters[next.targetId]), step: 'react' })] : []

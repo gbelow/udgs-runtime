@@ -8,12 +8,16 @@ import { hasGrant } from '../../character/rules/effects'
 import { makeAction } from '../factories'
 import { getRootOf } from './log'
 import { canGrab, isGrappleRowOf } from './grapple'
-import { isSweepLink } from './sweep'
+import { canSweep, isSweepLink } from './sweep'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getRecipeLabel, getRecipesOf, type RecipeEntry } from './recipes'
-import { canCarryStep, canDeclareOnMove, getCombinedMoves, getCombinedPrice, getCombinedTerms, isCombinedDefense } from './combinedMove'
+import { canCarryStep, getCombinedMoves, getCombinedPrice, getCombinedTerms, isCombinedDefense } from './combinedMove'
+import { canCarryJump, isJumpAttack } from './attackJump'
+import { getHeavyDegree, getHeavyDegrees } from './heavy'
+import { findWeaponRow } from './weaponRow'
+import { getHeavyName, getHeavyVariation } from '../../character/rules/gear'
 import { canDeclareCarried, getDeclaredCarriedMoves } from './carriedMove'
-import { getStrikeContext, type StrikeContext } from './strikeDeclaration'
+import { getStrikeContext, isStrikeHolder, type StrikeContext } from './strikeDeclaration'
 
 // Every yes-or-no an action is declared with besides what it is (types.ts,
 // each kind's `modifiers`) is one of these, so a new one cannot be declared
@@ -55,6 +59,14 @@ const MARTIAL_SPIRIT = 'martial-spirit'
 const TACKLE = 'tackle'
 
 const STRIKE_MODIFIERS: Record<StrikeModifierKey, Modifier<StrikeContext>> = {
+  // combat.tex "Sweeping Attack": "spends 1 additional AP on the attack and
+  // hits everything in a semicircle" (rules/sweep.ts)
+  sweep: {
+    label: 'sweep',
+    offer: 'toggle',
+    allowed: ({ actor, strike }) => canSweep(actor, strike),
+    price: ({ actor }) => ({ add: getActionCost(actor, 'sweep') }),
+  },
   // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
   // strike with a weapon with the grapple property" against a running target;
   // its hit is a crash (rules/damage.ts)
@@ -159,8 +171,10 @@ function when<C extends ModifierContext, K extends string>(modifiers: Record<K, 
 // A modifier as an action is declared with it: a yes-or-no of its own kind's
 // `modifiers` (`flag`), a move of a recipe its actor has learned
 // (rules/combinedMove.ts, rules/carriedMove.ts), which the action names as its
-// `recipe`, or a learned trade, one of its `learnedModifiers` (`learned`).
-type Entry = { key: string; modifier: Modifier; slot: 'flag' | 'recipe' | 'learned' }
+// `recipe`, a learned trade, one of its `learnedModifiers` (`learned`), or a
+// strike's heavy degree (`heavy`, rules/heavy.ts), declared when it is the
+// one the strike is made at, and `fixed` when it cannot be taken back.
+type Entry = { key: string; modifier: Modifier; slot: 'flag' | 'recipe' | 'learned' } | { key: string; modifier: Modifier; slot: 'heavy'; degree: number; declared: boolean; fixed: boolean }
 
 function getFlagEntries(action: { kind: Action['kind'] }): Entry[] {
   if (!(action.kind in DECLARATION_MODIFIERS)) return []
@@ -178,7 +192,7 @@ function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'acto
     modifier: {
       label: entry.label,
       offer,
-      allowed: ({ state, action, answering }) => (action.kind === 'move' ? canDeclareOnMove(state, action, entry) : isCombinedDefense(action) && canCarryStep(state, answering, action, entry)),
+      allowed: ({ state, action, answering }) => (isJumpAttack(action) ? canCarryJump(state, action, entry) : isCombinedDefense(action) && canCarryStep(state, answering, action, entry)),
       price: ({ actor }) => getCombinedPrice(actor, entry.recipe),
       terms: () => getCombinedTerms(entry),
     },
@@ -197,11 +211,42 @@ function getRecipeEntries(state: SceneState, action: Pick<Action, 'kind' | 'acto
   return [...combined, ...carried, ...learned]
 }
 
-function getEntries(state: SceneState, action: Pick<Action, 'kind' | 'actorId'>): Entry[] {
-  return [...getFlagEntries(action), ...getRecipeEntries(state, action)]
+// combat.tex "Heavy Attack": "Heavy I increases damage of physical attacks
+// by +0.5 x STR xDM, but have an added cost of +1AP. Heavy II adds +1xSTR xDM,
+// costs +2AP+1STA, and gives a -2 penalty to hit. Heavy III adds +1.5 x STR
+// x DM, costs +3AP+1STA, and gives a -3 penalty to hit": one entry for each
+// degree the row allows. The minimum of a row that forbids the normal attack
+// is fixed, and so is the degree of a sweep's later strikes, struck as the
+// first was.
+function getHeavyEntries(state: SceneState, action: Action): Entry[] {
+  const ctx = isStrikeHolder(action) ? getStrikeContext(state, action) : null
+  if (!ctx) return []
+  const { actor, strike } = ctx
+  const range = getHeavyDegrees(actor, strike)
+  const row = findWeaponRow(actor, strike.weaponKey, strike.attack)
+  if (!range || !row) return []
+  const at = getHeavyDegree(actor, strike)
+  const link = isSweepLink(strike)
+  return Array.from({ length: range.max - Math.max(1, range.min) + 1 }, (_, i) => Math.max(1, range.min) + i).map((degree): Entry => {
+    const label = getHeavyName(degree)
+    const { cost, penalty } = getHeavyVariation(row.atk, row.weapon, actor, degree)
+    return {
+      key: `heavy${degree}`,
+      slot: 'heavy',
+      degree,
+      declared: at === degree,
+      fixed: link || (at === degree && degree === range.min),
+      modifier: { label, offer: 'toggle', allowed: () => true, price: () => ({ add: cost }), terms: () => (penalty !== 0 ? [{ label, value: -penalty }] : []) },
+    }
+  })
+}
+
+function getEntries(state: SceneState, action: Action): Entry[] {
+  return [...getFlagEntries(action), ...getHeavyEntries(state, action), ...getRecipeEntries(state, action)]
 }
 
 function isDeclared(action: Action, entry: Entry): boolean {
+  if (entry.slot === 'heavy') return entry.declared
   if (entry.slot === 'recipe') return action.recipe === entry.key
   if (entry.slot === 'learned') return action.learnedModifiers.includes(entry.key)
   return 'modifiers' in action && (action.modifiers as Record<string, boolean>)[entry.key] === true
@@ -319,8 +364,9 @@ export function getModifierToggles(state: SceneState, action: Action): ModifierT
     const { key, modifier } = entry
     const on = isDeclared(action, entry)
     const allowed = isOpen(modifier, ctx)
-    if (!on && !allowed) return []
-    const press = (entry.slot === 'recipe' ? { recipe: on ? null : key }
+    if ((!on && !allowed) || (entry.slot === 'heavy' && entry.fixed)) return []
+    const press = (entry.slot === 'heavy' ? { heavy: on ? 0 : entry.degree }
+      : entry.slot === 'recipe' ? { recipe: on ? null : key, ...(isJumpAttack(action) ? { jumpTo: null } : {}) }
       : entry.slot === 'learned' ? { learnedModifiers: on ? action.learnedModifiers.filter((k) => k !== key) : [...action.learnedModifiers, key] }
       : { modifiers: { ...flags, [key]: !on } }) as Partial<ActionDraft>
     return [{ key, label: modifier.label, on, allowed, price: modifier.price(ctx), terms: modifier.terms?.(ctx) ?? [], press }]

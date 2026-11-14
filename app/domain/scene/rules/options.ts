@@ -406,7 +406,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       // none passes the one that came nearest says why
       case 'opportunityAttack': {
         const probe = (fields: Partial<ActionOf<'opportunityAttack'>>) => makeAction('opportunityAttack', { id: '', actorId: c.id, targetId: trigger.against ?? open.actorId, reactionTo: open.id, at: trigger.at, ...fields })
-        const catching = { catch: trigger.catchOnly === true, martialSpirit: false, tackle: false }
+        const catching = { sweep: false, catch: trigger.catchOnly === true, martialSpirit: false, tackle: false }
         const strikes = getFreeAttackOptions(state, c, 'strike').map((s) => probe({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant, modifiers: catching }))
         const maneuvers = getPartners(state, c.id).includes(open.actorId) ? getManeuversOf(c).map((maneuver) => probe({ mode: 'grapple', maneuver })) : []
         const checks = [...strikes, ...maneuvers].map((a) => getOpportunityCheck(state, c, a))

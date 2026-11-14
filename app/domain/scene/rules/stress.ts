@@ -28,6 +28,38 @@ const STRESS_DUTIES: Partial<Record<LimitStressAction, StressDuty>> = {
   martyr: { kind: 'surge', surge: 'reaction' },
 }
 
+// creating.tex "Limit Stress Actions": what each compels, as the screen
+// tells the one taking it.
+const STRESS_INSTRUCTIONS: Record<LimitStressAction, string> = {
+  coward: 'make your movement surge and run',
+  violent: 'make your combat surge and attack, even while afraid',
+  tanatosis: 'fall unconscious until the next turn',
+  abusive: 'use a social action to insult your allies',
+  traitor: 'use a social action to negotiate with the opponent',
+  martyr: 'make your reaction surge to protect an ally',
+}
+
+function getInstruction(state: SceneState, turn: Compulsion): string {
+  return `${STRESS_INSTRUCTIONS[turn.action]}${getBondLine(state, turn)}`
+}
+
+// What the limit stress action the holder's turn is owed for tells them to
+// do, as a line: the duty while it is due (resting first when only a rest
+// makes the surge payable), and that the rest of the turn is theirs once
+// nothing more is due. '' when the turn is no limit stress action.
+export function getStressDuty(state: SceneState): string {
+  const turn = getStressTurn(state)
+  if (!turn) return ''
+  const due = getStressDue(state)
+  if (!due) return `Limit stress: ${turn.action}, done. The rest of the turn is yours; end it when you're ready.`
+  const rest = due.kind === 'surge' && due.restFirst ? 'Rest first, then ' : ''
+  return `Limit stress: ${turn.action}. ${capitalize(`${rest}${getInstruction(state, turn)}`)}.`
+}
+
+function capitalize(line: string): string {
+  return line.charAt(0).toUpperCase() + line.slice(1)
+}
+
 // creating.tex "Limit Stress Actions": the action the character's miss
 // activates, or null for one who chose none. The table's ruling: a martyr
 // who is enraged cannot make the reaction surge, so is violent instead.
@@ -152,7 +184,7 @@ export function isMartyrGuard(state: SceneState, id: string): boolean {
 export function getStressOwed(state: SceneState, id: string): string | null {
   const turn = state.compulsions.find((t) => t.id === id && !t.taken) ?? state.compulsions.find((t) => t.id === id)
   if (!turn) return null
-  if (!turn.taken) return `owes ${turn.action}${getBondLine(state, turn)}`
+  if (!turn.taken) return `Limit stress: ${turn.action}. ${capitalize(getInstruction(state, turn))}.`
   return isMartyrGuard(state, id) ? 'martyr: holds the reaction surge to protect an ally' : null
 }
 
