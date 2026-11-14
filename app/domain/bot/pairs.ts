@@ -1,27 +1,30 @@
 import type { CampaignCharacter } from '../types'
-import { SceneStateSchema, type ActionDraft, type SceneState, type StrikeAction } from '../scene/types'
+import { ActionSchema, SceneStateSchema, type ActionDraft, type AttackAction, type SceneState, type StrikeAction } from '../scene/types'
 import type { ActionCost } from '../character/rules/actionCosts'
 import type { Outcome } from '../character/rules/damage'
 import type { RollMode } from '../play/dice'
-import { toUpdater, type CommandContext, type SceneCommand } from '../scene/commands/registry'
-import { getFreeAttackOptions, getRootTest, hasUnfocusedRow } from '../scene/rules/attack'
+import { appendActions } from '../scene/commands/log'
+import { getDefaultAim, getFreeAttackOptions, getRootTest, hasUnfocusedRow } from '../scene/rules/attack'
 import { getAvailableActions } from '../scene/rules/options'
-import { getOpenAction, getReactionsTo } from '../scene/rules/log'
 import { getOwnCost } from '../scene/rules/action'
-import { getRoundPhase } from '../scene/rules/roundChange'
 import { getStrikeReach } from '../scene/rules/board/board'
+import { findWeaponRow } from '../scene/rules/weaponRow'
+import { getAttackFacts, outcomeOf } from '../scene/rules/damage'
+import { isVariantOpen } from '../scene/rules/strikeDeclaration'
+import { getLoadableAmmo } from '../item/rules/ammo'
 import { getSTA } from '../character/rules/characteristics'
-import { getTestMode } from '../character/rules/effects'
+import { getInjuryPenalty } from '../character/rules/afflictions'
+import { getTestMode, mayRollRisky } from '../character/rules/effects'
 import { ROUND_AP } from '../tables'
-import { declare } from './declare'
-import { bestSpend, predict, type Supposed } from './predict'
+import { getBestSpend } from './predict'
 import { getMostHOP, type HarmByDegree } from './odds'
 
 // What one character's attacks do to another, each against each defence the
-// other could answer with, read off the table's own rules: the two are put in
-// a fight of their own with no board, both at a fresh round's AP and full STA,
-// the attack declared and answered as a person would, and each degree it could
-// come to landed as `predict` lands it (a hit's HOP spent by `bestSpend`).
+// other could answer with, read off the table's own rules: the attack and
+// its answer are made as records and put beside the two, both at a fresh
+// round's AP and full STA, with no board and nobody else, and each degree it
+// could come to is read off the damage rules as the landing reads them (a
+// hit's HOP spent by `getBestSpend`). Nothing is pressed.
 // Where they stand plays no part (no cover, no high ground, no light), and a
 // shot's distance penalty is left to the reader (`distanceRate`), so the table
 // holds for any two places. Harm is 2 x IL + 3 x bleed (the user's ruling).
@@ -42,6 +45,10 @@ export type PairDefence = {
 export type PairAttack = {
   kind: 'strike' | 'shoot'
   row: { weaponKey: string; attack: string; variant: string }
+  // the stack a shot is loaded from, each one an attack of its own (a bodkin
+  // and a broadhead do different things); '' for a strike or a row that
+  // loads nothing
+  ammoId: string
   cost: ActionCost
   // metres
   reach: number
@@ -51,104 +58,120 @@ export type PairAttack = {
   needsFocus: boolean
   skill: number
   grazes: boolean
+  // the way the attacker throws the test now (`getTestMode`), and every way
+  // it may (risky only where an ability lets it, play.tex "Safe and risky
+  // tests"; an attack is never thrown safely)
   mode: RollMode
+  modes: RollMode[]
   // harm on a hit at each HOP from 0
   hits: number[]
   defences: PairDefence[]
 }
 
-const TRIAL: CommandContext = { thrower: () => 0, newId: (() => { let n = 0; return () => `pair-${n++}` })() }
-const press = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
-
 export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + 3 * o.bleed : 0)
 
 const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, usedSurge: null, resources: { ...c.resources, AP: ROUND_AP, STA: getSTA(c) } })
 
-// The fight of the two, the round begun and the attacker's turn taken.
-function duel(attacker: CampaignCharacter, defender: CampaignCharacter): SceneState | null {
-  let s = SceneStateSchema.parse({ characters: { [attacker.id]: fresh(attacker), [defender.id]: fresh(defender) }, parties: { a: {}, d: {} }, partyOf: { [attacker.id]: 'a', [defender.id]: 'd' } })
-  s = press(s, { kind: 'nextRound', args: [] })
-  for (let i = 0; i < 10 && getRoundPhase(s); i++) s = press(s, { kind: 'continueRound', args: [] })
-  const started = press(s, { kind: 'startTurn', args: [attacker.id] })
-  return started === s ? null : started
+// The two, and nothing else: the fight begun, so that what they do is priced.
+function between(attacker: CampaignCharacter, defender: CampaignCharacter): SceneState {
+  return SceneStateSchema.parse({ round: 1, characters: { [attacker.id]: attacker, [defender.id]: defender }, parties: { a: {}, d: {} }, partyOf: { [attacker.id]: 'a', [defender.id]: 'd' } })
 }
 
-function harmAt(state: SceneState, roll: Supposed, defenderId: string, spend: boolean): number {
-  if (spend) {
-    const b = bestSpend(state, roll, [], TRIAL)
-    return b.ok && b.best.prediction.ok ? getHarm(b.best.prediction.outcomes.find((o) => o.id === defenderId)?.outcome) : 0
-  }
-  const p = predict(state, roll, [], TRIAL)
-  return p.ok ? getHarm(p.outcomes.find((o) => o.id === defenderId)?.outcome) : 0
+const ATTACK_ID = 'pair-attack'
+const ANSWER_ID = 'pair-answer'
+
+// The attack as though its die had come up so, nothing bought.
+function rolled(root: AttackAction, degree: 'miss' | 'graze' | 'hit', HOP = 0): AttackAction {
+  return { ...root, step: 'post', spent: {}, roll: { die: 0, DL: 0, score: degree === 'hit' ? 5 + HOP : degree === 'graze' ? 0 : -1, degree, HOP, skillTerms: [], DLTerms: [] } }
 }
 
+// What the attack does to the defender at a graze or a miss against the
+// defence it was answered with, as the landing reads it.
+function harmAt(state: SceneState, root: AttackAction, degree: 'miss' | 'graze', defender: CampaignCharacter): number {
+  const facts = getAttackFacts(state, rolled(root, degree))
+  return facts ? getHarm(outcomeOf(facts, defender)) : 0
+}
+
+// The attacks one character's rows make on another, declared as records
+// (as `declareAction` and `declareReaction` make them) and put in a fight of
+// the two by the one writer of actions (`appendActions`), the attack waiting
+// on its answer; the answers are those the table offers the defender
+// (`getAvailableActions`). Nothing is pressed.
 function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): PairAttack[] {
-  const start = duel(attacker, defender)
-  if (!start) return []
   const a = attacker.id
   const d = defender.id
-  const focused = hasUnfocusedRow(start.characters[a], 'shoot', true) ? press(start, { kind: 'surge', args: [a, 'focus'] }) : start
-  const open = new Set(getFreeAttackOptions(start, start.characters[a], 'shoot').map((o) => `${o.weaponKey}/${o.attack}/${o.variant}`))
+  const ready = fresh(attacker)
+  const focused: CampaignCharacter = { ...ready, usedSurge: 'focus' }
+  const target = fresh(defender)
+  const unfocused = between(ready, target)
+  const open = new Set(getFreeAttackOptions(unfocused, ready, 'shoot').map((o) => `${o.weaponKey}/${o.attack}/${o.variant}`))
   const attacks: PairAttack[] = []
   for (const kind of ['strike', 'shoot'] as const) {
-    const from = kind === 'shoot' ? focused : start
-    for (const option of getFreeAttackOptions(from, from.characters[a], kind)) {
+    const actor = kind === 'shoot' && hasUnfocusedRow(ready, 'shoot', true) ? focused : ready
+    const base = between(actor, target)
+    for (const option of getFreeAttackOptions(base, actor, kind)) {
       const row = { weaponKey: option.weaponKey, attack: option.attack, variant: option.variant }
-      const made = declare(from, { actorId: a, option: { kind }, picks: [{ part: 'row', value: row }, { part: 'target', value: d }] }, TRIAL)
-      if (!made.ok) continue
-      const root = getOpenAction(made.state)
-      if (!root || root.step !== 'react') continue
-      const test = getRootTest(made.state, root)
-      const cost = getOwnCost(made.state, root)
-      if (!test || test.scale !== 'overflow' || !cost) continue
-      const reach = kind === 'strike' ? getStrikeReach(made.state, root as StrikeAction) : option.reach
-      if (reach === null) continue
+      const found = findWeaponRow(actor, option.weaponKey, option.attack)
+      const loads = kind === 'shoot' && found?.atk.ammo ? getLoadableAmmo(actor, found.weapon, found.atk).map((s) => s.item.id) : ['']
+      for (const ammoId of loads) {
+        const root = ActionSchema.parse({ kind, id: ATTACK_ID, actorId: a, targetId: d, ...row, ...(ammoId ? { ammoId } : {}), ...getDefaultAim(target), step: 'react' }) as AttackAction
+        const made = appendActions(base, [root])
+        if (!isVariantOpen(made, root, row)) continue
+        const test = getRootTest(made, root)
+        const cost = getOwnCost(made, root)
+        if (!test || test.scale !== 'overflow' || !cost) continue
+        const reach = kind === 'strike' ? getStrikeReach(made, root as StrikeAction) : option.reach
+        if (reach === null) continue
 
-      const answers = getAvailableActions(made.state, d).filter((o) => o.available && o.reactionTo === root.id)
-      const defended: { draft: ActionDraft | null; state: SceneState; cost: ActionCost }[] = [{ draft: null, state: made.state, cost: { AP: 0, STA: 0 } }, ...answers.flatMap((o) => {
-        const given = declare(made.state, { actorId: d, option: o.draft, picks: [] }, TRIAL)
-        const reaction = given.ok ? getReactionsTo(given.state, root.id).find((r) => r.actorId === d) : undefined
-        const price = reaction ? getOwnCost(given.state, reaction) : null
-        return given.ok && price ? [{ draft: o.draft, state: given.state, cost: price }] : []
-      })]
-      const defences = defended.flatMap((def): PairDefence[] => {
-        const t = getRootTest(def.state, getOpenAction(def.state)!)
-        return t ? [{ draft: def.draft, cost: def.cost, DL: t.DL, graze: harmAt(def.state, { degree: 'graze' }, d, false), miss: harmAt(def.state, { degree: 'miss' }, d, false) }] : []
-      })
-      const most = getMostHOP(test.skill, Math.min(...defences.map((x) => x.DL)))
-      const hits = Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => harmAt(made.state, { degree: 'hit', HOP }, d, true))
-      attacks.push({
-        kind,
-        row,
-        cost,
-        reach,
-        distanceRate: kind === 'shoot' ? option.distance : null,
-        needsFocus: kind === 'shoot' && !open.has(`${row.weaponKey}/${row.attack}/${row.variant}`),
-        skill: test.skill,
-        grazes: test.grazes,
-        mode: getTestMode(attacker),
-        hits,
-        defences,
-      })
+        const answers = getAvailableActions(made, d).filter((o) => o.available && o.reactionTo === root.id && !o.surge)
+        const defended: { draft: ActionDraft | null; state: SceneState; cost: ActionCost }[] = [{ draft: null, state: made, cost: { AP: 0, STA: 0 } }, ...answers.flatMap((o) => {
+          const reaction = ActionSchema.parse({ ...o.draft, id: ANSWER_ID, actorId: d, targetId: a, reactionTo: root.id, recipe: o.draft.recipe ?? null })
+          const given = appendActions(made, [reaction])
+          const price = getOwnCost(given, reaction)
+          return price ? [{ draft: o.draft, state: given, cost: price }] : []
+        })]
+        const defences = defended.flatMap((def): PairDefence[] => {
+          const t = getRootTest(def.state, root)
+          return t ? [{ draft: def.draft, cost: def.cost, DL: t.DL, graze: harmAt(def.state, root, 'graze', target), miss: harmAt(def.state, root, 'miss', target) }] : []
+        })
+        const most = getMostHOP(test.skill, Math.min(...defences.map((x) => x.DL)))
+        const hits = Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => getHarm(getBestSpend(made, rolled(root, 'hit', HOP)).outcome))
+        attacks.push({
+          kind,
+          row,
+          ammoId,
+          cost,
+          reach,
+          distanceRate: kind === 'shoot' ? option.distance : null,
+          needsFocus: kind === 'shoot' && !open.has(`${row.weaponKey}/${row.attack}/${row.variant}`),
+          skill: test.skill,
+          grazes: test.grazes,
+          mode: getTestMode(attacker),
+          modes: mayRollRisky(attacker) ? ['normal', 'risky'] : ['normal'],
+          hits,
+          defences,
+        })
+      }
     }
   }
   return attacks
 }
 
 // A sheet as the pair table reads it: who it is and what changes on every
-// press (AP, STA, the surge made, the face's thirds) left out, so the table is
-// read again only when something it rests on changes, and two copies of one
-// sheet share it.
+// press (AP, STA, the surge made, the face's thirds) left out, and its injury
+// level read as the penalty it gives (combat.tex "Injury level (IL)"), which
+// is all of it an attack or a defence reads, so the table is read again only
+// when something it rests on changes, and two copies of one sheet share it.
 const signatures = new WeakMap<CampaignCharacter, string>()
 
 function signature(c: CampaignCharacter): string {
   let sig = signatures.get(c)
   if (sig === undefined) {
-    const { id, resources, usedSurge, shown, ...rest } = c
+    const { id, resources, usedSurge, shown, injuries, ...rest } = c
     void id
     void usedSurge
     void shown
-    sig = JSON.stringify({ ...rest, resources: { ...resources, AP: 0, STA: 0 } })
+    sig = JSON.stringify({ ...rest, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, injuryLevel: getInjuryPenalty(c) } })
     signatures.set(c, sig)
   }
   return sig

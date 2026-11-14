@@ -1,12 +1,12 @@
 import type { Degree } from '../types'
-import type { RootAction, SceneState } from '../scene/types'
+import type { AttackAction, HOPPurchase, RootAction, SceneState } from '../scene/types'
 import type { CommandContext, SceneCommand } from '../scene/commands/registry'
 import { replaceActions } from '../scene/commands/log'
 import { getOpenAction } from '../scene/rules/log'
 import { isAttackAction, isRootAction } from '../scene/rules/actionCatalog'
 import { needsDie } from '../scene/rules/action'
 import { getSettled } from '../scene/rules/settle'
-import { getHitHOP, getHOPOptions } from '../scene/rules/damage'
+import { getAttackFacts, getHitHOP, getHOPOptions, outcomeOf } from '../scene/rules/damage'
 import { getOutcomes } from '../scene/projections/outcomes'
 import type { Outcome } from '../character/rules/damage'
 import { getOpenChoices, type OpenChoice } from '../scene/projections/choices'
@@ -65,20 +65,66 @@ export function predict(state: SceneState, roll: Supposed, picks: readonly Pick[
   return run(supposed, picks, ctx).prediction
 }
 
-// The overflow of a supposed hit spent on damage, as well as it can be: a hit
-// injures by the one kind that gets furthest past its armor and adds the
-// effects of every kind it carries (combat.tex "Physical attacks"), so the
-// overflow goes all to one kind, and whatever cannot buy another of it to
-// smash. Tried: all in smash; and, if the attack carries a cut, slices with
-// the rest in smash, and bust then slices with the rest in smash. Slices are
-// bought only as far as they raise the cut's tier: past the highest it can
-// reach, the HOP buys more in smash, whose blunt effects add to the cut's.
+// The overflow of a hit spent on damage, as well as it can be: a hit injures
+// by the one kind that gets furthest past its armor and adds the effects of
+// every kind it carries (combat.tex "Physical attacks"), so the overflow goes
+// all to one kind, and whatever cannot buy another of it to smash. Tried: all
+// in smash; and, if the attack carries a cut, every count of slices with the
+// rest in smash, and bust then every count of slices with the rest in smash.
 // The best is the one whose injury reaches the highest tier, then the one
 // whose kinds reach the most tiers between them, then the one that gets
-// furthest past the target's armor. `picks` are bought first
-// (a hand switch, an assassination); the other purchases are not tried.
+// furthest past the target's armor. Each is read off the damage rules as the
+// landing reads them (`getAttackFacts`, `outcomeOf`), with nothing pressed:
+// `root` is a rolled hit, with whatever it has bought already.
+export type Purchases = Partial<Record<HOPPurchase, number>>
+
+export function getBestSpend(state: SceneState, root: AttackAction): { purchases: Purchases; outcome: Outcome | null } {
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  const read = (purchases: Purchases): Outcome | null => {
+    const spent = { ...root.spent }
+    for (const [p, n] of Object.entries(purchases) as [HOPPurchase, number][]) spent[p] = (spent[p] ?? 0) + n
+    const facts = getAttackFacts(state, { ...root, spent })
+    return facts && target ? outcomeOf(facts, target) : null
+  }
+  const offered = getHOPOptions(state, root)
+  const price = (p: HOPPurchase): number | null => offered.find((o) => o.purchase === p && o.available)?.cost ?? null
+  const remaining = getHitHOP(state, root).remaining
+  const smash = price('smash')
+  const slice = price('slice')
+  const bust = price('bust')
+  const withSmash = (left: number, rest: Purchases): Purchases => (smash && left >= smash ? { ...rest, smash: Math.floor(left / smash) } : rest)
+  const spends: Purchases[] = [withSmash(remaining, {})]
+  const carried = read({})
+  if (carried && 'cut' in carried.tiers) {
+    const sliced = (left: number, first: Purchases) => {
+      if (slice === null || slice <= 0) return
+      for (let n = 1; n * slice <= left; n++) spends.push(withSmash(left - n * slice, { ...first, slice: n }))
+    }
+    sliced(remaining, {})
+    if (bust !== null && bust <= remaining) {
+      spends.push(withSmash(remaining - bust, { bust: 1 }))
+      sliced(remaining - bust, { bust: 1 })
+    }
+  }
+  const score = (o: Outcome | null): number[] => (o ? [o.tier ?? -1, Object.values(o.tiers).reduce<number>((sum, t) => sum + (t ?? -1), 0), o.damage - o.armor] : [-Infinity])
+  const better = (x: number[], y: number[]) => {
+    const i = x.findIndex((v, k) => v !== y[k])
+    return i >= 0 && x[i] > y[i]
+  }
+  let best = { purchases: spends[0], outcome: read(spends[0]) }
+  for (const purchases of spends.slice(1)) {
+    const outcome = read(purchases)
+    if (better(score(outcome), score(best.outcome))) best = { purchases, outcome }
+  }
+  return best
+}
+
+// The overflow of a supposed hit spent as `getBestSpend` spends it, pressed
+// as a person presses it, after `picks` (a hand switch, an assassination).
+// `tried` are the spends pressed: none, and the best; `outcome` is what the
+// best was read to come to.
 export type Spend = { purchases: Pick[]; prediction: Prediction }
-export type BestSpend = { ok: true; best: Spend; tried: Spend[] } | { ok: false; refused: string }
+export type BestSpend = { ok: true; best: Spend; tried: Spend[]; outcome: Outcome | null } | { ok: false; refused: string }
 
 const buy = (purchase: string, times: number): Pick[] => Array.from({ length: Math.max(0, times) }, () => ({ part: 'overflow' as const, value: purchase }))
 
@@ -89,59 +135,10 @@ export function bestSpend(state: SceneState, roll: Supposed, picks: readonly Pic
   if (!base.prediction.ok || !base.ready) return { ok: false, refused: base.prediction.ok ? 'nothing to spend' : base.prediction.refused }
   const nothing: Spend = { purchases: [], prediction: base.prediction }
   const open = getOpenAction(base.ready) as RootAction
-  if (!isAttackAction(open)) return { ok: true, best: nothing, tried: [nothing] }
-  const targetId = open.targetId
-  const remaining = getHitHOP(base.ready, open).remaining
-  const offered = getHOPOptions(base.ready, open)
-  const price = (purchase: string): number | null => offered.find((o) => o.purchase === purchase && o.available)?.cost ?? null
-  const smash = price('smash')
-  const slice = price('slice')
-  const bust = price('bust')
-  const target = (p: Prediction) => (p.ok ? p.outcomes.find((o) => o.id === targetId)?.outcome ?? null : null)
-  const leftover = (left: number): Pick[] => (smash ? buy('smash', Math.floor(left / smash)) : [])
-  const tried: Spend[] = [nothing]
-  const tryOut = (purchases: Pick[]): Spend => {
-    const spend = { purchases, prediction: run(supposed, [...picks, ...purchases], ctx).prediction }
-    tried.push(spend)
-    return spend
-  }
-  // after `first`, as few slices as reach the highest cut tier `left` HOP can
-  // buy, and the rest in smash; the tier rises with every slice or stays, so
-  // the fewest are found by halving
-  const sliced = (first: Pick[], left: number): Spend => {
-    const unit = slice ?? 0
-    // a slice priced at no HOP is counted as one, so the count stays finite
-    const most = slice === null ? 0 : Math.floor(left / Math.max(1, unit))
-    const known = new Map<number, Spend>()
-    const at = (n: number): Spend => known.get(n) ?? known.set(n, tryOut([...first, ...buy('slice', n), ...leftover(left - n * unit)])).get(n)!
-    const cutTier = (n: number) => target(at(n).prediction)?.tiers.cut ?? -1
-    const top = cutTier(most)
-    let [lo, hi] = [0, most]
-    while (lo < hi) {
-      const mid = Math.floor((lo + hi) / 2)
-      if (cutTier(mid) >= top) hi = mid
-      else lo = mid + 1
-    }
-    return at(lo)
-  }
-  const spends: Spend[] = []
-  if (smash) spends.push(tryOut(leftover(remaining)))
-  const carried = target(base.prediction)
-  if (carried && 'cut' in carried.tiers) {
-    if (slice !== null) spends.push(sliced([], remaining))
-    if (bust !== null) spends.push(sliced(buy('bust', 1), remaining - bust))
-  }
-
-  const score = (spend: Spend): number[] => {
-    const o = target(spend.prediction)
-    if (!o) return [-Infinity]
-    return [o.tier ?? -1, Object.values(o.tiers).reduce<number>((sum, t) => sum + (t ?? -1), 0), o.damage - o.armor]
-  }
-  const better = (a: Spend, b: Spend) => {
-    const [x, y] = [score(a), score(b)]
-    const i = x.findIndex((v, k) => v !== y[k])
-    return i >= 0 && x[i] > y[i]
-  }
-  const best = spends.filter((s) => s.prediction.ok).reduce<Spend | null>((b, s) => (b === null || better(s, b) ? s : b), null)
-  return { ok: true, best: best ?? nothing, tried }
+  if (!isAttackAction(open)) return { ok: true, best: nothing, tried: [nothing], outcome: null }
+  const chosen = getBestSpend(base.ready, open)
+  const purchases = (Object.entries(chosen.purchases) as [HOPPurchase, number][]).flatMap(([p, n]) => buy(p, n))
+  if (purchases.length === 0) return { ok: true, best: nothing, tried: [nothing], outcome: chosen.outcome }
+  const best: Spend = { purchases, prediction: run(supposed, [...picks, ...purchases], ctx).prediction }
+  return { ok: true, best, tried: [nothing, best], outcome: chosen.outcome }
 }

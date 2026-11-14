@@ -20,10 +20,12 @@ function faceOdds(mode: RollMode): readonly number[] {
   return counts.map((n) => n / kept)
 }
 
-const FACES: Record<RollMode, readonly number[]> = { normal: faceOdds('normal'), safe: faceOdds('safe'), risky: faceOdds('risky') }
+const faces = new Map<RollMode, readonly number[]>()
 
 export function getFaceOdds(mode: RollMode): readonly number[] {
-  return FACES[mode]
+  let odds = faces.get(mode)
+  if (!odds) faces.set(mode, (odds = faceOdds(mode)))
+  return odds
 }
 
 // What an attack's test does to its target at each degree, in harm: a miss,

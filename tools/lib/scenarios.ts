@@ -28,12 +28,18 @@ export const SCENARIOS: Scenario[] = [
 ]
 
 // The arena's: the sides a few steps apart, so that everyone is in the fight
-// from the first round: out in the open, and one side in a house with the
-// other outside its wall.
+// from the first round: three duels, and three a side out in the open and
+// with one side in a house and the other outside its wall. The thief is left
+// out: its duels came down to whether its foe attacked or defended.
+const FIGHTERS = COMMON.filter((who) => who !== 'Surbit Thief')
+const three = (cells: [number, number][]): [string, [number, number]][] => FIGHTERS.map((who, i) => [who, cells[i]])
+
 export const CLOSE: Scenario[] = [
-  { name: 'duel, engaged', red: [['Erthal Soldier', [0, -8]]], blue: [['Surbit Thief', [1, -8]]] },
-  { name: 'four a side, close', red: side([[-2, -9], [-2, -8], [-2, -7], [-3, -7]]), blue: side([[2, -9], [2, -8], [2, -7], [3, -8]]) },
-  { name: 'four a side, a wall between', red: side([[-1, -2], [-1, -1], [-2, 0], [-1, 0]]), blue: side([[2, -2], [2, -1], [1, 0], [2, 0]]) },
+  { name: 'duel, soldier and squire', red: [['Erthal Soldier', [0, -8]]], blue: [['Halkir squire', [1, -8]]] },
+  { name: 'duel, soldier and noble', red: [['Erthal Soldier', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
+  { name: 'duel, squire and noble', red: [['Halkir squire', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
+  { name: 'three a side, close', red: three([[-2, -9], [-2, -8], [-2, -7]]), blue: three([[2, -9], [2, -8], [2, -7]]) },
+  { name: 'three a side, a wall between', red: three([[-1, -2], [-1, -1], [-2, 0]]), blue: three([[2, -2], [2, -1], [1, 0]]) },
 ]
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(path.join(process.cwd(), file), 'utf-8'))
