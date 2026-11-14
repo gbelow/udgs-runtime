@@ -7,23 +7,35 @@ import { playFight, tally, type Fight } from '../app/domain/bot/arena'
 import type { Box } from '../app/domain/bot/decision'
 import type { SceneState } from '../app/domain/scene/types'
 import { nearestBox } from '../app/domain/bot/boxes/nearest'
-import { threatBox } from '../app/domain/bot/boxes/threat'
+import { threatBox, THREAT_WEIGHTS, type ThreatWeights } from '../app/domain/bot/boxes/threat'
 import { CLOSE as SCENARIOS, setUp, ARENA } from './lib/scenarios'
 
 // Boxes played against each other on the arena's scenarios (tools/lib/scenarios.ts `CLOSE`),
 // each seed twice with the boxes trading sides (bot/arena.ts), the fights shared
 // out over worker threads.
 //
-//   pnpm arena [--seeds n] [--box a,b] [--only text] [--rounds n] [--workers n]
+//   pnpm arena [--seeds n] [--box a,b] [--only text] [--rounds n] [--workers n] [--set name=value,...]
 //
 // `--box` names the two boxes (BOXES), the first the one the report speaks
-// for; `--only` plays only the scenarios whose name holds the text. A broken
+// for; `--only` plays only the scenarios whose name holds the text; `--set`
+// changes weights of the threat box (`THREAT_WEIGHTS`). A broken
 // fight (stalled, a decision refused, or out of steps) is listed with its seed,
 // which plays it again exactly. The report goes to reports/arena/arena.md.
 
-const BOXES: Record<string, () => Box> = {
+// `set` overrides the threat box's weights (`--set`), for every threat box in the fight
+const BOXES: Record<string, (set: Partial<ThreatWeights>) => Box> = {
   nearest: () => nearestBox,
-  threat: () => threatBox(),
+  threat: (set) => threatBox({ ...THREAT_WEIGHTS, ...set }),
+}
+
+// `--set exposure=0,danger=0.05`: weights of the threat box, each one it has
+function weightsOf(text: string | null): Partial<ThreatWeights> {
+  if (!text) return {}
+  return Object.fromEntries(text.split(',').map((pair) => {
+    const [key, value] = pair.split('=')
+    if (!(key in THREAT_WEIGHTS) || typeof THREAT_WEIGHTS[key as keyof ThreatWeights] !== 'number' || !Number.isFinite(Number(value))) throw new Error(`No weight "${key}" to set to "${value}": there are ${Object.keys(THREAT_WEIGHTS).join(', ')}`)
+    return [key, Number(value)]
+  }))
 }
 
 function flag(name: string): string | null {
@@ -33,7 +45,7 @@ function flag(name: string): string | null {
 
 type Job = { scenario: string; seed: number; swapped: boolean }
 type Played = Job & { fight: Fight; decisions: [number, number]; ms: [number, number]; took: number }
-type Setup = { boxes: [string, string]; rounds: number }
+type Setup = { boxes: [string, string]; rounds: number; set: Partial<ThreatWeights> }
 
 // A box timed: how many decisions it made and how long they took.
 function timed(box: Box, into: { n: number; ms: number }): Box {
@@ -46,7 +58,7 @@ function timed(box: Box, into: { n: number; ms: number }): Box {
   }
 }
 
-function play(jobs: Job[], { boxes, rounds }: Setup, done: (p: Played) => void): void {
+function play(jobs: Job[], { boxes, rounds, set: weights }: Setup, done: (p: Played) => void): void {
   const set = new Map<string, { state: SceneState; red: string[]; blue: string[] }>()
   for (const job of jobs) {
     const scenario = SCENARIOS.find((s) => s.name === job.scenario)!
@@ -54,7 +66,7 @@ function play(jobs: Job[], { boxes, rounds }: Setup, done: (p: Played) => void):
     set.set(job.scenario, fight)
     const clocks = [{ n: 0, ms: 0 }, { n: 0, ms: 0 }] as const
     const t0 = performance.now()
-    const played = playFight({ start: fight.state, sides: [fight.red, fight.blue], boxes: [timed(BOXES[boxes[0]](), clocks[0]), timed(BOXES[boxes[1]](), clocks[1])] }, job.seed, job.swapped, rounds)
+    const played = playFight({ start: fight.state, sides: [fight.red, fight.blue], boxes: [timed(BOXES[boxes[0]](weights), clocks[0]), timed(BOXES[boxes[1]](weights), clocks[1])] }, job.seed, job.swapped, rounds)
     done({ ...job, fight: played, decisions: [clocks[0].n, clocks[1].n], ms: [clocks[0].ms, clocks[1].ms], took: performance.now() - t0 })
   }
 }
@@ -67,7 +79,7 @@ if (!isMainThread) {
   const boxes = (flag('box') ?? 'nearest,nearest').split(',') as [string, string]
   for (const b of boxes) if (!BOXES[b]) throw new Error(`No box "${b}": there are ${Object.keys(BOXES).join(', ')}`)
   const only = flag('only')
-  const setup: Setup = { boxes, rounds: Number(flag('rounds') ?? 30) }
+  const setup: Setup = { boxes, rounds: Number(flag('rounds') ?? 30), set: weightsOf(flag('set')) }
   const scenarios = SCENARIOS.filter((s) => !only || s.name.includes(only))
   const jobs: Job[] = scenarios.flatMap((s) => Array.from({ length: seeds }, (_, i) => [false, true].map((swapped) => ({ scenario: s.name, seed: i + 1, swapped }))).flat())
   const workers = Math.max(1, Math.min(Number(flag('workers') ?? availableParallelism() - 1), jobs.length))
@@ -88,7 +100,7 @@ if (!isMainThread) {
 const pct = (x: number) => `${Math.round(x * 100)}%`
 const ms = (x: number) => (x >= 10 ? x.toFixed(1) : x.toFixed(2))
 
-function report(scenarios: string[], results: Played[], { boxes, rounds }: Setup, seeds: number, workers: number, took: number): void {
+function report(scenarios: string[], results: Played[], { boxes, rounds, set }: Setup, seeds: number, workers: number, took: number): void {
   const rows = scenarios.map((name) => {
     const of = results.filter((r) => r.scenario === name)
     const t = tally(of.map((r) => r.fight))
@@ -107,7 +119,7 @@ function report(scenarios: string[], results: Played[], { boxes, rounds }: Setup
   const lines = [
     '# Arena',
     '',
-    `${boxes[0]} against ${boxes[1]} on ${ARENA}, ${seeds} seeds a scenario, each played twice with the boxes trading sides; a draw at the end of round ${rounds}. The score is ${boxes[0]}'s, a draw counted half, over the fights not broken, with its 95% interval. Rounds are those a fight reached; seconds are the wall time of one fight on one worker. Decisions are per fight, with the mean ms each.`,
+    `${boxes[0]} against ${boxes[1]} on ${ARENA}, ${seeds} seeds a scenario, each played twice with the boxes trading sides; a draw at the end of round ${rounds}. The score is ${boxes[0]}'s, a draw counted half, over the fights not broken, with its 95% interval. Rounds are those a fight reached; seconds are the wall time of one fight on one worker. Decisions are per fight, with the mean ms each.${Object.keys(set).length ? ` Threat weights set: ${Object.entries(set).map(([k, v]) => `${k} ${v}`).join(', ')}.` : ''}`,
     '',
     `| scenario | won/lost/drawn | broken | score | rounds | s a fight (mean / max) | down (${boxes[0]} / ${boxes[1]}) | ${boxes[0]} decisions | ${boxes[1]} decisions |`,
     '|---|---:|---:|---|---:|---:|---:|---:|---:|',

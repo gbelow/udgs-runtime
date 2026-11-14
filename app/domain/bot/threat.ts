@@ -11,6 +11,7 @@ import { ROUND_AP } from '../tables'
 import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
 import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
+import { getOpportunityWorth } from './approach'
 import { getWeaponRows } from '../scene/rules/weaponRow'
 import { getReach } from '../scene/rules/board/board'
 import { isMeleeRange } from '../weaponProperties'
@@ -25,7 +26,9 @@ import { isMeleeRange } from '../weaponProperties'
 // made in one round and damped by `ring2` for every round more it takes, a
 // part of a round counting its part, so that every step closer counts.
 // Immediate threat is this round's: one attack the attacker can still pay for
-// with what it is believed to have left. A target that cannot be harmed even
+// with what it is believed to have left. A threat that needs a walk through
+// the target's own reach counts the opportunity attack it draws against it
+// (bot/approach.ts), which is the target's to make. A target that cannot be harmed even
 // undefended, or not this round, is under no threat from it. A threat counts
 // what the attack is worth (`getDefendedHarm`): the harm against the answer
 // the target would choose and what that answer costs it.
@@ -45,11 +48,14 @@ export type ThreatTuning = {
   forcing: number
   // the STA against which a pool is measured (`getSTAPrice`)
   STAScale: number
+  // what a threat is worth less for every point of worth of the opportunity
+  // attack its walk in draws from the target (bot/approach.ts)
+  opportunity: number
   // the end of a face's third taken as what a character has left
   end: 'least' | 'most'
 }
 
-export const THREAT_TUNING: ThreatTuning = { ring2: 0.5, defenceAP: 1, defenceSTA: 1, forcing: 0.25, STAScale: 10, end: 'least' }
+export const THREAT_TUNING: ThreatTuning = { ring2: 0.5, defenceAP: 1, defenceSTA: 1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'least' }
 
 export type Threat = {
   // what the attack is worth against the answer the target is believed to
@@ -69,9 +75,11 @@ export type Threat = {
   moveAP: number
   // the rounds the move and the attack take, from 1 (this round, or the next)
   rounds: number
+  // the worth of the opportunity attack the walk in draws from the target
+  approach: number
 }
 
-export const threatValue = (t: Threat | null, tuning: ThreatTuning = THREAT_TUNING): number => (t ? t.worth * tuning.ring2 ** Math.max(0, t.rounds - 1) : 0)
+export const threatValue = (t: Threat | null, tuning: ThreatTuning = THREAT_TUNING): number => (t ? Math.max(0, t.worth - tuning.opportunity * t.approach) * tuning.ring2 ** Math.max(0, t.rounds - 1) : 0)
 
 // The least or the most a third of `most` could hold (character/lenses/face.ts
 // `thirdOf`).
@@ -326,7 +334,9 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
     if (rounds === null) continue
     const met = getDefendedHarm(attack, gap, guard, mode, defender.injuries.bleed, tuning)
     if (!met || met.undefended <= 0) continue
-    const threat: Threat = { worth: met.worth, harm: met.harm, attack, defence: met.defence, undefended: met.undefended, answers: met.answers, cost: attack.cost, moveAP, rounds }
+    // the walk in, straight from where `a` stands to the attack's reach, against the target's own strikes
+    const approach = gap > attack.reach ? getOpportunityWorth(a.state, d.id, a.id, gap, attack.reach, guard, { AP: Math.max(0, means.AP - moveAP), STA: means.STA }, tuning) : 0
+    const threat: Threat = { worth: met.worth, harm: met.harm, attack, defence: met.defence, undefended: met.undefended, answers: met.answers, cost: attack.cost, moveAP, rounds, approach }
     if (!best || threatValue(threat, tuning) > threatValue(best, tuning)) best = threat
   }
   return best

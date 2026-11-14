@@ -10,6 +10,7 @@ import { getMovementOptions } from '../../scene/rules/move'
 import { getReachableCells } from '../../scene/rules/board/reach'
 import { distance, sameCell } from '../../scene/rules/board/geometry'
 import { declare, type Intent, type Pick } from '../declare'
+import { getApproachCost } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
 import { cellOf, getDanger, getDefendedHarm, getHarmAgainst, getMeans, getPotentialThreat, getSTAPrice, getThreatened, getThreatening, threatValue, THREAT_TUNING, type ThreatTuning } from '../threat'
@@ -22,7 +23,9 @@ import type { Box, Decision, SeatInput } from '../decision'
 // - an attack, from where the character stands or from a cell it can walk to
 //   this turn, is worth what it costs the target answering as it is believed
 //   to (`getDefendedHarm`: the harm taken, the defence paid for, and more the
-//   more the defence takes off), how threatened the target is by
+//   more the defence takes off), less the danger it leaves the character in
+//   at the cell (weighing the cheapest cells that reach and the safest), how
+//   threatened the target is by
 //   the whole team, and how threatening it is to anyone in the team, less
 //   what it costs (the walk and the attack, AP + STA) at a price that rises
 //   with the danger the character is left in: the worst single foe's
@@ -32,6 +35,8 @@ import type { Box, Decision, SeatInput } from '../decision'
 //   worst single foe's potential threat on it there, and what it closes on
 //   the foe the team threatens most, less the walk at the same price; it
 //   walks when that beats standing by a margin;
+// - a walk, to attack or not, costs the opportunity attacks it draws from the
+//   foes whose reach it walks in on (bot/approach.ts);
 // - an attack or a walk may be paid for after a combat or a movement surge;
 //   AP is free while no foe can attack this round, and a surge's always;
 // - attacked, it answers with the defence (or none) that leaves the least
@@ -50,6 +55,8 @@ export type ThreatWeights = ThreatTuning & {
   AP: number
   STA: number
   danger: number
+  // what an attack is worth less for the danger it leaves the character in, at the cell it is made from
+  exposure: number
   // a walk's worth: the potential harm the character could do from the cell, the potential danger there
   offence: number
   peril: number
@@ -59,7 +66,7 @@ export type ThreatWeights = ThreatTuning & {
   margin: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...THREAT_TUNING, harm: 1, threatened: 0.2, threatening: 0.2, AP: 1, STA: 1, danger: 0.1, offence: 1, peril: 1, aggression: 2, margin: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...THREAT_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, AP: 1, STA: 1, danger: 0.1, exposure: 0.25, offence: 1, peril: 1, aggression: 2, margin: 1 }
 
 const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
@@ -160,15 +167,18 @@ function getDirectedCells(view: SceneState, here: Coord, walk: Walk, foes: reado
 }
 
 // Where an attack with `reach` on a target standing at `at` may be made from:
-// where the character stands, if it reaches from there, and the cheapest
-// `ATTACK_CELLS` cells of the walk that reach.
+// where the character stands, if it reaches from there, and of the cells of
+// the walk that reach, the cheapest `ATTACK_CELLS` and the `ATTACK_CELLS`
+// where the danger on the character is least (`dangerAt`).
 const ATTACK_CELLS = 2
 
-function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number): { cell: Coord | null; AP: number; STA: number }[] {
+function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number, dangerAt: (cell: Coord) => number): { cell: Coord | null; AP: number; STA: number }[] {
   const stay = !here || !at || distance(here, at) <= reach ? [{ cell: here, AP: 0, STA: 0 }] : []
   if (!walk || !at) return stay
-  const reaching = walk.cells.filter((c) => (!here || !sameCell(c.cell, here)) && distance(c.cell, at) <= reach).sort((a, b) => a.AP + a.STA - (b.AP + b.STA))
-  return [...stay, ...reaching.slice(0, ATTACK_CELLS)]
+  const reaching = walk.cells.filter((c) => (!here || !sameCell(c.cell, here)) && distance(c.cell, at) <= reach)
+  const cheapest = [...reaching].sort((a, b) => a.AP + a.STA - (b.AP + b.STA)).slice(0, ATTACK_CELLS)
+  const safest = reaching.map((c) => ({ c, danger: dangerAt(c.cell) })).sort((a, b) => a.danger - b.danger).slice(0, ATTACK_CELLS).map(({ c }) => c)
+  return [...stay, ...new Set([...cheapest, ...safest])]
 }
 
 // What the character would do with the turn it holds in `view`, or null to end it.
@@ -180,13 +190,19 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   if (foes.length === 0) return null
   const bleed = me.injuries.bleed
   const left = { AP: me.resources.AP, STA: me.resources.STA }
+  // the worst foe's threat this round on the character at `at`, with what it
+  // has left to defend
+  const dangerLeft = (AP: number, STA: number, at: Coord | null) => getDanger(view, members, id, 'immediate', at, { AP: left.AP - AP, STA: left.STA - STA }, w)
   // AP is priced only while some foe can still attack this round, at a price
   // rising with the danger left; STA always, dearer the less is left
   const price = (AP: number, STA: number, at: Coord | null) => {
     const exposed = AP > 0 && getDanger(view, members, id, 'immediate', at, { AP: 0, STA: 0 }, w) > 0
-    const perAP = exposed ? w.AP + w.danger * getDanger(view, members, id, 'immediate', at, { AP: left.AP - AP, STA: left.STA - STA }, w) : 0
+    const perAP = exposed ? w.AP + w.danger * dangerLeft(AP, STA, at) : 0
     return AP * perAP + getSTAPrice(STA, left.STA, bleed, w.STA, w)
   }
+  // what walking from where the character stands to `to` costs it in the
+  // opportunity attacks of the foes whose reach it walks in on (bot/approach.ts)
+  const drawn = (to: Coord | null, AP: number, STA: number) => (here && to && !sameCell(here, to) ? w.opportunity * getApproachCost(view, id, here, to, foes, (f) => getMeans(view.characters[f], false, w), { AP: Math.max(0, left.AP - AP), STA: left.STA - STA }, w) : 0)
   const targetWorth = new Map(foes.map((f) => [f, w.threatened * getThreatened(view, members, f, w) + w.threatening * getThreatening(view, members, f, w)]))
   const budgets = getBudgets(view, id)
 
@@ -199,7 +215,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       if (!target) continue
       const guard = getMeans(target, false, w)
       for (const attack of getPair(me, target)) {
-        for (const { cell, AP, STA } of getAttackCells(here, walk, at, attack.reach)) {
+        for (const { cell, AP, STA } of getAttackCells(here, walk, at, attack.reach, (c) => dangerLeft(0, 0, c))) {
           const gap = cell && at ? distance(cell, at) : 0
           const needsFocus = attack.needsFocus && me.usedSurge !== 'focus'
           if (needsFocus && (me.usedSurge !== null || b.surge !== null)) continue
@@ -208,7 +224,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           if (spent === null || STAspent > b.STA) continue
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w)
           if (!met || met.undefended <= 0) continue
-          const score = w.harm * met.worth + (targetWorth.get(foe) ?? 0) - price(spent, STAspent + b.surgeSTA, cell)
+          const score = w.harm * met.worth + (targetWorth.get(foe) ?? 0) - price(spent, STAspent + b.surgeSTA, cell) - w.exposure * dangerLeft(spent, STAspent + b.surgeSTA, cell) - drawn(cell, AP, STA)
           if (best && score <= best.score) continue
           const why = `${attack.kind}s ${target.name} (${attack.row.attack}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
           if (needsFocus) best = { kind: 'surge', surge: 'focus', score, why: `focuses to shoot: ${why}` }
@@ -248,7 +264,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       const spent = roundAPSpent(b, AP, 0)
       if (spent === null) continue
       const closer = Number.isFinite(fromHere) ? fromHere - Math.min(fromHere, closing(cell)) : 0
-      const score = standing(cell) + w.aggression * closer - price(spent, STA + b.surgeSTA, cell)
+      const score = standing(cell) + w.aggression * closer - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA)
       if (!move || score > move.score) move = { cell, score, budget: b, movement: walk.movement }
     }
   }
