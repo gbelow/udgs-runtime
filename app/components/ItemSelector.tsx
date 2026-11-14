@@ -14,13 +14,15 @@ export function ItemSelector({ wide = false }: { wide?: boolean }){
     <CatalogList wide={wide} label='item' groups={groupBy(catalog, (row) => row.group)} nameOf={(row) => row.name} collection={{ filter, keyOf: (row) => row.key }} beside={<>
       <span className='text-xs text-muted'>amount</span>
       <NumberInput className='w-10 text-sm py-0.5' min={1} aria-label='item amount' title='amount' value={amount} onChange={(e) => setAmount(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
-      <span className='text-xs text-muted'>size</span>
-      <NumberInput className='w-10 text-sm py-0.5' min={1} max={7} aria-label='item size' title='size the item is made for' value={scale} onChange={(e) => setScale(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
     </>} render={(row) => (
       <ListButton key={row.key} aria-label={row.name} title={row.bulkName}
         selected={pending?.source === 'catalog' && pending.key === row.key}
         onClick={() => select(row.key)}>{row.name} <span className='text-muted text-xs'>· {row.bulkName} · {row.price}</span></ListButton>
     )}>
+      <div className='flex flex-row gap-1 items-center px-1'>
+        <span className='text-xs text-muted'>size</span>
+        <NumberInput className='w-10 text-sm py-0.5' min={1} max={7} aria-label='item size' title='size the item is made for' value={scale} onChange={(e) => setScale(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
+      </div>
       {
         pending?.source === 'catalog' ?
         <div className='flex flex-row gap-2 items-center text-xs px-1 text-good'>
