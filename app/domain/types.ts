@@ -368,6 +368,11 @@ export const ItemSchema = z.object({
   type: ItemTypeSchema.catch('utility').default('utility'),
   amount: num.default(1),
   bulk: num.default(1), // 0 tiny · 1 small · 2 medium · 3 large · 4+ numeric
+  // What only ammo has, as a shield is what only some weapons have: the size
+  // it is made for (gear.tex "Size Scaling"), kept on it because ammo is tiny
+  // and its bulk cannot carry a size below 3 (the table's ruling). Absent for
+  // any other item, whose size its bulk carries.
+  ammo: z.object({ scale: num }).strip().optional(),
   refId: str.default(''), // key into the type's catalog; empty means this item is pure flavor, no linked object
   // spells.tex "Charged": what is loaded into the item, waiting to go off —
   // which spell it is, and its effects as the caster produced them. Whoever

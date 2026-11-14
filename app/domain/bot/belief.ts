@@ -7,7 +7,6 @@ import { characteristicLenses, skillLenses } from '../character/lenses'
 import { getSTA } from '../character/rules/characteristics'
 import { ROUND_AP, SURGES } from '../tables'
 import { getWieldedWeapons } from '../item/rules/hands'
-import { getItemScale } from '../item/rules/items'
 import ammoCatalog from '../../assets/ammo.json'
 
 // The fight as a bot weighs it: what a player in its place would see of it
@@ -33,8 +32,7 @@ const QUIVER_KEY = 'guessed quiver'
 function ammoOf(kind: AmmoKind, scale: number): Item | null {
   const refId = Object.entries(ammoCatalog).find(([, entry]) => entry.kind === kind)?.[0]
   if (!refId) return null
-  const item = ItemSchema.parse({ id: `${QUIVER_KEY} ${kind} ${scale}`, name: refId, type: 'ammo', refId, bulk: 0, amount: QUIVER })
-  return { ...item, bulk: scale - getItemScale(item) }
+  return ItemSchema.parse({ id: `${QUIVER_KEY} ${kind} ${scale}`, name: refId, type: 'ammo', refId, bulk: 0, ammo: { scale }, amount: QUIVER })
 }
 
 // A quiver of the first arrow or bolt the catalog has for each weapon the

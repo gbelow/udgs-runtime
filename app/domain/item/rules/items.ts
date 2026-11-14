@@ -24,6 +24,7 @@ export function getBulkName(bulk: number): string {
 // stamping a template at size k moves its bulk by k - 3, and how far a bulk
 // sits from its template's is how far the item has been scaled. An item with
 // no template in the catalog has nothing to be measured against and is size 3.
+// Ammo is the exception: its size is kept on its ammo part (`ammo.scale`).
 export const GEAR_SIZE = 3
 
 // gear.tex "Containers and Burden": every container is an item as well, of
@@ -63,6 +64,7 @@ function getTemplate(item: Pick<Item, 'type' | 'refId' | 'name'>): Item | undefi
 
 export function scaleItem(item: Item, scale: number): Item {
   const steps = scale - GEAR_SIZE
+  if (item.type === 'ammo') return { ...item, bulk: Math.max(0, item.bulk + steps), ammo: { ...item.ammo, scale } }
   return { ...item, bulk: item.bulk + steps, ...(item.container ? { container: scaleContainer(item.container, steps) } : {}) }
 }
 
@@ -80,6 +82,7 @@ function scaleContainer(container: Container, steps: number): Container {
 }
 
 export function getItemScale(item: Item): number {
+  if (item.ammo) return item.ammo.scale
   const template = getTemplate(item)
   return template ? GEAR_SIZE + item.bulk - template.bulk : GEAR_SIZE
 }
@@ -119,7 +122,7 @@ export function getCatalogItem(key: string, amount = 1, scale = GEAR_SIZE): Item
 // crossbow an empty one, nor a part-used potion a whole one.
 export function isSameItem(a: Item, b: Item): boolean {
   return !a.container && !b.container && !a.charge && !b.charge && a.type === b.type && a.refId === b.refId && a.name === b.name
-    && a.description === b.description && a.bulk === b.bulk && a.broken === b.broken && a.edge === b.edge && a.source?.ammo === b.source?.ammo
+    && a.description === b.description && a.bulk === b.bulk && a.ammo?.scale === b.ammo?.scale && a.broken === b.broken && a.edge === b.edge && a.source?.ammo === b.source?.ammo
     && a.loaded?.refId === b.loaded?.refId && getConsume(a)?.doses === getConsume(b)?.doses
 }
 
