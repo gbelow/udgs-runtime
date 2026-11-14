@@ -14,7 +14,7 @@ import { getAction, getOpenedBy, getPassedUp, getReactionsTo, getRootOf } from '
 import { getFootprint, getMeleeThreateners, getPlacedFootprint, placeAt, withPlacements } from './board/board'
 import { isInLiquid } from './board/ground'
 import { setDistance } from './board/geometry'
-import { getMoveDestination, getMoveOrigin } from './board/waypoint'
+import { getEndingAt, getMoveOrigin } from './board/waypoint'
 import { getPostureCost, getWalkableCells } from './move'
 import { getFreeAttackOptions, type AttackOption } from './attack'
 import { getTargetIds } from './action'
@@ -35,8 +35,7 @@ import type { ReactionMove } from './reactionMoves'
 // abilities.tex "Jump Shot": "Spends 1 extra AP and 1 STA to jump backward
 // and perform a quick shot or throw, avoiding opportunity attacks if the jump
 // takes them out of range." Backward is away from everyone who threatens the
-// shooter (the table's ruling), at half the jump (combat.tex "Movement": "If
-// performed backwards, the horizontal distance is halved").
+// shooter (the table's ruling).
 // abilities.tex "Defender": "Allows you to spend 1 STA to move 1 basic
 // movement as a reaction to position yourself to defend someone."
 // abilities.tex "Defensive Advance": "Spend 1 STA to move forward to get in
@@ -48,9 +47,9 @@ import type { ReactionMove } from './reactionMoves'
 // abilities.tex "Technical Lift": "perform an evasive jump and stand up in
 // the same action", taking "-3 to defend while doing so"; the stand up comes
 // once the strike has landed, and an interruption cancels it.
-// An attack of the actor's own is declared on the move, which opens it from
-// where it lands; a defense carries the move, made before its die (where the
-// defense is then made from) or after the strike lands. The move is a move
+// An attack of the actor's own carries the jump, made before its die
+// (rules/attackJump.ts); a defense carries the move, made before its die
+// (where the defense is then made from) or after the strike lands. The move is a move
 // like any other and draws opportunity attacks as one does, but for one a
 // reaction opened, never from the one whose attack the reaction answers
 // (rules/reactions.ts).
@@ -79,11 +78,10 @@ function isOwnAttack(kind: string): kind is OwnAttack {
   return kind === 'strike' || kind === 'shoot'
 }
 
-// The combined moves the fighter has that go with an action of the kind: on
-// a move, those that open an attack of their own from where it lands; on a
-// defense, those it carries.
+// The combined moves the fighter has that go with an action of the kind: the
+// jump an attack carries, or the move a defense does.
 export function getCombinedMoves(c: Character, kind: ActionKind): CombinedEntry[] {
-  return getRecipesOf(c, 'combinedMove').filter((e) => (kind === 'move' ? e.recipe.with.some(isOwnAttack) : !isOwnAttack(kind) && (e.recipe.with as readonly string[]).includes(kind)))
+  return getRecipesOf(c, 'combinedMove').filter((e) => (e.recipe.with as readonly string[]).includes(kind))
 }
 
 // The combined move the action is declared with or carries, as its actor has
@@ -118,82 +116,27 @@ function getMovementAP(c: Character, movement: CombinedMoveRecipe['movement']): 
 }
 
 // ---------------------------------------------------------------------------
-// A move that opens an attack
+// The jump an attack carries (rules/attackJump.ts)
 
-// Whether the move may be declared with the recipe: a move of its movement
-// of the actor's own in their action.
-export function canDeclareOnMove(state: SceneState, move: MoveAction, entry: CombinedEntry): boolean {
-  return move.movement === entry.recipe.movement && move.spawnedBy === null && move.preparedPart === null && !move.forced && holds(state, move.actorId, entry.recipe, null)
+// combat.tex "Movement": "If performed backwards, the horizontal distance is
+// halved": the jump an attack carries runs half a jump, as an evasive jump
+// does (abilities.tex "Jump Shot", "Lunge").
+export function isHalfJump(c: Character, move: { recipe?: string | null }): boolean {
+  return getCombinedOf(c, move)?.recipe.reach === 'halfJump'
 }
 
-// The recipe the move is declared with, open, when it opens an attack.
-export function getMoveAttack(state: SceneState, move: MoveAction): CombinedEntry | null {
-  const entry = getCombinedOf(state.characters[move.actorId], move)
-  return entry && canDeclareOnMove(state, move, entry) ? entry : null
+// Whether the move is the jump an attack carries, bought with the attack's
+// price.
+export function isCarriedByAttack(c: Character, move: { recipe?: string | null }): boolean {
+  return getCombinedOf(c, move)?.recipe.with.some(isOwnAttack) ?? false
 }
 
-// Whether the move takes its mover away from everyone threatening them, as
-// it is declared to be: a jump backward runs half its length.
-export function isBackwardMove(c: Character, move: { recipe?: string | null }): boolean {
-  return getCombinedOf(c, move)?.recipe.toward === 'awayFromThreateners'
-}
-
-function getOpenedKind(entry: CombinedEntry): OwnAttack {
-  return entry.recipe.with.find(isOwnAttack) ?? 'strike'
-}
-
-// The attack the move declared with the recipe opens, from where it lands,
-// for its actor to declare.
-export function getMoveAttackOpened(move: MoveAction, entry: CombinedEntry, id: string): StrikeAction | ShootAction {
-  return makeAction(getOpenedKind(entry), { id, actorId: move.actorId, spawnedBy: move.id })
-}
-
-// The recipe of the move that opened the attack, if a move did.
-export function getOpeningMove(state: SceneState, action: Action): CombinedEntry | null {
-  const opener = (action.kind === 'strike' || action.kind === 'shoot') && action.spawnedBy ? getAction(state, action.spawnedBy) : null
-  return opener?.kind === 'move' ? getCombinedOf(state.characters[opener.actorId], opener) : null
-}
-
-// Whether the row and variation may be the attack the recipe opens.
+// Whether the row and variation may be made with the recipe's jump: a jump
+// shot only as a quick shot or a throw.
 export function isOpenedRow(c: Character, entry: CombinedEntry | null, o: Pick<AttackOption, 'weaponKey' | 'attack' | 'variant'>): boolean {
   if (!entry || entry.recipe.rows === 'any') return true
   const row = findWeaponRow(c, o.weaponKey, o.attack)
   return o.variant === SHOTS.quickShot.variant || (!!row && getAttackKind(row.atk.range) === 'throw')
-}
-
-// Whether a move declared with the recipe may land on the cell: where the
-// recipe sends it, and from there some attack it opens that its actor can pay
-// for, the move's price besides, and that their surge lets them make, reaches
-// someone they may attack.
-function isAttackLanding(state: SceneState, move: MoveAction, entry: CombinedEntry, cell: Coord): boolean {
-  const c = state.characters[move.actorId]
-  const from = state.board?.placements[move.actorId]
-  const opens = getOpenedKind(entry)
-  if (!c || !isCampaignCharacter(c) || getSurgeBarFor(state, c, opens) !== null) return false
-  if (entry.recipe.toward === 'awayFromThreateners' && !isAway(state, move, cell)) return false
-  const price = getCombinedPrice(c, entry.recipe)
-  const extra = 'add' in price ? price.add : price.set
-  const landed = from ? withPlacements(state, { [c.id]: placeAt(state.board, from, cell) }) : state
-  const opened = getMoveAttackOpened(move, entry, '')
-  return getFreeAttackOptions(landed, c, opens).some((o) =>
-    isOpenedRow(c, entry, o)
-    && canAfford(c, { AP: o.AP + extra.AP, STA: o.STA + extra.STA }, isCombatStarted(state))
-    && getTargetIds(landed, { ...opened, weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }).length > 0)
-}
-
-// Whether landing on the cell takes the mover further from everyone who
-// threatens them where they set out.
-function isAway(state: SceneState, move: MoveAction, cell: Coord): boolean {
-  const c = state.characters[move.actorId]
-  const origin = getMoveOrigin(state, move)
-  const end = getMoveDestination(state, move, [cell])
-  if (!c || !origin || !end) return true
-  const before = getFootprint(c, origin)
-  const after = getFootprint(c, end)
-  return getMeleeThreateners(state, move.actorId).every((id) => {
-    const other = getPlacedFootprint(state, id)
-    return !other || setDistance(after, other) > setDistance(before, other)
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -318,17 +261,13 @@ export function openStepsAfter(state: SceneState, root: Action, newId: () => str
   })
 }
 
-// Whether a move may end on the cell as the recipe behind it allows: a move
-// declared to open an attack, only where the attack reaches someone; the
+// Whether a move may end on the cell as the recipe behind it allows: the
 // move a defense carries before its die, only where the recipe sends it and
-// the defense can be made from. Any other move may end anywhere it reaches.
+// the defense can be made from. Any other move may end anywhere it reaches,
+// the jump an attack carries where the attack picked (rules/attackJump.ts).
 export function isCombinedLanding(state: SceneState, move: MoveAction, cell: Coord | undefined): boolean {
   const carrier = getCarrier(state, move)
-  if (carrier && carrier.entry.recipe.order === 'before') {
-    const root = getRootOf(state, carrier.defense)
-    return !!cell && isAnsweredBy(root, carrier.defense.kind) && isStepLanding(state, root, carrier.defense, carrier.entry, cell)
-  }
-  const entry = getCombinedOf(state.characters[move.actorId], move)
-  if (!entry) return true
-  return !!cell && canDeclareOnMove(state, move, entry) && isAttackLanding(state, move, entry, cell)
+  if (!carrier || carrier.entry.recipe.order !== 'before') return true
+  const root = getRootOf(state, carrier.defense)
+  return !!cell && isAnsweredBy(root, carrier.defense.kind) && isStepLanding(state, root, carrier.defense, carrier.entry, cell)
 }

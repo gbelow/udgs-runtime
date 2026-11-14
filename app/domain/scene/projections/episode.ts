@@ -1,4 +1,6 @@
 import type { Outcome } from '../../types'
+import { getHeavyDegree } from '../rules/heavy'
+import { getHeavyName } from '../../character/rules/gear'
 import type { Action, ActionRoll, Change, SceneState, CostTerm, Detection, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { addUpTerms, type Term } from '../../character/rules/terms'
@@ -197,9 +199,11 @@ function getDeclared(state: SceneState, action: Action): string[] {
     const row = actor && 'weaponKey' in action ? findWeaponRow(actor, action.weaponKey, action.attack) : null
     declared.push(row ? `${row.weapon.name}: ${action.attack}` : action.attack)
     if ('variant' in action && action.variant) declared.push(action.variant)
+    const heavy = actor && 'heavy' in action ? getHeavyDegree(actor, action) : 0
+    if (heavy > 0) declared.push(getHeavyName(heavy))
     if ('location' in action) declared.push(`aimed at ${action.part ?? action.location}`)
   }
-  if ('sweepDirection' in action && 'variant' in action && /sweep/i.test(action.variant)) declared.push(action.sweepDirection)
+  if ('sweepDirection' in action && 'modifiers' in action && action.modifiers.sweep) declared.push(`sweep ${action.sweepDirection}`)
   return declared
 }
 
@@ -266,8 +270,7 @@ function getMoveFate(state: SceneState, move: MoveAction): string | null {
 function getStopCause(state: SceneState, move: MoveAction, facts: MoveFacts): string | null {
   const blocked = facts.stop === 'trample' ? facts.trampled.find((t) => t.result === 'blocked') : undefined
   if (blocked) return getFightName(state, blocked.id)
-  const next = facts.stop === 'occupied' ? move.path[facts.path.length] : undefined
-  const standing = next ? getStandingIn(state, move, next) : null
+  const standing = facts.stop === 'occupied' && facts.path.length < move.path.length ? getStandingIn(state, move, facts.path.length + 1) : null
   if (standing) return getFightName(state, standing)
   const by = getMoveOverride(state, move)?.by
   return by ? describe(state, by) : null

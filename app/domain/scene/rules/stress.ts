@@ -11,7 +11,7 @@ import type { Compulsion, MoveAction, SceneState } from '../types'
 import { getFightName } from './fighters'
 import { getFootprint, getPlacedFootprint } from './board/board'
 import { setDistance } from './board/geometry'
-import { getMoveDestination, getMoveOrigin } from './board/waypoint'
+import { getEndingAt, getMoveOrigin } from './board/waypoint'
 import { getSituationalAfflictions, isSuffocating } from './situational'
 
 // creating.tex "Limit Stress Actions": what each compels. The coward, the
@@ -184,7 +184,7 @@ export function isCompelledAway(state: SceneState, move: MoveAction, cell: Coord
   const c = state.characters[move.actorId]
   const origin = getMoveOrigin(state, move)
   const caster = bond?.constraint === 'flee' ? getPlacedFootprint(state, bond.by) : null
-  const end = cell ? getMoveDestination(state, move, [cell]) : null
+  const end = cell ? getEndingAt(state, move, cell) : null
   if (!c || !origin || !caster || !end) return true
   return setDistance(getFootprint(c, end), caster) >= setDistance(getFootprint(c, origin), caster)
 }

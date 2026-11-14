@@ -115,14 +115,24 @@ export function isHookedRunner(state: SceneState, action: MoveAction, at: number
   return action.movement === 'run' && (getStepDelta(state, action, at, attackerId) ?? 0) > 0
 }
 
-// Where the move ends: the last cell of the path as walked, the orientation
-// it named, the elevation of the floor there: the board's terrain says how
-// high a cell is, so a placement whose stored elevation is stale is re-read off
-// it on the first move.
+// Where the move ends once `path`, the start of its own path, is walked: the
+// mover stands as it does at that step of the move (`getMovePlacements`),
+// turned the way the move names only when the whole path is walked, so a move
+// stopped partway stops as it was going. The board's terrain says how high a
+// cell is, so a placement whose stored elevation is stale is re-read off it
+// on the first move.
 export function getMoveDestination(state: SceneState, action: MoveAction, path: Coord[]): Placement | null {
   const from = getMoveOrigin(state, action)
   if (!from) return null
-  const end = getPathPlacements(state, action, path).at(-1)
-  if (!end) return action.path.length === 0 ? { ...from, orientation: action.orientation ?? from.orientation } : null
-  return { ...end, orientation: action.orientation ?? from.orientation }
+  if (action.path.length === 0) return { ...from, orientation: action.orientation ?? from.orientation }
+  return path.length === 0 ? null : getMovePlacements(state, action)[path.length] ?? null
+}
+
+// Where a move of the mover's would end were its path to end on `cell`
+// instead: the cell reached from where it sets out, turned the way the move
+// names. For a cell the move is being weighed to end on, not one along it.
+export function getEndingAt(state: SceneState, action: MoveAction, cell: Coord): Placement | null {
+  const from = getMoveOrigin(state, action)
+  const end = getPathPlacements(state, action, [cell]).at(-1)
+  return from && end ? { ...end, orientation: action.orientation ?? from.orientation } : null
 }

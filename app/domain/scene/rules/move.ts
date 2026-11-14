@@ -30,7 +30,7 @@ import { isKnockedDownByHook } from './grapple'
 import { findOpenRoot, getAction, getAncestry, getDrawnOpportunityAttacks, getOpenedBy, getReactionsTo } from './log'
 import { getFleeStep } from './flee'
 import { withDisplaced } from './displace'
-import { isBackwardMove } from './combinedMove'
+import { isCarriedByAttack, isHalfJump } from './combinedMove'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -80,8 +80,9 @@ export function getPostureCost(c: Character, posture: Posture): ActionCost {
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
 // move and does not need to be spent again, but any STA cost must be paid").
 export function getMovePrice(state: SceneState, c: Character, action: MoveAction, cells: number): ActionCost {
-  // a movement the rules force on its mover is not theirs to pay for
-  if (action.forced) return NO_COST
+  // a movement the rules force on its mover is not theirs to pay for, and
+  // the jump an attack carries is paid with the attack (rules/attackJump.ts)
+  if (action.forced || isCarriedByAttack(c, action)) return NO_COST
   const climb = action.movement === 'climb' ? getClimbPlan(state, action) : null
   // the table's ruling: lowering oneself to hang is the standing up undone
   if (climb?.hang) {
@@ -296,11 +297,10 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
 }
 
 // combat.tex "Movement": "If performed backwards, the horizontal distance is
-// halved", as a move declared to take its mover away from everyone
-// threatening them is (rules/combinedMove.ts: abilities.tex "Jump Shot").
+// halved", as the jump an attack carries is (rules/attackJump.ts).
 function getJumpSpeed(c: Character, action: MoveAction): number {
   const speed = getMovementSpeed(c, 'jump')
-  return isBackwardMove(c, action) ? Math.floor(speed / 2) : speed
+  return isHalfJump(c, action) ? Math.floor(speed / 2) : speed
 }
 
 // combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
@@ -548,15 +548,16 @@ function getBlockBefore(state: SceneState, action: MoveAction, step: number): nu
 // attacker puts them (rules/displace.ts).
 export function getFreeStep(state: SceneState, action: MoveAction, steps: number): number {
   let at = steps
-  while (at > 0 && getStandingIn(state, action, action.path[at - 1]) !== null) at--
+  while (at > 0 && getStandingIn(state, action, at) !== null) at--
   return at
 }
 
-// Whoever stands in the space the mover would come to rest in with their
-// anchor on `cell`, as the move would end there; null for nobody.
-export function getStandingIn(state: SceneState, action: MoveAction, cell: Coord): string | null {
+// Whoever stands in the space the mover would come to rest in were the move
+// to stop after `steps` cells of its path (`getMoveDestination`); null for
+// nobody.
+export function getStandingIn(state: SceneState, action: MoveAction, steps: number): string | null {
   const mover = state.characters[action.actorId]
-  const end = getMoveDestination(state, action, [cell])
+  const end = getMoveDestination(state, action, action.path.slice(0, steps))
   const placed = withDisplaced(state, action)
   const floor = end && readGround(placed, action.actorId)?.at(end.elevation)
   return mover && end && floor ? getCrowdedBy(placed, mover, getFootprint(mover, end), floor, endsLying(mover, action.movement)) : null
@@ -791,7 +792,7 @@ function isStraight(from: Coord, path: Coord[]): boolean {
 }
 
 // The way a jump goes from where it sets out to where it lands.
-function getJumpPath(from: Coord, to: Coord): Coord[] {
+export function getJumpPath(from: Coord, to: Coord): Coord[] {
   return line(from, to).slice(1)
 }
 

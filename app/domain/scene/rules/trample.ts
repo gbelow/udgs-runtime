@@ -80,7 +80,7 @@ export function getMoveTramples(state: SceneState, action: MoveAction, path: Coo
       trampled.push(result)
       if (result.result === 'blocked') {
         let stop = i
-        while (stop > 0 && getStandingIn(state, action, path[stop - 1]) !== null) stop--
+        while (stop > 0 && getStandingIn(state, action, stop) !== null) stop--
         return { trampled, stop }
       }
     }
