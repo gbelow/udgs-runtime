@@ -6,6 +6,8 @@ import { SceneStateSchema, type SceneState, type MoraleRoll } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
 import { getEndTurnBar, getStartTurnBar } from '../rules/turn'
+import { getStressRoundBar } from '../rules/stress'
+import { getInjuryCapacity, isDead } from '../../character/rules/afflictions'
 import { getProtectors } from '../rules/protect'
 import { makeAction } from '../factories'
 import { SURGES } from '../../tables'
@@ -94,5 +96,20 @@ describe('limit stress turns', () => {
 
     expect(getProtectors(owed, strike)).toContain('a')
     expect(getProtectors(before, strike)).not.toContain('a')
+  })
+  // A bot arena fight stalled: a bleeding coward's compelled movement surge cost
+  // STA, the bleed on it killed them, and the round change waited on the dead
+  // coward's limit stress action for good.
+  it('cancel the one owed by a character who dies taking it', () => {
+    const base = fighter('a', { limitStress: 'coward' })
+    const IL = getInjuryCapacity(base) - 1
+    const bleed = Math.ceil((base.injuries.deathThreshold - IL + 1) / SURGES.movement.STA)
+    const coward = { ...base, injuries: { ...base.injuries, injuryLevel: IL, bleed } }
+    const owing = oweStress(tested([coward], [5]))
+    expect(getStressRoundBar(owing)).not.toBeNull()
+
+    const surged = surge('a', 'movement')(owing)
+    expect(isDead(surged.characters.a)).toBe(true)
+    expect(getStressRoundBar(surged)).toBeNull()
   })
 })

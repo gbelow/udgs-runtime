@@ -2,7 +2,7 @@ import { isCombatStarted } from './started'
 import type { LimitStressAction } from '../../lists'
 import type { SurgeKind } from '../../types'
 import { SURGES } from '../../tables'
-import { getAfflictions } from '../../character/rules/afflictions'
+import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { getSTARegen } from '../../character/rules/characteristics'
 import { canAffordRest } from '../../character/rules/rest'
 import { canSurge } from '../../character/rules/surge'
@@ -12,7 +12,7 @@ import { getFightName } from './fighters'
 import { getFootprint, getPlacedFootprint } from './board/board'
 import { setDistance } from './board/geometry'
 import { getEndingAt, getMoveOrigin } from './board/waypoint'
-import { getSituationalAfflictions, isSuffocating } from './situational'
+import { getSituationalAfflictions, hasFightAffliction, isSuffocating } from './situational'
 
 // creating.tex "Limit Stress Actions": what each compels. The coward, the
 // violent and the martyr are compelled to a surge, the abusive and the traitor
@@ -91,19 +91,28 @@ export function getStressTurns(state: SceneState): Compulsion[] {
     .map(({ turn }) => turn)
 }
 
+// Whether the limit stress action is still owed: not taken, and its character
+// still in the fight to take it. combat.tex "Morale", "Out of the fight":
+// "Immobile and unconscious characters do not take morale tests"; the table's
+// ruling: one who dies or goes immobile while owing it has it cancelled.
+function isOwed(state: SceneState, t: Compulsion): boolean {
+  const c = state.characters[t.id]
+  return !t.taken && !!c && !isDead(c) && !hasFightAffliction(state, c, 'immobile') && !hasFightAffliction(state, c, 'unconscious')
+}
+
 export function getNextStress(state: SceneState): Compulsion | null {
-  return state.compulsions.find((t) => !t.taken && state.characters[t.id]) ?? null
+  return state.compulsions.find((t) => isOwed(state, t)) ?? null
 }
 
 // The owed turn the holder is in, if that is what it is.
 export function getStressTurn(state: SceneState): Compulsion | null {
   const holder = state.inTurnCharacter
-  return state.fleeing ? null : state.compulsions.find((t) => !t.taken && t.id === holder) ?? null
+  return state.fleeing ? null : state.compulsions.find((t) => t.id === holder && isOwed(state, t)) ?? null
 }
 
 // Whether the character owes a limit stress action still to be taken.
 export function owesStressTurn(state: SceneState, id: string): boolean {
-  return state.compulsions.some((t) => !t.taken && t.id === id)
+  return state.compulsions.some((t) => t.id === id && isOwed(state, t))
 }
 
 // The surge the holder's turn compels, if it does.
@@ -182,9 +191,9 @@ export function isMartyrGuard(state: SceneState, id: string): boolean {
 // What the character still owes of their limit stress action this round, as a
 // line, or null.
 export function getStressOwed(state: SceneState, id: string): string | null {
-  const turn = state.compulsions.find((t) => t.id === id && !t.taken) ?? state.compulsions.find((t) => t.id === id)
+  const turn = state.compulsions.find((t) => t.id === id && isOwed(state, t)) ?? state.compulsions.find((t) => t.id === id)
   if (!turn) return null
-  if (!turn.taken) return `Limit stress: ${turn.action}. ${capitalize(getInstruction(state, turn))}.`
+  if (isOwed(state, turn)) return `Limit stress: ${turn.action}. ${capitalize(getInstruction(state, turn))}.`
   return isMartyrGuard(state, id) ? 'martyr: holds the reaction surge to protect an ally' : null
 }
 
