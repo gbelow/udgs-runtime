@@ -109,12 +109,14 @@ export function getMovePrice(state: SceneState, c: Character, action: MoveAction
 
 // combat.tex "Interruption": a move cut short has spent only the blocks it
 // walked, the last one included, and one stopped before its first step the
-// first block. A climb pays the metres it goes, or its first block when an
-// interrupting attack made it lose its hold before it began.
+// first block. A flee does not interrupt it: a move stopped by one pays the
+// whole blocks it walked, none when it never set out. A climb pays the metres
+// it goes, or its first block when an interrupting attack made it lose its
+// hold before it began.
 export function getWalkedCells(state: SceneState, action: MoveAction, facts: MoveFacts): number {
   const plan = action.movement === 'climb' ? getClimbPlan(state, action) : null
   if (plan && !plan.trivial) return facts.stop === 'reaction' ? Math.min(1, plan.metres) : plan.metres
-  return facts.stop === 'end' ? facts.path.length : Math.min(action.path.length, Math.max(1, facts.path.length))
+  return facts.stop === 'end' || facts.stop === 'flee' ? facts.path.length : Math.min(action.path.length, Math.max(1, facts.path.length))
 }
 
 // What the move was paid beyond the price of the blocks it walked, as it
@@ -509,8 +511,9 @@ export function getWalkedPath(state: SceneState, action: MoveAction): { path: Co
   let path = action.path
   let stop: MoveFacts['stop'] = 'end'
   const flee = getFleeStep(state, action)
-  if (flee !== null && flee - 1 < path.length) {
-    path = path.slice(0, flee - 1)
+  const fledAt = flee === null ? null : getBlockBefore(state, action, flee)
+  if (fledAt !== null && fledAt < path.length) {
+    path = path.slice(0, fledAt)
     stop = 'flee'
   }
   const override = getMoveOverride(state, action)
@@ -524,6 +527,15 @@ export function getWalkedPath(state: SceneState, action: MoveAction): { path: Co
     stop = 'trample'
   }
   return { path, stop, tramples }
+}
+
+// The last step before `step` that ends a whole block of the move: the
+// table's ruling for a flee, that the mover never begins the block that would
+// carry them into the fleer's perimeter.
+function getBlockBefore(state: SceneState, action: MoveAction, step: number): number {
+  const c = state.characters[action.actorId]
+  const distance = c && !isPosture(action.movement) ? getMovementBlock(c, action.movement).distance : 1
+  return distance > 0 ? Math.floor((step - 1) / distance) * distance : step - 1
 }
 
 // The step of the move, at or before `steps`, the mover may stand at; 0 is

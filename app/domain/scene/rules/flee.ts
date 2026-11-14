@@ -41,8 +41,8 @@ export function getFleeBar(state: SceneState, c: CampaignCharacter): string | nu
 }
 
 // The step of the move's path the first flee from it fired on: the mover
-// stops one space short of it, as where the flee was triggered. Null when
-// nobody flees it.
+// stops short of the block it falls in (rules/move.ts `getWalkedPath`).
+// Null when nobody flees it.
 export function getFleeStep(state: SceneState, move: MoveAction): number | null {
   const steps = getReactionsTo(state, move.id).flatMap((r) => (r.kind === 'flee' && r.at !== null ? [r.at] : []))
   return steps.length > 0 ? Math.min(...steps) : null

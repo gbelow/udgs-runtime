@@ -30,6 +30,7 @@ import { useRole } from '../hooks/useRole';
 import { useActiveControlBar } from '../hooks/useControl';
 import { useTray } from '../hooks/useTray';
 import { useSceneAutoThrow } from '../hooks/useSceneDice';
+import { useFollowTurn } from '../hooks/useFollowTurn';
 import { useETAutoThrow } from '../hooks/useParty';
 import { useDowntimeAutoThrow } from '../hooks/useDowntime';
 import type { RunTab } from '../stores/useAppStore';
@@ -189,8 +190,9 @@ function Overlay({ title, wide = false, shown, close, children }: { title: strin
 }
 
 // The dice tray opened by itself for every die called for from someone the
-// screen plays, whichever sequence calls for it.
+// screen plays, whichever sequence calls for it, and the turn followed.
 function AutoThrow(){
+  useFollowTurn()
   useSceneAutoThrow()
   useETAutoThrow()
   useDowntimeAutoThrow()
