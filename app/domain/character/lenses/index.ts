@@ -5,7 +5,7 @@ import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamani
 import { getSize } from "../rules/size";
 import { getAttributeSizeBalance } from "../rules/learning";
 import { getTGH } from "../rules/misc";
-import { getBasicMovement, getCarefulMovement, getClimbMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
+import { getWalkMovement, getTreadMovement, getClimbMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
 import { makeMovementCostLens, makeMovementLens } from "./movement";
 import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSensePenaltyLens, makeSensePartialLens, makeSenseRangeLens, makeSenseRangePenaltyLens, makeSenseReactiveLens } from "./senses";
 import { getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD, getBalance, getClimb, getSwim, getPrestidigitation, getHealth, getExplore, getWill, getStealth, getPersuasion, getInsight, getDeception, getDetection, getForce } from "../rules/skills";
@@ -73,8 +73,8 @@ export const characteristicLenses: Record<keyof Characteristics, Lens<Character,
 }
 
 export const movementLenses: Record<keyof Movement, Lens<Character, number>> = {
-  basic: makeMovementLens("basic", getBasicMovement),
-  careful: makeMovementLens("careful", getCarefulMovement),
+  walk: makeMovementLens("walk", getWalkMovement),
+  tread: makeMovementLens("tread", getTreadMovement),
   stand: makeMovementLens("stand", getStandMovement, "AP"),
   climb: makeMovementLens("climb", getClimbMovement),
   swim: makeMovementLens("swim", getSwimMovement),
@@ -87,8 +87,8 @@ export const movementLenses: Record<keyof Movement, Lens<Character, number>> = {
 // combat.tex "Movement Costs and Speeds": the AP and STA of one block of each
 // movement. Standing up has the AGI-reduced AP of its own lens above.
 export const movementCostLenses: Record<keyof Movement, Record<'AP' | 'STA', Lens<Character, number>>> = {
-  basic: { AP: makeMovementCostLens("basic", "AP"), STA: makeMovementCostLens("basic", "STA") },
-  careful: { AP: makeMovementCostLens("careful", "AP"), STA: makeMovementCostLens("careful", "STA") },
+  walk: { AP: makeMovementCostLens("walk", "AP"), STA: makeMovementCostLens("walk", "STA") },
+  tread: { AP: makeMovementCostLens("tread", "AP"), STA: makeMovementCostLens("tread", "STA") },
   stand: { AP: movementLenses.stand, STA: makeMovementCostLens("stand", "STA") },
   climb: { AP: makeMovementCostLens("climb", "AP"), STA: makeMovementCostLens("climb", "STA") },
   swim: { AP: makeMovementCostLens("swim", "AP"), STA: makeMovementCostLens("swim", "STA") },

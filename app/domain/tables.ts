@@ -110,8 +110,8 @@ export const PRESET_CELLS: Record<FootprintPreset, Record<FootprintCells, readon
 // "The climbing speed is equal to the crawling speed but costs 3 AP + 1 STA".
 export type MovementBlock = { AP: number; STA: number; distance: number }
 export const MOVEMENT_BLOCKS: Record<MovementKind | 'stand' | 'fast swim', MovementBlock> = {
-  careful:     { AP: 2, STA: 0, distance: 1 },
-  basic:       { AP: 1, STA: 0, distance: 1 },
+  tread:     { AP: 2, STA: 0, distance: 1 },
+  walk:       { AP: 1, STA: 0, distance: 1 },
   run:         { AP: 2, STA: 1, distance: 3 },
   jump:        { AP: 2, STA: 1, distance: 2 },
   crawl:       { AP: 3, STA: 0, distance: 1 },
@@ -448,7 +448,7 @@ export const HIT_MARGIN = 5
 export const SPELL_MODIFICATIONS = {
   enhance:    { HOP: 4, text: 'the special improvement described in the spell' },
   amplify:    { HOP: 5, text: 'cast one size larger: damage by DM, reach and area by RM; up to 1 size above the item' },
-  effortless: { HOP: 6, text: 'rest while casting: STA/4 back, AP raised to the rest cost, careful movement; halves the exhaustion cost out of combat' },
+  effortless: { HOP: 6, text: 'rest while casting: STA/4 back, AP raised to the rest cost, treading; halves the exhaustion cost out of combat' },
 } as const satisfies Record<string, { HOP: number; text: string }>
 
 // "Quicken Spell: Increases spell DL by 3 to allow it to be cast during any

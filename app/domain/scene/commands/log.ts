@@ -105,7 +105,7 @@ function noteInterruptions(entering: Action[], state: SceneState): SceneState {
 // combat.tex "Cover": a guard that takes cover behind a body shield leaves
 // its guard behind it, the shield facing where the guarded shot came from;
 // "The cover is canceled if the character performs any action other than
-// careful movement" — a reaction as much as an action. Nothing is noted on a
+// treading" — a reaction as much as an action. Nothing is noted on a
 // fight without a board, where no shot comes from anywhere.
 function noteCover(state: SceneState, declared: Action[], cover: SceneState['bodyCover'], action: Action): SceneState['bodyCover'] {
   const { [action.actorId]: _left, ...rest } = cover
@@ -114,7 +114,7 @@ function noteCover(state: SceneState, declared: Action[], cover: SceneState['bod
     const toward = shot ? state.board?.placements[shot.actorId]?.cell : undefined
     return toward ? { ...rest, [action.actorId]: { weaponKey: action.weaponKey, toward } } : rest
   }
-  return !cover[action.actorId] || (action.kind === 'move' && action.movement === 'careful') ? cover : rest
+  return !cover[action.actorId] || (action.kind === 'move' && action.movement === 'tread') ? cover : rest
 }
 
 // combat.tex "Actions in stealth": "a cumulative penalty is added to the

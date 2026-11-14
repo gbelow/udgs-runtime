@@ -214,8 +214,8 @@ export function NotesAndSave(){
 }
 
 const MOVES: { name: keyof Movement, title: string }[] = [
-  { name: 'basic', title: 'basic' },
-  { name: 'careful', title: 'careful' },
+  { name: 'walk', title: 'walk' },
+  { name: 'tread', title: 'tread' },
   { name: 'crawl', title: 'crawl' },
   { name: 'climb', title: 'climb' },
   { name: 'run', title: 'run' },

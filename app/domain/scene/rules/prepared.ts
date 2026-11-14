@@ -197,7 +197,7 @@ export function getCommandBar(state: SceneState, c: Character, forId: string): s
 // action's own reach and the movement it may carry — "the area trigger should
 // include the movement range" (the table's ruling).
 export function getPreparedZone(state: SceneState, c: CampaignCharacter, p: PrepareAction): number {
-  const movement = Math.max(getMoveBlockCells(c, 'basic', PREPARED_MOVE_AP), getMoveBlockCells(c, 'careful', PREPARED_MOVE_AP))
+  const movement = Math.max(getMoveBlockCells(c, 'walk', PREPARED_MOVE_AP), getMoveBlockCells(c, 'tread', PREPARED_MOVE_AP))
   return getMainReach(state, c, p) + movement
 }
 

@@ -10,7 +10,7 @@ import { getSidestepMove } from './reactionMoves'
 import { isCampaignCharacter } from '../../utils'
 
 // combat.tex "Trample": "Evades: costs 2 AP to allow free passage ... This
-// allows 1 basic movement in any direction that does not coincide with the
+// allows 1 AP of walking in any direction that does not coincide with the
 // trampler." The table's rulings: the step is the evader's, bought with the
 // evade's AP, taken before the trample lands, in any direction but the one the
 // mover is heading in as they come into the evader's space, on ground as high
@@ -113,7 +113,7 @@ export function getSidestepBar(state: SceneState, root: RootAction, id: string, 
   if (root.kind !== 'move' || !c || !isCampaignCharacter(c) || !state.board || !isEndingOn(state, root, id)) return null
   const placed = getSidestepState(state, root)
   const step = makeAction('move', { ...getSidestepMove(c, paid, true), id: '', actorId: id })
-  const basic = getMovementOptions(placed, c, step).find((o) => o.kind === 'basic')
+  const basic = getMovementOptions(placed, c, step).find((o) => o.kind === 'walk')
   if (!basic?.available) return `the mover ends here, and ${basic?.reason ?? 'no step can be taken'}`
   return hasSidestep(placed, root, step) ? null : 'the mover ends here, and there is nowhere to step aside to'
 }

@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CreatureCategorySchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, PartFlagSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type Character, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
+import { renamedMovementKeys, ArmorSchema, CreatureCategorySchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, PartFlagSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type Character, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { getPresetFootprint, isSoundFootprint, settleParts } from './character/rules/footprint'
@@ -89,7 +89,7 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
     specificKnowledges: readSpecificKnowledges(parsedCharacter.specificKnowledges ?? legacyKnowledges),
     movement: MovementSchema.parse({
       ...emptyCharacter.movement,
-      ...parsedCharacter.movement,
+      ...(renamedMovementKeys(parsedCharacter.movement) as object | undefined),
     }),
     armor: {
       ...emptyCharacter.armor,

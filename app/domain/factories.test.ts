@@ -31,7 +31,7 @@ const HOSTILE: { label: string; raw: unknown }[] = [
   { label: 'a wrongly-typed legacy knowledge', raw: { knowledges: { medicine: { value: 'lots' }, 'the old town': 'well' } } },
   { label: 'a wrongly-typed specific knowledge', raw: { specificKnowledges: { 'the old town': { value: 'lots' }, medicine: 2 } } },
   { label: 'afflictions that are not a list', raw: { type: 'campaign', afflictions: 'all of them' } },
-  { label: 'unreadable movement values', raw: { movement: { basic: 'fast', run: NaN } } },
+  { label: 'unreadable movement values', raw: { movement: { walk: 'fast', run: NaN } } },
   { label: 'a race draft that is not an object', raw: { raceDraft: 'human' } },
   { label: 'a malformed race draft', raw: { raceDraft: { name: 3, bonuses: { STR: 'lots', bogus: 2 }, abilities: [1, 'fur'] } } },
   { label: 'a malformed part wound', raw: { body: [{ location: 'hand', wounds: [{ tier: 'high' }] }] } },

@@ -74,12 +74,12 @@
     }
   },
   "movement": {
-    "basic": {
+    "walk": {
       "AP": 1,
       "STA": 0,
       "distance": 1
     },
-    "careful": {
+    "tread": {
       "AP": 2,
       "STA": 0,
       "distance": 1

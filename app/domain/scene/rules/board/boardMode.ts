@@ -35,7 +35,7 @@ export function getBoardMode(state: SceneState): BoardMode {
   if (getDiceBar(state.calls)) return 'locked'
   const open = getOpenAction(state)
   if ((open?.kind === 'move' || open?.kind === 'drag') && open.step === 'define') return 'path'
-  // abilities.tex "Steady Arms": the careful path is drawn with the shot
+  // abilities.tex "Steady Arms": the trodden path is drawn with the shot
   if (open?.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) return 'path'
   const jumper = getEvasiveJumper(state)
   if (open && jumper && getEvasiveJumpPlacements(state, jumper, open.actorId).length > 0) return 'jump'

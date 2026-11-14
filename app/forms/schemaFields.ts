@@ -35,6 +35,7 @@ type Def = {
   type: string
   innerType?: z.ZodType
   in?: z.ZodType
+  out?: z.ZodType
   values?: unknown[]
   entries?: Record<string, unknown>
   element?: z.ZodType
@@ -52,8 +53,9 @@ function def(schema: z.ZodType): Def {
 }
 
 // zod 4 keeps the wrapped schema under `innerType` for default/prefault/
-// catch, and a transform is a pipe whose input side is the authored shape, so
-// a field's own kind is read through those wrappers. An optional is not a
+// catch, and a transform is a pipe whose input side is the authored shape,
+// except a preprocess, whose input side is the function and whose output
+// side the shape, so a field's own kind is read through those wrappers. An optional is not a
 // wrapper to see through: it is the field's kind, since the form has to offer
 // leaving it unset.
 function unwrap(schema: z.ZodType): z.ZodType {
@@ -61,6 +63,7 @@ function unwrap(schema: z.ZodType): z.ZodType {
   for (;;) {
     const d = def(s)
     if ((d.type === 'default' || d.type === 'prefault' || d.type === 'catch') && d.innerType) s = d.innerType
+    else if (d.type === 'pipe' && d.in && def(d.in).type === 'transform' && d.out) s = d.out
     else if (d.type === 'pipe' && d.in) s = d.in
     // a schema declared ahead of its definition reads the same as the definition
     else if (d.type === 'lazy' && d.getter) s = d.getter()

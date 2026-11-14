@@ -8,10 +8,10 @@ import { getMovementBlock } from '../../character/rules/movement'
 // already paid towards it, and whatever kinds of movement it grants.
 export type ReactionMove = Partial<Pick<MoveAction, 'movement' | 'movements' | 'budget' | 'prepaid' | 'forced'>>
 
-// A careful move an action carries, bought with the AP the action itself
+// A tread an action carries, bought with the AP the action itself
 // costs (combat.tex "Rest"; abilities.tex "Steady Arms").
 export function getCarriedMove(AP: number): ReactionMove {
-  return { movement: 'careful', movements: ['careful'], budget: AP, prepaid: AP }
+  return { movement: 'tread', movements: ['tread'], budget: AP, prepaid: AP }
 }
 
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
@@ -52,10 +52,10 @@ export function getEvasionMove(root: Action, reaction: ActionOf<'evasion'>): Rea
   return { budget: AP, prepaid: AP }
 }
 
-// combat.tex "Trample": an evade "allows 1 basic movement", bought with the AP
+// combat.tex "Trample": an evade "allows 1 AP of walking", bought with the AP
 // it paid (rules/sidestep.ts); forced on an evader whose space the mover ends in.
 export function getSidestepMove(c: Character, paid: number, forced: boolean): ReactionMove {
-  return { movement: 'basic', movements: ['basic'], budget: getMovementBlock(c, 'basic').AP, prepaid: paid, forced }
+  return { movement: 'walk', movements: ['walk'], budget: getMovementBlock(c, 'walk').AP, prepaid: paid, forced }
 }
 
 // combat.tex "Avoiding an Explosion": "On a miss, they can move 2 AP after

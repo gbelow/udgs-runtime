@@ -24,15 +24,15 @@ import type { ReactionMove } from './reactionMoves'
 
 // A movement of the actor's own made with an action, at a price of its own
 // (RecipeSchema `combinedMove`).
-// abilities.tex "Lunge": "Allows you to jump for 1 STA while using an attack
-// as an action and attack from the final position. This movement triggers
+// abilities.tex "Lunge" (attack +1 STA): "Jumps toward the target before
+// the attack and attacks from the final position. This movement triggers
 // opportunity attacks and braced attacks normally."
-// abilities.tex "Jump Shot": "Spends 1 extra AP and 1 STA to jump backward
-// and perform a quick shot or throw, avoiding opportunity attacks if the jump
+// abilities.tex "Jump Shot" (attack +1 AP + 1 STA): "Jumps backward and
+// performs a quick shot or throw, avoiding opportunity attacks if the jump
 // takes them out of range." Backward is away from everyone who threatens the
 // shooter (the table's ruling).
-// abilities.tex "Defender": "Allows you to spend 1 STA to move 1 basic
-// movement as a reaction to position yourself to defend someone."
+// abilities.tex "Defender": "Allows you to spend 1 STA to walk 1 AP as a
+// reaction to position yourself to defend someone."
 // abilities.tex "Defensive Advance": "Spend 1 STA to move forward to get in
 // range to intercept, adding shield cover to the defense": one space towards
 // the attacker (the table's ruling).
@@ -113,9 +113,10 @@ function getMovementAP(c: Character, movement: CombinedMoveRecipe['movement']): 
 // ---------------------------------------------------------------------------
 // The jump an attack carries (rules/attackJump.ts)
 
-// combat.tex "Movement": "If performed backwards, the horizontal distance is
-// halved": the jump an attack carries runs half a jump, as an evasive jump
-// does (abilities.tex "Jump Shot", "Lunge").
+// combat.tex "Movement": "A jump is used in some situations together with
+// other actions, in which case it has its cost defined in that action and its
+// distance is only half the jumping distance": the jump an attack carries
+// runs half a jump, as an evasive jump does (abilities.tex "Jump Shot", "Lunge").
 export function isHalfJump(c: Character, move: { recipe?: string | null }): boolean {
   return getCombinedOf(c, move)?.recipe.reach === 'halfJump'
 }

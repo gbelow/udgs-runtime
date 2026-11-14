@@ -87,13 +87,13 @@ const RULE_RECIPES = {
     recipe: RecipeSchema.parse({ type: 'combinedMove', with: ['block', 'intercept', 'guard'], movement: 'run', reach: 'reactionSurge', defends: 'ally', openWhen: 'martyrGuard' }),
   },
   // combat.tex "Rest": "The character is allowed to move 4 AP worth of
-  // careful movement while resting during their own turn"
+  // treading while resting during their own turn"
   rest: {
     label: 'rest',
     recipe: RecipeSchema.parse({ type: 'carriedMove', on: 'rest', budget: 'rest' }),
   },
   // combat.tex "Social actions": each "counts as a Rest action", so it
-  // carries a rest's careful move, bought with the 5 AP it paid (the table's
+  // carries a rest's tread, bought with the 5 AP it paid (the table's
   // ruling)
   socialAction: {
     label: 'social action',

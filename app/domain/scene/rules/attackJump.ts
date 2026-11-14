@@ -10,16 +10,16 @@ import { getCombinedOf, isOpenedRow, type CombinedEntry } from './combinedMove'
 import { isFloorAttack } from './equipment'
 import { getTargetIds } from './action'
 
-// abilities.tex "Lunge": "Allows you to jump for 1 STA while using an attack
-// as an action and attack from the final position. This movement triggers
-// opportunity attacks and braced attacks normally." "Jump Shot": "Spends 1
-// extra AP and 1 STA to jump backward and perform a quick shot or throw,
-// avoiding opportunity attacks if the jump takes them out of range." Each is
+// abilities.tex "Lunge": "Jumps toward the target before the attack and
+// attacks from the final position. This movement triggers opportunity attacks
+// and braced attacks normally." "Jump Shot": "Jumps backward and performs a
+// quick shot or throw, avoiding opportunity attacks if the jump takes them out
+// of range." Each is
 // declared on the attack, as an evasive jump is on an evade (combat.tex
 // "Evasive Jump"), its price added to the attack's, and the attack carries
 // the jump before its die (RecipeSchema `combinedMove`, `with` an attack).
 // The jump is half a jump, the evasive jump's length (combat.tex "Movement":
-// "If performed backwards, the horizontal distance is halved"), towards the
+// "its distance is only half the jumping distance"), towards the
 // target for a lunge (the table's ruling) and away from everyone threatening
 // the shooter for a jump shot; it lands only where the attack then reaches
 // its target, picked once the target is. Committed, the attack opens the jump

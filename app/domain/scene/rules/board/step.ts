@@ -29,7 +29,7 @@ export function mayStep(footprint: Coord[], floor: Floor, from: Coord, to: Coord
   const { movement } = how
   if (movement === 'jump' && !footprint.every((cell) => floor.elevation(cell) <= how.ceiling)) return false
   const touches = movement === 'carried' || touchesGround(movement, how.lands)
-  if (!(touches ? isCrossable(footprint, floor, movement === 'carried' ? 'basic' : movement, how.fromWater) : isFootprintOpen(footprint, floor))) return false
+  if (!(touches ? isCrossable(footprint, floor, movement === 'carried' ? 'walk' : movement, how.fromWater) : isFootprintOpen(footprint, floor))) return false
   if (!sameCell(from, to) && crossesThinWall(footprint, floor, from, to)) return false
   return movement === 'climb' || movement === 'carried' || canStepOver(movement, floor.elevation(from), floor.elevation(to))
 }

@@ -143,7 +143,7 @@ export function refundImprovement(name: SpellModification): Updater {
   }
 }
 
-// combat.tex "Rest": the careful move made while resting, opened over the
+// combat.tex "Rest": the tread made while resting, opened over the
 // rest (or the cast rested through) and played out
 // before it lands.
 export function moveWhileResting(newId: () => string): Updater {

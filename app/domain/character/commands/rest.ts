@@ -4,7 +4,7 @@ import type { ActionCost } from "../rules/actionCosts"
 import { payCost } from "./cost"
 
 // combat.tex "Rest": "recovers STA by an amount equal to STA/4". The rest's
-// AP is its action's price, paid when it is taken; the careful movement it
+// AP is its action's price, paid when it is taken; the treading it
 // allows is a move of its own, made while resting (scene/rules/rest.ts).
 export function restCharacter(c: CampaignCharacter): CampaignCharacter {
   return { ...c, resources: { ...c.resources, STA: getRecoveredSTA(c, c.resources.STA, getSTARegen(c)) } }

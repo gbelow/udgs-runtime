@@ -110,5 +110,5 @@ export function getNextDisplacement(state: SceneState, move: MoveAction, newId: 
   const next = move.displaced.find((d) => !moved.has(d.id))
   if (!next) return null
   if (!getDisplacementCells(state, move, next.id).some((cell) => cell.q === next.to.q && cell.r === next.to.r)) return null
-  return makeAction('move', { id: newId(), actorId: next.id, spawnedBy: move.id, movement: 'basic', movements: ['basic'], path: [next.to], from: next.from, forced: true, step: 'react' })
+  return makeAction('move', { id: newId(), actorId: next.id, spawnedBy: move.id, movement: 'walk', movements: ['walk'], path: [next.to], from: next.from, forced: true, step: 'react' })
 }

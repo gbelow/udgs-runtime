@@ -19,7 +19,7 @@ import { getDegree } from '../../play/test'
 
 export type Noise = { AP: number; heardAP: number }
 
-// combat.tex "Actions in stealth": "Careful movement and crawling add no
+// combat.tex "Actions in stealth": "Treading and crawling add no
 // penalty. All the other actions add -1 per AP spent", and "Hearing: Terrain
 // noise and gear noise" add again per AP to an ear (gear.tex "Noisy":
 // "penalizing stealth by -1 per AP during actions when worn"; "Muffled
@@ -28,7 +28,7 @@ export type Noise = { AP: number; heardAP: number }
 export function getNoise(state: SceneState, action: Action, AP: number): Noise {
   const c = state.characters[action.actorId]
   if (!c) return { AP: 0, heardAP: 0 }
-  const quiet = action.kind === 'move' && (action.movement === 'careful' || action.movement === 'crawl')
+  const quiet = action.kind === 'move' && (action.movement === 'tread' || action.movement === 'crawl')
   const counted = quiet ? 0 : AP
   const gear = getArmor(c).properties.includes('noisy') ? 1 : 0
   const ground = isMuffled(c) ? 0 : getGroundNoise(state, action)

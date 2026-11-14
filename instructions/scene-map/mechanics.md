@@ -78,12 +78,12 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   and so refunds nothing and takes no -2.
 - **Rest** — `rest` is a root with no die, priced by the action-cost table, and the one
   action of their own a character may declare outside their turn, in the round change's first step
-  (paid out of both rounds' AP, with no careful move); it may take AP negative as long as the next round starts positive (`canAffordRest`, told the AP still to come by `getIncomingAP`), and lands as
+  (paid out of both rounds' AP, with no tread); it may take AP negative as long as the next round starts positive (`canAffordRest`, told the AP still to come by `getIncomingAP`), and lands as
   `restCharacter` (STA back). Effortless is the same rest landing with the cast
   (`restWhileCasting`), the AP raised to the rest's. While either waits at `post`, its
-  actor may make the rest's careful movement once, in their own turn (`moveWhileResting`,
+  actor may make the rest's tread once, in their own turn (`moveWhileResting`,
   `rules/rest.ts`, its AP the rule recipes' in `rules/carriedMove.ts`):
-  a move opened over it, careful only, its 4 AP prepaid, played out before the rest or
+  a move opened over it, a tread only, its 4 AP prepaid, played out before the rest or
   the spell lands.
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
   evasion a shot missed, it is a `fleeFollowUp` pushed beneath the other follow-ups
@@ -120,7 +120,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   (`Damage.wall`, in `getArriving`), before the degree or a block meets what is left (combat.tex
   "Cover"). A guard made with a body
   shield may take `cover`: when it lands, `setActions` writes `state.bodyCover` (the shield, and the shooter's cell it faces), kept across
-  rounds until its owner lands any action or reaction but a careful move. `isBehindBodyShield` reads it, while
+  rounds until its owner lands any action or reaction but a tread. `isBehindBodyShield` reads it, while
   the shield is still in hand, against anything on the shooter's side of them: they can be neither
   seen nor shot from there. A shield planted (`plant`) is the same cover, read off the floor item's
   `planted` while its planter stands in its space and it is not broken; no action of theirs ends it.

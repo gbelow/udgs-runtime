@@ -224,7 +224,7 @@ describe('a charge set off', () => {
   })
 })
 
-// A rest can leave AP overdrawn; the careful move it allows is prepaid, yet
+// A rest can leave AP overdrawn; the tread it allows is prepaid, yet
 // no cell was reachable for the want of AP.
 describe('the move made while resting', () => {
   it('can be walked from AP overdrawn by the rest', () => {

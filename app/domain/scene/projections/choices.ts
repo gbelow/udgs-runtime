@@ -30,7 +30,7 @@ import type { ModifierView } from './modifiers'
 //
 // The offers are the action panel's own (`getActionOffers`), so they are the
 // panel's, and its cells off the rules the board view reads: the reach of a
-// move, a steady shot's careful path and a push's way, the landings of an
+// move, a steady shot's trodden path and a push's way, the landings of an
 // evasive jump, and where an aimed action may be pointed.
 
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json }
@@ -126,7 +126,7 @@ function declarationChoices(state: SceneState, offers: ActionOffers, actorId: st
 }
 
 function prepareChoices(view: PrepareView, actorId: string): OpenChoice[] {
-  const NO_MAIN = { weaponKey: '', attack: '', variant: '', ammoId: '', modifiers: { catch: false, martialSpirit: false, tackle: false }, key: '', quicken: false, extend: 0, movement: 'basic' }
+  const NO_MAIN = { weaponKey: '', attack: '', variant: '', ammoId: '', modifiers: { catch: false, martialSpirit: false, tackle: false }, key: '', quicken: false, extend: 0, movement: 'walk' }
   const out: OpenChoice[] = []
   const add = (part: ChoicePart, value: Json, chosen: boolean, command: SceneCommand, label: string) => out.push(choice(actorId, part, value, chosen, command, label))
   for (const c of view.commands) add('for', c.id, c.selected, amend({ forId: c.id, main: null, ...NO_MAIN, trigger: null }), `for ${c.name}`)
@@ -170,7 +170,7 @@ function answerChoices(r: ReactorOptions): OpenChoice[] {
   return out
 }
 
-// The cells a click picks: where a move or a steady shot's careful path goes,
+// The cells a click picks: where a move or a steady shot's trodden path goes,
 // where a push takes its block, where an aimed action is pointed, which way a
 // spray goes, and where an evasive jump lands. Who clicks is whose choice it is.
 function cellChoices(state: SceneState): OpenChoice[] {
@@ -195,7 +195,7 @@ function cellChoices(state: SceneState): OpenChoice[] {
 
 // Once the die is thrown: what the overflow buys, a grapple or a theft on the
 // hit, a spell's improvements, a graze saved, what a won grapple maneuver does,
-// the careful move a rest allows; and while the die waits, how a spell's
+// the tread a rest allows; and while the die waits, how a spell's
 // target throws its test.
 function afterRollChoices(state: SceneState, offers: ActionOffers): OpenChoice[] {
   const open = offers.open
@@ -223,7 +223,7 @@ function afterRollChoices(state: SceneState, offers: ActionOffers): OpenChoice[]
       }
     }
     for (const d of open.disarm) add('disarm', d.itemId, d.itemId === open.item, { kind: 'choose', args: [{ item: d.itemId }] }, d.name)
-    if (offers.restMove) add('restMove', true, false, { kind: 'restMove', args: [] }, 'careful move')
+    if (offers.restMove) add('restMove', true, false, { kind: 'restMove', args: [] }, 'tread')
   }
   return out
 }

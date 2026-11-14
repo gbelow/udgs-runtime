@@ -304,7 +304,7 @@ function grappleTriggers(root: GrappleAction): Trigger[] {
 // nobody, so there is nothing to tag along with or leave.
 function dragAnswers(state: SceneState, root: DragAction): Trigger[] {
   if (root.step !== 'react') return []
-  const kinds = root.pull || root.movement === 'basic' ? (['resist', 'assist'] as const) : (['resist', 'assist', 'carry', 'letGo'] as const)
+  const kinds = root.pull || root.movement === 'walk' ? (['resist', 'assist'] as const) : (['resist', 'assist', 'carry', 'letGo'] as const)
   return getDragGroup(state, root)
     .filter((id) => id !== root.actorId)
     .flatMap((id) => kinds.map((kind): Trigger => ({ characterId: id, kind, at: null })))

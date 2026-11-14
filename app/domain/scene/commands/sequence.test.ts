@@ -104,7 +104,7 @@ function circleGrabbed(placements: Record<string, [number, number]>, third: Camp
   let s = onBoard(placements, fighter('a'), fighter('b'), third)
   s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
   s = resolveAction(newId, () => 5)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
-  s = declareAction('a', { kind: 'drag', movement: 'basic' }, newId)(s)
+  s = declareAction('a', { kind: 'drag', movement: 'walk' }, newId)(s)
   s = commitAction(() => 5, newId)(amendAction({ path })(setTarget('b')(s)))
   return everyoneAttacks(s, [third.id])
 }
@@ -124,7 +124,7 @@ function shotBetweenThreateners(): SceneState {
 function walkPastSpearmen(): SceneState {
   let s = onBoard({ m: [0, 0], r1: [4, 0], r2: [4, -1] }, fighter('m'), spearman('r1'), spearman('r2'))
   s = declareAction('m', { kind: 'move' }, newId)(s)
-  s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] })(s))
+  s = commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] })(s))
   return everyoneAttacks(s, ['r1', 'r2'])
 }
 
@@ -153,14 +153,14 @@ function pushTowardsSpearman(): SceneState {
   return moveGrabbedGroup({ a: [0, 0], b: [1, 0], t: [3, 0] }, spearman('t'), [{ q: 1, r: 0 }])
 }
 
-// A grabs B and declares a careful block of push along the way given,
+// A grabs B and declares a tread block of push along the way given,
 // spending 2 AP for +5 against B's equal Force ("the losing side must
 // decide first"), committed for third parties to answer.
 function moveGrabbedGroup(placements: Record<string, [number, number]>, third: CampaignCharacter, path: Coord[]): SceneState {
   let s = onBoard(placements, fighter('a'), fighter('b'), third)
   s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
   s = resolveAction(newId, () => 5)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
-  s = declareAction('a', { kind: 'drag', movement: 'careful', boost: true }, newId)(s)
+  s = declareAction('a', { kind: 'drag', movement: 'tread', boost: true }, newId)(s)
   s = commitAction(() => 5, newId)(amendAction({ path })(setTarget('b')(s)))
   expect(getOpenAction(s)?.kind).toBe('drag')
   expect(getOpenAction(s)?.step).toBe('react')
@@ -266,12 +266,12 @@ describe('an action broken by an opportunity attack', () => {
     const far = [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }, { q: 3, r: 1 }, { q: 2, r: 1 }, { q: 1, r: 1 }, { q: 0, r: 1 }, { q: -1, r: 1 }]
     let s = onBoard({ m: [0, 0], r1: [4, 0], r2: [4, -1] }, fighter('m'), spearman('r1'), spearman('r2'))
     s = declareAction('m', { kind: 'move' }, newId)(s)
-    s = everyoneAttacks(commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: far })(s)), ['r1', 'r2'])
+    s = everyoneAttacks(commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: far })(s)), ['r1', 'r2'])
     const cut = playOut(s, LAND).state.characters.m.resources
 
     let alone = onBoard({ m: [0, 0] }, fighter('m'))
     alone = declareAction('m', { kind: 'move' }, newId)(alone)
-    alone = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: far.slice(0, 2) })(alone))
+    alone = commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: far.slice(0, 2) })(alone))
     const walked = playOut(alone, LAND).state.characters.m.resources
 
     expect([cut.AP, cut.STA]).toEqual([walked.AP, walked.STA])
@@ -370,7 +370,7 @@ describe('an explosion', () => {
     const escaping = () => getOpenAction(s)!.actorId
     for (let i = 0; i < 5 && getOpenAction(s)?.kind === 'move'; i++) {
       s = escaping() === 'x'
-        ? commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 0, r: -(radius + 1) }] })(s))
+        ? commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: [{ q: 0, r: -(radius + 1) }] })(s))
         : withdrawSpawnedAction(() => 5, newId)(s)
     }
     const blast = getLog(s).find((a) => a.kind === 'blast')
@@ -779,8 +779,8 @@ describe('protecting the target of a strike', () => {
     expect(state.board?.placements.def?.cell).toEqual({ q: 1, r: 0 })
   })
 
-  // abilities.tex "Defender": "Allows you to spend 1 STA to move 1 basic
-  // movement as a reaction to position yourself to defend someone."
+  // abilities.tex "Defender": "Allows you to spend 1 STA to walk 1 AP as a
+  // reaction to position yourself to defend someone."
   it('lets one who knows Defender step onto the line to block, for 1 STA more', () => {
     const start = thrustPastBystanders()
     expect(shieldOption(start, 'd', 'block')?.reason).toBe('off the line')
@@ -1008,7 +1008,7 @@ describe('a held spray retargeted as a reaction', () => {
     s = resolveAction(newId, () => 5)(commitAction(sure('flamethrower'), newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
     s = resolveAction(newId, () => 5)(aimExplosion(0)(payAction(newId, () => 5)(s)))
     s = declareAction('z', { kind: 'move' }, newId)(s)
-    return commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: walk })(s))
+    return commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: walk })(s))
   }
 
   it('is offered to the holder once the mover steps closer within the spray', () => {
@@ -1041,7 +1041,7 @@ describe('flee', () => {
   it('stops the move short of the first flee, then gives each fleer a turn in declaration order before the mover resumes', () => {
     let s = onBoard({ m: [0, 0], near: [7, 0], far: [9, 0] }, fighter('m'), fighter('near'), fighter('far'))
     s = declareAction('m', { kind: 'move' }, newId)(s)
-    s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [1, 2, 3, 4, 5].map((q) => ({ q, r: 0 })) })(s))
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: [1, 2, 3, 4, 5].map((q) => ({ q, r: 0 })) })(s))
     for (const id of ['far', 'near']) {
       const option = getAvailableActions(s, id).find((o) => o.draft.kind === 'flee' && o.available)!
       s = declareReaction(id, option.draft, newId)(s)
@@ -1462,7 +1462,7 @@ describe('a move cut short while passing through someone', () => {
   it('stops its mover on the last free space', () => {
     let s = onBoard({ m: [-6, 0], x: [-3, 0], f: [-2, 4] }, fighter('m'), fighter('x'), fighter('f'))
     s = declareAction('m', { kind: 'move' }, newId)(s)
-    s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [-5, -4, -3, -2, -1, 0].map((q) => ({ q, r: 0 })) })(s))
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: [-5, -4, -3, -2, -1, 0].map((q) => ({ q, r: 0 })) })(s))
     s = declareReaction('x', getAvailableActions(s, 'x').find((o) => o.draft.kind === 'evade' && o.available)!.draft, newId)(s)
     s = declareReaction('f', getAvailableActions(s, 'f').find((o) => o.draft.kind === 'flee' && o.available)!.draft, newId)(s)
     const { state } = playOut(s, 5)
@@ -1475,7 +1475,7 @@ describe('a move cut short while passing through someone', () => {
   it('ends a mover over a prone character, as declared', () => {
     let s = onBoard({ o: [0, 0], x: [3, 0] }, fighter('o'), { ...fighter('x'), afflictions: ['prone' as const] })
     s = declareAction('o', { kind: 'move' }, newId)(s)
-    s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [1, 2, 3].map((q) => ({ q, r: 0 })) })(s))
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: [1, 2, 3].map((q) => ({ q, r: 0 })) })(s))
     const { state } = playOut(s, 5)
     expect(state.board?.placements.o?.cell).toEqual({ q: 3, r: 0 })
   })
@@ -1496,7 +1496,7 @@ describe('a push over an edge', () => {
     s = { ...s, board: { ...s.board!, terrain, placements } }
     s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
     s = resolveAction(newId, () => 5)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
-    s = declareAction('a', { kind: 'drag', movement: 'careful', boost: true }, newId)(s)
+    s = declareAction('a', { kind: 'drag', movement: 'tread', boost: true }, newId)(s)
     return amendAction({ path })(setTarget('b')(s))
   }
 
@@ -1522,7 +1522,7 @@ describe("a crash's displacement over an edge", () => {
   it('ends in a fall from the ledge', () => {
     const s = onBoard({ d: [0, 0] }, fighter('d'))
     const ledge = { ...s, board: { ...s.board!, terrain: { [coordKey({ q: 0, r: 0 })]: TerrainCellSchema.parse({ elevation: LEDGE }) }, placements: { d: { ...s.board!.placements.d, elevation: LEDGE } } } }
-    const step = makeAction('move', { id: newId(), actorId: 'd', movement: 'basic', movements: ['basic'], path: [{ q: 1, r: 0 }], from: ledge.board.placements.d, forced: true, step: 'react' })
+    const step = makeAction('move', { id: newId(), actorId: 'd', movement: 'walk', movements: ['walk'], path: [{ q: 1, r: 0 }], from: ledge.board.placements.d, forced: true, step: 'react' })
     expect(getMoveFall(ledge, step, step.path, false)?.height).toBe(LEDGE)
   })
 })

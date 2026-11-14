@@ -29,7 +29,7 @@ function approach(reactorAP: number, reactorSTA = 6): SceneState {
     characters: { m: fighter('m', 12), r },
   }
   s = declareAction('m', { kind: 'move' }, () => `a${++n}`)(s)
-  s = amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] })(s)
+  s = amendAction({ movement: 'walk', path: [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] })(s)
   return commitAction(() => 5, () => 'x')(s)
 }
 
@@ -71,7 +71,7 @@ describe('opportunity attack against a mover', () => {
       characters: { m: ogre, r: fighter('r', 8) },
     }
     s = declareAction('m', { kind: 'move' }, () => `a${++n}`)(s)
-    s = amendAction({ movement: 'basic', path: [1, 2, 3, 4, 5].map((q) => ({ q, r: 0 })), orientation: 3 })(s)
+    s = amendAction({ movement: 'walk', path: [1, 2, 3, 4, 5].map((q) => ({ q, r: 0 })), orientation: 3 })(s)
     s = commitAction(() => 5, () => 'x')(s)
     const trigger = getTriggers(s, getOpenAction(s)!).find((t) => t.kind === 'opportunityAttack' && t.characterId === 'r')!
     s = declareReaction('r', { kind: 'opportunityAttack', at: trigger.at }, () => `o${++n}`)(s)

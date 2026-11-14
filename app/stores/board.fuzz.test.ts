@@ -160,7 +160,7 @@ function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only:
   if (commands.length && pick([true, false])) h.send({ kind: 'amend', args: [{ forId: pick(commands).id, main: null, trigger: null }] })
   const mains = view()?.mains.filter((m) => m.available && (only === null || only.includes(m.kind))) ?? []
   if (!mains.length) return
-  h.send({ kind: 'amend', args: [{ main: pick(mains).kind, weaponKey: '', attack: '', variant: '', ammoId: '', key: '', quicken: false, extend: 0, movement: 'basic' }] })
+  h.send({ kind: 'amend', args: [{ main: pick(mains).kind, weaponKey: '', attack: '', variant: '', ammoId: '', key: '', quicken: false, extend: 0, movement: 'walk' }] })
   const made = view()!
   if (made.attacks.length) { const { weaponKey, attack, variant } = pick(made.attacks); h.send({ kind: 'amend', args: [{ weaponKey, attack, variant }] }) }
   for (const m of view()!.modifiers) if (pick([true, false])) h.send({ kind: 'amend', args: [m.press] })
@@ -1134,7 +1134,7 @@ function jumpAttackPlay(h: Harness): Play[] {
   })
 }
 
-// abilities.tex "Steady Arms": a shot declared on a careful path drawn on the
+// abilities.tex "Steady Arms": a shot declared on a trodden path drawn on the
 // board, fired from a step along it, and played out with the steps after it.
 // Played only where someone has the ability, for the same reason as the
 // shelter.

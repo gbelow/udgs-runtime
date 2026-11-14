@@ -132,7 +132,7 @@ describe('standing and walking on a storey', () => {
     ...SceneStateSchema.parse({ board: { ...board, placements: Object.fromEntries(Object.entries(placed).map(([id, p]) => [id, PlacementSchema.parse(p)])) } }),
     characters: Object.fromEntries(Object.keys(placed).map((id) => [id, { ...makeCampaignCharacter({ name: id }), id }])),
   })
-  const walk = (path: Coord[], movement: MoveKind = 'basic') => makeAction('move', { id: 'walk', actorId: 'a', movement, path })
+  const walk = (path: Coord[], movement: MoveKind = 'walk') => makeAction('move', { id: 'walk', actorId: 'a', movement, path })
   const upstairs = scene({ a: { cell: cell(0), elevation: FLOOR } })
 
   it('keeps a walk to the storey it is on, over a wall on the ground below', () => {
@@ -310,7 +310,7 @@ describe('walking up a stair from a storey to the next', () => {
   const placed = { ...SceneStateSchema.parse({ board: { ...board, placements: { a: PlacementSchema.parse({ cell: cell(-4), elevation: FIRST }) } } }), characters: { a: { ...makeCampaignCharacter({ name: 'a' }), id: 'a' } } }
 
   it('walks up the stair onto the storey above', () => {
-    const up = makeAction('move', { id: 'walk', actorId: 'a', movement: 'basic', path: [cell(-3), cell(-2), cell(-1), cell(0), cell(1)] })
+    const up = makeAction('move', { id: 'walk', actorId: 'a', movement: 'walk', path: [cell(-3), cell(-2), cell(-1), cell(0), cell(1)] })
     expect(isPathLegal(placed, up)).toBe(true)
     expect(getMoveDestination(placed, up, up.path)?.elevation).toBe(SECOND)
   })

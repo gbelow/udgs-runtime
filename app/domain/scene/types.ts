@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { type Selected, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, GearMoveSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { type Selected, renamedMovement, AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, GearMoveSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { COMPULSION_CONSTRAINTS, CROSSING_SKILLS, CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, GRAPPLING_EFFECTS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS, SURFACE_TARGETS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -812,7 +812,7 @@ export const ShootActionSchema = z.object({
   // combat.tex "Throw": what left the hand, one of it, to land where the
   // throw was aimed; written at the resolve, null for a shot
   thrown: ItemSchema.nullable().default(null),
-  // abilities.tex "Steady Arms": the careful path walked while shooting, as a
+  // abilities.tex "Steady Arms": the path trodden while shooting, as a
   // move draws one, for a shot declared with its recipe (rules/steadyArms.ts)
   path: z.array(CoordSchema).default([]),
   turns: z.array(num).default([]),
@@ -1048,7 +1048,7 @@ export type MoveFacts = z.infer<typeof MoveFactsSchema>
 export const MoveActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('move'),
-  movement: MoveKindSchema.default('basic'),
+  movement: MoveKindSchema.default('walk'),
   path: z.array(CoordSchema).default([]),
   // where the path was drawn to turn: the length of the path at the end of
   // every segment but the last, so a segment can be taken back whole
@@ -1225,7 +1225,7 @@ export const PrepareActionSchema = z.object({
   key: str.default(''),
   quicken: z.boolean().default(false),
   extend: num.default(0),
-  movement: MoveKindSchema.default('basic'),
+  movement: MoveKindSchema.default('walk'),
   trigger: PreparedTriggerSchema.nullable().default(null),
   // abilities.json "Battle Commands": the ally it is prepared for, who makes it
   // when it comes; '' for the preparer themselves
@@ -1294,8 +1294,8 @@ export const GrappleActionSchema = z.object({
 // "The comparison is repeated for every 2 AP worth of movement" — decided
 // by a Force comparison between the actor's side and everyone else locked
 // in the grapple. `movement` is how it moves: pushing or dragging
-// "forwards or backwards with careful movement speed" along the line
-// through the target, circling around the grapple "with basic movement" by
+// "forwards or backwards at tread speed" along the line through the
+// target, circling around the grapple "by walking" by
 // the actor alone, or running along that line "when force is 10 higher".
 // `path` is the actor's way, cell by cell. `boost` is the actor's "spend 2
 // AP to gain 5 force in one comparison". No die: once the grapple has
@@ -1312,7 +1312,7 @@ export const DragFactsSchema = z.object({
   falls: z.array(MoveFallSchema.extend({ id: str })).default([]),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
-export const PushMovementSchema = z.enum(PUSH_MOVEMENTS)
+export const PushMovementSchema = z.preprocess(renamedMovement, z.enum(PUSH_MOVEMENTS))
 export type PushMovement = z.infer<typeof PushMovementSchema>
 export const DragActionSchema = z.object({
   ...ActionBase,
@@ -1320,7 +1320,7 @@ export const DragActionSchema = z.object({
   // gear.tex "Net": a pull along a tether, which moves the one at its far end
   // toward the actor and nobody else
   pull: z.boolean().default(false),
-  movement: PushMovementSchema.default('careful'),
+  movement: PushMovementSchema.default('tread'),
   path: z.array(CoordSchema).default([]),
   boost: z.boolean().default(false),
   // the comparison as it stood when the push was paid for — each side's
@@ -2032,7 +2032,7 @@ export const SceneStateSchema = z.object({
   // combat.tex "Cover": who has taken total cover behind a body shield after
   // a guard, by id — the shield, and the cell of the shot they guarded,
   // which the shield faces; kept, across rounds, until they land any action
-  // but careful movement
+  // but treading
   bodyCover: z.record(str, BodyCoverSchema).default({}),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),

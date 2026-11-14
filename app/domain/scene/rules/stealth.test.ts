@@ -99,11 +99,11 @@ describe('an attack in the attacker\'s own turn', () => {
   })
 })
 
-// combat.tex "Actions in stealth": "Careful movement and crawling add no
+// combat.tex "Actions in stealth": "Treading and crawling add no
 // penalty. All the other actions add -1 per AP spent" — the AP the turn
 // counts against the stealth value are the AP its noisy actions were paid.
 describe('a turn\'s noise', () => {
-  const walked = (movement: 'careful' | 'basic') => {
+  const walked = (movement: 'tread' | 'walk') => {
     const state = beginTurn(hiddenWith(fight({ q: 10, r: 0 }, { q: 0, r: 0 }), 100), 't')
     const moved = commitAction(() => 5, newId)(amendAction({ movement, path: [{ q: 1, r: 0 }] })(declareAction('t', { kind: 'move' }, newId)(state)))
     const move = getLanded(moved).find((a) => a.kind === 'move')
@@ -111,12 +111,12 @@ describe('a turn\'s noise', () => {
     return { counted: getStealthTurn(moved)?.AP, paid: move?.cost?.AP }
   }
 
-  it('counts nothing for careful movement', () => {
-    expect(walked('careful').counted).toBe(0)
+  it('counts nothing for treading', () => {
+    expect(walked('tread').counted).toBe(0)
   })
 
   it('counts every AP paid for any other action', () => {
-    const { counted, paid } = walked('basic')
+    const { counted, paid } = walked('walk')
     expect(counted).toBe(paid)
   })
 })
@@ -130,7 +130,7 @@ describe('noisy ground', () => {
     const start = hiddenWith(fight({ q: 10, r: 0 }, { q: 0, r: 0 }, loud), 100)
     const shod = boots ? { ...start, characters: { ...start.characters, t: { ...start.characters.t, held: [ItemSchema.parse({ name: 'Muffled Boots', muffles: true })] } } } : start
     const state = beginTurn(shod, 't')
-    const moved = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }] })(declareAction('t', { kind: 'move' }, newId)(state)))
+    const moved = commitAction(() => 5, newId)(amendAction({ movement: 'walk', path: [{ q: 1, r: 0 }] })(declareAction('t', { kind: 'move' }, newId)(state)))
     const move = getLanded(moved).find((a) => a.kind === 'move')
     return { heard: getStealthTurn(moved)?.heardAP, paid: move?.cost?.AP ?? 0 }
   }

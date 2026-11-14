@@ -6,7 +6,7 @@ import { getOpenAction } from '../domain/scene/rules/log'
 import { sameCell } from '../domain/scene/rules/board/geometry'
 import type { Coord } from '../domain/scene/types'
 
-// A shot made on a careful path, from declaration to the steps walked after
+// A shot made on a trodden path, from declaration to the steps walked after
 // it, over the real combat store. Expected values are what was clicked and
 // pressed: the path drawn, the step it is fired from, where the shooter stands.
 
@@ -53,7 +53,7 @@ function stepsOffered(): number[] {
   return getActionPanel(h.state()).open!.steady!.steps.map((s) => s.at)
 }
 
-describe('declaring a shot on a careful path', () => {
+describe('declaring a shot on a trodden path', () => {
   // The view says which cells a click would add to the path: a click on one
   // of them ends the path there, and a click on any other leaves it alone.
   it('draws the path to every cell the view offers and ignores every other', () => {

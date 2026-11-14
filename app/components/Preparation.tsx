@@ -6,7 +6,7 @@ import { Button, IconButton, SectionLabel, Segment, Segmented } from './ui'
 import { Modifiers } from './Modifiers'
 
 
-const NO_MAIN = { weaponKey: '', attack: '', variant: '', ammoId: '', modifiers: { catch: false, martialSpirit: false, tackle: false }, key: '', quicken: false, extend: 0, movement: 'basic' } as const
+const NO_MAIN = { weaponKey: '', attack: '', variant: '', ammoId: '', modifiers: { catch: false, martialSpirit: false, tackle: false }, key: '', quicken: false, extend: 0, movement: 'walk' } as const
 
 // combat.tex "Preparing a reaction": what is prepared is declared first, then
 // what it waits for is picked from what that action can wait for.

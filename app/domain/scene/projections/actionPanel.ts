@@ -368,7 +368,7 @@ export type ActionPanelView = {
   // with nothing open: what the active character can declare, under the
   // headings of rules/actionCatalog.ts `ACTION_CATEGORIES`, those with
   // something to show; `extras` are what a heading holds besides the actions
-  // (a careful move while a spell is held, follow), and the counts include them
+  // (a tread while a spell is held, follow), and the counts include them
   categories: { key: ActionCategory; options: ActionOptionView[]; available: number; total: number; extras: 'follow'[] }[]
   // combat.tex "Follow": marking whom to follow is offered with the tactical
   // actions, null when there is nobody to follow
@@ -415,7 +415,7 @@ export type ActionPanelView = {
   canAccept: boolean
   // an evasive jump is declared but has not picked its landing yet
   jumpPending: boolean
-  // combat.tex "Rest": whether the careful move made while resting is still
+  // combat.tex "Rest": whether the tread made while resting is still
   // to be had
   restMove: boolean
   // at `react`: a reaction has been declared and can be taken back
@@ -502,7 +502,7 @@ function buildActionOffers(state: SceneState): ActionOffers {
       chargeItemId: gear?.chargeItemId ?? '',
       itemId: explosion?.itemId ?? '',
       suggestion: cast && getMoraleSpell(cast.key)?.effect.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,
-      movement: open.kind === 'move' ? open.movement : 'basic',
+      movement: open.kind === 'move' ? open.movement : 'walk',
       steady: open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? { steps: getFiringSteps(open) } : null,
       mode: getShownMode(state, open),
       testModes: getTestModes(state, open),

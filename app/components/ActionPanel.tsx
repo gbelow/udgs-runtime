@@ -107,7 +107,7 @@ export function ActionPanel(){
           <SectionLabel>fire from</SectionLabel>
           {open.steady.steps.map((s) =>
             <Button key={s.at} size='xs' selected={s.selected} onClick={() => amend({ firedAt: s.at })}>{s.at === 0 ? 'start' : s.at}</Button>)}
-          {open.steady.steps.length > 1 && !locked ? <Button size='xs' weight='subtle' onClick={backSegment}>back a segment</Button> : <span className='text-xs text-muted'>pick a careful path on the board</span>}
+          {open.steady.steps.length > 1 && !locked ? <Button size='xs' weight='subtle' onClick={backSegment}>back a segment</Button> : <span className='text-xs text-muted'>pick a path to tread on the board</span>}
         </div>
       ) : null}
 
@@ -426,7 +426,7 @@ export function ActionPanel(){
           {open.grapple.map((n, i) => <div key={i} className='text-sm'>{n.target ? `${n.target}: ` : ''}<span className='text-muted'>{n.text}</span></div>)}
           {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
           <div className='flex flex-row gap-1.5'>
-            {view.restMove ? <ActionKey icon={Footprints} aria-label='careful move' onClick={restMove}>careful move</ActionKey> : null}
+            {view.restMove ? <ActionKey icon={Footprints} aria-label='tread' onClick={restMove}>tread</ActionKey> : null}
             <ActionKey look='go' icon={CheckCheck} aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</ActionKey>
           </div>
         </div>
@@ -857,7 +857,7 @@ function costLabel(cost: ActionCost | null){
   return cost ? `${cost.AP} AP${cost.STA ? ` · ${cost.STA} STA` : ''}` : null
 }
 
-const PUSH_LABEL = { careful: 'push or drag', basic: 'circle', run: 'run' } as const
+const PUSH_LABEL = { tread: 'push or drag', walk: 'circle', run: 'run' } as const
 
 // A block of a push: how it moves, while that is the pusher's to say; the
 // pusher's +5, and whether it counts; and whether the comparison lets it

@@ -19,7 +19,7 @@ describe('a lone character who walks a step', () => {
   it.each(ROTATIONS)('faces the way it went, stepping %i', (d) => {
     const start = SceneStateSchema.parse({ board: { placements: { w: { cell: { q: 0, r: 0 }, orientation: 0 } } } })
     const s: SceneState = { ...start, characters: { w: walker() }, inTurnCharacter: 'w' }
-    const walking = amendAction({ movement: 'basic', path: [add({ q: 0, r: 0 }, DIRECTIONS[d])] })(declareAction('w', { kind: 'move' }, newId)(s))
+    const walking = amendAction({ movement: 'walk', path: [add({ q: 0, r: 0 }, DIRECTIONS[d])] })(declareAction('w', { kind: 'move' }, newId)(s))
     const walked = commitAction(() => 5, newId)(walking)
     expect(walked.board!.placements.w.cell).toEqual(add({ q: 0, r: 0 }, DIRECTIONS[d]))
     expect(walked.board!.placements.w.orientation).toBe(d)

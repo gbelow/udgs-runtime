@@ -760,7 +760,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
 }
 
 // Whether the rolled action still waits on its actor: overflow to spend, a
-// spray to point, a pick to make, a graze to save, the rest's careful move,
+// spray to point, a pick to make, a graze to save, the rest's tread,
 // whether to go along with a won maneuver. One with none lands as it is.
 export function hasPostChoice(state: SceneState, open: RootAction): boolean {
   if (isVoided(state, open)) return false

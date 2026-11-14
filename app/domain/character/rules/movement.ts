@@ -1,5 +1,5 @@
 import { Character, Movement, MovementKind } from "../../types";
-import { MOVEMENT_BLOCKS, type MovementBlock } from "../../tables";
+import { type MovementBlock } from "../../tables";
 import { getAGI } from "./characteristics";
 import { getBuffBonus } from "./effects";
 
@@ -8,11 +8,11 @@ function getDistance(c: Character, key: keyof Movement) {
   return c.movement[key].distance + getBuffBonus(c, `movement:${key}`);
 }
 
-export function getBasicMovement(c: Character) {
-  return getDistance(c, "basic");
+export function getWalkMovement(c: Character) {
+  return getDistance(c, "walk");
 }
-export function getCarefulMovement(c: Character) {
-  return getDistance(c, "careful");
+export function getTreadMovement(c: Character) {
+  return getDistance(c, "tread");
 }
 export function getCrawlMovement(c: Character) {
   return getDistance(c, "crawl");
@@ -32,12 +32,6 @@ export function getFastSwimMovement(c: Character) {
 export function getJumpMovement(c: Character) {
   return getDistance(c, "jump");
 }
-// combat.tex "jumping": "If performed during a run, increase the base
-// calculation of the horizontal distance of a long jump to match that of
-// running."
-export function getRunningJumpMovement(c: Character) {
-  return getJumpMovement(c) + MOVEMENT_BLOCKS.run.distance - MOVEMENT_BLOCKS.jump.distance;
-}
 // combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP", AGI
 // with the injury penalty on it (combat.tex "Afflictions": "It affects all
 // other usages of attributes").
@@ -46,8 +40,8 @@ export function getStandMovement(c: Character) {
 }
 
 export const movementGetters: Record<keyof Movement, (c: Character) => number> = {
-  basic: getBasicMovement,
-  careful: getCarefulMovement,
+  walk: getWalkMovement,
+  tread: getTreadMovement,
   crawl: getCrawlMovement,
   climb: getClimbMovement,
   run: getRunMovement,

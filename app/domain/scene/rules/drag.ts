@@ -133,8 +133,8 @@ function compare(state: SceneState, parties: Parties, boosted: ReadonlySet<strin
 }
 
 // combat.tex "Push and drag": "Having higher force allows moving forwards or
-// backwards with careful movement speed"; "A force difference smaller than
-// 5 allows moving around the grapple with basic movement ... A greater
+// backwards at tread speed"; "A force difference smaller than 5 allows
+// moving around the grapple by walking ... A greater
 // difference allows that only for the stronger character"; "It is possible
 // to run and jump when force is 10 higher than the opponent."
 const CIRCLE_GAP = 5
@@ -142,8 +142,8 @@ const RUN_LEAD = 10
 
 export function isPushAllowed(movement: PushMovement, diff: number): boolean {
   switch (movement) {
-    case 'careful': return diff > 0
-    case 'basic': return diff > -CIRCLE_GAP
+    case 'tread': return diff > 0
+    case 'walk': return diff > -CIRCLE_GAP
     case 'run': return diff >= RUN_LEAD
   }
 }
@@ -197,7 +197,7 @@ const FREE: ActionCost = { AP: 0, STA: 0 }
 function walksBlock(root: DragAction, action: Pick<Action, 'kind' | 'actorId'>): boolean {
   if (action.kind === 'drag') return true
   if (root.pull) return false
-  return root.movement !== 'basic' && (action.kind === 'assist' || action.kind === 'carry')
+  return root.movement !== 'walk' && (action.kind === 'assist' || action.kind === 'carry')
 }
 
 // What the block costs whoever takes part in it: "2 AP to gain 5 force"
@@ -251,14 +251,14 @@ export function getPushAnswerCost(state: SceneState, root: DragAction, action: P
 // worth of movement" — a block is as many cells as 2 AP buys at its speed.
 const BLOCK_AP = 2
 
-// combat.tex "Lame": "Cannot run ... or use basic movement".
+// combat.tex "Lame": "Cannot walk, run or jump".
 export type PushMovementOption = { kind: PushMovement; available: boolean; reason: string | null }
 
-// gear.tex "Net": a pull moves at careful speed only.
+// gear.tex "Net": a pull only treads.
 export function getPushMovements(c: CampaignCharacter, pull = false): PushMovementOption[] {
   const lame = hasAffliction(c, 'lame')
   return PUSH_MOVEMENTS.map((kind) => {
-    const reason = pull && kind !== 'careful' ? 'a pull is careful' : lame && isLameBarred(kind) ? 'lame' : null
+    const reason = pull && kind !== 'tread' ? 'a pull only treads' : lame && isLameBarred(kind) ? 'lame' : null
     return { kind, available: reason === null, reason }
   })
 }
@@ -341,7 +341,7 @@ function getStepFalls(before: Record<string, Placement>, after: Record<string, P
 // past the step someone else falls from.
 export function getGroupSteps(state: SceneState, root: DragAction): Record<string, Placement>[] | null {
   const from = getWalkerPlacement(state, root)
-  if (!from || (root.pull && root.movement !== 'careful') || root.path.length > blockCells(state, root)) return null
+  if (!from || (root.pull && root.movement !== 'tread') || root.path.length > blockCells(state, root)) return null
   const origin = getGroupOrigin(state, root)
   const steps: Record<string, Placement>[] = []
   const take = (at: Record<string, Placement> | null, last: boolean): boolean => {
@@ -353,7 +353,7 @@ export function getGroupSteps(state: SceneState, root: DragAction): Record<strin
     steps.push(at)
     return true
   }
-  if (root.movement === 'basic') {
+  if (root.movement === 'walk') {
     for (const [i, cell] of root.path.entries()) {
       if (!take(circledTo(withPlacements(state, steps.at(-1) ?? {}), root, cell), i === root.path.length - 1)) return null
     }
@@ -374,7 +374,7 @@ export function getGroupSteps(state: SceneState, root: DragAction): Record<strin
 // Where everyone who moves with the block set out from.
 export function getGroupOrigin(state: SceneState, root: DragAction): Record<string, Placement> {
   const board = state.board
-  const ids = root.movement === 'basic' ? [root.actorId] : getParties(state, root).movers
+  const ids = root.movement === 'walk' ? [root.actorId] : getParties(state, root).movers
   return Object.fromEntries(ids.flatMap((id) => (board?.placements[id] ? [[id, board.placements[id]]] : [])))
 }
 
@@ -384,7 +384,7 @@ export function getDragReach(state: SceneState, root: DragAction): { cell: Coord
   const from = getWalkerPlacement(state, root)
   if (!from) return []
   const block = blockCells(state, root)
-  if (root.movement === 'basic') {
+  if (root.movement === 'walk') {
     return walkOut(from.cell, (steps) => steps <= block, (_cell, path) => getGroupSteps(state, { ...root, path }) !== null)
   }
   const axis = getAxis(state, root)

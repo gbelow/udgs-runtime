@@ -162,9 +162,9 @@ export const HANDS = ['one', 'two'] as const
 // is there too but moves nobody, and mounted movement is the mount's.
 // Climbing is the skill's ("Climbing": "The climbing speed is equal to the
 // crawling speed but costs 1 AP + 1 STA"), the way over a cliff.
-export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'climb', 'swim'] as const
+export const MOVEMENT_KINDS = ['tread', 'walk', 'run', 'jump', 'crawl', 'climb', 'swim'] as const
 // combat.tex "Push and drag": the speeds a grapple moves at
-export const PUSH_MOVEMENTS = ['careful', 'basic', 'run'] as const
+export const PUSH_MOVEMENTS = ['tread', 'walk', 'run'] as const
 
 // combat.tex "Movement": "Stand up: Removes the prone condition", priced in
 // the same table ("Stand up"); and going prone, which the table leaves free.

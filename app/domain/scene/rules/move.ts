@@ -9,7 +9,7 @@ import { canAfford } from '../../character/rules/cost'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
-import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
+import { getJumpMovement, getMovementBlock, getMovementSpeed, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, cellNumber, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
 import { getClimbBack, getClimbBound, getClimbTarget, getBalanceDLAt, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
@@ -168,8 +168,8 @@ export type MovementOption = {
 // may also climb out over a bank higher than the water. A move
 // a reaction opened may name the kinds it grants instead (combat.tex
 // "Avoiding an Explosion": on a critical "the character can run").
-// combat.tex "Lame": "Cannot run, jump or use basic
-// movement". combat.tex "Grappled": "Movement requires pushing or
+// combat.tex "Lame": "Cannot walk, run or
+// jump". combat.tex "Grappled": "Movement requires pushing or
 // dragging the other participants in the grapple" — a block of push at a
 // time (combat.tex "Push and drag"), though standing up crosses no cells
 // and stays open to them. "Immobile: Cannot move".
@@ -231,9 +231,9 @@ function isNextToCliff(state: SceneState, c: Character): boolean {
   return !!board && !!placement && getFootprint(c, placement).some((cell) => disk(cell, 1).some((next) => getClimbBound(board, cell, placement.elevation, next) !== null))
 }
 
-// combat.tex "Lame": "Cannot run, jump or use basic movement"
+// combat.tex "Lame": "Cannot walk, run or jump"
 export function isLameBarred(kind: MovementKind): boolean {
-  return kind === 'run' || kind === 'jump' || kind === 'basic'
+  return kind === 'run' || kind === 'jump' || kind === 'walk'
 }
 
 // ---------------------------------------------------------------------------
@@ -296,8 +296,9 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
   return isDiveLegal(state, action, state.board ? readWater(state.board, end) : null)
 }
 
-// combat.tex "Movement": "If performed backwards, the horizontal distance is
-// halved", as the jump an attack carries is (rules/attackJump.ts).
+// combat.tex "Movement": "A jump is used in some situations together with
+// other actions, in which case [...] its distance is only half the jumping
+// distance", as the jump an attack carries is (rules/attackJump.ts).
 function getJumpSpeed(c: Character, action: MoveAction): number {
   const speed = getMovementSpeed(c, 'jump')
   return isHalfJump(c, action) ? Math.floor(speed / 2) : speed
@@ -399,14 +400,14 @@ function getFallStep(state: SceneState, action: MoveAction): number | null {
 }
 
 // combat.tex "Balance" — "Difficult terrain": "On a critical, all movement is
-// inconsequential. On a success, only moving at a normal speed is safe, but
-// not jumping or running. On a graze, moving at a careful speed is safe. On
-// a miss, only crawling is allowed."
+// inconsequential. On a success, walking is safe, but not jumping or
+// running. On a graze, treading is safe. On a miss, only crawling is
+// allowed."
 function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
   switch (degree) {
     case 'critical': return true
     case 'hit': return kind !== 'run' && kind !== 'jump'
-    case 'graze': return kind === 'careful' || kind === 'crawl' || kind === 'swim'
+    case 'graze': return kind === 'tread' || kind === 'crawl' || kind === 'swim'
     case 'miss': return kind === 'crawl'
   }
 }
@@ -626,15 +627,16 @@ export function isMidJump(state: SceneState, id: string): boolean {
 
 // combat.tex "Evasive Jump": "This can only be used if there is space to
 // jump. The jump must place the character further from the source of the
-// attack and uses the movement speed of jumping backwards" — half the jump
-// ("Movement": "If performed backwards, the horizontal distance is halved"),
-// in whole cells. Every other anchor within that many cells, in any
+// attack": half the jump, as any jump made with another action is
+// ("Movement": "its distance is only half the jumping distance"), in whole
+// cells. Every other anchor within that many cells, in any
 // orientation, whose footprint may stand where it lands (creating.tex "Size
 // and Space Occupation", as `canStandAt` reads it) and ends at least one
 // cell further from the attacker than it began. A runner hit mid-run may
 // jump any way, but within a hex step of the way they were going the jump
-// is a forward one out of the run and reaches the running long jump
-// ("Evasive Jump": "at a 60 degree angle of the direction of the run").
+// is a forward one out of the run and reaches the whole jump ("Evasive
+// Jump": "uses a full forward jump at a 60 degree angle of the direction of
+// the run").
 // It lands only on ground its vertical reach clears (`getJumpCeiling`), and
 // not down a cliff, which would be a fall. One hit mid-jump cannot jump at all.
 export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, attackerId: string): Placement[] {
@@ -648,7 +650,7 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
   const heading = underway ? getRunHeading(state, underway, getStepsWalked(state, underway)) : null
   const before = setDistance(getFootprint(defender, from), attacker)
   const hop = Math.floor(getJumpMovement(defender) / 2)
-  const leap = heading === null ? hop : Math.max(hop, Math.floor(getRunningJumpMovement(defender)))
+  const leap = heading === null ? hop : Math.floor(getJumpMovement(defender))
   const reaches = (cell: Coord) => distance(cell, from.cell) <= hop || (heading !== null && isWithinCone(subtract(cell, from.cell), heading))
   const ceiling = getJumpCeiling(defender, from)
   const jump = (lands: boolean): Stepping => ({ movement: 'jump', lands, fromWater: false, ceiling })

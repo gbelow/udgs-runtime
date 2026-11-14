@@ -553,7 +553,7 @@ function crashedMove(s: SceneState): SceneState {
   const a = s.characters.a
   const strong = { ...a, afflictions: [], trainables: { ...a.trainables, STR: { ...a.trainables.STR, value: 30 } } }
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: strong } })))
-  const drawn = deepFreeze(combatCommands.amendAction({ movement: 'basic', path: [{ q: 0, r: 1 }] })(declared))
+  const drawn = deepFreeze(combatCommands.amendAction({ movement: 'walk', path: [{ q: 0, r: 1 }] })(declared))
   return combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(drawn)))
 }
 

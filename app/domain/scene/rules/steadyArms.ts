@@ -8,7 +8,7 @@ import { getCarriedOf, getDeclaredMoveAP } from './carriedMove'
 
 // abilities.tex "Steady Arms": "It is considered that the attack came from
 // any position that the attacker has been. Opportunity attacks are triggered
-// at all positions along the path." The careful path is declared with the
+// at all positions along the path." The trodden path is declared with the
 // shot, and so is the step it is fired from (the table's ruling). The steps
 // before it are walked first, as a move of its own that draws its own
 // opportunity attacks, and the shot is made from where they end; the steps
@@ -20,7 +20,7 @@ export function isSteadyShot(state: SceneState, shot: ShootAction): boolean {
   return getCarriedOf(state.characters[shot.actorId], shot) !== null
 }
 
-// The careful move the whole path is, as the board draws and checks it.
+// The tread the whole path is, as the board draws and checks it.
 export function getSteadyPath(state: SceneState, shot: ShootAction): MoveAction {
   const AP = getDeclaredMoveAP(state, shot)
   return makeAction('move', { id: '', actorId: shot.actorId, path: shot.path, turns: shot.turns, ...getCarriedMove(AP) })

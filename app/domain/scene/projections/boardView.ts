@@ -434,7 +434,7 @@ function buildBoardView(state: SeenScene): BoardView {
   // the move in play, whatever its phase: its path stays drawn throughout;
   // so does the way a push takes its block (combat.tex "Push and drag")
   const walking = findOpenRoot(state, 'drag')
-  // abilities.tex "Steady Arms": the careful path drawn with a shot being declared
+  // abilities.tex "Steady Arms": the trodden path drawn with a shot being declared
   const steady = open?.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open) ? getSteadyPath(state, open) : null
   const pending = findOpenRoot(state, 'move') ?? walking ?? steady
   const move = open?.kind === 'move' && open.step === 'define' ? open : null

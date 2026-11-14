@@ -153,7 +153,7 @@ function movementBlock(key: keyof typeof MOVEMENT_BLOCKS) {
   const legacy = (n: number) => {
     if (key === 'stand') return { AP: base.AP + n }
     if (key === 'run' || key === 'jump') return { distance: base.distance + n }
-    return { distance: key === 'basic' || key === 'fast swim' ? n : Math.max(base.distance, n) }
+    return { distance: key === 'walk' || key === 'fast swim' ? n : Math.max(base.distance, n) }
   }
   return z.preprocess(
     (v) => (typeof v === 'number' ? (Number.isFinite(v) ? legacy(v) : {}) : v !== null && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter(([, n]) => typeof n === 'number' && Number.isFinite(n))) : {}),
@@ -161,9 +161,20 @@ function movementBlock(key: keyof typeof MOVEMENT_BLOCKS) {
   ).default(base)
 }
 
+// combat.tex "Movement": walk and tread, stored as `basic` and `careful`
+// by saves from before they were named so; read under their names.
+const MOVEMENT_RENAMES: Record<string, string> = { basic: 'walk', careful: 'tread' }
+export function renamedMovement(v: unknown): unknown {
+  return typeof v === 'string' ? MOVEMENT_RENAMES[v] ?? v : v
+}
+export const renamedMovementKeys = (v: unknown): unknown =>
+  v !== null && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v).map(([k, n]) => [MOVEMENT_RENAMES[k] && !(MOVEMENT_RENAMES[k] in v) ? MOVEMENT_RENAMES[k] : k, n]))
+    : v
+
 export const MovementSchema = z.object({
-  basic: movementBlock('basic'),
-  careful: movementBlock('careful'),
+  walk: movementBlock('walk'),
+  tread: movementBlock('tread'),
   crawl: movementBlock('crawl'),
   climb: movementBlock('climb'),
   run: movementBlock('run'),
@@ -522,7 +533,7 @@ export interface Container {
 }
 
 // A hex cell in axial coordinates; one cell is one metre (combat.tex
-// "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
+// "Movement Costs and Speeds" prices walking at 1 AP per metre and
 // "Movement" moves in whole spaces). The geometry that reads these is in
 // `scene/rules/board/geometry.ts`.
 export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
@@ -1216,7 +1227,7 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   // (scene/rules/attackJump.ts), a defense its move. `order`: the move is
   // made `before` the action, which is made from where it ends, or `after`
   // it has landed, which an interruption cancels. `reach`: as far as the
-  // movement goes (a jump's length, a block of basic movement), half a jump
+  // movement goes (a jump's length, a block of walking), half a jump
   // (an evasive jump's), one space, or the run the reaction or protection
   // surge's AP buy. `toward`: anywhere, away from everyone threatening the
   // actor, nearer the attacker, or nearer the attack's target; a defense's move always ends where the
@@ -1230,7 +1241,7 @@ export const RecipeSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('combinedMove'),
     with: z.array(z.enum(['strike', 'shoot', 'block', 'intercept', 'guard', 'evasiveJump'])).default([]),
-    movement: z.enum(['jump', 'basic', 'run', 'stand']).default('jump'),
+    movement: z.preprocess(renamedMovement, z.enum(['jump', 'walk', 'run', 'stand'])).default('jump'),
     order: z.enum(['before', 'after']).default('before'),
     reach: z.enum(['movement', 'halfJump', 'oneSpace', 'reactionSurge']).default('movement'),
     toward: z.enum(['any', 'awayFromThreateners', 'towardAttacker', 'towardTarget']).default('any'),
@@ -1270,7 +1281,7 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     tests: z.enum(['all', 'reactions']).default('all'),
     hit: num.default(0),
   }).strip(),
-  // `carriedMove`: a careful move an action carries, bought with AP already
+  // `carriedMove`: a tread an action carries, bought with AP already
   // paid (scene/rules/carriedMove.ts). `on`: the action it goes with, or the
   // upkeep held spells pay at the round change; `when`: the condition the
   // action must meet; `budget`: the AP the action itself cost, or what a
@@ -1707,14 +1718,14 @@ export const CampaignValuesSchema = z.object({
 
 export type CampaignValues = z.infer<typeof CampaignValuesSchema>
 
-export const MovementKindSchema = z.enum(MOVEMENT_KINDS)
+export const MovementKindSchema = z.preprocess(renamedMovement, z.enum(MOVEMENT_KINDS))
 export type MovementKind = z.infer<typeof MovementKindSchema>
 
 export const PostureSchema = z.enum(POSTURES)
 export type Posture = z.infer<typeof PostureSchema>
 
 // What a move is made at: a way of crossing cells or a change of posture.
-export const MoveKindSchema = z.enum([...MOVEMENT_KINDS, ...POSTURES])
+export const MoveKindSchema = z.preprocess(renamedMovement, z.enum([...MOVEMENT_KINDS, ...POSTURES]))
 export type MoveKind = z.infer<typeof MoveKindSchema>
 
 export const TerrainBrushSchema = z.enum(TERRAIN_BRUSHES)
@@ -1739,7 +1750,7 @@ const RaceBodyValues = {
   height: num.int().nonnegative().default(2),
   TGH: z.number().default(0),
   senses: SensesSchema.partial().default({}).transform(v => SensesSchema.parse(v)),
-  movement: MovementSchema.partial().default({}).transform(v => MovementSchema.parse(v)),
+  movement: z.preprocess(renamedMovementKeys, MovementSchema.partial().default({}).transform(v => MovementSchema.parse(v))),
   // what the creature is under anything it wears — skin, fur, hide; the rows
   // of the gear.tex "Armors" table with no bulk, which are not items
   armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),

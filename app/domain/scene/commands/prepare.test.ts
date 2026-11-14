@@ -65,7 +65,7 @@ const along = (from: number, to: number): Coord[] => Array.from({ length: Math.a
 
 // The mover declares a straight walk along the row to `to`, not yet committed.
 function walking(s: SceneState, id: string, from: number, to: number): SceneState {
-  return amendAction({ movement: 'basic', path: along(from, to) })(declareAction(id, { kind: 'move' }, newId)(s))
+  return amendAction({ movement: 'walk', path: along(from, to) })(declareAction(id, { kind: 'move' }, newId)(s))
 }
 
 const preparedOption = (s: SceneState, id: string) => getAvailableActions(s, id).find((o) => o.draft.kind === 'prepared')
@@ -131,7 +131,7 @@ describe('what a preparation waits for', () => {
 
 // The preparer's movement, opened first: taken two cells towards the mover,
 // who is stood on the cell that brought them into the zone.
-const stepsToward = (to: number) => amendAction({ movement: 'basic', path: along(0, to) })
+const stepsToward = (to: number) => amendAction({ movement: 'walk', path: along(0, to) })
 
 // Plays what is open out with the die showing `face`, taking the SD for
 // everyone and passing up any follow-up it is offered, until `until` holds or
@@ -218,7 +218,7 @@ describe('what must be performed', () => {
     expect(steps.length).toBeGreaterThan(0)
     const { from, to } = steps[0]
     const s = { ...cover, characters: { p: spearman('p'), m: fighter('m') }, board: { ...cover.board!, placements: { ...cover.board!.placements, m: { ...cover.board!.placements.p, cell: from } } } }
-    const committed = commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [to] })(declareAction('m', { kind: 'move' }, newId)(prepareStrike(s, 'p', { event: 'sighted' }))))
+    const committed = commitAction(() => MISS, newId)(amendAction({ movement: 'walk', path: [to] })(declareAction('m', { kind: 'move' }, newId)(prepareStrike(s, 'p', { event: 'sighted' }))))
     const opened = atMovement(committed)
     const skipped = withdrawSpawnedAction(() => 5, newId)(opened)
     expect(skipped).not.toBe(opened)
@@ -236,7 +236,7 @@ describe('what must be performed', () => {
   // rather than left to hold the table.
   it('lets the action be passed up when nobody is in its reach', () => {
     let s = atMovement(walkIntoIt(-3))
-    s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }] })(s)), MISS, isPreparersMain)
+    s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'walk', path: [{ q: 1, r: 0 }] })(s)), MISS, isPreparersMain)
     expect(isPreparersMain(s)).toBe(true)
     const passed = withdrawSpawnedAction(() => 5, newId)(s)
     expect(passed).not.toBe(s)
@@ -256,7 +256,7 @@ function drawingAnAttack(): SceneState {
 // to be fought: the spearman's strike at the preparer, waiting for an answer.
 function attackedOnTheWay(): SceneState {
   let s = answered(drawingAnAttack())
-  s = amendAction({ movement: 'basic', path: [{ q: -1, r: 0 }] })(s)
+  s = amendAction({ movement: 'walk', path: [{ q: -1, r: 0 }] })(s)
   s = commitAction(() => MISS, newId)(s)
   const option = getAvailableActions(s, 's').find((o) => o.draft.kind === 'opportunityAttack' && o.available)
   if (!option) throw new Error('the movement drew no attack')
@@ -293,12 +293,12 @@ describe('a prepared action', () => {
   // another's — the same walk, made on the preparer's own turn, does.
   it('opens nothing that triggers another prepared action', () => {
     const setUp = () => prepareStrike(prepareStrike(onBoard({ p: [0, 0], m: [-10, 0], q: [-5, 1] }, spearman('p'), fighter('m'), spearman('q')), 'p'), 'q', { event: 'enters', who: 'p' })
-    const plain = amendAction({ movement: 'basic', path: [{ q: -1, r: 0 }, { q: -2, r: 0 }] })(declareAction('p', { kind: 'move' }, newId)(setUp()))
+    const plain = amendAction({ movement: 'walk', path: [{ q: -1, r: 0 }, { q: -2, r: 0 }] })(declareAction('p', { kind: 'move' }, newId)(setUp()))
     expect(triggersOf(plain, 'q')).toContain('prepared')
 
     const opened = answered(commitAction(() => MISS, newId)(walking(setUp(), 'm', -10, -3)))
     expect(isPreparersMove(opened)).toBe(true)
-    const spawned = amendAction({ movement: 'basic', path: [{ q: -1, r: 0 }, { q: -2, r: 0 }] })(opened)
+    const spawned = amendAction({ movement: 'walk', path: [{ q: -1, r: 0 }, { q: -2, r: 0 }] })(opened)
     expect(triggersOf(spawned, 'q')).not.toContain('prepared')
   })
 })
@@ -345,7 +345,7 @@ describe('preparing a defense for an ally', () => {
   })
 
   const isRepositioning = (s: SceneState) => { const open = getOpenAction(s); return open?.kind === 'move' && open.actorId === 'p' && open.step === 'define' && open.preparedPart === 'move' }
-  const toTheLine = (s: SceneState) => commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: -2 }, { q: 1, r: -1 }] })(s))
+  const toTheLine = (s: SceneState) => commitAction(() => MISS, newId)(amendAction({ movement: 'walk', path: [{ q: 1, r: -2 }, { q: 1, r: -1 }] })(s))
   const backAtTheAttack = (s: SceneState) => { const open = getOpenAction(s); return (open?.kind === 'strike' || open?.kind === 'shoot') && open.step === 'react' && open.spawnedBy === null }
   const attackOf = (s: SceneState) => getLog(s).find((a) => a.kind === 'strike' || a.kind === 'shoot')!
 
@@ -461,7 +461,7 @@ describe('preparing a defense for an ally', () => {
       const offered = getBoardView({ ...s, activeCharacterId: null }).cells.filter((c) => c.reachable !== null)
       expect(offered.length).toBeGreaterThan(0)
       expect(offered.every(({ cell }) => Math.abs(cell.r) <= 1)).toBe(true)
-      s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [{ q: -4, r: 2 }, { q: -4, r: 1 }] })(s)), MISS, backAtTheAttack)
+      s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'walk', path: [{ q: -4, r: 2 }, { q: -4, r: 1 }] })(s)), MISS, backAtTheAttack)
       expect(getDefendingReaction(s, attackOf(s))?.actorId).toBe('p')
     })
   })
