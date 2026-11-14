@@ -142,8 +142,8 @@ click to what stands afterwards. It is admitted, under these terms.
   prediction of the open action at a supposed roll (`bot/predict.ts`) leaves the fight as it was,
   and every spend of its overflow it tries is one the table takes.
   A failure names its seed, step and the plays before it; pin what it found as a scenario.
-  It also writes `reports/fuzz-replay-*.json`, the fight as the session began and every command
-  it sent with the dice each drew, which `replay` (`boardHarness.ts`) plays back step by step.
+  The harness records the fight as the session began and every command it sent with the dice
+  each drew (`record`), which `replay` (`boardHarness.ts`) plays back step by step.
   Some plays answer the open declaration from the panel's own offers (a row, a shot's ammo,
   a spell, a potion, a target clicked, a landing clicked) so that an action gets as far as being rolled.
   Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, archers across a pane of glass that breaks, an

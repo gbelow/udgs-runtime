@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { mkdirSync, writeFileSync } from 'node:fs'
 import { openHarness } from './boardHarness'
 import { run, type Seat } from '../domain/bot/seat'
 import type { Box } from '../domain/bot/decision'
@@ -15,8 +14,7 @@ import type { CampaignCharacter } from '../domain/types'
 // (bot/autoTable.ts). What the architecture promises of it: every decision made
 // from what is open is taken by the table, the fight never stalls, so it ends
 // or reaches the cap, and nothing offered to a seat names someone it does not
-// see (bot/leaks.ts). A failure writes the record to
-// reports/bots-replay-seed-N.json.
+// see (bot/leaks.ts).
 
 // A box that presses anything open to its seat, a button or a fill, at random
 // from its seat's own entropy. It decides nothing worth keeping: it is what
@@ -96,10 +94,6 @@ describe('bots play a fight with nobody as GM', () => {
     const seats = unwatched.map((seat): Seat => ({ ...seat, box: (input) => (leaks.push(...getPanelLeaks(input, everyone)), seat.box(input)) }))
     const played = run(start, seats, { seed, maxRounds: 4 })
     const refused = played.log.filter((e) => e.refused).map((e) => `${e.by}: ${e.why}: ${e.refused}`)
-    if (refused.length > 0 || played.end === 'stalled') {
-      mkdirSync('reports', { recursive: true })
-      writeFileSync(`reports/bots-replay-seed-${seed}.json`, JSON.stringify(played.record))
-    }
     expect(refused, 'decisions refused').toEqual([])
     expect([...new Set(leaks)], 'offers naming someone the seat does not see').toEqual([])
     expect(played.end, `stalled, waiting on ${JSON.stringify(played.stalled)}`).not.toBe('stalled')

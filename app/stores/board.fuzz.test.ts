@@ -615,8 +615,10 @@ function settleThroughTheBuilder(h: Harness, pick: Picker) {
 
 // The open action predicted at a supposed roll (bot/predict.ts), buying one
 // of what the overflow offers at it, and its overflow spent on damage
-// (`bestSpend`): read on the side, it leaves the fight as it was, and every
-// spend it tries is made of purchases the table offers, so none is refused.
+// (`bestSpend`): read on the side, it leaves the fight as it was, every
+// spend it tries is made of purchases the table offers, so none is refused,
+// and what the spend was read to come to off the damage rules is what the
+// table lands for it.
 function predictTheOpenAction(h: Harness, pick: Picker) {
   const s = h.state()
   const ctx = { thrower: () => 5, newId: () => 'predicted' }
@@ -629,6 +631,10 @@ function predictTheOpenAction(h: Harness, pick: Picker) {
   }
   const spent = bestSpend(s, roll, [], ctx)
   if (spent.ok) for (const t of spent.tried) expect(t.prediction.ok ? null : t.prediction.refused, `spending ${t.purchases.map((p) => p.value).join(', ')} was refused`).toBeNull()
+  const target = getOpenAction(s)?.targetId
+  if (spent.ok && spent.outcome && spent.best.prediction.ok && target) {
+    expect(spent.best.prediction.outcomes.find((o) => o.id === target)?.outcome, 'the spend was read to come to something other than what lands').toEqual(spent.outcome)
+  }
   expect(h.state(), 'a prediction changed the fight').toBe(s)
 }
 
@@ -688,15 +694,6 @@ afterAll(() => {
   writeFileSync('reports/fuzz-coverage.md', body)
 })
 
-// What a failing session sent, written to reports/ for `replay` to play
-// again from the record alone.
-function writeReplay(h: Harness, seed: number): string {
-  const file = `reports/fuzz-replay-${sessions}-seed-${seed}.json`
-  mkdirSync('reports', { recursive: true })
-  writeFileSync(file, JSON.stringify(h.record()))
-  return file
-}
-
 // A table's guest holds what its host holds: what changed since the last
 // change sent, carried as JSON and applied to the guest's copy, leaves that
 // copy the host's state.
@@ -732,8 +729,7 @@ function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Pi
       assertChoicesHold(h)
     } catch (e) {
       stop()
-      const file = writeReplay(h, seed)
-      throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}\ncommands sent: ${file}`, { cause: e })
+      throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}`, { cause: e })
     }
   }
   stop()
