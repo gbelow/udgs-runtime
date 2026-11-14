@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Button, Menu, MenuConfirm, MenuItem } from './ui'
-import { CatalogDrawer, PlayedBy, TimelineControl, TimelineSummary } from './RunParts'
+import { CatalogDrawer, PlayedBy, PlayedByTag, TimelineControl, TimelineSummary } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { useCampaignPartyCommands, useCampaignRoster, useMoveBars, useTimelineChart } from '../hooks/useCampaign'
 import { useRole } from '../hooks/useRole'
@@ -120,6 +120,7 @@ export function Member({ member, scene = false, inParty, switching, toggle }: { 
   return(
     <div className='flex flex-row gap-1 items-center' onClick={(e) => e.stopPropagation()}>
       <Button size='xs' aria-label={member.name} selected={member.isActive || switching} onClick={() => pick(member.id)}>{member.name}</Button>
+      <PlayedByTag id={member.id} />
       <Menu label={`${member.name} options`}>
         {scene ? <MenuItem bar={joinBar} hint='into the scene' onClick={() => toScene(member.id)}>to scene</MenuItem> : null}
         <MenuItem bar={bar} selected={switching} hint='pick the party to put them in, or a new one' onClick={toggle}>{switching ? 'cancel switching' : 'switch party'}</MenuItem>

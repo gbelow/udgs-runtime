@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Card } from './SceneCards'
-import { CatalogDrawer, PlayedBy, TimelineControl, TimelineSummary } from './RunParts'
+import { CatalogDrawer, PlayedBy, PlayedByTag, TimelineControl, TimelineSummary } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { Member, ToDowntime, ToExploration } from './CampaignParties'
 import { Menu, MenuItem, NumberInput } from './ui'
@@ -156,7 +156,8 @@ function Fighter({ card, ets, pick, switching, startSwitch }: { card: SceneCard,
 
   return(
     <Card card={card} onClick={() => pick(card)}>
-      <div className='flex flex-row justify-end'>
+      <div className='flex flex-row justify-end items-center gap-1'>
+        <PlayedByTag id={card.id} />
         <Menu label={`${card.name} options`}>
           <MenuItem bar={bar} selected={switching} hint='pick the party to put them in, or a new one' onClick={startSwitch}>{switching ? 'cancel switching' : 'switch party'}</MenuItem>
           <MenuItem bar={returnBar} hint='the scene is over for them: back to the campaign' onClick={() => back(card.id, ets)}>back</MenuItem>

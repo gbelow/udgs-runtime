@@ -18,7 +18,7 @@ import { getPlacement } from "../domain/campaign/projections/timeline";
 import { getClockAt } from "../domain/campaign/rules/clock";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
-import { getJoinView, getMemberRows, getOwner, getOwnerOptions, getRequestRows, setMember, type MemberRole } from "../domain/profiles";
+import { getJoinView, getMemberRows, getOwner, getOwnerName, getOwnerOptions, getRequestRows, setMember, type MemberRole } from "../domain/profiles";
 import { useProfileId } from "./useProfile";
 import { useActGate, useGmBar } from "./useControl";
 import { useCampaignDispatch, useTableDispatch } from "./useSceneDispatch";
@@ -341,7 +341,8 @@ export function usePlayedBy(id: string) {
   const setOwner = useCampaignStore((s) => s.setOwner);
   const bar = useGmBar();
   const gate = useActGate();
-  return { owner, options, bar, set: (o: string | null) => { if (gate("gm")) setOwner(id, o); } } as const;
+  const name = getOwnerName(owner, profiles);
+  return { owner, name, options, bar, set: (o: string | null) => { if (gate("gm")) setOwner(id, o); } } as const;
 }
 
 // The campaign's journal as the viewer may read it — the GM's notes only for

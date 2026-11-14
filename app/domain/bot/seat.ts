@@ -1,5 +1,7 @@
 import type { SceneState } from '../scene/types'
 import { applySceneCommand, type CommandContext, type SceneCommand } from '../scene/commands/registry'
+import { getContenders, getContestClosed, getTurnHolder } from '../scene/rules/turn'
+import { getOpenAction } from '../scene/rules/log'
 import type { Viewer } from '../profiles'
 import { rollD10, rollModed, seededRng, type Dice } from '../play/dice'
 import { getBelief } from './belief'
@@ -33,10 +35,13 @@ import { getTablePress } from './autoTable'
 // make is written down and the seat counts as waiting. When nothing moves, the
 // fight is stalled.
 
-export type Seat = { id: string; members: readonly string[]; box: Box }
+// A seat presses as `profile`, or as its id when it has none: a bot that
+// plays several parties plays each as a seat of its own, under one profile.
+export type Seat = { id: string; members: readonly string[]; box: Box; profile?: string }
 
-export function seatViewer(seat: Pick<Seat, 'id' | 'members'>): Viewer {
-  return { profile: seat.id, role: 'player', gmMode: false, profiles: [], ownerOf: (id) => (seat.members.includes(id) ? seat.id : undefined) }
+export function seatViewer(seat: Pick<Seat, 'id' | 'members' | 'profile'>): Viewer {
+  const profile = seat.profile ?? seat.id
+  return { profile, role: 'player', gmMode: false, profiles: [], ownerOf: (id) => (seat.members.includes(id) ? profile : undefined) }
 }
 
 const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
@@ -45,15 +50,44 @@ const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], owne
 // what was refused, if anything was.
 export type Entry = { by: string; why: string; sent: { command: SceneCommand; dice: number[] }[]; refused: string | null }
 
-export type StepOptions = {
+export type MoveOptions = {
   ctx: CommandContext
-  // what was drawn while a command ran, emptied before each
-  drawn: () => number[]
   // the dice a bot throws when a die is called for one of its characters
   botDice: Dice
   rngOf: (seatId: string) => () => number
   // whether the table presses for a GM nobody plays
   autoTable: boolean
+  // whom a seat presses as: its own player viewer when not given
+  viewerOf?: (seat: Seat) => Viewer
+}
+
+export type StepOptions = MoveOptions & {
+  // what was drawn while a command ran, emptied before each
+  drawn: () => number[]
+}
+
+// What a seat, or the table, would press, as whom, and for which of its
+// characters (`who`, none for the table's); or a decision of a seat that came
+// to no presses it may make.
+export type Move = { by: string; who: string | null; why: string; viewer: Viewer; commands: readonly SceneCommand[] }
+type Candidate = Move | { by: string; who: string | null; why: string; refused: string }
+
+// The character a decision is for: the one it declares or answers with, the
+// one whose action it lands, or the one the button or choice it presses is for.
+function whoDecided(state: SceneState, members: readonly string[], decision: Decision): string | null {
+  switch (decision.kind) {
+    case 'declare':
+      return decision.intent.actorId
+    case 'settle':
+      return getOpenAction(state)?.actorId ?? null
+    case 'press': {
+      if ('actorId' in decision.pick) return decision.pick.actorId
+      const first = (decision.pick.command.args as readonly unknown[])[0]
+      return typeof first === 'string' && members.includes(first) ? first : null
+    }
+    case 'wait':
+      return null
+  }
 }
 
 type Stepped = { state: SceneState; entries: Entry[] }
@@ -76,7 +110,7 @@ function present(state: SceneState, seat: Seat): string[] {
 }
 
 // What the seat may know and press now, or null when it has nothing at all.
-function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[], opts: StepOptions): SeatInput | null {
+function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[], opts: MoveOptions): SeatInput | null {
   const buttons = getMyButtons(state, members)
   const choices = getMyChoices(state, members)
   if (waits.length === 0 && buttons.length === 0 && choices.length === 0) return null
@@ -91,16 +125,14 @@ function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[]
   }
 }
 
-export function step(state: SceneState, seats: readonly Seat[], opts: StepOptions, from = 0): Stepped {
-  const entries: Entry[] = []
-
+// The moves in the order they are tried, each decided only when reached.
+function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions, from: number): Generator<Candidate> {
+  const viewerOf = opts.viewerOf ?? seatViewer
   for (const call of Object.values(state.calls)) {
     const seat = call.die === null ? seats.find((s) => s.members.includes(call.roller)) : undefined
     if (!seat) continue
     const die = rollModed(call.mode, call.explodes, opts.botDice)
-    const made = send(state, [{ kind: 'answer', args: [call.id, die, 'screen'] }], seatViewer(seat), opts)
-    entries.push({ by: seat.id, why: `throws ${call.label}`, sent: made.sent, refused: made.refused })
-    if (made.state !== state) return { state: made.state, entries }
+    yield { by: seat.id, who: call.roller, why: `throws ${call.label}`, viewer: viewerOf(seat), commands: [{ kind: 'answer', args: [call.id, die, 'screen'] }] }
   }
 
   const start = seats.length > 0 ? ((from % seats.length) + seats.length) % seats.length : 0
@@ -109,24 +141,17 @@ export function step(state: SceneState, seats: readonly Seat[], opts: StepOption
     const members = present(state, seat)
     return { seat, members, waits: getWaits(state, members) }
   })
-  const owed = asked.filter((a) => a.waits.length > 0)
-  const moved = askSeats(state, owed, opts, entries)
-  if (moved) return { state: moved, entries }
+  yield* askSeats(state, asked.filter((a) => a.waits.length > 0), opts)
 
   const press = opts.autoTable ? getTablePress(state) : null
-  if (press) {
-    const made = send(state, [press], GM, opts)
-    entries.push({ by: 'table', why: press.kind, sent: made.sent, refused: made.refused })
-    if (made.state !== state) return { state: made.state, entries }
-  }
+  if (press) yield { by: 'table', who: null, why: press.kind, viewer: GM, commands: [press] }
 
-  const rest = askSeats(state, asked.filter((a) => a.waits.length === 0), opts, entries)
-  return { state: rest ?? state, entries }
+  yield* askSeats(state, asked.filter((a) => a.waits.length === 0), opts)
 }
 
-// The seats asked in turn; the fight after the first whose presses moved it,
-// or null when none did.
-function askSeats(state: SceneState, asked: { seat: Seat; members: string[]; waits: Wait[] }[], opts: StepOptions, entries: Entry[]): SceneState | null {
+// The seats asked in turn, each for its decision as presses.
+function* askSeats(state: SceneState, asked: { seat: Seat; members: string[]; waits: Wait[] }[], opts: MoveOptions): Generator<Candidate> {
+  const viewerOf = opts.viewerOf ?? seatViewer
   for (const { seat, members, waits } of asked) {
     if (members.length === 0) continue
     const input = inputOf(state, seat, members, waits, opts)
@@ -134,15 +159,66 @@ function askSeats(state: SceneState, asked: { seat: Seat; members: string[]; wai
     const decision: Decision = seat.box(input)
     if (decision.kind === 'wait') continue
     const commands = toCommands(state, input, decision, opts.ctx)
-    if (!commands.ok) {
-      entries.push({ by: seat.id, why: decision.why, sent: [], refused: commands.refused })
+    const who = whoDecided(state, members, decision)
+    yield commands.ok
+      ? { by: seat.id, who, why: decision.why, viewer: viewerOf(seat), commands: commands.commands }
+      : { by: seat.id, who, why: decision.why, refused: commands.refused }
+  }
+}
+
+export function step(state: SceneState, seats: readonly Seat[], opts: StepOptions, from = 0): Stepped {
+  const entries: Entry[] = []
+  for (const move of getMoves(state, seats, opts, from)) {
+    if ('refused' in move) {
+      entries.push({ by: move.by, why: move.why, sent: [], refused: move.refused })
       continue
     }
-    const made = send(state, commands.commands, seatViewer(seat), opts)
-    entries.push({ by: seat.id, why: decision.why, sent: made.sent, refused: made.refused })
-    if (made.state !== state) return made.state
+    const made = send(state, move.commands, move.viewer, opts)
+    entries.push({ by: move.by, why: move.why, sent: made.sent, refused: made.refused })
+    if (made.state !== state) return { state: made.state, entries }
   }
-  return null
+  return { state, entries }
+}
+
+// The move `step` would make, found on a trial of the fight instead of made,
+// for a table that sends it itself; with what was refused on the way. The
+// next call takes `from` as the seat after the one that moved (`next`), so
+// that no seat is kept waiting by another that always has something to press.
+export function getNextMove(state: SceneState, seats: readonly Seat[], opts: MoveOptions, from = 0): { move: Move | null; next: number; refused: string[] } {
+  const refused: string[] = []
+  for (const move of getMoves(state, seats, opts, from)) {
+    if ('refused' in move) {
+      refused.push(`${move.by}: ${move.why}: ${move.refused}`)
+      continue
+    }
+    let s = state
+    for (const command of move.commands) {
+      const next = applySceneCommand(s, command, move.viewer, opts.ctx)
+      if (next === s) break
+      s = next
+    }
+    const mover = seats.findIndex((seat) => seat.id === move.by)
+    if (s !== state) return { move, next: mover >= 0 ? mover + 1 : from, refused }
+    refused.push(`${move.by}: ${move.why}: refused by the table`)
+  }
+  return { move: null, next: from, refused }
+}
+
+// How soon the holder's seat may play the turn it has taken. Anything it does
+// in the turn closes the contest for it (play.tex "Combat"), so while the
+// contest is open it waits: `CONTEST_WINDOW_MS` while nobody has asked
+// (`contestable`), and for the contest's roll once someone has (`contested`).
+// A die is thrown at once, and every other move is made at once.
+export type Pace = 'now' | 'contestable' | 'contested'
+
+export const CONTEST_WINDOW_MS = 10_000
+
+export function getPace(state: SceneState, seats: readonly Seat[], move: Move): Pace {
+  const holder = getTurnHolder(state)
+  if (!holder || getContestClosed(state) !== null) return 'now'
+  if (!seats.find((s) => s.id === move.by)?.members.includes(holder)) return 'now'
+  if (move.commands.every((c) => c.kind === 'answer')) return 'now'
+  return getContenders(state).length > 0 ? 'contested' : 'contestable'
 }
 
 export type RunOptions = { seed: number; autoTable?: boolean; maxSteps?: number; maxRounds?: number }

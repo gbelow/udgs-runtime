@@ -12,6 +12,7 @@ import { ProfileLanding, ProfileMenu } from './ProfileMenu';
 import { useProfileId } from '../hooks/useProfile';
 import { useTableSession } from '../hooks/useTable';
 import { useAutosave } from '../hooks/useCampaign';
+import { useBots } from '../hooks/useBots';
 
 const TABS = [
   { tab: 'create', label: 'Create', mobile: true },
@@ -29,6 +30,7 @@ export function App(){
   const [open, setOpen] = useState(false)
 
   useTableSession()
+  useBots()
   useAutosave()
 
   if (!useProfileId()) return <ProfileLanding />

@@ -1,7 +1,7 @@
 import type { Coord, SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
-import { findOpenRoot, getOpenAction } from '../rules/log'
+import { findOpenRoot, getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { getNextStep } from '../rules/action'
 import { getReachableCells } from '../rules/board/reach'
 import { getAim } from '../rules/aim'
@@ -176,10 +176,17 @@ function answerChoices(r: ReactorOptions): OpenChoice[] {
 function cellChoices(state: SceneState): OpenChoice[] {
   const open = getOpenAction(state)
   if (!open || !state.board) return []
-  const cells = (actorId: string, list: readonly Coord[], label: string): OpenChoice[] =>
-    list.map((cell) => choice(actorId, 'cell', { q: cell.q, r: cell.r }, false, { kind: 'click', args: [{ on: 'cell', cell }, null, false, actorId] }, `${label} ${cell.q},${cell.r}`))
+  const cells = (actorId: string, list: readonly Coord[], label: string, picked: Coord | null = null): OpenChoice[] => {
+    const seen = new Set<string>()
+    return list.filter((cell) => !seen.has(`${cell.q},${cell.r}`) && !!seen.add(`${cell.q},${cell.r}`)).map((cell) =>
+      choice(actorId, 'cell', { q: cell.q, r: cell.r }, !!picked && sameCell(picked, cell), { kind: 'click', args: [{ on: 'cell', cell }, null, false, actorId] }, `${label} ${cell.q},${cell.r}`))
+  }
   const jumper = getEvasiveJumper(state)
-  if (jumper) return cells(jumper, getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => p.cell), 'land at')
+  if (jumper) {
+    const jump = getLiveReactionsTo(state, open.id).find((a) => a.actorId === jumper && a.kind === 'evasiveJump')
+    const landing = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
+    return cells(jumper, getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => p.cell), 'land at', landing)
+  }
   const landings = getAttackLandings(state)
   if (landings.length > 0) return cells(open.actorId, landings.filter((p) => !(isJumpAttack(open) && open.jumpTo && sameCell(open.jumpTo.cell, p.cell))).map((p) => p.cell), 'jump to')
   if (open.kind === 'move' && open.step === 'define') return cells(open.actorId, getReachableCells(state, open).map((r) => r.cell), 'go to')

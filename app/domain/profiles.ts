@@ -44,6 +44,20 @@ export function hasGmTools(role: Role): boolean {
   return role !== 'player'
 }
 
+// The bots, one for each decision box (domain/bot/bots.ts): owners a
+// character is given to as to a player, in any campaign, without being one
+// of its members. A bot plays every party it is given characters in as a seat
+// of its own.
+export const BOTS = [
+  { id: 'bot:threat', name: 'bot: threat' },
+  { id: 'bot:nearest', name: 'bot: nearest' },
+] as const satisfies readonly ProfileListing[]
+export type BotId = (typeof BOTS)[number]['id']
+
+export function isBot(id: string): id is BotId {
+  return BOTS.some((b) => b.id === id)
+}
+
 // Who plays a campaign and as what, by profile id.
 export const CampaignMembersSchema = z.record(z.string(), z.enum(['gm', 'player']))
 export type CampaignMembers = z.infer<typeof CampaignMembersSchema>
@@ -53,7 +67,9 @@ export type MemberRole = CampaignMembers[string]
 // has joined yet, the one played before it is ever saved, is the GM's of
 // whoever is at the screen. On the dev server a GM is the developer; a player
 // stays a player.
+// A bot is a player in every campaign, never a GM.
 export function getCampaignRole(members: CampaignMembers, profile: string | null, devServer: boolean): Role {
+  if (profile !== null && isBot(profile)) return 'player'
   const role = Object.keys(members).length === 0 ? 'gm' : (profile && members[profile]) || 'player'
   return devServer && role === 'gm' ? 'dev' : role
 }
@@ -164,22 +180,31 @@ export function getOwner(id: string, owners: CharacterOwners): string | undefine
   return owners[id] ?? undefined
 }
 
-// Whom the GM may give a character in play to: the campaign's members, and
-// whoever plays them now.
+// Whom the GM may give a character in play to: the campaign's members,
+// whoever plays them now, and the bots.
 export function getOwnerOptions(members: CampaignMembers, profiles: readonly ProfileListing[], owner: string | null): ProfileListing[] {
-  return profiles.filter((p) => p.id in members || p.id === owner)
+  return [...profiles.filter((p) => p.id in members || p.id === owner), ...BOTS]
 }
 
 // Why a character cannot be given to `owner` in a campaign with these
-// members: only a member plays one.
+// members: only a member or a bot plays one.
 export function getAssignBar(members: CampaignMembers, owner: string | null): string | null {
-  return owner === null || owner in members ? null : 'only a member of the campaign plays a character'
+  return owner === null || owner in members || isBot(owner) ? null : 'only a member of the campaign plays a character'
 }
 
 // Whether `profile`, as `role` in the campaign, plays a character `owner`
-// owns: a player plays only their own, and a GM plays everyone.
+// owns: a player plays only their own, and a GM plays everyone but a bot's,
+// which the GM takes back by giving them to the GM.
 export function canControl(owner: string | undefined, profile: string | null, role: Role): boolean {
+  if (owner !== undefined && isBot(owner)) return profile === owner
   return hasGmTools(role) || (profile !== null && owner === profile)
+}
+
+// The name of whoever plays a character `owner` owns, named from `profiles`
+// or the bots; null for the GM's.
+export function getOwnerName(owner: string | undefined | null, profiles: readonly ProfileListing[]): string | null {
+  if (!owner) return null
+  return [...profiles, ...BOTS].find((p) => p.id === owner)?.name || 'another player'
 }
 
 // The characters among `ids` the viewer plays.
@@ -197,17 +222,16 @@ export function isOwnRoller(owner: string | undefined, profile: string | null, r
 
 // Whether a character `owner` owns has no screen of their own at the table to
 // throw its dice on, so the GM's screen throws them: the GM's tools, and
-// nobody of `seated` is `owner`.
+// nobody of `seated` is `owner`. A bot throws its own.
 export function isAbsentRoller(owner: string | undefined, role: Role, seated: readonly string[]): boolean {
-  return owner !== undefined && hasGmTools(role) && !seated.includes(owner)
+  return owner !== undefined && !isBot(owner) && hasGmTools(role) && !seated.includes(owner)
 }
 
 // Why `profile`, as `role`, cannot play a character `owner` owns: someone
-// else plays them, named from `profiles`, or the GM does.
+// else plays them, named from `profiles` or the bots, or the GM does.
 export function getControlBar(owner: string | undefined, profile: string | null, role: Role, profiles: readonly ProfileListing[]): string | null {
   if (canControl(owner, profile, role)) return null
-  const name = owner ? profiles.find((p) => p.id === owner)?.name : undefined
-  return owner ? `played by ${name || 'another player'}` : 'played by the GM'
+  return `played by ${getOwnerName(owner, profiles) ?? 'the GM'}`
 }
 
 // Whether `profile`, as `role` in the campaign, may change or throw away a

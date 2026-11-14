@@ -32,6 +32,12 @@ export function PlayedBy({ id, name }: { id: string, name: string }){
   )
 }
 
+// Who plays a character, beside their name: nothing for the GM's.
+export function PlayedByTag({ id }: { id: string }){
+  const { name } = usePlayedBy(id)
+  return name ? <span className='text-[10px] text-muted whitespace-nowrap' title='played by'>{name}</span> : null
+}
+
 // The character catalog, opened beside a roster or a party: whoever is
 // picked joins it, as `onSelect` says or else as the tab loads a character.
 // The catalog is the GM's; a player brings in only PCs.

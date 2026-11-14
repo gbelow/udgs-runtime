@@ -3,6 +3,7 @@ import { useCombatActions } from '../hooks/useCombatActions'
 import { FollowOption, FollowPicking } from './FollowButton'
 import { useGmBar, useIsToken } from '../hooks/useControl'
 import { usePartyCommands, useSaveLogBar } from '../hooks/useParty'
+import { useBotLog } from '../hooks/useBots'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
 import type { MovementOption } from '../domain/scene/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/scene/projections/actionPanel'
@@ -689,12 +690,32 @@ export function SaveLogButton(){
 export function ActionLog(){
   const { view } = useCombatActions()
   const { episodes, edits } = view
-  if (episodes.length === 0 && edits.length === 0) return <span className='text-xs text-muted'>nothing played this round</span>
   return (
     <div className='flex flex-col gap-1.5'>
+      <BotReasons />
+      {episodes.length === 0 && edits.length === 0 ? <span className='text-xs text-muted'>nothing played this round</span> : null}
       {edits.map((e, i) => <span key={i} className='text-xs text-muted'>since: {e}</span>)}
       {episodes.map((episode, i) => <Report key={episodes.length - i} episode={episode} open={i === 0} />)}
     </div>
+  )
+}
+
+// What the bots played this round and why, folded away under the log.
+function BotReasons(){
+  const entries = useBotLog()
+  if (entries.length === 0) return null
+  return (
+    <details className='border-b border-line/50 pb-1.5'>
+      <summary className='cursor-pointer select-none text-xs text-muted'>bots this round ({entries.length})</summary>
+      <div className='flex flex-col pt-1'>
+        {entries.map((e, i) => (
+          <span key={entries.length - i} className='text-xs'>
+            <span className='font-medium'>{e.who}</span> {e.why}
+            {e.refused ? <span className='text-bad'> · refused: {e.refused}</span> : null}
+          </span>
+        ))}
+      </div>
+    </details>
   )
 }
 
