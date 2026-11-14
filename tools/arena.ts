@@ -7,6 +7,7 @@ import { playFight, tally, type Fight } from '../app/domain/bot/arena'
 import type { Box } from '../app/domain/bot/decision'
 import type { SceneState } from '../app/domain/scene/types'
 import { nearestBox } from '../app/domain/bot/boxes/nearest'
+import { threatBox } from '../app/domain/bot/boxes/threat'
 import { CLOSE as SCENARIOS, setUp, ARENA } from './lib/scenarios'
 
 // Boxes played against each other on the arena's scenarios (tools/lib/scenarios.ts `CLOSE`),
@@ -22,6 +23,7 @@ import { CLOSE as SCENARIOS, setUp, ARENA } from './lib/scenarios'
 
 const BOXES: Record<string, () => Box> = {
   nearest: () => nearestBox,
+  threat: () => threatBox(),
 }
 
 function flag(name: string): string | null {

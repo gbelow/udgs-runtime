@@ -12,6 +12,7 @@ import type { OpenButton } from '../../scene/projections/buttons'
 import { declare, settle, type Intent } from '../declare'
 import { getSides } from '../table'
 import type { Box, Decision, SeatInput } from '../decision'
+import type { Wait } from '../table'
 
 // A baseline to measure other boxes against: each character walks to the foe
 // nearest them and attacks it with the first weapon that reaches, and does
@@ -86,38 +87,41 @@ function planTurn(state: SceneState, members: readonly string[], id: string, foc
   return move ? { kind: 'move', intent: move } : null
 }
 
-export const nearestBox: Box = (input) => {
-  const { members, waits, buttons, choices } = input
-  const find = (kind: SceneCommand['kind'], id?: string): OpenButton | undefined =>
-    buttons.find((b) => b.command.kind === kind && (id === undefined || argOf(b.command) === id))
-  const press = (b: OpenButton | undefined, why: string): Decision | null => (b ? { kind: 'press', pick: b, why } : null)
+export type Find = (kind: SceneCommand['kind'], id?: string) => OpenButton | undefined
+export type Press = (b: OpenButton | undefined, why: string) => Decision | null
 
-  for (const wait of waits) {
-    const { id } = wait
-    const made = (() => {
-      switch (wait.for) {
-        case 'answer':
-          return press(find('pass', id), 'lets it come')
-        case 'concentration':
-          return press(find('holdOn', id) ?? find('letGo', id), 'holds on')
-        case 'morale':
-          return press(find('rollMorale', id) ?? find('keepMorale', id) ?? find('skipMorale', id), 'makes the morale test')
-        case 'action':
-          return finishAction(input, id, find, press)
-        case 'turn':
-          return takeTurn(input, id, find, press)
-        case 'die':
-          return null
-      }
-    })()
-    if (made) return made
+// The buttons open to the seat, found by the command they press and whom for.
+export function finding(buttons: readonly OpenButton[]): { find: Find; press: Press } {
+  const find: Find = (kind, id) => buttons.find((b) => b.command.kind === kind && (id === undefined || argOf(b.command) === id))
+  const press: Press = (b, why) => (b ? { kind: 'press', pick: b, why } : null)
+  return { find, press }
+}
+
+// What the box does about what the table waits on a member for, but the
+// answer and the turn, which `nearestBox` plays as its own: hold on to what it
+// concentrates on, make the morale test, land what it rolled.
+export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Press): Decision | null {
+  const { id } = wait
+  switch (wait.for) {
+    case 'concentration':
+      return press(find('holdOn', id) ?? find('letGo', id), 'holds on')
+    case 'morale':
+      return press(find('rollMorale', id) ?? find('keepMorale', id) ?? find('skipMorale', id), 'makes the morale test')
+    case 'action':
+      return finishAction(input, id, find, press)
+    case 'answer':
+    case 'turn':
+    case 'die':
+      return null
   }
+}
 
+// What is left once nobody is waited on and no turn is started: agree to end
+// the round, then move on what the table holds (a held test, a roll, a payment,
+// a landing), then fill what is asked.
+export function carryOn(input: SeatInput, find: Find): Decision {
+  const { members, buttons, choices } = input
   const view = input.view()
-  for (const id of members) {
-    const start = find('startTurn', id)
-    if (start && planTurn(trial(view, start.command), members, id)) return { kind: 'press', pick: start, why: 'has a foe to go for' }
-  }
   for (const id of members) {
     const agree = find('toggleAgreeToEnd', id)
     if (agree && !hasAgreedToEnd(view, id)) return { kind: 'press', pick: agree, why: 'has nothing more to do this round' }
@@ -129,8 +133,30 @@ export const nearestBox: Box = (input) => {
   return fill ? { kind: 'press', pick: fill, why: fill.label } : { kind: 'wait', why: 'nothing to do' }
 }
 
-type Find = (kind: SceneCommand['kind'], id?: string) => OpenButton | undefined
-type Press = (b: OpenButton | undefined, why: string) => Decision | null
+// The turn's end when there is nothing to do in it: ended, or the limit stress
+// action it owes refused, or a surge it is held to made.
+export function endTurn(input: SeatInput, id: string, find: Find, press: Press): Decision | null {
+  return press(find('endTurn'), 'has nothing more to do this turn') ?? press(find('defaultToCoward', id), 'will not do the limit stress action it owes') ?? forcedSurge(input, id)
+}
+
+export const nearestBox: Box = (input) => {
+  const { members, waits, buttons } = input
+  const { find, press } = finding(buttons)
+
+  for (const wait of waits) {
+    const made = wait.for === 'answer' ? press(find('pass', wait.id), 'lets it come')
+      : wait.for === 'turn' ? takeTurn(input, wait.id, find, press)
+      : settleWait(input, wait, find, press)
+    if (made) return made
+  }
+
+  const view = input.view()
+  for (const id of members) {
+    const start = find('startTurn', id)
+    if (start && planTurn(trial(view, start.command), members, id)) return { kind: 'press', pick: start, why: 'has a foe to go for' }
+  }
+  return carryOn(input, find)
+}
 
 function finishAction(input: SeatInput, id: string, find: Find, press: Press): Decision | null {
   const view = input.view()
@@ -150,7 +176,7 @@ function takeTurn(input: SeatInput, id: string, find: Find, press: Press): Decis
   if (plan?.kind === 'attack') return { kind: 'declare', intent: plan.intent, why: 'attacks the nearest foe' }
   if (plan?.kind === 'focus') return press(focus, 'focuses to shoot')
   if (plan?.kind === 'move') return { kind: 'declare', intent: plan.intent, why: 'walks to the nearest foe' }
-  return press(find('endTurn'), 'has nothing more to do this turn') ?? press(find('defaultToCoward', id), 'will not do the limit stress action it owes') ?? forcedSurge(input, id)
+  return endTurn(input, id, find, press)
 }
 
 // A surge the turn cannot end without (one the table forces on the
