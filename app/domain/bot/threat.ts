@@ -400,9 +400,30 @@ function isSkipped(state: SceneState, a: string, from: Coord | null, d: string, 
   return isOutOfReach(state, a, at) && hasOtherInReach(state, a, d)
 }
 
+// A threat asked of a state, read once: by the tuning, then by the rest of
+// the question. Of `plays`, only whether it holds the two counts.
+const threats = new WeakMap<SceneState, WeakMap<ThreatTuning, Map<string, Threat | null>>>()
+
+function remembered(state: SceneState, tuning: ThreatTuning, key: string, read: () => Threat | null): Threat | null {
+  let byTuning = threats.get(state)
+  if (!byTuning) threats.set(state, (byTuning = new WeakMap()))
+  let byKey = byTuning.get(tuning)
+  if (!byKey) byTuning.set(tuning, (byKey = new Map()))
+  if (byKey.has(key)) return byKey.get(key) ?? null
+  const made = read()
+  byKey.set(key, made)
+  return made
+}
+
+const cellText = (c: Coord | null): string => (c ? coordKey(c) : '-')
+
 // `a`'s potential threat on `d` standing at `at`, were `a` standing at
 // `from`: a fresh round, then the next.
 export function getPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), from: Coord | null = cellOf(state, a), tuning: ThreatTuning = THREAT_TUNING): Threat | null {
+  return remembered(state, tuning, `potential|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${cellText(from)}`, () => readPotentialThreat(state, plays, a, d, at, from, tuning))
+}
+
+function readPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null, from: Coord | null, tuning: ThreatTuning): Threat | null {
   const ca = state.characters[a]
   const cd = state.characters[d]
   if (!ca || !cd || isSkipped(state, a, from, d, at)) return null
@@ -416,6 +437,10 @@ export function getPotentialThreat(state: SceneState, plays: readonly string[], 
 // `a`'s immediate threat on `d` standing at `at`, defending with `guard` (what
 // `d` is believed to have left, unless said).
 export function getImmediateThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), guard?: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): Threat | null {
+  return remembered(state, tuning, `immediate|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${guard ? `${guard.AP},${guard.STA}` : '-'}`, () => readImmediateThreat(state, plays, a, d, at, guard, tuning))
+}
+
+function readImmediateThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null, guard: { AP: number; STA: number } | undefined, tuning: ThreatTuning): Threat | null {
   const ca = state.characters[a]
   const cd = state.characters[d]
   if (!ca || !cd || isSkipped(state, a, cellOf(state, a), d, at)) return null

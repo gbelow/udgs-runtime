@@ -76,11 +76,23 @@ export function predict(state: SceneState, roll: Supposed, picks: readonly Pick[
 // furthest past the target's armor. Each is read off the damage rules as the
 // landing reads them (`getAttackFacts`, `outcomeOf`), with nothing pressed:
 // `root` is a rolled hit, with whatever it has bought already.
+//
+// What a spend comes to reads the hit's degree but not its HOP, so a caller
+// spending the same hit at several HOPs passes one `known` for all of them,
+// and each spend is read once.
 export type Purchases = Partial<Record<HOPPurchase, number>>
 
-export function getBestSpend(state: SceneState, root: AttackAction): { purchases: Purchases; outcome: Outcome | null } {
+export function getBestSpend(state: SceneState, root: AttackAction, known?: Map<string, Outcome | null>): { purchases: Purchases; outcome: Outcome | null } {
   const target = root.targetId ? state.characters[root.targetId] : undefined
   const read = (purchases: Purchases): Outcome | null => {
+    if (!known) return readSpend(purchases)
+    const key = (Object.entries(purchases) as [HOPPurchase, number][]).sort(([a], [b]) => (a < b ? -1 : 1)).map(([p, n]) => `${p}${n}`).join(' ')
+    if (known.has(key)) return known.get(key) ?? null
+    const outcome = readSpend(purchases)
+    known.set(key, outcome)
+    return outcome
+  }
+  const readSpend = (purchases: Purchases): Outcome | null => {
     const spent = { ...root.spent }
     for (const [p, n] of Object.entries(purchases) as [HOPPurchase, number][]) spent[p] = (spent[p] ?? 0) + n
     const facts = getAttackFacts(state, { ...root, spent })

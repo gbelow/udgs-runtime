@@ -90,11 +90,15 @@ export type PairAttack = {
 
 export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + 3 * o.bleed : 0)
 
-const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, usedSurge: null, resources: { ...c.resources, AP: ROUND_AP, STA: getSTA(c) } })
+const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, usedSurge: null, surgeFloor: null, runsFree: false, resources: { ...c.resources, AP: ROUND_AP, STA: getSTA(c) } })
 
 // The two, and nothing else: the fight begun, so that what they do is priced.
+// The sheets are put in as they are, already made by the schema, into a fight
+// made by it once.
+const BEGUN = SceneStateSchema.parse({ round: 1, parties: { a: {}, d: {} } })
+
 function between(attacker: CampaignCharacter, defender: CampaignCharacter): SceneState {
-  return SceneStateSchema.parse({ round: 1, characters: { [attacker.id]: attacker, [defender.id]: defender }, parties: { a: {}, d: {} }, partyOf: { [attacker.id]: 'a', [defender.id]: 'd' } })
+  return { ...BEGUN, characters: { [attacker.id]: attacker, [defender.id]: defender }, partyOf: { [attacker.id]: 'a', [defender.id]: 'd' } }
 }
 
 const ATTACK_ID = 'pair-attack'
@@ -124,6 +128,7 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
   const focused: CampaignCharacter = { ...ready, usedSurge: 'focus' }
   const target = fresh(defender)
   const unfocused = between(ready, target)
+  const harms = getHarms(attacker, defender)
   const open = new Set(getFreeAttackOptions(unfocused, ready, 'shoot').map((o) => `${o.weaponKey}/${o.attack}/${o.variant}`))
   const attacks: PairAttack[] = []
   for (const kind of ['strike', 'shoot'] as const) {
@@ -161,23 +166,33 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
           const price = getOwnCost(given, reaction)
           return price ? [{ draft: o.draft, state: given, cost: price }] : []
         })]
-        const hit = (state: SceneState, HOP: number) => {
+        // the attack and each answer as the harm table knows them
+        const attackKey = `${kind}|${actor === focused}|${row.weaponKey}/${row.attack}/${row.variant}|${ammoId}|${heavy}`
+        type Defended = (typeof defended)[number]
+        const answerKey = (def: Defended) => `${attackKey}|${def.draft ? `${JSON.stringify(def.draft)}|${def.cost.AP}|${def.cost.STA}` : 'none'}`
+        // the spends of a hit read once for every HOP it is read at (`getBestSpend`)
+        const spends = new Map<Defended, Map<string, Outcome | null>>()
+        const hit = (def: Defended, HOP: number) => harms.read(`${answerKey(def)}|hit|${HOP}`, () => {
           const at = rolled(root, 'hit', HOP)
-          return getHarm(getBestSpend(state, bonus === 'braced' ? { ...at, spent: { braced: 1 } } : at).outcome)
-        }
+          const known = spends.get(def) ?? new Map<string, Outcome | null>()
+          spends.set(def, known)
+          return getHarm(getBestSpend(def.state, bonus === 'braced' ? { ...at, spent: { braced: 1 } } : at, known).outcome)
+        })
         const tested = defended.flatMap((def) => {
           const t = getRootTest(def.state, root)
           return t ? [{ def, t }] : []
         })
         const most = getMostHOP(test.skill, Math.min(...tested.map((x) => x.t.DL)))
-        const hitsIn = (state: SceneState) => Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => hit(state, HOP))
-        const hits = hitsIn(made)
+        const hitsIn = (def: Defended) => Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => hit(def, HOP))
+        const hits = hitsIn(defended[0])
         // a hook attack's bonus turns on how the target answers (combat.tex
         // "Hook Attack": against an evasive jump), so its hits are read again
         // against each defence
         const defences = tested.map(({ def, t }): PairDefence => {
-          const own = bonus === 'hook' && def.draft ? hitsIn(def.state) : null
-          return { draft: def.draft, cost: def.cost, DL: t.DL, graze: harmAt(def.state, root, 'graze', target), miss: harmAt(def.state, root, 'miss', target), ...(own && own.some((h, i) => h !== hits[i]) ? { hits: own } : {}) }
+          const own = bonus === 'hook' && def.draft ? hitsIn(def) : null
+          const graze = harms.read(`${answerKey(def)}|graze`, () => harmAt(def.state, root, 'graze', target))
+          const miss = harms.read(`${answerKey(def)}|miss`, () => harmAt(def.state, root, 'miss', target))
+          return { draft: def.draft, cost: def.cost, DL: t.DL, graze, miss, ...(own && own.some((h, i) => h !== hits[i]) ? { hits: own } : {}) }
         })
         attacks.push({
           kind,
@@ -205,18 +220,21 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
 }
 
 // A sheet as the pair table reads it: who it is and what changes on every
-// press (AP, STA, the surge made, the face's thirds) left out, and its injury
-// level read as the penalty it gives (combat.tex "Injury level (IL)"), which
-// is all of it an attack or a defence reads, so the table is read again only
-// when something it rests on changes, and two copies of one sheet share it.
+// press (AP, STA, the surge made and what it left, the face's thirds) left
+// out, and its injury level read as the penalty it gives (combat.tex "Injury
+// level (IL)"), which is all of it an attack or a defence reads, so the table
+// is read again only when something it rests on changes, and two copies of
+// one sheet share it.
 const signatures = new WeakMap<CampaignCharacter, string>()
 
 function signature(c: CampaignCharacter): string {
   let sig = signatures.get(c)
   if (sig === undefined) {
-    const { id, resources, usedSurge, shown, injuries, ...rest } = c
+    const { id, resources, usedSurge, surgeFloor, runsFree, shown, injuries, ...rest } = c
     void id
     void usedSurge
+    void surgeFloor
+    void runsFree
     void shown
     sig = JSON.stringify({ ...rest, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, injuryLevel: getInjuryPenalty(c) } })
     signatures.set(c, sig)
@@ -224,16 +242,81 @@ function signature(c: CampaignCharacter): string {
   return sig
 }
 
-const pairs = new Map<string, PairAttack[]>()
+// A sheet as the harm an attack does reads it: besides what the pair table
+// leaves out, the round's flags, the limit stress, bleed, and the value of
+// every skill and knowledge, none of which damage reads (an attack's harm
+// grows with its HOP, never with a skill; no buff adds damage; the user's
+// rulings). Its injury level stays, read as the penalty it gives, which comes
+// off STR, AGI and STA. So the harm is shared by the sheets of one fighter
+// that differ in those alone, as a fight wears it down and as each seat
+// believes it.
+const harmSignatures = new WeakMap<CampaignCharacter, string>()
+
+function harmSignature(c: CampaignCharacter): string {
+  let sig = harmSignatures.get(c)
+  if (sig === undefined) {
+    const { id, resources, usedSurge, surgeFloor, runsFree, rallied, steeled, limitStress, shown, injuries, trainables, ...rest } = c
+    void id
+    void usedSurge
+    void surgeFloor
+    void runsFree
+    void rallied
+    void steeled
+    void limitStress
+    void shown
+    const kept = Object.fromEntries(Object.entries(trainables).filter(([, t]) => t.type !== 'skill' && t.type !== 'knowledge'))
+    sig = JSON.stringify({ ...rest, trainables: kept, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, bleed: 0, injuryLevel: getInjuryPenalty(c) } })
+    harmSignatures.set(c, sig)
+  }
+  return sig
+}
+
+// What each attack of one fighter does to another, by the attack, the answer
+// it met, the degree and a hit's HOP: the layer under the pair table, read
+// once for every pair of harm signatures, which change far less often than
+// the pair table's.
+type Harms = { read: (key: string, harm: () => number) => number }
+
+const harmTables = new Map<string, Map<string, number>>()
+
+function getHarms(attacker: CampaignCharacter, defender: CampaignCharacter): Harms {
+  const key = `${harmSignature(attacker)}\n${harmSignature(defender)}`
+  let table = harmTables.get(key)
+  if (!table) {
+    if (harmTables.size >= MOST_KEPT) harmTables.clear()
+    harmTables.set(key, (table = new Map()))
+  }
+  const known = table
+  return {
+    read: (at, harm) => {
+      let value = known.get(at)
+      if (value === undefined) known.set(at, (value = harm()))
+      return value
+    },
+  }
+}
+
+// Kept by the attacker's signature, then the defender's: the signatures are
+// made once per sheet, so a lookup hashes no new string.
+const pairs = new Map<string, Map<string, PairAttack[]>>()
+let kept = 0
 const MOST_KEPT = 4000
 
 export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter): PairAttack[] {
-  const key = `${signature(attacker)}\n${signature(defender)}`
-  let known = pairs.get(key)
+  const by = signature(attacker)
+  const on = signature(defender)
+  let against = pairs.get(by)
+  let known = against?.get(on)
   if (!known) {
-    if (pairs.size >= MOST_KEPT) pairs.clear()
+    if (kept >= MOST_KEPT) {
+      pairs.clear()
+      kept = 0
+      against = undefined
+    }
+    if (!against) pairs.set(by, (against = new Map()))
     known = readPair(attacker, defender)
-    pairs.set(key, known)
+    against.set(on, known)
+    kept++
   }
   return known
 }
