@@ -7,12 +7,14 @@ import { isCombatStarted } from '../../scene/rules/started'
 import { getMovementOptions } from '../../scene/rules/move'
 import { getReachableCells } from '../../scene/rules/board/reach'
 import { distance } from '../../scene/rules/board/geometry'
-import { getEndTurnBar, hasAgreedToEnd } from '../../scene/rules/turn'
+import { getEndTurnBar, getTurnHolder, hasAgreedToEnd } from '../../scene/rules/turn'
+import { getRoundPhase } from '../../scene/rules/roundChange'
 import type { OpenButton } from '../../scene/projections/buttons'
 import { declare, settle, type Intent } from '../declare'
 import { getSides } from '../table'
 import type { Box, Decision, SeatInput } from '../decision'
 import type { Wait } from '../table'
+import { getRestChoice, REST_TUNING, type RestTuning } from '../rest'
 
 // A baseline to measure other boxes against: each character walks to the foe
 // nearest them and attacks it with the first weapon that reaches, and does
@@ -99,8 +101,9 @@ export function finding(buttons: readonly OpenButton[]): { find: Find; press: Pr
 
 // What the box does about what the table waits on a member for, but the
 // answer and the turn, which `nearestBox` plays as its own: hold on to what it
-// concentrates on, make the morale test, land what it rolled.
-export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Press): Decision | null {
+// concentrates on, make the morale test, land what it rolled, and rest or say
+// something at the round's rest step as `getRestChoice` weighs it with `rest`.
+export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Press, rest: RestTuning = REST_TUNING): Decision | null {
   const { id } = wait
   switch (wait.for) {
     case 'concentration':
@@ -109,6 +112,10 @@ export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Pres
       return press(find('rollMorale', id) ?? find('keepMorale', id) ?? find('skipMorale', id), 'makes the morale test')
     case 'action':
       return finishAction(input, id, find, press)
+    case 'rest': {
+      const choice = getRestChoice(input.view(), input.members, id, rest)
+      return choice ? { kind: 'declare', intent: { actorId: id, option: choice.draft, picks: [] }, why: choice.why } : null
+    }
     case 'answer':
     case 'turn':
     case 'die':
@@ -122,8 +129,12 @@ export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Pres
 export function carryOn(input: SeatInput, find: Find): Decision {
   const { members, buttons, choices } = input
   const view = input.view()
+  // agreeing while the round changes would end the round to come before it
+  // begins, and while someone holds a turn or an action is open, before the
+  // character has had its own turn: only once nobody plays does it say it is done
+  const waiting = getRoundPhase(view) !== null || getTurnHolder(view) !== null || getOpenAction(view) !== null
   for (const id of members) {
-    const agree = find('toggleAgreeToEnd', id)
+    const agree = waiting ? undefined : find('toggleAgreeToEnd', id)
     if (agree && !hasAgreedToEnd(view, id)) return { kind: 'press', pick: agree, why: 'has nothing more to do this round' }
   }
   const held = buttons.find((b) => b.command.kind === 'rollHeld' && members.includes(argOf(b.command) as string))

@@ -13,8 +13,10 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachCost } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
-import { cellOf, getDanger, getDefendedHarm, getHarmAgainst, getMeans, getPotentialThreat, getSTAPrice, getThreatened, getThreatening, threatValue, THREAT_TUNING, type ThreatTuning } from '../threat'
+import { cellOf, getDanger, getDefendedHarm, getHarmAgainst, getMeans, getPotentialThreat, getSTAPrice, getThreatened, getThreatening, threatValue } from '../threat'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
+import { REST_TUNING, type RestTuning } from '../rest'
+import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
 import type { Box, Decision, SeatInput } from '../decision'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
@@ -45,7 +47,7 @@ import type { Box, Decision, SeatInput } from '../decision'
 // The rest (morale, concentration, landing what it rolled, a surge it is held
 // to) it plays as the nearest box does.
 
-export type ThreatWeights = ThreatTuning & {
+export type ThreatWeights = RestTuning & {
   harm: number
   threatened: number
   threatening: number
@@ -66,7 +68,7 @@ export type ThreatWeights = ThreatTuning & {
   margin: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...THREAT_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, AP: 1, STA: 1, danger: 0.1, exposure: 0.25, offence: 1, peril: 1, aggression: 2, margin: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, AP: 1, STA: 1, danger: 0.1, exposure: 0.25, offence: 1, peril: 1, aggression: 2, margin: 1 }
 
 const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
@@ -182,7 +184,7 @@ function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null,
 }
 
 // What the character would do with the turn it holds in `view`, or null to end it.
-function planTurn(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): Plan | null {
+function planTurn(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, compelled = false): Plan | null {
   const me = view.characters[id]
   const here = cellOf(view, id)
   if (!me) return null
@@ -235,7 +237,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       }
     }
   }
-  if (best && best.score > 0 && (best.kind === 'surge' || declare(view, best.intent, TRIAL).ok)) return best
+  if (best && (best.score > 0 || compelled) && (best.kind === 'surge' || declare(view, best.intent, TRIAL).ok)) return best
 
   // no attack worth making: a walk, by where the character threatens more and
   // is threatened less, and how far it closes on the foe the team threatens most
@@ -334,7 +336,42 @@ function sameDraft(a: ActionDraft, b: ActionDraft): boolean {
   return ka.length === kb.length && ka.every((k, i) => k === kb[i] && JSON.stringify((a as Record<string, unknown>)[k]) === JSON.stringify((b as Record<string, unknown>)[k]))
 }
 
+// The limit stress action the character's turn is owed for (the user's
+// ruling, 2026-11-15): a violent character makes its combat surge and
+// attacks, whatever the attack is worth; a coward makes its movement surge and
+// runs, as far as the surge carries it; every other one defaults to coward.
+// Where only a rest makes the surge payable, it rests first (rules/stress.ts
+// `getStressDue`). Tanatosis takes no turn. 'none' when the turn is no limit
+// stress action.
+function takeStressTurn(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null | 'none' {
+  const view = input.view()
+  const turn = getStressTurn(view)
+  const me = view.characters[id]
+  if (!turn || turn.id !== id || !me) return 'none'
+  if (getStressSocial(view, id)) return press(find('defaultToCoward', id), `will not ${turn.action === 'abusive' ? 'insult' : 'negotiate'}: defaults to coward`)
+  const due = getStressDue(view)
+  if (due?.kind === 'surge') {
+    if (due.restFirst) {
+      const rest = getAvailableActions(view, id).find((o) => o.available && o.draft.kind === 'rest')
+      return rest ? { kind: 'declare', intent: { actorId: id, option: rest.draft, picks: [] }, why: `rests to make the ${due.surge} surge it owes` } : null
+    }
+    const surge = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === due.surge)
+    return press(surge, `makes the ${due.surge} surge its limit stress action owes`)
+  }
+  if (turn.action === 'violent') {
+    const plan = planTurn(view, input.members, id, w, true)
+    if (plan?.kind === 'attack' || plan?.kind === 'walk') return { kind: 'declare', intent: plan.intent, why: `violent: ${plan.why}` }
+  }
+  if (turn.action === 'coward' && getSurgeAPLeft(me) > 0) {
+    const run = getAway(view, input.members, id)
+    if (run) return { ...run, why: `coward: ${run.why}` }
+  }
+  return endTurn(input, id, find, press)
+}
+
 function takeTurn(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null {
+  const stress = takeStressTurn(input, id, w, find, press)
+  if (stress !== 'none') return stress
   const plan = planTurn(input.view(), input.members, id, w)
   if (plan?.kind === 'attack' || plan?.kind === 'walk') return { kind: 'declare', intent: plan.intent, why: plan.why }
   if (plan?.kind === 'surge') {
@@ -364,7 +401,7 @@ export function threatBox(w: ThreatWeights = THREAT_WEIGHTS): Box {
     for (const wait of waits) {
       const made = wait.for === 'answer' ? answer(input, wait.id, w, find, press)
         : wait.for === 'turn' ? takeTurn(input, wait.id, w, find, press)
-        : settleWait(input, wait, find, press)
+        : settleWait(input, wait, find, press, w)
       if (made) return made
     }
     const view = input.view()

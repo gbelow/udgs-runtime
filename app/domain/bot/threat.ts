@@ -6,7 +6,7 @@ import { makeAction } from '../scene/factories'
 import { coordKey, disk, distance, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
 import { getSTA } from '../character/rules/characteristics'
-import { getSurgeAP, getSurgeSTA } from '../character/rules/surge'
+import { canSurge, getSurgeAP, getSurgeSTA } from '../character/rules/surge'
 import { ROUND_AP } from '../tables'
 import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
 import { getExpectedHarm } from './odds'
@@ -297,13 +297,16 @@ export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: n
 type Party = { state: SceneState; id: string; at: Coord | null }
 
 // Whether the move and the attack can be paid for this round from `means`,
-// the movement surge (which pays for movement only) made only when the move
-// needs it.
-function canPayNow(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }, focused: boolean): boolean {
+// with a surge only when they need one: the movement surge, which pays for
+// movement only, or the combat surge, which pays for both (combat.tex "Action
+// surge"), where the attacker may make it (`combat`, null where it may not: an
+// afraid one may not). Neither alongside the focus surge a row needs.
+function canPayNow(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }, combat: { AP: number; STA: number } | null, focused: boolean): boolean {
   if (attack.needsFocus && !focused && !means.surge) return false
   const canSurge = means.surge && !(attack.needsFocus && !focused)
   if (moveAP + attack.cost.AP <= means.AP) return attack.cost.STA <= means.STA
-  return canSurge && Math.max(0, moveAP - surge.AP) + attack.cost.AP <= means.AP && attack.cost.STA + surge.STA <= means.STA
+  if (canSurge && Math.max(0, moveAP - surge.AP) + attack.cost.AP <= means.AP && attack.cost.STA + surge.STA <= means.STA) return true
+  return canSurge && combat !== null && moveAP + attack.cost.AP <= means.AP + combat.AP && attack.cost.STA + combat.STA <= means.STA
 }
 
 // The rounds the move and the attack take from fresh rounds, a part of a
@@ -316,6 +319,13 @@ function roundsFor(attack: PairAttack, moveAP: number, means: Means, surge: { AP
   return Math.max(1, (moveAP + attack.cost.AP) / each)
 }
 
+// The combat surge the attacker may make this round, or null: the table's own
+// gate (`canSurge`), which one who has made a surge, cannot pay its STA or is
+// afraid fails. Counted in immediate threat only (the user's ruling).
+function combatSurge(c: CampaignCharacter): { AP: number; STA: number } | null {
+  return canSurge('combat')(c) ? { AP: getSurgeAP('combat')(c), STA: getSurgeSTA('combat')(c) } : null
+}
+
 // The best one attack `a` can make on `d`, against `d` defending with `guard`:
 // this round's with `means`, or at all, from fresh rounds.
 function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential', guard: { AP: number; STA: number }, mode: ModeOf, tuning: ThreatTuning): Threat | null {
@@ -325,12 +335,13 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
   const gap = apart(a.at, d.at)
   const pace = getPace(a.state, a.id)
   const surge = { AP: getSurgeAP('movement')(attacker), STA: getSurgeSTA('movement')(attacker) }
+  const combat = when === 'now' ? combatSurge(attacker) : null
   const focused = attacker.usedSurge === 'focus'
   let best: Threat | null = null
   for (const attack of getPair(attacker, defender)) {
     const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach))
     if (moveAP === null) continue
-    const rounds = when === 'now' ? (canPayNow(attack, moveAP, means, surge, focused) ? 1 : null) : roundsFor(attack, moveAP, means, surge)
+    const rounds = when === 'now' ? (canPayNow(attack, moveAP, means, surge, combat, focused) ? 1 : null) : roundsFor(attack, moveAP, means, surge)
     if (rounds === null) continue
     const met = getDefendedHarm(attack, gap, guard, mode, defender.injuries.bleed, tuning)
     if (!met || met.undefended <= 0) continue

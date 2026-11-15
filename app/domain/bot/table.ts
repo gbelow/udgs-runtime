@@ -1,9 +1,10 @@
 import type { SceneState } from '../scene/types'
 import { isDead, getInjuryCapacity } from '../character/rules/afflictions'
 import { getOpenAction } from '../scene/rules/log'
-import { getAwaited, getUnfinishedAnswers } from '../scene/rules/options'
+import { getAvailableActions, getAwaited, getUnfinishedAnswers } from '../scene/rules/options'
+import { getActionDef } from '../scene/rules/actionCatalog'
 import { getTurnHolder } from '../scene/rules/turn'
-import { getConcentrationOwed } from '../scene/rules/roundChange'
+import { getConcentrationOwed, getRoundPhase } from '../scene/rules/roundChange'
 import { getButtonsOf, getSharedButtons, type OpenButton } from '../scene/projections/buttons'
 import { getOpenChoices, type OpenChoice } from '../scene/projections/choices'
 import { getCommandActor } from '../scene/commands/registry'
@@ -72,14 +73,17 @@ export function getMyChoices(state: SceneState, members: readonly string[]): Ope
 // a die it is called to throw, its own
 // action still to be taken on (declared, or rolled and not landed), the turn it
 // holds with nothing open, and at the round change, its concentration and a
-// morale test it must make or settle.
-export type Wait = { id: string; for: 'answer' | 'die' | 'action' | 'turn' | 'concentration' | 'morale' }
+// morale test it must make or settle. At the round's rest step, a rest or a
+// social action open to it: the table does not wait for one, but the member
+// is asked before the round moves on, as a player at the table would be.
+export type Wait = { id: string; for: 'answer' | 'die' | 'action' | 'turn' | 'concentration' | 'morale' | 'rest' }
 
 export function getWaits(state: SceneState, members: readonly string[]): Wait[] {
   const open = getOpenAction(state)
   const awaited = open?.step === 'react' ? [...getAwaited(state), ...getUnfinishedAnswers(state, open).map((r) => r.actorId)] : []
   const owed = getConcentrationOwed(state)
   const holder = getTurnHolder(state)
+  const resting = getRoundPhase(state) === 'rest'
   return members.flatMap((id): Wait[] => {
     const morale = state.morale.find((m) => m.id === id)
     const waits: Wait['for'][] = [
@@ -89,6 +93,7 @@ export function getWaits(state: SceneState, members: readonly string[]): Wait[] 
       ...(!open && holder === id ? ['turn' as const] : []),
       ...(owed.includes(id) ? ['concentration' as const] : []),
       ...(morale && ((morale.roll === null && !morale.optional) || morale.roll?.open) ? ['morale' as const] : []),
+      ...(resting && getAvailableActions(state, id).some((o) => o.available && getActionDef(o.draft.kind).rest) ? ['rest' as const] : []),
     ]
     return waits.map((why) => ({ id, for: why }))
   })
