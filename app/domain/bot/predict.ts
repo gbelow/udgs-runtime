@@ -106,6 +106,9 @@ export function getBestSpend(state: SceneState, root: AttackAction): { purchases
       sliced(remaining - bust, { bust: 1 })
     }
   }
+  // a braced or hook attack's bonus, bought for its AP and STA rather than
+  // HOP (combat.tex "Braced Attack", "Hook Attack"), tried on every spend
+  for (const p of ['braced', 'hook'] as const) if (price(p) !== null) spends.push(...spends.map((s) => ({ ...s, [p]: 1 })))
   const score = (o: Outcome | null): number[] => (o ? [o.tier ?? -1, Object.values(o.tiers).reduce<number>((sum, t) => sum + (t ?? -1), 0), o.damage - o.armor] : [-Infinity])
   const better = (x: number[], y: number[]) => {
     const i = x.findIndex((v, k) => v !== y[k])
@@ -127,6 +130,11 @@ export type Spend = { purchases: Pick[]; prediction: Prediction }
 export type BestSpend = { ok: true; best: Spend; tried: Spend[]; outcome: Outcome | null } | { ok: false; refused: string }
 
 const buy = (purchase: string, times: number): Pick[] => Array.from({ length: Math.max(0, times) }, () => ({ part: 'overflow' as const, value: purchase }))
+
+// The presses that buy what `getBestSpend` spends the rolled hit's overflow on.
+export function getBestSpendPicks(state: SceneState, root: AttackAction): Pick[] {
+  return (Object.entries(getBestSpend(state, root).purchases) as [HOPPurchase, number][]).flatMap(([p, n]) => buy(p, n))
+}
 
 export function bestSpend(state: SceneState, roll: Supposed, picks: readonly Pick[], ctx: CommandContext): BestSpend {
   const supposed = suppose(state, roll)

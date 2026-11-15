@@ -10,7 +10,9 @@ import { getOwnCost } from '../scene/rules/action'
 import { getStrikeReach } from '../scene/rules/board/board'
 import { findWeaponRow } from '../scene/rules/weaponRow'
 import { getAttackFacts, outcomeOf } from '../scene/rules/damage'
-import { isVariantOpen } from '../scene/rules/strikeDeclaration'
+import { isVariantOpen, isVariantOpenOn } from '../scene/rules/strikeDeclaration'
+import { getHOPPrice } from '../scene/rules/damage'
+import { getHeavyDegrees } from '../scene/rules/heavy'
 import { getLoadableAmmo } from '../item/rules/ammo'
 import { getSTA } from '../character/rules/characteristics'
 import { getInjuryPenalty } from '../character/rules/afflictions'
@@ -30,8 +32,8 @@ import { getMostHOP, type HarmByDegree } from './odds'
 // holds for any two places. Harm is 2 x IL + 3 x bleed (the user's ruling).
 //
 // A hit lands in full whatever the defence (combat.tex "Defend"), so a hit's
-// harm is read once, undefended; a graze and a miss are read against each
-// defence.
+// harm is read once, undefended, but for a hook attack's, whose bonus turns on
+// the defence; a graze and a miss are read against each defence.
 
 export type PairDefence = {
   // the reaction answered with as the panel offers it, or null for none (the SD)
@@ -40,6 +42,9 @@ export type PairDefence = {
   DL: number
   graze: number
   miss: number
+  // harm on a hit at each HOP from 0 against this defence, where it differs
+  // from the attack's own (a hook attack's bonus against an evasive jump)
+  hits?: number[]
 }
 
 export type PairAttack = {
@@ -49,6 +54,21 @@ export type PairAttack = {
   // and a broadhead do different things); '' for a strike or a row that
   // loads nothing
   ammoId: string
+  // the heavy degree a strike is made at (combat.tex "Heavy Attack"), each
+  // degree the row allows an attack of its own; 0 for none, and
+  // `declaresHeavy` when the degree is above the row's own and so is
+  // declared besides the row
+  heavy: number
+  declaresHeavy: boolean
+  // where the variation may be made (scene/rules/strikeDeclaration.ts
+  // `isVariantOpenOn`): as an action of its own, as the opportunity attack a
+  // step towards the weapon draws (a braced attack), or the one a runner
+  // moving away draws (a hook attack)
+  opens: { action: boolean; approach: boolean; retreat: boolean }
+  // what is declared, and, for a braced or a hook attack, what its bonus
+  // costs on a hit besides (`onHit`); `cost` holds both, so that the attack
+  // is weighed as made in full
+  onHit: ActionCost | null
   cost: ActionCost
   // metres
   reach: number
@@ -113,13 +133,24 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
       const row = { weaponKey: option.weaponKey, attack: option.attack, variant: option.variant }
       const found = findWeaponRow(actor, option.weaponKey, option.attack)
       const loads = kind === 'shoot' && found?.atk.ammo ? getLoadableAmmo(actor, found.weapon, found.atk).map((s) => s.item.id) : ['']
-      for (const ammoId of loads) {
-        const root = ActionSchema.parse({ kind, id: ATTACK_ID, actorId: a, targetId: d, ...row, ...(ammoId ? { ammoId } : {}), ...getDefaultAim(target), step: 'react' }) as AttackAction
+      const range = kind === 'strike' ? getHeavyDegrees(actor, row) : null
+      const degrees = range ? Array.from({ length: range.max - range.min + 1 }, (_, i) => range.min + i) : [0]
+      for (const ammoId of loads) for (const heavy of degrees) {
+        const root = ActionSchema.parse({ kind, id: ATTACK_ID, actorId: a, targetId: d, ...row, ...(ammoId ? { ammoId } : {}), ...(kind === 'strike' ? { heavy } : {}), ...getDefaultAim(target), step: 'react' }) as AttackAction
         const made = appendActions(base, [root])
-        if (!isVariantOpen(made, root, row)) continue
+        const opens = kind === 'strike'
+          ? { action: isVariantOpen(made, root, row), approach: isVariantOpenOn({ braced: true, hooked: false }, row.variant), retreat: isVariantOpenOn({ braced: false, hooked: true }, row.variant) }
+          : { action: isVariantOpen(made, root, row), approach: false, retreat: false }
+        if (!opens.action && !opens.approach && !opens.retreat) continue
         const test = getRootTest(made, root)
-        const cost = getOwnCost(made, root)
-        if (!test || test.scale !== 'overflow' || !cost) continue
+        const declared = getOwnCost(made, root)
+        if (!test || test.scale !== 'overflow' || !declared) continue
+        // a braced attack is only ever drawn by a step towards the weapon, so
+        // its bonus is read as bought (no step draws it here); a hook
+        // attack's is bought where it adds something (`getBestSpend`)
+        const bonus = row.variant === 'braced' || row.variant === 'hook' ? row.variant : null
+        const onHit = bonus ? getHOPPrice(bonus, actor) : null
+        const cost = onHit ? { AP: declared.AP + onHit.AP, STA: declared.STA + onHit.STA } : declared
         const reach = kind === 'strike' ? getStrikeReach(made, root as StrikeAction) : option.reach
         if (reach === null) continue
 
@@ -130,16 +161,32 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
           const price = getOwnCost(given, reaction)
           return price ? [{ draft: o.draft, state: given, cost: price }] : []
         })]
-        const defences = defended.flatMap((def): PairDefence[] => {
+        const hit = (state: SceneState, HOP: number) => {
+          const at = rolled(root, 'hit', HOP)
+          return getHarm(getBestSpend(state, bonus === 'braced' ? { ...at, spent: { braced: 1 } } : at).outcome)
+        }
+        const tested = defended.flatMap((def) => {
           const t = getRootTest(def.state, root)
-          return t ? [{ draft: def.draft, cost: def.cost, DL: t.DL, graze: harmAt(def.state, root, 'graze', target), miss: harmAt(def.state, root, 'miss', target) }] : []
+          return t ? [{ def, t }] : []
         })
-        const most = getMostHOP(test.skill, Math.min(...defences.map((x) => x.DL)))
-        const hits = Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => getHarm(getBestSpend(made, rolled(root, 'hit', HOP)).outcome))
+        const most = getMostHOP(test.skill, Math.min(...tested.map((x) => x.t.DL)))
+        const hitsIn = (state: SceneState) => Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => hit(state, HOP))
+        const hits = hitsIn(made)
+        // a hook attack's bonus turns on how the target answers (combat.tex
+        // "Hook Attack": against an evasive jump), so its hits are read again
+        // against each defence
+        const defences = tested.map(({ def, t }): PairDefence => {
+          const own = bonus === 'hook' && def.draft ? hitsIn(def.state) : null
+          return { draft: def.draft, cost: def.cost, DL: t.DL, graze: harmAt(def.state, root, 'graze', target), miss: harmAt(def.state, root, 'miss', target), ...(own && own.some((h, i) => h !== hits[i]) ? { hits: own } : {}) }
+        })
         attacks.push({
           kind,
           row,
           ammoId,
+          heavy,
+          declaresHeavy: range !== null && heavy > range.min,
+          opens,
+          onHit,
           cost,
           reach,
           distanceRate: kind === 'shoot' ? option.distance : null,
@@ -191,4 +238,4 @@ export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter
   return known
 }
 
-export const harmOf = (attack: PairAttack, defence: PairDefence): HarmByDegree => ({ miss: defence.miss, graze: defence.graze, hits: attack.hits })
+export const harmOf = (attack: PairAttack, defence: PairDefence): HarmByDegree => ({ miss: defence.miss, graze: defence.graze, hits: defence.hits ?? attack.hits })

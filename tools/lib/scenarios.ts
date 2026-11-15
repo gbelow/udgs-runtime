@@ -28,8 +28,9 @@ export const SCENARIOS: Scenario[] = [
 ]
 
 // The arena's: the sides a few steps apart, so that everyone is in the fight
-// from the first round: three duels, and three a side out in the open and
-// with one side in a house and the other outside its wall. The thief is left
+// from the first round: three duels, three a side out in the open and with
+// one side in a house and the other outside its wall, and the three in the
+// open with an archer each, a few steps behind its side. The thief is left
 // out: its duels came down to whether its foe attacked or defended.
 const FIGHTERS = COMMON.filter((who) => who !== 'Surbit Thief')
 const three = (cells: [number, number][]): [string, [number, number]][] => FIGHTERS.map((who, i) => [who, cells[i]])
@@ -39,6 +40,7 @@ export const CLOSE: Scenario[] = [
   { name: 'duel, soldier and noble', red: [['Erthal Soldier', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
   { name: 'duel, squire and noble', red: [['Halkir squire', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
   { name: 'three a side, close', red: three([[-2, -9], [-2, -8], [-2, -7]]), blue: three([[2, -9], [2, -8], [2, -7]]) },
+  { name: 'four a side, archers behind', red: [...three([[-2, -9], [-2, -8], [-2, -7]]), ['Human Ranger', [-6, -8]]], blue: [...three([[2, -9], [2, -8], [2, -7]]), ['Human Ranger', [6, -8]]] },
   { name: 'three a side, a wall between', red: three([[-1, -2], [-1, -1], [-2, 0]]), blue: three([[2, -2], [2, -1], [1, 0]]) },
 ]
 

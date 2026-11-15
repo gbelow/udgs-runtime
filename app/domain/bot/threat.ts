@@ -339,6 +339,7 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
   const focused = attacker.usedSurge === 'focus'
   let best: Threat | null = null
   for (const attack of getPair(attacker, defender)) {
+    if (!attack.opens.action) continue
     const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach))
     if (moveAP === null) continue
     const rounds = when === 'now' ? (canPayNow(attack, moveAP, means, surge, combat, focused) ? 1 : null) : roundsFor(attack, moveAP, means, surge)

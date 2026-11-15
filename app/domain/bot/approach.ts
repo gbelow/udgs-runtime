@@ -31,7 +31,7 @@ export function getOpportunityWorth(state: SceneState, holder: string, walker: s
   if (!h || !w || after >= before) return 0
   let best = 0
   for (const attack of getPair(h, w)) {
-    if (attack.kind !== 'strike' || attack.cost.AP > means.AP || attack.cost.STA > means.STA) continue
+    if (attack.kind !== 'strike' || !attack.opens.approach || attack.cost.AP > means.AP || attack.cost.STA > means.STA) continue
     if (!drawsOpportunity(before, after, attack.reach)) continue
     const met = getDefendedHarm(attack, after, guard, 'now', w.injuries.bleed, tuning)
     if (met && met.worth > best) best = met.worth

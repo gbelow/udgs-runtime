@@ -77,10 +77,19 @@ export function isStrikeHolder(action: Action): action is StrikeHolder {
 // the attacker. "Hook Attack": "an action or ... a reaction against running
 // targets that move away from the weapon" — and what a runner moving away
 // draws is only ever a hook attack.
+export type Drawn = { braced: boolean; hooked: boolean } | null
+
+// The same for a strike declared on its own (`null`) or drawn as an
+// opportunity attack by a step towards the weapon (`braced`) or a runner
+// moving away (`hooked`).
+export function isVariantOpenOn(drawn: Drawn, variant: string): boolean {
+  if (!drawn) return variant !== 'braced'
+  if (variant === 'braced') return drawn.braced
+  return variant === 'hook' ? drawn.hooked : !drawn.hooked
+}
+
 function isVariantOpenTo(ctx: StrikeContext, variant: string): boolean {
-  if (!ctx.drawn) return variant !== 'braced'
-  if (variant === 'braced') return ctx.drawn.braced
-  return variant === 'hook' ? ctx.drawn.hooked : !ctx.drawn.hooked
+  return isVariantOpenOn(ctx.drawn, variant)
 }
 
 // The same, for any action and the row it is made with: what is not a

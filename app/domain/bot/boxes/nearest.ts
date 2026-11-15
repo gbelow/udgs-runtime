@@ -2,6 +2,7 @@ import type { CampaignCharacter, Coord, MovementKind } from '../../types'
 import type { MoveAction, SceneState } from '../../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../../scene/commands/registry'
 import { getOpenAction } from '../../scene/rules/log'
+import { isAttackAction } from '../../scene/rules/actionCatalog'
 import { getFreeAttackOptions, hasUnfocusedRow } from '../../scene/rules/attack'
 import { isCombatStarted } from '../../scene/rules/started'
 import { getMovementOptions } from '../../scene/rules/move'
@@ -15,6 +16,7 @@ import { getSides } from '../table'
 import type { Box, Decision, SeatInput } from '../decision'
 import type { Wait } from '../table'
 import { getRestChoice, REST_TUNING, type RestTuning } from '../rest'
+import { getBestSpendPicks } from '../predict'
 
 // A baseline to measure other boxes against: each character walks to the foe
 // nearest them and attacks it with the first weapon that reaches, and does
@@ -22,7 +24,7 @@ import { getRestChoice, REST_TUNING, type RestTuning } from '../rest'
 // what it concentrates on, makes the morale test it owes with its first mode,
 // is taken for a coward rather than do a limit stress action it owes, makes a
 // surge the table holds it to, and
-// lands what it rolled with nothing bought. A turn is started only when
+// lands what it rolled with a hit's overflow spent as `getBestSpend` spends it. A turn is started only when
 // there is an attack or a step closer to make in it; otherwise the character
 // agrees to end the round.
 
@@ -174,9 +176,13 @@ function finishAction(input: SeatInput, id: string, find: Find, press: Press): D
   const open = getOpenAction(view)
   if (open?.actorId !== id) return null
   if (open.step === 'post') {
-    if (settle(view, [], TRIAL).ok) return { kind: 'settle', picks: [], why: 'lands it' }
-    const fill = input.choices.find((c) => c.actorId === id && !c.chosen && settle(view, [{ part: c.part, value: c.value }], TRIAL).ok)
-    return fill ? { kind: 'settle', picks: [{ part: fill.part, value: fill.value }], why: `lands it: ${fill.label}` } : null
+    // a hit's overflow spent as `getBestSpend` spends it, or nothing where the table takes none of that
+    const bought = isAttackAction(open) ? getBestSpendPicks(view, open) : []
+    const spends = bought.length && settle(view, bought, TRIAL).ok ? bought : []
+    const spent = spends.length ? `, buying ${[...new Set(spends.map((p) => String(p.value)))].map((v) => `${v} x${spends.filter((p) => p.value === v).length}`).join(', ')}` : ''
+    if (settle(view, spends, TRIAL).ok) return { kind: 'settle', picks: spends, why: `lands it${spent}` }
+    const fill = input.choices.find((c) => c.actorId === id && !c.chosen && settle(view, [...spends, { part: c.part, value: c.value }], TRIAL).ok)
+    return fill ? { kind: 'settle', picks: [...spends, { part: fill.part, value: fill.value }], why: `lands it: ${fill.label}${spent}` } : null
   }
   return press(find('skip') ?? find('cancel'), 'lets it go')
 }

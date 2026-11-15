@@ -4,6 +4,8 @@ import { getRecoveredSTA } from '../../character/rules/characteristics'
 import type { ActionDraft, MoveAction, SceneState } from '../../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../../scene/commands/registry'
 import { getOpenAction } from '../../scene/rules/log'
+import { getHeavyDegree } from '../../scene/rules/heavy'
+import { getHeavyName } from '../../character/rules/gear'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
 import { getMovementOptions } from '../../scene/rules/move'
@@ -42,7 +44,9 @@ import type { Box, Decision, SeatInput } from '../decision'
 // - an attack or a walk may be paid for after a combat or a movement surge;
 //   AP is free while no foe can attack this round, and a surge's always;
 // - attacked, it answers with the defence (or none) that leaves the least
-//   harm and price together.
+//   harm and price together;
+// - drawn an opportunity attack, it makes the one that scores best as an
+//   attack on its turn would, if that is above nothing.
 //
 // The rest (morale, concentration, landing what it rolled, a surge it is held
 // to) it plays as the nearest box does.
@@ -92,7 +96,19 @@ function getWalk(state: SceneState, id: string): Walk | null {
 
 const moveIntent = (id: string, movement: MovementKind, cell: Coord): Intent => ({ actorId: id, option: { kind: 'move' }, picks: [{ part: 'movement', value: movement }, { part: 'cell', value: cell }] })
 
-const attackIntent = (id: string, attack: PairAttack, target: string): Intent => ({ actorId: id, option: { kind: attack.kind }, picks: [{ part: 'row', value: attack.row }, ...(attack.ammoId ? [{ part: 'ammo' as const, value: attack.ammoId }] : []), { part: 'target', value: target }] })
+const attackIntent = (id: string, attack: PairAttack, target: string): Intent => ({
+  actorId: id,
+  option: { kind: attack.kind },
+  picks: [
+    { part: 'row', value: attack.row },
+    // the degree as the strike's modifiers offer it (scene/rules/modifiers.ts)
+    ...(attack.declaresHeavy ? [{ part: 'modifier' as const, value: { key: `heavy${attack.heavy}`, on: true } }] : []),
+    ...(attack.ammoId ? [{ part: 'ammo' as const, value: attack.ammoId }] : []),
+    { part: 'target', value: target },
+  ],
+})
+
+const attackName = (attack: PairAttack) => `${attack.row.attack}${attack.heavy ? `, ${getHeavyName(attack.heavy)}` : ''}`
 
 type Plan =
   | { kind: 'attack'; intent: Intent; score: number; why: string }
@@ -183,6 +199,41 @@ function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null,
   return [...stay, ...new Set([...cheapest, ...safest])]
 }
 
+// The measures every attack the character could make in `view` is weighed
+// by, on its turn or as an opportunity attack: what it is worth (`w.harm`
+// times its worth against the defence, and what the target is to the team),
+// less the AP and STA it spends and the danger it leaves the character in at
+// `at`.
+type AttackMeasures = {
+  // the worst foe's threat this round on the character at `at`, with what it
+  // has left to defend
+  dangerLeft: (AP: number, STA: number, at: Coord | null) => number
+  // AP is priced only while some foe can still attack this round, at a price
+  // rising with the danger left; STA always, dearer the less is left
+  price: (AP: number, STA: number, at: Coord | null) => number
+  score: (worth: number, foe: string, AP: number, STA: number, at: Coord | null) => number
+}
+
+function getAttackMeasures(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): AttackMeasures {
+  const me = view.characters[id]
+  const left = { AP: me.resources.AP, STA: me.resources.STA }
+  const dangerLeft = (AP: number, STA: number, at: Coord | null) => getDanger(view, members, id, 'immediate', at, { AP: left.AP - AP, STA: left.STA - STA }, w)
+  const price = (AP: number, STA: number, at: Coord | null) => {
+    const exposed = AP > 0 && getDanger(view, members, id, 'immediate', at, { AP: 0, STA: 0 }, w) > 0
+    const perAP = exposed ? w.AP + w.danger * dangerLeft(AP, STA, at) : 0
+    return AP * perAP + getSTAPrice(STA, left.STA, me.injuries.bleed, w.STA, w)
+  }
+  // how threatened the target is by the whole team, and how threatening to anyone in it
+  const worths = new Map<string, number>()
+  const targetWorth = (foe: string) => {
+    let worth = worths.get(foe)
+    if (worth === undefined) worths.set(foe, (worth = w.threatened * getThreatened(view, members, foe, w) + w.threatening * getThreatening(view, members, foe, w)))
+    return worth
+  }
+  const score = (worth: number, foe: string, AP: number, STA: number, at: Coord | null) => w.harm * worth + targetWorth(foe) - price(AP, STA, at) - w.exposure * dangerLeft(AP, STA, at)
+  return { dangerLeft, price, score }
+}
+
 // What the character would do with the turn it holds in `view`, or null to end it.
 function planTurn(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, compelled = false): Plan | null {
   const me = view.characters[id]
@@ -190,22 +241,11 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   if (!me) return null
   const { foes } = getSides(view, members)
   if (foes.length === 0) return null
-  const bleed = me.injuries.bleed
   const left = { AP: me.resources.AP, STA: me.resources.STA }
-  // the worst foe's threat this round on the character at `at`, with what it
-  // has left to defend
-  const dangerLeft = (AP: number, STA: number, at: Coord | null) => getDanger(view, members, id, 'immediate', at, { AP: left.AP - AP, STA: left.STA - STA }, w)
-  // AP is priced only while some foe can still attack this round, at a price
-  // rising with the danger left; STA always, dearer the less is left
-  const price = (AP: number, STA: number, at: Coord | null) => {
-    const exposed = AP > 0 && getDanger(view, members, id, 'immediate', at, { AP: 0, STA: 0 }, w) > 0
-    const perAP = exposed ? w.AP + w.danger * dangerLeft(AP, STA, at) : 0
-    return AP * perAP + getSTAPrice(STA, left.STA, bleed, w.STA, w)
-  }
+  const { dangerLeft, price, score: attackScore } = getAttackMeasures(view, members, id, w)
   // what walking from where the character stands to `to` costs it in the
   // opportunity attacks of the foes whose reach it walks in on (bot/approach.ts)
   const drawn = (to: Coord | null, AP: number, STA: number) => (here && to && !sameCell(here, to) ? w.opportunity * getApproachCost(view, id, here, to, foes, (f) => getMeans(view.characters[f], false, w), { AP: Math.max(0, left.AP - AP), STA: left.STA - STA }, w) : 0)
-  const targetWorth = new Map(foes.map((f) => [f, w.threatened * getThreatened(view, members, f, w) + w.threatening * getThreatening(view, members, f, w)]))
   const budgets = getBudgets(view, id)
 
   let best: Plan | null = null
@@ -217,6 +257,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       if (!target) continue
       const guard = getMeans(target, false, w)
       for (const attack of getPair(me, target)) {
+        if (!attack.opens.action) continue
         for (const { cell, AP, STA } of getAttackCells(here, walk, at, attack.reach, (c) => dangerLeft(0, 0, c))) {
           const gap = cell && at ? distance(cell, at) : 0
           const needsFocus = attack.needsFocus && me.usedSurge !== 'focus'
@@ -226,9 +267,9 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           if (spent === null || STAspent > b.STA) continue
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w)
           if (!met || met.undefended <= 0) continue
-          const score = w.harm * met.worth + (targetWorth.get(foe) ?? 0) - price(spent, STAspent + b.surgeSTA, cell) - w.exposure * dangerLeft(spent, STAspent + b.surgeSTA, cell) - drawn(cell, AP, STA)
+          const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell) - drawn(cell, AP, STA)
           if (best && score <= best.score) continue
-          const why = `${attack.kind}s ${target.name} (${attack.row.attack}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
+          const why = `${attack.kind}s ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
           if (needsFocus) best = { kind: 'surge', surge: 'focus', score, why: `focuses to shoot: ${why}` }
           else if (b.surge) best = { kind: 'surge', surge: b.surge, score, why: `makes the ${b.surge} surge: ${why}` }
           else if (!here || !cell || sameCell(cell, here)) best = { kind: 'attack', intent: attackIntent(id, attack, foe), score, why }
@@ -283,9 +324,10 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   const view = input.view()
   const open = getOpenAction(view)
   const me = view.characters[id]
-  if (!open || !me || open.targetId !== id || (open.kind !== 'strike' && open.kind !== 'shoot')) return press(find('pass', id), 'lets it come')
+  if (!open || !me) return press(find('pass', id), 'lets it come')
+  if (open.targetId !== id || (open.kind !== 'strike' && open.kind !== 'shoot')) return opportunity(input, id, w) ?? press(find('pass', id), 'lets it come')
   const attacker = view.characters[open.actorId]
-  const attack = attacker ? getPair(attacker, me).find((a) => a.kind === open.kind && a.row.weaponKey === open.weaponKey && a.row.attack === open.attack && a.row.variant === open.variant && (open.kind !== 'shoot' || a.ammoId === '' || a.ammoId === open.ammoId)) : undefined
+  const attack = attacker ? getPair(attacker, me).find((a) => a.kind === open.kind && a.row.weaponKey === open.weaponKey && a.row.attack === open.attack && a.row.variant === open.variant && (open.kind !== 'shoot' || a.ammoId === '' || a.ammoId === open.ammoId) && (open.kind !== 'strike' || a.heavy === getHeavyDegree(attacker, open))) : undefined
   if (!attack) return press(find('pass', id), 'lets it come: does not know the attack')
   const from = cellOf(view, open.actorId)
   const at = cellOf(view, id)
@@ -308,14 +350,54 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   return { kind: 'declare', intent: { actorId: id, option: best.draft, picks }, why: `answers with ${best.draft.kind} (harm and price ${best.score.toFixed(1)})` }
 }
 
+// An opportunity attack on whoever drew it (combat.tex "Opportunity
+// Attack"), weighed as an attack on the character's turn is
+// (`getAttackMeasures`): of the rows the draw opens (a braced attack on a step
+// towards the weapon, a hook attack on a runner moving away), at each heavy
+// degree, the one that scores best, made only where it scores above nothing.
+function opportunity(input: SeatInput, id: string, w: ThreatWeights): Decision | null {
+  const view = input.view()
+  const open = getOpenAction(view)
+  const me = view.characters[id]
+  if (!open || !me) return null
+  const at = cellOf(view, id)
+  const measures = getAttackMeasures(view, input.members, id, w)
+  const offers = getAvailableActions(view, id).filter((o) => o.available && o.reactionTo === open.id && o.draft.kind === 'opportunityAttack')
+  let best: { draft: ActionDraft; picks: Pick[]; score: number; why: string } | null = null
+  for (const o of offers) {
+    // declared on a copy, as pressed, for the rows the draw opens
+    const declared = trial(view, { kind: 'react', args: [id, o.draft] })
+    const drawn = getUnfinishedAnswers(declared, open).find((r) => r.actorId === id)
+    const target = drawn?.targetId ? view.characters[drawn.targetId] : undefined
+    if (!drawn || !target) continue
+    const rows = getOpenChoices(declared).filter((c) => c.actorId === id && c.part === 'row').map((c) => c.value as PairAttack['row'])
+    const guard = getMeans(target, false, w)
+    for (const attack of getPair(me, target)) {
+      if (attack.kind !== 'strike' || !rows.some((r) => r.weaponKey === attack.row.weaponKey && r.attack === attack.row.attack && r.variant === attack.row.variant)) continue
+      const { AP, STA } = attack.cost
+      if (AP > me.resources.AP || STA > me.resources.STA) continue
+      const met = getDefendedHarm(attack, attack.reach, guard, 'now', target.injuries.bleed, w)
+      if (!met || met.undefended <= 0) continue
+      const score = measures.score(met.worth, target.id, AP, STA, at)
+      if (score <= 0 || (best && score <= best.score)) continue
+      const picks: Pick[] = [{ part: 'row', value: attack.row }, ...(attack.declaresHeavy ? [{ part: 'modifier' as const, value: { key: `heavy${attack.heavy}`, on: true } }] : [])]
+      best = { draft: o.draft, picks, score, why: `opportunity attack on ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})` }
+    }
+  }
+  if (!best) return null
+  const picks = fillAnswer(view, input.members, id, best.draft, { AP: me.resources.AP, STA: me.resources.STA }, best.picks)
+  return picks ? { kind: 'declare', intent: { actorId: id, option: best.draft, picks }, why: best.why } : null
+}
+
 // What the answer still asks for once declared (where an evasive jump lands),
 // picked: a cell where the danger on the character is least, anything else as
-// first offered. Null when it asks for something nothing offers.
-function fillAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, guard: { AP: number; STA: number }): Pick[] | null {
+// first offered, after the `start` picks. Null when it asks for something
+// nothing offers.
+function fillAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, guard: { AP: number; STA: number }, start: readonly Pick[] = []): Pick[] | null {
   const open = getOpenAction(view)
   if (!open) return null
-  const picks: Pick[] = []
-  for (let i = 0; i < 4; i++) {
+  const picks: Pick[] = [...start]
+  for (let i = 0; i < 4 + start.length; i++) {
     const made = declare(view, { actorId: id, option: draft, picks }, TRIAL)
     if (!made.ok) return null
     if (!getUnfinishedAnswers(made.ready, open).some((r) => r.actorId === id)) return picks

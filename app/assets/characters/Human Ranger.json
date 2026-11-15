@@ -1,0 +1,909 @@
+{
+  "tags": [
+    "humanoid",
+    "common"
+  ],
+  "type": "base",
+  "startingWealth": null,
+  "name": "Human Ranger",
+  "token": "",
+  "trainables": {
+    "strike": {
+      "value": 0,
+      "name": "Strike",
+      "XP": 0,
+      "type": "skill"
+    },
+    "defend": {
+      "value": 1,
+      "name": "Defend",
+      "XP": 4,
+      "type": "skill"
+    },
+    "reflex": {
+      "value": 0,
+      "name": "Reflex",
+      "XP": 0,
+      "type": "skill"
+    },
+    "accuracy": {
+      "value": 3,
+      "name": "Accuracy",
+      "XP": 0,
+      "type": "skill"
+    },
+    "grapple": {
+      "value": 0,
+      "name": "Grapple",
+      "XP": 0,
+      "type": "skill"
+    },
+    "SD": {
+      "value": 0,
+      "name": "SD",
+      "XP": 0,
+      "type": "skill"
+    },
+    "stealth": {
+      "value": 0,
+      "name": "Stealth",
+      "XP": 0,
+      "type": "skill"
+    },
+    "prestidigitation": {
+      "value": 0,
+      "name": "Prestidigitation",
+      "XP": 0,
+      "type": "skill"
+    },
+    "balance": {
+      "value": 0,
+      "name": "Balance",
+      "XP": 0,
+      "type": "skill"
+    },
+    "detection": {
+      "value": 0,
+      "name": "Detection",
+      "XP": 0,
+      "type": "skill"
+    },
+    "health": {
+      "value": 0,
+      "name": "Health",
+      "XP": 0,
+      "type": "skill"
+    },
+    "force": {
+      "value": 0,
+      "name": "Force",
+      "XP": 0,
+      "type": "skill"
+    },
+    "swim": {
+      "value": 0,
+      "name": "Swim",
+      "XP": 0,
+      "type": "skill"
+    },
+    "climb": {
+      "value": 0,
+      "name": "Climb",
+      "XP": 0,
+      "type": "skill"
+    },
+    "explore": {
+      "value": 0,
+      "name": "Explore",
+      "XP": 0,
+      "type": "skill"
+    },
+    "cunning": {
+      "value": 1,
+      "name": "Cunning",
+      "XP": 0,
+      "type": "skill"
+    },
+    "will": {
+      "value": 0,
+      "name": "Will",
+      "XP": 0,
+      "type": "skill"
+    },
+    "persuasion": {
+      "value": 0,
+      "name": "Persuasion",
+      "XP": 0,
+      "type": "skill"
+    },
+    "deception": {
+      "value": 0,
+      "name": "Deception",
+      "XP": 0,
+      "type": "skill"
+    },
+    "insight": {
+      "value": 0,
+      "name": "Insight",
+      "XP": 0,
+      "type": "skill"
+    },
+    "STR": {
+      "value": 12,
+      "name": "Strength",
+      "XP": 0,
+      "type": "attribute"
+    },
+    "AGI": {
+      "value": 13,
+      "name": "Agility",
+      "XP": 0,
+      "type": "attribute"
+    },
+    "STA": {
+      "value": 12,
+      "name": "Stamina",
+      "XP": 0,
+      "type": "attribute"
+    },
+    "CON": {
+      "value": 2,
+      "name": "Constitution",
+      "XP": 0,
+      "type": "talent"
+    },
+    "INT": {
+      "value": 0,
+      "name": "Intelligence",
+      "XP": 0,
+      "type": "talent"
+    },
+    "SPI": {
+      "value": 1,
+      "name": "Spirit",
+      "XP": 0,
+      "type": "talent"
+    },
+    "DEX": {
+      "value": 3,
+      "name": "Dexterity",
+      "XP": 0,
+      "type": "talent"
+    },
+    "melee": {
+      "value": 0,
+      "name": "Melee",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "ranged": {
+      "value": 2,
+      "name": "Ranged",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "awareness": {
+      "value": 1,
+      "name": "Awareness",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "sorcery": {
+      "value": 0,
+      "name": "Sorcery",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "conviction1": {
+      "value": 0,
+      "name": "Fatalism",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "conviction2": {
+      "value": 1,
+      "name": "Stoicism",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "devotion": {
+      "value": 0,
+      "name": "Devotion",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "charisma": {
+      "value": 1,
+      "name": "Charisma",
+      "XP": 0,
+      "type": "proficiency"
+    },
+    "alchemy": {
+      "value": 0,
+      "name": "alchemy",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "animancy": {
+      "value": 0,
+      "name": "animancy",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "biomancy": {
+      "value": 0,
+      "name": "biomancy",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "shamanism": {
+      "value": 0,
+      "name": "shamanism",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "mechanics": {
+      "value": 0,
+      "name": "mechanics",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "smithing": {
+      "value": 0,
+      "name": "smithing",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "chemistry": {
+      "value": 0,
+      "name": "chemistry",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "medicine": {
+      "value": 1,
+      "name": "medicine",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "linguistics": {
+      "value": 0,
+      "name": "linguistics",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "navigation": {
+      "value": 1,
+      "name": "navigation",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "survival": {
+      "value": 0,
+      "name": "survival",
+      "XP": 0,
+      "type": "knowledge"
+    },
+    "animal handling": {
+      "value": 0,
+      "name": "animal handling",
+      "XP": 0,
+      "type": "knowledge"
+    }
+  },
+  "specificKnowledges": {},
+  "category": "humanoid",
+  "size": 3,
+  "footprint": [
+    {
+      "q": 0,
+      "r": 0
+    }
+  ],
+  "height": 2,
+  "TGH": 0,
+  "senses": {
+    "vision": {
+      "name": "Vision",
+      "rangePenalty": 3,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": null,
+      "hasSense": true,
+      "partial": false
+    },
+    "hearing": {
+      "name": "Hearing",
+      "rangePenalty": 5,
+      "bonus": 0,
+      "active": false,
+      "reactive": true,
+      "penalty": 5,
+      "range": null,
+      "hasSense": true,
+      "partial": false
+    },
+    "smell": {
+      "name": "Smell",
+      "rangePenalty": 5,
+      "bonus": 0,
+      "active": true,
+      "reactive": false,
+      "penalty": 10,
+      "range": 0,
+      "hasSense": true,
+      "partial": false
+    },
+    "touch": {
+      "name": "Touch",
+      "rangePenalty": 100,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 3,
+      "range": 0,
+      "hasSense": true,
+      "partial": false
+    },
+    "synesthesia": {
+      "name": "Synesthesia",
+      "rangePenalty": 100,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": 0,
+      "hasSense": false,
+      "partial": false
+    }
+  },
+  "movement": {
+    "walk": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 1
+    },
+    "tread": {
+      "AP": 2,
+      "STA": 0,
+      "distance": 1
+    },
+    "crawl": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "climb": {
+      "AP": 3,
+      "STA": 1,
+      "distance": 1
+    },
+    "run": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 3
+    },
+    "jump": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 2
+    },
+    "swim": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "fast swim": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 0.5
+    },
+    "stand": {
+      "AP": 5,
+      "STA": 1,
+      "distance": 0
+    }
+  },
+  "armor": {
+    "name": "Skin",
+    "material": "flesh",
+    "RES": 0,
+    "INS": 0,
+    "protection": 0,
+    "deflection": 4,
+    "burdenPenalty": 0,
+    "properties": [],
+    "notes": ""
+  },
+  "body": [
+    {
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": null,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "shocked",
+          "tier": 4,
+          "blunt": true,
+          "effect": "disable",
+          "heal": 5,
+          "affliction": "immobile",
+          "consequence": "immobile"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 5,
+      "maxTier": null,
+      "flags": [
+        "stunUnconscious"
+      ],
+      "wounds": [
+        {
+          "name": "death",
+          "tier": 4,
+          "blunt": false,
+          "effect": "kill",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "instant death"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "handL",
+      "name": "left hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "bfbebb31-6b19-4f43-9de1-454d9962eefd",
+      "naturalWeapon": "Unarmed",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [
+        "bareWithoutGauntlets"
+      ],
+      "wounds": [
+        {
+          "name": "broken hand",
+          "tier": 2,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 10,
+          "affliction": null,
+          "consequence": "useless hand"
+        },
+        {
+          "name": "amputated hand",
+          "tier": 4,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses hand"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "handR",
+      "name": "right hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "bfbebb31-6b19-4f43-9de1-454d9962eefd",
+      "naturalWeapon": "Unarmed",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [
+        "bareWithoutGauntlets"
+      ],
+      "wounds": [
+        {
+          "name": "broken hand",
+          "tier": 2,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 10,
+          "affliction": null,
+          "consequence": "useless hand"
+        },
+        {
+          "name": "amputated hand",
+          "tier": 4,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses hand"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "legL",
+      "name": "left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    },
+    {
+      "id": "legR",
+      "name": "right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "blunt": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "blunt": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false,
+      "cell": null
+    }
+  ],
+  "stance": {
+    "lameAt": 1,
+    "proneAt": 2
+  },
+  "hasGauntlets": 0,
+  "hasHelm": 0,
+  "visorOpen": false,
+  "worn": {
+    "id": "f570655a-0549-4893-83cc-5fa8648f47c6",
+    "name": "Gambeson",
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 2,
+    "refId": "Gambeson",
+    "charge": null,
+    "source": null,
+    "casting": null,
+    "broken": false,
+    "edge": null,
+    "fuel": null,
+    "camouflage": null,
+    "muffles": false,
+    "loaded": null,
+    "light": null,
+    "consume": null,
+    "food": null,
+    "grimoire": []
+  },
+  "held": [
+    {
+      "id": "bfbebb31-6b19-4f43-9de1-454d9962eefd",
+      "name": "Long Bow",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 3,
+      "refId": "Long Bow",
+      "charge": null,
+      "source": null,
+      "casting": null,
+      "broken": false,
+      "edge": null,
+      "fuel": null,
+      "camouflage": null,
+      "muffles": false,
+      "loaded": null,
+      "light": null,
+      "consume": null,
+      "food": null,
+      "grimoire": []
+    }
+  ],
+  "onBack": null,
+  "containers": {
+    "Belt": {
+      "name": "Belt",
+      "kind": "belt",
+      "slots": {
+        "quick": {
+          "numSlots": 4,
+          "slotBulk": 2,
+          "items": [
+            {
+              "id": "a07be196-a49f-4707-b1c3-d5d692825e85",
+              "name": "Quiver",
+              "description": "",
+              "type": "container",
+              "amount": 1,
+              "bulk": 2,
+              "refId": "Quiver",
+              "charge": null,
+              "source": null,
+              "casting": null,
+              "container": {
+                "name": "Quiver",
+                "kind": "quiver",
+                "slots": {
+                  "quick": {
+                    "numSlots": 20,
+                    "slotBulk": 0,
+                    "items": [
+                      {
+                        "id": "0a4e31ac-99ec-42b7-a8ed-564ceb462a12",
+                        "name": "Bodkin Arrow",
+                        "description": "",
+                        "type": "ammo",
+                        "amount": 10,
+                        "bulk": 0,
+                        "ammo": {
+                          "scale": 3
+                        },
+                        "refId": "Bodkin Arrow",
+                        "charge": null,
+                        "source": null,
+                        "casting": null,
+                        "broken": false,
+                        "edge": null,
+                        "fuel": null,
+                        "camouflage": null,
+                        "muffles": false,
+                        "loaded": null,
+                        "light": null,
+                        "consume": null,
+                        "food": null,
+                        "grimoire": []
+                      },
+                      {
+                        "id": "d1183e75-50d7-40cc-b6ec-38a798f6122f",
+                        "name": "Broadhead Arrow",
+                        "description": "",
+                        "type": "ammo",
+                        "amount": 10,
+                        "bulk": 0,
+                        "ammo": {
+                          "scale": 3
+                        },
+                        "refId": "Broadhead Arrow",
+                        "charge": null,
+                        "source": null,
+                        "casting": null,
+                        "broken": false,
+                        "edge": null,
+                        "fuel": null,
+                        "camouflage": null,
+                        "muffles": false,
+                        "loaded": null,
+                        "light": null,
+                        "consume": null,
+                        "food": null,
+                        "grimoire": []
+                      }
+                    ]
+                  },
+                  "medium": {
+                    "numSlots": 0,
+                    "slotBulk": 2,
+                    "items": []
+                  },
+                  "large": {
+                    "numSlots": 0,
+                    "slotBulk": 3,
+                    "items": []
+                  }
+                },
+                "burden": 0,
+                "bulk": 2
+              },
+              "broken": false,
+              "edge": null,
+              "fuel": null,
+              "camouflage": null,
+              "muffles": false,
+              "loaded": null,
+              "light": null,
+              "consume": null,
+              "food": null,
+              "grimoire": []
+            },
+            {
+              "id": "3628d849-5e60-46ff-b58a-f2da67cff1ba",
+              "name": "Coin Pouch",
+              "description": "",
+              "type": "container",
+              "amount": 1,
+              "bulk": 1,
+              "refId": "Coin Pouch",
+              "charge": null,
+              "source": null,
+              "casting": null,
+              "container": {
+                "name": "Coin Pouch",
+                "kind": "pouch",
+                "slots": {
+                  "quick": {
+                    "numSlots": 0,
+                    "slotBulk": 1,
+                    "items": []
+                  },
+                  "medium": {
+                    "numSlots": 10,
+                    "slotBulk": -1,
+                    "items": [
+                      {
+                        "id": "b8666cd2-a296-42a0-88dd-f8b1ba708595",
+                        "name": "Gold Coin",
+                        "description": "",
+                        "type": "utility",
+                        "amount": 3,
+                        "bulk": -3,
+                        "refId": "",
+                        "charge": null,
+                        "source": null,
+                        "casting": null,
+                        "broken": false,
+                        "edge": null,
+                        "fuel": null,
+                        "camouflage": null,
+                        "muffles": false,
+                        "loaded": null,
+                        "light": null,
+                        "consume": null,
+                        "food": null,
+                        "grimoire": []
+                      }
+                    ]
+                  },
+                  "large": {
+                    "numSlots": 0,
+                    "slotBulk": 3,
+                    "items": []
+                  }
+                },
+                "burden": 0,
+                "bulk": 1
+              },
+              "broken": false,
+              "edge": null,
+              "fuel": null,
+              "camouflage": null,
+              "muffles": false,
+              "loaded": null,
+              "light": null,
+              "consume": null,
+              "food": null,
+              "grimoire": []
+            },
+            {
+              "id": "8c1c7fb0-7121-4209-9bd9-04fd559edbe9",
+              "name": "Bandages",
+              "description": "Useful for medicine. 10 charges.",
+              "type": "medicine",
+              "amount": 1,
+              "bulk": 1,
+              "refId": "",
+              "charge": null,
+              "source": null,
+              "casting": null,
+              "broken": false,
+              "edge": null,
+              "fuel": null,
+              "camouflage": null,
+              "muffles": false,
+              "loaded": null,
+              "light": null,
+              "consume": null,
+              "food": null,
+              "grimoire": []
+            },
+            {
+              "id": "900182b1-e60b-4a15-9eeb-e05c6e7d418a",
+              "name": "Short Sword",
+              "description": "",
+              "type": "weapon",
+              "amount": 1,
+              "bulk": 2,
+              "refId": "Short Sword",
+              "charge": null,
+              "source": null,
+              "casting": null,
+              "broken": false,
+              "edge": null,
+              "fuel": null,
+              "camouflage": null,
+              "muffles": false,
+              "loaded": null,
+              "light": null,
+              "consume": null,
+              "food": null,
+              "grimoire": []
+            }
+          ]
+        },
+        "medium": {
+          "numSlots": 0,
+          "slotBulk": 2,
+          "items": []
+        },
+        "large": {
+          "numSlots": 0,
+          "slotBulk": 3,
+          "items": []
+        }
+      },
+      "burden": 3,
+      "bulk": 2
+    }
+  },
+  "abilities": {
+    "archer": {
+      "value": 1,
+      "name": "archer",
+      "XP": 0,
+      "type": "ability"
+    }
+  },
+  "spells": {},
+  "raceDraft": null,
+  "attributeBalanceBase": 10,
+  "limitStress": "coward",
+  "notes": ""
+}
