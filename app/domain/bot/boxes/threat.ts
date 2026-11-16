@@ -50,8 +50,9 @@ import { ROUND_AP } from '../../tables'
 // - with no foe in sight, it searches (`planSearch`): it walks where it would
 //   see most of what its side does not, drawn towards the board's middle;
 // - a walk, to attack or not, costs the opportunity attacks it draws from the
-//   foes whose reach it walks in on, and a shot those of the foes whose melee
-//   weapons reach where it is fired from (bot/approach.ts);
+//   foes it closes on within their reach, read step by step along the cells
+//   it is walked through, and a shot those of the foes whose melee weapons
+//   reach where it is fired from (bot/approach.ts);
 // - at the turn's start, it changes arms (bot/arms.ts) where that raises the
 //   most it threatens any foe and lowers the most any foe threatens it by more
 //   than the switch costs, with the opportunity attacks its priced moves draw;
@@ -92,10 +93,11 @@ const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
 const argOf = (command: SceneCommand): unknown => (command.args as readonly unknown[])[0]
 
-type Walk = { movement: MovementKind; cells: { cell: Coord; AP: number; STA: number }[] }
+type Walk = { movement: MovementKind; cells: { cell: Coord; AP: number; STA: number; path: Coord[] }[] }
 
 // The cells the character can walk to this turn at its fastest movement, with
-// no surge, through nobody standing (`isClearWalk`), and what the walk costs.
+// no surge, through nobody standing (`isClearWalk`), what the walk costs, and
+// the cells it is walked through.
 function getWalk(state: SceneState, id: string): Walk | null {
   const c = state.characters[id]
   if (!c) return null
@@ -105,7 +107,7 @@ function getWalk(state: SceneState, id: string): Walk | null {
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  return { movement, cells: getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA })) }
+  return { movement, cells: getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path })) }
 }
 
 // whether the walk runs or jumps, which a braced attack answers (combat.tex "Braced Attack")
@@ -206,8 +208,8 @@ function getDirectedCells(view: SceneState, here: Coord, walk: Walk, foes: reado
 // the ones `clear` keeps (a shot's: a line of fire to the target).
 const ATTACK_CELLS = 2
 
-function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number, dangerAt: (cell: Coord) => number, clear: (cell: Coord) => boolean = () => true): { cell: Coord | null; AP: number; STA: number }[] {
-  const stay = !here || !at || (distance(here, at) <= reach && clear(here)) ? [{ cell: here, AP: 0, STA: 0 }] : []
+function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number, dangerAt: (cell: Coord) => number, clear: (cell: Coord) => boolean = () => true): { cell: Coord | null; AP: number; STA: number; path: Coord[] }[] {
+  const stay = !here || !at || (distance(here, at) <= reach && clear(here)) ? [{ cell: here, AP: 0, STA: 0, path: [] }] : []
   if (!walk || !at) return stay
   const reaching = walk.cells.filter((c) => (!here || !sameCell(c.cell, here)) && distance(c.cell, at) <= reach && clear(c.cell))
   const cheapest = [...reaching].sort((a, b) => a.AP + a.STA - (b.AP + b.STA)).slice(0, ATTACK_CELLS)
@@ -302,7 +304,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   const { dangerLeft, price, score: attackScore } = getAttackMeasures(view, members, id, w)
   // what walking from where the character stands to `to` costs it in the
   // opportunity attacks of the foes whose reach it walks in on (bot/approach.ts)
-  const drawn = (to: Coord | null, AP: number, STA: number, running: boolean) => (here && to && !sameCell(here, to) ? w.opportunity * getApproachCost(view, id, here, to, running, foes, (f) => getMeans(view.characters[f], false, w), { AP: Math.max(0, left.AP - AP), STA: left.STA - STA }, w) : 0)
+  const drawn = (to: Coord | null, AP: number, STA: number, running: boolean, path: readonly Coord[]) => (here && to && !sameCell(here, to) ? w.opportunity * getApproachCost(view, id, here, to, running, foes, (f) => getMeans(view.characters[f], false, w), { AP: Math.max(0, left.AP - AP), STA: left.STA - STA }, w, path) : 0)
   // what a shot fired from `at` costs it in the opportunity attacks of the
   // foes whose melee weapons reach there (bot/approach.ts)
   const fired = (at: Coord | null, AP: number, STA: number) => w.opportunity * getStandingCost(view, id, at ?? here, foes, (f) => getMeans(view.characters[f], false, w), { AP: Math.max(0, left.AP - AP), STA: left.STA - STA }, w)
@@ -320,7 +322,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
         if (!attack.opens.action) continue
         const board = view.board
         const clear = attack.kind === 'shoot' && board && at ? (c: Coord) => firesAcross(board, [c], [at], getEyes(view, id, foe)) : undefined
-        for (const { cell, AP, STA } of getAttackCells(here, walk, at, attack.reach, (c) => dangerLeft(0, 0, c), clear)) {
+        for (const { cell, AP, STA, path } of getAttackCells(here, walk, at, attack.reach, (c) => dangerLeft(0, 0, c), clear)) {
           const gap = cell && at ? distance(cell, at) : 0
           const needsFocus = attack.needsFocus && me.usedSurge !== 'focus'
           if (needsFocus && (me.usedSurge !== null || b.surge !== null)) continue
@@ -329,7 +331,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           if (!canPay(b, AP, attack.cost.AP) || STAspent > b.STA) continue
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w, getTargetDanger(view, foe, at, guard, w))
           if (!met || met.undefended <= 0) continue
-          const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk)) - (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
+          const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
           if (best && score <= best.score) continue
           const why = `${attack.kind}s ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
           // the attack from here, or the walk to where it is made from, only where the table
@@ -370,11 +372,11 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   for (const b of budgets) {
     const walk = getWalk(b.view, id)
     if (!walk) continue
-    for (const { cell, AP, STA } of getDirectedCells(view, here, walk, foes, worst && worst.danger > 0 ? worst.id : null)) {
+    for (const { cell, AP, STA, path } of getDirectedCells(view, here, walk, foes, worst && worst.danger > 0 ? worst.id : null)) {
       if (sameCell(cell, here)) continue
       if (!canPay(b, AP, 0)) continue
       const spent = AP
-      const score = standing(cell) + pursuit(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk))
+      const score = standing(cell) + pursuit(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path)
       if (!move || score > move.score) move = { cell, score, budget: b, movement: walk.movement }
     }
   }

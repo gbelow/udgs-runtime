@@ -11,48 +11,62 @@ import { getDefendedHarm, type ThreatTuning } from './threat'
 // range" draws a strike, which the walker may only defend against, and a
 // braced one only if it runs or jumps in ("Braced Attack"). Whoever
 // holds the longer weapon and stands still has it on whoever closes on them.
-// The walk is taken straight, a metre a step, and read by the scene's own rule
-// for the step that draws the attack (`getApproachStep`). A shot, an action
+// The walk is read along the cells it is walked through where they are known,
+// and otherwise taken straight, a metre a step, by the scene's own rule for
+// the step that draws the attack (`getApproachStep`). A shot, an action
 // that requires concentration, and a move with gear that has a price, a
 // standard action or more, draw one from everyone whose melee weapon reaches
 // where it is done from (scene/rules/reactions.ts `opportunityTriggers`).
 // Nothing here decides.
 
-// Whether walking from `from` metres of the holder to `to` draws an
-// opportunity attack from a weapon reaching `range`.
-export function drawsOpportunity(from: number, to: number, range: number): boolean {
-  if (to >= from) return false
-  const distances = Array.from({ length: Math.floor(from - to) + 1 }, (_, i) => Math.max(to, from - i))
+// The metres from the holder at each step of a walk taken straight from
+// `from` metres of it to `to`, a metre a step; the first is where it sets out.
+function straightDistances(from: number, to: number): number[] {
+  const distances = Array.from({ length: Math.floor(Math.abs(from - to)) + 1 }, (_, i) => (to < from ? Math.max(to, from - i) : Math.min(to, from + i)))
   if (distances[distances.length - 1] !== to) distances.push(to)
-  return getApproachStep(distances, range) !== null
+  return distances
 }
 
 // The worth (`getDefendedHarm`) of the best opportunity attack `holder`, with
-// `means` to pay for it, has on `walker` walking in from `before` metres of
-// it to `after`, running or jumping in if `running`, the walker defending with
-// `guard`; 0 when the walk draws none it can pay for.
-export function getOpportunityWorth(state: SceneState, holder: string, walker: string, before: number, after: number, running: boolean, means: { AP: number; STA: number }, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
+// `means` to pay for it, has on `walker` walking a way that keeps it
+// `distances` metres from it, step by step, running or jumping in if
+// `running`, the walker defending with `guard`; 0 when the walk draws none it
+// can pay for. The attack is met at the step that draws it.
+function getWorthAlong(state: SceneState, holder: string, walker: string, distances: readonly number[], running: boolean, means: { AP: number; STA: number }, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
   const h = state.characters[holder]
   const w = state.characters[walker]
-  if (!h || !w || after >= before) return 0
+  if (!h || !w) return 0
   let best = 0
   for (const attack of getPair(h, w)) {
     if (attack.kind !== 'strike' || !(running ? attack.opens.approach : attack.opens.step) || attack.cost.AP > means.AP || attack.cost.STA > means.STA) continue
-    if (!drawsOpportunity(before, after, attack.reach)) continue
-    const met = getDefendedHarm(attack, after, guard, 'now', w.injuries.bleed, tuning)
+    const step = getApproachStep([...distances], attack.reach)
+    if (step === null) continue
+    const met = getDefendedHarm(attack, distances[step], guard, 'now', w.injuries.bleed, tuning)
     if (met && met.worth > best) best = met.worth
   }
   return best
 }
 
+// The same, for a walk in taken straight from `before` metres of the holder
+// to `after`.
+export function getOpportunityWorth(state: SceneState, holder: string, walker: string, before: number, after: number, running: boolean, means: { AP: number; STA: number }, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
+  return after >= before ? 0 : getWorthAlong(state, holder, walker, straightDistances(before, after), running, means, guard, tuning)
+}
+
 // What a walk from `from` to `to`, run or jumped if `running`, costs `walker`
 // in the opportunity attacks of everyone in `holders`, each with the means
-// `meansOf` says.
-export function getApproachCost(state: SceneState, walker: string, from: Coord | null, to: Coord | null, running: boolean, holders: readonly string[], meansOf: (id: string) => { AP: number; STA: number }, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
+// `meansOf` says: along `path`, the cells it is walked through to `to`, where
+// it is known (the user's ruling: a walk that passes by a foe within its
+// reach draws its strike, wherever it ends), or else taken straight.
+export function getApproachCost(state: SceneState, walker: string, from: Coord | null, to: Coord | null, running: boolean, holders: readonly string[], meansOf: (id: string) => { AP: number; STA: number }, guard: { AP: number; STA: number }, tuning: ThreatTuning, path?: readonly Coord[]): number {
   if (!from || !to) return 0
   return holders.reduce((sum, h) => {
     const at = state.board?.placements[h]?.cell
-    return at ? sum + getOpportunityWorth(state, h, walker, distance(from, at), distance(to, at), running, meansOf(h), guard, tuning) : sum
+    if (!at) return sum
+    const worth = path && path.length > 0
+      ? getWorthAlong(state, h, walker, [from, ...path].map((c) => distance(c, at)), running, meansOf(h), guard, tuning)
+      : getOpportunityWorth(state, h, walker, distance(from, at), distance(to, at), running, meansOf(h), guard, tuning)
+    return sum + worth
   }, 0)
 }
 
