@@ -17,18 +17,20 @@ import { formatTable } from './lib/table'
 // each seed twice with the boxes trading sides (bot/arena.ts), the fights shared
 // out over worker threads.
 //
-//   pnpm arena [--seeds n] [--box a,b] [--only text] [--rounds n] [--workers n] [--set name=value,...]
-//   pnpm arena --trace "scenario:seed[:swapped]" [--box a,b] [--set ...]
+//   pnpm arena [--seeds n] [--box a,b] [--only text] [--rounds n] [--workers n] [--set name=value,...] [--set2 name=value,...]
+//   pnpm arena --trace "scenario:seed[:swapped]" [--box a,b] [--set ...] [--set2 ...]
 //
 // `--box` names the two boxes (BOXES), the first the one the report speaks
 // for; `--only` plays only the scenarios whose name holds the text; `--set`
-// changes weights of the threat box (`THREAT_WEIGHTS`). A broken
+// changes weights of the first box, if it is a threat box (`THREAT_WEIGHTS`),
+// and `--set2` those of the second, so that a weight can be played against
+// the weights as they are. A broken
 // fight (stalled, a decision refused, or out of steps) is listed with its seed,
 // which plays it again exactly. The report goes to reports/arena/arena.md;
 // `--trace` plays one fight and tells it round by round in
 // reports/arena/trace-<scenario>-<seed>.md.
 
-// `set` overrides the threat box's weights (`--set`), for every threat box in the fight
+// `set` overrides the threat box's weights (`--set`, `--set2`)
 const BOXES: Record<string, (set: Partial<ThreatWeights>) => Box> = {
   nearest: () => nearestBox,
   threat: (set) => threatBox({ ...THREAT_WEIGHTS, ...set }),
@@ -51,7 +53,10 @@ function flag(name: string): string | null {
 
 type Job = { scenario: string; seed: number; swapped: boolean }
 type Played = Job & { fight: Fight; decisions: [number, number]; ms: [number, number]; took: number }
-type Setup = { boxes: [string, string]; rounds: number; set: Partial<ThreatWeights> }
+type Weights = Partial<ThreatWeights>
+type Setup = { boxes: [string, string]; rounds: number; set: [Weights, Weights] }
+
+const setText = (set: Weights) => Object.entries(set).map(([k, v]) => `${k} ${v}`).join(', ')
 
 // A box timed: how many decisions it made and how long they took.
 function timed(box: Box, into: { n: number; ms: number }): Box {
@@ -72,7 +77,7 @@ function play(jobs: Job[], { boxes, rounds, set: weights }: Setup, done: (p: Pla
     set.set(job.scenario, fight)
     const clocks = [{ n: 0, ms: 0 }, { n: 0, ms: 0 }] as const
     const t0 = performance.now()
-    const played = playFight({ start: fight.state, sides: [fight.red, fight.blue], boxes: [timed(BOXES[boxes[0]](weights), clocks[0]), timed(BOXES[boxes[1]](weights), clocks[1])] }, job.seed, job.swapped, rounds)
+    const played = playFight({ start: fight.state, sides: [fight.red, fight.blue], boxes: [timed(BOXES[boxes[0]](weights[0]), clocks[0]), timed(BOXES[boxes[1]](weights[1]), clocks[1])] }, job.seed, job.swapped, rounds)
     done({ ...job, fight: played, decisions: [clocks[0].n, clocks[1].n], ms: [clocks[0].ms, clocks[1].ms], took: performance.now() - t0 })
   }
 }
@@ -90,11 +95,12 @@ if (!isMainThread) {
   for (const b of boxes) if (!BOXES[b]) throw new Error(`No box "${b}": there are ${Object.keys(BOXES).join(', ')}`)
   const seed = Number(seedText ?? 1)
   const swapped = swapText === 'swapped'
-  const weights = weightsOf(flag('set'))
+  const weights: [Weights, Weights] = [weightsOf(flag('set')), weightsOf(flag('set2'))]
   const { state, red, blue } = setUp(scenario)
-  const [redBox, blueBox] = swapped ? [boxes[1], boxes[0]] : boxes
-  const played = run(state, [{ id: 'red', members: red, box: BOXES[redBox](weights) }, { id: 'blue', members: blue, box: BOXES[blueBox](weights) }], { seed, maxRounds: Number(flag('rounds') ?? 30) })
-  const title = `${scenario.name}, seed ${seed}: red ${redBox}, blue ${blueBox}${Object.keys(weights).length ? ` (threat weights set: ${Object.entries(weights).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`
+  const [redAt, blueAt] = swapped ? [1, 0] : [0, 1]
+  const played = run(state, [{ id: 'red', members: red, box: BOXES[boxes[redAt]](weights[redAt]) }, { id: 'blue', members: blue, box: BOXES[boxes[blueAt]](weights[blueAt]) }], { seed, maxRounds: Number(flag('rounds') ?? 30) })
+  const named = (at: number) => `${boxes[at]}${Object.keys(weights[at]).length ? ` (${setText(weights[at])})` : ''}`
+  const title = `${scenario.name}, seed ${seed}: red ${named(redAt)}, blue ${named(blueAt)}`
   const out = path.join(process.cwd(), 'reports', 'arena', `trace-${scenario.name.replace(/[^a-z0-9]+/gi, '-')}-${seed}${swapped ? '-swapped' : ''}.md`)
   mkdirSync(path.dirname(out), { recursive: true })
   writeFileSync(out, writeTrace(title, played, { red, blue }) + '\n')
@@ -104,7 +110,7 @@ if (!isMainThread) {
   const boxes = (flag('box') ?? 'nearest,nearest').split(',') as [string, string]
   for (const b of boxes) if (!BOXES[b]) throw new Error(`No box "${b}": there are ${Object.keys(BOXES).join(', ')}`)
   const only = flag('only')
-  const setup: Setup = { boxes, rounds: Number(flag('rounds') ?? 30), set: weightsOf(flag('set')) }
+  const setup: Setup = { boxes, rounds: Number(flag('rounds') ?? 30), set: [weightsOf(flag('set')), weightsOf(flag('set2'))] }
   const scenarios = SCENARIOS.filter((s) => !only || s.name.includes(only))
   const jobs: Job[] = scenarios.flatMap((s) => Array.from({ length: seeds }, (_, i) => [false, true].map((swapped) => ({ scenario: s.name, seed: i + 1, swapped }))).flat())
   const workers = Math.max(1, Math.min(Number(flag('workers') ?? availableParallelism() - 1), jobs.length))
@@ -152,7 +158,7 @@ function report(scenarios: string[], results: Played[], { boxes, rounds, set }: 
   const lines = [
     '# Arena',
     '',
-    `${A} against ${B} on ${ARENA}: ${seeds} seeds a scenario, each played twice with the boxes trading sides; a draw at the end of round ${rounds}.${Object.keys(set).length ? ` Threat weights set: ${Object.entries(set).map(([k, v]) => `${k} ${v}`).join(', ')}.` : ''}`,
+    `${A} against ${B} on ${ARENA}: ${seeds} seeds a scenario, each played twice with the boxes trading sides; a draw at the end of round ${rounds}.${Object.keys(set[0]).length ? ` ${A}'s weights set: ${setText(set[0])}.` : ''}${Object.keys(set[1]).length ? ` ${B}'s weights set: ${setText(set[1])}.` : ''}`,
     '',
     '## Results',
     '',

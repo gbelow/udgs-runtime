@@ -71,17 +71,17 @@ export function isStrikeHolder(action: Action): action is StrikeHolder {
 // Variations
 
 // Whether the strike may be made as this variation where it stands.
-// combat.tex "Braced Attack": "a reaction when a target is moving towards the
-// weapon or as an action in situations where the attacker is mounted and
-// running" — mounts are not modelled, so only when drawn by a step towards
-// the attacker. "Hook Attack": "an action or ... a reaction against running
+// combat.tex "Braced Attack": "a reaction when a target is running or jumping
+// towards the weapon or as an action in situations where the attacker is
+// mounted and running" — mounts are not modelled, so only when drawn by a
+// running or jumping step towards the attacker (`isBracedStep`). "Hook Attack": "an action or ... a reaction against running
 // targets that move away from the weapon" — and what a runner moving away
 // draws is only ever a hook attack.
 export type Drawn = { braced: boolean; hooked: boolean } | null
 
 // The same for a strike declared on its own (`null`) or drawn as an
-// opportunity attack by a step towards the weapon (`braced`) or a runner
-// moving away (`hooked`).
+// opportunity attack by a running or jumping step towards the weapon
+// (`braced`) or a runner moving away (`hooked`).
 export function isVariantOpenOn(drawn: Drawn, variant: string): boolean {
   if (!drawn) return variant !== 'braced'
   if (variant === 'braced') return drawn.braced

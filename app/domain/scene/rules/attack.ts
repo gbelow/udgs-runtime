@@ -141,11 +141,12 @@ export function getMoveStep(state: SceneState, reaction: ActionOf<'opportunityAt
   return root?.kind === 'move' && reaction.at !== null ? { move: root, at: reaction.at } : null
 }
 
-// combat.tex "Braced Attack": "a reaction when a target is moving towards
-// the weapon ... when movement is between two spaces within weapon range".
+// combat.tex "Braced Attack": "a reaction when a target is running or
+// jumping towards the weapon ... when movement is between two spaces within
+// weapon range".
 export function isBracedStep(state: SceneState, reaction: ActionOf<'opportunityAttack'>): boolean {
   const step = getMoveStep(state, reaction)
-  return step !== null && (getStepDelta(state, step.move, step.at, reaction.actorId) ?? 0) < 0
+  return step !== null && (step.move.movement === 'run' || step.move.movement === 'jump') && (getStepDelta(state, step.move, step.at, reaction.actorId) ?? 0) < 0
 }
 
 // combat.tex "Hook Attack": "a reaction against running targets that move

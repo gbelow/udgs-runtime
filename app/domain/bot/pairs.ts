@@ -29,7 +29,7 @@ import { getMostHOP, type HarmByDegree } from './odds'
 // hit's HOP spent by `getBestSpend`). Nothing is pressed.
 // Where they stand plays no part (no cover, no high ground, no light), and a
 // shot's distance penalty is left to the reader (`distanceRate`), so the table
-// holds for any two places. Harm is 2 x IL + 3 x bleed (the user's ruling).
+// holds for any two places. Harm is 2 x IL + 5 x bleed (the user's ruling).
 //
 // A hit lands in full whatever the defence (combat.tex "Defend"), so a hit's
 // harm is read once, undefended, but for a hook attack's, whose bonus turns on
@@ -61,10 +61,11 @@ export type PairAttack = {
   heavy: number
   declaresHeavy: boolean
   // where the variation may be made (scene/rules/strikeDeclaration.ts
-  // `isVariantOpenOn`): as an action of its own, as the opportunity attack a
-  // step towards the weapon draws (a braced attack), or the one a runner
-  // moving away draws (a hook attack)
-  opens: { action: boolean; approach: boolean; retreat: boolean }
+  // `isVariantOpenOn`): as an action of its own, as the opportunity attack
+  // anything else draws (a walk in, a shot, a standard action), as the one a
+  // run or a jump towards the weapon draws (a braced attack among them), or
+  // the one a runner moving away draws (a hook attack)
+  opens: { action: boolean; step: boolean; approach: boolean; retreat: boolean }
   // what is declared, and, for a braced or a hook attack, what its bonus
   // costs on a hit besides (`onHit`); `cost` holds both, so that the attack
   // is weighed as made in full
@@ -88,7 +89,7 @@ export type PairAttack = {
   defences: PairDefence[]
 }
 
-export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + 3 * o.bleed : 0)
+export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + 5 * o.bleed : 0)
 
 const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, usedSurge: null, surgeFloor: null, runsFree: false, resources: { ...c.resources, AP: ROUND_AP, STA: getSTA(c) } })
 
@@ -144,13 +145,13 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
         const root = ActionSchema.parse({ kind, id: ATTACK_ID, actorId: a, targetId: d, ...row, ...(ammoId ? { ammoId } : {}), ...(kind === 'strike' ? { heavy } : {}), ...getDefaultAim(target), step: 'react' }) as AttackAction
         const made = appendActions(base, [root])
         const opens = kind === 'strike'
-          ? { action: isVariantOpen(made, root, row), approach: isVariantOpenOn({ braced: true, hooked: false }, row.variant), retreat: isVariantOpenOn({ braced: false, hooked: true }, row.variant) }
-          : { action: isVariantOpen(made, root, row), approach: false, retreat: false }
-        if (!opens.action && !opens.approach && !opens.retreat) continue
+          ? { action: isVariantOpen(made, root, row), step: isVariantOpenOn({ braced: false, hooked: false }, row.variant), approach: isVariantOpenOn({ braced: true, hooked: false }, row.variant), retreat: isVariantOpenOn({ braced: false, hooked: true }, row.variant) }
+          : { action: isVariantOpen(made, root, row), step: false, approach: false, retreat: false }
+        if (!opens.action && !opens.step && !opens.approach && !opens.retreat) continue
         const test = getRootTest(made, root)
         const declared = getOwnCost(made, root)
         if (!test || test.scale !== 'overflow' || !declared) continue
-        // a braced attack is only ever drawn by a step towards the weapon, so
+        // a braced attack is only ever drawn by a run or a jump towards the weapon, so
         // its bonus is read as bought (no step draws it here); a hook
         // attack's is bought where it adds something (`getBestSpend`)
         const bonus = row.variant === 'braced' || row.variant === 'hook' ? row.variant : null

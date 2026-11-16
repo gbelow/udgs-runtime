@@ -28,20 +28,24 @@ export const SCENARIOS: Scenario[] = [
 ]
 
 // The arena's: the sides a few steps apart, so that everyone is in the fight
-// from the first round: three duels, three a side out in the open and with
-// one side in a house and the other outside its wall, and the three in the
-// open with an archer each, a few steps behind its side. The thief is left
-// out: its duels came down to whether its foe attacked or defended.
-const FIGHTERS = COMMON.filter((who) => who !== 'Surbit Thief')
-const three = (cells: [number, number][]): [string, [number, number]][] => FIGHTERS.map((who, i) => [who, cells[i]])
+// from the first round: four duels, three a side out in the open, and the
+// three with an archer each, a few steps behind its side. The sides of three are
+// not the same: the defender stands in for the soldier on red, and for the
+// noble on blue. The thief is left out: its duels came down to whether its
+// foe attacked or defended.
+const RED = ['Erthal Defender', 'Halkir squire', 'Human Noble']
+const BLUE = ['Erthal Soldier', 'Halkir squire', 'Erthal Defender']
+const three = (who: string[], cells: [number, number][]): [string, [number, number]][] => who.map((name, i) => [name, cells[i]])
+const red = (cells: [number, number][]) => three(RED, cells)
+const blue = (cells: [number, number][]) => three(BLUE, cells)
 
 export const CLOSE: Scenario[] = [
   { name: 'duel, soldier and squire', red: [['Erthal Soldier', [0, -8]]], blue: [['Halkir squire', [1, -8]]] },
   { name: 'duel, soldier and noble', red: [['Erthal Soldier', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
   { name: 'duel, squire and noble', red: [['Halkir squire', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
-  { name: 'three a side, close', red: three([[-2, -9], [-2, -8], [-2, -7]]), blue: three([[2, -9], [2, -8], [2, -7]]) },
-  { name: 'four a side, archers behind', red: [...three([[-2, -9], [-2, -8], [-2, -7]]), ['Human Ranger', [-6, -8]]], blue: [...three([[2, -9], [2, -8], [2, -7]]), ['Human Ranger', [6, -8]]] },
-  { name: 'three a side, a wall between', red: three([[-1, -2], [-1, -1], [-2, 0]]), blue: three([[2, -2], [2, -1], [1, 0]]) },
+  { name: 'duel, defender and noble', red: [['Erthal Defender', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
+  { name: 'three a side, close', red: red([[-2, -9], [-2, -8], [-2, -7]]), blue: blue([[2, -9], [2, -8], [2, -7]]) },
+  { name: 'four a side, archers behind', red: [...red([[-2, -9], [-2, -8], [-2, -7]]), ['Human Ranger', [-6, -8]]], blue: [...blue([[2, -9], [2, -8], [2, -7]]), ['Human Ranger', [6, -8]]] },
 ]
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(path.join(process.cwd(), file), 'utf-8'))

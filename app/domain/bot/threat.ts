@@ -11,8 +11,8 @@ import { ROUND_AP } from '../tables'
 import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
 import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
-import { getOpportunityWorth } from './approach'
-import { getWeaponRows } from '../scene/rules/weaponRow'
+import { getOpportunityWorth, getStandingOpportunityWorth } from './approach'
+import { getWeaponRows, isRowUsable } from '../scene/rules/weaponRow'
 import { getReach } from '../scene/rules/board/board'
 import { isMeleeRange } from '../weaponProperties'
 
@@ -27,7 +27,8 @@ import { isMeleeRange } from '../weaponProperties'
 // part of a round counting its part, so that every step closer counts.
 // Immediate threat is this round's: one attack the attacker can still pay for
 // with what it is believed to have left. A threat that needs a walk through
-// the target's own reach counts the opportunity attack it draws against it
+// the target's own reach, or a shot fired within it, counts the opportunity
+// attack it draws against it
 // (bot/approach.ts), which is the target's to make. A target that cannot be harmed even
 // undefended, or not this round, is under no threat from it. A threat counts
 // what the attack is worth (`getDefendedHarm`): the harm against the answer
@@ -40,11 +41,14 @@ import { isMeleeRange } from '../weaponProperties'
 export type ThreatTuning = {
   // what a threat counts for, for every round more than one it takes
   ring2: number
-  // what an AP of a defence costs the target, and an STA (`getSTAPrice`);
+  // what spending costs a character, for any spender and anything spent on
+  // (`getSpendPrice`): an AP at `AP` plus `danger` times the danger the
+  // spender is left in, an STA at `STA` as `getSTAPrice` prices it
+  AP: number
+  STA: number
+  danger: number
   // what an attack is worth more for every point of harm the defence takes
   // off (`getDefendedHarm`)
-  defenceAP: number
-  defenceSTA: number
   forcing: number
   // the STA against which a pool is measured (`getSTAPrice`)
   STAScale: number
@@ -55,7 +59,7 @@ export type ThreatTuning = {
   end: 'least' | 'most'
 }
 
-export const THREAT_TUNING: ThreatTuning = { ring2: 0.5, defenceAP: 1, defenceSTA: 1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'least' }
+export const THREAT_TUNING: ThreatTuning = { ring2: 0.5, AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'least' }
 
 export type Threat = {
   // what the attack is worth against the answer the target is believed to
@@ -103,8 +107,9 @@ export function getMeans(c: CampaignCharacter, plays: boolean, tuning: ThreatTun
 const freshMeans = (now: Means): Means => ({ AP: ROUND_AP, STA: now.STA, surge: true })
 
 // How far the character goes and for what, at its fastest movement open: the
-// metres of a block and the AP and STA a block costs.
-type Pace = { metres: number; AP: number; STA: number }
+// metres of a block and the AP and STA a block costs, and whether it runs or
+// jumps, which a braced attack answers.
+type Pace = { metres: number; AP: number; STA: number; running: boolean }
 
 const paces = new WeakMap<SceneState, Map<string, Pace | null>>()
 
@@ -115,9 +120,23 @@ export function getPace(state: SceneState, id: string): Pace | null {
   const c = state.characters[id]
   const open = c ? getMovementOptions(state, c).filter((o) => o.available && o.speed > 0 && o.block.AP > 0) : []
   const best = open.reduce<(typeof open)[number] | null>((b, o) => (!b || o.speed / o.block.AP > b.speed / b.block.AP ? o : b), null)
-  const pace = best ? { metres: best.speed, AP: best.block.AP, STA: best.block.STA } : null
+  const pace = best ? { metres: best.speed, AP: best.block.AP, STA: best.block.STA, running: best.kind === 'run' || best.kind === 'jump' } : null
   byId.set(id, pace)
   return pace
+}
+
+// The fight with `id`'s sheet replaced by `c`, where it stands as it stood
+// (a change of gear): what is known of how everyone else walks is kept, since
+// only `c` changed, and `c`'s own is read anew.
+export function withSheet(state: SceneState, id: string, c: CampaignCharacter): SceneState {
+  const next: SceneState = { ...state, characters: { ...state.characters, [id]: c } }
+  const keep = <T>(cache: WeakMap<SceneState, Map<string, T>>) => {
+    const known = cache.get(state)
+    if (known) cache.set(next, new Map([...known].filter(([key]) => key !== id)))
+  }
+  keep(paces)
+  keep(stepMaps)
+  return next
 }
 
 export const cellOf = (state: SceneState, id: string): Coord | null => state.board?.placements[id]?.cell ?? null
@@ -267,19 +286,35 @@ export function getAnswers(attack: PairAttack, gap: number, budget: { AP: number
   return { undefended, answers }
 }
 
-// What `spent` STA costs one holding `held`: dearer the less would be left,
-// so that a small pool, or one run down, is spent sparingly; and every STA
-// spent bleeding adds its IL (combat.tex "Bleed"), harm to the spender.
-export function getSTAPrice(spent: number, held: number, bleed: number, weight: number, tuning: ThreatTuning = THREAT_TUNING): number {
-  if (spent <= 0) return 0
-  return spent * (weight * tuning.STAScale / Math.max(1, held - spent) + 2 * bleed)
+// The price of resources, the one each is priced at whoever spends or gains
+// them and on whatever, weighed by the tuning's `AP`, `danger` and `STA`.
+
+// What `AP` AP cost one left in `danger` by spending them (the user's ruling:
+// every AP spent costs something, more the more threatened the spender is
+// left): each at `AP` plus `danger` times the danger.
+export function getAPPrice(AP: number, danger: number, tuning: ThreatTuning = THREAT_TUNING): number {
+  return Math.max(0, AP) * (tuning.AP + tuning.danger * danger)
 }
 
-// What the target pays for a defence: its AP at `defenceAP`, its STA as
-// `getSTAPrice` prices it.
-function defencePrice(defence: PairDefence, held: number, bleed: number, tuning: ThreatTuning): number {
-  return tuning.defenceAP * defence.cost.AP + getSTAPrice(defence.cost.STA, held, bleed, tuning.defenceSTA, tuning)
+// What `spent` STA cost one holding `held`, at `STA` for each: dearer the
+// less would be left, so that a small pool, or one run down, is spent
+// sparingly; and every STA spent bleeding adds its IL (combat.tex "Bleed"),
+// harm to the spender. What STA gained is worth is the same price, read for
+// the pool it ends in.
+export function getSTAPrice(spent: number, held: number, bleed: number, tuning: ThreatTuning = THREAT_TUNING): number {
+  if (spent <= 0) return 0
+  return spent * (tuning.STA * tuning.STAScale / Math.max(1, held - spent) + 2 * bleed)
 }
+
+// What spending `spent` costs one holding `held` STA, bleeding `bleed`, left
+// in `danger` by it: its AP (`getAPPrice`) and its STA (`getSTAPrice`).
+export function getSpendPrice(spent: { AP: number; STA: number }, held: number, bleed: number, danger: number, tuning: ThreatTuning = THREAT_TUNING): number {
+  return getAPPrice(spent.AP, danger, tuning) + getSTAPrice(spent.STA, held, bleed, tuning)
+}
+
+// What the danger a target is left in comes to once it has spent `spent` on
+// a defence, read where it is known (`getTargetDanger`).
+export type DangerAfter = (spent: { AP: number; STA: number }) => number
 
 // The attack against the answer the target is believed to choose: of those
 // it can pay for (none among them), the one that leaves it the least harm and
@@ -287,9 +322,13 @@ function defencePrice(defence: PairDefence, held: number, bleed: number, tuning:
 // target, the harm it takes and the price it pays, and more by `forcing` for
 // every point of harm the defence takes off: an attack the target cannot
 // leave unanswered drains it whichever way it answers (the user's ruling).
-export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', bleed = 0, tuning: ThreatTuning = THREAT_TUNING): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
+// The price is the one the target's own box pays for a defence
+// (`getSpendPrice`), with the danger `dangerAfter` says it is left in; with
+// none given, as inside the threats themselves, which the danger is read from,
+// the danger is left unread.
+export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', bleed = 0, tuning: ThreatTuning = THREAT_TUNING, dangerAfter?: DangerAfter): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
   const { undefended, answers } = getAnswers(attack, gap, budget, mode)
-  const cost = (a: Answer) => a.harm + defencePrice(a.defence, budget.STA, bleed, tuning)
+  const cost = (a: Answer) => a.harm + getSpendPrice(a.defence.cost, budget.STA, bleed, dangerAfter && a.defence.cost.AP > 0 ? dangerAfter(a.defence.cost) : 0, tuning)
   const best = answers.filter((a) => a.affordable).reduce<Answer | null>((b, a) => (!b || cost(a) < cost(b) ? a : b), null)
   return best ? { worth: cost(best) + tuning.forcing * best.value, harm: best.harm, defence: best.defence, undefended, answers } : null
 }
@@ -346,22 +385,27 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
     if (rounds === null) continue
     const met = getDefendedHarm(attack, gap, guard, mode, defender.injuries.bleed, tuning)
     if (!met || met.undefended <= 0) continue
-    // the walk in, straight from where `a` stands to the attack's reach, against the target's own strikes
-    const approach = gap > attack.reach ? getOpportunityWorth(a.state, d.id, a.id, gap, attack.reach, guard, { AP: Math.max(0, means.AP - moveAP), STA: means.STA }, tuning) : 0
+    // the walk in, straight from where `a` stands to the attack's reach, and
+    // a shot fired from within the target's own reach, against the target's
+    // own strikes
+    const left = { AP: Math.max(0, means.AP - moveAP), STA: means.STA }
+    const walkIn = gap > attack.reach ? getOpportunityWorth(a.state, d.id, a.id, gap, attack.reach, pace?.running ?? false, guard, left, tuning) : 0
+    const approach = walkIn + (attack.kind === 'shoot' ? getStandingOpportunityWorth(a.state, d.id, a.id, Math.min(gap, attack.reach), guard, left, tuning) : 0)
     const threat: Threat = { worth: met.worth, harm: met.harm, attack, defence: met.defence, undefended: met.undefended, answers: met.answers, cost: attack.cost, moveAP, rounds, approach }
     if (!best || threatValue(threat, tuning) > threatValue(best, tuning)) best = threat
   }
   return best
 }
 
-// The longest reach of the character's attacks, in metres: a melee row's
-// reach (`getReach`), a shot's (`getShotReach`).
+// The longest reach of the attacks the character can make with what it holds
+// as it holds it (`isRowUsable`: a bow in one hand shoots nothing), in metres:
+// a melee row's reach (`getReach`), a shot's (`getShotReach`).
 const reaches = new WeakMap<CampaignCharacter, number>()
 
 function getLongestReach(c: CampaignCharacter): number {
   let most = reaches.get(c)
   if (most === undefined) {
-    most = getWeaponRows(c).reduce((m, row) => Math.max(m, isMeleeRange(row.atk.range) ? getReach(row.weapon, row.atk.range) : getShotReach(row.atk, row.weapon, c)), 0)
+    most = getWeaponRows(c).filter((row) => isRowUsable(c, row)).reduce((m, row) => Math.max(m, isMeleeRange(row.atk.range) ? getReach(row.weapon, row.atk.range) : getShotReach(row.atk, row.weapon, c)), 0)
     reaches.set(c, most)
   }
   return most
@@ -454,6 +498,13 @@ function readImmediateThreat(state: SceneState, plays: readonly string[], a: str
 export function getDanger(state: SceneState, members: readonly string[], id: string, kind: 'potential' | 'immediate', at: Coord | null = cellOf(state, id), guard?: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): number {
   const { foes } = getSides(state, members)
   return foes.reduce((worst, foe) => Math.max(worst, threatValue(kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, guard, tuning), tuning)), 0)
+}
+
+// What `target`, standing at `at` with `guard` to defend with, is left in once
+// it has spent on a defence: the worst single foe's immediate threat on it, as
+// its own box reads it when it answers (bot/boxes/threat.ts).
+export function getTargetDanger(state: SceneState, target: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): DangerAfter {
+  return (spent) => getDanger(state, [target], target, 'immediate', at, { AP: Math.max(0, guard.AP - spent.AP), STA: Math.max(0, guard.STA - spent.STA) }, tuning)
 }
 
 // The seat's side: its members and their allies.
