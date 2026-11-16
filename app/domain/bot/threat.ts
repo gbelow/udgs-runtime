@@ -6,6 +6,8 @@ import { makeAction } from '../scene/factories'
 import { coordKey, disk, distance, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
 import { getSTA } from '../character/rules/characteristics'
+import { getMovementBlock } from '../character/rules/movement'
+import { MOVEMENT_KINDS } from '../lists'
 import { canSurge, getSurgeAP, getSurgeSTA } from '../character/rules/surge'
 import { ROUND_AP } from '../tables'
 import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
@@ -125,14 +127,23 @@ export function getPace(state: SceneState, id: string): Pace | null {
   return pace
 }
 
+// What of a sheet its walking reads (`getPace`, `walkMap`): the movements
+// open to it, each one's speed, block and price, and the STA it holds.
+function walkingOf(state: SceneState, c: CampaignCharacter): string {
+  return JSON.stringify([getMovementOptions(state, c), MOVEMENT_KINDS.map((kind) => getMovementBlock(c, kind)), c.resources.STA])
+}
+
 // The fight with `id`'s sheet replaced by `c`, where it stands as it stood
 // (a change of gear): what is known of how everyone else walks is kept, since
-// only `c` changed, and `c`'s own is read anew.
+// only `c` changed, and `c`'s own too where the change leaves its walking as
+// it was (`walkingOf`); otherwise it is read anew.
 export function withSheet(state: SceneState, id: string, c: CampaignCharacter): SceneState {
   const next: SceneState = { ...state, characters: { ...state.characters, [id]: c } }
+  const was = state.characters[id]
+  const walksAlike = !!was && walkingOf(state, was) === walkingOf(next, c)
   const keep = <T>(cache: WeakMap<SceneState, Map<string, T>>) => {
     const known = cache.get(state)
-    if (known) cache.set(next, new Map([...known].filter(([key]) => key !== id)))
+    if (known) cache.set(next, new Map([...known].filter(([key]) => walksAlike || key !== id)))
   }
   keep(paces)
   keep(stepMaps)
@@ -367,7 +378,10 @@ function combatSurge(c: CampaignCharacter): { AP: number; STA: number } | null {
 
 // The best one attack `a` can make on `d`, against `d` defending with `guard`:
 // this round's with `means`, or at all, from fresh rounds.
-function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential', guard: { AP: number; STA: number }, mode: ModeOf, tuning: ThreatTuning): Threat | null {
+// The approach is priced at most at `d`'s own threat on `a` (the user's
+// ruling: a foe that is no threat costs nothing to walk in on), read without
+// that cap, so that the two threats do not ask each other; `capped` false reads it.
+function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential', guard: { AP: number; STA: number }, mode: ModeOf, tuning: ThreatTuning, capped = true): Threat | null {
   const attacker = a.state.characters[a.id]
   const defender = d.state.characters[d.id]
   if (!attacker || !defender) return null
@@ -376,6 +390,8 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
   const surge = { AP: getSurgeAP('movement')(attacker), STA: getSurgeSTA('movement')(attacker) }
   const combat = when === 'now' ? combatSurge(attacker) : null
   const focused = attacker.usedSurge === 'focus'
+  let cap: number | undefined
+  const capOf = () => (cap ??= threatValue(getUncappedThreat(a.state, a.id, d.id, d.at, a.at, tuning), tuning))
   let best: Threat | null = null
   for (const attack of getPair(attacker, defender)) {
     if (!attack.opens.action) continue
@@ -387,10 +403,13 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
     if (!met || met.undefended <= 0) continue
     // the walk in, straight from where `a` stands to the attack's reach, and
     // a shot fired from within the target's own reach, against the target's
-    // own strikes
+    // own strikes; only for an attack `a` can make with what it holds (the
+    // user's ruling: from further off, what walking in draws is not yet weighed)
     const left = { AP: Math.max(0, means.AP - moveAP), STA: means.STA }
-    const walkIn = gap > attack.reach ? getOpportunityWorth(a.state, d.id, a.id, gap, attack.reach, pace?.running ?? false, guard, left, tuning) : 0
-    const approach = walkIn + (attack.kind === 'shoot' ? getStandingOpportunityWorth(a.state, d.id, a.id, Math.min(gap, attack.reach), guard, left, tuning) : 0)
+    const near = moveAP + attack.cost.AP <= means.AP
+    const walkIn = near && gap > attack.reach ? getOpportunityWorth(a.state, d.id, a.id, gap, attack.reach, pace?.running ?? false, guard, left, tuning) : 0
+    const drawn = walkIn + (near && attack.kind === 'shoot' ? getStandingOpportunityWorth(a.state, d.id, a.id, Math.min(gap, attack.reach), guard, left, tuning) : 0)
+    const approach = capped && drawn > 0 ? Math.min(drawn, capOf()) : drawn
     const threat: Threat = { worth: met.worth, harm: met.harm, attack, defence: met.defence, undefended: met.undefended, answers: met.answers, cost: attack.cost, moveAP, rounds, approach }
     if (!best || threatValue(threat, tuning) > threatValue(best, tuning)) best = threat
   }
@@ -467,7 +486,14 @@ export function getPotentialThreat(state: SceneState, plays: readonly string[], 
   return remembered(state, tuning, `potential|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${cellText(from)}`, () => readPotentialThreat(state, plays, a, d, at, from, tuning))
 }
 
-function readPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null, from: Coord | null, tuning: ThreatTuning): Threat | null {
+// `a`'s potential threat on `d` with its approach priced in full, as the cap
+// on what walking in on `a` may cost `d` (`bestAttack`); read as one who does
+// not play either of them would.
+function getUncappedThreat(state: SceneState, a: string, d: string, at: Coord | null, from: Coord | null, tuning: ThreatTuning): Threat | null {
+  return remembered(state, tuning, `uncapped|${a}|${d}|${cellText(at)}|${cellText(from)}`, () => readPotentialThreat(state, [], a, d, at, from, tuning, false))
+}
+
+function readPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null, from: Coord | null, tuning: ThreatTuning, capped = true): Threat | null {
   const ca = state.characters[a]
   const cd = state.characters[d]
   if (!ca || !cd || isSkipped(state, a, from, d, at)) return null
@@ -475,7 +501,7 @@ function readPotentialThreat(state: SceneState, plays: readonly string[], a: str
   const guard = { AP: ROUND_AP, STA: getMeans(cd, plays.includes(d), tuning).STA }
   const by: Party = { state, id: a, at: from }
   const to: Party = { state, id: d, at }
-  return bestAttack(by, to, means, 'potential', guard, 'best', tuning)
+  return bestAttack(by, to, means, 'potential', guard, 'best', tuning, capped)
 }
 
 // `a`'s immediate threat on `d` standing at `at`, defending with `guard` (what

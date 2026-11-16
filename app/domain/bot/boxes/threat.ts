@@ -22,6 +22,7 @@ import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/
 import type { Box, Decision, SeatInput } from '../decision'
 import { getSwitches } from '../arms'
 import { getPayBar } from '../../item/rules/moves'
+import { ROUND_AP } from '../../tables'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
 // every term weighed by a tweakable:
@@ -38,9 +39,12 @@ import { getPayBar } from '../../item/rules/moves'
 //   immediate threat on it, at the cell, with the AP it has left to defend;
 // - with no attack worth making, a walk is worth the potential harm the
 //   character could do from the cell to the foe it threatens most, less the
-//   worst single foe's potential threat on it there, and what it closes on
-//   the foe the team threatens most, less the walk at the same price; it
-//   walks when that beats standing by a margin;
+//   worst single foe's potential threat on it there, and the AP of the walk
+//   in it saves on the foe it most gains on, each worth a baseline for any
+//   enemy and more the more that foe threatens the team (the user's ruling:
+//   a harmless foe is still gone after, and so is one it cannot yet hurt),
+//   less the walk at the same price; it walks when that beats standing by a
+//   margin;
 // - a walk, to attack or not, costs the opportunity attacks it draws from the
 //   foes whose reach it walks in on, and a shot those of the foes whose melee
 //   weapons reach where it is fired from (bot/approach.ts);
@@ -67,13 +71,15 @@ export type ThreatWeights = RestTuning & {
   // a walk's worth: the potential harm the character could do from the cell, the potential danger there
   offence: number
   peril: number
-  // what a walk gains for every AP it closes on the foe the team threatens most
+  // what a walk gains for every AP of the walk in it saves on a foe: for any
+  // enemy, and for every point of the foe's threat on the team, a round's AP over
   aggression: number
+  chase: number
   // what a walk must beat standing still by
   margin: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.25, offence: 1, peril: 1, aggression: 2, margin: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.25, offence: 1, peril: 1, aggression: 4, chase: 1, margin: 1 }
 
 const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
@@ -274,7 +280,11 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk)) - (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
           if (best && score <= best.score) continue
           const why = `${attack.kind}s ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
-          if (needsFocus) best = { kind: 'surge', surge: 'focus', score, why: `focuses to shoot: ${why}` }
+          if (needsFocus) {
+            // the focus surge only for a shot, or the walk to it, that the table takes once focused
+            const then = !here || !cell || sameCell(cell, here) ? attackIntent(id, attack, foe) : walk ? moveIntent(id, walk.movement, cell) : null
+            if (then && declare(trial(view, { kind: 'surge', args: [id, 'focus'] }), then, TRIAL).ok) best = { kind: 'surge', surge: 'focus', score, why: `focuses to shoot: ${why}` }
+          }
           else if (b.surge) best = { kind: 'surge', surge: b.surge, score, why: `makes the ${b.surge} surge: ${why}` }
           else if (!here || !cell || sameCell(cell, here)) best = { kind: 'attack', intent: attackIntent(id, attack, foe), score, why }
           else if (walk) best = { kind: 'walk', intent: moveIntent(id, walk.movement, cell), score, why: `walks to attack: ${why}` }
@@ -287,16 +297,17 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   // no attack worth making: a walk, by where the character threatens more and
   // is threatened less, and how far it closes on the foe the team threatens most
   if (!here) return null
-  const quarry = foes.reduce<{ id: string; worth: number } | null>((q, f) => {
-    const worth = getThreatened(view, members, f, w)
-    return !q || worth > q.worth ? { id: f, worth } : q
-  }, null)?.id
-  const closing = (cell: Coord): number => (quarry ? getPotentialThreat(view, members, id, quarry, cellOf(view, quarry), cell, w)?.moveAP ?? Infinity : Infinity)
+  // the AP of the walk in on each foe from a cell, and what each AP saved on it is worth
+  const walkIn = (foe: string, cell: Coord): number | null => getPotentialThreat(view, members, id, foe, cellOf(view, foe), cell, w)?.moveAP ?? null
+  const chased = foes.map((foe) => ({ foe, from: walkIn(foe, here), perAP: w.aggression + (w.chase * getThreatening(view, members, foe, w)) / ROUND_AP }))
+  const pursuit = (cell: Coord): number => chased.reduce((most, { foe, from, perAP }) => {
+    const to = from === null ? null : walkIn(foe, cell)
+    return to === null || from === null ? most : Math.max(most, perAP * Math.max(0, from - to))
+  }, 0)
   const standing = (cell: Coord): number => {
     const offence = foes.reduce((most, foe) => Math.max(most, threatValue(getPotentialThreat(view, members, id, foe, cellOf(view, foe), cell, w), w)), 0)
     return w.offence * offence - w.peril * getDanger(view, members, id, 'potential', cell, undefined, w)
   }
-  const fromHere = closing(here)
   const stay = standing(here)
   let move: { cell: Coord; score: number; budget: Budget; movement: MovementKind } | null = null
   const worst = foes.reduce<{ id: string; danger: number } | null>((q, f) => {
@@ -310,13 +321,12 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       if (sameCell(cell, here)) continue
       if (!canPay(b, AP, 0)) continue
       const spent = AP
-      const closer = Number.isFinite(fromHere) ? fromHere - Math.min(fromHere, closing(cell)) : 0
-      const score = standing(cell) + w.aggression * closer - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk))
+      const score = standing(cell) + pursuit(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk))
       if (!move || score > move.score) move = { cell, score, budget: b, movement: walk.movement }
     }
   }
   if (!move || move.score <= stay + w.margin) return null
-  const why = `walks where it threatens more, is threatened less and closes in (${move.score.toFixed(1)} over ${stay.toFixed(1)})`
+  const why = `walks where it threatens more, is threatened less and goes after its foes (${move.score.toFixed(1)} over ${stay.toFixed(1)})`
   if (move.budget.surge) return { kind: 'surge', surge: move.budget.surge, score: move.score, why: `makes the ${move.budget.surge} surge: ${why}` }
   const intent = moveIntent(id, move.movement, move.cell)
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: move.score, why } : null
@@ -479,9 +489,15 @@ function planSwitch(view: SceneState, members: readonly string[], id: string, w:
   for (const sw of getSwitches(me)) {
     if ((sw.cost.AP > 0 || sw.cost.STA > 0) && getPayBar(me, sw.cost, true)) continue
     const after = withSheet(view, id, sw.after)
-    const then = { offence: offence(after), peril: peril(after) }
-    const gain = w.offence * (then.offence - now.offence) - w.peril * (then.peril - now.peril) - price(sw.cost.AP, sw.cost.STA, here) - sw.paid * drawn
-    if (gain <= w.margin || (best && gain <= best.gain)) continue
+    const paid = price(sw.cost.AP, sw.cost.STA, here)
+    const thenOffence = offence(after)
+    const beaten = (gain: number) => gain <= w.margin || (best !== null && gain <= best.gain)
+    // danger is never below none, so the most the switch could gain is with
+    // none left: a switch that loses even so is not worth reading the danger for
+    if (w.peril >= 0 && beaten(w.offence * (thenOffence - now.offence) - w.peril * (0 - now.peril) - paid - sw.paid * drawn)) continue
+    const then = { offence: thenOffence, peril: peril(after) }
+    const gain = w.offence * (then.offence - now.offence) - w.peril * (then.peril - now.peril) - paid - sw.paid * drawn
+    if (beaten(gain)) continue
     const intent: Intent = { actorId: id, option: { kind: 'gear', move: sw.moves[0] }, picks: [] }
     const why = `changes arms (${sw.moves.map((m) => m.kind).join(', ')}): threat ${now.offence.toFixed(1)} to ${then.offence.toFixed(1)}, danger ${now.peril.toFixed(1)} to ${then.peril.toFixed(1)}, for ${sw.cost.AP} AP, gain ${gain.toFixed(1)}`
     if (declare(view, intent, TRIAL).ok) best = { intent, why, gain }
@@ -529,7 +545,9 @@ export function threatBox(w: ThreatWeights = THREAT_WEIGHTS): Box {
     const view = input.view()
     for (const id of members) {
       const start = find('startTurn', id)
-      if (start && (planSwitch(trial(view, start.command), members, id, w) || planTurn(trial(view, start.command), members, id, w))) return { kind: 'press', pick: start, why: 'has something worth doing' }
+      if (!start) continue
+      const begun = trial(view, start.command)
+      if (planTurn(begun, members, id, w) || planSwitch(begun, members, id, w)) return { kind: 'press', pick: start, why: 'has something worth doing' }
     }
     return carryOn(input, find)
   }
