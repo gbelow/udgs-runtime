@@ -1,7 +1,8 @@
 import type { MovementKind } from '../types'
-import type { SceneState } from '../scene/types'
+import type { Coord, MoveAction, SceneState } from '../scene/types'
 import { getMovementOptions, type ReachableCell } from '../scene/rules/move'
 import { getReachableCells } from '../scene/rules/board/reach'
+import { getMoveTramples } from '../scene/rules/trample'
 import { getOpenAction } from '../scene/rules/log'
 import { toUpdater, type SceneCommand } from '../scene/commands/registry'
 
@@ -66,4 +67,11 @@ export function getReach(state: SceneState, id: string): Reach | null {
   known.set(state, byId)
   if (!byId.has(id)) byId.set(id, read(state, id))
   return byId.get(id) ?? null
+}
+
+// Whether the move walked along `path` comes into nobody standing on the way,
+// so that it sets off no crash (combat.tex "Trample"). A bot never walks
+// through anyone, ally or foe: the table's ruling.
+export function isClearWalk(state: SceneState, action: MoveAction, path: Coord[]): boolean {
+  return getMoveTramples(state, { ...action, path }, path).trampled.length === 0
 }

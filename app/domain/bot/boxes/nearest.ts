@@ -7,6 +7,7 @@ import { getFreeAttackOptions, hasUnfocusedRow } from '../../scene/rules/attack'
 import { isCombatStarted } from '../../scene/rules/started'
 import { getMovementOptions } from '../../scene/rules/move'
 import { getReachableCells } from '../../scene/rules/board/reach'
+import { isClearWalk } from '../reach'
 import { distance } from '../../scene/rules/board/geometry'
 import { getEndTurnBar, getTurnHolder, hasAgreedToEnd } from '../../scene/rules/turn'
 import { getRoundPhase } from '../../scene/rules/roundChange'
@@ -61,7 +62,8 @@ function attackOn(state: SceneState, c: CampaignCharacter, target: string): Inte
 }
 
 // A walk at the fastest movement open, with no surge, to the cell it reaches
-// nearest the foe, when that is nearer than where the character stands.
+// nearest the foe through nobody standing (`isClearWalk`), when that is
+// nearer than where the character stands.
 function stepCloser(state: SceneState, id: string, foe: Coord, apart: number): Intent | null {
   const c = state.characters[id]
   const open = getMovementOptions(state, c).filter((o): o is typeof o & { kind: MovementKind } => o.available && o.speed > 0)
@@ -70,7 +72,7 @@ function stepCloser(state: SceneState, id: string, foe: Coord, apart: number): I
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  const best = getReachableCells(moving, action as MoveAction).reduce<{ cell: Coord; apart: number } | null>((b, r) => {
+  const best = getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).reduce<{ cell: Coord; apart: number } | null>((b, r) => {
     const d = distance(r.cell, foe)
     return d < (b?.apart ?? apart) ? { cell: r.cell, apart: d } : b
   }, null)

@@ -10,6 +10,7 @@ import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/opt
 import { getOpenChoices } from '../../scene/projections/choices'
 import { getMovementOptions } from '../../scene/rules/move'
 import { getReachableCells } from '../../scene/rules/board/reach'
+import { isClearWalk } from '../reach'
 import { distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
 import { firesAcross, getEyes, getEyesToward, seesAcross } from '../../scene/rules/board/board'
 import { declare, type Intent, type Pick } from '../declare'
@@ -94,7 +95,7 @@ const argOf = (command: SceneCommand): unknown => (command.args as readonly unkn
 type Walk = { movement: MovementKind; cells: { cell: Coord; AP: number; STA: number }[] }
 
 // The cells the character can walk to this turn at its fastest movement, with
-// no surge, and what the walk costs.
+// no surge, through nobody standing (`isClearWalk`), and what the walk costs.
 function getWalk(state: SceneState, id: string): Walk | null {
   const c = state.characters[id]
   if (!c) return null
@@ -104,7 +105,7 @@ function getWalk(state: SceneState, id: string): Walk | null {
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  return { movement, cells: getReachableCells(moving, action as MoveAction).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA })) }
+  return { movement, cells: getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA })) }
 }
 
 // whether the walk runs or jumps, which a braced attack answers (combat.tex "Braced Attack")
