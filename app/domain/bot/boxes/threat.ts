@@ -45,8 +45,9 @@ import { ROUND_AP } from '../../tables'
 //   in it saves on the foe it most gains on, each worth a baseline for any
 //   enemy and more the more that foe threatens the team (the user's ruling:
 //   a harmless foe is still gone after, and so is one it cannot yet hurt),
-//   less the walk at the same price; it walks when that beats standing by a
-//   margin;
+//   less the walk at the same price and the worst single foe's immediate
+//   threat on it at the cell, with what it has left to defend once it has
+//   walked there; it walks when that beats standing by a margin;
 // - with no foe in sight, it searches (`planSearch`): it walks where it would
 //   see most of what its side does not, drawn towards the board's middle;
 // - a walk, to attack or not, costs the opportunity attacks it draws from the
@@ -80,6 +81,9 @@ export type ThreatWeights = RestTuning & {
   // enemy, and for every point of the foe's threat on the team, a round's AP over
   aggression: number
   chase: number
+  // what a walk is worth less for the danger it leaves the character in this
+  // round at the cell it walks to, with what it has left to defend
+  arrival: number
   // what a walk gains, with no foe in sight, for every cell of the board it
   // shows that nobody of the side sees
   search: number
@@ -87,7 +91,7 @@ export type ThreatWeights = RestTuning & {
   margin: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.25, offence: 1, peril: 1, aggression: 4, chase: 1, search: 1, margin: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.6, offence: 1, peril: 1, aggression: 4, chase: 1, arrival: 1, search: 1, margin: 1 }
 
 const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
@@ -176,8 +180,10 @@ function canPay(b: Budget, move: number, attack: number): boolean {
 }
 
 // The walks worth weighing (the user's ruling): towards each foe, the cells
-// that come nearest it; away from the foe whose threat is worst, the cells
-// that get furthest from it. `TOWARDS` and `AWAY` of each.
+// that come nearest it, and for every block of the walk the cell of that
+// block that comes nearest it, so that a walk may stop short; away from the
+// foe whose threat is worst, the cells that get furthest from it. `TOWARDS`
+// and `AWAY` of each.
 const TOWARDS = 3
 const AWAY = 3
 
@@ -191,7 +197,11 @@ function getDirectedCells(view: SceneState, here: Coord, walk: Walk, foes: reado
     const at = cellOf(view, foe)
     if (!at) continue
     const now = distance(here, at)
-    add(walk.cells.filter((c) => distance(c.cell, at) < now).sort((a, b) => distance(a.cell, at) - distance(b.cell, at) || cheaper(a, b)).slice(0, TOWARDS))
+    const closing = walk.cells.filter((c) => distance(c.cell, at) < now).sort((a, b) => distance(a.cell, at) - distance(b.cell, at) || cheaper(a, b))
+    add(closing.slice(0, TOWARDS))
+    const byBlock = new Map<number, WalkCell>()
+    closing.forEach((c) => byBlock.has(c.AP) || byBlock.set(c.AP, c))
+    add([...byBlock.values()])
   }
   const from = worst ? cellOf(view, worst) : null
   if (from) {
@@ -376,7 +386,10 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       if (sameCell(cell, here)) continue
       if (!canPay(b, AP, 0)) continue
       const spent = AP
-      const score = standing(cell) + pursuit(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path)
+      // a surge's AP is dropped at the turn's end, so only the AP of its own is left to defend with
+      const guard = { AP: Math.max(0, b.AP - b.surgeAP - Math.max(0, AP - b.surgeAP)), STA: Math.max(0, b.STA - STA) }
+      const arrival = w.arrival * getDanger(view, members, id, 'immediate', cell, guard, w)
+      const score = standing(cell) + pursuit(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - arrival
       if (!move || score > move.score) move = { cell, score, budget: b, movement: walk.movement }
     }
   }
@@ -400,11 +413,24 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   const struck = open.kind === 'shoot' ? opportunity(input, id, w) : null
   if (struck) return struck
   const attacker = view.characters[open.actorId]
-  const attack = attacker ? getPair(attacker, me).find((a) => a.kind === open.kind && a.row.weaponKey === open.weaponKey && a.row.attack === open.attack && a.row.variant === open.variant && (open.kind !== 'shoot' || a.ammoId === '' || a.ammoId === open.ammoId) && (open.kind !== 'strike' || a.heavy === getHeavyDegree(attacker, open))) : undefined
-  if (!attack) return press(find('pass', id), 'lets it come: does not know the attack')
   const from = cellOf(view, open.actorId)
   const at = cellOf(view, id)
   const gap = from && at ? distance(from, at) : 0
+  // the attack as the defender knows the attacker: a foe's quiver is guessed
+  // and its abilities known only once seen (bot/belief.ts), so where the
+  // arrows it shoots or the variant it makes are not among what it is
+  // believed to have, the attack is read as the worst of the same row's that
+  // are (the user's ruling: an unknown arrow is assumed the worst)
+  const rows = attacker ? getPair(attacker, me).filter((a) => a.kind === open.kind && a.row.weaponKey === open.weaponKey && a.row.attack === open.attack && (open.kind !== 'strike' || a.heavy === getHeavyDegree(attacker, open))) : []
+  const undefended = (a: PairAttack) => {
+    const none = a.defences.find((d) => d.draft === null)
+    return none ? getHarmAgainst(a, none, gap) : 0
+  }
+  const worst = (list: PairAttack[]) => list.reduce<PairAttack | undefined>((most, a) => (!most || undefended(a) > undefended(most) ? a : most), undefined)
+  const variant = rows.filter((a) => a.row.variant === open.variant)
+  const known = (list: PairAttack[]) => list.find((a) => open.kind !== 'shoot' || a.ammoId === '' || a.ammoId === open.ammoId)
+  const attack = known(variant) ?? worst(variant) ?? worst(rows)
+  if (!attack) return press(find('pass', id), 'lets it come: does not know the attack')
   const means = getMeans(me, true, w)
   const offered = getAvailableActions(view, id).filter((o) => o.available && o.reactionTo === open.id)
   const worth = (d: PairDefence) => getHarmAgainst(attack, d, gap)
