@@ -15,7 +15,7 @@ import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
 import { getOpportunityWorth, getStandingOpportunityWorth } from './approach'
 import { getWeaponRows, isRowUsable } from '../scene/rules/weaponRow'
-import { getReach } from '../scene/rules/board/board'
+import { firesAcross, getEyes, getReach } from '../scene/rules/board/board'
 import { isMeleeRange } from '../weaponProperties'
 
 // The threat one character puts on another (the user's rulings, 2026-11-14):
@@ -207,10 +207,14 @@ function mapEdge(map: StepMap): number {
 }
 
 // The fewest cells `mover` walks, from where it stands, to stand within
-// `reach` of `at`; null when it cannot get there in the rounds the map covers.
-function stepsWithin(state: SceneState, mover: string, at: Coord, reach: number): number | null {
+// `reach` of `at` at a cell `clear` keeps (a shot's: one with a line of fire
+// to `at`); null when it cannot get there in the rounds the map covers.
+type Clear = (cell: Coord) => boolean
+const ANYWHERE: Clear = () => true
+
+function stepsWithin(state: SceneState, mover: string, at: Coord, reach: number, clear: Clear = ANYWHERE): number | null {
   const from = cellOf(state, mover)
-  if (from && distance(from, at) <= reach) return 0
+  if (from && distance(from, at) <= reach && clear(from)) return 0
   const map = getStepMap(state, mover)
   if (!map) return null
   let fewest: number | null = null
@@ -218,12 +222,12 @@ function stepsWithin(state: SceneState, mover: string, at: Coord, reach: number)
   if (3 * r * (r + 1) + 1 < map.size) {
     for (const cell of disk(at, r)) {
       const steps = map.get(coordKey(cell))
-      if (steps !== undefined && (fewest === null || steps < fewest)) fewest = steps
+      if (steps !== undefined && (fewest === null || steps < fewest) && clear(cell)) fewest = steps
     }
     return fewest
   }
   for (const { cell, steps } of mapCells(map)) {
-    if (distance(cell, at) <= reach && (fewest === null || steps < fewest)) fewest = steps
+    if (distance(cell, at) <= reach && (fewest === null || steps < fewest) && clear(cell)) fewest = steps
   }
   return fewest
 }
@@ -246,15 +250,17 @@ function mapCells(map: StepMap): { cell: Coord; steps: number }[] {
 // The cells walked for `a`, standing at `from`, to come within `reach` of `d`
 // standing at `at`. Walked from where `a` stands; for `a` supposed elsewhere,
 // walked back from where `d` stands, the same way taken the other way round.
-function closingSteps(state: SceneState, a: string, from: Coord | null, d: string, at: Coord | null, reach: number): number | null {
+// For a shot (`clear`), within reach means where there is a line of fire too;
+// walked back from `d`, a cell in reach with none is a step short of one.
+function closingSteps(state: SceneState, a: string, from: Coord | null, d: string, at: Coord | null, reach: number, clear: Clear = ANYWHERE): number | null {
   if (!from || !at || !state.board) return 0
-  if (distance(from, at) <= reach) return 0
-  const straight = Math.max(0, distance(from, at) - reach)
+  if (distance(from, at) <= reach && clear(from)) return 0
+  const straight = Math.max(distance(from, at) <= reach ? 1 : 0, distance(from, at) - reach)
   const here = cellOf(state, a)
   const there = cellOf(state, d)
   const map = here && sameCell(here, from) ? getStepMap(state, a) : there && sameCell(there, at) ? getStepMap(state, d) : null
   if (!map) return straight
-  const walked = here && sameCell(here, from) ? stepsWithin(state, a, at, reach) : stepsWithin(state, d, from, reach)
+  const walked = here && sameCell(here, from) ? stepsWithin(state, a, at, reach, clear) : distance(from, at) <= reach ? 1 : stepsWithin(state, d, from, reach)
   // past what the map covers, as far as the straight line says, but never nearer than the map's edge
   return walked ?? Math.max(straight, mapEdge(map) + 1)
 }
@@ -381,6 +387,15 @@ function combatSurge(c: CampaignCharacter): { AP: number; STA: number } | null {
 // The approach is priced at most at `d`'s own threat on `a` (the user's
 // ruling: a foe that is no threat costs nothing to walk in on), read without
 // that cap, so that the two threats do not ask each other; `capped` false reads it.
+// Where a shot from `a` at `d` standing at `d.at` has a line of fire.
+function fireLine(a: Party, d: Party): Clear {
+  const board = a.state.board
+  const at = d.at
+  if (!board || !at) return ANYWHERE
+  const eyes = getEyes(a.state, a.id, d.id)
+  return (cell) => firesAcross(board, [cell], [at], eyes)
+}
+
 function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential', guard: { AP: number; STA: number }, mode: ModeOf, tuning: ThreatTuning, capped = true): Threat | null {
   const attacker = a.state.characters[a.id]
   const defender = d.state.characters[d.id]
@@ -395,7 +410,7 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
   let best: Threat | null = null
   for (const attack of getPair(attacker, defender)) {
     if (!attack.opens.action) continue
-    const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach))
+    const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : ANYWHERE))
     if (moveAP === null) continue
     const rounds = when === 'now' ? (canPayNow(attack, moveAP, means, surge, combat, focused) ? 1 : null) : roundsFor(attack, moveAP, means, surge)
     if (rounds === null) continue

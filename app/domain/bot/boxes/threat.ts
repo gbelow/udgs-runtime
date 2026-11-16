@@ -10,7 +10,8 @@ import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/opt
 import { getOpenChoices } from '../../scene/projections/choices'
 import { getMovementOptions } from '../../scene/rules/move'
 import { getReachableCells } from '../../scene/rules/board/reach'
-import { distance, sameCell } from '../../scene/rules/board/geometry'
+import { distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
+import { firesAcross, getEyes, getEyesToward, seesAcross } from '../../scene/rules/board/board'
 import { declare, type Intent, type Pick } from '../declare'
 import { getApproachCost, getStandingCost } from '../approach'
 import { getSides } from '../table'
@@ -45,6 +46,8 @@ import { ROUND_AP } from '../../tables'
 //   a harmless foe is still gone after, and so is one it cannot yet hurt),
 //   less the walk at the same price; it walks when that beats standing by a
 //   margin;
+// - with no foe in sight, it searches (`planSearch`): it walks where it would
+//   see most of what its side does not, drawn towards the board's middle;
 // - a walk, to attack or not, costs the opportunity attacks it draws from the
 //   foes whose reach it walks in on, and a shot those of the foes whose melee
 //   weapons reach where it is fired from (bot/approach.ts);
@@ -75,11 +78,14 @@ export type ThreatWeights = RestTuning & {
   // enemy, and for every point of the foe's threat on the team, a round's AP over
   aggression: number
   chase: number
+  // what a walk gains, with no foe in sight, for every cell of the board it
+  // shows that nobody of the side sees
+  search: number
   // what a walk must beat standing still by
   margin: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.25, offence: 1, peril: 1, aggression: 4, chase: 1, margin: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.25, offence: 1, peril: 1, aggression: 4, chase: 1, search: 1, margin: 1 }
 
 const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
@@ -195,13 +201,14 @@ function getDirectedCells(view: SceneState, here: Coord, walk: Walk, foes: reado
 // Where an attack with `reach` on a target standing at `at` may be made from:
 // where the character stands, if it reaches from there, and of the cells of
 // the walk that reach, the cheapest `ATTACK_CELLS` and the `ATTACK_CELLS`
-// where the danger on the character is least (`dangerAt`).
+// where the danger on the character is least (`dangerAt`); of those, only
+// the ones `clear` keeps (a shot's: a line of fire to the target).
 const ATTACK_CELLS = 2
 
-function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number, dangerAt: (cell: Coord) => number): { cell: Coord | null; AP: number; STA: number }[] {
-  const stay = !here || !at || distance(here, at) <= reach ? [{ cell: here, AP: 0, STA: 0 }] : []
+function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number, dangerAt: (cell: Coord) => number, clear: (cell: Coord) => boolean = () => true): { cell: Coord | null; AP: number; STA: number }[] {
+  const stay = !here || !at || (distance(here, at) <= reach && clear(here)) ? [{ cell: here, AP: 0, STA: 0 }] : []
   if (!walk || !at) return stay
-  const reaching = walk.cells.filter((c) => (!here || !sameCell(c.cell, here)) && distance(c.cell, at) <= reach)
+  const reaching = walk.cells.filter((c) => (!here || !sameCell(c.cell, here)) && distance(c.cell, at) <= reach && clear(c.cell))
   const cheapest = [...reaching].sort((a, b) => a.AP + a.STA - (b.AP + b.STA)).slice(0, ATTACK_CELLS)
   const safest = reaching.map((c) => ({ c, danger: dangerAt(c.cell) })).sort((a, b) => a.danger - b.danger).slice(0, ATTACK_CELLS).map(({ c }) => c)
   return [...stay, ...new Set([...cheapest, ...safest])]
@@ -241,13 +248,55 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
   return { dangerLeft, price, score }
 }
 
+// With no foe in sight, the search widens (the user's ruling): a walk to where
+// the character sees the most of the board its side sees none of now, and the
+// nearer the board's middle the better, `search` for every such cell and
+// `aggression` for every cell nearer the middle, less the walk at its price.
+// The cells weighed are `SEARCH_CELLS` of the walk's, spread from the
+// furthest in, and the board is read at most `SEARCH_SPREAD` cells of it.
+const SEARCH_CELLS = 12
+const SEARCH_SPREAD = 240
+
+function planSearch(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): Plan | null {
+  const board = view.board
+  const me = view.characters[id]
+  const here = cellOf(view, id)
+  if (!board || !me || !here) return null
+  const eyes = getEyesToward(view, id, 0)
+  const sees = (from: Coord, cell: Coord) => seesAcross(board, [from], [cell], eyes)
+  const team = members.flatMap((m) => cellOf(view, m) ?? [])
+  const dark = extentCells(board.origin, board.extent).filter((c) => !team.some((t) => sees(t, c)))
+  if (dark.length === 0) return null
+  const every = Math.ceil(dark.length / SEARCH_SPREAD)
+  const read = dark.filter((_, i) => i % every === 0)
+  let best: { cell: Coord; score: number; found: number; budget: Budget; movement: MovementKind } | null = null
+  for (const b of getBudgets(view, id)) {
+    const walk = getWalk(b.view, id)
+    if (!walk) continue
+    const far = walk.cells.filter((c) => !sameCell(c.cell, here)).sort((x, y) => distance(y.cell, here) - distance(x.cell, here))
+    const step = Math.max(1, Math.floor(far.length / SEARCH_CELLS))
+    for (let i = 0; i < far.length; i += step) {
+      const { cell, AP, STA } = far[i]
+      if (!canPay(b, AP, 0)) continue
+      const found = read.filter((c) => sees(cell, c)).length * every
+      const score = w.search * found + w.aggression * (distance(here, board.origin) - distance(cell, board.origin)) - getSpendPrice({ AP, STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, 0, w)
+      if (!best || score > best.score) best = { cell, score, found, budget: b, movement: walk.movement }
+    }
+  }
+  if (!best || best.score <= w.margin) return null
+  const why = `searches: walks where it sees about ${best.found} cells nobody of its side sees (${best.score.toFixed(1)})`
+  if (best.budget.surge) return { kind: 'surge', surge: best.budget.surge, score: best.score, why: `makes the ${best.budget.surge} surge: ${why}` }
+  const intent = moveIntent(id, best.movement, best.cell)
+  return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: best.score, why } : null
+}
+
 // What the character would do with the turn it holds in `view`, or null to end it.
 function planTurn(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, compelled = false): Plan | null {
   const me = view.characters[id]
   const here = cellOf(view, id)
   if (!me) return null
   const { foes } = getSides(view, members)
-  if (foes.length === 0) return null
+  if (foes.length === 0) return planSearch(view, members, id, w)
   const left = { AP: me.resources.AP, STA: me.resources.STA }
   const { dangerLeft, price, score: attackScore } = getAttackMeasures(view, members, id, w)
   // what walking from where the character stands to `to` costs it in the
@@ -268,7 +317,9 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       const guard = getMeans(target, false, w)
       for (const attack of getPair(me, target)) {
         if (!attack.opens.action) continue
-        for (const { cell, AP, STA } of getAttackCells(here, walk, at, attack.reach, (c) => dangerLeft(0, 0, c))) {
+        const board = view.board
+        const clear = attack.kind === 'shoot' && board && at ? (c: Coord) => firesAcross(board, [c], [at], getEyes(view, id, foe)) : undefined
+        for (const { cell, AP, STA } of getAttackCells(here, walk, at, attack.reach, (c) => dangerLeft(0, 0, c), clear)) {
           const gap = cell && at ? distance(cell, at) : 0
           const needsFocus = attack.needsFocus && me.usedSurge !== 'focus'
           if (needsFocus && (me.usedSurge !== null || b.surge !== null)) continue
@@ -280,14 +331,15 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk)) - (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
           if (best && score <= best.score) continue
           const why = `${attack.kind}s ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
-          if (needsFocus) {
-            // the focus surge only for a shot, or the walk to it, that the table takes once focused
-            const then = !here || !cell || sameCell(cell, here) ? attackIntent(id, attack, foe) : walk ? moveIntent(id, walk.movement, cell) : null
-            if (then && declare(trial(view, { kind: 'surge', args: [id, 'focus'] }), then, TRIAL).ok) best = { kind: 'surge', surge: 'focus', score, why: `focuses to shoot: ${why}` }
-          }
-          else if (b.surge) best = { kind: 'surge', surge: b.surge, score, why: `makes the ${b.surge} surge: ${why}` }
-          else if (!here || !cell || sameCell(cell, here)) best = { kind: 'attack', intent: attackIntent(id, attack, foe), score, why }
-          else if (walk) best = { kind: 'walk', intent: moveIntent(id, walk.movement, cell), score, why: `walks to attack: ${why}` }
+          // the attack from here, or the walk to where it is made from, only where the table
+          // takes it, after the surge that pays for it: a foe seen may still be out of the line
+          // of fire, and a surge made for a move refused is wasted
+          const fromHere = !here || !cell || sameCell(cell, here)
+          const next = fromHere ? attackIntent(id, attack, foe) : walk ? moveIntent(id, walk.movement, cell) : null
+          const surge = needsFocus ? 'focus' : b.surge
+          if (!next || !declare(needsFocus ? trial(view, { kind: 'surge', args: [id, 'focus'] }) : b.view, next, TRIAL).ok) continue
+          if (surge) best = { kind: 'surge', surge, score, why: surge === 'focus' ? `focuses to shoot: ${why}` : `makes the ${surge} surge: ${why}` }
+          else best = fromHere ? { kind: 'attack', intent: next, score, why } : { kind: 'walk', intent: next, score, why: `walks to attack: ${why}` }
         }
       }
     }
