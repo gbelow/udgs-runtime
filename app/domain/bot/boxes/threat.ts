@@ -1,9 +1,10 @@
 import type { Coord, MovementKind, SurgeKind } from '../../types'
 import { getSurgeAPLeft, getSurgeRecovery } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
-import type { ActionDraft, MoveAction, SceneState } from '../../scene/types'
+import type { Action, ActionDraft, MoveAction, SceneState } from '../../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../../scene/commands/registry'
-import { getOpenAction } from '../../scene/rules/log'
+import { getOpenAction, getReactionsTo } from '../../scene/rules/log'
+import { getRootTest } from '../../scene/rules/attack'
 import { getHeavyDegree } from '../../scene/rules/heavy'
 import { getHeavyName } from '../../character/rules/gear'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
@@ -17,7 +18,7 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachCost, getStandingCost } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
-import { withSheet, cellOf, getTargetDanger, getDanger, getDefendedHarm, getHarmAgainst, getMeans, getPotentialThreat, getSpendPrice, getThreatened, getThreatening, threatValue } from '../threat'
+import { withSheet, cellOf, getTargetDanger, getDanger, getDefendedHarm, getHarmAgainst, getMeans, getPotentialThreat, getSpendPrice, getTeam, getThreatened, getThreatening, threatValue } from '../threat'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import { REST_TUNING, type RestTuning } from '../rest'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
@@ -61,7 +62,14 @@ import { ROUND_AP } from '../../tables'
 //   every AP spent is priced, a surge's included (the user's ruling);
 // - attacked, it answers with the defence (or none) that leaves the least
 //   harm and price together, after the opportunity attack a shot at it draws
-//   where that is worth making;
+//   where that is worth making; none where someone else defends it already
+//   (the user's ruling: no redundant defence);
+// - an ally attacked, it defends it (combat.tex "Protect", "Guard") only
+//   where the attack is a greater immediate threat to the ally than it would
+//   be to the character, by `cover` (the user's ruling), and nobody defends
+//   it already: with the defence offered that leaves the ally the least harm
+//   and the character the least price, where that beats the ally answering
+//   for itself;
 // - drawn an opportunity attack, it makes the one that scores best as an
 //   attack on its turn would, if that is above nothing.
 //
@@ -89,9 +97,12 @@ export type ThreatWeights = RestTuning & {
   search: number
   // what a walk must beat standing still by
   margin: number
+  // what an attack on an ally must threaten it by more than it would the
+  // character, for the character to defend it
+  cover: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.6, offence: 1, peril: 1, aggression: 4, chase: 1, arrival: 1, search: 1, margin: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.6, offence: 1, peril: 1, aggression: 4, chase: 1, arrival: 1, search: 1, margin: 1, cover: 0 }
 
 const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
@@ -400,28 +411,22 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: move.score, why } : null
 }
 
-// The answer to an attack on `id`: the opportunity attack a shot draws from
-// it, if one is worth making, then the defence offered that leaves the least
-// harm and price together, or none.
-function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null {
-  const view = input.view()
-  const open = getOpenAction(view)
-  const me = view.characters[id]
-  if (!open || !me) return press(find('pass', id), 'lets it come')
-  if (open.targetId !== id || (open.kind !== 'strike' && open.kind !== 'shoot')) return opportunity(input, id, w) ?? press(find('pass', id), 'lets it come')
-  // shot at from within its reach: the opportunity attack the shot draws, then the defence
-  const struck = open.kind === 'shoot' ? opportunity(input, id, w) : null
-  if (struck) return struck
+// The strike or the shot `open` on `defender` as the seat knows the attacker,
+// and the metres between them: a foe's quiver is guessed and its abilities
+// known only once seen (bot/belief.ts), so where the arrows it shoots or the
+// variant it makes are not among what it is believed to have, the attack is
+// read as the worst of the same row's that are (the user's ruling: an unknown
+// arrow is assumed the worst). Null for any other action, or an attack the
+// seat cannot read.
+function getKnownAttack(view: SceneState, open: Action, defender: string): { attack: PairAttack; gap: number } | null {
+  if (open.kind !== 'strike' && open.kind !== 'shoot') return null
   const attacker = view.characters[open.actorId]
+  const me = view.characters[defender]
+  if (!attacker || !me) return null
   const from = cellOf(view, open.actorId)
-  const at = cellOf(view, id)
+  const at = cellOf(view, defender)
   const gap = from && at ? distance(from, at) : 0
-  // the attack as the defender knows the attacker: a foe's quiver is guessed
-  // and its abilities known only once seen (bot/belief.ts), so where the
-  // arrows it shoots or the variant it makes are not among what it is
-  // believed to have, the attack is read as the worst of the same row's that
-  // are (the user's ruling: an unknown arrow is assumed the worst)
-  const rows = attacker ? getPair(attacker, me).filter((a) => a.kind === open.kind && a.row.weaponKey === open.weaponKey && a.row.attack === open.attack && (open.kind !== 'strike' || a.heavy === getHeavyDegree(attacker, open))) : []
+  const rows = getPair(attacker, me).filter((a) => a.kind === open.kind && a.row.weaponKey === open.weaponKey && a.row.attack === open.attack && (open.kind !== 'strike' || a.heavy === getHeavyDegree(attacker, open)))
   const undefended = (a: PairAttack) => {
     const none = a.defences.find((d) => d.draft === null)
     return none ? getHarmAgainst(a, none, gap) : 0
@@ -430,7 +435,78 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   const variant = rows.filter((a) => a.row.variant === open.variant)
   const known = (list: PairAttack[]) => list.find((a) => open.kind !== 'shoot' || a.ammoId === '' || a.ammoId === open.ammoId)
   const attack = known(variant) ?? worst(variant) ?? worst(rows)
-  if (!attack) return press(find('pass', id), 'lets it come: does not know the attack')
+  return attack ? { attack, gap } : null
+}
+
+// Who defends someone against `root` with a block, an intercept or a guard
+// (combat.tex "Protect", "Guard"), its target among them.
+const GUARDING = new Set<ActionDraft['kind']>(['block', 'intercept', 'guard'])
+const getGuards = (view: SceneState, root: string): string[] => getReactionsTo(view, root).filter((r) => GUARDING.has(r.kind)).map((r) => r.actorId)
+
+// The defence of an ally attacked (combat.tex "Protect", "Guard"), made only
+// where the attack is a greater immediate threat to the ally, as it would
+// answer for itself, than it would be to the character, by `cover` (the
+// user's ruling), and nobody defends the ally already (the user's ruling: no
+// redundant defence). Of the block, intercept or guard the panel offers, the
+// one that leaves the least of the ally's harm and costs the character the
+// least, if that beats the ally answering for itself. Each is read with the
+// DL the table gives the attack against it, as the difference it makes to
+// the attack answered with none.
+function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | null {
+  const view = input.view()
+  const open = getOpenAction(view)
+  const ally = open?.targetId
+  if (!open || !ally || ally === id || !getTeam(view, input.members).includes(ally)) return null
+  if (getGuards(view, open.id).length > 0) return null
+  const me = view.characters[id]
+  const target = view.characters[ally]
+  const onAlly = getKnownAttack(view, open, ally)
+  const onMe = getKnownAttack(view, open, id)
+  if (!me || !target || !onAlly) return null
+  const toAlly = getDefendedHarm(onAlly.attack, onAlly.gap, getMeans(target, input.members.includes(ally), w), 'now', target.injuries.bleed, w)
+  const means = getMeans(me, true, w)
+  const toMe = onMe ? getDefendedHarm(onMe.attack, onMe.gap, means, 'now', me.injuries.bleed, w)?.worth ?? 0 : 0
+  if (!toAlly || toAlly.worth - toMe <= w.cover) return null
+  const none = onAlly.attack.defences.find((d) => d.draft === null)
+  const plain = getRootTest(view, open)
+  if (!none || !plain) return null
+  const at = cellOf(view, id)
+  let best: { draft: ActionDraft; picks: Pick[]; score: number } | null = null
+  for (const o of getAvailableActions(view, id)) {
+    if (!o.available || o.reactionTo !== open.id || !GUARDING.has(o.draft.kind) || !o.cost) continue
+    const picks = fillAnswer(view, input.members, id, o.draft, means)
+    const made = picks ? declare(view, { actorId: id, option: o.draft, picks }, TRIAL) : null
+    if (!picks || !made?.ok) continue
+    const met = getOpenAction(made.ready)
+    const test = met ? getRootTest(made.ready, met) : null
+    if (!test) continue
+    const left = getHarmAgainst(onAlly.attack, { ...none, draft: o.draft, cost: o.cost, DL: none.DL + test.DL - plain.DL }, onAlly.gap)
+    const price = getSpendPrice(o.cost, means.STA, me.injuries.bleed, getDanger(view, input.members, id, 'immediate', at, { AP: Math.max(0, means.AP - o.cost.AP), STA: Math.max(0, means.STA - o.cost.STA) }, w), w)
+    const score = left + price
+    if (!best || score < best.score) best = { draft: o.draft, picks, score }
+  }
+  if (!best || best.score >= toAlly.worth) return null
+  return { kind: 'declare', intent: { actorId: id, option: best.draft, picks: best.picks }, why: `defends ${target.name} with ${best.draft.kind} (harm left and price ${best.score.toFixed(1)} against ${toAlly.worth.toFixed(1)} answering for itself, ${toMe.toFixed(1)} were it on itself)` }
+}
+
+// The answer to an attack on `id`: the opportunity attack a shot draws from
+// it, if one is worth making, then the defence offered that leaves the least
+// harm and price together, or none, unless someone else defends it already.
+function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null {
+  const view = input.view()
+  const open = getOpenAction(view)
+  const me = view.characters[id]
+  if (!open || !me) return press(find('pass', id), 'lets it come')
+  if (open.targetId !== id || (open.kind !== 'strike' && open.kind !== 'shoot')) return protect(input, id, w) ?? opportunity(input, id, w) ?? press(find('pass', id), 'lets it come')
+  // shot at from within its reach: the opportunity attack the shot draws, then the defence
+  const struck = open.kind === 'shoot' ? opportunity(input, id, w) : null
+  if (struck) return struck
+  const guardian = getGuards(view, open.id).find((g) => g !== id)
+  if (guardian) return press(find('pass', id), `lets it come: ${view.characters[guardian]?.name ?? guardian} defends it`)
+  const at = cellOf(view, id)
+  const known = getKnownAttack(view, open, id)
+  if (!known) return press(find('pass', id), 'lets it come: does not know the attack')
+  const { attack, gap } = known
   const means = getMeans(me, true, w)
   const offered = getAvailableActions(view, id).filter((o) => o.available && o.reactionTo === open.id)
   const worth = (d: PairDefence) => getHarmAgainst(attack, d, gap)
