@@ -1,1 +1,50 @@
-{}
+{
+  "Simple Combat": {
+    "name": "Simple Combat",
+    "text": "",
+    "board": "Arena 1",
+    "parties": [
+      {
+        "name": "Nimble",
+        "members": [
+          {
+            "key": "Erthal Defender",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Halkir squire",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Human Ranger",
+            "count": 1,
+            "player": "bot:threat"
+          }
+        ]
+      },
+      {
+        "name": "Porcupine",
+        "members": [
+          {
+            "key": "Human Noble",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Erthal Soldier",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Human Ranger",
+            "count": 1,
+            "player": null
+          }
+        ]
+      }
+    ],
+    "treasure": []
+  }
+}

@@ -2,10 +2,10 @@
 import { useState } from 'react'
 import { Button, Menu, MenuConfirm, MenuItem } from './ui'
 import { CatalogDrawer, PlayedBy, PlayedByTag, TimelineControl, TimelineSummary } from './RunParts'
-import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
+import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, PartyKindTag, SwitchBanner } from './PartyBoard'
 import { useCampaignPartyCommands, useCampaignRoster, useMoveBars, useTimelineChart } from '../hooks/useCampaign'
 import { useRole } from '../hooks/useRole'
-import { usePartyCommands, useToDowntimeBar } from '../hooks/useParty'
+import { useEndScene, usePartyCommands, useToDowntimeBar } from '../hooks/useParty'
 import { useDowntimeCommands, useToExplorationBar } from '../hooks/useDowntime'
 import { usePartiesPanel } from '../hooks/useCombatState'
 import { useControlBar, useGmBar } from '../hooks/useControl'
@@ -62,9 +62,10 @@ export function CampaignParties(){
               <PartyFrame key={party.id} target={(starting && canStart) || (away && bar === null)} adding={party.id === addingTo} closed={bar} place={() => { if (starting && canStart) { startTimeline(party.id); setStarting(false) } else placeInto(party.id) }}>
                 <div className='flex flex-col gap-0.5' onClick={(e) => e.stopPropagation()}>
                   <PartyHeader name={party.name} rename={(n) => renameParty(party.id, n)} adding={party.id === addingTo} locked={gmBar !== null}
-                    toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)}>
+                    toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)} tag={<PartyKindTag campaign />}>
                     {party.sequence === 'exploration' ? <ToDowntime party={party} /> : <ToExploration party={party} />}
                     <TimelineControl timeline={party.timeline} />
+                    <DeleteParty party={{ id: party.id, inFight: party.fighting, inCampaign: true }} members={party.members.map((m) => m.name)} fighting={party.fighting} />
                   </PartyHeader>
                   <TimelineSummary timeline={party.timeline} />
                   {party.fighting ? <span className='text-xs text-bad'>in the fight</span> : null}
@@ -84,6 +85,21 @@ export function CampaignParties(){
         </div>
       </div>
     </div>
+  )
+}
+
+// The party gone with everyone in it, after asking: those on the roster leave
+// the campaign, its fighters leave the fight, and its dead stay lying where
+// they fell.
+export function DeleteParty({ party, members, fighting }: { party: { id: string; inFight: boolean; inCampaign: boolean }, members: readonly string[], fighting: boolean }){
+  const { deleteParty } = usePartyCommands()
+  const gmBar = useGmBar()
+  const sceneBar = useEndScene().bar
+  const bar = gmBar ?? (fighting ? sceneBar : null)
+  return (
+    <MenuConfirm bar={bar} hint={members.length > 0 ? `gone with everyone in it: ${members.join(', ')}` : 'the party is gone'} onConfirm={() => deleteParty(party)}>
+      delete party
+    </MenuConfirm>
   )
 }
 

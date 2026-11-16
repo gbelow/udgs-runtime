@@ -4,10 +4,10 @@ import type { CampaignState } from '../../campaign/types'
 import { leaveFight } from '../../character/commands/leaveFight'
 import { resetCombat } from './resetCombat'
 import { removeFromCombat } from './characters'
-import { addToFight, joinFight } from './parties'
-import { getHomecoming, getJoinBar, getReturnBar, getSaveLogBar, isFromRoster } from '../rules/fight'
-import { getOpenAction } from '../rules/log'
-import { checkIn, checkOut, lend, release } from '../../campaign/commands/roster'
+import { addToFight, deleteParty, joinFight } from './parties'
+import { getEndSceneBar, getHomecoming, getJoinBar, getReturnBar, getSaveLogBar, isFromRoster } from '../rules/fight'
+import { getOpenAction, getPlayingOutBar } from '../rules/log'
+import { checkIn, checkOut, leaveForGood, lend, release } from '../../campaign/commands/roster'
 import { passETs } from '../../campaign/commands/clock'
 import { describeSpan } from '../../campaign/rules/clock'
 import { record } from '../../campaign/commands/journal'
@@ -82,24 +82,65 @@ export function removeFromFight(id: string): TableUpdater {
 // scene's time passes for a party once however its fighters come back. The
 // fight ends when nobody is left in it.
 export function returnFromFight(ids: string[], ets: number): TableUpdater {
+  return (table) => (getReturnBar(table.fight) ? table : bringBack(table, ids, ets))
+}
+
+function bringBack(table: Table, ids: readonly string[], ets: number): Table {
+  const leaving = Object.values(table.fight.characters).filter((c) => ids.includes(c.id))
+  if (leaving.length === 0) return table
+  const alive = leaving.filter((c) => !isDead(c))
+  const homeOf = (id: string) => getHomecoming(table, id).partyId
+  const staying = new Set(Object.values(table.fight.characters).filter((c) => !ids.includes(c.id) && !isDead(c)).map((c) => homeOf(c.id)))
+  const homes = Map.groupBy(alive, (c) => homeOf(c.id))
+  const done = [...homes.keys()].filter((pid) => !staying.has(pid))
+  const back = leaveDead(table.fight, giveBack(table, alive), leaving.filter(isDead), (id) => isFromRoster(table, id))
+  const recorded = [...homes].filter(([pid]) => back.parties[pid]).reduce((campaign, [pid, members]) => record({
+    kind: 'scene', party: pid, title: 'back from a scene',
+    lines: [members.map((c) => getFightName(table.fight, c.id)).join(', '), ...(!staying.has(pid) && ets > 0 ? [`the scene took ${describeSpan(ets)}`] : [])],
+  })(campaign), back)
+  const campaign = passETs(ets, done)(recorded)
+  const fight = leaving.reduce((f, c) => removeFromCombat(c.id)(f), table.fight)
+  if (Object.values(fight.characters).some((c) => !isDead(c))) return { campaign, fight }
+  return { campaign: leaveBehind(fight, campaign), fight: resetCombat(fight) }
+}
+
+// The scene is over: whoever was sent
+// from the roster comes back to it, as do those brought straight into the
+// fight that the table `keep`s, in the parties the fight left them in, and the
+// scene took `ets`. Every other one brought straight in is gone, their id back
+// with the campaign. The dead and what is on the floor are left where it was
+// met. Refused as `getEndSceneBar` says.
+export function endScene(keep: readonly string[], ets: number): TableUpdater {
   return (table) => {
-    if (getReturnBar(table.fight)) return table
-    const leaving = Object.values(table.fight.characters).filter((c) => ids.includes(c.id))
-    if (leaving.length === 0) return table
-    const alive = leaving.filter((c) => !isDead(c))
-    const homeOf = (id: string) => getHomecoming(table, id).partyId
-    const staying = new Set(Object.values(table.fight.characters).filter((c) => !ids.includes(c.id) && !isDead(c)).map((c) => homeOf(c.id)))
-    const homes = Map.groupBy(alive, (c) => homeOf(c.id))
-    const done = [...homes.keys()].filter((pid) => !staying.has(pid))
-    const back = leaveDead(table.fight, giveBack(table, alive), leaving.filter(isDead), (id) => isFromRoster(table, id))
-    const recorded = [...homes].filter(([pid]) => back.parties[pid]).reduce((campaign, [pid, members]) => record({
-      kind: 'scene', party: pid, title: 'back from a scene',
-      lines: [members.map((c) => getFightName(table.fight, c.id)).join(', '), ...(!staying.has(pid) && ets > 0 ? [`the scene took ${describeSpan(ets)}`] : [])],
-    })(campaign), back)
-    const campaign = passETs(ets, done)(recorded)
-    const fight = leaving.reduce((f, c) => removeFromCombat(c.id)(f), table.fight)
-    if (Object.values(fight.characters).some((c) => !isDead(c))) return { campaign, fight }
-    return { campaign: leaveBehind(fight, campaign), fight: resetCombat(fight) }
+    if (getEndSceneBar(table.fight)) return table
+    const here = Object.values(table.fight.characters)
+    const gone = here.filter((c) => !isDead(c) && !isFromRoster(table, c.id) && !keep.includes(c.id)).map((c) => c.id)
+    const left: Table = {
+      campaign: gone.reduce((c, id) => release(id)(c), table.campaign),
+      fight: gone.reduce((f, id) => removeFromCombat(id)(f), table.fight),
+    }
+    const rest = Object.keys(left.fight.characters)
+    if (rest.length > 0) return bringBack(left, rest, ets)
+    return { campaign: leaveBehind(left.fight, left.campaign), fight: resetCombat(left.fight) }
+  }
+}
+
+// Everyone in the fight's party `partyId` is gone for good, alive or not:
+// one sent from the roster leaves the campaign, one brought straight in gives
+// their id back, and the dead are left lying where the fight was met. The
+// party is gone from the fight; a fight left with nobody in it ends. Refused
+// while something is being played out.
+export function removePartyFromFight(partyId: string): TableUpdater {
+  return (table) => {
+    if (!table.fight.parties[partyId] || getPlayingOutBar(table.fight)) return table
+    const members = Object.values(table.fight.characters).filter((c) => table.fight.partyOf[c.id] === partyId)
+    const fromRoster = (id: string) => isFromRoster(table, id)
+    const forgotten = members.filter((c) => !isDead(c)).reduce((c, m) => release(m.id)(fromRoster(m.id) ? leaveForGood(m.id)(c) : c), table.campaign)
+    const withDead = leaveDead(table.fight, forgotten, members.filter(isDead), fromRoster)
+    const emptied = members.reduce((f, m) => removeFromCombat(m.id)(f), table.fight)
+    const fight = deleteParty(partyId)(emptied)
+    if (Object.keys(fight.characters).length > 0) return { campaign: withDead, fight }
+    return { campaign: leaveBehind(fight, withDead), fight: resetCombat(fight) }
   }
 }
 

@@ -9,7 +9,7 @@ import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useTableStore } from "../stores/useTableStore";
 import { useBotLogStore } from "../stores/useBotLogStore";
-import { useGuestViewerCheck } from "./useControl";
+import { useGmBar, useGuestViewerCheck } from "./useControl";
 import { useThrower } from "./useDieCalls";
 
 // What the bots played this round on this screen and why, newest first.
@@ -17,6 +17,17 @@ export function useBotLog() {
   const round = useCombatStore((s) => s.round);
   const entries = useBotLogStore((s) => s.entries);
   return useMemo(() => entries.filter((e) => e.round === round), [entries, round]);
+}
+
+// Whether the bots are paused on this screen, and the GM's switch for it; a
+// guest's screen plays no bots, so it has none to pause.
+export function useBotsPaused() {
+  const paused = useBotLogStore((s) => s.paused);
+  const setPaused = useBotLogStore((s) => s.setPaused);
+  const guest = useTableStore((s) => s.mode === 'guest');
+  const gmBar = useGmBar();
+  const bar = gmBar ?? (guest ? "the bots play on the host's screen" : null);
+  return { paused, bar, toggle: () => { if (bar === null) setPaused(!paused); } } as const;
 }
 
 // A beat between a bot's moves, so that the table can follow them.
@@ -31,7 +42,8 @@ const REPEATS = 3;
 // seat has one (`getNextMove`), sent as a guest's press is, as the bot, and
 // held back as long as `getPace` says. A move the table refuses stops the
 // bots until the fight changes, and so does the same move made more than
-// `REPEATS` times in a row, until another is to be made.
+// `REPEATS` times in a row, until another is to be made. While the GM has
+// paused them, they make no move at all.
 export function useBots() {
   const mode = useTableStore((s) => s.mode);
   const viewerOf = useGuestViewerCheck();
@@ -52,6 +64,7 @@ export function useBots() {
 
     const play = () => {
       timer = null;
+      if (useBotLogStore.getState().paused) return;
       const { viewerOf, thrower } = live.current;
       const state = useCombatStore.getState();
       const ownerOf = viewerOf(BOTS[0].id, false).ownerOf;
@@ -107,6 +120,7 @@ export function useBots() {
     soon();
     const offCombat = useCombatStore.subscribe(soon);
     const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) soon(); });
-    return () => { offCombat(); offOwners(); if (timer) clearTimeout(timer); };
+    const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) { held = null; soon(); } });
+    return () => { offCombat(); offOwners(); offPaused(); if (timer) clearTimeout(timer); };
   }, [mode]);
 }

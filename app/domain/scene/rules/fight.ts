@@ -12,6 +12,13 @@ export function getReturnBar(fight: SceneState): string | null {
   return getPlayingOutBar(fight)
 }
 
+// Why the scene cannot be ended now, or a party taken out of it: nobody is
+// in it, or something is still being played out.
+export function getEndSceneBar(fight: SceneState): string | null {
+  if (Object.keys(fight.characters).length === 0) return 'nobody is in the scene'
+  return getPlayingOutBar(fight)
+}
+
 // Why the fight's log cannot be saved to the journal now, or null.
 export function getSaveLogBar(fight: SceneState): string | null {
   if (fight.landed.length === 0) return 'nothing has been played out yet'

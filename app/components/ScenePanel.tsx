@@ -6,8 +6,9 @@ import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
 import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
-import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Segment, Segmented, Tooltip, selectClass } from './ui';
-import { usePartyCommands, useTableParties } from '../hooks/useParty';
+import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
+import { useBotsPaused } from '../hooks/useBots';
+import { useEndScene, usePartyCommands, useTableParties } from '../hooks/useParty';
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
@@ -86,14 +87,18 @@ function FightSettingsButton(){
 
 // What happens to the scene: the rounds end with everyone staying, each party
 // that fought goes back to the campaign on its own (where exploring or
-// downtime goes on), or the scene is thrown away.
+// downtime goes on), or the scene ends for everyone, keeping in the campaign
+// only those made in it that the table picks.
 function EndSceneMenu(){
-  const { endCombat, resetCombat } = useCombatCommands()
+  const { endCombat } = useCombatCommands()
   const { round, endCombatBar, returnBar } = useCombatState()
   const { parties, loose } = useTableParties()
-  const { partyBack, back } = usePartyCommands()
+  const { partyBack, back, endScene } = usePartyCommands()
+  const { bar: endBar, made } = useEndScene()
   const gmBar = useGmBar()
   const [ets, setEts] = useState(0)
+  const [keep, setKeep] = useState<string[]>([])
+  const toggleKeep = (id: string) => setKeep(keep.includes(id) ? keep.filter((k) => k !== id) : [...keep, id])
   const leaving = parties.filter((p) => p.fighters.length > 0)
   const bar = returnBar ?? gmBar
 
@@ -113,7 +118,14 @@ function EndSceneMenu(){
         ETs the scene took
         <NumberInput className='w-10' aria-label='ETs taken' title='passed for each party when the last of it comes back' value={ets} onChange={(e) => setEts(parseInt(e.target.value) || 0)} />
       </label>
-      <MenuConfirm bar={gmBar} hint='the scene is thrown away, no time passes; whoever was sent from the roster goes back to it' onConfirm={resetCombat}>discard the scene</MenuConfirm>
+      <SectionLabel>End the scene</SectionLabel>
+      {made.length > 0 ? <span className='text-muted px-2'>made in the scene: keep in the campaign?</span> : null}
+      {made.map((m) => (
+        <label key={m.id} className='flex flex-row items-center gap-2 px-2'>
+          <input type='checkbox' aria-label={`keep ${m.name} in the campaign`} checked={keep.includes(m.id)} onChange={() => toggleKeep(m.id)} />{m.name}
+        </label>
+      ))}
+      <MenuConfirm bar={gmBar ?? endBar} hint='everyone sent from the campaign goes back to it, with those kept; the rest made in the scene are gone' onConfirm={() => { endScene(keep.filter((id) => made.some((m) => m.id === id)), ets); setKeep([]) }}>end the scene</MenuConfirm>
     </div>
   )
 }
@@ -122,6 +134,7 @@ function EndSceneMenu(){
 function FightSettings(){
   const { toggleBreakage } = useCombatCommands()
   const breakage = useBreakage()
+  const bots = useBotsPaused()
 
   return(
     <div className='flex flex-col gap-1'>
@@ -131,6 +144,10 @@ function FightSettings(){
           equipment breakage: {breakage ? 'on' : 'off'}
         </Button>
       </Tooltip>
+      <Button size='xs' aria-label='bots paused' aria-pressed={bots.paused} active={bots.paused} {...barred(bots.bar)}
+        title={bots.bar ?? (bots.paused ? 'the bots make no move: the GM plays their characters' : 'pause the bots to play their characters by hand')} onClick={bots.toggle}>
+        bots: {bots.paused ? 'paused' : 'playing'}
+      </Button>
     </div>
   )
 }

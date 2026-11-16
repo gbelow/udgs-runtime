@@ -29,6 +29,7 @@ type CampaignActions = {
   // what the server says of the campaign after writing it
   setFile: (file: Partial<CampaignFile>) => void
   setOwner: (id: string, owner: string | null) => void
+  setOwners: (owners: CharacterOwners) => void
   // replaces the campaign in play, its fight with it
   openCampaign: (t: CampaignInPlay, file: CampaignFile, owners?: CharacterOwners) => void
   loadFighter: (rawCharacter: unknown) => void
@@ -60,6 +61,7 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
   setMembers: (members) => set((s) => ({ file: { ...s.file, members } })),
   setFile: (file) => set((s) => ({ file: { ...s.file, ...file } })),
   setOwner: (id, owner) => set((s) => ({ owners: { ...s.owners, [id]: owner } })),
+  setOwners: (owners) => set((s) => ({ owners: { ...s.owners, ...owners } })),
 
   openCampaign: (t, file, owners = {}) => {
     set({ ...t.campaign, activeCharacterId: null, exploration: t.exploration, downtime: t.downtime, file, owners })

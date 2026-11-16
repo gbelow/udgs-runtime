@@ -71,15 +71,33 @@ export const EventOutcomeSchema = z.object({
 })
 export type EventOutcome = z.infer<typeof EventOutcomeSchema>
 
+// One line of a prepared scene's party: a catalog character by key, so many
+// copies of it, and who plays them (a bot, or null for the GM) unless the
+// table says otherwise for the scene it is about to play.
+export const ScenePartyMemberSchema = z.object({
+  key: z.string().default(''),
+  count: z.number().default(1),
+  player: z.string().nullable().default(null),
+})
+export type ScenePartyMember = z.infer<typeof ScenePartyMemberSchema>
+
+// A party a prepared scene brings into its fight, the enemy of every other.
+export const ScenePartySchema = z.object({
+  name: z.string().default(''),
+  members: z.array(ScenePartyMemberSchema).default([]),
+})
+export type SceneParty = z.infer<typeof ScenePartySchema>
+
 // A scene prepared in the catalog for an event to lead to: what the table
 // reads, the battle map it is played on (a shared one, by name; none for a
-// scene with no board), the catalog characters it is played against, so many
-// of each, and the treasure lying there, from the item catalog.
+// scene with no board), the parties it brings in, each made of new copies of
+// catalog characters every time it is played, and the treasure lying there,
+// from the item catalog.
 export const ScenePresetSchema = z.object({
   name: z.string().default(''),
   text: z.string().default(''),
   board: z.string().default(''),
-  opponents: z.array(z.object({ key: z.string().default(''), count: z.number().default(1) })).default([]),
+  parties: z.array(ScenePartySchema).default([]),
   treasure: z.array(z.object({ key: z.string().default(''), amount: z.number().default(1) })).default([]),
 })
 export type ScenePreset = z.infer<typeof ScenePresetSchema>
@@ -296,6 +314,9 @@ export const WaitingSceneSchema = z.object({
   forced: z.boolean().default(true),
   event: z.string().default(''),
   at: AtSchema.nullable().default(null),
+  // who the table has said plays a line of the preset's parties for this
+  // scene, by `getSceneSlot`, in place of the preset's own word
+  players: z.record(z.string(), z.string().nullable()).default({}),
 })
 export type WaitingScene = z.infer<typeof WaitingSceneSchema>
 

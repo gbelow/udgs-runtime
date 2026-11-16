@@ -11,13 +11,15 @@ import { EventEditor, ItemKeyList } from '../EventEditor'
 import { useEventTemplateDraft } from '../../hooks/useEventTemplate'
 import { useCatalogComparison } from '../../hooks/useCatalogComparison'
 import { ComparisonTable } from './Compare'
+import { SceneParties } from './SceneParties'
 
 type Editor = ReturnType<typeof useCatalogEditor>
 
 // One catalog: its entries listed by group on the left, the schema-driven
 // form for the picked or new entry on the right. Every catalog is this same
 // panel; what differs is in forms/catalogs.ts and the overrides, but for the
-// events, edited as the map edits an event. A comparable catalog lists its
+// events, edited as the map edits an event, and the parties of a prepared
+// scene, edited as cards beside the character catalog. A comparable catalog lists its
 // entries as the comparison table instead.
 export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
   const editor = useCatalogEditor(catalog)
@@ -69,6 +71,7 @@ function DraftForm({ catalog, editor }: { catalog: CatalogName, editor: Editor }
       {catalog === 'events'
         ? <EventTemplateForm value={draft.value} onChange={edit} />
         : <SchemaForm type={type} value={draft.value} onChange={(v) => edit(v as Record<string, unknown>)} overrides={OVERRIDES[catalog]} />}
+      {catalog === 'scenes' ? <SceneParties value={draft.value} onChange={edit} /> : null}
     </>
   )
 }

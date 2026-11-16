@@ -1,12 +1,13 @@
 'use client'
 import { useState } from 'react'
-import { Hourglass, Play, X } from 'lucide-react'
+import { Hourglass, X } from 'lucide-react'
 import { Button, IconButton, NumberInput, SectionLabel, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog } from './RunParts';
 import { useETAnswer, useETCalls, useETDiceBar, useExploration, useExplorationMaps, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { MapDrawing, type MapSelection } from './MapCanvas';
 import { DieCalls } from './DieCalls';
 import { useActorBar, useGmBar } from '../hooks/useControl';
+import { WaitingScene } from './WaitingScenes';
 import { Locked, LockedFor } from './Locks';
 import { EVENT_TYPES, TERRAIN_TAGS, type EventType } from '../domain/campaign/types';
 import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
@@ -193,7 +194,7 @@ export function LastEtLog(){
 // the groups going on an action.
 function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 
-  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan, campIn, toggleWeatherTag, setWeatherRaise, clearWeather, setOffAmbient, playScene, passBy } = usePartyCommands()
+  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller, resolvePlan, campIn, toggleWeatherTag, setWeatherRaise, clearWeather, setOffAmbient } = usePartyCommands()
   const gmBar = useGmBar()
   const partyBar = useActorBar({ anyOf: party.members.map((m) => m.id) })
   const choose = (key: string) => setPlace(party.id, maps.flatMap((m) => m.nodes).find((n) => n.key === key)?.at ?? null)
@@ -261,15 +262,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
       {party.pile.length > 0 ?
         <span className='text-xs text-muted'>found: {party.pile.map((i) => `${i.name} ×${i.amount}${i.left ? ' (left here)' : ''}`).join(', ')}</span>
         : null}
-      {party.scenes.map((s) => (
-        <div key={s.id} className='flex flex-row flex-wrap gap-1.5 items-center border-t border-line pt-1'>
-          <span className='text-xs font-medium'>{s.name}</span>
-          <span className='text-xs text-muted'>{s.forced ? 'forced' : 'offered'}{s.event ? ` · from ${s.event}` : ''} · met by {s.members.join(', ')}</span>
-          {s.text ? <span className='text-xs text-muted'>{s.text}</span> : null}
-          <Button size='xs' tone='accent' icon={Play} aria-label={`play ${s.name}`} disabled={s.playBar !== null} title={s.playBar ?? undefined} onClick={() => playScene(s)}>play</Button>
-          {s.forced ? null : <Button size='xs' weight='subtle' aria-label={`pass ${s.name} by`} onClick={() => passBy(s.id)}>pass by</Button>}
-        </div>
-      ))}
+      {party.scenes.map((s) => <WaitingScene key={s.id} scene={s} />)}
       <div className='flex flex-row flex-wrap gap-1.5'>
         {party.members.map((m) => (
           <Button key={m.id} aria-label={m.name} disabled={m.away} selected={m.isActive} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.away ? 'in a fight' : m.plan}</span></Button>

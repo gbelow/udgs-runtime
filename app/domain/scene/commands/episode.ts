@@ -4,7 +4,7 @@ import { isDead } from '../../character/rules/afflictions'
 import { leaveForGood } from '../../campaign/commands/roster'
 import type { FloorItem, SceneState, Table, TableUpdater } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import { getPlaySceneBar, getScenePreset } from '../../campaign/rules/scenes'
+import { getPlaySceneBar, getSceneCast, getScenePreset } from '../../campaign/rules/scenes'
 import { getPlaceKey } from '../../campaign/rules/place'
 import { getRosterName } from '../../campaign/rules/roster'
 import { record } from '../../campaign/commands/journal'
@@ -12,29 +12,31 @@ import { getCatalogItem } from '../../item/rules/items'
 import { without } from '../../utils'
 import { loadBoardMap } from './board'
 import { loadIntoFight, sendToFight } from './fight'
+import { createParty } from './parties'
 
 // A prepared scene an event led to, played out: on its battle map (`board`,
 // the kept map the table found under the preset's name, or null for a scene
-// with no board), with whoever met it sent into the fight, the catalog
-// characters it is played against (`opponents`, the sheets the table found
-// by key) brought in as a party of their own, and its treasure lying on the
-// floor. The fight remembers where it was met, for what is left lying there
-// when it ends. Refused as `getPlaySceneBar` says.
-export function playScene(sceneId: string, board: unknown | null, opponents: Record<string, unknown>, newId: () => string): TableUpdater {
+// with no board), with whoever met it sent into the fight, each of its
+// parties brought in as a fight party of its own, made of new copies of the
+// catalog characters it names (`sheets`, found by key) as `getSceneCast` lays
+// them out, and its treasure lying on the floor. The fight remembers where it
+// was met, for what is left lying there when it ends. Refused as
+// `getPlaySceneBar` says.
+export function playScene(sceneId: string, board: unknown | null, sheets: Record<string, unknown>, newId: () => string): TableUpdater {
   return (table) => {
     if (getPlaySceneBar(table.campaign, sceneId)) return table
     const waiting = table.campaign.scenes[sceneId]
     const preset = getScenePreset(waiting.preset)
+    const cast = getSceneCast(sceneId, waiting).filter((c) => sheets[c.key])
     const names = waiting.members.map((id) => getRosterName(table.campaign, id)).join(', ')
     const campaign = record({
-      kind: 'scene', party: waiting.party, title: preset.name,
+      kind: 'scene', party: waiting.party || null, title: preset.name,
       lines: [...(preset.text ? [preset.text] : []), `${waiting.event ? `from ${waiting.event}, ` : ''}played by ${names}`],
     })({ ...table.campaign, scenes: without(table.campaign.scenes, sceneId) })
     const fight = board === null ? { ...table.fight, board: null } : loadBoardMap(board)(table.fight)
     const sent = sendToFight(waiting.members.filter((id) => campaign.characters[id]))({ campaign, fight })
-    const side = newId()
-    const met = preset.opponents.flatMap(({ key, count }) => (opponents[key] ? Array.from({ length: count }, () => opponents[key]) : []))
-    const played = met.reduce<Table>((t, raw) => loadIntoFight(makeCampaignCharacter(raw as object), newId, side)(t), sent)
+    const parties = cast.reduce<Table>((t, c) => ({ ...t, fight: createParty(c.party, c.partyName)(t.fight) }), sent)
+    const played = cast.reduce<Table>((t, c) => loadIntoFight({ ...makeCampaignCharacter(sheets[c.key] as object), id: c.id }, newId, c.party)(t), parties)
     const floor: FloorItem[] = preset.treasure.flatMap(({ key, amount }) => {
       const item = getCatalogItem(key, amount)
       return item ? [{ item: { ...item, id: newId() }, cell: null, planted: null }] : []

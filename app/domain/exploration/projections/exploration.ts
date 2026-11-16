@@ -1,4 +1,5 @@
-import { getPlaySceneBar, getScenePreset } from '../../campaign/rules/scenes'
+import { getScenePreset } from '../../campaign/rules/scenes'
+import { getWaitingSceneView, type WaitingSceneView } from '../../campaign/projections/scenes'
 import type { EventType, PlaceChange, SeenCampaign, TerrainTag } from '../../campaign/types'
 import { SlotKindSchema, type Degree, type SlotKind } from '../../types'
 import { canFitItem, getOpenContainers } from '../../item/rules/containers'
@@ -82,9 +83,8 @@ export type PartyView = {
   // survival.tex "Events": what the party has found, to share out
   // what the party may take: what it found, and what was left lying here
   pile: { id: string; name: string; amount: number; left: boolean }[]
-  // the prepared scenes waiting for it: what the table needs to play one, a
-  // shared battle map's name and the catalog characters it is played against
-  scenes: { id: string; name: string; text: string; event: string; forced: boolean; members: string[]; board: string; opponents: string[]; playBar: string | null }[]
+  // the prepared scenes waiting for it
+  scenes: WaitingSceneView[]
 }
 // An event a group of the passing ET met, held for the table: the degree its
 // score came to, what the outcome says, and the test it asks of everyone
@@ -168,14 +168,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: SeenCampaign; b:
       paths: place ? getConnectionsFrom(place).map((p) => ({ id: p.id, name: p.toName, DL: p.DL })) : [],
       others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && p.sequence === party.sequence && isSamePlace(p, party)).map(([id, p]) => ({ id, name: p.name })),
       pile: getPileItems(t, partyId).map(({ item, left }) => ({ id: item.id, name: item.name || item.refId, amount: item.amount, left })),
-      scenes: Object.entries(state.scenes).filter(([, s]) => s.party === partyId).map(([id, s]) => {
-        const preset = getScenePreset(s.preset)
-        return {
-          id, name: preset.name, text: preset.text, event: s.event, forced: s.forced, members: s.members.map((m) => nameOf(state, m)),
-          board: preset.board, opponents: preset.opponents.map((o) => o.key),
-          playBar: getPlaySceneBar(state, id),
-        }
-      }),
+      scenes: Object.entries(state.scenes).filter(([, s]) => s.party === partyId).map(([id, s]) => getWaitingSceneView(state, id, s)),
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),

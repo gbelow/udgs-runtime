@@ -286,6 +286,15 @@ export function getToDowntimeBar(t: Exploring, partyId: string): string | null {
   return isOutsideSettlement(t.campaign, party) ? 'not in a settlement' : null
 }
 
+// Why the party cannot be deleted from the campaign now: someone of it is in
+// a fight (the fight takes them out first), or a plan of it is being resolved.
+export function getDeletePartyBar(t: Exploring, partyId: string): string | null {
+  if (!t.campaign.parties[partyId]) return 'no such party'
+  if (isPartyAway(t.campaign, partyId)) return 'someone is in a fight'
+  const { pending, running } = t.exploration
+  return pending?.party === partyId || running?.party === partyId ? 'a plan of the party is being resolved' : null
+}
+
 // Why the group cannot be gone on: "only one character rolls for it", and
 // that one must be with the group and able to; on the map, a travel goes
 // along a path out of the node.

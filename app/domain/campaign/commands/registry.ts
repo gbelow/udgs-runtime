@@ -9,7 +9,8 @@ import { editNote, removeEntry, writeNote } from './journal'
 import { toMapUpdater, type MapCommand } from './mapRegistry'
 import { addMap, createParty, leaveParty, mergeParties, moveToParty, removeMap, renameParty, setPartyExposure, setPartyLit, setPartyPlace, splitOff, updateCampaignMap } from './parties'
 import { addToRoster, removeFromRoster, updateRosterCharacter } from './roster'
-import { passBy } from './scenes'
+import { loadScene, passBy, setScenePlayer } from './scenes'
+import { getSceneActor } from '../rules/scenes'
 
 // The campaign's presses as data (cf. the scene's registry): the parties,
 // the clocks, the maps, the journal, and an edit to a character on the
@@ -35,7 +36,11 @@ export const campaignCommands = {
   setPartyPlace: command((_, partyId: string, at: At | null) => setPartyPlace(partyId, at)).by(gm),
 
   // an offered scene passed by, by anyone who met it
-  passBy: command((_, sceneId: string) => passBy(sceneId)).by((state, sceneId) => ({ anyOf: state.scenes[sceneId]?.members ?? [] })),
+  passBy: command((_, sceneId: string) => passBy(sceneId)).by((state, sceneId) => getSceneActor(state.scenes[sceneId]?.members ?? [])),
+  // a scene of the catalog loaded by the table, to be played by a party or nobody
+  loadScene: command((ctx, preset: string, partyId: string | null) => loadScene(ctx.newId(), preset, partyId)).by(gm),
+  // who plays the characters a waiting scene brings in, the GM's to give
+  setScenePlayer: command((_, sceneId: string, slot: string, player: string | null) => setScenePlayer(sceneId, slot, player)).by(gm),
 
   // the clocks
   setDayETs: command((_, dayETs: number) => setDayETs(dayETs)).by(gm),

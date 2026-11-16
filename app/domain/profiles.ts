@@ -193,10 +193,9 @@ export function getAssignBar(members: CampaignMembers, owner: string | null): st
 }
 
 // Whether `profile`, as `role` in the campaign, plays a character `owner`
-// owns: a player plays only their own, and a GM plays everyone but a bot's,
-// which the GM takes back by giving them to the GM.
+// owns: a player plays only their own, a bot only its own, and a GM
+// everyone, a bot's included, stepping in for it.
 export function canControl(owner: string | undefined, profile: string | null, role: Role): boolean {
-  if (owner !== undefined && isBot(owner)) return profile === owner
   return hasGmTools(role) || (profile !== null && owner === profile)
 }
 

@@ -2,7 +2,7 @@ import { realDice } from "../components/utils";
 import type { Thrower } from "../domain/play/calls";
 import type { Viewer } from "../domain/profiles";
 import { getCommandBar, toUpdater, type SceneCommand } from "../domain/scene/commands/registry";
-import { getTableCommandBar, toTableUpdater, type TableCommand } from "../domain/scene/commands/tableRegistry";
+import { getTableCommandBar, getTableCommandOwners, toTableUpdater, type TableCommand } from "../domain/scene/commands/tableRegistry";
 import { getCampaignCommandBar, toCampaignUpdater, type CampaignCommand } from "../domain/campaign/commands/registry";
 import { getExplorationCommandBar, toExplorationUpdater, type ExplorationCommand } from "../domain/exploration/commands/registry";
 import { getDowntimeCommandBar, toDowntimeUpdater, type DowntimeCommand } from "../domain/downtime/commands/registry";
@@ -41,7 +41,14 @@ export const PARTS: { [P in PartName]: Part<any, Commands[P]> } = {
   table: {
     read: () => ({ campaign: useCampaignStore.getState(), fight: useCombatStore.getState() }),
     bar: getTableCommandBar,
-    play: (command) => useCampaignStore.getState().updateTable(toTableUpdater(command, { newId })),
+    // and whoever it brought in given to whom the command says plays them
+    play: (command) => {
+      const campaign = useCampaignStore.getState();
+      const owners = getTableCommandOwners({ campaign, fight: useCombatStore.getState() }, command);
+      campaign.updateTable(toTableUpdater(command, { newId }));
+      const fighters = useCombatStore.getState().characters;
+      campaign.setOwners(Object.fromEntries(Object.entries(owners).filter(([id]) => fighters[id])));
+    },
   },
   campaign: {
     read: useCampaignStore.getState,

@@ -14,7 +14,7 @@ import { describeRoll } from '../../play/test'
 import { addExhaustion, addIL, healByRest, store } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposureOf, getRestsToday, getShelters, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
+  getAmbient, getDecisionsCalled, getPileItems, getReadBar, getPassBar, getPlaceNow, getResolveBar, getRestExposureOf, getRestsToday, getShelters, getToDowntimeBar, getDeletePartyBar, getWear, hasWood, isAway, isForcedToRest, isResolved, knowsEvent,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery, isResurrecting } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, asksTable, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
@@ -253,6 +253,39 @@ export function toDowntime(partyId: string): ExplorationUpdater {
       exploration: {
         ...t.exploration, groups: without(t.exploration.groups, partyId), camps: without(t.exploration.camps, partyId), casts,
         resting: t.exploration.resting.filter((id) => !members.includes(id)),
+      },
+    }
+  }
+}
+
+// The party is gone from the campaign with everyone in it, refused as
+// `getDeletePartyBar` says: its members leave the roster, its waiting scenes
+// go with it, and so do its groups, its camp and what its members planned.
+// What it found and had not shared out is left lying where it stood; the
+// journal keeps what it wrote of it.
+export function deleteParty(partyId: string): ExplorationUpdater {
+  return (t) => {
+    if (getDeletePartyBar(t, partyId)) return t
+    const members = getPartyMembers(t.campaign, partyId)
+    const gone = (id: string) => members.includes(id)
+    const keep = <T>(record: Record<string, T>) => Object.fromEntries(Object.entries(record).filter(([id]) => !gone(id)))
+    const key = getPlaceKey(t.campaign.parties[partyId].at)
+    const pile = t.exploration.piles[partyId] ?? []
+    const left = key && pile.length > 0 ? { ...t.campaign.left, [key]: [...(t.campaign.left[key] ?? []), ...pile] } : t.campaign.left
+    return {
+      campaign: {
+        ...t.campaign,
+        characters: keep(t.campaign.characters), partyOf: keep(t.campaign.partyOf), names: keep(t.campaign.names),
+        parties: without(t.campaign.parties, partyId),
+        scenes: Object.fromEntries(Object.entries(t.campaign.scenes).filter(([, s]) => s.party !== partyId)),
+        left,
+      },
+      exploration: {
+        ...t.exploration,
+        groups: without(t.exploration.groups, partyId), camps: without(t.exploration.camps, partyId),
+        resolved: without(t.exploration.resolved, partyId), piles: without(t.exploration.piles, partyId),
+        casts: keep(t.exploration.casts), rests: keep(t.exploration.rests), known: keep(t.exploration.known),
+        resting: t.exploration.resting.filter((id) => !gone(id)),
       },
     }
   }
@@ -625,7 +658,7 @@ function resolveGroup(t: Exploring, partyId: string, groupId: string, test: Test
   const taken = at ? events.filter((e) => e.outcome.items.length > 0).reduce((s, e) => updateCampaignMap(at.map, editEvent(e.owner, e.event, takeItems))(s), state) : state
   // the prepared scenes the events met lead to, waiting for whoever met them
   const scenes = Object.fromEntries(events.flatMap((e) => (e.outcome.scene
-    ? [[newId(), { preset: e.outcome.scene.preset, party: partyId, members: going, forced: e.outcome.scene.forced, event: e.name, at: party.at }]]
+    ? [[newId(), { preset: e.outcome.scene.preset, party: partyId, members: going, forced: e.outcome.scene.forced, event: e.name, at: party.at, players: {} }]]
     : [])))
   return done(
     { campaign: { ...taken, characters, scenes: { ...state.scenes, ...scenes } }, exploration: { ...t.exploration, piles, passing, known } },

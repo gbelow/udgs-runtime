@@ -2,15 +2,17 @@
 import { useState } from 'react'
 import { Card } from './SceneCards'
 import { CatalogDrawer, PlayedBy, PlayedByTag, TimelineControl, TimelineSummary } from './RunParts'
-import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
-import { Member, ToDowntime, ToExploration } from './CampaignParties'
-import { Menu, MenuItem, NumberInput } from './ui'
+import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, PartyKindTag, SwitchBanner } from './PartyBoard'
+import { DeleteParty, Member, ToDowntime, ToExploration } from './CampaignParties'
+import { Button, Menu, MenuItem, NumberInput, barred, selectClass } from './ui'
+import { WaitingScene } from './WaitingScenes'
+import { useScenePresets } from '../hooks/useScenePresets'
 import { useCombatState, usePartiesPanel } from '../hooks/useCombatState'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { useFitColumns } from '../hooks/useFitColumns'
 import { useBringIntoParty } from '../hooks/useCharacterLibrary'
 import { useCampaignPartyCommands, useMoveBars } from '../hooks/useCampaign'
-import { useFightTimelineClash, usePartyCommands, useTableParties } from '../hooks/useParty'
+import { useFightTimelineClash, usePartyCommands, useTableParties, useWaitingScenes } from '../hooks/useParty'
 import { useGmBar } from '../hooks/useControl'
 import type { SceneCard } from '../domain/scene/projections/cards'
 import type { TablePartyView } from '../domain/scene/projections/tableParties'
@@ -68,7 +70,8 @@ export function TableParties({ sequence }: { sequence?: Sequence }){
   return(
     <div className='flex flex-col gap-2 flex-1 min-h-0'>
       <div className='flex flex-row flex-wrap gap-2 items-center'>
-        {sequence ? null : <CreateParty create={fight.createParty} hint='a new party in the fight with nobody in it yet' />}
+        {sequence ? null : <CreateParty create={fight.createParty} hint='a new party in the scene with nobody in it yet: it joins the campaign only if brought back' />}
+        {sequence ? null : <LoadScene parties={parties.filter((p) => p.campaign !== null)} />}
         {switching ? <SwitchBanner name={switching.name} cancel={() => setSwitching(null)} /> : null}
         {fighting ? <>
           <span className='ml-auto text-xs text-muted whitespace-nowrap'>ETs the scene took</span>
@@ -76,6 +79,7 @@ export function TableParties({ sequence }: { sequence?: Sequence }){
         </> : null}
       </div>
       {clash ? <span className='text-xs text-bad'>{clash}</span> : null}
+      {sequence ? null : <WaitingScenes />}
       <div className='flex flex-row gap-3 items-start flex-1 min-h-0'>
         {adding ? <CatalogDrawer label={`adding to ${adding.name}`} close={() => setAddingTo(null)} bar={adding.campaign ? null : joinBar} onSelect={(c) => adding.campaign ? campaign.bring(c, adding.id) : bringIntoFight(c, adding.id)} /> : null}
         <div ref={columns} className='flex flex-col flex-wrap content-start gap-3 items-start flex-1 min-w-0 max-h-full'>
@@ -83,7 +87,7 @@ export function TableParties({ sequence }: { sequence?: Sequence }){
           {parties.map((party) => {
             const { target, closed } = closedFor(party)
             return (
-              <PartyFrame key={party.id} target={target} adding={party.id === addingTo} closed={closed} place={() => placeInto(party.id)}>
+              <PartyFrame key={party.id} target={target} adding={party.id === addingTo} closed={closed} sceneOnly={!party.campaign} place={() => placeInto(party.id)}>
                 <PartyTop party={party} sequence={sequence} ets={ets} adding={party.id === addingTo} locked={target}
                   rename={(n) => rename(party, n)} toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)} />
                 {party.roster.map((m) => (
@@ -117,12 +121,43 @@ export function TableParties({ sequence }: { sequence?: Sequence }){
   )
 }
 
+// A scene of the catalog loaded by the table, to be played by one of the
+// campaign's parties or by nobody sent from it.
+function LoadScene({ parties }: { parties: TablePartyView[] }){
+  const presets = useScenePresets()
+  const { loadScene } = usePartyCommands()
+  const gmBar = useGmBar()
+  const [preset, setPreset] = useState('')
+  const [party, setParty] = useState('')
+  const chosen = presets.some((p) => p.key === preset) ? preset : ''
+  return(
+    <div className='flex flex-row gap-1 items-center'>
+      <select aria-label='scene to load' className={selectClass} {...barred(gmBar)} value={chosen} onChange={(e) => setPreset(e.target.value)}>
+        <option value=''>scene…</option>
+        {presets.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+      </select>
+      <select aria-label='party that meets it' className={selectClass} {...barred(gmBar)} value={party} onChange={(e) => setParty(e.target.value)}>
+        <option value=''>nobody sent</option>
+        {parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+      <Button size='xs' weight='solid' tone='accent' aria-label='load scene' disabled={gmBar !== null || chosen === ''} title={gmBar ?? 'the scene waits to be played below'}
+        onClick={() => { loadScene(chosen, parties.some((p) => p.id === party) ? party : null); setPreset('') }}>load scene</Button>
+    </div>
+  )
+}
+
+// Every scene waiting to be played.
+function WaitingScenes(){
+  const scenes = useWaitingScenes()
+  if (scenes.length === 0) return null
+  return <div className='flex flex-col gap-1'>{scenes.map((s) => <WaitingScene key={s.id} scene={s} />)}</div>
+}
+
 // A party's name, what it is doing and its menu: the catalog first, then what
 // sends it into the scene or back, deletes it, or moves it between the
 // campaign's sequences.
 function PartyTop({ party, sequence, ets, adding, locked, rename, toggleAdding }: { party: TablePartyView, sequence?: Sequence, ets: number, adding: boolean, locked: boolean, rename: (name: string) => void, toggleAdding: () => void }){
   const { partyToScene, partyBack } = usePartyCommands()
-  const { deleteParty } = useCombatCommands()
   const { joinBar } = usePartiesPanel()
   const returnBar = useCombatState().returnBar
   const gmBar = useGmBar()
@@ -130,14 +165,14 @@ function PartyTop({ party, sequence, ets, adding, locked, rename, toggleAdding }
 
   return(
     <div className='flex flex-col gap-0.5' onClick={(e) => e.stopPropagation()}>
-      <PartyHeader name={party.name} rename={rename} adding={adding} toggleAdding={toggleAdding} locked={locked || gmBar !== null}>
+      <PartyHeader name={party.name} rename={rename} adding={adding} toggleAdding={toggleAdding} locked={locked || gmBar !== null} tag={<PartyKindTag campaign={campaign !== null} />}>
         {campaign && party.roster.length > 0 ? <MenuItem bar={joinBar ?? gmBar} hint='the whole party on the roster into the scene' onClick={() => partyToScene(party.id)}>to scene</MenuItem> : null}
         {party.fighters.length > 0 ? <MenuItem bar={returnBar ?? gmBar} hint='the scene is over for the party: back to the campaign' onClick={() => partyBack(party.id, ets)}>back from scene</MenuItem> : null}
-        {party.inFight && party.fighters.length === 0 ? <MenuItem bad bar={gmBar} hint='the party is gone from the fight' onClick={() => deleteParty(party.id)}>delete party</MenuItem> : null}
+        <DeleteParty party={{ id: party.id, inFight: party.inFight, inCampaign: campaign !== null }} members={[...party.roster, ...party.fighters].map((m) => m.name)} fighting={party.fighters.length > 0} />
         {campaign ? (campaign.sequence === 'exploration' ? <ToDowntime party={campaign} /> : <ToExploration party={campaign} />) : null}
         {campaign ? <TimelineControl timeline={campaign.timeline} /> : null}
       </PartyHeader>
-      {campaign ? <TimelineSummary timeline={campaign.timeline} /> : <span className='text-xs text-muted'>made in the fight: joins the campaign when it comes back</span>}
+      {campaign ? <TimelineSummary timeline={campaign.timeline} /> : <span className='text-xs text-muted'>made in the scene: joins the campaign only if brought back</span>}
       {party.fighters.length > 0 ? <span className='text-xs text-bad'>in the fight</span> : null}
       {sequence || !campaign?.playing ? null : <span className='text-xs text-muted'>in {campaign.playing}</span>}
     </div>

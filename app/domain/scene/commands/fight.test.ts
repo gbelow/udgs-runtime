@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { loadIntoFight, removeFromFight, resetFight, returnFromFight, saveFightLog, sendPartyToFight, sendToFight } from './fight'
+import { endScene, loadIntoFight, removeFromFight, resetFight, returnFromFight, saveFightLog, sendPartyToFight, sendToFight } from './fight'
+import { getPlaySceneBar } from '../../campaign/rules/scenes'
+import { getDeathIL } from '../../character/rules/afflictions'
 import { passRound } from '../fixtures'
 import { commitAction, declareAction } from './action'
 import { endCombat } from './endCombat'
@@ -105,5 +107,21 @@ describe('the time a scene took', () => {
     const together = returnFromFight(['a', 'b'], 2)(sent)
     const apart = returnFromFight(['b'], 2)(returnFromFight(['a'], 2)(sent))
     expect(apart.campaign.parties.p.clock).toBe(together.campaign.parties.p.clock)
+  })
+})
+
+describe('a scene after a death', () => {
+  // the id of one who died stays lent while they lie where they fell, and a
+  // waiting scene read any lent id as a fight under way: after a death no
+  // scene could ever be played again.
+  it('can be played once the fight that left the dead has ended', () => {
+    const a = { ...makeCampaignCharacter({ name: 'a' }), id: 'a' }
+    const orc = { ...makeCampaignCharacter({ name: 'orc' }), id: 'orc' }
+    const table: Table = { campaign: CampaignStateSchema.parse({ characters: { a } }), fight: SceneStateSchema.parse({}) }
+    const fought = loadIntoFight(orc, () => 'orc')(sendToFight(['a'])(table))
+    const dead = { ...fought.fight.characters.orc, injuries: { ...orc.injuries, injuryLevel: getDeathIL(orc) } }
+    const ended = endScene([], 0)({ ...fought, fight: { ...fought.fight, characters: { ...fought.fight.characters, orc: dead } } })
+    const waiting = { ...ended.campaign, scenes: { s: { preset: 'x', party: '', members: [], forced: false, event: '', at: null, players: {} } } }
+    expect(getPlaySceneBar(waiting, 's')).toBeNull()
   })
 })

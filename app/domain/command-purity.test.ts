@@ -424,9 +424,13 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   loadIntoFight: (t) => campaignCommands.loadIntoFight(characterSubject(), () => 'issued')(t),
   removeFromFight: (t) => campaignCommands.removeFromFight('a')(deepFreeze(away(t))),
   resetFight: (t) => campaignCommands.resetFight(deepFreeze(away(t))),
+  endScene: (t) => campaignCommands.endScene([], 0)(deepFreeze(away(t))),
+  removePartyFromFight: (t) => campaignCommands.removePartyFromFight('p')(deepFreeze(away(t))),
+  loadScene: ({ campaign }) => campaignCommands.loadScene('s', 'x', null)(campaign),
   toggleBreakage: (t) => campaignCommands.toggleBreakage(deepFreeze(away(t))),
-  passBy: ({ campaign }) => campaignCommands.passBy('s')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null } } }),
-  playScene: (t) => campaignCommands.playScene('s', null, {}, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [], scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: true, event: 'E', at: { map: 'm', node: 'n1' } } } }, fight: resetCombatModule.resetCombat(t.fight) })),
+  passBy: ({ campaign }) => campaignCommands.passBy('s')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null, players: {} } } }),
+  setScenePlayer: ({ campaign }) => campaignCommands.setScenePlayer('s', '0/0', 'bot:threat')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null, players: {} } } }),
+  playScene: (t) => campaignCommands.playScene('s', null, {}, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [], scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: true, event: 'E', at: { map: 'm', node: 'n1' }, players: {} } } }, fight: resetCombatModule.resetCombat(t.fight) })),
   leaveDead: ({ campaign, fight }) => campaignCommands.leaveDead({ ...fight, foundAt: 'm/n1' }, campaign, Object.values(fight.characters), () => true),
   leaveBehind: ({ campaign, fight }) => campaignCommands.leaveBehind({ ...fight, foundAt: 'm/n1', floor: [{ item: ItemSchema.parse({ id: 'i' }), cell: null, planted: null }] }, campaign),
 }
@@ -434,6 +438,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
 // Exploration's subject is the campaign's beside what exploration keeps:
 // `b` travelling along path `c` as group `g` of party `p`, with a camp.
 const explorationCases: Record<string, (t: Exploring) => unknown> = {
+  deleteParty: (t) => explorationCommands.deleteParty('p')(t),
   addGroup: (t) => explorationCommands.addGroup('p', 'fire', () => 'h')(t),
   removeGroup: (t) => explorationCommands.removeGroup('p', 'g')(t),
   setGroup: (t) => explorationCommands.setGroup('p', 'g', { DL: 5 })(t),

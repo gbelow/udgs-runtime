@@ -10,7 +10,7 @@ import armors from '../../assets/armors.json'
 import ammo from '../../assets/ammo.json'
 import containers from '../../assets/containers.json'
 import items from '../../assets/items.json'
-import { useCatalogCharacterNames, useSharedBoardNames } from '../../hooks/useScenePresets'
+import { useSharedBoardNames } from '../../hooks/useScenePresets'
 import { LearningGains } from '../LearningInputs'
 import type { LearningTest } from '../../domain/types'
 
@@ -168,7 +168,8 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   scenes: {
     text: textarea,
     board: suggestingFrom(useSharedBoardNames),
-    'opponents.key': suggestingFrom(useCatalogCharacterNames),
+    // edited as party cards beside the catalog, below the form
+    parties: hidden,
     'treasure.key': suggesting(() => Object.keys(items)),
   },
   knowledges: { description: textarea },

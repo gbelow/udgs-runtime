@@ -13,6 +13,8 @@ import { getExplorationMaps, getExplorationMapsDigest, type ExplorationMapView }
 import { getSaveLogBar } from "../domain/scene/rules/fight";
 import type { TableCommand } from "../domain/scene/commands/tableRegistry";
 import { getSceneMaterials } from "../domain/scene/projections/prepared";
+import { getEndSceneView, type EndSceneView } from "../domain/scene/projections/endScene";
+import { getWaitingScenes, type WaitingSceneView } from "../domain/campaign/projections/scenes";
 import { getPassBar, getToDowntimeBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
@@ -51,6 +53,22 @@ export function useTableParties(sequence?: Sequence): TablePartiesView & { pick:
   const roster = useCampaignRoster();
   const { parties: cards, pick } = useSceneCards();
   return { ...getTableParties(roster, cards, sequence), pick };
+}
+
+// Every scene waiting to be played, gated on a digest since the view is
+// freshly allocated.
+export function useWaitingScenes(): WaitingSceneView[] {
+  useCampaignStore((s) => JSON.stringify(getWaitingScenes(s)));
+  return getWaitingScenes(useCampaignStore.getState());
+}
+
+// Ending the scene: why not now, and who the table may keep, gated on a
+// digest over both stores.
+export function useEndScene(): EndSceneView {
+  const table = () => ({ campaign: useCampaignStore.getState(), fight: useCombatStore.getState() });
+  useCampaignStore(() => JSON.stringify(getEndSceneView(table())));
+  useCombatStore(() => JSON.stringify(getEndSceneView(table())));
+  return getEndSceneView(table());
 }
 
 // Why the fight's log cannot be saved to the journal now.
@@ -183,10 +201,20 @@ export function usePartyCommands() {
     saveLog: () => sendTable({ kind: "saveFightLog", args: [] }),
     // a waiting scene played on the shared battle map and against the catalog
     // characters it names, as this screen has them loaded, and followed into
-    playScene: (scene: { id: string; board: string; opponents: string[] }) => {
-      const { board, opponents } = getSceneMaterials(scene, boardMaps, baseCharacterList);
-      toFight({ kind: "playScene", args: [scene.id, board, opponents] });
+    playScene: (scene: { id: string; board: string; keys: string[] }) => {
+      const { board, sheets } = getSceneMaterials(scene, boardMaps, baseCharacterList);
+      toFight({ kind: "playScene", args: [scene.id, board, sheets] });
     },
     passBy: (sceneId: string) => send({ kind: "passBy", args: [sceneId] }),
+    setScenePlayer: (sceneId: string, slot: string, player: string | null) => send({ kind: "setScenePlayer", args: [sceneId, slot, player] }),
+    loadScene: (preset: string, partyId: string | null) => send({ kind: "loadScene", args: [preset, partyId] }),
+    endScene: (keep: string[], ets: number) => sendTable({ kind: "endScene", args: [keep, ets] }),
+    // the party gone with everyone in it: its fighters out of the fight
+    // first, then the party out of the campaign; a party made in the fight
+    // is gone with its fighters
+    deleteParty: (party: { id: string; inFight: boolean; inCampaign: boolean }) => {
+      if (party.inFight && !sendTable({ kind: "removePartyFromFight", args: [party.id] })) return;
+      if (party.inCampaign) explore({ kind: "deleteParty", args: [party.id] });
+    },
   };
 }
