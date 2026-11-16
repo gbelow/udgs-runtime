@@ -6,7 +6,7 @@ import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
 import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
-import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Segment, Segmented, Tooltip, barred, selectClass } from './ui';
+import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Segment, Segmented, Tooltip, selectClass } from './ui';
 import { useBotsPaused } from '../hooks/useBots';
 import { useEndScene, usePartyCommands, useTableParties } from '../hooks/useParty';
 import { useGmBar } from '../hooks/useControl';
@@ -134,7 +134,6 @@ function EndSceneMenu(){
 function FightSettings(){
   const { toggleBreakage } = useCombatCommands()
   const breakage = useBreakage()
-  const bots = useBotsPaused()
 
   return(
     <div className='flex flex-col gap-1'>
@@ -144,10 +143,6 @@ function FightSettings(){
           equipment breakage: {breakage ? 'on' : 'off'}
         </Button>
       </Tooltip>
-      <Button size='xs' aria-label='bots paused' aria-pressed={bots.paused} active={bots.paused} {...barred(bots.bar)}
-        title={bots.bar ?? (bots.paused ? 'the bots make no move: the GM plays their characters' : 'pause the bots to play their characters by hand')} onClick={bots.toggle}>
-        bots: {bots.paused ? 'paused' : 'playing'}
-      </Button>
     </div>
   )
 }
@@ -267,6 +262,7 @@ export function GmSceneTools(){
   const cowardBar = useCowardBar()
   const breakFreeBar = useBreakFreeBar()
   const { defaultToCoward, breakFree } = useCombatCommands()
+  const bots = useBotsPaused()
 
   return(
     <div className='flex flex-col gap-1'>
@@ -283,6 +279,11 @@ export function GmSceneTools(){
         </Tooltip>
         <Tooltip text={breakFreeBar ?? 'a command to the active character is a severe compulsion: they test insight or cunning against the DL that dominated them'}>
           <Button size='xs' aria-label='break free' disabled={breakFreeBar !== null} onClick={breakFree}>break free</Button>
+        </Tooltip>
+        <Tooltip text={bots.bar ?? (bots.paused ? 'the bots make no move: the GM plays their characters' : 'pause the bots to play their characters by hand')}>
+          <Button size='xs' aria-label='bots paused' aria-pressed={bots.paused} active={bots.paused} disabled={bots.bar !== null} onClick={bots.toggle}>
+            bots: {bots.paused ? 'paused' : 'playing'}
+          </Button>
         </Tooltip>
       </div>
       {testOpen ? <ImposePanel /> : null}

@@ -4,7 +4,7 @@ import { CampaignStateSchema } from './campaign/types'
 import { ExplorationStateSchema } from './exploration/types'
 import { DowntimeStateSchema } from './downtime/types'
 import { SceneStateSchema } from './scene/types'
-import { sendToFight } from './scene/commands/fight'
+import { loadIntoFight, sendToFight } from './scene/commands/fight'
 import { CampaignSaveSchema, fromCampaignSave, newFile, toStoredCampaign, type CampaignFileInfo, type CampaignInPlay, type CampaignSave } from './saves'
 
 // What the server writes and reads back: the save and the characters' records.
@@ -46,5 +46,19 @@ describe('a saved campaign', () => {
     const table = sendToFight(['a'])({ campaign, fight: SceneStateSchema.parse({}) })
     const t: CampaignInPlay = { ...table, exploration: ExplorationStateSchema.parse({}), downtime: DowntimeStateSchema.parse({}) }
     expect(throughStorage(t)[1]).toEqual(t)
+  })
+})
+
+describe('who plays whom, saved', () => {
+  // the owners kept were only the campaign's records, so a character brought
+  // straight into the fight and given to a bot lost its bot when the campaign
+  // was resumed from its autosave, and the bots stopped playing.
+  it('is kept for one brought straight into the fight', () => {
+    const empty = CampaignStateSchema.parse({})
+    const orc = { ...makeCampaignCharacter({ name: 'orc' }), id: 'orc' }
+    const { campaign, fight } = loadIntoFight(orc, () => 'orc')({ campaign: empty, fight: SceneStateSchema.parse({}) })
+    const t: CampaignInPlay = { campaign, exploration: ExplorationStateSchema.parse({}), downtime: DowntimeStateSchema.parse({}), fight }
+    const { save } = toStoredCampaign(newFile('id'), t, { orc: 'bot:threat' })
+    expect(CampaignSaveSchema.parse(JSON.parse(JSON.stringify(save))).owners).toEqual({ orc: 'bot:threat' })
   })
 })

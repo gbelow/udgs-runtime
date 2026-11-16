@@ -41,8 +41,9 @@ const REPEATS = 3;
 // guest's): after every change to the fight, the next move of whichever bot
 // seat has one (`getNextMove`), sent as a guest's press is, as the bot, and
 // held back as long as `getPace` says. A move the table refuses stops the
-// bots until the fight changes, and so does the same move made more than
-// `REPEATS` times in a row, until another is to be made. While the GM has
+// bots until the fight changes, and so does the same move pressed more than
+// `REPEATS` times in a row, until another is to be made; a move only held
+// back is not pressed, and is not counted. While the GM has
 // paused them, they make no move at all.
 export function useBots() {
   const mode = useTableStore((s) => s.mode);
@@ -58,7 +59,7 @@ export function useBots() {
     let held: { turn: number; at: number } | null = null;
     // the seat asked first, after the one that moved last
     let from = 0;
-    // the last move made, and how many times in a row
+    // the last move pressed, and how many times in a row
     let last = '';
     let repeats = 0;
 
@@ -80,6 +81,15 @@ export function useBots() {
       const { move, next, refused } = getNextMove(state, seats, opts, from);
       if (refused.length) console.warn('[bots]', refused);
       if (!move) return;
+      from = next;
+      const pace = getPace(state, seats, move);
+      if (pace === 'contested') return;
+      if (pace === 'contestable') {
+        const now = Date.now();
+        if (held?.turn !== state.turn) held = { turn: state.turn, at: now };
+        const left = held.at + CONTEST_WINDOW_MS - now;
+        if (left > 0) { timer = setTimeout(play, left); return; }
+      }
       const said = JSON.stringify([move.by, move.who, move.commands]);
       repeats = said === last ? repeats + 1 : 1;
       last = said;
@@ -89,15 +99,6 @@ export function useBots() {
           useBotLogStore.getState().add({ round: state.round, who: (move.who && state.characters[move.who]?.name) || move.by, why: move.why, refused: 'the same move again: stopped' });
         }
         return;
-      }
-      from = next;
-      const pace = getPace(state, seats, move);
-      if (pace === 'contested') return;
-      if (pace === 'contestable') {
-        const now = Date.now();
-        if (held?.turn !== state.turn) held = { turn: state.turn, at: now };
-        const left = held.at + CONTEST_WINDOW_MS - now;
-        if (left > 0) { timer = setTimeout(play, left); return; }
       }
       const entry = { round: state.round, who: (move.who && state.characters[move.who]?.name) || move.by, why: move.why };
       for (const command of move.commands) {

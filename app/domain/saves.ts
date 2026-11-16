@@ -89,12 +89,16 @@ const SCENE_KEYS = Object.keys(SceneStateSchema.shape) as (keyof SceneState)[]
 const RECORD_KEYS = Object.keys(CampaignRecordSchema.shape) as (keyof CampaignRecord)[]
 const pick = <T extends object>(from: T, keys: readonly (keyof T)[]) => Object.fromEntries(keys.map((k) => [k, from[k]])) as T
 
+// Whom each character is given to is kept for everyone the save holds: the
+// campaign's records, and whoever was brought straight into the fight, who
+// lives in the fight it keeps.
 export function toStoredCampaign(file: CampaignFileInfo, t: CampaignInPlay, owners: CharacterOwners = {}): StoredCampaign {
   const characters = getSavedCharacters(t)
   const characterIds = characters.map((c) => c.id)
+  const held = new Set([...characterIds, ...Object.keys(t.fight.characters)])
   const save: CampaignSave = {
     ...toFileInfo(file), characterIds,
-    owners: Object.fromEntries(Object.entries(owners).filter(([cid]) => characterIds.includes(cid))),
+    owners: Object.fromEntries(Object.entries(owners).filter(([cid]) => held.has(cid))),
     campaign: pick<CampaignRecord>(t.campaign, RECORD_KEYS), exploration: t.exploration, downtime: t.downtime,
     fight: pick(t.fight, SCENE_KEYS),
   }

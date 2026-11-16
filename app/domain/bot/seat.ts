@@ -211,7 +211,7 @@ export function getNextMove(state: SceneState, seats: readonly Seat[], opts: Mov
 // A die is thrown at once, and every other move is made at once.
 export type Pace = 'now' | 'contestable' | 'contested'
 
-export const CONTEST_WINDOW_MS = 10_000
+export const CONTEST_WINDOW_MS = 5_000
 
 export function getPace(state: SceneState, seats: readonly Seat[], move: Move): Pace {
   const holder = getTurnHolder(state)
