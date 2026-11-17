@@ -38,6 +38,10 @@ export type SeatInput = {
   // the buttons open to the seat, and the choices open to its members
   buttons: readonly OpenButton[]
   choices: readonly OpenChoice[]
+  // the characters in view that one of the seat's members does not notice,
+  // so cannot aim at, as its panel shows them hidden; the stealth that hides
+  // them stays the hider's (scene/projections/seen.ts)
+  unnoticed: (memberId: string) => ReadonlySet<string>
   // the seat's own entropy, seeded, so a fight plays again the same
   rng: () => number
 }

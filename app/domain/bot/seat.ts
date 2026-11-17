@@ -2,6 +2,7 @@ import type { SceneState } from '../scene/types'
 import { applySceneCommand, type CommandContext, type SceneCommand } from '../scene/commands/registry'
 import { getContenders, getContestClosed, getTurnHolder } from '../scene/rules/turn'
 import { getOpenAction } from '../scene/rules/log'
+import { notices } from '../scene/rules/stealth'
 import type { Viewer } from '../profiles'
 import { rollD10, rollModed, seededRng, type Dice } from '../play/dice'
 import { getBelief } from './belief'
@@ -115,12 +116,19 @@ function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[]
   const choices = getMyChoices(state, members)
   if (waits.length === 0 && buttons.length === 0 && choices.length === 0) return null
   let view: SceneState | null = null
+  const read = () => (view ??= getBelief(state, members, members[0]))
+  const unnoticed = new Map<string, ReadonlySet<string>>()
   return {
     members,
-    view: () => (view ??= getBelief(state, members, members[0])),
+    view: read,
     waits,
     buttons,
     choices,
+    unnoticed: (memberId) => {
+      let hidden = unnoticed.get(memberId)
+      if (!hidden) unnoticed.set(memberId, (hidden = new Set(Object.keys(read().characters).filter((id) => id !== memberId && !notices(state, memberId, id)))))
+      return hidden
+    },
     rng: opts.rngOf(seat.id),
   }
 }
