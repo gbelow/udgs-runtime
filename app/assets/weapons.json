@@ -57,7 +57,8 @@
         "AP": 3,
         "properties": [
           "grapple II",
-          "hook"
+          "hook",
+          "bladed"
         ],
         "payload": []
       }
@@ -166,6 +167,7 @@
         },
         "properties": [
           "DEF",
+          "smasher",
           "basher"
         ],
         "payload": []

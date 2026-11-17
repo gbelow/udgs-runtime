@@ -36,10 +36,10 @@ import { ROUND_AP } from '../../tables'
 //   this turn, is worth what it costs the target answering as it is believed
 //   to (`getDefendedHarm`: the harm taken, the defence paid for, and more the
 //   more the defence takes off), less the danger it leaves the character in
-//   at the cell (weighing the cheapest cells that reach and the safest), how
-//   threatened the target is by
-//   the whole team, and how threatening it is to anyone in the team, less
-//   what it costs (the walk and the attack, AP + STA) at a price that rises
+//   at the cell (weighing the cheapest cells that reach and the safest), made
+//   more by how threatened the target is by the whole team and how
+//   threatening it is to anyone in the team, over the character's own
+//   immediate danger after it (at least 1), less what it costs (the walk and the attack, AP + STA) at a price that rises
 //   with the danger the character is left in: the worst single foe's
 //   immediate threat on it, at the cell, with the AP it has left to defend;
 // - with no attack worth making, a walk is worth the potential harm the
@@ -331,9 +331,27 @@ function getKeeping(view: SceneState, id: string, protections: readonly Protecti
 
 // The measures every attack the character could make in `view` is weighed
 // by, on its turn or as an opportunity attack: what it is worth (`w.harm`
-// times its worth against the defence, and what the target is to the team),
-// less the AP and STA it spends and the danger it leaves the character in at
-// `at`.
+// times its worth against the defence), made more by what the target is to the
+// team the less the character is in danger after it (the user's ruling: a
+// character nobody threatens has no reason not to attack), less the AP and
+// STA it spends and the danger it leaves the character in at `at`.
+export type AttackScore = {
+  total: number
+  // `w.harm` times the attack's worth against the defence
+  harm: number
+  // what the target is to the team, and the character's own immediate danger
+  // after the attack, at least 1; the harm is made `1 + target / danger` times
+  target: number
+  danger: number
+  price: number
+  // `w.exposure` times that danger
+  exposure: number
+}
+
+const scaledBy = (s: AttackScore): number => 1 + s.target / s.danger
+const showScore = (s: AttackScore): string =>
+  `harm ${s.harm.toFixed(1)} x ${scaledBy(s).toFixed(2)} (target ${s.target.toFixed(1)} / danger ${s.danger.toFixed(1)}) - price ${s.price.toFixed(1)} - exposure ${s.exposure.toFixed(1)}`
+
 type AttackMeasures = {
   // the worst foe's threat this round on the character at `at`, with what it
   // has left to defend
@@ -346,7 +364,7 @@ type AttackMeasures = {
   // `at` in place of what spending `AP` and `STA` leaves: a surge's AP added,
   // and what answering the opportunity attacks on the way spent (priced
   // already in what they draw)
-  score: (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }) => number
+  score: (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }) => AttackScore
 }
 
 function getAttackMeasures(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): AttackMeasures {
@@ -363,8 +381,11 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
     if (worth === undefined) worths.set(foe, (worth = w.threatened * getThreatened(view, members, foe, w) + w.threatening * getThreatening(view, members, foe, w)))
     return worth
   }
-  const score = (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }) =>
-    w.harm * worth + targetWorth(foe) - price(AP, STA, at) - w.exposure * (held ? getDanger(view, members, id, 'immediate', at, held, w) : dangerLeft(AP, STA, at))
+  const score = (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }): AttackScore => {
+    const after = held ? getDanger(view, members, id, 'immediate', at, held, w) : dangerLeft(AP, STA, at)
+    const parts = { harm: w.harm * worth, target: targetWorth(foe), danger: Math.max(1, after), price: price(AP, STA, at), exposure: w.exposure * after }
+    return { ...parts, total: parts.harm * (1 + parts.target / parts.danger) - parts.price - parts.exposure }
+  }
   return { dangerLeft, price, score }
 }
 
@@ -458,9 +479,12 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w, getTargetDanger(view, foe, at, guard, w))
           if (!met || met.undefended <= 0) continue
           const held = { AP: Math.max(0, b.AP - spent - answering.AP), STA: Math.max(0, b.STA - STAspent - answering.STA) }
-          const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell, held) - w.opportunity * answering.worth - (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0) + keeping(cell, heldAP(b, spent + answering.AP))
+          const parts = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell, held)
+          const drew = w.opportunity * answering.worth + (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
+          const keeps = keeping(cell, heldAP(b, spent + answering.AP))
+          const score = parts.total - drew + keeps
           if (best && score <= best.score) continue
-          const why = `${attack.kind}s ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
+          const why = `${attack.kind}s ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)} = ${showScore(parts)} - drawn ${drew.toFixed(1)} + kept ${keeps.toFixed(1)}, over ${kept.toFixed(1)})`
           // the attack from here, or the walk to where it is made from, only where the table
           // takes it, after the surge that pays for it: a foe seen may still be out of the line
           // of fire, and a surge made for a move refused is wasted
@@ -690,10 +714,11 @@ function opportunity(input: SeatInput, id: string, w: ThreatWeights): Decision |
       if (AP > me.resources.AP || STA > me.resources.STA) continue
       const met = getDefendedHarm(attack, attack.reach, guard, 'now', target.injuries.bleed, w, getTargetDanger(view, target.id, cellOf(view, target.id), guard, w))
       if (!met || met.undefended <= 0) continue
-      const score = measures.score(met.worth, target.id, AP, STA, at)
+      const parts = measures.score(met.worth, target.id, AP, STA, at)
+      const score = parts.total
       if (score <= 0 || (best && score <= best.score)) continue
       const picks: Pick[] = [{ part: 'row', value: attack.row }, ...(attack.declaresHeavy ? [{ part: 'modifier' as const, value: { key: `heavy${attack.heavy}`, on: true } }] : [])]
-      best = { draft: o.draft, picks, score, why: `opportunity attack on ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})` }
+      best = { draft: o.draft, picks, score, why: `opportunity attack on ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)} = ${showScore(parts)})` }
     }
   }
   if (!best) return null

@@ -152,3 +152,5 @@ allow dealing damage to own character. click deal 10 damage blunt.
 Large Hands, Beautiful, Ugly, Regenerative Reservoir, Resurrection, Tireless, Adaptive Sleep, Amplified Pheromones
 
 think about scene win conditions
+
+braced attack - use it always.

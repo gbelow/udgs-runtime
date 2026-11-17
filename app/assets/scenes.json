@@ -35,12 +35,12 @@
           {
             "key": "Erthal Soldier",
             "count": 1,
-            "player": null
+            "player": "bot:threat"
           },
           {
             "key": "Human Ranger",
             "count": 1,
-            "player": null
+            "player": "bot:threat"
           }
         ]
       }
