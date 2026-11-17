@@ -7,7 +7,7 @@ import { HIT_HOP, HOP_EFFECTS } from '../../tables'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus, getWeaponRES } from '../../character/rules/gear'
+import { cutsWithSTR, getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus, getWeaponRES } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford, CANNOT_AFFORD } from '../../character/rules/cost'
 import { getHardness } from '../../item/rules/items'
@@ -75,20 +75,21 @@ const PURCHASE_ORDER: readonly HOPPurchase[] = [...HOP_PURCHASES.filter((p) => p
 // rather than damage.
 type Buyer = { state: SceneState; root: AttackAction; attacker: Character; weapon: Weapon; properties: WeaponProperty[] }
 
-// A bonus that adds to the physical damage, blunt and cutting alike, as the
-// heavy one does (combat.tex "Heavy Attack").
-function addPhysical(damage: Damage, value: number): Damage {
-  return addTo(addTo(damage, 'blunt', value), 'cut', value)
+// A bonus of STR on the physical damage: always on the blunt, on the cut
+// only of a bladed or piercing row (gear.tex "Melee attacks").
+function addPhysical(damage: Damage, value: number, properties: readonly WeaponProperty[]): Damage {
+  const blunt = addTo(damage, 'blunt', value)
+  return cutsWithSTR(properties) ? addTo(blunt, 'cut', value) : blunt
 }
 
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
   bust: (d) => ({ ...d, bust: true }),
   slice: (d, times, { properties }) => addTo(d, 'cut', getSliceBonus(times, getCut(d), hasProperty(properties, 'bladed'))),
-  smash: (d, times, { weapon }) => addTo(d, 'blunt', getSmashBonus(times, weapon)),
+  smash: (d, times, { weapon, properties }) => addTo(d, 'blunt', getSmashBonus(times, weapon, hasProperty(properties, 'smasher'))),
   handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
   assassinate: (d) => d,
-  braced: (d, _, { attacker, weapon }) => addPhysical(d, getBracedBonus(weapon, attacker)),
-  hook: (d, _, { state, root, attacker, weapon }) => addPhysical(d, getHookBonus(weapon, attacker, getHookedMotion(state, root))),
+  braced: (d, _, { attacker, weapon, properties }) => addPhysical(d, getBracedBonus(weapon, attacker), properties),
+  hook: (d, _, { state, root, attacker, weapon, properties }) => addPhysical(d, getHookBonus(weapon, attacker, getHookedMotion(state, root)), properties),
 }
 
 // ---------------------------------------------------------------------------

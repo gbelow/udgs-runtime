@@ -86,6 +86,7 @@ export const WEAPON_PROPERTIES = [
   'bladed',
   'penetrating',
   'precise',
+  'smasher',
   'basher',
   'slow',
   'fast',

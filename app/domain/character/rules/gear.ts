@@ -1,7 +1,7 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDMAt } from "./size";
-import { BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, SMASH_UNSMASHER_SHARE, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
@@ -54,9 +54,9 @@ export function getSliceBonus(times: number, cut: number, bladed: boolean): numb
 }
 
 // combat.tex "Success Overflow", "Smash": "Increases blunt damage by 1xDM per
-// HOP".
-export function getSmashBonus(HOP: number, weapon: Weapon): number {
-  return Math.floor(HOP * SMASH_DM * getWeaponDM(weapon))
+// HOP if the weapon has the smasher property and half as much if it doesn't".
+export function getSmashBonus(HOP: number, weapon: Weapon, smasher: boolean): number {
+  return Math.floor(HOP * SMASH_DM * (smasher ? 1 : SMASH_UNSMASHER_SHARE) * getWeaponDM(weapon))
 }
 
 // gear.tex "RES": the row's breakage threshold; abilities.tex "Blade
@@ -97,8 +97,9 @@ export function getBlockValue(atk: WeaponAttack, weapon: Weapon, c: Character): 
 }
 
 // combat.tex "Strike": a strike is a melee weapon attack, and it is the strike
-// that carries the wielder's strength: 0.5 x STR x DM — current STR, the
-// wielder's DM — on blunt and cut alike. A shot or a throw does not get it,
+// that carries the wielder's strength: 0.5 x STR x DM (current STR, the
+// wielder's DM) on the blunt, and on the cut only of a row that is bladed or
+// piercing (gear.tex "Melee attacks"). A shot or a throw does not get it,
 // and neither does a grapple I, which gear.tex "Grapple I/II" says deals no
 // damage; a grapple II "deals damage normally" and so is a strike.
 export function isStrike(atk: WeaponAttack): boolean {
@@ -107,14 +108,23 @@ export function isStrike(atk: WeaponAttack): boolean {
 
 export type Damage = { blunt: number; cut: number }
 
+// gear.tex "Melee attacks": STR goes into the cut "as long as the weapon is
+// either bladed or piercing". The same holds for every bonus of STR on top
+// of it (heavy, braced, hook).
+export function cutsWithSTR(properties: readonly WeaponProperty[]): boolean {
+  return hasProperty(properties, 'bladed') || hasProperty(properties, 'piercing')
+}
+
 // gear.tex "Size Scaling": the row's printed damage and the STR on top of it
-// are multiplied together by the weapon's DM. `STRshare` is how much of the
-// wielder's STR the attack adds (a strike 0.5, a heavy one more).
+// are multiplied together by the weapon's DM. A strike adds 0.5 of the
+// wielder's STR, and `extraSTR` is what a heavy one adds on top; both go to
+// the blunt, and to the cut only of a bladed or piercing row.
 export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character, extraSTR = 0): Damage {
   const STRshare = (isStrike(atk) ? 0.5 : 0) + extraSTR
   const bonus = STRshare * getWieldSTR(weapon, c)
   const DM = getWeaponDM(weapon)
-  return { blunt: Math.floor((atk.blunt + bonus) * DM), cut: Math.floor((atk.cut + bonus) * DM) }
+  const cutBonus = cutsWithSTR(atk.properties) ? bonus : 0
+  return { blunt: Math.floor((atk.blunt + bonus) * DM), cut: Math.floor((atk.cut + cutBonus) * DM) }
 }
 
 // combat.tex "Focus surge": "this surge is required to use ranged attacks" —
@@ -223,8 +233,8 @@ export function getHeavyName(degree: number): string {
 }
 
 // What a heavy attack of the degree adds to a strike with the row: its
-// price, its penalty to hit, and the blow it lands. combat.tex "Heavy
-// Attack": "Bonus applies to blunt damage and cutting damage."
+// price, its penalty to hit, and the blow it lands (combat.tex "Heavy
+// Attack"), its STR on the cut only as gear.tex "Melee attacks" allows.
 export function getHeavyVariation(atk: WeaponAttack, weapon: Weapon, c: Character, degree: number): { cost: ActionCost; penalty: number; blunt: number; cut: number } {
   const { penalty, STRmul } = HEAVY_DEGREES[degree]
   return { cost: getActionCost(c, HEAVY_ACTIONS[degree - 1]), penalty, ...getStrikeDamage(atk, weapon, c, STRmul) }

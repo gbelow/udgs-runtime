@@ -241,9 +241,11 @@ export const HOP_EFFECTS = {
 
 // combat.tex "Slice": "increase cutting damage by 25%"; "Smash": "Increases
 // blunt damage by 1xDM per HOP". "Slice": "Weapons with the bladed property
-// get the full bonus damage, while others get only half."
+// get the full bonus damage, while others get only half." "Smash": full "if
+// the weapon has the smasher property and half as much if it doesn't".
 export const SLICE_SHARE = 0.25
 export const SLICE_UNBLADED_SHARE = 0.5
+export const SMASH_UNSMASHER_SHARE = 0.5
 export const SMASH_DM = 1
 
 // gear.tex "Size Scaling": a weapon larger than the wielder uses STR-5 in the

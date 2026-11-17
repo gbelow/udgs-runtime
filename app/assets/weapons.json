@@ -421,7 +421,8 @@
           "max": 2
         },
         "properties": [
-          "basher"
+          "basher",
+          "smasher"
         ],
         "payload": []
       },
@@ -723,7 +724,8 @@
           "max": 3
         },
         "properties": [
-          "basher"
+          "basher",
+          "smasher"
         ],
         "payload": []
       }
