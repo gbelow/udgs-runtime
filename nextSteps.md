@@ -153,4 +153,10 @@ Large Hands, Beautiful, Ugly, Regenerative Reservoir, Resurrection, Tireless, Ad
 
 think about scene win conditions
 
-braced attack - use it always.
+listening in other floors. vision blocking floors.
+
+add a llm questions chat
+
+switch to shield
+
+think about increasing the amount of IL dealt by larger or smaller weapons instead of damage.

@@ -46,5 +46,83 @@
       }
     ],
     "treasure": []
+  },
+  "Arena 1": {
+    "name": "Arena 1",
+    "text": "",
+    "board": "Arena 1",
+    "parties": [
+      {
+        "name": "Players",
+        "members": [
+          {
+            "key": "Erthal Defender",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Erthal Soldier",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Halkir squire",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Human Noble",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Human Ranger",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Surbit Thief",
+            "count": 1,
+            "player": null
+          }
+        ]
+      },
+      {
+        "name": "Enemies",
+        "members": [
+          {
+            "key": "Erthal Defender",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Erthal Soldier",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Halkir squire",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Human Noble",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Human Ranger",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Surbit Thief",
+            "count": 1,
+            "player": "bot:threat"
+          }
+        ]
+      }
+    ],
+    "treasure": []
   }
 }

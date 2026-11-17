@@ -12,6 +12,7 @@ import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRou
 import { getEnemyNear, getFatefulBar, getHypeUpBar, getKeepMoraleBar, getMoraleBar, getMoraleModes, getSkipMoraleBar } from '../rules/morale'
 import { getOrderOptions, getOverrulable } from '../rules/domination'
 import { getFightName } from '../rules/fighters'
+import { getBindingSurge } from '../../character/rules/surge'
 import { getCombatSurgeOptions } from './turn'
 import { getOptionLabel } from './labels'
 import { getHeldRows } from './heldTests'
@@ -81,6 +82,11 @@ function turnButtonsOf(state: SceneState, id: string): OpenButton[] {
     ...button(getContestBar(state, id) === null, { kind: 'toggleContest', args: [id] }, `${name}: ${state.contenders.includes(id) ? 'stop contesting' : 'contest'} the turn`),
     ...button(isCombatStarted(state), { kind: 'toggleAgreeToEnd', args: [id] }, `${name}: ${hasAgreedToEnd(state, id) ? 'take back agreeing' : 'agree'} to end the round`),
     ...getCombatSurgeOptions(state, id).flatMap((o) => button(o.available, { kind: 'surge', args: [id, o.kind] }, `${name}: ${o.kind} surge`)),
+    ...(() => {
+      const c = state.characters[id]
+      const binding = c ? getBindingSurge(c) : null
+      return button(binding !== null, { kind: 'edit', args: [id, { kind: 'endSurge', args: [] }, false] }, `${name}: give up the ${binding} surge AP left`)
+    })(),
     ...button(getMockeryView(state, id)?.bar === null, { kind: 'mock', args: [id] }, `${name}: mock`),
   ]
 }

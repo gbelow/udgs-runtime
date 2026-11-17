@@ -15,7 +15,7 @@ import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
 import { getOpportunityWorth, getStandingOpportunityWorth } from './approach'
 import { getWeaponRows, isRowUsable } from '../scene/rules/weaponRow'
-import { firesAcross, getEyes, getReach } from '../scene/rules/board/board'
+import { firesAcross, getBodyAt, getEyes, getMeleeGap, getReach, placeAt } from '../scene/rules/board/board'
 import { isMeleeRange } from '../weaponProperties'
 
 // The threat one character puts on another (the user's rulings, 2026-11-14):
@@ -57,11 +57,11 @@ export type ThreatTuning = {
   // what a threat is worth less for every point of worth of the opportunity
   // attack its walk in draws from the target (bot/approach.ts)
   opportunity: number
-  // the end of a face's third taken as what a character has left
-  end: 'least' | 'most'
+  // the end of a face's third taken as what a character has left, or its middle
+  end: 'least' | 'middle' | 'most'
 }
 
-export const THREAT_TUNING: ThreatTuning = { ring2: 0.5, AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'least' }
+export const THREAT_TUNING: ThreatTuning = { ring2: 0.5, AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle' }
 
 export type Threat = {
   // what the attack is worth against the answer the target is believed to
@@ -88,8 +88,9 @@ export type Threat = {
 export const threatValue = (t: Threat | null, tuning: ThreatTuning = THREAT_TUNING): number => (t ? Math.max(0, t.worth - tuning.opportunity * t.approach) * tuning.ring2 ** Math.max(0, t.rounds - 1) : 0)
 
 // The least or the most a third of `most` could hold (character/lenses/face.ts
-// `thirdOf`).
+// `thirdOf`), or halfway between them, rounded.
 export function fromThird(third: Third, most: number, end: ThreatTuning['end']): number {
+  if (end === 'middle') return Math.round((fromThird(third, most, 'least') + fromThird(third, most, 'most')) / 2)
   if (end === 'most') return Math.floor((most * (third + 1)) / 3)
   return third === 0 ? 0 : Math.floor((most * third) / 3) + 1
 }
@@ -361,6 +362,7 @@ function canPayNow(attack: PairAttack, moveAP: number, means: Means, surge: { AP
   if (attack.needsFocus && !focused && !means.surge) return false
   const canSurge = means.surge && !(attack.needsFocus && !focused)
   if (moveAP + attack.cost.AP <= means.AP) return attack.cost.STA <= means.STA
+  // the movement surge's AP for the walk, what is left of it given up for the attack
   if (canSurge && Math.max(0, moveAP - surge.AP) + attack.cost.AP <= means.AP && attack.cost.STA + surge.STA <= means.STA) return true
   return canSurge && combat !== null && moveAP + attack.cost.AP <= means.AP + combat.AP && attack.cost.STA + combat.STA <= means.STA
 }
@@ -396,6 +398,25 @@ function fireLine(a: Party, d: Party): Clear {
   return (cell) => firesAcross(board, [cell], [at], eyes)
 }
 
+// Where a strike from `a` with `reach` meets `d` standing at `d.at`: the
+// cells from which the melee gap the table measures (`getMeleeGap`: the cells
+// across along a line no wall stops, or the metres up or down between them)
+// is within it, so that a ledge or a wall between them is not reached over.
+function meleeLine(a: Party, d: Party, reach: number): Clear {
+  return getStrikeCells(a.state, a.id, d.id, d.at, reach)
+}
+
+export function getStrikeCells(state: SceneState, a: string, d: string, at: Coord | null, reach: number): Clear {
+  const board = state.board
+  const ca = state.characters[a]
+  const cd = state.characters[d]
+  const pa = board?.placements[a]
+  const pd = board?.placements[d]
+  if (!board || !at || !ca || !cd || !pa || !pd) return ANYWHERE
+  const target = getBodyAt(cd, sameCell(pd.cell, at) ? pd : placeAt(board, pd, at))
+  return (cell) => getMeleeGap(board, getBodyAt(ca, sameCell(pa.cell, cell) ? pa : placeAt(board, pa, cell)), target) <= reach
+}
+
 function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential', guard: { AP: number; STA: number }, mode: ModeOf, tuning: ThreatTuning, capped = true): Threat | null {
   const attacker = a.state.characters[a.id]
   const defender = d.state.characters[d.id]
@@ -410,7 +431,7 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
   let best: Threat | null = null
   for (const attack of getPair(attacker, defender)) {
     if (!attack.opens.action) continue
-    const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : ANYWHERE))
+    const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, attack.reach)))
     if (moveAP === null) continue
     const rounds = when === 'now' ? (canPayNow(attack, moveAP, means, surge, combat, focused) ? 1 : null) : roundsFor(attack, moveAP, means, surge)
     if (rounds === null) continue
@@ -539,6 +560,18 @@ function readImmediateThreat(state: SceneState, plays: readonly string[], a: str
 export function getDanger(state: SceneState, members: readonly string[], id: string, kind: 'potential' | 'immediate', at: Coord | null = cellOf(state, id), guard?: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): number {
   const { foes } = getSides(state, members)
   return foes.reduce((worst, foe) => Math.max(worst, threatValue(kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, guard, tuning), tuning)), 0)
+}
+
+// The worst single foe's immediate threat on `id` standing at `at`, with
+// `guard` left to defend, read as the harm alone it would take answering as
+// it would, nothing of what the answer costs it: what its AP is worth to its
+// own defence is what it saves.
+export function getHarmDanger(state: SceneState, members: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): number {
+  const { foes } = getSides(state, members)
+  return foes.reduce((worst, foe) => {
+    const t = getImmediateThreat(state, members, foe, id, at, guard, tuning)
+    return t ? Math.max(worst, Math.max(0, t.harm - tuning.opportunity * t.approach)) : worst
+  }, 0)
 }
 
 // What `target`, standing at `at` with `guard` to defend with, is left in once
