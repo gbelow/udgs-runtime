@@ -3,7 +3,7 @@ import { getSurgeAPLeft, getSurgeRecovery } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
 import type { Action, ActionDraft, MoveAction, SceneState } from '../../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../../scene/commands/registry'
-import { getOpenAction, getReactionsTo } from '../../scene/rules/log'
+import { getLiveActions, getOpenAction, getReactionsTo, withLiveActions } from '../../scene/rules/log'
 import { getRootTest } from '../../scene/rules/attack'
 import { getHeavyDegree } from '../../scene/rules/heavy'
 import { getHeavyName } from '../../character/rules/gear'
@@ -46,7 +46,9 @@ import { ROUND_AP } from '../../tables'
 //   in it saves on the foe it most gains on, each worth a baseline for any
 //   enemy and more the more that foe threatens the team (the user's ruling:
 //   a harmless foe is still gone after, and so is one it cannot yet hurt),
-//   less the walk at the same price and the worst single foe's immediate
+//   less `company` for every metre from the nearest ally beyond the next
+//   cell (the user's ruling: everyone is safer close to allies), standing
+//   still the same, and less the walk at the same price and the worst single foe's immediate
 //   threat on it at the cell, with what it has left to defend once it has
 //   walked there; it walks when that beats standing by a margin;
 // - with no foe in sight, it searches (`planSearch`): it walks where it would
@@ -62,12 +64,14 @@ import { ROUND_AP } from '../../tables'
 //   every AP spent is priced, a surge's included (the user's ruling);
 // - attacked, it answers with the defence (or none) that leaves the least
 //   harm and price together, after the opportunity attack a shot at it draws
-//   where that is worth making; none where someone else defends it already
-//   (the user's ruling: no redundant defence);
+//   where that is worth making; where someone else defends it already, its
+//   own defence is weighed against the attack as that leaves it, and made
+//   only where it saves more than `redundant` (the user's ruling: the one
+//   attacked may still defend itself, though it generally should not);
 // - an ally attacked, it defends it (combat.tex "Protect", "Guard") only
 //   where the attack is a greater immediate threat to the ally than it would
-//   be to the character, by `cover` (the user's ruling), and nobody defends
-//   it already: with the defence offered that leaves the ally the least harm
+//   be to the character, by `cover` (the user's ruling), and neither the ally
+//   nor anyone else defends it already: with the defence offered that leaves the ally the least harm
 //   and the character the least price, where that beats the ally answering
 //   for itself;
 // - drawn an opportunity attack, it makes the one that scores best as an
@@ -100,9 +104,14 @@ export type ThreatWeights = RestTuning & {
   // what an attack on an ally must threaten it by more than it would the
   // character, for the character to defend it
   cover: number
+  // what a character's own defence must save, over the defence someone
+  // else already makes for it, to be made as well
+  redundant: number
+  // what a cell is worth less for every metre from the nearest ally beyond the next cell
+  company: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.6, offence: 1, peril: 1, aggression: 4, chase: 1, arrival: 1, search: 1, margin: 1, cover: 0 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, exposure: 0.6, offence: 1, peril: 1, aggression: 4, chase: 1, arrival: 1, search: 1, margin: 1, cover: 0, redundant: 5, company: 1 }
 
 const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
@@ -193,14 +202,15 @@ function canPay(b: Budget, move: number, attack: number): boolean {
 // The walks worth weighing (the user's ruling): towards each foe, the cells
 // that come nearest it, and for every block of the walk the cell of that
 // block that comes nearest it, so that a walk may stop short; away from the
-// foe whose threat is worst, the cells that get furthest from it. `TOWARDS`
+// foe whose threat is worst, the cells that get furthest from it; towards
+// each ally, standing at `friends`, the cells that come nearest it. `TOWARDS`
 // and `AWAY` of each.
 const TOWARDS = 3
 const AWAY = 3
 
 type WalkCell = Walk['cells'][number]
 
-function getDirectedCells(view: SceneState, here: Coord, walk: Walk, foes: readonly string[], worst: string | null): WalkCell[] {
+function getDirectedCells(view: SceneState, here: Coord, walk: Walk, foes: readonly string[], worst: string | null, friends: readonly Coord[]): WalkCell[] {
   const picked = new Map<string, WalkCell>()
   const add = (cells: WalkCell[]) => cells.forEach((c) => picked.set(`${c.cell.q},${c.cell.r}`, c))
   const cheaper = (a: WalkCell, b: WalkCell) => a.AP + a.STA - (b.AP + b.STA)
@@ -218,6 +228,10 @@ function getDirectedCells(view: SceneState, here: Coord, walk: Walk, foes: reado
   if (from) {
     const now = distance(here, from)
     add(walk.cells.filter((c) => distance(c.cell, from) > now).sort((a, b) => distance(b.cell, from) - distance(a.cell, from) || cheaper(a, b)).slice(0, AWAY))
+  }
+  for (const at of friends) {
+    const now = distance(here, at)
+    add(walk.cells.filter((c) => distance(c.cell, at) < now).sort((a, b) => distance(a.cell, at) - distance(b.cell, at) || cheaper(a, b)).slice(0, TOWARDS))
   }
   return [...picked.values()]
 }
@@ -380,9 +394,12 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
     const to = from === null ? null : walkIn(foe, cell)
     return to === null || from === null ? most : Math.max(most, perAP * Math.max(0, from - to))
   }, 0)
+  // everyone is safer close to allies (the user's ruling): the metres to the nearest one, beyond the next cell
+  const friends = getTeam(view, members).filter((t) => t !== id).flatMap((t) => cellOf(view, t) ?? [])
+  const apart = (cell: Coord): number => (friends.length ? Math.max(0, Math.min(...friends.map((f) => distance(cell, f))) - 1) : 0)
   const standing = (cell: Coord): number => {
     const offence = foes.reduce((most, foe) => Math.max(most, threatValue(getPotentialThreat(view, members, id, foe, cellOf(view, foe), cell, w), w)), 0)
-    return w.offence * offence - w.peril * getDanger(view, members, id, 'potential', cell, undefined, w)
+    return w.offence * offence - w.peril * getDanger(view, members, id, 'potential', cell, undefined, w) - w.company * apart(cell)
   }
   const stay = standing(here)
   let move: { cell: Coord; score: number; budget: Budget; movement: MovementKind } | null = null
@@ -393,7 +410,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   for (const b of budgets) {
     const walk = getWalk(b.view, id)
     if (!walk) continue
-    for (const { cell, AP, STA, path } of getDirectedCells(view, here, walk, foes, worst && worst.danger > 0 ? worst.id : null)) {
+    for (const { cell, AP, STA, path } of getDirectedCells(view, here, walk, foes, worst && worst.danger > 0 ? worst.id : null, friends)) {
       if (sameCell(cell, here)) continue
       if (!canPay(b, AP, 0)) continue
       const spent = AP
@@ -443,6 +460,29 @@ function getKnownAttack(view: SceneState, open: Action, defender: string): { att
 const GUARDING = new Set<ActionDraft['kind']>(['block', 'intercept', 'guard'])
 const getGuards = (view: SceneState, root: string): string[] => getReactionsTo(view, root).filter((r) => GUARDING.has(r.kind)).map((r) => r.actorId)
 
+// The DL of the attack open in a state, read as the pair table reads the
+// attack answered with `none`: moved by what the reactions declared in the
+// state add to the DL the table gives the attack with none declared. The
+// table scores a strike or a shot against whichever of its defences puts up
+// the most (scene/rules/attack.ts), so two defences are read as it reads them.
+function getPairDL(view: SceneState, none: PairDefence): (state: SceneState) => number | null {
+  const open = getOpenAction(view)
+  const bare = open ? getRootTest(withLiveActions(view, getLiveActions(view).filter((a) => a.reactionTo !== open.id)), open) : null
+  return (state) => {
+    const root = getOpenAction(state)
+    const test = root && bare ? getRootTest(state, root) : null
+    return test && bare ? none.DL + test.DL - bare.DL : null
+  }
+}
+
+// The fight with `draft` declared as `id`'s answer to the open action, its
+// picks filled in, or null where it cannot be.
+function tryAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, guard: { AP: number; STA: number }): { picks: Pick[]; ready: SceneState } | null {
+  const picks = fillAnswer(view, members, id, draft, guard)
+  const made = picks ? declare(view, { actorId: id, option: draft, picks }, TRIAL) : null
+  return picks && made?.ok ? { picks, ready: made.ready } : null
+}
+
 // The defence of an ally attacked (combat.tex "Protect", "Guard"), made only
 // where the attack is a greater immediate threat to the ally, as it would
 // answer for itself, than it would be to the character, by `cover` (the
@@ -457,7 +497,7 @@ function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | nul
   const open = getOpenAction(view)
   const ally = open?.targetId
   if (!open || !ally || ally === id || !getTeam(view, input.members).includes(ally)) return null
-  if (getGuards(view, open.id).length > 0) return null
+  if (getGuards(view, open.id).length > 0 || getReactionsTo(view, open.id).some((r) => r.actorId === ally)) return null
   const me = view.characters[id]
   const target = view.characters[ally]
   const onAlly = getKnownAttack(view, open, ally)
@@ -468,22 +508,19 @@ function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | nul
   const toMe = onMe ? getDefendedHarm(onMe.attack, onMe.gap, means, 'now', me.injuries.bleed, w)?.worth ?? 0 : 0
   if (!toAlly || toAlly.worth - toMe <= w.cover) return null
   const none = onAlly.attack.defences.find((d) => d.draft === null)
-  const plain = getRootTest(view, open)
-  if (!none || !plain) return null
+  if (!none) return null
+  const pairDL = getPairDL(view, none)
   const at = cellOf(view, id)
   let best: { draft: ActionDraft; picks: Pick[]; score: number } | null = null
   for (const o of getAvailableActions(view, id)) {
     if (!o.available || o.reactionTo !== open.id || !GUARDING.has(o.draft.kind) || !o.cost) continue
-    const picks = fillAnswer(view, input.members, id, o.draft, means)
-    const made = picks ? declare(view, { actorId: id, option: o.draft, picks }, TRIAL) : null
-    if (!picks || !made?.ok) continue
-    const met = getOpenAction(made.ready)
-    const test = met ? getRootTest(made.ready, met) : null
-    if (!test) continue
-    const left = getHarmAgainst(onAlly.attack, { ...none, draft: o.draft, cost: o.cost, DL: none.DL + test.DL - plain.DL }, onAlly.gap)
+    const tried = tryAnswer(view, input.members, id, o.draft, means)
+    const DL = tried ? pairDL(tried.ready) : null
+    if (!tried || DL === null) continue
+    const left = getHarmAgainst(onAlly.attack, { ...none, draft: o.draft, cost: o.cost, DL }, onAlly.gap)
     const price = getSpendPrice(o.cost, means.STA, me.injuries.bleed, getDanger(view, input.members, id, 'immediate', at, { AP: Math.max(0, means.AP - o.cost.AP), STA: Math.max(0, means.STA - o.cost.STA) }, w), w)
     const score = left + price
-    if (!best || score < best.score) best = { draft: o.draft, picks, score }
+    if (!best || score < best.score) best = { draft: o.draft, picks: tried.picks, score }
   }
   if (!best || best.score >= toAlly.worth) return null
   return { kind: 'declare', intent: { actorId: id, option: best.draft, picks: best.picks }, why: `defends ${target.name} with ${best.draft.kind} (harm left and price ${best.score.toFixed(1)} against ${toAlly.worth.toFixed(1)} answering for itself, ${toMe.toFixed(1)} were it on itself)` }
@@ -491,7 +528,9 @@ function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | nul
 
 // The answer to an attack on `id`: the opportunity attack a shot draws from
 // it, if one is worth making, then the defence offered that leaves the least
-// harm and price together, or none, unless someone else defends it already.
+// harm and price together, or none; where someone else defends it already,
+// read against the attack as that defence leaves it, and made only where it
+// saves more than `redundant`.
 function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null {
   const view = input.view()
   const open = getOpenAction(view)
@@ -502,7 +541,6 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   const struck = open.kind === 'shoot' ? opportunity(input, id, w) : null
   if (struck) return struck
   const guardian = getGuards(view, open.id).find((g) => g !== id)
-  if (guardian) return press(find('pass', id), `lets it come: ${view.characters[guardian]?.name ?? guardian} defends it`)
   const at = cellOf(view, id)
   const known = getKnownAttack(view, open, id)
   if (!known) return press(find('pass', id), 'lets it come: does not know the attack')
@@ -511,18 +549,25 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   const offered = getAvailableActions(view, id).filter((o) => o.available && o.reactionTo === open.id)
   const worth = (d: PairDefence) => getHarmAgainst(attack, d, gap)
   const none = attack.defences.find((d) => d.draft === null)
-  let best: { draft: ActionDraft | null; score: number } = { draft: null, score: none ? worth(none) : 0 }
+  // defended by someone else: every answer read with the DL the defences together give the attack
+  const pairDL = guardian && none ? getPairDL(view, none) : null
+  const guarded = pairDL ? pairDL(view) : null
+  let best: { draft: ActionDraft | null; score: number } = { draft: null, score: none ? worth(guarded === null ? none : { ...none, DL: guarded }) : 0 }
   for (const o of offered) {
     const d = attack.defences.find((x) => x.draft && sameDraft(x.draft, o.draft))
     if (!d) continue
+    const tried = pairDL ? tryAnswer(view, input.members, id, o.draft, means) : null
+    const DL = pairDL ? (tried ? pairDL(tried.ready) : null) : d.DL
+    if (DL === null) continue
     const priced = getSpendPrice(d.cost, means.STA, me.injuries.bleed, getDanger(view, input.members, id, 'immediate', at, { AP: Math.max(0, means.AP - d.cost.AP), STA: Math.max(0, means.STA - d.cost.STA) }, w), w)
-    const score = worth(d) + priced
+    const score = worth({ ...d, DL }) + priced + (guardian ? w.redundant : 0)
     if (score < best.score) best = { draft: o.draft, score }
   }
-  if (best.draft === null) return press(find('pass', id), `lets it come (harm ${best.score.toFixed(1)})`)
+  const covered = guardian ? `, ${view.characters[guardian]?.name ?? guardian} defends it` : ''
+  if (best.draft === null) return press(find('pass', id), `lets it come (harm ${best.score.toFixed(1)}${covered})`)
   const picks = fillAnswer(view, input.members, id, best.draft, { AP: means.AP, STA: means.STA })
   if (!picks) return press(find('pass', id), `lets it come: ${best.draft.kind} cannot be finished`)
-  return { kind: 'declare', intent: { actorId: id, option: best.draft, picks }, why: `answers with ${best.draft.kind} (harm and price ${best.score.toFixed(1)})` }
+  return { kind: 'declare', intent: { actorId: id, option: best.draft, picks }, why: `answers with ${best.draft.kind} (harm and price ${best.score.toFixed(1)}${covered})` }
 }
 
 // An opportunity attack on whoever drew it (combat.tex "Opportunity
