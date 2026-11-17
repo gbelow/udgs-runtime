@@ -824,12 +824,46 @@ function planSwitch(view: SceneState, members: readonly string[], id: string, w:
   return best && { intent: best.intent, why: best.why }
 }
 
+// The turn as the box weighed it before starting it (`threatBox`), on the
+// fight as starting it would leave it, kept for the turn it then takes: read
+// again only where the fight the turn is taken in is not the one weighed. The
+// plan is left unread (undefined) where the change of arms was found first.
+type Weighed = { view: SceneState; members: readonly string[]; unnoticed: ReadonlySet<string>; arms: ReturnType<typeof planSwitch>; plan?: Plan | null }
+
+const weighed = new WeakMap<ThreatWeights, Map<string, Weighed>>()
+
+function keepWeighed(w: ThreatWeights, id: string, kept: Weighed): void {
+  const byId = weighed.get(w) ?? new Map<string, Weighed>()
+  weighed.set(w, byId)
+  byId.set(id, kept)
+}
+
+function recallWeighed(w: ThreatWeights, id: string, view: SceneState, members: readonly string[], unnoticed: ReadonlySet<string>): Weighed | null {
+  const byId = weighed.get(w)
+  const kept = byId?.get(id)
+  if (!kept) return null
+  byId!.delete(id)
+  const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x))
+  return sameSet(new Set(kept.members), new Set(members)) && sameSet(kept.unnoticed, unnoticed) && isSame(kept.view, view) ? kept : null
+}
+
+// Whether two values written as JSON are alike, parts they share passed over.
+function isSame(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null || Array.isArray(a) !== Array.isArray(b)) return false
+  const x = a as Record<string, unknown>
+  const y = b as Record<string, unknown>
+  const keys = Object.keys(x)
+  return keys.length === Object.keys(y).length && keys.every((k) => Object.hasOwn(y, k) && isSame(x[k], y[k]))
+}
+
 function takeTurn(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null {
   const stress = takeStressTurn(input, id, w, find, press)
   if (stress !== 'none') return stress
-  const arms = planSwitch(input.view(), input.members, id, w)
+  const kept = recallWeighed(w, id, input.view(), input.members, input.unnoticed(id))
+  const arms = kept ? kept.arms : planSwitch(input.view(), input.members, id, w)
   if (arms) return { kind: 'declare', intent: arms.intent, why: arms.why }
-  const plan = planTurn(input.view(), input.members, id, w, input.unnoticed(id))
+  const plan = kept?.plan !== undefined ? kept.plan : planTurn(input.view(), input.members, id, w, input.unnoticed(id))
   if (plan?.kind === 'attack' || plan?.kind === 'walk') return { kind: 'declare', intent: plan.intent, why: plan.why }
   if (plan?.kind === 'surge') {
     const surge = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === plan.surge)
@@ -866,7 +900,13 @@ export function threatBox(w: ThreatWeights = THREAT_WEIGHTS): Box {
       const start = find('startTurn', id)
       if (!start) continue
       const begun = trial(view, start.command)
-      if (planTurn(begun, members, id, w, input.unnoticed(id)) || planSwitch(begun, members, id, w)) return { kind: 'press', pick: start, why: 'has something worth doing' }
+      const unnoticed = input.unnoticed(id)
+      const arms = planSwitch(begun, members, id, w)
+      const plan = arms ? undefined : planTurn(begun, members, id, w, unnoticed)
+      if (arms || plan) {
+        keepWeighed(w, id, { view: begun, members, unnoticed, arms, plan })
+        return { kind: 'press', pick: start, why: 'has something worth doing' }
+      }
     }
     return carryOn(input, find)
   }

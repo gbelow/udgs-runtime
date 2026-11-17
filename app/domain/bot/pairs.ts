@@ -130,6 +130,9 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
   const target = fresh(defender)
   const unfocused = between(ready, target)
   const harms = getHarms(attacker, defender)
+  // the items of either named as the harm table knows them, each by its side
+  const sides = [getItemTokens(attacker), getItemTokens(defender)]
+  const keyed = (value: unknown) => JSON.stringify(value, (_, v) => (typeof v === 'string' ? (sides[0].has(v) ? `a${sides[0].get(v)}` : sides[1].has(v) ? `d${sides[1].get(v)}` : v) : v))
   const open = new Set(getFreeAttackOptions(unfocused, ready, 'shoot').map((o) => `${o.weaponKey}/${o.attack}/${o.variant}`))
   const attacks: PairAttack[] = []
   for (const kind of ['strike', 'shoot'] as const) {
@@ -168,9 +171,9 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
           return price ? [{ draft: o.draft, state: given, cost: price }] : []
         })]
         // the attack and each answer as the harm table knows them
-        const attackKey = `${kind}|${actor === focused}|${row.weaponKey}/${row.attack}/${row.variant}|${ammoId}|${heavy}`
+        const attackKey = `${kind}|${actor === focused}|${keyed(row)}|${keyed(ammoId)}|${heavy}`
         type Defended = (typeof defended)[number]
-        const answerKey = (def: Defended) => `${attackKey}|${def.draft ? `${JSON.stringify(def.draft)}|${def.cost.AP}|${def.cost.STA}` : 'none'}`
+        const answerKey = (def: Defended) => `${attackKey}|${def.draft ? `${keyed(def.draft)}|${def.cost.AP}|${def.cost.STA}` : 'none'}`
         // the spends of a hit read once for every HOP it is read at (`getBestSpend`)
         const spends = new Map<Defended, Map<string, Outcome | null>>()
         const hit = (def: Defended, HOP: number) => harms.read(`${answerKey(def)}|hit|${HOP}`, () => {
@@ -226,6 +229,45 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
 // level (IL)"), which is all of it an attack or a defence reads, so the table
 // is read again only when something it rests on changes, and two copies of
 // one sheet share it.
+// The items of a sheet by the token the tables know each by: the order it is
+// met in the sheet. A stack split gives the part a fresh id (a weapon drawn
+// off a stack, `duplicateItem`), so two sheets that differ only in such ids,
+// as the switches of arms the box weighs do (bot/arms.ts), share every table.
+const itemTokens = new WeakMap<CampaignCharacter, Map<string, string>>()
+
+function getItemTokens(c: CampaignCharacter): Map<string, string> {
+  let tokens = itemTokens.get(c)
+  if (!tokens) {
+    const found = new Map<string, string>()
+    const walk = (value: unknown): void => {
+      if (Array.isArray(value)) value.forEach(walk)
+      else if (value && typeof value === 'object') {
+        const o = value as Record<string, unknown>
+        if (typeof o.id === 'string' && typeof o.refId === 'string' && !found.has(o.id)) found.set(o.id, `item#${found.size}`)
+        Object.values(o).forEach(walk)
+      }
+    }
+    Object.values(c).forEach(walk)
+    itemTokens.set(c, (tokens = found))
+  }
+  return tokens
+}
+
+// The sheet as JSON with each of its item ids written as its token.
+function tokenized(c: CampaignCharacter, value: unknown): string {
+  const tokens = getItemTokens(c)
+  return JSON.stringify(value, (_, v) => (typeof v === 'string' ? (tokens.get(v) ?? v) : v))
+}
+
+// The ids a sheet's items have, in token order, as one text.
+const itemIds = new WeakMap<CampaignCharacter, string>()
+
+function getItemIds(c: CampaignCharacter): string {
+  let ids = itemIds.get(c)
+  if (ids === undefined) itemIds.set(c, (ids = [...getItemTokens(c).keys()].join(',')))
+  return ids
+}
+
 const signatures = new WeakMap<CampaignCharacter, string>()
 
 function signature(c: CampaignCharacter): string {
@@ -237,7 +279,7 @@ function signature(c: CampaignCharacter): string {
     void surgeFloor
     void runsFree
     void shown
-    sig = JSON.stringify({ ...rest, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, injuryLevel: getInjuryPenalty(c) } })
+    sig = tokenized(c, { ...rest, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, injuryLevel: getInjuryPenalty(c) } })
     signatures.set(c, sig)
   }
   return sig
@@ -266,7 +308,7 @@ function harmSignature(c: CampaignCharacter): string {
     void limitStress
     void shown
     const kept = Object.fromEntries(Object.entries(trainables).filter(([, t]) => t.type !== 'skill' && t.type !== 'knowledge'))
-    sig = JSON.stringify({ ...rest, trainables: kept, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, bleed: 0, injuryLevel: getInjuryPenalty(c) } })
+    sig = tokenized(c, { ...rest, trainables: kept, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, bleed: 0, injuryLevel: getInjuryPenalty(c) } })
     harmSignatures.set(c, sig)
   }
   return sig
@@ -298,28 +340,57 @@ function getHarms(attacker: CampaignCharacter, defender: CampaignCharacter): Har
 }
 
 // Kept by the attacker's signature, then the defender's: the signatures are
-// made once per sheet, so a lookup hashes no new string.
-const pairs = new Map<string, Map<string, PairAttack[]>>()
+// made once per sheet, so a lookup hashes no new string. A pair is read with
+// the item ids of the two it was read for; asked for two whose items have
+// other ids, it is given again with theirs (`renamed`).
+type Kept = { pair: PairAttack[]; from: [Map<string, string>, Map<string, string>]; as: Map<string, PairAttack[]> }
+
+const pairs = new Map<string, Map<string, Kept>>()
 let kept = 0
 const MOST_KEPT = 4000
 
 export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter): PairAttack[] {
   const by = signature(attacker)
   const on = signature(defender)
+  const ids = `${getItemIds(attacker)}|${getItemIds(defender)}`
   let against = pairs.get(by)
-  let known = against?.get(on)
-  if (!known) {
-    if (kept >= MOST_KEPT) {
-      pairs.clear()
-      kept = 0
-      against = undefined
-    }
-    if (!against) pairs.set(by, (against = new Map()))
-    known = readPair(attacker, defender)
-    against.set(on, known)
-    kept++
+  const known = against?.get(on)
+  if (known) {
+    let given = known.as.get(ids)
+    if (!given) known.as.set(ids, (given = renamed(known.pair, known.from, [getItemTokens(attacker), getItemTokens(defender)]) ?? readPair(attacker, defender)))
+    return given
   }
-  return known
+  if (kept >= MOST_KEPT) {
+    pairs.clear()
+    kept = 0
+    against = undefined
+  }
+  if (!against) pairs.set(by, (against = new Map()))
+  const pair = readPair(attacker, defender)
+  against.set(on, { pair, from: [getItemTokens(attacker), getItemTokens(defender)], as: new Map([[ids, pair]]) })
+  kept++
+  return pair
+}
+
+// The pair read for two sheets, with each item id of theirs written as the
+// id the item of the same token has in `to`; null where one id would be
+// written as two (the two sheets share an item id).
+function renamed(pair: PairAttack[], from: readonly Map<string, string>[], to: readonly Map<string, string>[]): PairAttack[] | null {
+  const names = new Map<string, string>()
+  for (const [side, tokens] of from.entries()) {
+    const byToken = new Map([...to[side]].map(([id, token]) => [token, id]))
+    for (const [id, token] of tokens) {
+      const next = byToken.get(token)
+      if (next === undefined || (names.has(id) && names.get(id) !== next)) return null
+      names.set(id, next)
+    }
+  }
+  const rename = (value: unknown): unknown =>
+    typeof value === 'string' ? (names.get(value) ?? value)
+      : Array.isArray(value) ? value.map(rename)
+      : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, rename(v)]))
+      : value
+  return rename(pair) as PairAttack[]
 }
 
 export const harmOf = (attack: PairAttack, defence: PairDefence): HarmByDegree => ({ miss: defence.miss, graze: defence.graze, hits: defence.hits ?? attack.hits })
