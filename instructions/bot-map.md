@@ -24,7 +24,7 @@ threatBox (boxes/threat.ts)
 │   │              ├─ limit stress owed?           §11 violent / coward
 │   │              ├─ planSwitch()                 §6  change arms, if gain > margin
 │   │              └─ planTurn()
-│   │                   ├─ no foe in sight         §5  search
+│   │                   ├─ no foe in sight/noticed §5  search
 │   │                   ├─ best attack             §3  if score > 0
 │   │                   └─ else best walk          §4  if score > stay + margin
 │   ├─ rest ────► getRestChoice()                  §10 rest / rally / intimidate
@@ -144,12 +144,15 @@ as an action and have `undefended > 0`.
 ```
 rounds (potential) = max(1, (moveAP + attack.AP) / (ROUND_AP + movement surge AP))
                      the surge AP left out if the row needs focus
-payable now        = with its own AP, or after the movement or the combat surge
+payable now        = with its own AP, or after the movement surge (its AP for the walk, what
+                     is left of it given up for the attack) or the combat surge
 
 moveAP   = ceil(steps / pace.metres) · pace.AP
 pace     = the open movement with the best metres per AP
-steps    = cells walked to stand within reach (step map, 4 fresh rounds deep;
-           shots also need a line of fire from the cell)
+steps    = cells walked to stand within reach (step map, 4 fresh rounds deep, no jumps
+           or climbs; shots also need a line of fire from the cell, strikes a melee
+           gap within reach as the table measures it: around walls, and the metres
+           up or down between the two counted as cells)
 approach = OA worth the walk in draws from d   (when a can pay this round and gap > reach)
          + OA worth of shooting within d's reach (shots)
          capped at d's own uncapped potential threat on a
@@ -157,16 +160,21 @@ approach = OA worth the walk in draws from d   (when a can pay this round and ga
 
 A pair is skipped when `a` cannot reach `d` in the step map and has someone else it can.
 
-What a seat believes of a face (`threat.ts` `fromThird`, `w.end = 'least'`):
+What a seat believes of a face (`threat.ts` `fromThird`, `w.end = 'middle'`):
 ```
-left = 0                          if the third shown is 0
-       floor(most · third / 3) + 1 otherwise
+least  = 0                          if the third shown is 0
+         floor(most · third / 3) + 1 otherwise
+most   = floor(most · (third + 1) / 3)
+middle = round((least + most) / 2)
 ```
 
 ### Danger and target worth (`threat.ts`)
 
 ```
 Danger(me, kind, at, guard) = max_foe threatValue(threat foe → me at `at`)
+HarmDanger(me, at, guard)   = max_foe (harm of the immediate threat foe → me at `at`, against
+                              the answer I would choose − w.opportunity · approach)
+                              the harm alone, nothing of what the answer costs
 Threatened(foe)             = Σ_team threatValue(potential member → foe)
 Threatening(foe)            = max_team threatValue(potential foe → member)
 ```
@@ -175,20 +183,21 @@ Threatening(foe)            = max_team threatValue(potential foe → member)
 
 ## 3. Attack on the turn (`boxes/threat.ts` `planTurn`, `getAttackMeasures`)
 
-Tried for every budget (no surge, combat surge, movement surge), every foe noticed, every
-attack that opens as an action, from every candidate cell.
+With no foe noticed, the turn searches instead (§5). Otherwise tried for every budget (no
+surge, combat surge, movement surge), every foe noticed, every attack that opens as an
+action, from every candidate cell.
 
 ```
 spent, STAspent = walk + attack
 held            = what the budget leaves after the walk, the attack and the OAs answered
 worth           = DefendedHarm(attack, gap, foe's guard, dangerAfter = foe's own danger)
 target          = w.threatened · Threatened(foe) + w.threatening · Threatening(foe)
-after           = Danger(me, immediate, cell, held)
-now             = Danger(me, immediate, here, all it holds)
+after           = HarmDanger(me, cell, held)
+now             = HarmDanger(me, here, all it holds)
 kept            = keeping(here, all its AP)                        (§4.2)
 
 gain            = w.harm · worth · (1 + target / 100)            100 = a life (2 per IL, death at 50)
-defence lost    = after − now                                      to self
+defence lost    = (after − now) · w.reserve / max(1, held.AP)       to self
 allies' lost    = kept − keeping(cell, AP held of its own)         to allies
 STA             = STAPrice(STAspent + surgeSTA, my STA, my bleed)
 
@@ -201,13 +210,23 @@ make it if score > 0   (or always, if compelled: violent)
 
 Candidate cells (`getAttackCells`): where it stands if it reaches; of the walk's cells that
 reach, the 2 cheapest and the 2 with the least `Danger(immediate, cell)`; shots keep only
-cells with a line of fire.
+cells with a line of fire, strikes only cells whose melee gap the table measures within
+reach (`getStrikeCells`: walls, and height between the two).
 
 Budgets (`getBudgets`, `canPay`):
 ```
 surgeSTA = STA the surge takes + STA the recovery surge would have given back
 heldAP   = max(0, min(AP − spent, AP − surgeAP))      surge AP is lost at turn end
-movement surge AP pays only for the walk
+canPay   = walk + attack ≤ AP held, surge's included
+```
+
+Whether the attack opens is the table's to say (`opensAfter`), read where the walk leaves the
+character (`arrivedAt`: at the cell, the walk's AP and STA spent, the surge's first):
+```
+open      the table takes it as it stands (a surge's AP may pay for it: Charge)
+givingUp  the table takes it only once the surge's AP left is given up ("end surge");
+          made only if its own AP left pays for it, and the turn presses "end surge" first
+neither   not made
 ```
 
 ---
@@ -266,7 +285,9 @@ keeping(cell, AP) = w.guardian · max gain over protections with d.AP ≤ AP
 
 ---
 
-## 5. Search when no foe is seen (`boxes/threat.ts` `planSearch`)
+## 5. Search when no foe is seen or noticed (`boxes/threat.ts` `planSearch`)
+
+Also when every foe in the view is one the character does not notice (the user's ruling).
 
 ```
 score(cell) = w.search · cells it would see that nobody of the side sees
@@ -409,13 +430,13 @@ Threat reading of a face uses `fromThird` with `w.end` (§2) for what it has lef
 | weight        | default   | read in                                       |
 | ------------- | --------- | --------------------------------------------- |
 | `ring2`       | 0.5       | threatValue: per round beyond the first       |
-| `AP`          | 3         | APPrice                                       |
+| `AP`          | 3         | APPrice (not in §3: an attack's AP is its defensive potential) |
 | `danger`      | 0.1       | APPrice: per point of danger left             |
 | `STA`         | 3         | STAPrice                                      |
 | `STAScale`    | 10        | STAPrice                                      |
 | `forcing`     | 0.25      | DefendedHarm: per point the defence takes off |
 | `opportunity` | 1         | threatValue approach; §3, §4, §6 OAs drawn    |
-| `end`         | `'least'` | fromThird: which end of a face's third        |
+| `end`         | `'middle'`| fromThird: which end of a face's third, or its middle |
 
 `REST_TUNING` (`rest.ts`) adds:
 
@@ -442,6 +463,7 @@ Threat reading of a face uses `fromThird` with `w.end` (§2) for what it has lef
 | `redundant`   | 5       | §7 own defence when someone guards                      |
 | `company`     | 1       | §4 per metre from nearest ally beyond the next cell     |
 | `guardian`    | 1       | §4.2 AP kept for allies                                 |
+| `reserve`     | 10      | §3 defence lost, over the AP held                       |
 
 Fixed counts (not weights):
 
