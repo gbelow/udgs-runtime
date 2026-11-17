@@ -342,10 +342,11 @@ type AttackMeasures = {
   // ruling: any AP spent costs, more the more threatened the character is);
   // STA dearer the less is left
   price: (AP: number, STA: number, at: Coord | null) => number
-  // `answering`, what the character spends on answering what it draws on the
-  // way, is spent too as far as the danger it is left in goes, but it is
-  // priced already in what it draws
-  score: (worth: number, foe: string, AP: number, STA: number, at: Coord | null, answering?: { AP: number; STA: number }) => number
+  // `held`, where given, is what the character is left with to defend at
+  // `at` in place of what spending `AP` and `STA` leaves: a surge's AP added,
+  // and what answering the opportunity attacks on the way spent (priced
+  // already in what they draw)
+  score: (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }) => number
 }
 
 function getAttackMeasures(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): AttackMeasures {
@@ -362,7 +363,8 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
     if (worth === undefined) worths.set(foe, (worth = w.threatened * getThreatened(view, members, foe, w) + w.threatening * getThreatening(view, members, foe, w)))
     return worth
   }
-  const score = (worth: number, foe: string, AP: number, STA: number, at: Coord | null, answering = { AP: 0, STA: 0 }) => w.harm * worth + targetWorth(foe) - price(AP, STA, at) - w.exposure * dangerLeft(AP + answering.AP, STA + answering.STA, at)
+  const score = (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }) =>
+    w.harm * worth + targetWorth(foe) - price(AP, STA, at) - w.exposure * (held ? getDanger(view, members, id, 'immediate', at, held, w) : dangerLeft(AP, STA, at))
   return { dangerLeft, price, score }
 }
 
@@ -421,7 +423,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   // the opportunity attacks walking from where the character stands to `to`
   // draws from the foes it closes on within their reach, and what answering
   // them costs it (bot/approach.ts)
-  const drawnOn = (to: Coord | null, AP: number, STA: number, running: boolean, path: readonly Coord[]): Drawn => (here && to && !sameCell(here, to) ? getApproachDrawn(view, id, here, to, running, foes, (f) => getMeans(view.characters[f], false, w), { AP: Math.max(0, left.AP - AP), STA: left.STA - STA }, w, path) : NOTHING_DRAWN)
+  const drawnOn = (to: Coord | null, AP: number, STA: number, running: boolean, path: readonly Coord[], holding = left): Drawn => (here && to && !sameCell(here, to) ? getApproachDrawn(view, id, here, to, running, foes, (f) => getMeans(view.characters[f], false, w), { AP: Math.max(0, holding.AP - AP), STA: holding.STA - STA }, w, path) : NOTHING_DRAWN)
   const drawn = (to: Coord | null, AP: number, STA: number, running: boolean, path: readonly Coord[]) => w.opportunity * drawnOn(to, AP, STA, running, path).worth
   // what a shot fired from `at` costs it in the opportunity attacks of the
   // foes whose melee weapons reach there (bot/approach.ts)
@@ -449,12 +451,14 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           if (needsFocus && (me.usedSurge !== null || b.surge !== null)) continue
           const spent = AP + attack.cost.AP
           const STAspent = STA + attack.cost.STA
-          // the walk there, answering what it draws on the way, and the attack, all paid for
-          const answering = drawnOn(cell, AP, STA, runs(walk), path)
+          // the walk there, answering what it draws on the way out of what the
+          // surge leaves it holding, and the attack, all paid for
+          const answering = drawnOn(cell, AP, STA, runs(walk), path, b)
           if (!canPay(b, AP, attack.cost.AP + answering.AP) || STAspent + answering.STA > b.STA) continue
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w, getTargetDanger(view, foe, at, guard, w))
           if (!met || met.undefended <= 0) continue
-          const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell, answering) - w.opportunity * answering.worth - (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0) + keeping(cell, heldAP(b, spent + answering.AP))
+          const held = { AP: Math.max(0, b.AP - spent - answering.AP), STA: Math.max(0, b.STA - STAspent - answering.STA) }
+          const score = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell, held) - w.opportunity * answering.worth - (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0) + keeping(cell, heldAP(b, spent + answering.AP))
           if (best && score <= best.score) continue
           const why = `${attack.kind}s ${target.name} (${attackName(attack)}, worth ${met.worth.toFixed(1)}: harm ${met.harm.toFixed(1)} against ${met.defence.draft?.kind ?? 'no defence'}, score ${score.toFixed(1)})`
           // the attack from here, or the walk to where it is made from, only where the table
