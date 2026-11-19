@@ -138,19 +138,41 @@ const argOf = (command: SceneCommand): unknown => (command.args as readonly unkn
 
 type Walk = { movement: MovementKind; cells: { cell: Coord; AP: number; STA: number; path: Coord[] }[] }
 
-// The cells the character can walk to this turn at its fastest movement, with
-// no surge, through nobody standing (`isClearWalk`), what the walk costs, and
-// the cells it is walked through.
-function getWalk(state: SceneState, id: string): Walk | null {
+// The movements open to the character this turn, fastest first.
+function openMovements(state: SceneState, id: string): MovementKind[] {
   const c = state.characters[id]
-  if (!c) return null
-  const open = getMovementOptions(state, c).filter((o): o is typeof o & { kind: MovementKind } => o.available && o.speed > 0)
-  const movement = open.reduce<(typeof open)[number] | null>((best, o) => (!best || o.speed > best.speed ? o : best), null)?.kind
-  if (!movement) return null
+  if (!c) return []
+  return getMovementOptions(state, c)
+    .filter((o): o is typeof o & { kind: MovementKind } => o.available && o.speed > 0)
+    .sort((a, b) => b.speed - a.speed)
+    .map((o) => o.kind)
+}
+
+// The cells the character can walk to this turn at `movement`, with no
+// surge, through nobody standing (`isClearWalk`), what the walk costs, and
+// the cells it is walked through.
+function walkAt(state: SceneState, id: string, movement: MovementKind): Walk | null {
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
   return { movement, cells: getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path })) }
+}
+
+// The walk at the character's fastest movement.
+function getWalk(state: SceneState, id: string): Walk | null {
+  const fastest = openMovements(state, id)[0]
+  return fastest ? walkAt(state, id, fastest) : null
+}
+
+// The walks a turn weighs (the user's ruling: at least walking and running):
+// at each of those that is open, and at the fastest movement open, so that one
+// who can only swim, climb or crawl still has a walk.
+const WEIGHED_MOVEMENTS: readonly MovementKind[] = ['walk', 'run']
+
+function getWalks(state: SceneState, id: string): Walk[] {
+  const open = openMovements(state, id)
+  const kinds = new Set([...open.slice(0, 1), ...WEIGHED_MOVEMENTS.filter((m) => open.includes(m))])
+  return [...kinds].flatMap((m) => walkAt(state, id, m) ?? [])
 }
 
 // whether the walk runs or jumps, which a braced attack answers (combat.tex "Braced Attack")
@@ -447,9 +469,7 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
   const every = Math.ceil(dark.length / SEARCH_SPREAD)
   const read = dark.filter((_, i) => i % every === 0)
   let best: { cell: Coord; score: number; found: number; budget: Budget; movement: MovementKind } | null = null
-  for (const b of getBudgets(view, id)) {
-    const walk = getWalk(b.view, id)
-    if (!walk) continue
+  for (const b of getBudgets(view, id)) for (const walk of getWalks(b.view, id)) {
     const far = walk.cells.filter((c) => !sameCell(c.cell, here)).sort((x, y) => distance(y.cell, here) - distance(x.cell, here))
     const step = Math.max(1, Math.floor(far.length / SEARCH_CELLS))
     for (let i = 0; i < far.length; i += step) {
@@ -492,8 +512,8 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
 
   let best: Plan | null = null
   for (const b of budgets) {
-    const walk = getWalk(b.view, id)
-    for (const foe of foes) {
+    const walks = getWalks(b.view, id)
+    for (const walk of walks.length ? walks : [null]) for (const foe of foes) {
       const target = view.characters[foe]
       const at = cellOf(view, foe)
       if (!target || unnoticed.has(foe)) continue
@@ -563,9 +583,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
     const danger = threatValue(getPotentialThreat(view, members, f, id, here, cellOf(view, f), w), w)
     return !q || danger > q.danger ? { id: f, danger } : q
   }, null)
-  for (const b of budgets) {
-    const walk = getWalk(b.view, id)
-    if (!walk) continue
+  for (const b of budgets) for (const walk of getWalks(b.view, id)) {
     for (const { cell, AP, STA, path } of getDirectedCells(view, here, walk, foes, worst && worst.danger > 0 ? worst.id : null, friends)) {
       if (sameCell(cell, here)) continue
       if (!canPay(b, AP, 0)) continue
@@ -578,7 +596,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
     }
   }
   if (!move || move.score <= stay + w.margin) return null
-  const why = `walks where it threatens more, is threatened less and goes after its foes (${move.score.toFixed(1)} over ${stay.toFixed(1)})`
+  const why = `walks where it threatens more, is threatened less and goes after its foes (${move.movement}, ${move.score.toFixed(1)} over ${stay.toFixed(1)})`
   if (move.budget.surge) return { kind: 'surge', surge: move.budget.surge, score: move.score, why: `makes the ${move.budget.surge} surge: ${why}` }
   const intent = moveIntent(id, move.movement, move.cell)
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: move.score, why } : null

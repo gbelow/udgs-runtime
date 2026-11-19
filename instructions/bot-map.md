@@ -224,6 +224,11 @@ reach, the 2 cheapest and the 2 with the least `Danger(immediate, cell)`; shots 
 cells with a line of fire, strikes only cells whose melee gap the table measures within
 reach (`getStrikeCells`: walls, and height between the two).
 
+Walks weighed (`getWalks`), here and in §4 and §5: one at each of walk and run that is open,
+and one at the fastest movement open (so one who can only swim, climb or crawl still has
+one); every candidate cell is tried at each, with that walk's AP and STA, and the move is
+declared at its movement. The coward's getaway (§11) walks at the fastest movement only.
+
 Budgets (`getBudgets`, `canPay`):
 ```
 surgeSTA = STA the surge takes + STA the recovery surge would have given back
