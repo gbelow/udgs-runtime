@@ -19,7 +19,8 @@ import ammoCatalog from '../../assets/ammo.json'
 // attributes and its skills are each its real value rounded down to a multiple
 // of 3; of its talents and proficiencies nothing is known, so they stay as an
 // empty sheet has them, and of its abilities only those the party has seen it
-// use in the fight, with what each requires. It holds and wears what it is seen to, is as
+// use in the fight, with what each requires, and Archer, which every fighter
+// is taken to have (the user's ruling). It holds and wears what it is seen to, is as
 // hurt as it is seen to be, has the most AP and STA of its own that the third it
 // is seen to have left could hold, and a full quiver for every weapon it holds
 // that shoots.
@@ -134,11 +135,14 @@ function guessOnce(face: CampaignCharacter, real: CampaignCharacter | undefined,
   return made
 }
 
+// The abilities every face is taken to have, seen used or not (the user's ruling).
+const ASSUMED: AbilityKey[] = ['archer']
+
 // The fight as `lookerId`, one of `members` (the characters one owner plays), takes it to stand.
 export function getBelief(state: SceneState, members: readonly string[], lookerId: string): SceneState {
   const seen = getSceneSeenBy(state, new Set(members))
   if (!seen.characters[lookerId]) return seen
   const characters = Object.fromEntries(Object.entries(seen.characters).map(([id, c]) =>
-    [id, members.includes(id) ? c : guessOnce(c, state.characters[id], getSeenAbilities(seen, id))]))
+    [id, members.includes(id) ? c : guessOnce(c, state.characters[id], [...ASSUMED, ...getSeenAbilities(seen, id)])]))
   return { ...seen, characters }
 }

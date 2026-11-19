@@ -128,7 +128,7 @@ inside threat reading itself it is left at 0.
 ### Threat value (`threat.ts` `threatValue`, `bestAttack`)
 
 ```
-threatValue = max(0, worth − w.opportunity · approach) · w.ring2 ^ max(0, rounds − 1)
+threatValue = max(0, strikes · worth − w.opportunity · approach)
 ```
 
 Best attack of `a` on `d` = the attack with the highest `threatValue`, among those that open
@@ -139,17 +139,21 @@ as an action and have `undefended > 0`.
 | attacker's means | `ROUND_AP`, surge open, its STA   | what it has, or is believed to have      |
 | target's guard   | `ROUND_AP`, its STA               | what it has, or is believed to have      |
 | mode             | best                              | now                                      |
-| rounds           | see below                         | 1 if payable now, else not counted       |
+| strikes          | see below                         | 1 if payable now, else not counted       |
 
 ```
-rounds (potential) = max(1, (moveAP + attack.AP) / (ROUND_AP + movement surge AP))
-                     the surge AP left out if the row needs focus
+strikes (potential) = the attacks a fresh round's AP and STA pay for once the walk in is
+                     paid, the movement surge paying for the walk first unless the row
+                     needs focus; not counted (no threat) below 1, so a foe further off
+                     than a round's walk and one attack is under no potential threat
+                     (the user's ruling: §4's pull goes after it)   (getPotentialStrikes)
+strikes (immediate) = 1
 payable now        = with its own AP, or after the movement surge (its AP for the walk, what
                      is left of it given up for the attack) or the combat surge
 
 moveAP   = ceil(steps / pace.metres) · pace.AP
 pace     = the open movement with the best metres per AP
-steps    = cells walked to stand within reach (step map, 4 fresh rounds deep, no jumps
+steps    = cells walked to stand within reach (step map, a fresh round deep, no jumps
            or climbs; shots also need a line of fire from the cell, strikes a melee
            gap within reach as the table measures it: around walls, and the metres
            up or down between the two counted as cells)
@@ -254,10 +258,10 @@ standing(cell) = w.offence · max_foe threatValue(potential me → foe, me at ce
                − w.peril   · Danger(me, potential, cell)
                − w.company · max(0, metres to nearest ally − 1)
 
-pursuit(cell)  = max_foe perAP(foe) · max(0, moveAP(here → foe) − moveAP(cell → foe))
-perAP(foe)     = w.aggression + w.chase · Threatening(foe) / ROUND_AP
+pull(cell)     = w.aggression · max over foes under no potential threat from here
+                 of (cells from here to the foe − cells from the cell to the foe)
 
-walk(cell)     = standing(cell) + pursuit(cell)
+walk(cell)     = standing(cell) + pull(cell)
                − SpendPrice(walk AP, walk STA + surgeSTA, Danger(me, immediate, cell, AP/STA − walk))
                − w.opportunity · OAs drawn on the way
                − w.arrival · Danger(me, immediate, cell, AP/STA left after the walk)
@@ -430,7 +434,8 @@ own members:         full sheet
 everyone else seen:  the face, with
     attributes and skills = floor(real / 3) · 3
     talents, proficiencies = empty
-    abilities = only those seen used this fight, with what they require
+    abilities = only those seen used this fight, with what they require, and Archer,
+                which every face is taken to have (the user's ruling)
     AP, STA   = fillThird(third shown)
     a quiver of 20 for every held weapon that shoots
 ```
@@ -450,7 +455,6 @@ they do are kept per weights.
 
 | weight        | default   | read in                                       |
 | ------------- | --------- | --------------------------------------------- |
-| `ring2`       | 0.5       | threatValue: per round beyond the first       |
 | `AP`          | 3         | APPrice (not in §3: an attack's AP is its defensive potential) |
 | `danger`      | 0.1       | APPrice: per point of danger left             |
 | `STA`         | 3         | STAPrice                                      |
@@ -475,8 +479,7 @@ they do are kept per weights.
 | `threatening` | 0.2     | §3 target: foe's threat on the team                     |
 | `offence`     | 1       | §4 standing, §6                                         |
 | `peril`       | 1       | §4 standing, §6                                         |
-| `aggression`  | 4       | §4 pursuit per AP saved, §5 per cell nearer the middle  |
-| `chase`       | 1       | §4 pursuit, per point of foe's Threatening per round AP |
+| `aggression`  | 4       | §4 pull per cell nearer a foe out of reach, §5 per cell nearer the middle |
 | `arrival`     | 1       | §4 immediate danger at the cell walked to               |
 | `search`      | 1       | §5 per cell newly seen                                  |
 | `margin`      | 1       | §4, §5, §6 must beat by                                 |
@@ -493,7 +496,7 @@ Fixed counts (not weights):
 | `TOWARDS`, `AWAY`               | 3, 3    | boxes/threat.ts walk candidates   |
 | `ATTACK_CELLS`                  | 2       | boxes/threat.ts attack candidates |
 | `SEARCH_CELLS`, `SEARCH_SPREAD` | 12, 240 | boxes/threat.ts search            |
-| `MAP_ROUNDS`                    | 4       | threat.ts step map depth          |
+| `MAP_ROUNDS`                    | 1       | threat.ts step map depth          |
 | `BALLPARK`                      | 3       | belief.ts                         |
 | `QUIVER`                        | 20      | belief.ts (gear.tex "Quiver")     |
 

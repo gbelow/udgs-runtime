@@ -149,14 +149,13 @@ intercepting with bare hands - damage or not?
 
 allow dealing damage to own character. click deal 10 damage blunt.
 
-Large Hands, Beautiful, Ugly, Regenerative Reservoir, Resurrection, Tireless, Adaptive Sleep, Amplified Pheromones
-
 think about scene win conditions
-
-listening in other floors. vision blocking floors.
 
 add a llm questions chat
 
-switch to shield
 
-think about increasing the amount of IL dealt by larger or smaller weapons instead of damage.
+think about making harmDanger include more attacks, not just the worst
+
+think about absorption rules for each kind of damage, especially piercing and cutting. 
+
+increase death threshold to 100. immobile to 50 and allow convictions to change that.

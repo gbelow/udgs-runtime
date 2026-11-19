@@ -23,10 +23,11 @@ import { isMeleeRange } from '../weaponProperties'
 // would answer with, with what the attack and the move to it cost kept apart
 // so they can be weighed where the threat is used.
 //
-// Potential threat is threat at all: one attack after fresh rounds of
-// movement (8 AP and the movement surge each), counted in full when it can be
-// made in one round and damped by `ring2` for every round more it takes, a
-// part of a round counting its part, so that every step closer counts.
+// Potential threat is next round's: the attack made as many times as a fresh
+// round (8 AP and the movement surge) pays for once the walk in is paid, so
+// that every step closer that frees an attack counts; none where the walk in
+// and one attack do not fit in the round (the user's ruling: a foe further
+// off is gone after by the walk's own pull, bot/boxes/threat.ts).
 // Immediate threat is this round's: one attack the attacker can still pay for
 // with what it is believed to have left. A threat that needs a walk through
 // the target's own reach, or a shot fired within it, counts the opportunity
@@ -41,8 +42,6 @@ import { isMeleeRange } from '../weaponProperties'
 // Nothing here decides; it reads.
 
 export type ThreatTuning = {
-  // what a threat counts for, for every round more than one it takes
-  ring2: number
   // what spending costs a character, for any spender and anything spent on
   // (`getSpendPrice`): an AP at `AP` plus `danger` times the danger the
   // spender is left in, an STA at `STA` as `getSTAPrice` prices it
@@ -61,7 +60,7 @@ export type ThreatTuning = {
   end: 'least' | 'middle' | 'most'
 }
 
-export const THREAT_TUNING: ThreatTuning = { ring2: 0.5, AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle' }
+export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle' }
 
 export type Threat = {
   // what the attack is worth against the answer the target is believed to
@@ -79,13 +78,15 @@ export type Threat = {
   // what the attack costs, and the AP of the move it needs first
   cost: { AP: number; STA: number }
   moveAP: number
-  // the rounds the move and the attack take, from 1 (this round, or the next)
-  rounds: number
+  // how many times the attack is made: for a potential threat, as many as a
+  // fresh round pays for after the walk in (`getPotentialStrikes`); 1 for an
+  // immediate one
+  strikes: number
   // the worth of the opportunity attack the walk in draws from the target
   approach: number
 }
 
-export const threatValue = (t: Threat | null, tuning: ThreatTuning): number => (t ? Math.max(0, t.worth - tuning.opportunity * t.approach) * tuning.ring2 ** Math.max(0, t.rounds - 1) : 0)
+export const threatValue = (t: Threat | null, tuning: ThreatTuning): number => (t ? Math.max(0, t.strikes * t.worth - tuning.opportunity * t.approach) : 0)
 
 // The least or the most a third of `most` could hold (character/lenses/face.ts
 // `thirdOf`), or halfway between them, rounded.
@@ -157,12 +158,12 @@ const apart = (a: Coord | null, b: Coord | null): number => (a && b ? distance(a
 
 // How many cells the character walks to each cell it can get to, counted as it
 // moves (combat.tex "Movement"): around walls and bodies, on the ground it can
-// stand on, as far as four fresh rounds carry it at its fastest pace. Walked at
+// stand on, as far as a fresh round carries it at its fastest pace. Walked at
 // the walk (or the first other movement open), so the path is not bent by a
 // run's turning; how fast it covers the cells is its pace's (`getPace`).
 type StepMap = Map<string, number>
 
-const MAP_ROUNDS = 4
+const MAP_ROUNDS = 1
 
 const stepMaps = new WeakMap<SceneState, Map<string, StepMap | null>>()
 
@@ -209,7 +210,7 @@ function mapEdge(map: StepMap): number {
 
 // The fewest cells `mover` walks, from where it stands, to stand within
 // `reach` of `at` at a cell `clear` keeps (a shot's: one with a line of fire
-// to `at`); null when it cannot get there in the rounds the map covers.
+// to `at`); null when it cannot get there in the round the map covers.
 type Clear = (cell: Coord) => boolean
 const ANYWHERE: Clear = () => true
 
@@ -367,14 +368,19 @@ function canPayNow(attack: PairAttack, moveAP: number, means: Means, surge: { AP
   return canSurge && combat !== null && moveAP + attack.cost.AP <= means.AP + combat.AP && attack.cost.STA + combat.STA <= means.STA
 }
 
-// The rounds the move and the attack take from fresh rounds, a part of a
-// round counting its part: each round's AP and its movement surge (not
-// alongside the focus surge a row needs) go to the move, the last round's AP
-// to the attack too. Null when the attack cannot be paid for in any round.
-function roundsFor(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }): number | null {
-  if (attack.cost.AP > ROUND_AP || attack.cost.STA > means.STA) return null
-  const each = ROUND_AP + (attack.needsFocus ? 0 : surge.AP)
-  return Math.max(1, (moveAP + attack.cost.AP) / each)
+// How many times the attack is made in a fresh round once the walk in is
+// paid for (the user's ruling: walking in spends AP that would be attacks):
+// the movement surge (not alongside the focus surge a row needs) paying for
+// the walk first, the rest out of the round's own AP. Null when the walk in
+// and one attack do not fit in the round.
+function getPotentialStrikes(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }): number | null {
+  const surged = !attack.needsFocus && moveAP > 0
+  const AP = means.AP - (surged ? Math.max(0, moveAP - surge.AP) : moveAP)
+  const STA = means.STA - (surged ? surge.STA : 0)
+  const byAP = attack.cost.AP > 0 ? Math.floor(AP / attack.cost.AP) : 1
+  const bySTA = attack.cost.STA > 0 ? Math.floor(STA / attack.cost.STA) : byAP
+  const strikes = Math.min(byAP, bySTA)
+  return strikes >= 1 ? strikes : null
 }
 
 // The combat surge the attacker may make this round, or null: the table's own
@@ -385,7 +391,7 @@ function combatSurge(c: CampaignCharacter): { AP: number; STA: number } | null {
 }
 
 // The best one attack `a` can make on `d`, against `d` defending with `guard`:
-// this round's with `means`, or at all, from fresh rounds.
+// this round's with `means`, or next round's, from a fresh round.
 // The approach is priced at most at `d`'s own threat on `a` (the user's
 // ruling: a foe that is no threat costs nothing to walk in on), read without
 // that cap, so that the two threats do not ask each other; `capped` false reads it.
@@ -433,8 +439,8 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
     if (!attack.opens.action) continue
     const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, attack.reach)))
     if (moveAP === null) continue
-    const rounds = when === 'now' ? (canPayNow(attack, moveAP, means, surge, combat, focused) ? 1 : null) : roundsFor(attack, moveAP, means, surge)
-    if (rounds === null) continue
+    const strikes = when === 'now' ? (canPayNow(attack, moveAP, means, surge, combat, focused) ? 1 : null) : getPotentialStrikes(attack, moveAP, means, surge)
+    if (strikes === null) continue
     const met = getDefendedHarm(attack, gap, guard, mode, defender.injuries.bleed, tuning)
     if (!met || met.undefended <= 0) continue
     // the walk in, straight from where `a` stands to the attack's reach, and
@@ -446,7 +452,7 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
     const walkIn = near && gap > attack.reach ? getOpportunityWorth(a.state, d.id, a.id, gap, attack.reach, pace?.running ?? false, guard, left, tuning) : 0
     const drawn = walkIn + (near && attack.kind === 'shoot' ? getStandingOpportunityWorth(a.state, d.id, a.id, Math.min(gap, attack.reach), guard, left, tuning) : 0)
     const approach = capped && drawn > 0 ? Math.min(drawn, capOf()) : drawn
-    const threat: Threat = { worth: met.worth, harm: met.harm, attack, defence: met.defence, undefended: met.undefended, answers: met.answers, cost: attack.cost, moveAP, rounds, approach }
+    const threat: Threat = { worth: met.worth, harm: met.harm, attack, defence: met.defence, undefended: met.undefended, answers: met.answers, cost: attack.cost, moveAP, strikes, approach }
     if (!best || threatValue(threat, tuning) > threatValue(best, tuning)) best = threat
   }
   return best
@@ -467,14 +473,14 @@ function getLongestReach(c: CampaignCharacter): number {
 }
 
 // Whether `a`, from where it stands, cannot come within its longest reach of
-// `at` in two rounds, so that no attack of its can reach there.
+// `at` in a fresh round, so that no attack of its can reach there.
 function isOutOfReach(state: SceneState, a: string, at: Coord | null): boolean {
   const c = state.characters[a]
   if (!c || !at || !state.board) return false
   return stepsWithin(state, a, at, getLongestReach(c)) === null
 }
 
-// Whether `a` has someone of another party it can reach in two rounds, other
+// Whether `a` has someone of another party it can reach in a fresh round, other
 // than `d`: a pair out of reach is left unread only while there is such a one
 // to weigh instead.
 const reachesOthers = new WeakMap<SceneState, Map<string, boolean>>()

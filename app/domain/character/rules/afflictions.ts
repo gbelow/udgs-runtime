@@ -68,8 +68,12 @@ export function getForcedAfflictions(character: Character, suppressed: ReadonlyS
   // and the legs lost or broken, as many as the stance can bear;
   // spells.tex "Curse": a carried curse's, the same
   // combat.tex "Injuries and Death": collapsing at injury capacity, unless
-  // the collapse is suppressed (abilities.tex "Unstoppable").
-  if (character.injuries.injuryLevel >= getInjuryCapacity(character) && !suppressed.has('collapse')) afflictions.add('immobile')
+  // the collapse is suppressed (abilities.tex "Unstoppable"); the body lies
+  // where it fell, prone (the user's ruling), so others step over it.
+  if (character.injuries.injuryLevel >= getInjuryCapacity(character) && !suppressed.has('collapse')) {
+    afflictions.add('immobile')
+    afflictions.add('prone')
+  }
 
   for (const key of getWoundAfflictions(character, suppressed)) afflictions.add(key)
   for (const key of getStanceAfflictions(character)) afflictions.add(key)

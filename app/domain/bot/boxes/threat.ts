@@ -27,7 +27,6 @@ import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/
 import type { Box, Decision, SeatInput } from '../decision'
 import { getSwitches } from '../arms'
 import { getPayBar } from '../../item/rules/moves'
-import { ROUND_AP } from '../../tables'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
 // every term weighed by a tweakable:
@@ -45,11 +44,12 @@ import { ROUND_AP } from '../../tables'
 //   cheapest cells that reach and the safest); made where that comes out
 //   above nothing;
 // - with no attack worth making, a walk is worth the potential harm the
-//   character could do from the cell to the foe it threatens most, less the
-//   worst single foe's potential threat on it there, and the AP of the walk
-//   in it saves on the foe it most gains on, each worth a baseline for any
-//   enemy and more the more that foe threatens the team (the user's ruling:
-//   a harmless foe is still gone after, and so is one it cannot yet hurt),
+//   character could do from the cell to the foe it threatens most, counting
+//   every attack a fresh round pays for once the walk in is paid, so that
+//   closing on a foe is worth the attacks it frees (the user's ruling), less
+//   the worst single foe's potential threat on it there, and, for every
+//   cell it closes on a foe too far off to have a potential threat on,
+//   `aggression` (the user's ruling: a foe it cannot yet hurt is still gone after),
 //   less `company` for every metre from the nearest ally beyond the next
 //   cell (the user's ruling: everyone is safer close to allies), standing
 //   still the same, and less the walk at the same price and the worst single foe's immediate
@@ -101,10 +101,9 @@ export type ThreatWeights = RestTuning & {
   // a walk's worth: the potential harm the character could do from the cell, the potential danger there
   offence: number
   peril: number
-  // what a walk gains for every AP of the walk in it saves on a foe: for any
-  // enemy, and for every point of the foe's threat on the team, a round's AP over
+  // what a walk gains for every cell it comes nearer a foe too far off to have a
+  // potential threat on, and a search walk for every cell nearer the board's middle
   aggression: number
-  chase: number
   // what a walk is worth less for the danger it leaves the character in this
   // round at the cell it walks to, with what it has left to defend
   arrival: number
@@ -128,7 +127,7 @@ export type ThreatWeights = RestTuning & {
   reserve: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, chase: 1, arrival: 1, search: 1, margin: 1, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 10 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, arrival: 1, search: 1, margin: 1, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 10 }
 
 const NOTHING_DRAWN: Drawn = { worth: 0, AP: 0, STA: 0 }
 
@@ -561,15 +560,8 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
   if (best && (best.score > 0 || compelled) && (best.kind !== 'attack' || opensAfter(view, id, best.intent))) return best
 
   // no attack worth making: a walk, by where the character threatens more and
-  // is threatened less, and how far it closes on the foe the team threatens most
+  // is threatened less
   if (!here) return null
-  // the AP of the walk in on each foe from a cell, and what each AP saved on it is worth
-  const walkIn = (foe: string, cell: Coord): number | null => getPotentialThreat(view, members, id, foe, cellOf(view, foe), cell, w)?.moveAP ?? null
-  const chased = foes.map((foe) => ({ foe, from: walkIn(foe, here), perAP: w.aggression + (w.chase * getThreatening(view, members, foe, w)) / ROUND_AP }))
-  const pursuit = (cell: Coord): number => chased.reduce((most, { foe, from, perAP }) => {
-    const to = from === null ? null : walkIn(foe, cell)
-    return to === null || from === null ? most : Math.max(most, perAP * Math.max(0, from - to))
-  }, 0)
   // everyone is safer close to allies (the user's ruling): the metres to the nearest one, beyond the next cell
   const friends = getTeam(view, members).filter((t) => t !== id).flatMap((t) => cellOf(view, t) ?? [])
   const apart = (cell: Coord): number => (friends.length ? Math.max(0, Math.min(...friends.map((f) => distance(cell, f))) - 1) : 0)
@@ -577,6 +569,12 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
     const offence = foes.reduce((most, foe) => Math.max(most, threatValue(getPotentialThreat(view, members, id, foe, cellOf(view, foe), cell, w), w)), 0)
     return w.offence * offence - w.peril * getDanger(view, members, id, 'potential', cell, undefined, w) - w.company * apart(cell)
   }
+  // the cells a walk closes on the foes too far off for its potential threat to reach (the user's ruling)
+  const beyond = foes.flatMap((foe) => {
+    const at = cellOf(view, foe)
+    return at && !unnoticed.has(foe) && !getPotentialThreat(view, members, id, foe, at, here, w) ? [at] : []
+  })
+  const pull = (cell: Coord): number => w.aggression * beyond.reduce((most, at) => Math.max(most, distance(here, at) - distance(cell, at)), 0)
   const stay = standing(here) + kept
   let move: { cell: Coord; score: number; budget: Budget; movement: MovementKind } | null = null
   const worst = foes.reduce<{ id: string; danger: number } | null>((q, f) => {
@@ -591,7 +589,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
       // a surge's AP is dropped at the turn's end, so only the AP of its own is left to defend with
       const guard = { AP: heldAP(b, AP), STA: Math.max(0, b.STA - STA) }
       const arrival = w.arrival * getDanger(view, members, id, 'immediate', cell, guard, w)
-      const score = standing(cell) + pursuit(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - arrival + keeping(cell, guard.AP)
+      const score = standing(cell) + pull(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - arrival + keeping(cell, guard.AP)
       if (!move || score > move.score) move = { cell, score, budget: b, movement: walk.movement }
     }
   }
