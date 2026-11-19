@@ -562,15 +562,45 @@ export function getDanger(state: SceneState, members: readonly string[], id: str
   return foes.reduce((worst, foe) => Math.max(worst, threatValue(kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, guard, tuning), tuning)), 0)
 }
 
+// How many times `foe` can make the attack of its immediate threat this
+// round with the means it is believed to have: after the walk in, with no
+// surge, the movement surge paying for the walk, or the combat surge's AP
+// added, whichever leaves the most; at least the one the threat counts.
+function getStrikes(state: SceneState, members: readonly string[], foe: string, t: Threat, tuning: ThreatTuning): number {
+  const c = state.characters[foe]
+  const means = getMeans(c, members.includes(foe), tuning)
+  const movement = means.surge ? { AP: getSurgeAP('movement')(c), STA: getSurgeSTA('movement')(c) } : null
+  const combat = means.surge ? combatSurge(c) : null
+  const count = (AP: number, STA: number) => {
+    const byAP = t.cost.AP > 0 ? Math.floor(AP / t.cost.AP) : Infinity
+    const bySTA = t.cost.STA > 0 ? Math.floor(STA / t.cost.STA) : Infinity
+    return Math.min(byAP, bySTA)
+  }
+  const ways = [
+    count(means.AP - t.moveAP, means.STA),
+    movement ? count(means.AP - Math.max(0, t.moveAP - movement.AP), means.STA - movement.STA) : 0,
+    combat ? count(means.AP + combat.AP - t.moveAP, means.STA - combat.STA) : 0,
+  ]
+  const most = Math.max(...ways)
+  return Number.isFinite(most) ? Math.max(1, most) : 1
+}
+
 // The worst single foe's immediate threat on `id` standing at `at`, with
 // `guard` left to defend, read as the harm alone it would take answering as
 // it would, nothing of what the answer costs it: what its AP is worth to its
-// own defence is what it saves.
+// own defence is what it saves. The foe makes the attack as many times as it
+// can pay for (`getStrikes`), and `guard` answers as many of them as it pays
+// for, the rest landing undefended.
 export function getHarmDanger(state: SceneState, members: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
   const { foes } = getSides(state, members)
   return foes.reduce((worst, foe) => {
     const t = getImmediateThreat(state, members, foe, id, at, guard, tuning)
-    return t ? Math.max(worst, Math.max(0, t.harm - tuning.opportunity * t.approach)) : worst
+    if (!t) return worst
+    const n = getStrikes(state, members, foe, t, tuning)
+    const { AP, STA } = t.defence.cost
+    const answered = Math.min(n, AP > 0 ? Math.floor(guard.AP / AP) : n, STA > 0 ? Math.floor(guard.STA / STA) : n)
+    const harm = answered * t.harm + (n - answered) * t.undefended
+    return Math.max(worst, Math.max(0, harm - tuning.opportunity * t.approach))
   }, 0)
 }
 

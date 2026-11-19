@@ -368,7 +368,8 @@ export type AttackScore = {
   harm: number
   target: number
   // the defensive potential it loses: the harm the worst single foe's
-  // immediate threat would do it at the cell with what it is left to defend,
+  // immediate threat would do it at the cell, made as many times as the foe
+  // can pay for, with what it is left to defend,
   // over what it would do it now where it stands with all it holds
   // (`getHarmDanger`), `reserve` over the AP left times; and what the AP it
   // no longer holds was worth to its allies (`getKeeping`)

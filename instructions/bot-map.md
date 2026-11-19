@@ -172,11 +172,22 @@ middle = round((least + most) / 2)
 
 ```
 Danger(me, kind, at, guard) = max_foe threatValue(threat foe → me at `at`)
-HarmDanger(me, at, guard)   = max_foe (harm of the immediate threat foe → me at `at`, against
-                              the answer I would choose − w.opportunity · approach)
+HarmDanger(me, at, guard)   = max_foe (k · harm(attack, d) + (n − k) · undefended − w.opportunity · approach)
                               the harm alone, nothing of what the answer costs
 Threatened(foe)             = Σ_team threatValue(potential member → foe)
 Threatening(foe)            = max_team threatValue(potential foe → member)
+```
+
+In `HarmDanger` the attack is the foe's immediate threat on me at `at` and `d` the answer I
+would choose with `guard`; the foe makes it `n` times and I answer `k` of them
+(`getStrikes`, `getHarmDanger`):
+
+```
+n = max(1, most strikes of the attack's AP and STA the foe is believed to pay for this round:
+           AP − moveAP                           no surge
+           AP − max(0, moveAP − movement surge AP), STA less the surge's   movement surge
+           AP + combat surge AP − moveAP, STA less the surge's             combat surge)
+k = min(n, guard.AP / d.AP, guard.STA / d.STA)   rounded down; n for a free answer
 ```
 
 ---
@@ -192,7 +203,7 @@ spent, STAspent = walk + attack
 held            = what the budget leaves after the walk, the attack and the OAs answered
 worth           = DefendedHarm(attack, gap, foe's guard, dangerAfter = foe's own danger)
 target          = w.threatened · Threatened(foe) + w.threatening · Threatening(foe)
-after           = HarmDanger(me, cell, held)
+after           = HarmDanger(me, cell, held)                        (§2: every strike the foe affords)
 now             = HarmDanger(me, here, all it holds)
 kept            = keeping(here, all its AP)                        (§4.2)
 
