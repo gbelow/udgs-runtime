@@ -632,8 +632,8 @@ function getPairDL(view: SceneState, none: PairDefence): (state: SceneState) => 
 
 // The fight with `draft` declared as `id`'s answer to the open action, its
 // picks filled in, or null where it cannot be.
-function tryAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, guard: { AP: number; STA: number }): { picks: Pick[]; ready: SceneState } | null {
-  const picks = fillAnswer(view, members, id, draft, guard)
+function tryAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, guard: { AP: number; STA: number }, w: ThreatWeights): { picks: Pick[]; ready: SceneState } | null {
+  const picks = fillAnswer(view, members, id, draft, guard, w)
   const made = picks ? declare(view, { actorId: id, option: draft, picks }, TRIAL) : null
   return picks && made?.ok ? { picks, ready: made.ready } : null
 }
@@ -669,7 +669,7 @@ function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | nul
   let best: { draft: ActionDraft; picks: Pick[]; score: number } | null = null
   for (const o of getAvailableActions(view, id)) {
     if (!o.available || o.reactionTo !== open.id || !GUARDING.has(o.draft.kind) || !o.cost) continue
-    const tried = tryAnswer(view, input.members, id, o.draft, means)
+    const tried = tryAnswer(view, input.members, id, o.draft, means, w)
     const DL = tried ? pairDL(tried.ready) : null
     if (!tried || DL === null) continue
     const left = getHarmAgainst(onAlly.attack, { ...none, draft: o.draft, cost: o.cost, DL }, onAlly.gap)
@@ -711,7 +711,7 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   for (const o of offered) {
     const d = attack.defences.find((x) => x.draft && sameDraft(x.draft, o.draft))
     if (!d) continue
-    const tried = pairDL ? tryAnswer(view, input.members, id, o.draft, means) : null
+    const tried = pairDL ? tryAnswer(view, input.members, id, o.draft, means, w) : null
     const DL = pairDL ? (tried ? pairDL(tried.ready) : null) : d.DL
     if (DL === null) continue
     const priced = getSpendPrice(d.cost, means.STA, me.injuries.bleed, getDanger(view, input.members, id, 'immediate', at, { AP: Math.max(0, means.AP - d.cost.AP), STA: Math.max(0, means.STA - d.cost.STA) }, w), w)
@@ -720,7 +720,7 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   }
   const covered = guardian ? `, ${view.characters[guardian]?.name ?? guardian} defends it` : ''
   if (best.draft === null) return press(find('pass', id), `lets it come (harm ${best.score.toFixed(1)}${covered})`)
-  const picks = fillAnswer(view, input.members, id, best.draft, { AP: means.AP, STA: means.STA })
+  const picks = fillAnswer(view, input.members, id, best.draft, { AP: means.AP, STA: means.STA }, w)
   if (!picks) return press(find('pass', id), `lets it come: ${best.draft.kind} cannot be finished`)
   return { kind: 'declare', intent: { actorId: id, option: best.draft, picks }, why: `answers with ${best.draft.kind} (harm and price ${best.score.toFixed(1)}${covered})` }
 }
@@ -761,7 +761,7 @@ function opportunity(input: SeatInput, id: string, w: ThreatWeights): Decision |
     }
   }
   if (!best) return null
-  const picks = fillAnswer(view, input.members, id, best.draft, { AP: me.resources.AP, STA: me.resources.STA }, best.picks)
+  const picks = fillAnswer(view, input.members, id, best.draft, { AP: me.resources.AP, STA: me.resources.STA }, w, best.picks)
   return picks ? { kind: 'declare', intent: { actorId: id, option: best.draft, picks }, why: best.why } : null
 }
 
@@ -769,7 +769,7 @@ function opportunity(input: SeatInput, id: string, w: ThreatWeights): Decision |
 // picked: a cell where the danger on the character is least, anything else as
 // first offered, after the `start` picks. Null when it asks for something
 // nothing offers.
-function fillAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, guard: { AP: number; STA: number }, start: readonly Pick[] = []): Pick[] | null {
+function fillAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, guard: { AP: number; STA: number }, w: ThreatWeights, start: readonly Pick[] = []): Pick[] | null {
   const open = getOpenAction(view)
   if (!open) return null
   const picks: Pick[] = [...start]
@@ -780,7 +780,7 @@ function fillAnswer(view: SceneState, members: readonly string[], id: string, dr
     const fills = getOpenChoices(made.ready).filter((c) => c.actorId === id && !c.chosen)
     const cells = fills.filter((c) => c.part === 'cell')
     const pick = cells.length
-      ? cells.reduce((b, c) => (getDanger(view, members, id, 'immediate', c.value as Coord, guard) < getDanger(view, members, id, 'immediate', b.value as Coord, guard) ? c : b))
+      ? cells.reduce((b, c) => (getDanger(view, members, id, 'immediate', c.value as Coord, guard, w) < getDanger(view, members, id, 'immediate', b.value as Coord, guard, w) ? c : b))
       : fills[0]
     if (!pick) return null
     picks.push({ part: pick.part, value: pick.value })
@@ -821,7 +821,7 @@ function takeStressTurn(input: SeatInput, id: string, w: ThreatWeights, find: Fi
     if (plan?.kind === 'attack' || plan?.kind === 'walk') return { kind: 'declare', intent: plan.intent, why: `violent: ${plan.why}` }
   }
   if (turn.action === 'coward' && getSurgeAPLeft(me) > 0) {
-    const run = getAway(view, input.members, id)
+    const run = getAway(view, input.members, id, w)
     if (run) return { ...run, why: `coward: ${run.why}` }
   }
   return endTurn(input, id, find, press)
@@ -915,22 +915,22 @@ function takeTurn(input: SeatInput, id: string, w: ThreatWeights, find: Find, pr
     const made = press(surge, plan.why)
     if (made) return made
   }
-  return endTurn(input, id, find, press) ?? getAway(input.view(), input.members, id)
+  return endTurn(input, id, find, press) ?? getAway(input.view(), input.members, id, w)
 }
 
 // A walk the turn cannot end without (a coward's run): to the cell where the
 // worst foe's potential threat is least.
-function getAway(view: SceneState, members: readonly string[], id: string): Decision | null {
+function getAway(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): Decision | null {
   const walk = getWalk(view, id)
   if (!walk) return null
   const safest = walk.cells
-    .map((c) => ({ cell: c.cell, danger: getDanger(view, members, id, 'potential', c.cell) }))
+    .map((c) => ({ cell: c.cell, danger: getDanger(view, members, id, 'potential', c.cell, undefined, w) }))
     .sort((a, b) => a.danger - b.danger)
     .find((c) => declare(view, moveIntent(id, walk.movement, c.cell), TRIAL).ok)
   return safest ? { kind: 'declare', intent: moveIntent(id, walk.movement, safest.cell), why: `gets away (danger ${safest.danger.toFixed(1)})` } : null
 }
 
-export function threatBox(w: ThreatWeights = THREAT_WEIGHTS): Box {
+export function threatBox(w: ThreatWeights): Box {
   return (input) => {
     const { members, waits, buttons } = input
     const { find, press } = finding(buttons)

@@ -85,7 +85,7 @@ export type Threat = {
   approach: number
 }
 
-export const threatValue = (t: Threat | null, tuning: ThreatTuning = THREAT_TUNING): number => (t ? Math.max(0, t.worth - tuning.opportunity * t.approach) * tuning.ring2 ** Math.max(0, t.rounds - 1) : 0)
+export const threatValue = (t: Threat | null, tuning: ThreatTuning): number => (t ? Math.max(0, t.worth - tuning.opportunity * t.approach) * tuning.ring2 ** Math.max(0, t.rounds - 1) : 0)
 
 // The least or the most a third of `most` could hold (character/lenses/face.ts
 // `thirdOf`), or halfway between them, rounded.
@@ -99,7 +99,7 @@ export type Means = { AP: number; STA: number; surge: boolean }
 
 // What a character has left this round as the seat takes it: its own sheet
 // for one it plays, the face for anyone else.
-export function getMeans(c: CampaignCharacter, plays: boolean, tuning: ThreatTuning = THREAT_TUNING): Means {
+export function getMeans(c: CampaignCharacter, plays: boolean, tuning: ThreatTuning): Means {
   const surge = c.usedSurge === null
   if (plays || !c.shown) return { AP: c.resources.AP, STA: c.resources.STA, surge }
   return { AP: fromThird(c.shown.AP, ROUND_AP, tuning.end), STA: fromThird(c.shown.STA, getSTA(c), tuning.end), surge }
@@ -310,7 +310,7 @@ export function getAnswers(attack: PairAttack, gap: number, budget: { AP: number
 // What `AP` AP cost one left in `danger` by spending them (the user's ruling:
 // every AP spent costs something, more the more threatened the spender is
 // left): each at `AP` plus `danger` times the danger.
-export function getAPPrice(AP: number, danger: number, tuning: ThreatTuning = THREAT_TUNING): number {
+export function getAPPrice(AP: number, danger: number, tuning: ThreatTuning): number {
   return Math.max(0, AP) * (tuning.AP + tuning.danger * danger)
 }
 
@@ -319,14 +319,14 @@ export function getAPPrice(AP: number, danger: number, tuning: ThreatTuning = TH
 // sparingly; and every STA spent bleeding adds its IL (combat.tex "Bleed"),
 // harm to the spender. What STA gained is worth is the same price, read for
 // the pool it ends in.
-export function getSTAPrice(spent: number, held: number, bleed: number, tuning: ThreatTuning = THREAT_TUNING): number {
+export function getSTAPrice(spent: number, held: number, bleed: number, tuning: ThreatTuning): number {
   if (spent <= 0) return 0
   return spent * (tuning.STA * tuning.STAScale / Math.max(1, held - spent) + 2 * bleed)
 }
 
 // What spending `spent` costs one holding `held` STA, bleeding `bleed`, left
 // in `danger` by it: its AP (`getAPPrice`) and its STA (`getSTAPrice`).
-export function getSpendPrice(spent: { AP: number; STA: number }, held: number, bleed: number, danger: number, tuning: ThreatTuning = THREAT_TUNING): number {
+export function getSpendPrice(spent: { AP: number; STA: number }, held: number, bleed: number, danger: number, tuning: ThreatTuning): number {
   return getAPPrice(spent.AP, danger, tuning) + getSTAPrice(spent.STA, held, bleed, tuning)
 }
 
@@ -344,7 +344,7 @@ export type DangerAfter = (spent: { AP: number; STA: number }) => number
 // (`getSpendPrice`), with the danger `dangerAfter` says it is left in; with
 // none given, as inside the threats themselves, which the danger is read from,
 // the danger is left unread.
-export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', bleed = 0, tuning: ThreatTuning = THREAT_TUNING, dangerAfter?: DangerAfter): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
+export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', bleed = 0, tuning: ThreatTuning, dangerAfter?: DangerAfter): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
   const { undefended, answers } = getAnswers(attack, gap, budget, mode)
   const cost = (a: Answer) => a.harm + getSpendPrice(a.defence.cost, budget.STA, bleed, dangerAfter && a.defence.cost.AP > 0 ? dangerAfter(a.defence.cost) : 0, tuning)
   const best = answers.filter((a) => a.affordable).reduce<Answer | null>((b, a) => (!b || cost(a) < cost(b) ? a : b), null)
@@ -518,7 +518,7 @@ const cellText = (c: Coord | null): string => (c ? coordKey(c) : '-')
 
 // `a`'s potential threat on `d` standing at `at`, were `a` standing at
 // `from`: a fresh round, then the next.
-export function getPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), from: Coord | null = cellOf(state, a), tuning: ThreatTuning = THREAT_TUNING): Threat | null {
+export function getPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), from: Coord | null = cellOf(state, a), tuning: ThreatTuning): Threat | null {
   return remembered(state, tuning, `potential|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${cellText(from)}`, () => readPotentialThreat(state, plays, a, d, at, from, tuning))
 }
 
@@ -542,7 +542,7 @@ function readPotentialThreat(state: SceneState, plays: readonly string[], a: str
 
 // `a`'s immediate threat on `d` standing at `at`, defending with `guard` (what
 // `d` is believed to have left, unless said).
-export function getImmediateThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), guard?: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): Threat | null {
+export function getImmediateThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), guard: { AP: number; STA: number } | undefined, tuning: ThreatTuning): Threat | null {
   return remembered(state, tuning, `immediate|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${guard ? `${guard.AP},${guard.STA}` : '-'}`, () => readImmediateThreat(state, plays, a, d, at, guard, tuning))
 }
 
@@ -557,7 +557,7 @@ function readImmediateThreat(state: SceneState, plays: readonly string[], a: str
 
 // The worst single foe's threat on `id` standing at `at`: the potential one,
 // or this round's with `guard` left to defend.
-export function getDanger(state: SceneState, members: readonly string[], id: string, kind: 'potential' | 'immediate', at: Coord | null = cellOf(state, id), guard?: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): number {
+export function getDanger(state: SceneState, members: readonly string[], id: string, kind: 'potential' | 'immediate', at: Coord | null = cellOf(state, id), guard: { AP: number; STA: number } | undefined, tuning: ThreatTuning): number {
   const { foes } = getSides(state, members)
   return foes.reduce((worst, foe) => Math.max(worst, threatValue(kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, guard, tuning), tuning)), 0)
 }
@@ -566,7 +566,7 @@ export function getDanger(state: SceneState, members: readonly string[], id: str
 // `guard` left to defend, read as the harm alone it would take answering as
 // it would, nothing of what the answer costs it: what its AP is worth to its
 // own defence is what it saves.
-export function getHarmDanger(state: SceneState, members: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): number {
+export function getHarmDanger(state: SceneState, members: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
   const { foes } = getSides(state, members)
   return foes.reduce((worst, foe) => {
     const t = getImmediateThreat(state, members, foe, id, at, guard, tuning)
@@ -577,7 +577,7 @@ export function getHarmDanger(state: SceneState, members: readonly string[], id:
 // What `target`, standing at `at` with `guard` to defend with, is left in once
 // it has spent on a defence: the worst single foe's immediate threat on it, as
 // its own box reads it when it answers (bot/boxes/threat.ts).
-export function getTargetDanger(state: SceneState, target: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning = THREAT_TUNING): DangerAfter {
+export function getTargetDanger(state: SceneState, target: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): DangerAfter {
   return (spent) => getDanger(state, [target], target, 'immediate', at, { AP: Math.max(0, guard.AP - spent.AP), STA: Math.max(0, guard.STA - spent.STA) }, tuning)
 }
 
@@ -588,11 +588,11 @@ export const getTeam = (state: SceneState, members: readonly string[]): string[]
 }
 
 // How threatened a foe is: the whole team's potential threat on it.
-export function getThreatened(state: SceneState, members: readonly string[], foe: string, tuning: ThreatTuning = THREAT_TUNING): number {
+export function getThreatened(state: SceneState, members: readonly string[], foe: string, tuning: ThreatTuning): number {
   return getTeam(state, members).reduce((sum, id) => sum + threatValue(getPotentialThreat(state, members, id, foe, cellOf(state, foe), cellOf(state, id), tuning), tuning), 0)
 }
 
 // How threatening a foe is: its worst potential threat on anyone of the team.
-export function getThreatening(state: SceneState, members: readonly string[], foe: string, tuning: ThreatTuning = THREAT_TUNING): number {
+export function getThreatening(state: SceneState, members: readonly string[], foe: string, tuning: ThreatTuning): number {
   return getTeam(state, members).reduce((worst, id) => Math.max(worst, threatValue(getPotentialThreat(state, members, foe, id, cellOf(state, id), cellOf(state, foe), tuning), tuning)), 0)
 }

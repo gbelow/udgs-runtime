@@ -425,6 +425,11 @@ Threat reading of a face uses `fromThird` with `w.end` (§2) for what it has lef
 
 ## Weights
 
+A box is made with its weights (`threatBox(w)`), and every function that reads one takes them
+as a required argument, never a default, so a call that forgets them does not compile. The
+tables the weights do not touch (pairs, harms, step maps) are shared by every bot; those
+they do are kept per weights.
+
 `THREAT_TUNING` (`threat.ts`), shared by every box:
 
 | weight        | default   | read in                                       |

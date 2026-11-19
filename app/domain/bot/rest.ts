@@ -37,7 +37,7 @@ export function canRestNow(state: SceneState, id: string): boolean {
   return getRoundPhase(state) === 'rest' && getAvailableActions(state, id).some((o) => o.available && getActionDef(o.draft.kind).rest)
 }
 
-export function getRestChoice(view: SceneState, members: readonly string[], id: string, tuning: RestTuning = REST_TUNING): RestChoice | null {
+export function getRestChoice(view: SceneState, members: readonly string[], id: string, tuning: RestTuning): RestChoice | null {
   const c = view.characters[id]
   if (!c || getRoundPhase(view) !== 'rest') return null
   const offered = getAvailableActions(view, id).filter((o) => o.available && getActionDef(o.draft.kind).rest)

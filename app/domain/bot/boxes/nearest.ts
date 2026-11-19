@@ -107,7 +107,7 @@ export function finding(buttons: readonly OpenButton[]): { find: Find; press: Pr
 // answer and the turn, which `nearestBox` plays as its own: hold on to what it
 // concentrates on, make the morale test, land what it rolled, and rest or say
 // something at the round's rest step as `getRestChoice` weighs it with `rest`.
-export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Press, rest: RestTuning = REST_TUNING): Decision | null {
+export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Press, rest: RestTuning): Decision | null {
   const { id } = wait
   switch (wait.for) {
     case 'concentration':
@@ -161,7 +161,7 @@ export const nearestBox: Box = (input) => {
   for (const wait of waits) {
     const made = wait.for === 'answer' ? press(find('pass', wait.id), 'lets it come')
       : wait.for === 'turn' ? takeTurn(input, wait.id, find, press)
-      : settleWait(input, wait, find, press)
+      : settleWait(input, wait, find, press, REST_TUNING)
     if (made) return made
   }
 

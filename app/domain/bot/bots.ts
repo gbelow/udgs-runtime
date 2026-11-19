@@ -4,11 +4,11 @@ import { isBot, type BotId } from '../profiles'
 import type { Box } from './decision'
 import type { Seat } from './seat'
 import { nearestBox } from './boxes/nearest'
-import { threatBox } from './boxes/threat'
+import { THREAT_WEIGHTS, threatBox } from './boxes/threat'
 
 // The decision box each bot plays with.
 export const BOT_BOXES: Record<BotId, Box> = {
-  'bot:threat': threatBox(),
+  'bot:threat': threatBox(THREAT_WEIGHTS),
   'bot:nearest': nearestBox,
 }
 

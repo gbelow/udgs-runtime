@@ -8,7 +8,7 @@ import { getFreeAttackOptions } from '../scene/rules/attack'
 import { getOpenChoices } from '../scene/projections/choices'
 import { seededRng, rollD10 } from '../play/dice'
 import { declare } from './declare'
-import { threatBox } from './boxes/threat'
+import { THREAT_WEIGHTS, threatBox } from './boxes/threat'
 import { getNextMove, type MoveOptions, type Seat } from './seat'
 
 const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
@@ -38,7 +38,7 @@ describe('a strike answered with an evasive jump from the ground', () => {
   })
 
   it("comes to the attacker's roll with bots on both seats", () => {
-    const seats: Seat[] = [{ id: 'd', members: ['d'], box: threatBox() }, { id: 'a', members: ['a'], box: threatBox() }]
+    const seats: Seat[] = [{ id: 'd', members: ['d'], box: threatBox(THREAT_WEIGHTS) }, { id: 'a', members: ['a'], box: threatBox(THREAT_WEIGHTS) }]
     const opts: MoveOptions = { ctx, botDice: (e) => rollD10(e, rng), rngOf: () => rng, autoTable: false }
     let at = jumped
     let from = 0
