@@ -44,7 +44,13 @@ export type SeatInput = {
   unnoticed: (memberId: string) => ReadonlySet<string>
   // the seat's own entropy, seeded, so a fight plays again the same
   rng: () => number
+  // what the seat is asked for: 'immediate' only what it wants to do now (a
+  // turn asked for or contested for it), 'any' anything, a turn asked for to
+  // better its position among it
+  pass: Pass
 }
+
+export type Pass = 'immediate' | 'any'
 
 export type Box = (input: SeatInput) => Decision
 

@@ -13,6 +13,9 @@ the spender; a "worth" is what something costs or gains, in harm points.
 
 ## 0. Where a decision comes from
 
+Two questions (the user's ruling): **now** (`planNow`: what to do now) and **later**
+(`planLater`: how to better the position), asked only once nothing is to be done now.
+
 ```
 threatBox (boxes/threat.ts)
 │
@@ -20,19 +23,30 @@ threatBox (boxes/threat.ts)
 │   ├─ answer ──► answer()         attacked?      §7  defend / let it come
 │   │                              ally attacked? §8  protect
 │   │                              drew an OA?    §9  opportunity attack
-│   ├─ turn ────► takeTurn()
+│   ├─ turn ────► takeTurn()       asked again after every action (chains)
 │   │              ├─ limit stress owed?           §11 violent / coward
-│   │              ├─ planSwitch()                 §6  change arms, if gain > margin
-│   │              └─ planTurn()
+│   │              ├─ now: planNow()               (no foe noticed: nothing now)
+│   │              │    best of attack             §3  if score > 0
+│   │              │         run from danger       §4.3 if danger > flee, score > margin
+│   │              └─ later: planLater()
+│   │                   ├─ planSwitch()            §6  change arms, if gain > margin
 │   │                   ├─ no foe in sight/noticed §5  search
-│   │                   ├─ best attack             §3  if score > 0
 │   │                   └─ else best walk          §4  if score > stay + margin
 │   ├─ rest ────► getRestChoice()                  §10 rest / rally / intimidate
 │   └─ action / morale / concentration ──► settleWait (boxes/nearest.ts), HOP spend §12
 │
-├─ startTurn pressed only if planTurn or planSwitch would do something on the begun turn
-└─ else carryOn: agree to end, roll held, pay, resolve, fill the first open choice
+├─ someone else's turn, still contestable: toggleContest for the member whose
+│   planNow, on the fight as winning would leave it, scores most (anyone's turn)
+├─ startTurn for the member whose planNow on the begun turn scores most; on the
+│   'any' pass only, failing every member's, the one whose planLater scores most
+└─ else, on the 'any' pass: carryOn: agree to end, roll held, pay, resolve, fill the first open choice
 ```
+
+The seats are asked in passes (`seat.ts` `getMoves`): while a turn just taken is
+contestable, every other seat first, for 'immediate' (then the table rolls the contest);
+the seats the table waits on; the table; the other seats for 'immediate', and only then
+for 'any'. On an 'immediate' pass only a `startTurn` or a `toggleContest` is taken; any
+other decision counts as waiting.
 
 The tools under it, bottom up:
 
@@ -197,7 +211,7 @@ k = min(n, guard.AP / d.AP, guard.STA / d.STA)   rounded down; n for a free answ
 
 ---
 
-## 3. Attack on the turn (`boxes/threat.ts` `planTurn`, `getAttackMeasures`)
+## 3. Attack on the turn, a question of now (`boxes/threat.ts` `planAttack`, `getAttackMeasures`)
 
 With no foe noticed, the turn searches instead (§5). Otherwise tried for every budget (no
 surge, combat surge, movement surge), every foe noticed, every attack that opens as an
@@ -255,7 +269,7 @@ neither   not made
 
 ---
 
-## 4. Walk when no attack is worth it (`boxes/threat.ts` `planTurn`)
+## 4. Walk when nothing is to be done now (`boxes/threat.ts` `planWalk`)
 
 ```
 standing(cell) = w.offence · max_foe threatValue(potential me → foe, me at cell)
@@ -306,6 +320,20 @@ for each block / intercept d:
 keeping(cell, AP) = w.guardian · max gain over protections with d.AP ≤ AP
                     and cell on the protect line
 ```
+
+### 4.3 Run from danger (`boxes/threat.ts` `planFlee`), a question of now
+
+```
+now       = Danger(me, immediate, here, all it holds)
+only when now > w.flee
+after     = Danger(me, immediate, cell, AP/STA left after the walk)
+run(cell) = now − after − SpendPrice(walk AP, walk STA + surgeSTA, after) − w.opportunity · OAs drawn
+
+run if best run(cell) > w.margin; against the best attack, the higher score is made
+```
+
+Candidate cells: `getDirectedCells` with no foe or ally to close on, so the `AWAY` cells
+furthest from the foe whose immediate threat on it is worst.
 
 ---
 
@@ -413,7 +441,7 @@ take the best if worth > 0
 ```
 social stress action owed    → default to coward
 a surge owed                 → rest first if needed, then make it
-violent                      → planTurn compelled (attack whatever its score)
+violent                      → planViolent (attack whatever its score, else walk)
 coward (surge AP left)       → getAway: walk to the cell of least Danger(potential)
 otherwise                    → end turn
 ```
@@ -488,7 +516,8 @@ they do are kept per weights.
 | `aggression`  | 4       | §4 pull per cell nearer a foe out of reach, §5 per cell nearer the middle |
 | `arrival`     | 1       | §4 immediate danger at the cell walked to               |
 | `search`      | 1       | §5 per cell newly seen                                  |
-| `margin`      | 1       | §4, §5, §6 must beat by                                 |
+| `margin`      | 1       | §4, §4.3, §5, §6 must beat by                           |
+| `flee`        | 10      | §4.3 immediate danger it must be in to run now          |
 | `cover`       | 0       | §4.2, §8 ally's threat over mine                        |
 | `redundant`   | 5       | §7 own defence when someone guards                      |
 | `company`     | 1       | §4 per metre from nearest ally beyond the next cell     |
@@ -513,3 +542,8 @@ Fixed counts (not weights):
 `nearestBox` (`boxes/nearest.ts`) is the baseline: walk to the nearest foe, attack it with
 the first row the table takes, focus if only a focused shot is left, pass every answer,
 spend overflow as §12. No formula beyond distance.
+
+The old box (`boxes/threatOld.ts`, `--box old` in `pnpm arena`) is the threat box as it
+was before §0's two questions: a change of arms weighed first, then an attack, then a walk,
+and the first member with anything to do starting the turn. It is kept only to play the
+threat box against; its formulas are not mapped here.

@@ -1,13 +1,13 @@
 import type { SceneState } from '../scene/types'
 import { applySceneCommand, type CommandContext, type SceneCommand } from '../scene/commands/registry'
-import { getContenders, getContestClosed, getTurnHolder } from '../scene/rules/turn'
+import { getContenders, getContestClosed, getRollContestBar, getTurnHolder } from '../scene/rules/turn'
 import { getOpenAction } from '../scene/rules/log'
 import { notices } from '../scene/rules/stealth'
 import type { Viewer } from '../profiles'
 import { rollD10, rollModed, seededRng, type Dice } from '../play/dice'
 import { getBelief } from './belief'
 import { getMyButtons, getMyChoices, getWaits, type Wait } from './table'
-import { toCommands, type Box, type Decision, type SeatInput } from './decision'
+import { toCommands, type Box, type Decision, type Pass, type SeatInput } from './decision'
 import { getTablePress } from './autoTable'
 
 // Bots at the table. A seat is a bot that owns the characters it plays, as a
@@ -18,14 +18,21 @@ import { getTablePress } from './autoTable'
 //
 // 1. a die a bot's character is called to throw is thrown, as bots throw
 //    theirs at once (no decision);
-// 2. the seats the table waits on are asked, round the table from the seat
+// 2. while a turn just taken may still be contested (combat.tex "Turn
+//    order"), every seat but the holder's is asked first for what it wants
+//    to do now, so that it may contest the turn before the holder plays it;
+//    then, at a fight run without a GM, the contest is rolled;
+// 3. the seats the table waits on are asked, round the table from the seat
 //    after the one that last moved (`from`), so no seat is kept waiting by
 //    another that always has something to press; the first that decides
 //    anything but to wait has its presses sent;
-// 3. the table presses what it would (bot/autoTable.ts), when the fight is run
+// 4. the table presses what it would (bot/autoTable.ts), when the fight is run
 //    without a GM: as a GM does, it moves the round on once nothing owed
 //    stands in the way, whatever else the seats might still do;
-// 4. every other seat with something open to it is asked, the same way.
+// 5. every other seat with something open to it is asked, the same way:
+//    first for what it wants to do now, and only once none does, for
+//    anything (the user's ruling: a turn to better a position is asked for
+//    only when nobody wants one to act now).
 //
 // What is open to a seat (its buttons, its choices, what the table waits on
 // it for) is read off the fight itself, by the panels' own reads (bot/table.ts),
@@ -110,14 +117,30 @@ function present(state: SceneState, seat: Seat): string[] {
   return seat.members.filter((id) => state.characters[id])
 }
 
+// What a seat sees of one state of the fight, read once however often it is
+// asked on that state, so that every pass of a step hands its box the same
+// view.
+type Seen = { view: SceneState | null; unnoticed: Map<string, ReadonlySet<string>> }
+
+const seenKept = new WeakMap<SceneState, Map<string, Seen>>()
+
+function seenBy(state: SceneState, members: readonly string[]): Seen {
+  const bySeat = seenKept.get(state) ?? new Map<string, Seen>()
+  seenKept.set(state, bySeat)
+  const key = members.join(',')
+  let seen = bySeat.get(key)
+  if (!seen) bySeat.set(key, (seen = { view: null, unnoticed: new Map() }))
+  return seen
+}
+
 // What the seat may know and press now, or null when it has nothing at all.
-function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[], opts: MoveOptions): SeatInput | null {
+function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[], pass: Pass, opts: MoveOptions): SeatInput | null {
   const buttons = getMyButtons(state, members)
   const choices = getMyChoices(state, members)
   if (waits.length === 0 && buttons.length === 0 && choices.length === 0) return null
-  let view: SceneState | null = null
-  const read = () => (view ??= getBelief(state, members, members[0]))
-  const unnoticed = new Map<string, ReadonlySet<string>>()
+  const seen = seenBy(state, members)
+  const read = () => (seen.view ??= getBelief(state, members, members[0]))
+  const unnoticed = seen.unnoticed
   return {
     members,
     view: read,
@@ -130,6 +153,7 @@ function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[]
       return hidden
     },
     rng: opts.rngOf(seat.id),
+    pass,
   }
 }
 
@@ -149,23 +173,36 @@ function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions,
     const members = present(state, seat)
     return { seat, members, waits: getWaits(state, members) }
   })
-  yield* askSeats(state, asked.filter((a) => a.waits.length > 0), opts)
+  const holder = getTurnHolder(state)
+  if (holder && getContestClosed(state) === null) {
+    yield* askSeats(state, asked.filter((a) => !a.members.includes(holder)), 'immediate', opts)
+    if (opts.autoTable && getRollContestBar(state) === null) yield { by: 'table', who: null, why: 'rollContest', viewer: GM, commands: [{ kind: 'rollContest', args: [] }] }
+  }
+  yield* askSeats(state, asked.filter((a) => a.waits.length > 0), 'any', opts)
 
   const press = opts.autoTable ? getTablePress(state) : null
   if (press) yield { by: 'table', who: null, why: press.kind, viewer: GM, commands: [press] }
 
-  yield* askSeats(state, asked.filter((a) => a.waits.length === 0), opts)
+  const idle = asked.filter((a) => a.waits.length === 0)
+  yield* askSeats(state, idle, 'immediate', opts)
+  yield* askSeats(state, idle, 'any', opts)
 }
 
+// What a seat may do on the pass that asks only what it wants to do now: ask
+// for a turn, or contest one. Anything else it decides there is taken as
+// waiting, and asked of it again on the pass that asks for anything.
+const ASKING = new Set<SceneCommand['kind']>(['startTurn', 'toggleContest'])
+const asksForTurn = (decision: Decision): boolean => decision.kind === 'press' && ASKING.has(decision.pick.command.kind)
+
 // The seats asked in turn, each for its decision as presses.
-function* askSeats(state: SceneState, asked: { seat: Seat; members: string[]; waits: Wait[] }[], opts: MoveOptions): Generator<Candidate> {
+function* askSeats(state: SceneState, asked: { seat: Seat; members: string[]; waits: Wait[] }[], pass: Pass, opts: MoveOptions): Generator<Candidate> {
   const viewerOf = opts.viewerOf ?? seatViewer
   for (const { seat, members, waits } of asked) {
     if (members.length === 0) continue
-    const input = inputOf(state, seat, members, waits, opts)
+    const input = inputOf(state, seat, members, waits, pass, opts)
     if (!input) continue
     const decision: Decision = seat.box(input)
-    if (decision.kind === 'wait') continue
+    if (decision.kind === 'wait' || (pass === 'immediate' && !asksForTurn(decision))) continue
     const commands = toCommands(state, input, decision, opts.ctx)
     const who = whoDecided(state, members, decision)
     yield commands.ok

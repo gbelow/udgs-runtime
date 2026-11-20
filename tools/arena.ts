@@ -7,6 +7,7 @@ import { playFight, tally, type Fight } from '../app/domain/bot/arena'
 import type { Box } from '../app/domain/bot/decision'
 import type { SceneState } from '../app/domain/scene/types'
 import { nearestBox } from '../app/domain/bot/boxes/nearest'
+import { threatBox as oldBox, THREAT_WEIGHTS as OLD_WEIGHTS } from '../app/domain/bot/boxes/threatOld'
 import { threatBox, THREAT_WEIGHTS, type ThreatWeights } from '../app/domain/bot/boxes/threat'
 import { CLOSE as SCENARIOS, setUp, ARENA } from './lib/scenarios'
 import { run } from '../app/domain/bot/seat'
@@ -34,6 +35,7 @@ import { formatTable } from './lib/table'
 const BOXES: Record<string, (set: Partial<ThreatWeights>) => Box> = {
   nearest: () => nearestBox,
   threat: (set) => threatBox({ ...THREAT_WEIGHTS, ...set }),
+  old: (set) => oldBox({ ...OLD_WEIGHTS, ...set }),
 }
 
 // `--set exposure=0,danger=0.05`: weights of the threat box, each one it has
