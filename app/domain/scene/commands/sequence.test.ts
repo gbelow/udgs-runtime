@@ -28,7 +28,7 @@ import { getPartners, getTethers } from '../rules/partners'
 import { getGroupSteps } from '../rules/drag'
 import { getMoveFall } from '../rules/board/cliff'
 import { makeAction } from '../factories'
-import { coordKey } from '../rules/board/geometry'
+import { coordKey, inExtent } from '../rules/board/geometry'
 import { getSpellOptions } from '../rules/cast'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
@@ -802,6 +802,20 @@ describe('protecting the target of a strike', () => {
     const step = getOpenAction(s)!
     expect(step).toMatchObject({ kind: 'move', actorId: 'def', path: [{ q: 1, r: 0 }] })
     expect(getTriggers(s, step).map((t) => t.characterId)).not.toContain('atk')
+  })
+})
+
+// A bot answered a strike at the board's edge with an evasive jump that landed
+// off the board: the landings offered were never kept to it.
+describe('an evasive jump at the edge of the board', () => {
+  it('offers no landing off the board', () => {
+    let s = onBoard({ atk: [0, 0], def: [1, 0] }, fighter('atk'), fighter('def'))
+    const { origin, extent } = s.board!
+    s = onBoard({ atk: [origin.q + extent.q - 1, origin.r], def: [origin.q + extent.q, origin.r] }, fighter('atk'), fighter('def'))
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
+    s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
+    expect(getEvasiveJumpPlacements(s, 'def', 'atk').filter((p) => !inExtent(origin, extent, p.cell))).toEqual([])
   })
 })
 

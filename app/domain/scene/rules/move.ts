@@ -638,7 +638,8 @@ export function isMidJump(state: SceneState, id: string): boolean {
 // Jump": "uses a full forward jump at a 60 degree angle of the direction of
 // the run").
 // It lands only on ground its vertical reach clears (`getJumpCeiling`), and
-// not down a cliff, which would be a fall. One hit mid-jump cannot jump at all.
+// not down a cliff, which would be a fall, and neither lands nor passes off
+// the board (`isOnBoard`). One hit mid-jump cannot jump at all.
 export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, attackerId: string): Placement[] {
   const defender = state.characters[defenderId]
   const from = state.board?.placements[defenderId]
@@ -661,11 +662,11 @@ export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, 
     // a jump like any other, in a straight line, over every cell on the way
     const path = getJumpPath(from.cell, cell)
     const stepFrom = (i: number) => (i === 0 ? from.cell : path[i - 1])
-    if (!path.slice(0, -1).every((at, i) => mayStep(getFootprint(defender, { ...from, cell: at }), floor, stepFrom(i), at, jump(false)))) continue
+    if (!path.slice(0, -1).every((at, i) => isOnBoard(state, getFootprint(defender, { ...from, cell: at })) && mayStep(getFootprint(defender, { ...from, cell: at }), floor, stepFrom(i), at, jump(false)))) continue
     for (const orientation of ROTATIONS) {
       const to = { ...placeAt(state.board, from, cell), orientation }
       const footprint = getFootprint(defender, to)
-      if (mayStep(footprint, floor, stepFrom(path.length - 1), cell, jump(true)) && canRest(state, defender, footprint, floor, false) && setDistance(footprint, attacker) > before) placements.push(to)
+      if (isOnBoard(state, footprint) && mayStep(footprint, floor, stepFrom(path.length - 1), cell, jump(true)) && canRest(state, defender, footprint, floor, false) && setDistance(footprint, attacker) > before) placements.push(to)
     }
   }
   return placements
