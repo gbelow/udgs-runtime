@@ -28,8 +28,8 @@ import { isMeleeRange } from '../weaponProperties'
 // that every step closer that frees an attack counts; none where the walk in
 // and one attack do not fit in the round (the user's ruling: a foe further
 // off is gone after by the walk's own pull, bot/boxes/threat.ts).
-// Immediate threat is this round's: one attack the attacker can still pay for
-// with what it is believed to have left. A threat that needs a walk through
+// Immediate threat is this round's: the attack made as many times as the
+// attacker can still pay for with what it is believed to have left. A threat that needs a walk through
 // the target's own reach, or a shot fired within it, counts the opportunity
 // attack it draws against it
 // (bot/approach.ts), which is the target's to make. A target that cannot be harmed even
@@ -78,9 +78,9 @@ export type Threat = {
   // what the attack costs, and the AP of the move it needs first
   cost: { AP: number; STA: number }
   moveAP: number
-  // how many times the attack is made: for a potential threat, as many as a
-  // fresh round pays for after the walk in (`getPotentialStrikes`); 1 for an
-  // immediate one
+  // how many times the attack is made after the walk in: this round, as many
+  // as the attacker's means pay for (`getImmediateStrikes`); next round, as
+  // many as a fresh round pays for (`getPotentialStrikes`)
   strikes: number
   // the worth of the opportunity attack the walk in draws from the target
   approach: number
@@ -354,18 +354,26 @@ export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: n
 
 type Party = { state: SceneState; id: string; at: Coord | null }
 
-// Whether the move and the attack can be paid for this round from `means`,
-// with a surge only when they need one: the movement surge, which pays for
-// movement only, or the combat surge, which pays for both (combat.tex "Action
-// surge"), where the attacker may make it (`combat`, null where it may not: an
-// afraid one may not). Neither alongside the focus surge a row needs.
-function canPayNow(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }, combat: { AP: number; STA: number } | null, focused: boolean): boolean {
-  if (attack.needsFocus && !focused && !means.surge) return false
+// How many times the attack, after the walk in, can be made this round from
+// `means` (the user's ruling: a threat counts the attacker's AP, ours as a
+// foe's): with no surge, the movement surge paying for the walk (what is left
+// of it given up for the attack), or the combat surge, which pays for both
+// (combat.tex "Action surge"), where the attacker may make it (`combat`, null
+// where it may not: an afraid one may not), whichever pays for the most;
+// neither alongside the focus surge a row needs. Null when not even once.
+function getImmediateStrikes(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }, combat: { AP: number; STA: number } | null, focused: boolean): number | null {
+  if (attack.needsFocus && !focused && !means.surge) return null
   const canSurge = means.surge && !(attack.needsFocus && !focused)
-  if (moveAP + attack.cost.AP <= means.AP) return attack.cost.STA <= means.STA
-  // the movement surge's AP for the walk, what is left of it given up for the attack
-  if (canSurge && Math.max(0, moveAP - surge.AP) + attack.cost.AP <= means.AP && attack.cost.STA + surge.STA <= means.STA) return true
-  return canSurge && combat !== null && moveAP + attack.cost.AP <= means.AP + combat.AP && attack.cost.STA + combat.STA <= means.STA
+  const count = (AP: number, STA: number) => {
+    const byAP = attack.cost.AP > 0 ? Math.floor(AP / attack.cost.AP) : AP >= 0 ? 1 : 0
+    const bySTA = attack.cost.STA > 0 ? Math.floor(STA / attack.cost.STA) : byAP
+    return Math.min(byAP, bySTA)
+  }
+  const ways = [count(means.AP - moveAP, means.STA)]
+  if (canSurge) ways.push(count(means.AP - Math.max(0, moveAP - surge.AP), means.STA - surge.STA))
+  if (canSurge && combat) ways.push(count(means.AP + combat.AP - moveAP, means.STA - combat.STA))
+  const strikes = Math.max(...ways)
+  return strikes >= 1 ? strikes : null
 }
 
 // How many times the attack is made in a fresh round once the walk in is
@@ -439,7 +447,7 @@ function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential',
     if (!attack.opens.action) continue
     const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, attack.reach)))
     if (moveAP === null) continue
-    const strikes = when === 'now' ? (canPayNow(attack, moveAP, means, surge, combat, focused) ? 1 : null) : getPotentialStrikes(attack, moveAP, means, surge)
+    const strikes = when === 'now' ? getImmediateStrikes(attack, moveAP, means, surge, combat, focused) : getPotentialStrikes(attack, moveAP, means, surge)
     if (strikes === null) continue
     const met = getDefendedHarm(attack, gap, guard, mode, defender.injuries.bleed, tuning)
     if (!met || met.undefended <= 0) continue
@@ -568,41 +576,18 @@ export function getDanger(state: SceneState, members: readonly string[], id: str
   return foes.reduce((worst, foe) => Math.max(worst, threatValue(kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, guard, tuning), tuning)), 0)
 }
 
-// How many times `foe` can make the attack of its immediate threat this
-// round with the means it is believed to have: after the walk in, with no
-// surge, the movement surge paying for the walk, or the combat surge's AP
-// added, whichever leaves the most; at least the one the threat counts.
-function getStrikes(state: SceneState, members: readonly string[], foe: string, t: Threat, tuning: ThreatTuning): number {
-  const c = state.characters[foe]
-  const means = getMeans(c, members.includes(foe), tuning)
-  const movement = means.surge ? { AP: getSurgeAP('movement')(c), STA: getSurgeSTA('movement')(c) } : null
-  const combat = means.surge ? combatSurge(c) : null
-  const count = (AP: number, STA: number) => {
-    const byAP = t.cost.AP > 0 ? Math.floor(AP / t.cost.AP) : Infinity
-    const bySTA = t.cost.STA > 0 ? Math.floor(STA / t.cost.STA) : Infinity
-    return Math.min(byAP, bySTA)
-  }
-  const ways = [
-    count(means.AP - t.moveAP, means.STA),
-    movement ? count(means.AP - Math.max(0, t.moveAP - movement.AP), means.STA - movement.STA) : 0,
-    combat ? count(means.AP + combat.AP - t.moveAP, means.STA - combat.STA) : 0,
-  ]
-  const most = Math.max(...ways)
-  return Number.isFinite(most) ? Math.max(1, most) : 1
-}
-
 // The worst single foe's immediate threat on `id` standing at `at`, with
 // `guard` left to defend, read as the harm alone it would take answering as
 // it would, nothing of what the answer costs it: what its AP is worth to its
 // own defence is what it saves. The foe makes the attack as many times as it
-// can pay for (`getStrikes`), and `guard` answers as many of them as it pays
-// for, the rest landing undefended.
+// can pay for (the threat's `strikes`), and `guard` answers as many of them
+// as it pays for, the rest landing undefended.
 export function getHarmDanger(state: SceneState, members: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
   const { foes } = getSides(state, members)
   return foes.reduce((worst, foe) => {
     const t = getImmediateThreat(state, members, foe, id, at, guard, tuning)
     if (!t) return worst
-    const n = getStrikes(state, members, foe, t, tuning)
+    const n = t.strikes
     const { AP, STA } = t.defence.cost
     const answered = Math.min(n, AP > 0 ? Math.floor(guard.AP / AP) : n, STA > 0 ? Math.floor(guard.STA / STA) : n)
     const harm = answered * t.harm + (n - answered) * t.undefended

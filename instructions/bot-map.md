@@ -139,7 +139,7 @@ as an action and have `undefended > 0`.
 | attacker's means | `ROUND_AP`, surge open, its STA   | what it has, or is believed to have      |
 | target's guard   | `ROUND_AP`, its STA               | what it has, or is believed to have      |
 | mode             | best                              | now                                      |
-| strikes          | see below                         | 1 if payable now, else not counted       |
+| strikes          | see below                         | see below; not counted below 1           |
 
 ```
 strikes (potential) = the attacks a fresh round's AP and STA pay for once the walk in is
@@ -147,9 +147,13 @@ strikes (potential) = the attacks a fresh round's AP and STA pay for once the wa
                      needs focus; not counted (no threat) below 1, so a foe further off
                      than a round's walk and one attack is under no potential threat
                      (the user's ruling: §4's pull goes after it)   (getPotentialStrikes)
-strikes (immediate) = 1
-payable now        = with its own AP, or after the movement surge (its AP for the walk, what
-                     is left of it given up for the attack) or the combat surge
+strikes (immediate) = the most strikes of the attack's AP and STA its means pay for this round
+                     after the walk in (the user's ruling: a threat counts the attacker's AP,
+                     ours as a foe's), whichever way pays for most   (getImmediateStrikes):
+           AP − moveAP                                                     no surge
+           AP − max(0, moveAP − movement surge AP), STA less the surge's   movement surge
+           AP + combat surge AP − moveAP, STA less the surge's             combat surge
+                     no surge alongside the focus surge a row needs
 
 moveAP   = ceil(steps / pace.metres) · pace.AP
 pace     = the open movement with the best metres per AP
@@ -184,13 +188,10 @@ Threatening(foe)            = max_team threatValue(potential foe → member)
 
 In `HarmDanger` the attack is the foe's immediate threat on me at `at` and `d` the answer I
 would choose with `guard`; the foe makes it `n` times and I answer `k` of them
-(`getStrikes`, `getHarmDanger`):
+(`getHarmDanger`):
 
 ```
-n = max(1, most strikes of the attack's AP and STA the foe is believed to pay for this round:
-           AP − moveAP                           no surge
-           AP − max(0, moveAP − movement surge AP), STA less the surge's   movement surge
-           AP + combat surge AP − moveAP, STA less the surge's             combat surge)
+n = the immediate threat's strikes (§2)
 k = min(n, guard.AP / d.AP, guard.STA / d.STA)   rounded down; n for a free answer
 ```
 
@@ -213,10 +214,13 @@ kept            = keeping(here, all its AP)                        (§4.2)
 
 gain            = w.harm · worth · (1 + target / 100)            100 = a life (2 per IL, death at 50)
 defence lost    = (after − now) · w.reserve / max(1, held.AP)       to self
+offence lost    = w.offence · max(0, mine now − mine after − worth)  to self
+                  mine = max_foe threatValue(immediate me → foe): now where it stands with
+                  all it holds, after at the cell with what is held (the budget's surge made)
 allies' lost    = kept − keeping(cell, AP held of its own)         to allies
 STA             = STAPrice(STAspent + surgeSTA, my STA, my bleed)
 
-score = gain − defence lost − allies' lost − STA
+score = gain − defence lost − offence lost − allies' lost − STA
       − w.opportunity · OAs the walk draws (§4.1)
       − w.opportunity · OAs a shot draws from where it is fired   (shots)
 
@@ -331,7 +335,9 @@ gain = w.offence · (offence_after − offence_now)
      − SpendPrice(switch AP, switch STA, danger)
      − (priced moves in the switch) · w.opportunity · OAs standing here draws
 
-declare the first move of the best switch if gain > w.margin
+declare the first move of the best switch if gain > w.margin, among the switches whose
+every move the table takes, each asked from the sheet the moves before it leave (a surge's
+AP may not pay for every gear move)
 ```
 
 ---
@@ -477,7 +483,7 @@ they do are kept per weights.
 | `harm`        | 1       | §3 worth multiplier                                     |
 | `threatened`  | 0.6     | §3 target: team's threat on the foe                     |
 | `threatening` | 0.2     | §3 target: foe's threat on the team                     |
-| `offence`     | 1       | §4 standing, §6                                         |
+| `offence`     | 1       | §3 offence lost, §4 standing, §6                        |
 | `peril`       | 1       | §4 standing, §6                                         |
 | `aggression`  | 4       | §4 pull per cell nearer a foe out of reach, §5 per cell nearer the middle |
 | `arrival`     | 1       | §4 immediate danger at the cell walked to               |

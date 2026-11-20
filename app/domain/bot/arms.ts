@@ -21,8 +21,8 @@ import { getItemWeapon } from '../item/rules/items'
 // dropped.
 
 // `paid` counts the moves that have a price, each of which draws opportunity
-// attacks (bot/approach.ts)
-export type Switch = { moves: GearMove[]; after: CampaignCharacter; cost: ActionCost; paid: number }
+// attacks (bot/approach.ts); `before` is the sheet each move is made from
+export type Switch = { moves: GearMove[]; before: CampaignCharacter[]; after: CampaignCharacter; cost: ActionCost; paid: number }
 
 const NO_DICE = { dice: () => 0 }
 
@@ -36,7 +36,7 @@ function then(way: Switch, move: GearMove): Switch | null {
   if (!cost) return null
   const after = toCharacterUpdater(move, NO_DICE)(way.after, false) as CampaignCharacter
   const paid = way.paid + (cost.AP > 0 || cost.STA > 0 ? 1 : 0)
-  return { moves: [...way.moves, move], after, cost: { AP: way.cost.AP + cost.AP, STA: way.cost.STA + cost.STA }, paid }
+  return { moves: [...way.moves, move], before: [...way.before, way.after], after, cost: { AP: way.cost.AP + cost.AP, STA: way.cost.STA + cost.STA }, paid }
 }
 
 // The held stack put away where that costs least.
@@ -70,7 +70,7 @@ function inTwoHands(way: Switch, itemId: string): Switch[] {
 }
 
 export function getSwitches(c: CampaignCharacter): Switch[] {
-  const start: Switch = { moves: [], after: c, cost: { AP: 0, STA: 0 }, paid: 0 }
+  const start: Switch = { moves: [], before: [], after: c, cost: { AP: 0, STA: 0 }, paid: 0 }
   const out: Switch[] = []
   for (const item of c.held) {
     if (!getItemWeapon(item)) continue

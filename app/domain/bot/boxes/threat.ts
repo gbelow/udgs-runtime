@@ -396,6 +396,11 @@ export type AttackScore = {
   // no longer holds was worth to its allies (`getKeeping`)
   defence: number
   allies: number
+  // the offensive potential it loses (the user's ruling: its own AP counts in
+  // its threat): its immediate threat now with all it holds, over what it is
+  // at the cell with what it is left, and the attack itself, `offence` times;
+  // what the walk and the attack spend without making attacks
+  offence: number
   // the STA it spends, at its price (`getSTAPrice`)
   STA: number
 }
@@ -404,7 +409,7 @@ export type AttackScore = {
 const LIFE = 100
 const gainOf = (s: AttackScore): number => s.harm * (1 + s.target / LIFE)
 const showScore = (s: AttackScore): string =>
-  `gain ${gainOf(s).toFixed(1)} (harm ${s.harm.toFixed(1)} x (1 + target ${s.target.toFixed(1)} / ${LIFE})) - defence lost ${s.defence.toFixed(1)} - allies' lost ${s.allies.toFixed(1)} - STA ${s.STA.toFixed(1)}`
+  `gain ${gainOf(s).toFixed(1)} (harm ${s.harm.toFixed(1)} x (1 + target ${s.target.toFixed(1)} / ${LIFE})) - defence lost ${s.defence.toFixed(1)} - offence lost ${s.offence.toFixed(1)} - allies' lost ${s.allies.toFixed(1)} - STA ${s.STA.toFixed(1)}`
 
 type AttackMeasures = {
   // the worst foe's threat this round on the character at `at`, with what it
@@ -418,8 +423,9 @@ type AttackMeasures = {
   // `at` in place of what spending `AP` and `STA` leaves: a surge's AP added,
   // and what answering the opportunity attacks on the way spent (priced
   // already in what they draw); `allies` is what its allies lose of the AP it
-  // keeps for them
-  score: (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }, allies?: number) => AttackScore
+  // keeps for them; `from` is the fight the spending starts from (a budget's,
+  // its surge made), where it is other than `view`
+  score: (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }, allies?: number, from?: SceneState) => AttackScore
 }
 
 function getAttackMeasures(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): AttackMeasures {
@@ -437,11 +443,28 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
     return worth
   }
   const now = getHarmDanger(view, members, id, cellOf(view, id), left, w)
-  const score = (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }, allies = 0): AttackScore => {
+  // its worst immediate threat on a foe in `state`, standing where it stands there
+  const { foes } = getSides(view, members)
+  const offenceIn = (state: SceneState) => foes.reduce((most, foe) => Math.max(most, threatValue(getImmediateThreat(state, members, id, foe, cellOf(state, foe), undefined, w), w)), 0)
+  const offenceNow = offenceIn(view)
+  const offences = new Map<string, number>()
+  const offenceAt = (from: SceneState, at: Coord | null, kept: { AP: number; STA: number }) => {
+    const c = from.characters[id]
+    const key = `${at ? `${at.q},${at.r}` : '-'}|${kept.AP}|${kept.STA}|${c.usedSurge}`
+    let offence = offences.get(key)
+    if (offence === undefined) {
+      const placed = from.board?.placements[id]
+      const moved = at && placed && from.board ? withPlacements(from, { [id]: placeAt(from.board, placed, at) }) : from
+      offences.set(key, (offence = offenceIn({ ...moved, characters: { ...moved.characters, [id]: { ...c, resources: { ...c.resources, AP: kept.AP, STA: kept.STA } } } })))
+    }
+    return offence
+  }
+  const score = (worth: number, foe: string, AP: number, STA: number, at: Coord | null, held?: { AP: number; STA: number }, allies = 0, from = view): AttackScore => {
     const kept = held ?? { AP: Math.max(0, left.AP - AP), STA: Math.max(0, left.STA - STA) }
     const open = getHarmDanger(view, members, id, at, kept, w) - now
-    const parts = { harm: w.harm * worth, target: targetWorth(foe), defence: (open * w.reserve) / Math.max(1, kept.AP), allies, STA: getSTAPrice(STA, left.STA, me.injuries.bleed, w) }
-    return { ...parts, total: gainOf({ ...parts, total: 0 }) - parts.defence - parts.allies - parts.STA }
+    const offence = w.offence * Math.max(0, offenceNow - offenceAt(from, at, kept) - worth)
+    const parts = { harm: w.harm * worth, target: targetWorth(foe), defence: (open * w.reserve) / Math.max(1, kept.AP), offence, allies, STA: getSTAPrice(STA, left.STA, me.injuries.bleed, w) }
+    return { ...parts, total: gainOf({ ...parts, total: 0 }) - parts.defence - parts.offence - parts.allies - parts.STA }
   }
   return { dangerLeft, price, score }
 }
@@ -534,7 +557,7 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: T
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w, getTargetDanger(view, foe, at, guard, w))
           if (!met || met.undefended <= 0) continue
           const held = { AP: Math.max(0, b.AP - spent - answering.AP), STA: Math.max(0, b.STA - STAspent - answering.STA) }
-          const parts = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell, held, kept - keeping(cell, heldAP(b, spent + answering.AP)))
+          const parts = attackScore(met.worth, foe, spent, STAspent + b.surgeSTA, cell, held, kept - keeping(cell, heldAP(b, spent + answering.AP)), b.view)
           const drew = w.opportunity * answering.worth + (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
           const score = parts.total - drew
           if (best && score <= best.score) continue
@@ -874,8 +897,11 @@ function planSwitch(view: SceneState, members: readonly string[], id: string, w:
     const gain = w.offence * (then.offence - now.offence) - w.peril * (then.peril - now.peril) - paid - sw.paid * drawn
     if (beaten(gain)) continue
     const intent: Intent = { actorId: id, option: { kind: 'gear', move: sw.moves[0] }, picks: [] }
+    // every move of it the table takes, each from the sheet the ones before leave
+    // (a surge's AP may not pay for every gear move, combat.tex "Action surge")
+    const takes = sw.moves.every((move, i) => declare(i === 0 ? view : withSheet(view, id, sw.before[i]), { actorId: id, option: { kind: 'gear', move }, picks: [] }, TRIAL).ok)
     const why = `changes arms (${sw.moves.map((m) => m.kind).join(', ')}): threat ${now.offence.toFixed(1)} to ${then.offence.toFixed(1)}, danger ${now.peril.toFixed(1)} to ${then.peril.toFixed(1)}, for ${sw.cost.AP} AP, gain ${gain.toFixed(1)}`
-    if (declare(view, intent, TRIAL).ok) best = { intent, why, gain }
+    if (takes) best = { intent, why, gain }
   }
   return best && { intent: best.intent, why: best.why }
 }
