@@ -50,6 +50,7 @@ export function hasGmTools(role: Role): boolean {
 // of its own.
 export const BOTS = [
   { id: 'bot:threat', name: 'bot: threat' },
+  { id: 'bot:threatOld', name: 'bot: old threat' },
   { id: 'bot:nearest', name: 'bot: nearest' },
 ] as const satisfies readonly ProfileListing[]
 export type BotId = (typeof BOTS)[number]['id']

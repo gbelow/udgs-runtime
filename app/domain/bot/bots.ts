@@ -5,10 +5,12 @@ import type { Box } from './decision'
 import type { Seat } from './seat'
 import { nearestBox } from './boxes/nearest'
 import { THREAT_WEIGHTS, threatBox } from './boxes/threat'
+import { THREAT_WEIGHTS as OLD_THREAT_WEIGHTS, threatBox as oldThreatBox } from './boxes/threatOld'
 
 // The decision box each bot plays with.
 export const BOT_BOXES: Record<BotId, Box> = {
   'bot:threat': threatBox(THREAT_WEIGHTS),
+  'bot:threatOld': oldThreatBox(OLD_THREAT_WEIGHTS),
   'bot:nearest': nearestBox,
 }
 

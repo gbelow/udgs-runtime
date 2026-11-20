@@ -61,7 +61,7 @@ export type ThreatTuning = {
   // the end of a face's third taken as what a character has left, or its middle
   end: 'least' | 'middle' | 'most'
   // how much of every foe's threat but the worst a character's danger adds
-  // (`getDanger`, `getHarmDanger`): 1 every foe's whole (the user's ruling:
+  // (`getDanger`): 1 every foe's whole (the user's ruling:
   // each foe pays for its strikes with AP of its own), 0 the worst foe's alone
   pile: number
   // how far a foe's threat on a character is shared among everyone of its
@@ -350,23 +350,23 @@ export function getSpendPrice(spent: { AP: number; STA: number }, held: number, 
   return getAPPrice(spent.AP, danger, tuning) + getSTAPrice(spent.STA, held, bleed, tuning)
 }
 
-// What the danger a target is left in comes to once it has spent `spent` on
-// a defence, read where it is known (`getTargetDanger`).
-export type DangerAfter = (spent: { AP: number; STA: number }) => number
+// What spending `spent` on a defence costs the one defending, read where it
+// is known (`getTargetSpend`).
+export type SpendCost = (spent: { AP: number; STA: number }) => number
 
 // The attack against the answer the target is believed to choose: of those
 // it can pay for (none among them), the one that leaves it the least harm and
-// price together. What the attack is worth is what the answer costs the
-// target, the harm it takes and the price it pays, and more by `forcing` for
+// spending together. What the attack is worth is what the answer costs the
+// target, the harm it takes and what it spends, and more by `forcing` for
 // every point of harm the defence takes off: an attack the target cannot
 // leave unanswered drains it whichever way it answers (the user's ruling).
-// The price is the one the target's own box pays for a defence
-// (`getSpendPrice`), with the danger `dangerAfter` says it is left in; with
-// none given, as inside the threats themselves, which the danger is read from,
-// the danger is left unread.
-export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', bleed = 0, tuning: ThreatTuning, dangerAfter?: DangerAfter): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
+// What it spends costs what `spent` says (`getTargetSpend`: what the AP and
+// STA would have done otherwise this round); with none given, as inside the
+// threats themselves, which that is read from, its price (`getSpendPrice`)
+// with no danger read.
+export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', bleed = 0, tuning: ThreatTuning, spent?: SpendCost): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
   const { undefended, answers } = getAnswers(attack, gap, budget, mode)
-  const cost = (a: Answer) => a.harm + getSpendPrice(a.defence.cost, budget.STA, bleed, dangerAfter && a.defence.cost.AP > 0 ? dangerAfter(a.defence.cost) : 0, tuning)
+  const cost = (a: Answer) => a.harm + (spent ? spent(a.defence.cost) : getSpendPrice(a.defence.cost, budget.STA, bleed, 0, tuning))
   const best = answers.filter((a) => a.affordable).reduce<Answer | null>((b, a) => (!b || cost(a) < cost(b) ? a : b), null)
   return best ? { worth: cost(best) + tuning.forcing * best.value, harm: best.harm, defence: best.defence, undefended, answers } : null
 }
@@ -451,26 +451,51 @@ export function getStrikeCells(state: SceneState, a: string, d: string, at: Coor
 const PAIR_GAP = 10
 
 // The pair threat of `attacker` on `defender` (`PairThreat`): every attack of
-// the pair table the target has an answer to it can pay for. Kept by the pair
-// table the two sheets read (`getPair`, which leaves out what each has
-// left), and by the STA and bleed the defence is priced with.
+// the pair table the target has an answer to it can pay for, the answer picked
+// as the target picks one live (`getTargetSpend`), by the harm it leaves and
+// what it spends (the user's ruling: one pick, the same numbers everywhere),
+// its AP read at what an AP does for it against the attacker
+// (`getPairAPValue`) and its STA at its worth (`getSTAWorth`). Kept by the pair
+// table the two sheets read (`getPair`, which leaves out what each has left),
+// and by the STA and bleed the defence is priced with.
 const pairThreats = new WeakMap<PairAttack[], WeakMap<ThreatTuning, Map<string, PairThreat>>>()
+const pricedThreats = new WeakMap<PairAttack[], WeakMap<ThreatTuning, Map<string, PairThreat>>>()
+
+function keptPair(cache: typeof pairThreats, pair: PairAttack[], tuning: ThreatTuning, key: string, read: () => PairThreat): PairThreat {
+  let byTuning = cache.get(pair)
+  if (!byTuning) cache.set(pair, (byTuning = new WeakMap()))
+  let byKey = byTuning.get(tuning)
+  if (!byKey) byTuning.set(tuning, (byKey = new Map()))
+  const known = byKey.get(key)
+  if (known) return known
+  const made = read()
+  byKey.set(key, made)
+  return made
+}
+
+function readPair(pair: PairAttack[], defender: CampaignCharacter, STA: number, tuning: ThreatTuning, spend?: SpendCost): PairThreat {
+  return pair.flatMap((attack) => {
+    const met = getDefendedHarm(attack, PAIR_GAP, { AP: ROUND_AP, STA }, 'now', defender.injuries.bleed, tuning, spend)
+    return met ? [{ attack, worth: met.worth, harm: met.harm, defence: met.defence, undefended: met.undefended, answers: met.answers, perAP: met.worth / Math.max(1, attack.cost.AP) }] : []
+  })
+}
+
+// What an AP does for `c` against `foe`, as the pair threat reads it: the most
+// harm for every AP of its attacks on the foe (read with the defence the foe
+// picks at its price, `getSpendPrice`, so that the reading does not go round).
+function getPairAPValue(c: CampaignCharacter, foe: CampaignCharacter, tuning: ThreatTuning): number {
+  const pair = getPair(c, foe)
+  const STA = getSTA(foe)
+  const priced = keptPair(pricedThreats, pair, tuning, `${STA}|${foe.injuries.bleed}`, () => readPair(pair, foe, STA, tuning))
+  return priced.reduce((most, t) => (t.attack.opens.action && t.undefended > 0 ? Math.max(most, t.harm / Math.max(1, t.attack.cost.AP)) : most), 0)
+}
 
 export function getPairThreat(attacker: CampaignCharacter, defender: CampaignCharacter, STA: number, tuning: ThreatTuning): PairThreat {
   const pair = getPair(attacker, defender)
-  let byTuning = pairThreats.get(pair)
-  if (!byTuning) pairThreats.set(pair, (byTuning = new WeakMap()))
-  let byGuard = byTuning.get(tuning)
-  if (!byGuard) byTuning.set(tuning, (byGuard = new Map()))
-  const key = `${STA}|${defender.injuries.bleed}`
-  const known = byGuard.get(key)
-  if (known) return known
-  const made = pair.flatMap((attack) => {
-    const met = getDefendedHarm(attack, PAIR_GAP, { AP: ROUND_AP, STA }, 'now', defender.injuries.bleed, tuning)
-    return met ? [{ attack, worth: met.worth, harm: met.harm, defence: met.defence, undefended: met.undefended, answers: met.answers, perAP: met.worth / Math.max(1, attack.cost.AP) }] : []
+  return keptPair(pairThreats, pair, tuning, `${STA}|${defender.injuries.bleed}`, () => {
+    const APvalue = getPairAPValue(defender, attacker, tuning)
+    return readPair(pair, defender, STA, tuning, (spent) => spent.AP * APvalue + getSTAWorth(defender, spent.STA, STA, APvalue, tuning))
   })
-  byGuard.set(key, made)
-  return made
 }
 
 // Of a pair threat, the attack the attacker can declare on its turn (not one
@@ -613,29 +638,216 @@ export function getDanger(state: SceneState, members: readonly string[], id: str
   }), tuning)
 }
 
-// The foes' immediate threat on `id` standing at `at` (`pileUp`), each shared
-// (`shareOf`), with `guard` left to defend, read as the harm alone it would
-// take answering as it would, nothing of what the answer costs it: what its
-// AP is worth to its own defence is what it saves. Each foe makes the attack
-// as many times as it can pay for (the threat's `strikes`), and `guard`
-// answers as many of them as it pays for, the rest landing undefended.
-export function getHarmDanger(state: SceneState, members: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
-  const { foes } = getSides(state, members)
-  return pileUp(foes.map((foe) => {
-    const t = getImmediateThreat(state, members, foe, id, at, tuning)
-    if (!t) return 0
-    const n = t.strikes
-    const { AP, STA } = t.defence.cost
-    const answered = Math.min(n, AP > 0 ? Math.floor(guard.AP / AP) : n, STA > 0 ? Math.floor(guard.STA / STA) : n)
-    return (answered * t.harm + (n - answered) * t.undefended) / shareOf(state, members, foe, id, 'immediate', tuning)
-  }), tuning)
+// A foe's strikes this round on `d` standing at `at`: the strongest attack per
+// AP of its pair threat on `d` (`getStrongestPerAP`), made as many times as the
+// AP and STA it is believed to have left pay for once the walk in is paid
+// (walls and all, the foe's step map), fractions kept: with no surge, the
+// movement surge paying for the walk (what is left of it given up for the
+// attack), or the combat surge, which pays for both, whichever pays for most
+// (the user's ruling: a foe's reach counts its surge, as `getImmediateStrikes`
+// does); or, `fresh`, in a fresh round, the round's AP and the STA it holds,
+// the movement surge alone (as `getPotentialStrikes`). Null where it cannot
+// walk in and make it once.
+type Incoming = { t: AttackThreat; strikes: number }
+
+const incomings = new WeakMap<SceneState, Map<string, Incoming | null>>()
+
+function getIncoming(state: SceneState, plays: readonly string[], foe: string, d: string, at: Coord | null, tuning: ThreatTuning, fresh = false): Incoming | null {
+  const byKey = incomings.get(state) ?? new Map<string, Incoming | null>()
+  incomings.set(state, byKey)
+  const key = `${foe}|${plays.includes(foe)}|${d}|${plays.includes(d)}|${cellText(at)}|${fresh}`
+  if (byKey.has(key)) return byKey.get(key) ?? null
+  const read = (): Incoming | null => {
+    const ca = state.characters[foe]
+    const cd = state.characters[d]
+    if (!ca || !cd) return null
+    const t = getStrongestPerAP(getPairThreat(ca, cd, getMeans(cd, plays.includes(d), tuning).STA, tuning))
+    const held = getMeans(ca, plays.includes(foe), tuning)
+    const means = fresh ? freshMeans(held) : held
+    if (!t || (t.attack.needsFocus && ca.usedSurge !== 'focus' && !means.surge)) return null
+    const a: Party = { state, id: foe, at: cellOf(state, foe) }
+    const target: Party = { state, id: d, at }
+    const moveAP = closingAP(getPace(state, foe), closingSteps(state, foe, a.at, d, at, t.attack.reach, t.attack.kind === 'shoot' ? fireLine(a, target) : meleeLine(a, target, t.attack.reach)))
+    if (moveAP === null) return null
+    const { cost } = t.attack
+    const count = (AP: number, STA: number) => (AP < cost.AP || STA < cost.STA ? 0 : Math.min(cost.AP > 0 ? AP / cost.AP : 1, cost.STA > 0 ? STA / cost.STA : Infinity))
+    const canSurge = means.surge && !(t.attack.needsFocus && ca.usedSurge !== 'focus')
+    const movement = { AP: getSurgeAP('movement')(ca), STA: getSurgeSTA('movement')(ca) }
+    const combat = fresh ? null : combatSurge(ca)
+    const ways = [count(means.AP - moveAP, means.STA)]
+    if (canSurge && moveAP > 0) ways.push(count(means.AP - Math.max(0, moveAP - movement.AP), means.STA - movement.STA))
+    if (canSurge && combat) ways.push(count(means.AP + combat.AP - moveAP, means.STA - combat.STA))
+    const strikes = Math.max(...ways)
+    return strikes > 0 ? { t, strikes } : null
+  }
+  const made = read()
+  byKey.set(key, made)
+  return made
 }
 
-// What `target`, standing at `at` with `guard` to defend with, is left in once
-// it has spent on a defence: its foes' immediate threat on it, as
-// its own box reads it when it answers (bot/boxes/threat.ts).
-export function getTargetDanger(state: SceneState, target: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): DangerAfter {
-  return (spent) => getDanger(state, [target], target, 'immediate', at, { AP: Math.max(0, guard.AP - spent.AP), STA: Math.max(0, guard.STA - spent.STA) }, tuning)
+// Everyone of the side of `plays` a foe can strike this round (or, `fresh`, in
+// a fresh round) where they stand.
+const reached = new WeakMap<SceneState, Map<string, string[]>>()
+
+function getReached(state: SceneState, plays: readonly string[], foe: string, tuning: ThreatTuning, fresh = false): string[] {
+  const byKey = reached.get(state) ?? new Map<string, string[]>()
+  reached.set(state, byKey)
+  const key = `${foe}|${[...plays].sort().join(',')}|${fresh}`
+  const known = byKey.get(key)
+  if (known) return known
+  const made = getTeam(state, plays).filter((id) => getIncoming(state, plays, foe, id, cellOf(state, id), tuning, fresh) !== null)
+  byKey.set(key, made)
+  return made
+}
+
+// A use the AP and STA held this round may be put to (`getRoundValue`):
+// `n` times (fractions kept), each worth `value` and costing `AP` and `STA`.
+type Slot = { n: number; value: number; AP: number; STA: number }
+
+const perAP = (slot: Slot): number => slot.value / Math.max(0.1, slot.AP)
+
+// The most `AP` and `STA` fill of `slots`, the most worth for every AP first.
+function fill(slots: readonly Slot[], AP: number, STA: number): number {
+  let worth = 0
+  for (const slot of [...slots].sort((x, y) => perAP(y) - perAP(x))) {
+    if (slot.value <= 0 || slot.n <= 0) continue
+    const k = Math.max(0, Math.min(slot.n, slot.AP > 0 ? AP / slot.AP : slot.n, slot.STA > 0 ? STA / slot.STA : slot.n))
+    AP -= k * slot.AP
+    STA -= k * slot.STA
+    worth += k * slot.value
+  }
+  return worth
+}
+
+// The foes' strikes on `id` standing at `at` this round, each foe's
+// (`getIncoming`) shared among `id` and the others of its side the foe reaches
+// where they stand (the user's ruling: not every foe's round on it alone), less
+// one of `leave`'s, whose strike is the one being answered: as slots of the
+// harm answering each saves with the defence it is believed to be answered
+// with, and the harm they do all landing undefended; `fresh`, in a fresh round.
+const defending = new WeakMap<SceneState, Map<string, { slots: Slot[]; undefended: number }>>()
+
+function getDefendingSlots(state: SceneState, plays: readonly string[], id: string, at: Coord | null, tuning: ThreatTuning, leave?: string, fresh = false): { slots: Slot[]; undefended: number } {
+  const byKey = defending.get(state) ?? new Map<string, { slots: Slot[]; undefended: number }>()
+  defending.set(state, byKey)
+  const key = `${id}|${[...plays].sort().join(',')}|${cellText(at)}|${leave ?? ''}|${fresh}`
+  const known = byKey.get(key)
+  if (known) return known
+  const { foes } = getSides(state, plays)
+  const slots: Slot[] = []
+  let undefended = 0
+  for (const foe of foes) {
+    const s = getIncoming(state, plays, foe, id, at, tuning, fresh)
+    if (!s) continue
+    const others = getReached(state, plays, foe, tuning, fresh).filter((x) => x !== id).length
+    const n = Math.max(0, s.strikes / (1 + others) - (foe === leave ? 1 : 0))
+    undefended += n * s.t.undefended
+    slots.push({ n, value: s.t.undefended - s.t.harm, AP: s.t.defence.cost.AP, STA: s.t.defence.cost.STA })
+  }
+  const made = { slots, undefended }
+  byKey.set(key, made)
+  return made
+}
+
+// The attacks `id` standing at `at` could make this round, a foe at a time:
+// the strongest per AP of its pair threat on the foe (`getStrongestPerAP`), as
+// a slot of the harm each leaves, made as often as what is held pays for once
+// the walk in (`moveAP`) is paid.
+const attacking = new WeakMap<SceneState, Map<string, { moveAP: number; slot: Slot }[]>>()
+
+function getAttackingSlots(state: SceneState, plays: readonly string[], id: string, at: Coord | null, tuning: ThreatTuning): { moveAP: number; slot: Slot }[] {
+  const byKey = attacking.get(state) ?? new Map<string, { moveAP: number; slot: Slot }[]>()
+  attacking.set(state, byKey)
+  const key = `${id}|${[...plays].sort().join(',')}|${cellText(at)}`
+  const known = byKey.get(key)
+  if (known) return known
+  const me = state.characters[id]
+  const made: { moveAP: number; slot: Slot }[] = []
+  for (const foe of me ? getSides(state, plays).foes : []) {
+    const target = state.characters[foe]
+    if (!me || !target) continue
+    const t = getStrongestPerAP(getPairThreat(me, target, getMeans(target, plays.includes(foe), tuning).STA, tuning))
+    if (!t || (t.attack.needsFocus && me.usedSurge !== 'focus' && me.usedSurge !== null)) continue
+    const a: Party = { state, id, at }
+    const d: Party = { state, id: foe, at: cellOf(state, foe) }
+    const moveAP = closingAP(getPace(state, id), closingSteps(state, id, at, foe, d.at, t.attack.reach, t.attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, t.attack.reach)))
+    if (moveAP === null) continue
+    const { AP, STA } = t.attack.cost
+    made.push({ moveAP, slot: { n: AP > 0 || STA > 0 ? Infinity : 1, value: t.harm, AP, STA } })
+  }
+  byKey.set(key, made)
+  return made
+}
+
+// What `id` standing at `at` can still save or do this round with what it
+// holds (the user's ruling: whether a defence is worth making is whether the
+// AP and STA it takes would do more answering another attack, or attacking;
+// a character may take a turn at any time in the round): the most its AP and
+// STA fill of the foes' strikes still to come on it, and of its own strikes
+// on one foe once the walk in is paid, all as harm. `leave` is the foe whose
+// strike is being answered, left out of those still to come.
+export function getRoundValue(state: SceneState, plays: readonly string[], id: string, at: Coord | null, tuning: ThreatTuning, leave?: string): (AP: number, STA: number) => number {
+  const { slots } = getDefendingSlots(state, plays, id, at, tuning, leave)
+  const attacks = getAttackingSlots(state, plays, id, at, tuning)
+  return (AP, STA) => attacks.reduce((most, a) => (AP - a.moveAP >= a.slot.AP ? Math.max(most, fill([...slots, a.slot], AP - a.moveAP, STA)) : most), fill(slots, AP, STA))
+}
+
+// The most harm `id` standing at `at` can do one foe with `AP` and `STA`: its
+// strongest attack per AP on the foe (`getAttackingSlots`), as often as they
+// pay for once the walk in is paid.
+export function getStrikeValue(state: SceneState, plays: readonly string[], id: string, at: Coord | null, AP: number, STA: number, tuning: ThreatTuning): number {
+  return getAttackingSlots(state, plays, id, at, tuning).reduce((most, a) => (AP - a.moveAP >= a.slot.AP ? Math.max(most, fill([a.slot], AP - a.moveAP, STA)) : most), 0)
+}
+
+// What an AP is worth to `id` standing at `at` this round: the most for every
+// AP of the uses its round value fills (`getRoundValue`), answering a foe's
+// strike or striking a foe.
+export function getAPValue(state: SceneState, plays: readonly string[], id: string, at: Coord | null, tuning: ThreatTuning): number {
+  const { slots } = getDefendingSlots(state, plays, id, at, tuning)
+  const attacks = getAttackingSlots(state, plays, id, at, tuning)
+  return [...slots, ...attacks.map((a) => a.slot)].reduce((most, slot) => (slot.value > 0 && slot.n > 0 ? Math.max(most, perAP(slot)) : most), 0)
+}
+
+// What spending `spent` of `held` STA is worth to `c` (the user's ruling): the
+// IL it bleeds, 2 harm each (combat.tex "Bleed": every STA spent bleeding adds
+// its IL), and the AP it would have bought, its main use (the combat surge's
+// AP for its STA, each at `APvalue`, `getAPValue`), dearer the less is left,
+// `STAScale` over what is left.
+export function getSTAWorth(c: CampaignCharacter, spent: number, held: number, APvalue: number, tuning: ThreatTuning): number {
+  if (spent <= 0) return 0
+  const STA = getSurgeSTA('combat')(c)
+  const bought = STA > 0 ? getSurgeAP('combat')(c) / STA : 1
+  return spent * (2 * c.injuries.bleed + (APvalue * bought * tuning.STAScale) / Math.max(1, held - spent))
+}
+
+// How `id` standing at `at` comes out of the round, holding `guard` (the
+// user's ruling: a place is worth what its AP and STA can do there): the harm
+// the foes' strikes there would do it all landing undefended
+// (`getDefendingSlots`), less what its AP and STA save answering them or do
+// striking whoever it reaches from there (`getRoundValue`).
+export function getOutcome(state: SceneState, plays: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
+  return getDefendingSlots(state, plays, id, at, tuning).undefended - getRoundValue(state, plays, id, at, tuning)(guard.AP, guard.STA)
+}
+
+// The harm `id` standing at `at` is believed to take this round, answering
+// with `guard` (the user's ruling: every foe's strikes on it, by its AP left,
+// not the whole of every foe's round on it alone): the foes' strikes
+// (`getDefendingSlots`) all landing undefended, less what `guard` saves
+// answering them, the most saved for every AP first; `fresh`, the foes' strikes
+// in a fresh round.
+export function getHarmTaken(state: SceneState, plays: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning, fresh = false): number {
+  const { slots, undefended } = getDefendingSlots(state, plays, id, at, tuning, undefined, fresh)
+  return undefended - fill(slots, guard.AP, guard.STA)
+}
+
+// What spending on a defence costs `target`, standing at `at` with `guard`,
+// as it is believed to read it (`getRoundValue`): what the AP and STA spent
+// would have saved or done otherwise this round, `attacker`'s strike being
+// the one answered.
+export function getTargetSpend(state: SceneState, target: string, attacker: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): SpendCost {
+  const value = getRoundValue(state, [target], target, at, tuning, attacker)
+  const held = value(guard.AP, guard.STA)
+  return (spent) => held - value(Math.max(0, guard.AP - spent.AP), Math.max(0, guard.STA - spent.STA))
 }
 
 // The seat's side: its members and their allies.
