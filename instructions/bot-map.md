@@ -27,6 +27,7 @@ threatBox (boxes/threat.ts)
 │   │              ├─ limit stress owed?           §11 violent / coward
 │   │              ├─ now: planNow()               (no foe noticed: nothing now)
 │   │              │    best of attack             §3  if score > 0
+│   │              │         attack after a switch §3.1 if score > 0
 │   │              │         run from danger       §4.3 if harm taken > flee, score > margin
 │   │              └─ later: planLater()
 │   │                   ├─ planSwitch()            §6  change arms, if gain > margin
@@ -352,6 +353,24 @@ givingUp  the table takes it only once the surge's AP left is given up ("end sur
 neither   not made
 ```
 
+### 3.1 Attack after a change of arms (`boxes/threat.ts` `planArmsAttack`)
+
+For every switch the character can pay for (`arms.ts`) that opens an attack on a foe it
+notices that the arms held now lack (an attack told by its row, heavy degree and ammo), the
+attack of §3 on the sheet the switch leaves, its AP and STA spent:
+
+```
+now   = HarmTaken(me, here, all it holds), with the arms held now   (the `now` of §3)
+score = §3's score on the switched sheet, `now` as above
+      − STAWorth(switch STA)
+      − (priced moves in the switch) · w.opportunity · OAs standing here draws
+```
+
+The switch's AP is paid inside §3's defence lost (held is what is left after it), and so is
+what the new arms do to the harm it takes. It competes with §3 and §4.3 in `planNow`. Only
+the switch's first move is declared, among the switches whose every move the table takes;
+the turn is weighed again after it (the user's ruling: things change from action to action).
+
 ---
 
 ## 4. Walk when nothing is to be done now (`boxes/threat.ts` `planWalk`)
@@ -656,56 +675,3 @@ read before the pair threat (`threatOldReading.ts`: the best attack read for eve
 guard, the walk in's opportunity attacks counted, the worst foe's danger alone). It is kept
 only to play the threat box against; its formulas are not mapped here. Its rest step
 (§10) reads `rest.ts`, shared with the threat box.
-
-
-
-
-
-
-This is the attack formula as the code computes it (boxes/threat.ts `planAttack`, with the scoring parts in `getAttackMeasures`).
-
-What it tries. Every combination of:
-
-budget (no surge, movement surge, combat surge, gated as in §3);
-walk (walk, run, or the fastest movement open; the movement surge the run only);
-foe it notices;
-attack it can declare on its turn;
-cell to attack from: where it stands if in reach; otherwise the cheapest cell in reach, or of the next 8 the one that draws the fewest opportunity attacks.
-It keeps the combination with the highest score, and attacks only if that score is above 0:
-
-
-score = gain − defence lost − STA − drawn
-gain, what the hit is worth:
-
-
-gain   = w.harm · harm · T(target) / mean T over the foes
-       + w.drain · drain · threatening(target) / mean threatening over the foes
-harm   = the harm left by the defence the target is believed to pick
-drain  = what that defence costs the target: what its AP and STA would have done
-         otherwise this round (its round value, §2)
-T      = w.threatened · Σ my side's potential threat on the target
-       + w.threatening · the target's worst potential threat on anyone of my side
-defence lost, how much more harm I take this round after spending:
-
-
-defence lost = w.reserve · max(0, HarmTaken at the cell with what I'm left
-                                  − HarmTaken here with everything I hold)
-HarmTaken    = Σ over foes: their strikes by AP left after the walk in, shared among those of
-               my side they reach; I answer the ones saving most per AP first, as far as my
-               AP and STA go; the rest land undefended (§2)
-STA, what the STA spent was worth:
-
-
-STA = spent · (2 · bleed + my best use of an AP · combat surge AP per STA · 10 / STA left)
-drawn, opportunity attacks I walk into:
-
-
-drawn = w.opportunity · (opportunity attacks the walk draws, answered out of my AP)
-      + for a shot: opportunity attacks from foes whose reach covers the cell I fire from
-Weights now: harm 1, drain 1, threatened 0.6, threatening 0.2, forcing 0.25, reserve 1, opportunity 1.
-
-Things to notice if you want to change it:
-
-AP has no price of its own. Spending AP costs only through defence lost. If it doesn't change, for example when no foe can reach me, AP is free.
-The target factors are relative: averaged over the foes they come to 1, so the gain stays in harm.
-It plans one attack at a time. After each attack the turn is re-planned, so "attack twice" is never valued as a pair.

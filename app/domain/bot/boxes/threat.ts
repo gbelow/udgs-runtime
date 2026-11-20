@@ -49,6 +49,11 @@ import { getPayBar } from '../../item/rules/moves'
 //   foe's strikes by the AP it has left shared among those it reaches
 //   (`getHarmTaken`); from the cheapest cell that reaches, or one that draws
 //   fewer opportunity attacks; made where that comes out above nothing;
+// - an attack after a change of arms (bot/arms.ts) is weighed the same way on
+//   the sheet the switch leaves, the switch's AP spent and the defence lost
+//   read against the arms held now, less the switch's STA and the opportunity
+//   attacks its priced moves draw; only its first move is made, and the turn
+//   weighed again after it;
 // - with no attack worth making, a walk is worth the potential harm the
 //   character could do from the cell to the foe it threatens most, counting
 //   every attack a fresh round pays for once the walk in is paid, so that
@@ -477,7 +482,10 @@ type AttackMeasures = {
   score: (harm: number, drain: number, foe: string, at: Coord | null, kept: { AP: number; STA: number }, STA: number) => AttackScore
 }
 
-function getAttackMeasures(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): AttackMeasures {
+// `from` is the harm it is believed to take where it stands with all it holds,
+// which the defence an attack loses is read against: read on `view` unless
+// given (an attack after a change of arms reads it as the arms are now).
+function getAttackMeasures(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, from?: number): AttackMeasures {
   const me = view.characters[id]
   const left = { AP: me.resources.AP, STA: me.resources.STA }
   const dangerLeft = (AP: number, STA: number, at: Coord | null) => getDanger(view, members, id, 'immediate', at, { AP: Math.max(0, left.AP - AP), STA: Math.max(0, left.STA - STA) }, w)
@@ -496,7 +504,7 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
   }
   let target: ((foe: string) => number) | null = null
   let threat: ((foe: string) => number) | null = null
-  const now = getHarmTaken(view, members, id, cellOf(view, id), left, w)
+  const now = from ?? getHarmTaken(view, members, id, cellOf(view, id), left, w)
   const score = (harm: number, drain: number, foe: string, at: Coord | null, kept: { AP: number; STA: number }, STA: number): AttackScore => {
     target ??= relative((f) => w.threatened * getThreatened(view, members, f, w) + w.threatening * getThreatening(view, members, f, w))
     threat ??= relative((f) => getThreatening(view, members, f, w))
@@ -568,13 +576,13 @@ type TurnContext = {
   kept: number
 }
 
-function getTurnContext(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, unnoticed: ReadonlySet<string>): TurnContext | null {
+function getTurnContext(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, unnoticed: ReadonlySet<string>, from?: number): TurnContext | null {
   const me = view.characters[id]
   const here = cellOf(view, id)
   if (!me) return null
   const { foes } = getSides(view, members)
   const left = { AP: me.resources.AP, STA: me.resources.STA }
-  const measures = getAttackMeasures(view, members, id, w)
+  const measures = getAttackMeasures(view, members, id, w, from)
   // what answering with `guard` spends, as it answers an attack on its turn
   // (the user's ruling): what the AP and STA would have done otherwise this
   // round (`getRoundValue`), and the STA's worth (`getSTAWorth`)
@@ -680,6 +688,40 @@ function planAttack(ctx: TurnContext, compelled = false): Plan | null {
   return best && (best.score > 0 || compelled) && (best.kind !== 'attack' || opensAfter(view, id, best.intent)) ? best : null
 }
 
+// An attack made after a change of arms (bot/arms.ts), as the attack plan
+// weighs it (`planAttack`) on the sheet the switch leaves, its AP and STA
+// spent: the defence it loses read against where the character stands now
+// with the arms it holds now, less the switch's STA and the opportunity
+// attacks its priced moves draw. Only the switch's first move is declared;
+// the turn is weighed again after it (the user's ruling: things change from
+// action to action). A switch that opens no attack on a foe it notices that
+// the arms held now lack is passed over.
+function planArmsAttack(ctx: TurnContext): Plan | null {
+  const { view, members, id, w, unnoticed, me, here, left, foes } = ctx
+  const noticed = foes.flatMap((f) => (unnoticed.has(f) || !view.characters[f] ? [] : [view.characters[f]]))
+  const attacksOf = (c: typeof me) => new Set(noticed.flatMap((foe) => getPair(c, foe).filter((a) => a.opens.action).map((a) => `${foe.id}|${a.kind}|${a.row.weaponKey}|${a.row.attack}|${a.row.variant}|${a.heavy}|${a.ammoId}`)))
+  const held = attacksOf(me)
+  const from = getHarmTaken(view, members, id, here, left, w)
+  let best: Plan | null = null
+  for (const sw of getSwitches(me)) {
+    if (sw.cost.AP > left.AP || sw.cost.STA > left.STA || ((sw.cost.AP > 0 || sw.cost.STA > 0) && getPayBar(me, sw.cost, true))) continue
+    if ([...attacksOf(sw.after)].every((a) => held.has(a))) continue
+    const sheet = { ...sw.after, resources: { ...sw.after.resources, AP: left.AP - sw.cost.AP, STA: left.STA - sw.cost.STA } }
+    const then = getTurnContext(withSheet(view, id, sheet), members, id, w, unnoticed, from)
+    const attack = then && planAttack(then)
+    if (!attack) continue
+    const drew = sw.paid > 0 ? sw.paid * ctx.fired(here, sw.cost.AP, sw.cost.STA) : 0
+    const score = attack.score - ctx.measures.STAWorth(sw.cost.STA) - drew
+    if (score <= 0 || (best && score <= best.score)) continue
+    // every move of it the table takes, each from the sheet the ones before leave
+    // (a surge's AP may not pay for every gear move, combat.tex "Action surge")
+    if (!sw.moves.every((move, i) => declare(i === 0 ? view : withSheet(view, id, sw.before[i]), { actorId: id, option: { kind: 'gear', move }, picks: [] }, TRIAL).ok)) continue
+    const intent: Intent = { actorId: id, option: { kind: 'gear', move: sw.moves[0] }, picks: [] }
+    best = { kind: 'arms', intent, score, why: `changes arms to attack (${sw.moves.map((m) => m.kind).join(', ')}, ${sw.cost.AP} AP, drawn ${drew.toFixed(1)}, ${score.toFixed(1)}): ${attack.why}` }
+  }
+  return best
+}
+
 // A run from the danger the character is in now (the user's ruling: a high
 // enough immediate threat makes running something to do now): where the harm
 // it is believed to take this round as it stands with all it holds
@@ -770,14 +812,13 @@ function planViolent(view: SceneState, members: readonly string[], id: string, w
 }
 
 // What the character would do now with the turn it holds in `view` (the
-// user's ruling): the attack worth making or the run from the danger it is
-// in, whichever is worth more; null when it has nothing to do now.
+// user's ruling): the attack worth making, with the arms it holds or after a
+// change of arms, or the run from the danger it is in, whichever is worth
+// more; null when it has nothing to do now.
 function planNow(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, unnoticed: ReadonlySet<string>): Plan | null {
   const ctx = getTurnContext(view, members, id, w, unnoticed)
   if (!ctx || ctx.foes.every((f) => unnoticed.has(f))) return null
-  const attack = planAttack(ctx)
-  const run = planFlee(ctx)
-  return attack && run ? (run.score > attack.score ? run : attack) : (attack ?? run)
+  return [planAttack(ctx), planArmsAttack(ctx), planFlee(ctx)].reduce<Plan | null>((best, p) => (p && (!best || p.score > best.score) ? p : best), null)
 }
 
 // How the character would better its position with the turn it holds in
