@@ -48,12 +48,15 @@ the seats the table waits on; the table; the other seats for 'immediate', and on
 for 'any'. On an 'immediate' pass only a `startTurn` or a `toggleContest` is taken; any
 other decision counts as waiting.
 
+Every threat and danger a decision reads is immediate or potential (§2 "Threat").
+
 The tools under it, bottom up:
 
 ```
 odds.ts ──► pairs.ts ──► threat.ts ──► approach.ts ──► boxes/threat.ts
 (dice)      (harm table)  (threat, prices,  (opportunity     (scores, choices)
                           danger)           attacks drawn)
+threatOldReading.ts: threat as the old box (boxes/threatOld.ts) reads it
 belief.ts: what the seat may know of everyone else (feeds the `view` all of it reads)
 ```
 
@@ -102,12 +105,17 @@ mode 'now'  = how the attacker throws now
 mode 'best' = max over the modes it may throw
 ```
 
-### Answers (`threat.ts` `getAnswers`)
+### Defences against one attack (`threat.ts` `getAnswers`)
+
+The defensive reactions the target may answer one attack with (taking it, a dodge, a block,
+a parry…, as the attack's row in the pair table lists them), each with the harm it saves.
+It chooses none of them: which one the target is believed to pick is §2 "Defended harm".
 
 ```
-undefended = harm(attack, none, gap)
-for each defence d:  value(d) = undefended − harm(attack, d, gap)
+undefended = harm(attack, taking it, gap)                   the harm taking it does
+for each defence d:  value(d) = undefended − harm(attack, d, gap)   the harm d saves
                      affordable(d) = d.AP ≤ budget.AP and d.STA ≤ budget.STA
+                                     the defender can pay for it
 ```
 
 ---
@@ -139,21 +147,48 @@ worth     = cost(chosen) + w.forcing · value(chosen)
 `dangerAfter(d)` is the target's own immediate danger (§2.4) once it has paid for `d`;
 inside threat reading itself it is left at 0.
 
-### Threat value (`threat.ts` `threatValue`, `bestAttack`)
+### Threat: immediate and potential (`threat.ts` `getPairThreat`, `makeThreat`, `threatValue`)
+
+Every threat and danger a decision reads is one of two (the user's ruling):
+
+- **Immediate**: what a foe can do to me before this round ends, with the AP and STA it has
+  left (its reach counting the movement surge, AGI's, while it has made none), against the AP
+  I have left to defend. It answers "what now": attack, run, react, and what spending leaves
+  me in.
+- **Potential**: what a foe could do to me in a fresh round (its whole AP, a surge open),
+  against a fresh round's guard. It answers "where to be next round": stand where my
+  potential threat on foes is largest and theirs on me least, and judge an advance.
+
+The pair threat (`getPairThreat`), read once for a pair of sheets and kept while neither
+changes in anything but what it has left (the user's ruling: only harm and cost, and
+every attack, to be read in many ways):
 
 ```
-threatValue = max(0, strikes · worth − w.opportunity · approach)
+for every attack of a's on d:
+    answers    = every defence d could answer with, the harm each leaves (§1)
+    worth      = DefendedHarm(attack, 10 m, a fresh round's guard)   the defence d is
+                 believed to pick; a shot read from 10 m (one penalty level, inside the
+                 10 to 30 m most shots are fired from); the test a has set, safe or risky
+    perAP      = worth / attack AP
 ```
 
-Best attack of `a` on `d` = the attack with the highest `threatValue`, among those that open
-as an action and have `undefended > 0`.
+On top of it, where the two stand and what they have left (`makeThreat`):
 
-|                  | potential                         | immediate                                |
-| ---------------- | --------------------------------- | ---------------------------------------- |
-| attacker's means | `ROUND_AP`, surge open, its STA   | what it has, or is believed to have      |
-| target's guard   | `ROUND_AP`, its STA               | what it has, or is believed to have      |
-| mode             | best                              | now                                      |
-| strikes          | see below                         | see below; not counted below 1           |
+```
+attack      = getStrongestPerAP: the highest perAP among those a can declare on its turn
+              (not one only a reaction makes) that do d some harm undefended
+threat      = that attack, moveAP, strikes
+threatValue = strikes · worth                                   with no guard given
+            = k · worth + (n − k) · undefended                  with `guard`: n strikes,
+              k = min(n, guard.AP / defence AP, guard.STA / defence STA), the guard
+              spent across them
+```
+
+|                    | potential                              | immediate                                  |
+| ------------------ | -------------------------------------- | ------------------------------------------ |
+| attacker's means   | `ROUND_AP`, surge open, its STA        | what it has, or is believed to have        |
+| target's guard     | none (every strike answered)           | what it has, or is believed to have        |
+| strikes            | see below                              | see below; not counted below 1             |
 
 ```
 strikes (potential) = the attacks a fresh round's AP and STA pay for once the walk in is
@@ -175,10 +210,10 @@ steps    = cells walked to stand within reach (step map, a fresh round deep, no 
            or climbs; shots also need a line of fire from the cell, strikes a melee
            gap within reach as the table measures it: around walls, and the metres
            up or down between the two counted as cells)
-approach = OA worth the walk in draws from d   (when a can pay this round and gap > reach)
-         + OA worth of shooting within d's reach (shots)
-         capped at d's own uncapped potential threat on a
 ```
+
+What walking in on `d` draws from it is not in the threat: a walk or an attack of the
+character's own prices the opportunity attacks it draws where it is weighed (§3, §4.1).
 
 A pair is skipped when `a` cannot reach `d` in the step map and has someone else it can.
 
@@ -193,9 +228,17 @@ middle = round((least + most) / 2)
 ### Danger and target worth (`threat.ts`)
 
 ```
-Danger(me, kind, at, guard) = max_foe threatValue(threat foe → me at `at`)
-HarmDanger(me, at, guard)   = max_foe (k · harm(attack, d) + (n − k) · undefended − w.opportunity · approach)
+Danger(me, kind, at, guard) = pile_foe threatValue(threat foe → me at `at`, guard) / share(foe)
+                              guard: immediate, what I have left (or `guard`); potential, none
+HarmDanger(me, at, guard)   = pile_foe (k · harm + (n − k) · undefended) / share(foe)
                               the harm alone, nothing of what the answer costs
+pile_foe x                  = max_foe x + w.pile · (Σ_foe x − max_foe x)   (pileUp)
+                              w.pile 1: every foe's whole (the user's ruling: each foe pays
+                              for its strikes with AP of its own; my threat on foes stays the
+                              best one, my AP being one pool); `guard` answers each foe's
+                              strikes whole
+share(foe)                  = (1 + the others of my side foe threatens where they stand)^w.share
+                              (shareOf): a foe with several in reach strikes each less
 Threatened(foe)             = Σ_team threatValue(potential member → foe)
 Threatening(foe)            = max_team threatValue(potential foe → member)
 ```
@@ -208,6 +251,18 @@ would choose with `guard`; the foe makes it `n` times and I answer `k` of them
 n = the immediate threat's strikes (§2)
 k = min(n, guard.AP / d.AP, guard.STA / d.STA)   rounded down; n for a free answer
 ```
+
+Which each decision reads:
+
+| decision                          | immediate                                   | potential                          |
+| --------------------------------- | ------------------------------------------- | ---------------------------------- |
+| attack (§3)                       | its gain; danger left after (AP's price)    | target worth (Threatened, Threatening) |
+| run from danger (§4.3)            | danger now, danger at the cell              |                                    |
+| walk (§4)                         | AP's price, danger on arrival, allies kept  | standing (offence, peril), pull    |
+| search (§5)                       |                                             |                                    |
+| change of arms (§6)               |                                             | offence, peril                     |
+| defend, protect, OA (§7, §8, §9)  | the attack met; danger left after (AP's price) |                                 |
+| rest (§10), coward's getaway (§11) |                                            | danger                             |
 
 ---
 
@@ -494,8 +549,10 @@ they do are kept per weights.
 | `STA`         | 3         | STAPrice                                      |
 | `STAScale`    | 10        | STAPrice                                      |
 | `forcing`     | 0.25      | DefendedHarm: per point the defence takes off |
-| `opportunity` | 1         | threatValue approach; §3, §4, §6 OAs drawn    |
+| `opportunity` | 1         | §3, §4, §6 OAs drawn                          |
 | `end`         | `'middle'`| fromThird: which end of a face's third, or its middle |
+| `pile`        | 1         | Danger, HarmDanger: share of every foe's threat but the worst |
+| `share`       | 0         | Danger, HarmDanger: a foe's threat divided among those it threatens |
 
 `REST_TUNING` (`rest.ts`) adds:
 
@@ -545,5 +602,71 @@ spend overflow as §12. No formula beyond distance.
 
 The old box (`boxes/threatOld.ts`, `--box old` in `pnpm arena`) is the threat box as it
 was before §0's two questions: a change of arms weighed first, then an attack, then a walk,
-and the first member with anything to do starting the turn. It is kept only to play the
-threat box against; its formulas are not mapped here.
+and the first member with anything to do starting the turn, reading threat as it was
+read before the pair threat (`threatOldReading.ts`: the best attack read for every cell and
+guard, the walk in's opportunity attacks counted, the worst foe's danger alone). It is kept
+only to play the threat box against; its formulas are not mapped here. Its rest step
+(§10) reads `rest.ts`, shared with the threat box.
+
+
+
+
+
+
+This is the attack formula as the code computes it (boxes/threat.ts:574, with the scoring parts in getAttackMeasures at :446).
+
+What it tries. Every combination of:
+
+budget (no surge, combat surge, movement surge);
+walk (walk, run, or the fastest movement open);
+foe it notices;
+attack it can declare on its turn;
+cell to attack from: where it stands if in reach; otherwise, of the cells in reach, the 2 cheapest to walk to and the 2 with the least immediate danger.
+It keeps the combination with the highest score, and attacks only if that score is above 0:
+
+
+score = gain − defence lost − offence lost − allies' lost − STA − drawn
+gain, what the hit is worth:
+
+
+gain   = w.harm · worth · (1 + target / 100)            100 = a life
+worth  = the harm left by the defence the target is believed to pick
+       + what that defence costs the target (its AP and STA, priced)
+       + w.forcing · the harm that defence takes off
+target = w.threatened · Σ my side's potential threat on the target
+       + w.threatening · the target's worst potential threat on anyone of my side
+defence lost, how much worse defended I am after spending:
+
+
+defence lost = w.reserve · (HarmDanger at the cell with what I'm left
+                            − HarmDanger here with everything I hold) / max(1, AP left)
+HarmDanger   = Σ over foes: of their n strikes, I answer k with what I hold,
+               k at the harm my defence leaves, n − k undefended
+offence lost, what I'm giving up of later attacks:
+
+
+offence lost = w.offence · max(0, my threat now − my threat at the cell with what I'm left − worth)
+my threat    = max over foes of my immediate threat value (strikes · worth)
+allies' lost, cover I can no longer give:
+
+
+allies' lost = the protection I could give allies standing here with all my AP
+             − the protection I can give from the cell with the AP I keep     (§4.2)
+STA, the stamina spent:
+
+
+STA = (walk + attack + surge STA) · (w.STA · 10 / max(1, STA left) + 2 · bleed)
+drawn, opportunity attacks I walk into:
+
+
+drawn = w.opportunity · (opportunity attacks the walk draws, answered out of my AP)
+      + for a shot: opportunity attacks from foes whose reach covers the cell I fire from
+Weights now: harm 1, threatened 0.6, threatening 0.2, forcing 0.25, reserve 10, offence 1, guardian 1, STA 3, opportunity 1.
+
+Things to notice if you want to change it:
+
+AP has no price of its own. Spending AP costs only through defence lost and offence lost. If neither changes, for example when no foe can reach me, AP is free.
+Defence lost is divided by the AP I keep. The fewer AP I keep, the more each point of danger counts. That's what stops the bot from spending its last AP, but the scale is odd: keeping 1 AP gives ten times the penalty of keeping 10.
+Offence lost subtracts the attack's own worth. Attacking now only "loses" offence beyond what the attack itself delivers. So an attack whose worth covers the threat it gives up costs nothing on this count.
+The target's value is in potential terms. A foe who threatens us a lot next round is worth more to hit now.
+It plans one attack at a time. After each attack the turn is re-planned, so "attack twice" is never valued as a pair.

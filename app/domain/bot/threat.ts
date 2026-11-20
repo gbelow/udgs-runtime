@@ -13,29 +13,31 @@ import { ROUND_AP } from '../tables'
 import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
 import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
-import { getOpportunityWorth, getStandingOpportunityWorth } from './approach'
 import { getWeaponRows, isRowUsable } from '../scene/rules/weaponRow'
 import { firesAcross, getBodyAt, getEyes, getMeleeGap, getReach, placeAt } from '../scene/rules/board/board'
 import { isMeleeRange } from '../weaponProperties'
 
-// The threat one character puts on another (the user's rulings, 2026-11-14):
-// the harm of one attack times its chance, against the defence the target
-// would answer with, with what the attack and the move to it cost kept apart
-// so they can be weighed where the threat is used.
+// The threat one character puts on another (the user's rulings, 2026-11-14,
+// 2026-11-20), in two layers.
 //
-// Potential threat is next round's: the attack made as many times as a fresh
-// round (8 AP and the movement surge) pays for once the walk in is paid, so
-// that every step closer that frees an attack counts; none where the walk in
-// and one attack do not fit in the round (the user's ruling: a foe further
-// off is gone after by the walk's own pull, bot/boxes/threat.ts).
-// Immediate threat is this round's: the attack made as many times as the
-// attacker can still pay for with what it is believed to have left. A threat that needs a walk through
-// the target's own reach, or a shot fired within it, counts the opportunity
-// attack it draws against it
-// (bot/approach.ts), which is the target's to make. A target that cannot be harmed even
-// undefended, or not this round, is under no threat from it. A threat counts
-// what the attack is worth (`getDefendedHarm`): the harm against the answer
-// the target would choose and what that answer costs it.
+// The pair threat (`getPairThreat`) is only harm and cost, read once for a
+// pair of sheets and kept while neither changes in what it reads: every
+// attack of the attacker's on the target, each with its cost, its harm
+// against every defence the target could answer with, and its worth against
+// the one it is believed to answer with on a fresh round's guard, a shot's
+// read from PAIR_GAP metres. Where anyone stands and what anyone has left are
+// not in it, and it picks no attack: what reads it does.
+//
+// On top of it (`makeThreat`): the attack with the most worth for every AP it
+// costs, the AP of the walk into its reach, and how many times what is left
+// pays for it. Potential threat is next round's:
+// as many times as a fresh round (8 AP and the movement surge) pays for once
+// the walk in is paid, none where the walk in and one attack do not fit in
+// the round (the user's ruling: a foe further off is gone after by the
+// walk's own pull, bot/boxes/threat.ts). Immediate threat is this round's: as
+// many times as the attacker can still pay for with what it is believed to
+// have left. A target that cannot be harmed even undefended, or not this
+// round, is under no threat from it.
 //
 // What a seat knows of a character it does not play is its face: which third
 // of a round's AP and of its STA it has left, taken at the end `end` says.
@@ -53,40 +55,59 @@ export type ThreatTuning = {
   forcing: number
   // the STA against which a pool is measured (`getSTAPrice`)
   STAScale: number
-  // what a threat is worth less for every point of worth of the opportunity
-  // attack its walk in draws from the target (bot/approach.ts)
+  // what a walk or an attack of the character's own is worth less for every
+  // point of worth of the opportunity attacks it draws (bot/approach.ts)
   opportunity: number
   // the end of a face's third taken as what a character has left, or its middle
   end: 'least' | 'middle' | 'most'
+  // how much of every foe's threat but the worst a character's danger adds
+  // (`getDanger`, `getHarmDanger`): 1 every foe's whole (the user's ruling:
+  // each foe pays for its strikes with AP of its own), 0 the worst foe's alone
+  pile: number
+  // how far a foe's threat on a character is shared among everyone of its
+  // side the foe threatens (`shareOf`): its threat divided by their number to
+  // the power `share`, 0 not shared at all
+  share: number
 }
 
-export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle' }
+export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle', pile: 1, share: 0 }
 
-export type Threat = {
-  // what the attack is worth against the answer the target is believed to
-  // choose (`getDefendedHarm`): the harm it takes, what it pays to defend,
-  // and more the more the defence takes off
-  worth: number
-  // expected harm of the attack, against that answer
-  harm: number
+// One attack of the attacker's on the target (`getPairThreat`): what it is
+// worth against the answer the target is believed to choose
+// (`getDefendedHarm`: the harm it takes, what it pays to defend, and more the
+// more the defence takes off), the harm it takes then, its harm answered with
+// none, what each defence leaves of it, and its worth for every AP it costs.
+export type AttackThreat = {
   attack: PairAttack
+  worth: number
+  harm: number
   defence: PairDefence
-  // its harm answered with none, and what each defence leaves of it and is
-  // worth (`getAnswers`)
   undefended: number
   answers: Answer[]
-  // what the attack costs, and the AP of the move it needs first
-  cost: { AP: number; STA: number }
-  moveAP: number
-  // how many times the attack is made after the walk in: this round, as many
-  // as the attacker's means pay for (`getImmediateStrikes`); next round, as
-  // many as a fresh round pays for (`getPotentialStrikes`)
-  strikes: number
-  // the worth of the opportunity attack the walk in draws from the target
-  approach: number
+  perAP: number
 }
 
-export const threatValue = (t: Threat | null, tuning: ThreatTuning): number => (t ? Math.max(0, t.strikes * t.worth - tuning.opportunity * t.approach) : 0)
+// Every attack of the attacker's on the target, read as `AttackThreat`.
+export type PairThreat = readonly AttackThreat[]
+
+// The pair threat made where the attacker stands, with what it has: the AP of
+// the walk into the attack's reach, and how many times the attack is made
+// after it: this round, as many as the attacker's means pay for
+// (`getImmediateStrikes`); next round, as many as a fresh round pays for
+// (`getPotentialStrikes`).
+export type Threat = AttackThreat & { moveAP: number; strikes: number }
+
+// What a threat is worth: every strike at its worth; with the `guard` the
+// target defends with, only as many strikes as the guard answers, the rest
+// landing at the harm undefended (the guard is spent across them).
+export function threatValue(t: Threat | null, guard?: { AP: number; STA: number }): number {
+  if (!t) return 0
+  if (!guard) return t.strikes * t.worth
+  const n = t.strikes
+  const { AP, STA } = t.defence.cost
+  const answered = Math.min(n, AP > 0 ? Math.floor(guard.AP / AP) : n, STA > 0 ? Math.floor(guard.STA / STA) : n)
+  return answered * t.worth + (n - answered) * t.undefended
+}
 
 // The least or the most a third of `most` could hold (character/lenses/face.ts
 // `thirdOf`), or halfway between them, rounded.
@@ -153,8 +174,6 @@ export function withSheet(state: SceneState, id: string, c: CampaignCharacter): 
 }
 
 export const cellOf = (state: SceneState, id: string): Coord | null => state.board?.placements[id]?.cell ?? null
-
-const apart = (a: Coord | null, b: Coord | null): number => (a && b ? distance(a, b) : 0)
 
 // How many cells the character walks to each cell it can get to, counted as it
 // moves (combat.tex "Movement"): around walls and bodies, on the ground it can
@@ -398,11 +417,6 @@ function combatSurge(c: CampaignCharacter): { AP: number; STA: number } | null {
   return canSurge('combat')(c) ? { AP: getSurgeAP('combat')(c), STA: getSurgeSTA('combat')(c) } : null
 }
 
-// The best one attack `a` can make on `d`, against `d` defending with `guard`:
-// this round's with `means`, or next round's, from a fresh round.
-// The approach is priced at most at `d`'s own threat on `a` (the user's
-// ruling: a foe that is no threat costs nothing to walk in on), read without
-// that cap, so that the two threats do not ask each other; `capped` false reads it.
 // Where a shot from `a` at `d` standing at `d.at` has a line of fire.
 function fireLine(a: Party, d: Party): Clear {
   const board = a.state.board
@@ -431,39 +445,57 @@ export function getStrikeCells(state: SceneState, a: string, d: string, at: Coor
   return (cell) => getMeleeGap(board, getBodyAt(ca, sameCell(pa.cell, cell) ? pa : placeAt(board, pa, cell)), target) <= reach
 }
 
-function bestAttack(a: Party, d: Party, means: Means, when: 'now' | 'potential', guard: { AP: number; STA: number }, mode: ModeOf, tuning: ThreatTuning, capped = true): Threat | null {
+// The metres a shot is read from in the pair threat (the user's ruling: one
+// distance penalty level, inside the 10 to 30 metres most shots are fired
+// from, which tells the kinds of shot apart).
+const PAIR_GAP = 10
+
+// The pair threat of `attacker` on `defender` (`PairThreat`): every attack of
+// the pair table the target has an answer to it can pay for. Kept by the pair
+// table the two sheets read (`getPair`, which leaves out what each has
+// left), and by the STA and bleed the defence is priced with.
+const pairThreats = new WeakMap<PairAttack[], WeakMap<ThreatTuning, Map<string, PairThreat>>>()
+
+export function getPairThreat(attacker: CampaignCharacter, defender: CampaignCharacter, STA: number, tuning: ThreatTuning): PairThreat {
+  const pair = getPair(attacker, defender)
+  let byTuning = pairThreats.get(pair)
+  if (!byTuning) pairThreats.set(pair, (byTuning = new WeakMap()))
+  let byGuard = byTuning.get(tuning)
+  if (!byGuard) byTuning.set(tuning, (byGuard = new Map()))
+  const key = `${STA}|${defender.injuries.bleed}`
+  const known = byGuard.get(key)
+  if (known) return known
+  const made = pair.flatMap((attack) => {
+    const met = getDefendedHarm(attack, PAIR_GAP, { AP: ROUND_AP, STA }, 'now', defender.injuries.bleed, tuning)
+    return met ? [{ attack, worth: met.worth, harm: met.harm, defence: met.defence, undefended: met.undefended, answers: met.answers, perAP: met.worth / Math.max(1, attack.cost.AP) }] : []
+  })
+  byGuard.set(key, made)
+  return made
+}
+
+// Of a pair threat, the attack the attacker can declare on its turn (not one
+// only a reaction makes) that does the target some harm undefended, with the
+// most worth for every AP; null when there is none.
+export function getStrongestPerAP(pair: PairThreat): AttackThreat | null {
+  return pair.reduce<AttackThreat | null>((best, t) => (t.attack.opens.action && t.undefended > 0 && (!best || t.perAP > best.perAP) ? t : best), null)
+}
+
+// The strongest attack per AP of the pair threat of `a` on `d`
+// (`getStrongestPerAP`), the defence priced with `guardSTA`, made from where
+// `a` stands at `a.at` on `d` standing at `d.at`: the walk into its reach,
+// and the strikes `means` pays for after it.
+function makeThreat(a: Party, d: Party, means: Means, guardSTA: number, when: 'now' | 'potential', tuning: ThreatTuning): Threat | null {
   const attacker = a.state.characters[a.id]
   const defender = d.state.characters[d.id]
   if (!attacker || !defender) return null
-  const gap = apart(a.at, d.at)
-  const pace = getPace(a.state, a.id)
+  const core = getStrongestPerAP(getPairThreat(attacker, defender, guardSTA, tuning))
+  if (!core) return null
+  const { attack } = core
+  const moveAP = closingAP(getPace(a.state, a.id), closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, attack.reach)))
+  if (moveAP === null) return null
   const surge = { AP: getSurgeAP('movement')(attacker), STA: getSurgeSTA('movement')(attacker) }
-  const combat = when === 'now' ? combatSurge(attacker) : null
-  const focused = attacker.usedSurge === 'focus'
-  let cap: number | undefined
-  const capOf = () => (cap ??= threatValue(getUncappedThreat(a.state, a.id, d.id, d.at, a.at, tuning), tuning))
-  let best: Threat | null = null
-  for (const attack of getPair(attacker, defender)) {
-    if (!attack.opens.action) continue
-    const moveAP = closingAP(pace, closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, attack.reach)))
-    if (moveAP === null) continue
-    const strikes = when === 'now' ? getImmediateStrikes(attack, moveAP, means, surge, combat, focused) : getPotentialStrikes(attack, moveAP, means, surge)
-    if (strikes === null) continue
-    const met = getDefendedHarm(attack, gap, guard, mode, defender.injuries.bleed, tuning)
-    if (!met || met.undefended <= 0) continue
-    // the walk in, straight from where `a` stands to the attack's reach, and
-    // a shot fired from within the target's own reach, against the target's
-    // own strikes; only for an attack `a` can make with what it holds (the
-    // user's ruling: from further off, what walking in draws is not yet weighed)
-    const left = { AP: Math.max(0, means.AP - moveAP), STA: means.STA }
-    const near = moveAP + attack.cost.AP <= means.AP
-    const walkIn = near && gap > attack.reach ? getOpportunityWorth(a.state, d.id, a.id, gap, attack.reach, pace?.running ?? false, guard, left, tuning) : 0
-    const drawn = walkIn + (near && attack.kind === 'shoot' ? getStandingOpportunityWorth(a.state, d.id, a.id, Math.min(gap, attack.reach), guard, left, tuning) : 0)
-    const approach = capped && drawn > 0 ? Math.min(drawn, capOf()) : drawn
-    const threat: Threat = { worth: met.worth, harm: met.harm, attack, defence: met.defence, undefended: met.undefended, answers: met.answers, cost: attack.cost, moveAP, strikes, approach }
-    if (!best || threatValue(threat, tuning) > threatValue(best, tuning)) best = threat
-  }
-  return best
+  const strikes = when === 'now' ? getImmediateStrikes(attack, moveAP, means, surge, combatSurge(attacker), attacker.usedSurge === 'focus') : getPotentialStrikes(attack, moveAP, means, surge)
+  return strikes === null ? null : { ...core, moveAP, strikes }
 }
 
 // The longest reach of the attacks the character can make with what it holds
@@ -531,72 +563,76 @@ function remembered(state: SceneState, tuning: ThreatTuning, key: string, read: 
 const cellText = (c: Coord | null): string => (c ? coordKey(c) : '-')
 
 // `a`'s potential threat on `d` standing at `at`, were `a` standing at
-// `from`: a fresh round, then the next.
+// `from`: a fresh round.
 export function getPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), from: Coord | null = cellOf(state, a), tuning: ThreatTuning): Threat | null {
-  return remembered(state, tuning, `potential|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${cellText(from)}`, () => readPotentialThreat(state, plays, a, d, at, from, tuning))
+  return remembered(state, tuning, `potential|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${cellText(from)}`, () => {
+    const ca = state.characters[a]
+    const cd = state.characters[d]
+    if (!ca || !cd || isSkipped(state, a, from, d, at)) return null
+    const means = freshMeans(getMeans(ca, plays.includes(a), tuning))
+    return makeThreat({ state, id: a, at: from }, { state, id: d, at }, means, getMeans(cd, plays.includes(d), tuning).STA, 'potential', tuning)
+  })
 }
 
-// `a`'s potential threat on `d` with its approach priced in full, as the cap
-// on what walking in on `a` may cost `d` (`bestAttack`); read as one who does
-// not play either of them would.
-function getUncappedThreat(state: SceneState, a: string, d: string, at: Coord | null, from: Coord | null, tuning: ThreatTuning): Threat | null {
-  return remembered(state, tuning, `uncapped|${a}|${d}|${cellText(at)}|${cellText(from)}`, () => readPotentialThreat(state, [], a, d, at, from, tuning, false))
+// `a`'s immediate threat on `d` standing at `at`: this round's, with what `a`
+// is believed to have left.
+export function getImmediateThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), tuning: ThreatTuning): Threat | null {
+  return remembered(state, tuning, `immediate|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}`, () => {
+    const ca = state.characters[a]
+    const cd = state.characters[d]
+    if (!ca || !cd || isSkipped(state, a, cellOf(state, a), d, at)) return null
+    return makeThreat({ state, id: a, at: cellOf(state, a) }, { state, id: d, at }, getMeans(ca, plays.includes(a), tuning), getMeans(cd, plays.includes(d), tuning).STA, 'now', tuning)
+  })
 }
 
-function readPotentialThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null, from: Coord | null, tuning: ThreatTuning, capped = true): Threat | null {
-  const ca = state.characters[a]
-  const cd = state.characters[d]
-  if (!ca || !cd || isSkipped(state, a, from, d, at)) return null
-  const means = freshMeans(getMeans(ca, plays.includes(a), tuning))
-  const guard = { AP: ROUND_AP, STA: getMeans(cd, plays.includes(d), tuning).STA }
-  const by: Party = { state, id: a, at: from }
-  const to: Party = { state, id: d, at }
-  return bestAttack(by, to, means, 'potential', guard, 'best', tuning, capped)
+// The foes' threats on one character piled up: the worst, and `pile` of the rest.
+function pileUp(threats: readonly number[], tuning: ThreatTuning): number {
+  const worst = threats.reduce((m, t) => Math.max(m, t), 0)
+  return worst + tuning.pile * (threats.reduce((sum, t) => sum + t, 0) - worst)
 }
 
-// `a`'s immediate threat on `d` standing at `at`, defending with `guard` (what
-// `d` is believed to have left, unless said).
-export function getImmediateThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null = cellOf(state, d), guard: { AP: number; STA: number } | undefined, tuning: ThreatTuning): Threat | null {
-  return remembered(state, tuning, `immediate|${a}|${plays.includes(a)}|${d}|${plays.includes(d)}|${cellText(at)}|${guard ? `${guard.AP},${guard.STA}` : '-'}`, () => readImmediateThreat(state, plays, a, d, at, guard, tuning))
+// What a foe's threat on `id` is divided by, shared among `id` and everyone
+// else of its side the foe threatens where they stand (`share`): a foe with
+// several within reach strikes each of them less.
+function shareOf(state: SceneState, members: readonly string[], foe: string, id: string, kind: 'potential' | 'immediate', tuning: ThreatTuning): number {
+  if (tuning.share === 0) return 1
+  const others = getTeam(state, members).filter((ally) => ally !== id && (kind === 'potential' ? getPotentialThreat(state, members, foe, ally, cellOf(state, ally), cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, ally, cellOf(state, ally), tuning)) !== null)
+  return (1 + others.length) ** tuning.share
 }
 
-function readImmediateThreat(state: SceneState, plays: readonly string[], a: string, d: string, at: Coord | null, guard: { AP: number; STA: number } | undefined, tuning: ThreatTuning): Threat | null {
-  const ca = state.characters[a]
-  const cd = state.characters[d]
-  if (!ca || !cd || isSkipped(state, a, cellOf(state, a), d, at)) return null
-  const means = getMeans(ca, plays.includes(a), tuning)
-  const held = guard ?? getMeans(cd, plays.includes(d), tuning)
-  return bestAttack({ state, id: a, at: cellOf(state, a) }, { state, id: d, at }, means, 'now', held, 'now', tuning)
-}
-
-// The worst single foe's threat on `id` standing at `at`: the potential one,
-// or this round's with `guard` left to defend.
+// The foes' threat on `id` standing at `at` (`pileUp`), each shared
+// (`shareOf`): the potential one, against a fresh round's guard, or this
+// round's, against `guard` (what `id` is believed to have left, unless said).
 export function getDanger(state: SceneState, members: readonly string[], id: string, kind: 'potential' | 'immediate', at: Coord | null = cellOf(state, id), guard: { AP: number; STA: number } | undefined, tuning: ThreatTuning): number {
   const { foes } = getSides(state, members)
-  return foes.reduce((worst, foe) => Math.max(worst, threatValue(kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, guard, tuning), tuning)), 0)
+  const me = state.characters[id]
+  const held = kind === 'potential' ? undefined : (guard ?? (me ? getMeans(me, members.includes(id), tuning) : undefined))
+  return pileUp(foes.map((foe) => {
+    const t = kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, tuning)
+    return t ? threatValue(t, held) / shareOf(state, members, foe, id, kind, tuning) : 0
+  }), tuning)
 }
 
-// The worst single foe's immediate threat on `id` standing at `at`, with
-// `guard` left to defend, read as the harm alone it would take answering as
-// it would, nothing of what the answer costs it: what its AP is worth to its
-// own defence is what it saves. The foe makes the attack as many times as it
-// can pay for (the threat's `strikes`), and `guard` answers as many of them
-// as it pays for, the rest landing undefended.
+// The foes' immediate threat on `id` standing at `at` (`pileUp`), each shared
+// (`shareOf`), with `guard` left to defend, read as the harm alone it would
+// take answering as it would, nothing of what the answer costs it: what its
+// AP is worth to its own defence is what it saves. Each foe makes the attack
+// as many times as it can pay for (the threat's `strikes`), and `guard`
+// answers as many of them as it pays for, the rest landing undefended.
 export function getHarmDanger(state: SceneState, members: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
   const { foes } = getSides(state, members)
-  return foes.reduce((worst, foe) => {
-    const t = getImmediateThreat(state, members, foe, id, at, guard, tuning)
-    if (!t) return worst
+  return pileUp(foes.map((foe) => {
+    const t = getImmediateThreat(state, members, foe, id, at, tuning)
+    if (!t) return 0
     const n = t.strikes
     const { AP, STA } = t.defence.cost
     const answered = Math.min(n, AP > 0 ? Math.floor(guard.AP / AP) : n, STA > 0 ? Math.floor(guard.STA / STA) : n)
-    const harm = answered * t.harm + (n - answered) * t.undefended
-    return Math.max(worst, Math.max(0, harm - tuning.opportunity * t.approach))
-  }, 0)
+    return (answered * t.harm + (n - answered) * t.undefended) / shareOf(state, members, foe, id, 'immediate', tuning)
+  }), tuning)
 }
 
 // What `target`, standing at `at` with `guard` to defend with, is left in once
-// it has spent on a defence: the worst single foe's immediate threat on it, as
+// it has spent on a defence: its foes' immediate threat on it, as
 // its own box reads it when it answers (bot/boxes/threat.ts).
 export function getTargetDanger(state: SceneState, target: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): DangerAfter {
   return (spent) => getDanger(state, [target], target, 'immediate', at, { AP: Math.max(0, guard.AP - spent.AP), STA: Math.max(0, guard.STA - spent.STA) }, tuning)
@@ -610,10 +646,10 @@ export const getTeam = (state: SceneState, members: readonly string[]): string[]
 
 // How threatened a foe is: the whole team's potential threat on it.
 export function getThreatened(state: SceneState, members: readonly string[], foe: string, tuning: ThreatTuning): number {
-  return getTeam(state, members).reduce((sum, id) => sum + threatValue(getPotentialThreat(state, members, id, foe, cellOf(state, foe), cellOf(state, id), tuning), tuning), 0)
+  return getTeam(state, members).reduce((sum, id) => sum + threatValue(getPotentialThreat(state, members, id, foe, cellOf(state, foe), cellOf(state, id), tuning)), 0)
 }
 
 // How threatening a foe is: its worst potential threat on anyone of the team.
 export function getThreatening(state: SceneState, members: readonly string[], foe: string, tuning: ThreatTuning): number {
-  return getTeam(state, members).reduce((worst, id) => Math.max(worst, threatValue(getPotentialThreat(state, members, foe, id, cellOf(state, id), cellOf(state, foe), tuning), tuning)), 0)
+  return getTeam(state, members).reduce((worst, id) => Math.max(worst, threatValue(getPotentialThreat(state, members, foe, id, cellOf(state, id), cellOf(state, foe), tuning))), 0)
 }
