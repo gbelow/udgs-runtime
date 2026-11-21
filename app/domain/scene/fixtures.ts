@@ -205,11 +205,11 @@ export function bomber(id: string): CampaignCharacter {
 
 // A brawler who knows medicine and is bleeding already, so that First Aid,
 // Cauterization and Tend Wounds have someone to tend from the start
-// (abilities.tex "Medicine").
+// (abilities.tex "Medicine", combat.tex "Tend Wounds").
 export function medic(id: string): CampaignCharacter {
   const base = brawler(id)
   const schooled = { ...base, trainables: { ...base.trainables, medicine: { ...base.trainables.medicine, value: 1 } }, injuries: { ...base.injuries, bleed: 2 } }
-  return (['first-aid', 'cauterization', 'tend-wounds'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), schooled)
+  return (['first-aid', 'cauterization'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), schooled)
 }
 
 // A thrower with a net in both hands (gear.tex "Net").

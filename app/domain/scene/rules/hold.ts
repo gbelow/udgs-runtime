@@ -1,7 +1,7 @@
 import type { Action, ActionKind, RootAction, SceneState } from '../types'
 import { isRootAction } from './actionCatalog'
 import { getAction, getLiveActions } from './log'
-import { isConcentrationAbility } from './medicine'
+import { isConcentrationMedicine } from './medicine'
 import { keepsConcentrationOn } from './battleMage'
 import { getGiveUpLoss } from './stoicism'
 
@@ -18,7 +18,7 @@ export function requiresConcentration(action: Action): boolean {
     case 'firstAid':
     case 'tendWounds':
     case 'cauterize':
-      return isConcentrationAbility(action.kind)
+      return isConcentrationMedicine(action.kind)
     default:
       return false
   }

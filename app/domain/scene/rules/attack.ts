@@ -572,7 +572,7 @@ function getOwnRootTestTerms(state: SceneState, root: RootAction): RootTestTerms
     // abilities.tex "First Aid": a medicine test
     case 'firstAid':
       return onDegrees(getFirstAidTerms(state, root))
-    // abilities.json "Tend Wounds": a health test
+    // combat.tex "Tend Wounds": a health test
     case 'tendWounds':
       return onDegrees(getTendWoundsTerms(state, root))
     case 'cut':

@@ -6554,36 +6554,6 @@
       }
     ]
   },
-  "tend-wounds": {
-    "family": "Tend Wounds",
-    "section": "Medicine",
-    "activation": "active",
-    "cost": {
-      "AP": 8,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "concentration": true,
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [],
-        "description": "Tries to stop their own bleeding through pressure on the wound. Make a health test against a DL equal to the bleeding. Reduces bleeding by 0/0/1/2.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "rollModes": [],
-        "surgeAllows": [],
-        "attitudes": [],
-        "studies": []
-      }
-    ]
-  },
   "cauterization": {
     "family": "Cauterization",
     "section": "Medicine",

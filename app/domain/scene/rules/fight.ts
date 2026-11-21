@@ -12,10 +12,12 @@ export function getReturnBar(fight: SceneState): string | null {
   return getPlayingOutBar(fight)
 }
 
-// Why the scene cannot be ended now, or a party taken out of it: nobody is
-// in it, or something is still being played out.
+// Why the scene cannot be ended now: nobody is in it, the combat has not
+// ended (its end is where the bleeding make their tend wounds test), or
+// something is still being played out.
 export function getEndSceneBar(fight: SceneState): string | null {
   if (Object.keys(fight.characters).length === 0) return 'nobody is in the scene'
+  if (isCombatStarted(fight)) return 'end the combat first'
   return getPlayingOutBar(fight)
 }
 

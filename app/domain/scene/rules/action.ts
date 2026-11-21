@@ -202,7 +202,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'firstAid':
     case 'cauterize':
       return action.targetId !== null && getMedicineTargets(state, action.actorId).includes(action.targetId)
-    // abilities.json "Tend Wounds": the actor's own bleed
+    // combat.tex "Tend Wounds": the actor's own bleed
     case 'tendWounds':
       return (state.characters[action.actorId]?.injuries.bleed ?? 0) > 0
     // gear.tex "Potions and Medicine": a potion in hand with doses enough
@@ -499,7 +499,7 @@ export function getFinishBar(state: SceneState, held: RootAction): string | null
     case 'cauterize':
       return hasAbility(c, getMedicineAbility(held.kind)) && isDeclarationComplete(state, c, held) ? null : 'nobody bleeding within reach'
     case 'tendWounds':
-      return hasAbility(c, getMedicineAbility(held.kind)) && isDeclarationComplete(state, c, held) ? null : 'not bleeding'
+      return isDeclarationComplete(state, c, held) ? null : 'not bleeding'
     case 'reload': {
       const row = getReloadRow(c, held)
       return row && getRowStack(c, row, held.ammoId) !== null ? null : 'nothing to load'

@@ -454,14 +454,7 @@
       "burden": 3
     }
   },
-  "abilities": {
-    "tend-wounds": {
-      "value": 1,
-      "name": "tend-wounds",
-      "XP": 0,
-      "type": "ability"
-    }
-  },
+  "abilities": [],
   "spells": {},
   "notes": ""
 }

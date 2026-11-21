@@ -761,12 +761,6 @@
       "name": "technical-lift",
       "XP": 0,
       "type": "ability"
-    },
-    "tend-wounds": {
-      "value": 1,
-      "name": "tend-wounds",
-      "XP": 0,
-      "type": "ability"
     }
   },
   "spells": {},

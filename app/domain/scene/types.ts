@@ -1461,7 +1461,7 @@ export const FirstAidActionSchema = z.object({
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
-// abilities.json "Tend Wounds": a health test against the actor's own bleed;
+// combat.tex "Tend Wounds": a health test against the actor's own bleed;
 // what it did to them, written at the resolve.
 export const TendWoundsActionSchema = z.object({
   ...ActionBase,

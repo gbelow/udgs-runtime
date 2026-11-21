@@ -7,18 +7,24 @@ import { ABILITIES, hasAbility, type AbilityKey } from '../../abilities'
 import { canAfford, canAffordOrHold, CANNOT_AFFORD } from '../../character/rules/cost'
 import { getKnowledgeTestTerms } from '../../character/rules/knowledge'
 import { landed } from '../../character/rules/production'
-import { getHealth, getHealthTerms } from '../../character/rules/skills'
+import { getHealth } from '../../character/rules/skills'
+import { getTendWoundsTest } from '../../character/rules/tendWounds'
 import type { CauterizeAction, FirstAidAction, SceneState, TendWoundsAction } from '../types'
 import { getAdjacentIds } from './board/board'
 
 export type MedicineKind = 'firstAid' | 'tendWounds' | 'cauterize'
+type LearnedMedicineKind = Exclude<MedicineKind, 'tendWounds'>
 
-// The ability each medicine action is the use of.
-const ABILITY: Record<MedicineKind, AbilityKey> = {
+// The ability each learned medicine action is the use of. Tend Wounds is
+// anyone's, learned by nobody (combat.tex "Tend Wounds").
+const ABILITY: Record<LearnedMedicineKind, AbilityKey> = {
   firstAid: 'first-aid',
-  tendWounds: 'tend-wounds',
   cauterize: 'cauterization',
 }
+
+// combat.tex "Tend Wounds": "It takes 8 AP during combat, requires
+// concentration".
+const TEND_WOUNDS: ActionCost = { AP: 8, STA: 0 }
 
 // abilities.tex "First Aid": "on self or other" — the actor, or anyone next
 // to them (the table's ruling: in melee), who is bleeding. On a fight
@@ -29,32 +35,33 @@ export function getMedicineTargets(state: SceneState, actorId: string): string[]
 }
 
 // What the action costs: the ability's own price (the table's ruling for
-// First Aid's "full turn": 8 AP).
+// First Aid's "full turn": 8 AP), or Tend Wounds' own.
 export function getMedicineCost(kind: MedicineKind): ActionCost {
+  if (kind === 'tendWounds') return TEND_WOUNDS
   const { AP, STA } = ABILITIES[ABILITY[kind]].cost
   return { AP, STA }
 }
 
-// Why the character cannot make the action now, or null. All are marked
-// concentration in the catalog (abilities.tex "Medicine"): the focus surge,
-// and held over for want of the AP.
+// Why the character cannot make the action now, or null. All require
+// concentration (abilities.tex "Medicine", combat.tex "Tend Wounds"): the
+// focus surge, and held over for want of the AP.
 export function getMedicineBar(state: SceneState, c: CampaignCharacter, kind: MedicineKind): string | null {
-  if (!hasAbility(c, ABILITY[kind])) return `${ABILITIES[ABILITY[kind]].name} not learned`
+  if (kind !== 'tendWounds' && !hasAbility(c, ABILITY[kind])) return `${ABILITIES[ABILITY[kind]].name} not learned`
   if (isCombatStarted(state) && c.usedSurge !== 'focus') return NEEDS_FOCUS
   if (kind === 'tendWounds' && c.injuries.bleed === 0) return 'not bleeding'
   if (kind !== 'tendWounds' && getMedicineTargets(state, c.id).length === 0) return 'nobody bleeding within reach'
   const cost = getMedicineCost(kind)
-  return (isConcentrationAbility(kind) ? canAffordOrHold(c, cost, isCombatStarted(state)) : canAfford(c, cost, isCombatStarted(state))) ? null : CANNOT_AFFORD
+  return (isConcentrationMedicine(kind) ? canAffordOrHold(c, cost, isCombatStarted(state)) : canAfford(c, cost, isCombatStarted(state))) ? null : CANNOT_AFFORD
 }
 
-// Whether the catalog marks the ability the action is the use of as
-// requiring concentration.
-export function isConcentrationAbility(kind: MedicineKind): boolean {
-  return ABILITIES[ABILITY[kind]].concentration
+// Whether the action requires concentration: Tend Wounds always, a learned
+// one as the catalog marks its ability.
+export function isConcentrationMedicine(kind: MedicineKind): boolean {
+  return kind === 'tendWounds' || ABILITIES[ABILITY[kind]].concentration
 }
 
-// The ability a medicine action is the use of.
-export function getMedicineAbility(kind: MedicineKind): AbilityKey {
+// The ability a learned medicine action is the use of.
+export function getMedicineAbility(kind: LearnedMedicineKind): AbilityKey {
   return ABILITY[kind]
 }
 
@@ -66,10 +73,10 @@ export function getFirstAidTerms(state: SceneState, root: FirstAidAction): { ski
   return actor && target ? { skill: [...getKnowledgeTestTerms('medicine')(actor), { label: "target's health", value: getHealth(target) }], DL: [{ label: 'bleed', value: target.injuries.bleed }] } : null
 }
 
-// abilities.json "Tend Wounds": a health test against the actor's own bleed.
+// combat.tex "Tend Wounds": "a health test vs bleed value", the actor's own.
 export function getTendWoundsTerms(state: SceneState, root: TendWoundsAction): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[root.actorId]
-  return actor ? { skill: getHealthTerms(actor), DL: [{ label: 'bleed', value: actor.injuries.bleed }] } : null
+  return actor ? getTendWoundsTest(actor).terms : null
 }
 
 // "Reduces bleeding by 0/0/1/2", First Aid's and Tend Wounds' alike.
@@ -85,7 +92,8 @@ export function getFirstAidFacts(root: FirstAidAction): FirstAidAction['facts'] 
   return root.targetId ? { [root.targetId]: bleed > 0 ? [stopBleed('first aid', bleed)] : [] } : {}
 }
 
-// Tend Wounds lowers the bleed as First Aid does, and staunches nothing.
+// combat.tex "Tend Wounds": "stops 0/0/1/2 bleed per use", and staunches
+// nothing.
 export function getTendWoundsFacts(root: TendWoundsAction): TendWoundsAction['facts'] {
   const bleed = FIRST_AID_BLEED[root.roll?.degree ?? 'miss']
   return { [root.actorId]: bleed > 0 ? [stopBleed('tend wounds', bleed)] : [] }
