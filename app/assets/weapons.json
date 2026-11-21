@@ -446,8 +446,7 @@
         "AP": 3,
         "properties": [
           "soft",
-          "DEF",
-          "basher"
+          "DEF"
         ],
         "payload": [],
         "heavy": {
@@ -480,10 +479,10 @@
         "payload": []
       },
       {
-        "name": "parry",
+        "name": "shaft",
         "handed": "one",
         "range": "short",
-        "material": "metal",
+        "material": "wood",
         "RES": 15,
         "blunt": 0,
         "cut": 0,

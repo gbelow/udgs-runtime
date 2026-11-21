@@ -195,6 +195,13 @@ for every attack of a's on d:
     perAP      = worth / attack AP
 ```
 
+A surge that buffs whoever makes it for the round (the movement surge: +3 to reflexes,
+combat.tex "Reflex"; Tactical Movement's +3 to the SD against shots) is read off the table too:
+each defence also keeps its DL with the surge made (`PairDefence.surged`), and the pair for a
+defender who has made it gives that DL (`getPair`'s `surge`, the defender's own by default).
+Every immediate reading takes the surge made this round; a potential one, a fresh round, none
+(`makeThreat`, `getIncoming` fresh).
+
 On top of it, where the two stand and what they have left (`makeThreat`):
 
 ```
@@ -490,21 +497,28 @@ AP may not pay for every gear move)
 A shot at me from within my reach: the opportunity attack first (§9), if worth making.
 
 ```
-none:      score = harm(attack, none at DL) − V(my AP, my STA)
-defence d: score = harm(attack, d at DL) − V(my AP − d.AP, my STA − d.STA)
+none:      score = harm(attack, none at DL) − V(kept(0), my STA)
+defence d: score = harm(attack, d at DL) − V(kept(d.AP), my STA − d.STA)
                  + STAWorth(d.STA)
                  + (someone else already guards me ? w.redundant : 0)
 V = my round value (§2), the attacker's strike left out of those to come
+kept(spent) = max(0, min(AP − spent, AP − surge AP left))   surge AP left counted only when it
+              is lost at the stack's end (`keepsSurgeAP`: not in turn, not fleeing, no turn
+              waiting); else AP − spent
+d among the answers the panel offers with no surge: one only a surge opens is reached by
+making the surge (below)
 
 DL = the attack's DL with every declared defence counted (when someone else guards),
      else the pair table's DL for d
 answer with the lowest score
 
-reaction surge, where the panel offers it and STA > 0 (the user's ruling: when the harm it
-would take is more than what the STA is worth; an opportunity attack or a riposte on me
-answered the same way):
-    made if  lowest score − lowest score after the surge > STAWorth(the surge's STA
-             + what the recovery surge would have given back)
+each surge the panel offers (reaction, movement), where STA > 0 (the user's ruling: when the
+harm it would take is more than what the STA is worth; an opportunity attack or a riposte on
+me answered the same way), the attack and the answers read again on the fight with it made
+(the movement surge's reflexes in the pair's DL, its AP not kept):
+    gain     = lowest score − lowest score after the surge − STAWorth(the surge's STA
+               + what the recovery surge would have given back)
+    made     the surge with the most gain, if gain > 0
 ```
 
 An attack whose arrows or variant the seat does not know is read as the worst row of its
@@ -521,7 +535,8 @@ toAlly = DefendedHarm(attack on ally, ally's means)
 toMe   = DefendedHarm(same attack on me, my means)
 skip unless toAlly.worth − toMe > w.cover
 
-for each block / intercept / guard offered:
+for each block / intercept / guard offered (none a surge with a press of its own opens;
+a learned one, the protection surge, is made with its defence):
     score = harm left on the ally at the DL the table gives with it declared
           + SpendPrice(cost, my STA, my bleed, Danger(me, immediate, here, after paying))
 

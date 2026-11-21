@@ -1,4 +1,4 @@
-import type { CampaignCharacter } from '../types'
+import type { CampaignCharacter, SurgeKind } from '../types'
 import { ActionSchema, SceneStateSchema, type ActionDraft, type AttackAction, type SceneState, type StrikeAction } from '../scene/types'
 import type { ActionCost } from '../character/rules/actionCosts'
 import type { Outcome } from '../character/rules/damage'
@@ -17,7 +17,7 @@ import { getLoadableAmmo } from '../item/rules/ammo'
 import { getSTA } from '../character/rules/characteristics'
 import { getInjuryPenalty } from '../character/rules/afflictions'
 import { getTestMode, mayRollRisky } from '../character/rules/effects'
-import { ROUND_AP } from '../tables'
+import { ROUND_AP, SURGES } from '../tables'
 import { getBestSpend } from './predict'
 import { getMostHOP, type HarmByDegree } from './odds'
 
@@ -40,6 +40,10 @@ export type PairDefence = {
   draft: ActionDraft | null
   cost: ActionCost
   DL: number
+  // the DL with each surge that buffs (combat.tex "Reflex": the movement
+  // surge's reflexes) made this round, where it differs (`getPair` gives it
+  // as `DL` for a defender who has made it)
+  surged?: Partial<Record<SurgeKind, number>>
   graze: number
   miss: number
   // harm on a hit at each HOP from 0 against this defence, where it differs
@@ -90,6 +94,10 @@ export type PairAttack = {
 }
 
 export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + 5 * o.bleed : 0)
+
+// The surges that put buffs on whoever makes them for the round
+// (character/rules/effects.ts `getSurgeEffects`).
+const BUFFING_SURGES = (Object.keys(SURGES) as SurgeKind[]).filter((kind) => ((SURGES[kind] as { buffs?: readonly unknown[] }).buffs ?? []).length > 0)
 
 const fresh = (c: CampaignCharacter): CampaignCharacter => ({ ...c, usedSurge: null, surgeFloor: null, runsFree: false, resources: { ...c.resources, AP: ROUND_AP, STA: getSTA(c) } })
 
@@ -196,7 +204,11 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
           const own = bonus === 'hook' && def.draft ? hitsIn(def) : null
           const graze = harms.read(`${answerKey(def)}|graze`, () => harmAt(def.state, root, 'graze', target))
           const miss = harms.read(`${answerKey(def)}|miss`, () => harmAt(def.state, root, 'miss', target))
-          return { draft: def.draft, cost: def.cost, DL: t.DL, graze, miss, ...(own && own.some((h, i) => h !== hits[i]) ? { hits: own } : {}) }
+          const surged = Object.fromEntries(BUFFING_SURGES.flatMap((kind) => {
+            const made = getRootTest({ ...def.state, characters: { ...def.state.characters, [d]: { ...target, usedSurge: kind } } }, root)
+            return made && made.DL !== t.DL ? [[kind, made.DL]] : []
+          }))
+          return { draft: def.draft, cost: def.cost, DL: t.DL, ...(Object.keys(surged).length > 0 ? { surged } : {}), graze, miss, ...(own && own.some((h, i) => h !== hits[i]) ? { hits: own } : {}) }
         })
         attacks.push({
           kind,
@@ -342,23 +354,27 @@ function getHarms(attacker: CampaignCharacter, defender: CampaignCharacter): Har
 // Kept by the attacker's signature, then the defender's: the signatures are
 // made once per sheet, so a lookup hashes no new string. A pair is read with
 // the item ids of the two it was read for; asked for two whose items have
-// other ids, it is given again with theirs (`renamed`).
+// other ids, it is given again with theirs (`renamed`). `surge` is the surge
+// the defender is read as having made this round, its own by default (none
+// for a fresh round): each defence's DL is then the one with it made
+// (`PairDefence.surged`), each such pair kept beside the plain one.
 type Kept = { pair: PairAttack[]; from: [Map<string, string>, Map<string, string>]; as: Map<string, PairAttack[]> }
 
 const pairs = new Map<string, Map<string, Kept>>()
 let kept = 0
 const MOST_KEPT = 4000
 
-export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter): PairAttack[] {
+export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter, surge: SurgeKind | null = defender.usedSurge): PairAttack[] {
   const by = signature(attacker)
   const on = signature(defender)
   const ids = `${getItemIds(attacker)}|${getItemIds(defender)}`
+  const buffed = surge !== null && BUFFING_SURGES.includes(surge) ? surge : null
   let against = pairs.get(by)
   const known = against?.get(on)
   if (known) {
     let given = known.as.get(ids)
     if (!given) known.as.set(ids, (given = renamed(known.pair, known.from, [getItemTokens(attacker), getItemTokens(defender)]) ?? readPair(attacker, defender)))
-    return given
+    return buffed ? surgedPair(known, ids, given, buffed) : given
   }
   if (kept >= MOST_KEPT) {
     pairs.clear()
@@ -367,9 +383,23 @@ export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter
   }
   if (!against) pairs.set(by, (against = new Map()))
   const pair = readPair(attacker, defender)
-  against.set(on, { pair, from: [getItemTokens(attacker), getItemTokens(defender)], as: new Map([[ids, pair]]) })
+  const made: Kept = { pair, from: [getItemTokens(attacker), getItemTokens(defender)], as: new Map([[ids, pair]]) }
+  against.set(on, made)
   kept++
-  return pair
+  return buffed ? surgedPair(made, ids, pair, buffed) : pair
+}
+
+// The pair with every defence's DL the one it has with `surge` made, kept
+// beside the plain one so that it is the same pair each time it is asked for.
+function surgedPair(known: Kept, ids: string, plain: PairAttack[], surge: SurgeKind): PairAttack[] {
+  const key = `${ids}|${surge}`
+  let given = known.as.get(key)
+  if (!given) {
+    const changes = plain.some((a) => a.defences.some((d) => d.surged?.[surge] !== undefined))
+    given = changes ? plain.map((a) => ({ ...a, defences: a.defences.map((d) => ({ ...d, DL: d.surged?.[surge] ?? d.DL })) })) : plain
+    known.as.set(key, given)
+  }
+  return given
 }
 
 // The pair read for two sheets, with each item id of theirs written as the

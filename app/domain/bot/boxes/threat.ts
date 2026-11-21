@@ -1,5 +1,5 @@
 import type { Coord, MovementKind, SurgeKind } from '../../types'
-import { getBindingSurge, getSurgeAPLeft, getSurgeRecovery } from '../../character/rules/surge'
+import { getBindingSurge, getSurgeAPLeft, getSurgeRecovery, isLearnedSurge } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
 import type { Action, ActionDraft, MoveAction, SceneState, StrikeAction } from '../../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../../scene/commands/registry'
@@ -26,7 +26,7 @@ import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './
 import { REST_TUNING, type RestTuning } from '../rest'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
-import { getTurnHolder } from '../../scene/rules/turn'
+import { getTurnHolder, keepsSurgeAP } from '../../scene/rules/turn'
 import { getSwitches } from '../arms'
 import { getPayBar } from '../../item/rules/moves'
 
@@ -903,7 +903,9 @@ function tryAnswer(view: SceneState, members: readonly string[], id: string, dra
 // one that leaves the least of the ally's harm and costs the character the
 // least, if that beats the ally answering for itself. Each is read with the
 // DL the table gives the attack against it, as the difference it makes to
-// the attack answered with none.
+// the attack answered with none. One a surge with a press of its own opens
+// is left out: that surge is made by pressing it, only where it is weighed
+// (`answer`); a learned one is made only with the defence it opens.
 function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | null {
   const view = input.view()
   const open = getOpenAction(view)
@@ -925,7 +927,7 @@ function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | nul
   const at = cellOf(view, id)
   let best: { draft: ActionDraft; picks: Pick[]; score: number } | null = null
   for (const o of getAvailableActions(view, id)) {
-    if (!o.available || o.reactionTo !== open.id || !GUARDING.has(o.draft.kind) || !o.cost) continue
+    if (!o.available || o.reactionTo !== open.id || !GUARDING.has(o.draft.kind) || !o.cost || (o.surge !== null && !isLearnedSurge(o.surge))) continue
     const tried = tryAnswer(view, input.members, id, o.draft, means, w)
     const DL = tried ? pairDL(tried.ready) : null
     if (!tried || DL === null) continue
@@ -945,21 +947,27 @@ function protect(input: SeatInput, id: string, w: ThreatWeights): Decision | nul
 // (`draft` null); where someone else defends it already (`guardian`), read
 // against the attack as that defence leaves it, and only one that saves more
 // than `redundant`. `score` is the harm left less what is kept, `harm` the
-// harm left.
+// harm left. What is kept is the AP left once the stack is played out: an
+// earmarked surge's AP left is lost then by one who does not keep it
+// (rules/turn.ts `keepsSurgeAP`), so is spent first and never kept. An answer
+// only a surge opens is left out: the surge is weighed by itself (`answer`).
 function weighDefences(view: SceneState, members: readonly string[], id: string, attack: PairAttack, gap: number, guardian: string | undefined, w: ThreatWeights): { draft: ActionDraft | null; score: number; harm: number } {
   const open = getOpenAction(view)
   const at = cellOf(view, id)
   const means = getMeans(view.characters[id], true, w)
   const value = getRoundValue(view, members, id, at, w, open?.actorId)
   const APvalue = getAPValue(view, members, id, at, w)
-  const offered = open ? getAvailableActions(view, id).filter((o) => o.available && o.reactionTo === open.id) : []
+  const offered = open ? getAvailableActions(view, id).filter((o) => o.available && o.reactionTo === open.id && o.surge === null) : []
+  const me = view.characters[id]
+  const dropped = me && !keepsSurgeAP(view, id) ? getSurgeAPLeft(me) : 0
+  const keptAP = (spent: number) => Math.max(0, Math.min(means.AP - spent, means.AP - dropped))
   const worth = (d: PairDefence) => getHarmAgainst(attack, d, gap)
   const none = attack.defences.find((d) => d.draft === null)
   // defended by someone else: every answer read with the DL the defences together give the attack
   const pairDL = guardian && none ? getPairDL(view, none) : null
   const guarded = pairDL ? pairDL(view) : null
   const bare = none ? worth(guarded === null ? none : { ...none, DL: guarded }) : 0
-  let best: { draft: ActionDraft | null; score: number; harm: number } = { draft: null, score: bare - value(means.AP, means.STA), harm: bare }
+  let best: { draft: ActionDraft | null; score: number; harm: number } = { draft: null, score: bare - value(keptAP(0), means.STA), harm: bare }
   for (const o of offered) {
     const d = attack.defences.find((x) => x.draft && sameDraft(x.draft, o.draft))
     if (!d) continue
@@ -967,7 +975,7 @@ function weighDefences(view: SceneState, members: readonly string[], id: string,
     const DL = pairDL ? (tried ? pairDL(tried.ready) : null) : d.DL
     if (DL === null) continue
     const harm = worth({ ...d, DL })
-    const score = harm - value(Math.max(0, means.AP - d.cost.AP), Math.max(0, means.STA - d.cost.STA)) + getSTAWorth(view.characters[id], d.cost.STA, means.STA, APvalue, w) + (guardian ? w.redundant : 0)
+    const score = harm - value(keptAP(d.cost.AP), Math.max(0, means.STA - d.cost.STA)) + getSTAWorth(view.characters[id], d.cost.STA, means.STA, APvalue, w) + (guardian ? w.redundant : 0)
     if (score < best.score) best = { draft: o.draft, score, harm }
   }
   return best
@@ -975,11 +983,13 @@ function weighDefences(view: SceneState, members: readonly string[], id: string,
 
 // The answer to an attack on `id`: the opportunity attack a shot draws from
 // it, if one is worth making, then the defence that leaves the least harm less
-// what it keeps, or none (`weighDefences`). The reaction surge is made first
-// where the answers with it beat those without (the user's ruling: when the
-// harm it would take is more than what the STA is worth), the STA it spends
-// counted in what it keeps, by more than the price of what the recovery surge
-// it gives up would give back;
+// what it keeps, or none (`weighDefences`). A surge the panel offers (the
+// reaction surge, or the movement surge with its reflexes, combat.tex
+// "Reflex") is made first where the answers with it, read on the fight with
+// it made, beat those without (the user's ruling: when the harm it would take
+// is more than what the STA is worth), by more than the price of the STA it
+// spends and what the recovery surge it gives up would give back; of several,
+// the one that gains most;
 // an opportunity attack or a riposte on it is answered the same way.
 function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null {
   const view = input.view()
@@ -996,19 +1006,25 @@ function answer(input: SeatInput, id: string, w: ThreatWeights, find: Find, pres
   const { attack, gap } = known
   const means = getMeans(me, true, w)
   const best = weighDefences(view, input.members, id, attack, gap, guardian, w)
-  const surge = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === 'reaction')
-  if (surge && me.resources.STA > 0) {
+  const surges = me.resources.STA > 0 ? input.buttons.filter((b) => b.command.kind === 'surge' && argOf(b.command) === id) : []
+  let surging: { button: (typeof surges)[number]; gain: number; why: string } | null = null
+  for (const surge of surges) {
+    const kind = surge.command.args[1] as SurgeKind
     const surged = trial(view, surge.command)
     const made = surged.characters[id]
-    if (surged !== view && made?.usedSurge === 'reaction') {
-      const recovered = getRecoveredSTA(me, me.resources.STA, getSurgeRecovery('recovery')(me)) - me.resources.STA
-      const cost = getSTAWorth(me, me.resources.STA - made.resources.STA + recovered, me.resources.STA, getAPValue(view, input.members, id, cellOf(view, id), w), w)
-      const withSurge = weighDefences(surged, input.members, id, attack, gap, guardian, w)
-      if (withSurge.draft !== null && best.score - withSurge.score > cost) {
-        const pressed = press(surge, `makes the reaction surge to answer with ${withSurge.draft.kind} (harm ${withSurge.harm.toFixed(1)} less kept: ${withSurge.score.toFixed(1)} against ${best.score.toFixed(1)}, the surge's STA and the recovery given up ${cost.toFixed(1)})`)
-        if (pressed) return pressed
-      }
-    }
+    const reopened = getOpenAction(surged)
+    const after = reopened ? getKnownAttack(surged, reopened, id) : null
+    if (surged === view || made?.usedSurge !== kind || !after) continue
+    const recovered = getRecoveredSTA(me, me.resources.STA, getSurgeRecovery('recovery')(me)) - me.resources.STA
+    const cost = getSTAWorth(me, me.resources.STA - made.resources.STA + recovered, me.resources.STA, getAPValue(view, input.members, id, cellOf(view, id), w), w)
+    const withSurge = weighDefences(surged, input.members, id, after.attack, after.gap, guardian, w)
+    const gain = best.score - withSurge.score - cost
+    if (withSurge.draft === null || gain <= 0 || (surging && gain <= surging.gain)) continue
+    surging = { button: surge, gain, why: `makes the ${kind} surge to answer with ${withSurge.draft.kind} (harm ${withSurge.harm.toFixed(1)} less kept: ${withSurge.score.toFixed(1)} against ${best.score.toFixed(1)}, the surge's STA and the recovery given up ${cost.toFixed(1)})` }
+  }
+  if (surging) {
+    const pressed = press(surging.button, surging.why)
+    if (pressed) return pressed
   }
   const covered = guardian ? `, ${view.characters[guardian]?.name ?? guardian} defends it` : ''
   if (best.draft === null) return press(find('pass', id), `lets it come (harm ${best.harm.toFixed(1)}, less kept ${best.score.toFixed(1)}${covered})`)

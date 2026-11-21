@@ -1,4 +1,4 @@
-import type { CampaignCharacter, Coord, MovementKind, Third } from '../types'
+import type { CampaignCharacter, Coord, MovementKind, SurgeKind, Third } from '../types'
 import type { SceneState } from '../scene/types'
 import type { RollMode } from '../play/dice'
 import { getMovementOptions, getWalkableCells } from '../scene/rules/move'
@@ -490,8 +490,10 @@ function getPairAPValue(c: CampaignCharacter, foe: CampaignCharacter, tuning: Th
   return priced.reduce((most, t) => (t.attack.opens.action && t.undefended > 0 ? Math.max(most, t.harm / Math.max(1, t.attack.cost.AP)) : most), 0)
 }
 
-export function getPairThreat(attacker: CampaignCharacter, defender: CampaignCharacter, STA: number, tuning: ThreatTuning): PairThreat {
-  const pair = getPair(attacker, defender)
+// `surge` as in `getPair`: the defender's own this round by default, null
+// for a fresh round, in which the surge made this one has lapsed.
+export function getPairThreat(attacker: CampaignCharacter, defender: CampaignCharacter, STA: number, tuning: ThreatTuning, surge: SurgeKind | null = defender.usedSurge): PairThreat {
+  const pair = getPair(attacker, defender, surge)
   return keptPair(pairThreats, pair, tuning, `${STA}|${defender.injuries.bleed}`, () => {
     const APvalue = getPairAPValue(defender, attacker, tuning)
     return readPair(pair, defender, STA, tuning, (spent) => spent.AP * APvalue + getSTAWorth(defender, spent.STA, STA, APvalue, tuning))
@@ -513,7 +515,7 @@ function makeThreat(a: Party, d: Party, means: Means, guardSTA: number, when: 'n
   const attacker = a.state.characters[a.id]
   const defender = d.state.characters[d.id]
   if (!attacker || !defender) return null
-  const core = getStrongestPerAP(getPairThreat(attacker, defender, guardSTA, tuning))
+  const core = getStrongestPerAP(getPairThreat(attacker, defender, guardSTA, tuning, when === 'potential' ? null : defender.usedSurge))
   if (!core) return null
   const { attack } = core
   const moveAP = closingAP(getPace(a.state, a.id), closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, attack.reach)))
@@ -661,7 +663,7 @@ function getIncoming(state: SceneState, plays: readonly string[], foe: string, d
     const ca = state.characters[foe]
     const cd = state.characters[d]
     if (!ca || !cd) return null
-    const t = getStrongestPerAP(getPairThreat(ca, cd, getMeans(cd, plays.includes(d), tuning).STA, tuning))
+    const t = getStrongestPerAP(getPairThreat(ca, cd, getMeans(cd, plays.includes(d), tuning).STA, tuning, fresh ? null : cd.usedSurge))
     const held = getMeans(ca, plays.includes(foe), tuning)
     const means = fresh ? freshMeans(held) : held
     if (!t || (t.attack.needsFocus && ca.usedSurge !== 'focus' && !means.surge)) return null

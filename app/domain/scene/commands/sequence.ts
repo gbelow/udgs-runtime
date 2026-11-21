@@ -18,7 +18,7 @@ import { getStunEscapes } from '../rules/grapple'
 import { getRecipeFollowUps } from '../rules/recipes'
 import { makeAction } from '../factories'
 import { canTakeQueuedTurn, getFleeFollowUps, getFleersOf } from '../rules/flee'
-import { getTurnHolder } from '../rules/turn'
+import { getTurnHolder, keepsSurgeAP } from '../rules/turn'
 import { canMakeFeintSurge } from '../../character/rules/surge'
 import { getHeldRoll } from '../rules/heldRoll'
 import { isHeldCalled } from '../rules/heldTest'
@@ -80,15 +80,12 @@ export function advance(state: SceneState, newId: () => string, caller: Caller):
   return top.holding && !isVoided(state, top) ? advance(parkHeld(state, top), newId, caller) : land(state, top, newId, caller)
 }
 
-// combat.tex "Action surge": "Ending the turn or the reaction loses the
-// surge AP". Once the stack is played out every reaction to it has ended, so
-// whoever holds earmarked surge AP outside a turn loses what is left of it,
-// and the run it made free with it; the one in turn, those about to flee and
-// those whose turn waits to resume keep theirs.
+// Once the stack is played out every reaction to it has ended, so whoever
+// does not keep their earmarked surge AP (rules/turn.ts `keepsSurgeAP`) loses
+// what is left of it, and the run it made free with it.
 function dropReactionSurges(state: SceneState): SceneState {
-  const keeping = new Set([getTurnHolder(state), ...state.fleers, ...state.turnQueue.map((q) => q.id)])
   return Object.values(state.characters)
-    .filter((c) => c.surgeFloor !== null && !keeping.has(c.id))
+    .filter((c) => c.surgeFloor !== null && !keepsSurgeAP(state, c.id))
     .reduce((s, c) => updateCharacter(c.id, (ch) => ({ ...endSurge(ch), runsFree: false }), 'reaction ends')(s), state)
 }
 

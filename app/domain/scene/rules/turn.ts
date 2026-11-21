@@ -47,6 +47,16 @@ export function getTurnHolder(state: SceneState): string | null {
   return state.characters[state.inTurnCharacter] ? state.inTurnCharacter : null
 }
 
+// combat.tex "Action surge": "Ending the turn or the reaction loses the
+// surge AP". Whether the character keeps what is left of an earmarked
+// surge's AP once the stack is played out: the one in turn, those about to
+// flee and those whose turn waits to resume keep it; anyone else made it
+// with a reaction, which has ended by then (commands/sequence.ts
+// `dropReactionSurges`).
+export function keepsSurgeAP(state: SceneState, id: string): boolean {
+  return getTurnHolder(state) === id || state.fleers.includes(id) || state.turnQueue.some((q) => q.id === id)
+}
+
 // Why the character cannot take a turn this round, whoever holds it now.
 function getTurnlessReason(state: SceneState, id: string): string | null {
   const c = state.characters[id]
