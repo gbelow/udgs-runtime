@@ -20,7 +20,6 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachDrawn, getStandingCost, type Drawn } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
-import { getRememberedAge } from '../memory'
 import { withSheet, cellOf, getTargetSpend, getRoundValue, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmTaken, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getAPValue, getSTAWorth, getStrikeValue, getOutcome, getPresence, getTeam, getThreatened, getThreatening, threatValue, type SpendCost } from '../threat'
 import { ROUND_AP } from '../../tables'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
@@ -30,6 +29,7 @@ import type { Box, Decision, Pass, SeatInput } from '../decision'
 import { getTurnHolder, keepsSurgeAP } from '../../scene/rules/turn'
 import { getSwitches } from '../arms'
 import { getPayBar } from '../../item/rules/moves'
+import { getGrip } from '../../item/rules/hands'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
 // every term weighed by a tweakable. A turn asks two questions (the user's
@@ -53,8 +53,9 @@ import { getPayBar } from '../../item/rules/moves'
 // - an attack after a change of arms (bot/arms.ts) is weighed the same way on
 //   the sheet the switch leaves, the switch's AP spent and the defence lost
 //   read against the arms held now, less the switch's STA and the opportunity
-//   attacks its priced moves draw; only its first move is made, and the turn
-//   weighed again after it;
+//   attacks its priced moves draw; once its first move is made, the rest of
+//   the switch and the attack follow (the user's ruling: an arms attack
+//   planned is made), each while the sheet is the one it was planned from;
 // - with no attack worth making, a walk is worth the potential harm the
 //   character could do from the cell to the foe it threatens most, counting
 //   every attack a fresh round pays for once the walk in is paid, so that
@@ -222,8 +223,14 @@ const attackName = (attack: PairAttack) => `${attack.row.attack}${attack.heavy ?
 type Plan =
   | { kind: 'attack'; intent: Intent; score: number; why: string }
   | { kind: 'walk'; intent: Intent; score: number; why: string }
-  | { kind: 'arms'; intent: Intent; score: number; why: string }
+  | { kind: 'arms'; intent: Intent; score: number; why: string; then?: Pursuit['steps'] }
   | { kind: 'surge'; surge: SurgeKind; score: number; why: string }
+
+// What an arms attack still has to do once its first move is made (the user's
+// ruling: an arms attack planned is made): each step with the arms and the AP
+// the character has when it is due, the switch's other moves and then the
+// attack, kept for the turn it was planned in.
+type Pursuit = { turn: string; steps: { plan: Plan; arms: string; AP: number }[] }
 
 // The ways the turn may be paid for: with no surge, or after the combat or the
 // movement surge (combat.tex "Action surge"), tried on the fight as a person
@@ -518,15 +525,21 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
   return { dangerLeft, price, STAWorth, score }
 }
 
-// With no foe in sight, the search widens (the user's ruling): a walk to where
-// the character sees the most of the board its side sees none of now, and the
-// nearer the board's middle the better, `search` for every such cell and
-// `aggression` for every cell nearer the middle, `recall` for every foe the
-// seat remembers whose cell comes into sight, less the walk at its price,
-// `arrival` for this round's danger at the cell with what is left after it, as
-// every walk pays, and `peril` for every point of next round's danger the cell
-// holds more than where it stands, as a walk's standing reads it (remembered
-// foes counted where they were noticed).
+// With no foe in sight, the search widens (the user's ruling). Where the side
+// knows a foe stands (an ally sees it, or the seat remembers where it was last
+// noticed, heard among others), the search is for that place (the user's
+// ruling): `recall` for every such foe whose cell comes into sight, `offence`
+// for the potential threat it gains there on those it would see (the user's
+// ruling: a cell an archer sees a foe from is one it can shoot from), and
+// `aggression` for every cell nearer the nearest. Where it knows of none, a
+// walk to where the character sees the most of the board its side sees none
+// of now, and the nearer the board's middle the better, `search` for every
+// such cell and `aggression` for every cell nearer the middle. Either way, less
+// the walk's AP and STA at their price with no danger read, and `peril` for
+// every point of a fresh round's danger the cell holds more than where it
+// stands, as a walk's standing reads it (remembered foes counted where they
+// were noticed). A search is weighed for the round to come, never this one's
+// danger (the user's ruling: a foe stumbled on unseen is detection's matter).
 // The cells weighed are `SEARCH_CELLS` of the walk's, spread from the
 // furthest in, and the board is read at most `SEARCH_SPREAD` cells of it.
 const SEARCH_CELLS = 12
@@ -540,14 +553,22 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
   const eyes = getEyesToward(view, id, 0)
   const sees = (from: Coord, cell: Coord) => seesAcross(board, [from], [cell], eyes)
   const team = members.flatMap((m) => cellOf(view, m) ?? [])
-  const dark = extentCells(board.origin, board.extent).filter((c) => !team.some((t) => sees(t, c)))
-  if (dark.length === 0) return null
-  const remembered = getSides(view, members).foes.flatMap((foe) => {
-    const at = getRememberedAge(view, foe) !== null ? cellOf(view, foe) : null
-    return at ? [{ at, presence: getPresence(view, foe, w) }] : []
+  // where the side knows a foe the character does not notice stands: seen by
+  // an ally, or remembered where it was last noticed (heard, among others)
+  const known = getSides(view, members).foes.flatMap((foe) => {
+    const at = cellOf(view, foe)
+    return at ? [{ foe, at, presence: getPresence(view, foe, w) }] : []
   })
+  // what the character could do from `cell` to the known foes it would see
+  // there, as a walk's standing reads it (`planWalk`): the most potential
+  // threat on any one of them
+  const offence = (cell: Coord): number => known.reduce((most, k) => (sees(cell, k.at) ? Math.max(most, threatValue(getPotentialThreat(view, members, id, k.foe, k.at, cell, w))) : most), 0)
+  const offenceHere = offence(here)
+  const dark = known.length ? [] : extentCells(board.origin, board.extent).filter((c) => !team.some((t) => sees(t, c)))
+  if (known.length === 0 && dark.length === 0) return null
+  const nearest = (cell: Coord) => Math.min(...known.map((k) => distance(cell, k.at)))
   const perilHere = getDanger(view, members, id, 'potential', here, undefined, w)
-  const every = Math.ceil(dark.length / SEARCH_SPREAD)
+  const every = Math.max(1, Math.ceil(dark.length / SEARCH_SPREAD))
   const read = dark.filter((_, i) => i % every === 0)
   let best: { cell: Coord; score: number; found: number; budget: Budget; movement: MovementKind } | null = null
   for (const { b, walks } of getWalkBudgets(view, id, getBudgets(view, id))) for (const walk of walks) {
@@ -557,15 +578,18 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
       const { cell, AP, STA } = far[i]
       if (!isWalkPaid(view, id, b, AP)) continue
       const found = read.filter((c) => sees(cell, c)).length * every
-      const recalled = remembered.reduce((sum, r) => sum + (sees(cell, r.at) ? r.presence : 0), 0)
-      const danger = getDanger(view, members, id, 'immediate', cell, { AP: Math.max(0, b.AP - AP), STA: Math.max(0, b.STA - STA - b.surgeSTA) }, w)
+      const recalled = known.reduce((sum, k) => sum + (sees(cell, k.at) ? k.presence : 0), 0)
+      const closer = known.length ? nearest(here) - nearest(cell) : distance(here, board.origin) - distance(cell, board.origin)
       const peril = w.peril * (getDanger(view, members, id, 'potential', cell, undefined, w) - perilHere)
-      const score = w.search * found + w.recall * recalled + w.aggression * (distance(here, board.origin) - distance(cell, board.origin)) - getSpendPrice({ AP, STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, danger, w) - w.arrival * danger - peril
+      const threat = known.length ? w.offence * (offence(cell) - offenceHere) : 0
+      const score = w.search * found + w.recall * recalled + threat + w.aggression * closer - getSpendPrice({ AP, STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, 0, w) - peril
       if (!best || score > best.score) best = { cell, score, found, budget: b, movement: walk.movement }
     }
   }
   if (!best || best.score <= w.margin) return null
-  const why = `searches: walks where it sees about ${best.found} cells nobody of its side sees (${best.score.toFixed(1)})`
+  const why = known.length
+    ? `searches where its side knows a foe stands: walks to see ${known.length > 1 ? 'them' : 'it'} (${best.score.toFixed(1)})`
+    : `searches: walks where it sees about ${best.found} cells nobody of its side sees (${best.score.toFixed(1)})`
   if (best.budget.surge) return { kind: 'surge', surge: best.budget.surge, score: best.score, why: `makes the ${best.budget.surge} surge: ${why}` }
   const intent = moveIntent(id, best.movement, best.cell)
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: best.score, why } : null
@@ -734,9 +758,43 @@ function planArmsAttack(ctx: TurnContext): Plan | null {
     // (a surge's AP may not pay for every gear move, combat.tex "Action surge")
     if (!sw.moves.every((move, i) => declare(i === 0 ? view : withSheet(view, id, sw.before[i]), { actorId: id, option: { kind: 'gear', move }, picks: [] }, TRIAL).ok)) continue
     const intent: Intent = { actorId: id, option: { kind: 'gear', move: sw.moves[0] }, picks: [] }
-    best = { kind: 'arms', intent, score, why: `changes arms to attack (${sw.moves.map((m) => m.kind).join(', ')}, ${sw.cost.AP} AP, drawn ${drew.toFixed(1)}, ${score.toFixed(1)}): ${attack.why}` }
+    const why = `changes arms to attack (${sw.moves.map((m) => m.kind).join(', ')}, ${sw.cost.AP} AP, drawn ${drew.toFixed(1)}, ${score.toFixed(1)}): ${attack.why}`
+    const moves = sw.moves.slice(1).map((move, i) => ({ plan: { kind: 'arms' as const, intent: { actorId: id, option: { kind: 'gear' as const, move }, picks: [] }, score, why }, arms: armsOf(sw.before[i + 1]), AP: -1 }))
+    best = { kind: 'arms', intent, score, why, then: [...moves, { plan: attack, arms: armsOf(sw.after), AP: sheet.resources.AP }] }
   }
   return best
+}
+
+// What a sheet holds and how, by kind of item rather than id: a weapon drawn
+// off a stack is given a fresh id when it is drawn.
+function armsOf(c: SceneState['characters'][string]): string {
+  return c.held.map((item) => `${item.refId}:${getGrip(c, item.id)}`).sort().join(',')
+}
+
+// The pursuits the box keeps, by character.
+const pursuits = new WeakMap<ThreatWeights, Map<string, Pursuit>>()
+
+const turnOf = (view: SceneState) => `${view.round}|${view.turn}`
+
+// The step of the arms attack kept for the character that is due now: the
+// last one whose arms are those it holds (and, for the attack, whose AP is
+// what it has), and that the table takes; null once none is.
+function pursue(w: ThreatWeights, view: SceneState, id: string): Plan | null {
+  const kept = pursuits.get(w)?.get(id)
+  const me = view.characters[id]
+  if (!kept || !me || kept.turn !== turnOf(view)) return null
+  const arms = armsOf(me)
+  const step = kept.steps.findLast((s) => s.arms === arms && (s.AP < 0 || s.AP === me.resources.AP))
+  const plan = step?.plan
+  if (!plan || (plan.kind !== 'surge' && !declare(view, plan.intent, TRIAL).ok)) return null
+  return plan
+}
+
+function keepPursuit(w: ThreatWeights, view: SceneState, id: string, plan: Plan | null): void {
+  const byId = pursuits.get(w) ?? new Map<string, Pursuit>()
+  pursuits.set(w, byId)
+  if (plan?.kind === 'arms' && plan.then) byId.set(id, { turn: turnOf(view), steps: plan.then })
+  else byId.delete(id)
 }
 
 // A run from the danger the character is in now (the user's ruling: a high
@@ -1235,8 +1293,10 @@ function isSame(a: unknown, b: unknown): boolean {
 function takeTurn(input: SeatInput, id: string, w: ThreatWeights, find: Find, press: Press): Decision | null {
   const stress = takeStressTurn(input, id, w, find, press)
   if (stress !== 'none') return stress
-  const kept = recallWeighed(w, id, input.view(), input.members, input.unnoticed(id))
-  const plan = kept ? kept.plan : planTurn(input.view(), input.members, id, w, input.unnoticed(id), 'any')
+  const pursued = pursue(w, input.view(), id)
+  const kept = pursued ? null : recallWeighed(w, id, input.view(), input.members, input.unnoticed(id))
+  const plan = pursued ?? (kept ? kept.plan : planTurn(input.view(), input.members, id, w, input.unnoticed(id), 'any'))
+  if (!pursued) keepPursuit(w, input.view(), id, plan)
   // an attack the AP left of a surge does not pay for: that AP given up first
   if (plan?.kind === 'attack' && opensAfter(input.view(), id, plan.intent) === 'givingUp') {
     const give = input.buttons.find((b) => b.command.kind === 'edit' && argOf(b.command) === id && (b.command.args[1] as { kind: string }).kind === 'endSurge')

@@ -55,10 +55,13 @@ export function getActionHeading(state: SceneState, action: Action, board: Board
 
 // What the character senses with, of each sense: their senses in the fight as
 // it stands (in their own turn, what a mutation adds then), whether they can
-// use it ("Afflictions": "Blind: ... Cannot use vision"), and the terms every
-// test of it takes whatever it is aimed at: the detection skill, the sense's
-// bonus, its own sensory penalty and what afflictions add to it.
-type Sensing = { senses: Senses; usable: Record<keyof Senses, boolean>; terms: Record<keyof Senses, Term[]> }
+// use it ("Afflictions": "Blind: ... Cannot use vision"), and the terms each
+// takes whatever it is aimed at: a detection test (`terms`: the detection
+// skill, the sense's bonus and what afflictions add to it), and a skill that
+// relies on the sense (`sensory`: the sense's own sensory penalty and what
+// afflictions add to it). The sense's own penalty is for the skills that rely
+// on it, never for detecting with it (the user's ruling, 2026-11-21).
+type Sensing = { senses: Senses; usable: Record<keyof Senses, boolean>; terms: Record<keyof Senses, Term[]>; sensory: Record<keyof Senses, Term[]> }
 
 // It is the character's alone, with whether it is their turn and the
 // afflictions the fight puts on them: kept by the character, so that a fight
@@ -93,6 +96,9 @@ function makeSensing(c: Character, inTurn: boolean, situational: readonly Afflic
     terms: Object.fromEntries(kinds.map((sense) => [sense, [
       ...detection,
       { label: sense, value: getSenseBonus(c, sense) },
+      { label: 'afflictions', value: -afflicted[sense].penalty },
+    ]])) as Record<keyof Senses, Term[]>,
+    sensory: Object.fromEntries(kinds.map((sense) => [sense, [
       { label: `${sense} penalty`, value: -senses[sense].penalty },
       { label: 'afflictions', value: -afflicted[sense].penalty },
     ]])) as Record<keyof Senses, Term[]>,
@@ -338,7 +344,7 @@ export type Toward = string | readonly Coord[]
 // partly impaired, the bad visibility it is impaired by ("Visibility": "a
 // sensory penalty when targeting anything there").
 function getSensoryTermsOf(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses, impairment: Impairment): Term[] {
-  return [...getSensing(state, observer).terms[sense].slice(-2), visibilityOf(state, observer, toward, sense, impairment)]
+  return [...getSensing(state, observer).sensory[sense], visibilityOf(state, observer, toward, sense, impairment)]
 }
 
 function visibilityOf(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses, impairment: Impairment): Term {
@@ -347,7 +353,10 @@ function visibilityOf(state: SceneState, observer: CampaignCharacter, toward: To
 
 // combat.tex "Detection": "A character adds the value of their best available
 // sense to awareness in detection tests. Any sensory penalties to a sense are
-// added too": the skill, the sense's own bonus and its sensory penalty.
+// added too": the skill, the sense's own bonus, and the sensory penalties of
+// the conditions it is used under ("Sensory Penalties": "bad sensory
+// conditions, such as inside some stealth areas and when affected by sensory
+// afflictions"): afflictions and bad visibility, not the sense's own default.
 function getDetectionTermsThrough(state: SceneState, observer: CampaignCharacter, targetId: string, sense: keyof Senses, impairment: Impairment): Term[] {
   return [...getSensing(state, observer).terms[sense], visibilityOf(state, observer, targetId, sense, impairment)]
 }

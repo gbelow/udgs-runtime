@@ -374,9 +374,12 @@ score = §3's score on the switched sheet, `now` as above
 ```
 
 The switch's AP is paid inside §3's defence lost (held is what is left after it), and so is
-what the new arms do to the harm it takes. It competes with §3 and §4.3 in `planNow`. Only
-the switch's first move is declared, among the switches whose every move the table takes;
-the turn is weighed again after it (the user's ruling: things change from action to action).
+what the new arms do to the harm it takes. It competes with §3 and §4.3 in `planNow`, among
+the switches whose every move the table takes. Once its first move is declared, the rest of
+the switch and the attack follow (the user's ruling: an arms attack planned is made): each
+step is taken while the character holds the arms it was planned from (by kind of item and
+grip) and, for the attack, has the AP left it was planned with, and while the table takes
+it; otherwise the turn is weighed again.
 
 ---
 
@@ -459,14 +462,26 @@ furthest from the foe whose immediate threat on it is worst.
 
 Also when every foe in the view is one the character does not notice (the user's ruling).
 
+Where the side knows a foe stands (an ally sees it, or the seat remembers where it was last
+noticed, heard among others), the search is for that place (the user's ruling):
+```
+score(cell) = w.recall · Σ presence(f) over known foes f whose cell it would see (§13)
+            + w.offence · (offence(cell) − offence(here))
+            + w.aggression · (nearest known foe from here − nearest known foe from the cell)
+offence(c)  = max threatValue(potential me → f, me at c) over known foes f seen from c
+              (as §4's standing; the user's ruling: a cell an archer sees a foe from is one it
+              can shoot from)
+            − the same price and peril as below
+```
+Where it knows of none:
 ```
 score(cell) = w.search · cells it would see that nobody of the side sees
-            + w.recall · Σ presence(f) over remembered foes f whose cell it would see (§13)
             + w.aggression · (dist(here, board middle) − dist(cell, board middle))
-            − SpendPrice(walk AP, walk STA + surgeSTA, danger)
-            − w.arrival · danger
+            − SpendPrice(walk AP, walk STA + surgeSTA, 0)
             − w.peril · (Danger(me, potential, cell) − Danger(me, potential, here))
-danger      = Danger(me, immediate, cell, AP/STA left after the walk)   remembered foes included
+                                                    remembered foes included
+A search is weighed for the round to come only: no immediate danger, in the score or the
+AP's price (the user's ruling: a foe stumbled on unseen is detection's matter).
 
 walk if best score > w.margin
 ```
