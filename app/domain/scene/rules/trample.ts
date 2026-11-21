@@ -15,11 +15,9 @@ import { isProne } from './board/ground'
 // (combat.tex "Braced Attack": a hit "trigger[s] a trample"; "Catch").
 
 // combat.tex "Crash": "The target can spend 2AP+1STA to get +3 in this
-// comparison (automatic from braced attack reaction)"; "A hit to the head
-// adds +3 to the crash"; "Catch": the catcher "receive[s] the +3 to the
-// crash".
+// comparison (automatic from braced attack reaction)"; "Catch": the catcher
+// "receive[s] the +3 to the crash".
 const BRACED = 3
-const HEAD = 3
 
 // "Is prone: free passage" — nobody to compare against.
 export function isTrampleable(state: SceneState, id: string): boolean {
@@ -36,15 +34,15 @@ function getMoverForce(c: Character, move: MoveAction, at: number): number {
   return getForce(c) + (running ? getMovementSpeed(c, 'run') : 0)
 }
 
-// "On force differences lower than 5, both are stunned and the higher force
-// gets to either block passage or pass through. A draw blocks passage. On
-// greater differences, the winner does not get stunned and the loser falls
-// prone if they are the target."
+// "On force differences lower than 5, both are interrupted and the higher
+// force gets to either block passage or pass through. A draw blocks passage.
+// On greater differences, the winner does not get interrupted and the loser
+// is stunned and, if they are the target, falls prone too."
 function crash(moverId: string, targetId: string, at: number, mover: number, target: number): Trample {
   const diff = mover - target
   const result = diff > 0 ? 'passed' : 'blocked'
-  if (Math.abs(diff) < 5) return { id: targetId, at, diff, result, stunned: [moverId, targetId], prone: false }
-  return { id: targetId, at, diff, result, stunned: [diff > 0 ? targetId : moverId], prone: diff > 0 }
+  if (Math.abs(diff) < 5) return { id: targetId, at, diff, result, interrupted: [moverId, targetId], stunned: [], prone: false }
+  return { id: targetId, at, diff, result, interrupted: [], stunned: [diff > 0 ? targetId : moverId], prone: diff > 0 }
 }
 
 // The move's path as walked against everyone standing in it, step by step:
@@ -89,12 +87,11 @@ export function getMoveTramples(state: SceneState, action: MoveAction, path: Coo
 }
 
 // The crash a blow on a mover sets off — a braced one, or a catch: the mover
-// it met, at their Force (and speed), against the striker, braced either way
-// and more so for a hit to the head.
+// it met, at their Force (and speed), against the striker, braced either way.
 export function getBlowTrample(state: SceneState, strike: StrikeAction, move: MoveAction, at: number): Trample | null {
   const mover = state.characters[move.actorId]
   const striker = state.characters[strike.actorId]
   if (!mover || !striker) return null
-  const target = getForce(striker) + BRACED + (strike.location === 'head' ? HEAD : 0)
+  const target = getForce(striker) + BRACED
   return crash(mover.id, striker.id, at, getMoverForce(mover, move, at), target)
 }

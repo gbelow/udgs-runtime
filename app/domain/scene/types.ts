@@ -531,13 +531,14 @@ const ActionBase = {
 // combat.tex "Crash": what one Force comparison came to. `id` is the
 // target, the one moved into; `at` the path step it happened on; `diff` the
 // mover's Force less the target's. The higher passes or blocks, a draw
-// blocks; under 5 apart both are `stunned`, from 5 only the loser, and a
-// target who loses by 5 or more falls `prone`.
+// blocks; under 5 apart both are `interrupted`, from 5 only the loser, who
+// is `stunned` and, if the target, falls `prone`.
 export const TrampleSchema = z.object({
   id: str,
   at: num.default(0),
   diff: num.default(0),
   result: z.enum(['passed', 'blocked']),
+  interrupted: z.array(str).default([]),
   stunned: z.array(str).default([]),
   prone: z.boolean().default(false),
 }).strip()

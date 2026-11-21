@@ -44,7 +44,7 @@ import { getCastSize, getEffortlessCost } from '../../character/rules/spells'
 import { getFireAgainCharges } from '../rules/fireAgain'
 import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { takeDose } from '../../character/commands/consume'
-import { getInterruptionOf } from '../rules/interruption'
+import { getCrashInterruption, getInterruptionOf } from '../rules/interruption'
 import { loseConcentration, releaseSpell } from '../../character/commands/spells'
 import { getAction } from '../rules/log'
 import { extinguishCell } from '../rules/extinguish'
@@ -391,14 +391,15 @@ function lightBurned(state: SceneState, attack: AttackAction, board: Board): Boa
   return withFloorAt(board, ground, board.placements[attack.actorId]?.elevation, (cell) => igniteCell(state, cell, burn))
 }
 
-// combat.tex "Crash": who it stunned, and the target it knocked prone —
-// "Stun: An interrupt in which the target also loses 2 AP" — and, being
-// interrupted, stops concentrating.
+// combat.tex "Crash": who it interrupted or stunned, and the target it
+// knocked prone. "Stun: An interrupt in which the target also loses 2 AP";
+// either way, being interrupted, they stop concentrating.
 function trampledBy(tramples: Trample[], c: CampaignCharacter, charged: boolean): CampaignCharacter {
-  const hit = tramples.filter((t) => t.stunned.includes(c.id))
+  const hit = tramples.filter((t) => getCrashInterruption(t, c.id) !== 'none')
   if (hit.length === 0) return c
-  const stunned = loseConcentration(payCost({ AP: STUN_AP * hit.length, STA: 0 }, charged)(c))
-  return hit.some((t) => t.prone && t.id === c.id) ? fallProne(stunned) : stunned
+  const stuns = hit.filter((t) => t.stunned.includes(c.id)).length
+  const interrupted = loseConcentration(payCost({ AP: STUN_AP * stuns, STA: 0 }, charged)(c))
+  return hit.some((t) => t.prone && t.id === c.id) ? fallProne(interrupted) : interrupted
 }
 
 // The one place an action changes the board, the same way: it reads the

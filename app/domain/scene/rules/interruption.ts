@@ -1,5 +1,5 @@
 import type { Interruption } from '../../types'
-import type { Action, SceneState } from '../types'
+import type { Action, SceneState, Trample } from '../types'
 import { getAction, getGivenRiseBy, getRootOf } from './log'
 import { getCounterSlot, getOpeningCounter } from './counter'
 import { isManeuverWon } from './grapple'
@@ -78,8 +78,8 @@ export function getInterruptionBy(state: SceneState, landed: Action, id: string)
 function getLandedOn(state: SceneState, landed: Action, id: string): Interruption[] {
   switch (landed.kind) {
     case 'shoot': return getShotGroup(state, landed).filter((shot) => shot.targetId === id).map((shot) => shot.interruption)
-    case 'strike': return landed.trample?.stunned.includes(id) ? ['stunned'] : []
-    case 'move': return landed.facts?.trampled.some((t) => t.stunned.includes(id)) ? ['stunned'] : []
+    case 'strike': return landed.trample ? [getCrashInterruption(landed.trample, id)] : []
+    case 'move': return (landed.facts?.trampled ?? []).map((t) => getCrashInterruption(t, id))
     case 'blast':
     case 'cast':
     case 'fireAgain':
@@ -90,6 +90,12 @@ function getLandedOn(state: SceneState, landed: Action, id: string): Interruptio
     }
     default: return []
   }
+}
+
+// combat.tex "Crash": what it did to the character's action, a stun for the
+// loser by 5 or more, an interruption for both under 5.
+export function getCrashInterruption(t: Trample, id: string): Interruption {
+  return t.stunned.includes(id) ? 'stunned' : t.interrupted.includes(id) ? 'interrupted' : 'none'
 }
 
 function strongest(levels: Interruption[]): Interruption {
