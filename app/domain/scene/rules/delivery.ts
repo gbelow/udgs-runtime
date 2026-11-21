@@ -30,6 +30,7 @@ export function getRowDamage(wielder: Character, row: WeaponRow, damage: DamageC
     ...defense,
     wall: null,
     bust: false,
+    bash: false,
     bare: false,
     sear: false,
   }

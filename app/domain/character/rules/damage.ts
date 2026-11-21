@@ -1,5 +1,5 @@
 import type { AfflictionKey, Armor, BodyPart, Character, Condition, Damage, DamageKind, Degree, Interruption, Outcome, OutcomeStep, PartWound } from '../../types'
-import { BLUNT_EFFECT_TIERS, MAX_TIER, STUN_AP, injuryMap } from '../../tables'
+import { BASH, BLUNT_EFFECT_TIERS, MAX_TIER, STUN_AP, injuryMap } from '../../tables'
 import { getArmor } from './armor'
 import { getTGH } from './misc'
 import { getForce } from './skills'
@@ -194,6 +194,10 @@ function tierOf(damage: number, armor: number, TGH: number): number | null {
 // same way (the table's ruling); only its defense may differ. A searing burn
 // leaves the counter alone.
 export function getOutcome(facts: Damage, degree: Degree, target: Character): Outcome {
+  return withBash(getBlowOutcome(facts, degree, target), facts, degree, target)
+}
+
+function getBlowOutcome(facts: Damage, degree: Degree, target: Character): Outcome {
   const TGH = getTGH(target)
   const counter = isCampaignCharacter(target) && !facts.sear ? target.injuries.burning : 0
   if (isIntercepted(facts, degree, target)) return { ...NOTHING, stopped: true }
@@ -284,9 +288,9 @@ function reachedWound(place: Place, tier: number, bluntTier: number, piercing: b
 }
 
 // combat.tex "Additional effects", "Localized damage", "Wounds": what the
-// tier does beyond IL. Interruption on T1+ blunt and stun on T3+ blunt, T0
-// and T2 from a basher (combat.tex "Electric damage": "It causes
-// interruptions and stuns" the same way); the worst wound of the part the
+// tier does beyond IL. Interruption on T1+ blunt and stun on T3+ blunt
+// (combat.tex "Electric damage": "It causes interruptions and stuns" the same
+// way); the worst wound of the part the
 // tier reaches, which may take the part off or kill. A part flagged so (the
 // head) raises each a step: "Interrupts become stuns, and stuns become
 // unconsciousness". A stun's AP comes off whatever the target has, on top of
@@ -295,15 +299,41 @@ function reachedWound(place: Place, tier: number, bluntTier: number, piercing: b
 // corroding at that tier of damage" — and past T1, still at that (the table's ruling).
 // The tiers the blunt effects start at for the blow, and whether the place it
 // lands on raises them a step.
-function getBluntRule(facts: Damage, place: Place): { basher: boolean; interrupt: number; stun: number; raised: boolean } {
-  const basher = hasProperty(facts.properties, 'basher')
-  return { basher, ...BLUNT_EFFECT_TIERS[basher ? 'basher' : 'normal'], raised: place.flags.includes('stunUnconscious') }
+function getBluntRule(place: Place): { interrupt: number; stun: number; raised: boolean } {
+  return { ...BLUNT_EFFECT_TIERS, raised: place.flags.includes('stunUnconscious') }
+}
+
+// combat.tex "Bash": "On a hit, a force comparison is made. If the attacker's
+// force is higher, the target is interrupted. If it is higher by 3 or more,
+// the target is stunned." A critical is a hit too, a graze is not.
+function getBashLevel(facts: Damage, degree: Degree, target: Character): Interruption {
+  if (!facts.bash || (degree !== 'hit' && degree !== 'critical')) return 'none'
+  const by = facts.force - getForce(target)
+  return by >= BASH.stunBy ? 'stunned' : by > 0 ? 'interrupted' : 'none'
+}
+
+// The bash lands beside the blow, whether or not the blow came past the
+// armor, raised a step where it lands on the head (combat.tex "Head"). The
+// hit lands the stronger of the two, never both (combat.tex "Stun": "Stun
+// instances caused by one action do not stack").
+function withBash(outcome: Outcome, facts: Damage, degree: Degree, target: Character): Outcome {
+  const bash = getBashLevel(facts, degree, target)
+  if (bash === 'none') return outcome
+  const raised = getBluntRule(struckPlace(facts, target)).raised
+  const interruption = strongerInterruption(outcome.interruption, raised ? 'stunned' : bash)
+  const unconscious = raised && bash === 'stunned' && !outcome.afflictions.includes('unconscious')
+  return {
+    ...outcome,
+    interruption,
+    apLoss: interruption === 'stunned' ? STUN_AP : outcome.apLoss,
+    afflictions: unconscious ? [...outcome.afflictions, 'unconscious'] : outcome.afflictions,
+  }
 }
 
 function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcome['tiers'], piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
   const bluntTier = Math.max(tiers.blunt ?? -1, tiers.electric ?? -1)
   const place = struckPlace(facts, target)
-  const rule = getBluntRule(facts, place)
+  const rule = getBluntRule(place)
   const interrupted = bluntTier >= rule.interrupt
   const stunnedThere = bluntTier >= rule.stun
   const afflictions = new Set<AfflictionKey>()
@@ -371,7 +401,7 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
 
   if (outcome.tier === null) {
     steps.push(step(`${outcome.damage} ${outcome.type} is below the armor value ${outcome.armor}: no injury`, 'combat.tex "Damage Tiers"'))
-    return steps
+    return [...steps, ...explainBash(facts, degree, target)]
   }
   steps.push(step(`${outcome.damage} against armor ${outcome.armor}: tier ${outcome.tier} (tier N is met at armor + N x TGH ${getTGH(target)})`, 'combat.tex "Damage Tiers"'))
   if (outcome.bodyTier !== outcome.tier) steps.push(step(`a blow to the ${facts.location} puts at most tier ${outcome.bodyTier} on the body`, 'combat.tex "Localized damage"'))
@@ -379,14 +409,26 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
   const halved = outcome.IL !== table.IL
   steps.push(step(`tier ${outcome.bodyTier} is +${table.IL} IL${halved ? `, halved to +${outcome.IL} (${hasProperty(facts.properties, 'piercing') ? 'piercing' : outcome.type})` : ''}`, 'combat.tex "Damage Tiers"'))
   if (outcome.bleed > 0) steps.push(step(`blunt and cutting damage bleed: +${outcome.bleed}`, 'combat.tex "Bleed"'))
-  const { basher, interrupt, stun, raised } = getBluntRule(facts, struckPlace(facts, target))
-  const from = basher ? ' from a basher' : ''
-  if (outcome.interruption === 'interrupted') steps.push(step(`a tier ${interrupt}+ blunt or electric injury${from} interrupts: the action and its cost are lost`, basher ? 'gear.tex "Basher"' : 'combat.tex "Interruption"'))
-  if (outcome.interruption === 'stunned') steps.push(step(`a tier ${stun}+ blunt or electric injury${from}${raised ? `, or an interruption at the ${facts.location},` : ''} stuns: ${outcome.apLoss} AP are lost as well`, raised ? 'combat.tex "Head"' : basher ? 'gear.tex "Basher"' : 'combat.tex "Stun"'))
+  const blow = getBlowOutcome(facts, degree, target)
+  const { interrupt, stun, raised } = getBluntRule(struckPlace(facts, target))
+  if (blow.interruption === 'interrupted') steps.push(step(`a tier ${interrupt}+ blunt or electric injury interrupts: the action and its cost are lost`, 'combat.tex "Interruption"'))
+  if (blow.interruption === 'stunned') steps.push(step(`a tier ${stun}+ blunt or electric injury${raised ? `, or an interruption at the ${facts.location},` : ''} stuns: ${blow.apLoss} AP are lost as well`, raised ? 'combat.tex "Head"' : 'combat.tex "Stun"'))
+  steps.push(...explainBash(facts, degree, target))
   if (outcome.wound) steps.push(step(`${outcome.wound.name} on the ${outcome.wound.part.name}${outcome.wound.heal === null ? ', which does not heal' : `, healed at ${outcome.wound.heal} IL`}`, 'combat.tex "Wounds"'))
   for (const a of outcome.afflictions) steps.push(step(`now ${a}`, a === 'unconscious' ? 'combat.tex "Localized damage"' : 'combat.tex "Afflictions"'))
   if (outcome.dead) steps.push(step(`tier ${outcome.tier} at the ${struckPlace(facts, target).part?.name ?? facts.location} is instant death`, 'combat.tex "Localized damage"'))
   return steps
+}
+
+// combat.tex "Bash": the force comparison put into words, and what it did
+// beside the blow.
+function explainBash(facts: Damage, degree: Degree, target: Character): OutcomeStep[] {
+  if (!facts.bash || (degree !== 'hit' && degree !== 'critical')) return []
+  const bash = getBashLevel(facts, degree, target)
+  const raised = getBluntRule(struckPlace(facts, target)).raised
+  const against = `bash: force ${facts.force} against ${getForce(target)}`
+  const did = bash === 'none' ? 'not higher, nothing' : raised ? (bash === 'stunned' ? `3 or more higher at the ${facts.location}: knocked out` : `higher at the ${facts.location}: stunned`) : bash === 'stunned' ? '3 or more higher: stunned' : 'higher: interrupted'
+  return [{ text: `${against}, ${did}`, rule: raised && bash !== 'none' ? 'combat.tex "Bash", "Head"' : 'combat.tex "Bash"' }]
 }
 
 // The armor value a kind is defended by, by name.

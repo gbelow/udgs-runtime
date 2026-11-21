@@ -1,7 +1,7 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDMAt } from "./size";
-import { BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, SOFT_STR_SHARE, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, SMASH_UNSMASHER_SHARE, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { BASH, BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, SOFT_STR_SHARE, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, SMASH_UNSMASHER_SHARE, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
@@ -241,10 +241,19 @@ export function getHeavyName(degree: number): string {
 
 // What a heavy attack of the degree adds to a strike with the row: its
 // price, its penalty to hit, and the blow it lands (combat.tex "Heavy
-// Attack"), its STR on the cut only as gear.tex "Melee attacks" allows.
+// Attack"), its STR on the cut only as gear.tex "Melee attacks" allows. On a
+// basher row it bashes, at the bash's STA on top (combat.tex "Bash").
 export function getHeavyVariation(atk: WeaponAttack, weapon: Weapon, c: Character, degree: number): { cost: ActionCost; penalty: number; blunt: number; cut: number } {
   const { penalty, STRmul } = HEAVY_DEGREES[degree]
-  return { cost: getActionCost(c, HEAVY_ACTIONS[degree - 1]), penalty, ...getStrikeDamage(atk, weapon, c, STRmul) }
+  const heavy = getActionCost(c, HEAVY_ACTIONS[degree - 1])
+  const cost = isBash(atk.properties, degree) ? { ...heavy, STA: heavy.STA + BASH.STA } : heavy
+  return { cost, penalty, ...getStrikeDamage(atk, weapon, c, STRmul) }
+}
+
+// combat.tex "Bash": it "must be used with any heavy attacks with the basher
+// property".
+export function isBash(properties: readonly WeaponProperty[], heavyDegree: number): boolean {
+  return heavyDegree > 0 && hasProperty(properties, 'basher')
 }
 
 export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: Weapon }): (c: Character) => AttackVariant[] {

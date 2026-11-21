@@ -3,11 +3,11 @@ import type { Character, Damage, DamageComponent, DamageKind, Delivery, Edge, It
 import type { AttackAction, SceneState, HOPPurchase, Interruption, MoveAction, StrikeAction, Trample } from '../types'
 import { getBlowTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
-import { HIT_HOP, HOP_EFFECTS } from '../../tables'
+import { BASH, HIT_HOP, HOP_EFFECTS } from '../../tables'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { cutsWithSTR, getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus, getWeaponRES } from '../../character/rules/gear'
+import { cutsWithSTR, getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus, getWeaponRES, isBash } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford, CANNOT_AFFORD } from '../../character/rules/cost'
 import { getHardness } from '../../item/rules/items'
@@ -22,6 +22,7 @@ import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
 import { getCover, getEyes, getPlacedFootprint, toDamageWall } from './board/board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
+import { getHeavyDegree } from './heavy'
 import { getSpiritBlow } from '../../character/rules/spirit'
 import { getModifierRiders } from './modifiers'
 import { passesCondition, strongerInterruption } from '../../character/rules/damage'
@@ -85,7 +86,11 @@ function addPhysical(damage: Damage, value: number, properties: readonly WeaponP
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
   bust: (d) => ({ ...d, bust: true }),
   slice: (d, times, { properties }) => addTo(d, 'cut', getSliceBonus(times, getCut(d), hasProperty(properties, 'bladed'))),
-  smash: (d, times, { weapon, properties }) => addTo(d, 'blunt', getSmashBonus(times, weapon, hasProperty(properties, 'smasher'))),
+  // combat.tex "Bash": "Every 2 points spent on smash adds +1 to the force."
+  smash: (d, times, { weapon, properties }) => ({
+    ...addTo(d, 'blunt', getSmashBonus(times, weapon, hasProperty(properties, 'smasher'))),
+    force: d.bash ? d.force + Math.floor(times / BASH.smashPerForce) : d.force,
+  }),
   handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
   assassinate: (d) => d,
   braced: (d, _, { attacker, weapon, properties }) => addPhysical(d, getBracedBonus(weapon, properties, attacker), properties),
@@ -154,8 +159,9 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   const physical: DamageComponent[] = [{ kind: 'blunt', value: Math.floor(variant.blunt * share) }, { kind: 'cut', value: Math.floor(variant.cut * share) }]
   const charge = link ? [] : (getRowCharge(attacker, row)?.charge?.effects ?? []).filter((e) => e.area === null)
   const chargeDamage = charge.flatMap((e) => (e.type === 'damage' ? e.effect.damage : []))
-  const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), wall: getShotWall(state, root) }
   const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
+  const bash = root.kind === 'strike' && isBash(properties, getHeavyDegree(attacker, root))
+  const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), wall: getShotWall(state, root), bash }
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties }
   const bought = PURCHASE_ORDER.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))

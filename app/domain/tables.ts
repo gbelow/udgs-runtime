@@ -288,14 +288,14 @@ export const SHARP_HOP = { 'sharp +1': 1, 'sharp +2': 2 } as const satisfies Par
 // combat.tex "Interruption", "Stun": an interruption costs nothing beyond
 // the action it cuts short; a stun is an interruption "in which the target
 // also loses 2 AP". Each happens on its own at a tier of blunt or electric
-// damage: an interruption at T1, a stun at T3, or at T0 and T2 from a basher
-// (gear.tex "Basher": "interrupts at T0 blunt damage and stuns at T2 blunt
-// damage").
+// damage: an interruption at T1, a stun at T3.
 export const STUN_AP = 2
-export const BLUNT_EFFECT_TIERS = {
-  normal: { interrupt: 1, stun: 3 },
-  basher: { interrupt: 0, stun: 2 },
-} as const
+export const BLUNT_EFFECT_TIERS = { interrupt: 1, stun: 3 } as const
+
+// combat.tex "Bash": "costs 1 STA"; "If the attacker's force is higher, the
+// target is interrupted. If it is higher by 3 or more, the target is
+// stunned. Every 2 points spent on smash adds +1 to the force."
+export const BASH = { STA: 1, stunBy: 3, smashPerForce: 2 } as const
 
 // combat.tex "Standard Action": "throwing items with bulk smaller than
 // character size by up to 10m"

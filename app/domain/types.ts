@@ -887,6 +887,9 @@ export const DamageSchema = z.object({
   // null with no such wall in the way.
   wall: z.object({ RES: num }).strip().nullable().default(null),
   bust: z.boolean().default(false),
+  // combat.tex "Bash": the blow compares `force` with the target's Force on
+  // a hit
+  bash: z.boolean().default(false),
   // combat.tex "Fall damage": "the damage ignores armor"
   bare: z.boolean().default(false),
   // burn dealt straight to the flesh, which neither adds the burning counter

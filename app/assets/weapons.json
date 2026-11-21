@@ -171,8 +171,7 @@
         },
         "properties": [
           "DEF",
-          "smasher",
-          "basher"
+          "smasher"
         ],
         "payload": []
       }
@@ -368,9 +367,14 @@
         "AP": 3,
         "properties": [
           "soft",
-          "DEF"
+          "DEF",
+          "basher"
         ],
-        "payload": []
+        "payload": [],
+        "heavy": {
+          "min": 0,
+          "max": 1
+        }
       },
       {
         "name": "throw",
@@ -427,7 +431,6 @@
           "max": 2
         },
         "properties": [
-          "basher",
           "smasher"
         ],
         "payload": []
@@ -443,9 +446,14 @@
         "AP": 3,
         "properties": [
           "soft",
-          "DEF"
+          "DEF",
+          "basher"
         ],
-        "payload": []
+        "payload": [],
+        "heavy": {
+          "min": 0,
+          "max": 1
+        }
       }
     ]
   },
@@ -582,9 +590,14 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "soft"
+          "soft",
+          "basher"
         ],
-        "payload": []
+        "payload": [],
+        "heavy": {
+          "min": 0,
+          "max": 1
+        }
       }
     ]
   },
@@ -638,9 +651,14 @@
         "AP": 3,
         "properties": [
           "soft",
-          "DEF"
+          "DEF",
+          "basher"
         ],
-        "payload": []
+        "payload": [],
+        "heavy": {
+          "min": 0,
+          "max": 1
+        }
       },
       {
         "name": "axe head",
@@ -712,9 +730,14 @@
         "AP": 3,
         "properties": [
           "soft",
-          "DEF"
+          "DEF",
+          "basher"
         ],
-        "payload": []
+        "payload": [],
+        "heavy": {
+          "min": 0,
+          "max": 1
+        }
       },
       {
         "name": "hammer",
@@ -730,7 +753,6 @@
           "max": 3
         },
         "properties": [
-          "basher",
           "smasher"
         ],
         "payload": []
@@ -771,9 +793,14 @@
         "AP": 3,
         "properties": [
           "soft",
-          "DEF"
+          "DEF",
+          "basher"
         ],
-        "payload": []
+        "payload": [],
+        "heavy": {
+          "min": 0,
+          "max": 1
+        }
       }
     ]
   },
