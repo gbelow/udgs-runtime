@@ -453,7 +453,7 @@ function assertSound(h: Harness, storage: boolean) {
   }
 
   // the board from the active character's eyes draws them, and anyone it
-  // draws whose sight the cells and the detection agree on
+  // draws whose sight the cells and the detection agree on, or as heard
   const eye = s.activeCharacterId
   if (eye !== null && placements[eye]) {
     const from = getBoardViewFrom(s)
@@ -462,7 +462,7 @@ function assertSound(h: Harness, storage: boolean) {
     expect(seenToken, 'the active character is drawn from their own eyes').toBeDefined()
     expect(seenToken!.cells.some((c) => unseen.has(c.key)), 'the active character stands out of their own sight').toBe(false)
     for (const t of from.tokens) {
-      expect(t.cells.some((c) => !unseen.has(c.key)), `${t.id} is drawn from the eyes of ${eye} though every cell of them is out of sight`).toBe(true)
+      expect(t.heard || t.cells.some((c) => !unseen.has(c.key)), `${t.id} is drawn from the eyes of ${eye} though every cell of them is out of sight, and not as heard`).toBe(true)
     }
   }
 

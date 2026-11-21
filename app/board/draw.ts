@@ -399,7 +399,7 @@ function tokenOutline(t: BoardTokenView, hex: Point[]): [Point, Point][] {
 
 export function drawToken(kit: Kit, t: BoardTokenView, hex: Point[], picked: boolean): Container {
   const out = new Container()
-  out.alpha = t.elsewhere ? 0.35 : t.hidden ? 0.6 : 1
+  out.alpha = t.elsewhere || t.heard ? 0.35 : t.hidden ? 0.6 : 1
   const ring: Token = picked ? 'accent' : t.targetable ? 'bad' : t.isActive ? 'accent' : t.isInTurn ? 'good' : 'muted'
   const width = picked || t.isActive || t.targetable ? 0.12 : 0.06
   const many = t.cells.length > 1

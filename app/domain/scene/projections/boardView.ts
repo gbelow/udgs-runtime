@@ -170,6 +170,9 @@ export type BoardTokenView = {
   // standing on another floor than the one the board is looked at from
   // (`getStoreyView`)
   elsewhere: boolean
+  // drawn from someone's eyes, in their sight though every cell of them is
+  // out of it: heard as they act (rules/seen.ts `canSee`)
+  heard: boolean
   // combat.tex "Cover": in total cover behind a body shield, which faces
   // this way, in degrees; null out of it
   shieldAngle: number | null
@@ -537,6 +540,7 @@ function buildBoardView(state: SeenScene): BoardView {
       targetable: targets.has(id),
       awaited: awaited.has(id),
       elsewhere: false,
+      heard: false,
       shieldAngle: facing === null ? null : (facing * 180) / Math.PI,
       hanging: placement.climb ? { to: coordKey(placement.climb.to), angle: (angleBetween(anchor, toPlane(placement.climb.to)) * 180) / Math.PI, covered: placement.climb.covered, height: Math.abs(placement.climb.bound - placement.climb.floor) } : null,
     }]
@@ -749,8 +753,9 @@ export function getResizeWarning(state: SceneState, extent: BoardExtent): string
 
 // The board as the active character's eyes take it in: the cells none of
 // their active senses reach are marked unseen, and only they and the
-// characters they detect are drawn, with what lies on cells they see and the
-// binds between characters drawn. The whole board when nobody placed is active.
+// characters they detect are drawn, those standing only on unseen cells as
+// heard, with what lies on cells they see and the binds between characters
+// drawn. The whole board when nobody placed is active.
 // A cell someone they detect stands in is taken in at that one's floor: on a
 // board with storeys, the floor the eye's own feet would reach there may be
 // out of sight under the one the character stands on.
@@ -774,7 +779,7 @@ export const getBoardViewFrom = perState((state: SeenScene): BoardView => {
   return {
     ...view,
     cells,
-    tokens,
+    tokens: tokens.map((t) => (t.id !== eye && t.cells.every((c) => unseen.has(c.key)) ? { ...t, heard: true } : t)),
     ghosts: view.ghosts.filter((g) => drawn.has(g.id)),
     floor: view.floor.filter((f) => { const at = state.floor.find((x) => x.item.id === f.itemId)?.cell; return !at || !unseen.has(coordKey(at)) }),
     binds: view.binds.filter((b) => b.key.slice(b.key.indexOf(':') + 1).split('~').every((id) => drawn.has(id))),

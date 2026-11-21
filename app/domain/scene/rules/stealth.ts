@@ -126,6 +126,22 @@ export function detect(state: SceneState, observerId: string, targetId: string, 
   return detectInTurn(atStep(state, live, at) ?? state, turn, observerId, live?.noise ?? { AP: 0, heardAP: 0 })
 }
 
+// combat.tex "Actions in stealth": the tests an action of the hider's own
+// turn is made against besides those of whoever it lets answer (`made`): the
+// table's ruling (2026-11-21) is that everyone else in the fight tests too,
+// allies included, so that an ear may find the hider where no eye does; what
+// finds them has them in sight while the turn lasts (rules/seen.ts `canSee`).
+// Written down as the action is committed, as the reactors' are.
+export function getBystanderDetections(state: SceneState, root: Action, made: readonly Detection[]): Detection[] {
+  if (getStealthTurn(state)?.id !== root.actorId) return []
+  const tested = new Set(made.filter((d) => d.hiderId === root.actorId).map((d) => d.observerId))
+  return Object.entries(state.characters).flatMap(([id, c]): Detection[] => {
+    if (id === root.actorId || tested.has(id) || isDead(c)) return []
+    const found = detect(state, id, root.actorId, root)
+    return found.test || !found.found ? [{ observerId: id, hiderId: root.actorId, ...found }] : []
+  })
+}
+
 // combat.tex "Actions in stealth": "A character can only use the stealth
 // value during its turn if it started undetected to the active senses of
 // their reactors" — everyone living who does not detect them as it begins.

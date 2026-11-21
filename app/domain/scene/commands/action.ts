@@ -5,7 +5,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
-import { detect, getNoise, getStealthTurn } from '../rules/stealth'
+import { detect, getBystanderDetections, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
 import { findOption, getAwaited, hasOpenAnswer } from '../rules/options'
 import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
@@ -140,13 +140,15 @@ function withMatesPassed(state: SceneState, root: RootAction): RootAction {
 
 // combat.tex "Stealth in combat": what the root writes down of who had whom
 // as it is committed — the test its actor made of its target, the ones made
-// of its actor by whoever it would let answer, and, in its actor's own turn,
-// whom they began it undetected by.
+// of its actor by whoever it would let answer and, in its actor's own turn,
+// by everyone else (`getBystanderDetections`), and whom they began it
+// undetected by.
 function withStealthFacts(state: SceneState, root: RootAction): RootAction {
   const aimed = root.targetId ? detect(state, root.actorId, root.targetId) : null
   const ofTarget = root.targetId && aimed?.test ? [{ observerId: root.actorId, hiderId: root.targetId, ...aimed }] : []
   const turn = getStealthTurn(state)
-  return { ...root, detections: [...ofTarget, ...getReactorDetections(state, root)], hiddenFrom: turn?.id === root.actorId ? turn.hiddenFrom : null }
+  const made = [...ofTarget, ...getReactorDetections(state, root)]
+  return { ...root, detections: [...made, ...getBystanderDetections(state, root, made)], hiddenFrom: turn?.id === root.actorId ? turn.hiddenFrom : null }
 }
 
 // What the root writes down as it is committed, fixed from here on whatever

@@ -79,7 +79,7 @@ function titleOf(view: BoardView, hover: BoardHover): string | null {
   }
   if (hover.kind === 'token') {
     const t = view.tokens.find((x) => x.id === hover.id)
-    return t ? `${t.name}${t.elsewhere ? ' · on another floor' : ''}${t.hidden ? ' · behind higher ground' : ''}${t.awaited ? ' · may react: waiting on their answer' : ''}${t.elevation ? ` · ${t.elevation} m` : ''}${t.depth ? ` · ${t.depth} m deep` : ''}${t.shieldAngle !== null ? ' · in cover behind a body shield' : ''}${t.hanging ? ` · hanging on the face to ${t.hanging.to}, ${t.hanging.covered} of ${t.hanging.height} m` : ''}` : null
+    return t ? `${t.name}${t.elsewhere ? ' · on another floor' : ''}${t.heard ? ' · heard, out of sight' : ''}${t.hidden ? ' · behind higher ground' : ''}${t.awaited ? ' · may react: waiting on their answer' : ''}${t.elevation ? ` · ${t.elevation} m` : ''}${t.depth ? ` · ${t.depth} m deep` : ''}${t.shieldAngle !== null ? ' · in cover behind a body shield' : ''}${t.hanging ? ` · hanging on the face to ${t.hanging.to}, ${t.hanging.covered} of ${t.hanging.height} m` : ''}` : null
   }
   const item = view.floor.find((f) => f.itemId === hover.itemId)
   return item ? (item.targetable ? `aim at ${item.name}` : item.pickable ? `pick up ${item.name}` : `on the floor: ${item.name}`) : null
