@@ -52,7 +52,9 @@ export type SeatInput = {
 
 export type Pass = 'immediate' | 'any'
 
-export type Box = (input: SeatInput) => Decision
+// A box decides on what its seat is shown; one that `remembers` is shown the
+// foes its seat remembers too, where they were last noticed (bot/memory.ts).
+export type Box = ((input: SeatInput) => Decision) & { remembers?: boolean }
 
 export type Executed = { ok: true; commands: SceneCommand[] } | { ok: false; refused: string }
 

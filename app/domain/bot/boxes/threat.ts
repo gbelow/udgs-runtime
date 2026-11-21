@@ -20,7 +20,8 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachDrawn, getStandingCost, type Drawn } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
-import { withSheet, cellOf, getTargetSpend, getRoundValue, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmTaken, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getAPValue, getSTAWorth, getStrikeValue, getOutcome, getTeam, getThreatened, getThreatening, threatValue, type SpendCost } from '../threat'
+import { getRememberedAge } from '../memory'
+import { withSheet, cellOf, getTargetSpend, getRoundValue, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmTaken, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getAPValue, getSTAWorth, getStrikeValue, getOutcome, getPresence, getTeam, getThreatened, getThreatening, threatValue, type SpendCost } from '../threat'
 import { ROUND_AP } from '../../tables'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import { REST_TUNING, type RestTuning } from '../rest'
@@ -126,6 +127,9 @@ export type ThreatWeights = RestTuning & {
   // what a walk gains, with no foe in sight, for every cell of the board it
   // shows that nobody of the side sees
   search: number
+  // what a search walk gains for every remembered foe (bot/memory.ts) whose
+  // cell it brings into sight, times how much of it is counted (`getPresence`)
+  recall: number
   // what a walk must beat standing still by
   margin: number
   // the immediate danger the character must be in where it stands for a run
@@ -149,7 +153,7 @@ export type ThreatWeights = RestTuning & {
   drain: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, arrival: 1, search: 1, margin: 1, flee: 10, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 1, drain: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, arrival: 1, search: 1, recall: 20, margin: 1, flee: 10, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 1, drain: 1 }
 
 const NOTHING_DRAWN: Drawn = { worth: 0, harm: 0, AP: 0, STA: 0 }
 
@@ -517,7 +521,12 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
 // With no foe in sight, the search widens (the user's ruling): a walk to where
 // the character sees the most of the board its side sees none of now, and the
 // nearer the board's middle the better, `search` for every such cell and
-// `aggression` for every cell nearer the middle, less the walk at its price.
+// `aggression` for every cell nearer the middle, `recall` for every foe the
+// seat remembers whose cell comes into sight, less the walk at its price,
+// `arrival` for this round's danger at the cell with what is left after it, as
+// every walk pays, and `peril` for every point of next round's danger the cell
+// holds more than where it stands, as a walk's standing reads it (remembered
+// foes counted where they were noticed).
 // The cells weighed are `SEARCH_CELLS` of the walk's, spread from the
 // furthest in, and the board is read at most `SEARCH_SPREAD` cells of it.
 const SEARCH_CELLS = 12
@@ -533,6 +542,11 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
   const team = members.flatMap((m) => cellOf(view, m) ?? [])
   const dark = extentCells(board.origin, board.extent).filter((c) => !team.some((t) => sees(t, c)))
   if (dark.length === 0) return null
+  const remembered = getSides(view, members).foes.flatMap((foe) => {
+    const at = getRememberedAge(view, foe) !== null ? cellOf(view, foe) : null
+    return at ? [{ at, presence: getPresence(view, foe, w) }] : []
+  })
+  const perilHere = getDanger(view, members, id, 'potential', here, undefined, w)
   const every = Math.ceil(dark.length / SEARCH_SPREAD)
   const read = dark.filter((_, i) => i % every === 0)
   let best: { cell: Coord; score: number; found: number; budget: Budget; movement: MovementKind } | null = null
@@ -543,7 +557,10 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
       const { cell, AP, STA } = far[i]
       if (!isWalkPaid(view, id, b, AP)) continue
       const found = read.filter((c) => sees(cell, c)).length * every
-      const score = w.search * found + w.aggression * (distance(here, board.origin) - distance(cell, board.origin)) - getSpendPrice({ AP, STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, 0, w)
+      const recalled = remembered.reduce((sum, r) => sum + (sees(cell, r.at) ? r.presence : 0), 0)
+      const danger = getDanger(view, members, id, 'immediate', cell, { AP: Math.max(0, b.AP - AP), STA: Math.max(0, b.STA - STA - b.surgeSTA) }, w)
+      const peril = w.peril * (getDanger(view, members, id, 'potential', cell, undefined, w) - perilHere)
+      const score = w.search * found + w.recall * recalled + w.aggression * (distance(here, board.origin) - distance(cell, board.origin)) - getSpendPrice({ AP, STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, danger, w) - w.arrival * danger - peril
       if (!best || score > best.score) best = { cell, score, found, budget: b, movement: walk.movement }
     }
   }
@@ -1255,7 +1272,7 @@ function getAway(view: SceneState, members: readonly string[], id: string, w: Th
 // anything, for what would better its position once no member has anything
 // to do now.
 export function threatBox(w: ThreatWeights): Box {
-  return (input) => {
+  const box: Box = (input) => {
     const { members, waits, buttons } = input
     const { find, press } = finding(buttons)
     for (const wait of waits) {
@@ -1296,6 +1313,8 @@ export function threatBox(w: ThreatWeights): Box {
     }
     return input.pass === 'any' ? carryOn(input, find) : { kind: 'wait', why: 'nothing to do now' }
   }
+  box.remembers = true
+  return box
 }
 
 // The plans the box has weighed on a view of the fight, by member and

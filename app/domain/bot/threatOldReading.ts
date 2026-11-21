@@ -64,9 +64,10 @@ export type ThreatTuning = {
   // read only by what this shares with bot/threat.ts (bot/approach.ts)
   pile: number
   share: number
+  fade: number
 }
 
-export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle', pile: 0, share: 0 }
+export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle', pile: 0, share: 0, fade: 1 }
 
 export type Threat = {
   // what the attack is worth against the answer the target is believed to

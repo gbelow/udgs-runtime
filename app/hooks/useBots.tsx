@@ -4,7 +4,8 @@ import { realDice } from "../components/utils";
 import { barOf, playOf } from "../net/parts";
 import { BOTS } from "../domain/profiles";
 import { getBotSeats } from "../domain/bot/bots";
-import { CONTEST_WINDOW_MS, getNextMove, getPace, type MoveOptions } from "../domain/bot/seat";
+import { CONTEST_WINDOW_MS, getNextMove, getPace, noteSeats, type MoveOptions } from "../domain/bot/seat";
+import type { SeatMemories } from "../domain/bot/memory";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useTableStore } from "../stores/useTableStore";
@@ -62,6 +63,12 @@ export function useBots() {
     // the last move pressed, and how many times in a row
     let last = '';
     let repeats = 0;
+    // what each bot seat remembers of the foes it noticed, noted at every change to the fight
+    let memories: SeatMemories = {};
+    const note = () => {
+      const state = useCombatStore.getState();
+      memories = noteSeats(memories, state, getBotSeats(state, live.current.viewerOf(BOTS[0].id, false).ownerOf));
+    };
 
     const play = () => {
       timer = null;
@@ -77,6 +84,7 @@ export function useBots() {
         rngOf: () => Math.random,
         autoTable: false,
         viewerOf: (seat) => viewerOf(seat.profile ?? seat.id, false),
+        memories,
       };
       const { move, next, refused } = getNextMove(state, seats, opts, from);
       if (refused.length) console.warn('[bots]', refused);
@@ -118,8 +126,9 @@ export function useBots() {
       timer = setTimeout(play, BEAT_MS);
     };
 
+    note();
     soon();
-    const offCombat = useCombatStore.subscribe(soon);
+    const offCombat = useCombatStore.subscribe(() => { note(); soon(); });
     const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) soon(); });
     const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) { held = null; soon(); } });
     return () => { offCombat(); offOwners(); offPaused(); if (timer) clearTimeout(timer); };

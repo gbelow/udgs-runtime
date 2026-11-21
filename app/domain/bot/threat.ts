@@ -10,6 +10,7 @@ import { getMovementBlock } from '../character/rules/movement'
 import { MOVEMENT_KINDS } from '../lists'
 import { canSurge, getSurgeAP, getSurgeSTA } from '../character/rules/surge'
 import { ROUND_AP } from '../tables'
+import { getRememberedAge } from './memory'
 import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
 import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
@@ -68,9 +69,21 @@ export type ThreatTuning = {
   // side the foe threatens (`shareOf`): its threat divided by their number to
   // the power `share`, 0 not shared at all
   share: number
+  // what a foe standing where the seat remembers it is counted for, for every
+  // round since it was noticed (bot/memory.ts): its threat and the harm it does
+  // times `fade` to the power of the rounds (the user's ruling: it fades)
+  fade: number
 }
 
-export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle', pile: 1, share: 0 }
+export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle', pile: 1, share: 0, fade: 0.5 }
+
+// How much of a foe counts where it stands in `state`: all of one the seat
+// notices, `fade` to the power of the rounds since it was noticed for one it
+// remembers there.
+export function getPresence(state: SceneState, foe: string, tuning: ThreatTuning): number {
+  const age = getRememberedAge(state, foe)
+  return age === null ? 1 : tuning.fade ** age
+}
 
 // One attack of the attacker's on the target (`getPairThreat`): what it is
 // worth against the answer the target is believed to choose
@@ -636,7 +649,7 @@ export function getDanger(state: SceneState, members: readonly string[], id: str
   const held = kind === 'potential' ? undefined : (guard ?? (me ? getMeans(me, members.includes(id), tuning) : undefined))
   return pileUp(foes.map((foe) => {
     const t = kind === 'potential' ? getPotentialThreat(state, members, foe, id, at, cellOf(state, foe), tuning) : getImmediateThreat(state, members, foe, id, at, tuning)
-    return t ? threatValue(t, held) / shareOf(state, members, foe, id, kind, tuning) : 0
+    return t ? (getPresence(state, foe, tuning) * threatValue(t, held)) / shareOf(state, members, foe, id, kind, tuning) : 0
   }), tuning)
 }
 
@@ -742,7 +755,7 @@ function getDefendingSlots(state: SceneState, plays: readonly string[], id: stri
     const s = getIncoming(state, plays, foe, id, at, tuning, fresh)
     if (!s) continue
     const others = getReached(state, plays, foe, tuning, fresh).filter((x) => x !== id).length
-    const n = Math.max(0, s.strikes / (1 + others) - (foe === leave ? 1 : 0))
+    const n = getPresence(state, foe, tuning) * Math.max(0, s.strikes / (1 + others) - (foe === leave ? 1 : 0))
     undefended += n * s.t.undefended
     slots.push({ n, value: s.t.undefended - s.t.harm, AP: s.t.defence.cost.AP, STA: s.t.defence.cost.STA })
   }
@@ -775,7 +788,7 @@ function getAttackingSlots(state: SceneState, plays: readonly string[], id: stri
     const moveAP = closingAP(getPace(state, id), closingSteps(state, id, at, foe, d.at, t.attack.reach, t.attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, t.attack.reach)))
     if (moveAP === null) continue
     const { AP, STA } = t.attack.cost
-    made.push({ moveAP, slot: { n: AP > 0 || STA > 0 ? Infinity : 1, value: t.harm, AP, STA } })
+    made.push({ moveAP, slot: { n: AP > 0 || STA > 0 ? Infinity : 1, value: getPresence(state, foe, tuning) * t.harm, AP, STA } })
   }
   byKey.set(key, made)
   return made

@@ -258,7 +258,7 @@ middle = round((least + most) / 2)
 ### Danger and target worth (`threat.ts`)
 
 ```
-Danger(me, kind, at, guard) = pile_foe threatValue(threat foe → me at `at`, guard) / share(foe)
+Danger(me, kind, at, guard) = pile_foe presence(foe) · threatValue(threat foe → me at `at`, guard) / share(foe)
                               guard: immediate, what I have left (or `guard`); potential, none
 HarmTaken(me, at, guard)    = Σ_foe harm I take, below (`getHarmTaken`)
                               the harm alone, nothing of what the answer costs
@@ -461,8 +461,12 @@ Also when every foe in the view is one the character does not notice (the user's
 
 ```
 score(cell) = w.search · cells it would see that nobody of the side sees
+            + w.recall · Σ presence(f) over remembered foes f whose cell it would see (§13)
             + w.aggression · (dist(here, board middle) − dist(cell, board middle))
-            − SpendPrice(walk AP, walk STA + surgeSTA, danger 0)
+            − SpendPrice(walk AP, walk STA + surgeSTA, danger)
+            − w.arrival · danger
+            − w.peril · (Danger(me, potential, cell) − Danger(me, potential, here))
+danger      = Danger(me, immediate, cell, AP/STA left after the walk)   remembered foes included
 
 walk if best score > w.margin
 ```
@@ -613,6 +617,21 @@ everyone else seen:  the face, with
 
 Threat reading of a face uses `fromThird` with `w.end` (§2) for what it has left.
 
+Memory (`memory.ts`, the user's ruling 2026-11-21), for a box that `remembers` (the threat box):
+the seat notes every foe any member notices, its face, where it stood and the round
+(`remember`, kept per seat by whoever runs the seats: `run`, `useBots`, through `noteSeats`).
+A foe the seat no longer notices stands in its view where it was last noticed, as it was then,
+unnoticed by every member, so never aimed at (`withRemembered`).
+
+```
+forgotten when   noticed again (noted afresh)
+                 round − round noticed > FORGET_AFTER (2, the user's ruling)
+                 a member sees its cell and it is not there, or someone noticed stands there
+                 it has left the fight
+presence(foe)  = 1 for a foe noticed; w.fade ^ (rounds since noticed) for one remembered
+                 read in Danger, the round value's slots (its strikes on me, mine on it), §5
+```
+
 ---
 
 ## Weights
@@ -635,6 +654,7 @@ they do are kept per weights.
 | `end`         | `'middle'`| fromThird: which end of a face's third, or its middle |
 | `pile`        | 1         | Danger: share of every foe's threat but the worst |
 | `share`       | 0         | Danger: a foe's threat divided among those it threatens |
+| `fade`        | 0.5       | presence of a remembered foe, per round since noticed (§13) |
 
 `REST_TUNING` (`rest.ts`) adds:
 
@@ -651,10 +671,11 @@ they do are kept per weights.
 | `threatened`  | 0.6     | §3 target: team's threat on the foe                     |
 | `threatening` | 0.2     | §3 target: foe's threat on the team                     |
 | `offence`     | 1       | §4 standing, §6 harm I could do                         |
-| `peril`       | 1       | §4 standing, §6 harm I would take                       |
+| `peril`       | 1       | §4 standing, §5 next round's danger added, §6 harm I would take |
 | `aggression`  | 4       | §4 pull per cell nearer a foe out of reach, §5 per cell nearer the middle |
 | `arrival`     | 1       | §4 immediate danger at the cell walked to               |
 | `search`      | 1       | §5 per cell newly seen                                  |
+| `recall`      | 20      | §5 per remembered foe whose cell comes into sight       |
 | `margin`      | 1       | §4, §4.3, §5, §6 must beat by                           |
 | `flee`        | 10      | §4.3 harm it must be believed to take to run now        |
 | `cover`       | 0       | §4.2, §8 ally's threat over mine                        |
@@ -673,6 +694,7 @@ Fixed counts (not weights):
 | `SEARCH_CELLS`, `SEARCH_SPREAD` | 12, 240 | boxes/threat.ts search            |
 | `MAP_ROUNDS`                    | 1       | threat.ts step map depth          |
 | `BALLPARK`                      | 3       | belief.ts                         |
+| `FORGET_AFTER`                  | 2       | memory.ts (the user's ruling)     |
 | `QUIVER`                        | 20      | belief.ts (gear.tex "Quiver")     |
 
 ---

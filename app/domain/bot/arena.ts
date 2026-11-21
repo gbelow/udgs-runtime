@@ -39,10 +39,12 @@ export function playFight({ start, sides, boxes }: Matchup, seed: number, swappe
   // each box watched for an offer naming someone its seat does not see
   const box = (i: 0 | 1): Box => {
     const inner = boxes[swapped ? 1 - i : i]
-    return (input) => {
+    const watched: Box = (input) => {
       leaks.push(...getPanelLeaks(input, everyone))
       return inner(input)
     }
+    watched.remembers = inner.remembers
+    return watched
   }
   const seats: Seat[] = [{ id: 'red', members: sides[0], box: box(0) }, { id: 'blue', members: sides[1], box: box(1) }]
   const played = run(start, seats, { seed, maxRounds })
