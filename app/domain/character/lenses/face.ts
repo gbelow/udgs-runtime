@@ -16,7 +16,7 @@ type Face = Pick<CampaignCharacter, 'id' | 'name' | 'token' | 'size' | 'footprin
 export const FACE_KEYS: (keyof Face)[] = ['id', 'name', 'token', 'size', 'footprint', 'height', 'armor', 'body', 'stance', 'hasGauntlets', 'hasHelm', 'visorOpen', 'worn', 'held', 'onBack', 'usedSurge']
 
 // The table's ruling: the afflictions anyone can see a character is under.
-const SHOWN_AFFLICTIONS: ReadonlySet<AfflictionKey> = new Set<AfflictionKey>(['prone', 'immobile', 'lame', 'grappled', 'unconscious'])
+const SHOWN_AFFLICTIONS: ReadonlySet<AfflictionKey> = new Set<AfflictionKey>(['prone', 'immobile', 'collapsed', 'lame', 'grappled', 'unconscious'])
 
 const blank = CampaignCharacterSchema.parse({})
 const faces = new WeakMap<CampaignCharacter, CampaignCharacter>()

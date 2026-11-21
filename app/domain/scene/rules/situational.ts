@@ -40,3 +40,9 @@ export function isSuffocating(state: SceneState, c: CampaignCharacter): boolean 
 export function isImmobile(state: SceneState, c: CampaignCharacter): boolean {
   return hasFightAffliction(state, c, 'immobile')
 }
+
+// combat.tex "Collapsed": "cannot use any of the combat skills, and can only
+// tread, crawl, swim or stand up."
+export function isCollapsed(state: SceneState, c: CampaignCharacter): boolean {
+  return hasFightAffliction(state, c, 'collapsed')
+}

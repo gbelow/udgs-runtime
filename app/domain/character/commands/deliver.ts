@@ -19,6 +19,7 @@ import { cure, inflict } from './addAffliction'
 import { mend } from './heal'
 import { woundPart } from './wounds'
 import { getPartWound } from '../rules/wounds'
+import { getDeathIL } from '../rules/afflictions'
 import { getFallDeliveries } from '../rules/fall'
 import { loseConcentration } from './spells'
 
@@ -138,7 +139,7 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
       ...hurt,
       injuries: {
         ...hurt.injuries,
-        injuryLevel: outcome.dead ? Math.max(injuryLevel, c.injuries.deathThreshold) : injuryLevel,
+        injuryLevel: outcome.dead ? Math.max(injuryLevel, getDeathIL(c)) : injuryLevel,
         bleed: c.injuries.bleed + outcome.bleed,
         burning: outcome.burning ?? c.injuries.burning,
       },

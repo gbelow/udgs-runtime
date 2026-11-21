@@ -278,8 +278,8 @@ function struckPlace(facts: Damage, target: Character): Place {
 }
 
 // combat.tex "Wounds": the worst of the part's wounds the tier reaches —
-// the highest, the later of two at one tier. A blunt wound (Shocked) is
-// measured on the blunt tier; gear.tex "Piercing": "cannot amputate".
+// the highest, the later of two at one tier. A blunt wound is measured on
+// the blunt tier; gear.tex "Piercing": "cannot amputate".
 function reachedWound(place: Place, tier: number, bluntTier: number, piercing: boolean): PartWound | null {
   return place.wounds
     .filter((w) => (w.blunt ? bluntTier >= w.tier : tier >= w.tier))

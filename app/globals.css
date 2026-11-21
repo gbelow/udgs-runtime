@@ -22,8 +22,8 @@
   --caution: #D9B44A;
   --bad: #DC4C4C;
 
-  /* Injury stages, one per multiple of 10 IL (combat.tex "Injury level"):
-     1–3 climb from gold to the bad red, 4 is collapse, 5 is death. */
+  /* Injury stages: 1–3 the injury penalty climbing from gold to the bad
+     red, 4 is collapse, 5 is death. */
   --injury-1: #C9A24A;
   --injury-2: #D8823F;
   --injury-3: #DC4C4C;

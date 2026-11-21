@@ -78,9 +78,9 @@ function settleMorale(id: string, roll: MoraleRoll): Updater {
       ...(outcome.limitStress ? getStressAuthors(state, id).map((by) => updateCharacter(by, meetAttitudes({ event: 'enemyStress' }), 'conviction attitude')) : []),
       (acc: SceneState) => inspire(acc, id, happened),
       (acc: SceneState) => (merciful ? compelSurrender(acc, id) : acc),
-      // abilities.tex "Oathbound": a hit or a crit in the morale test steels the
+      // abilities.json "Oathbound": a crit in the morale test steels the
       // character for the round that begins
-      updateCharacter(id, (c) => (roll.degree === 'hit' || roll.degree === 'critical' ? { ...c, steeled: true } : c), 'morale test'),
+      updateCharacter(id, (c) => (roll.degree === 'critical' ? { ...c, steeled: true } : c), 'morale test'),
     ].reduce((acc, step) => step(acc), state)
     const tested = withRoll(settled, id, { ...roll, limitStress: outcome.limitStress && !merciful })
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)

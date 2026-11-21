@@ -80,7 +80,7 @@ const BUFF_CONDITIONS: Record<BuffCondition, (c: Character) => boolean> = {
   enraged: (c) => isCampaignCharacter(c) && c.afflictions.includes('enraged'),
   // abilities.tex "Leadership": the round the character rallied their team in
   rallied: (c) => isCampaignCharacter(c) && c.rallied,
-  // abilities.tex "Oathbound": the round a morale test was a hit or a crit in
+  // abilities.json "Oathbound": the round a morale test was a crit in
   steeled: (c) => isCampaignCharacter(c) && c.steeled,
 }
 

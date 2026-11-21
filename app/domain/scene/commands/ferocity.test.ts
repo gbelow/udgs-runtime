@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { SceneStateSchema, type SceneState, type MoraleRoll } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import { TrainableSchema, type CampaignCharacter, type Degree } from '../../types'
+import { TrainableSchema, type AfflictionKey, type CampaignCharacter, type Degree } from '../../types'
 import { ABILITIES } from '../../abilities'
 import { getMoraleCalled, getMoraleOutcome, getMoraleVolunteers, getSocialValue } from '../rules/morale'
 import { hypeUp, skipMorale } from './morale'
@@ -97,14 +97,20 @@ describe('Hype up, a morale test chosen', () => {
   })
 })
 
-// abilities.tex "Unstoppable": "Does not become immobilized by shock nor by
-// IL while enraged."
+// abilities.json "Unstoppable": "Increases the limit to become collapsed by
+// 20 while enraged."
 describe('Unstoppable', () => {
-  it('keeps a collapsed character standing only while enraged', () => {
+  const raise = ABILITIES.unstoppable.effect.flatMap((e) => (e.type === 'buff' && e.effect.target === 'injury:capacity' ? [e.effect.value] : []))[0]
+  const at = (IL: number, afflictions: AfflictionKey[]) => {
     const base = fighter(['unstoppable'])
-    const collapsed = { ...base, injuries: { ...base.injuries, injuryLevel: getInjuryCapacity(base) } }
-    expect(getAfflictions(collapsed)).toContain('immobile')
-    expect(getAfflictions({ ...collapsed, afflictions: ['enraged'] })).not.toContain('immobile')
+    return getAfflictions({ ...base, afflictions, injuries: { ...base.injuries, injuryLevel: getInjuryCapacity(base) + IL } })
+  }
+
+  it('raises the limit by its own amount, only while enraged', () => {
+    expect(at(0, [])).toContain('collapsed')
+    expect(at(0, ['enraged'])).not.toContain('collapsed')
+    expect(at(raise - 1, ['enraged'])).not.toContain('collapsed')
+    expect(at(raise, ['enraged'])).toContain('collapsed')
   })
 })
 

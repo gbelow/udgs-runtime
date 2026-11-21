@@ -4,15 +4,16 @@ import { getHeldEntry } from '../../character/rules/concentration'
 import { SPELLS, isSpellKey } from '../../spells'
 import { isDead } from '../../character/rules/afflictions'
 import { isGrapplingStill } from './grapple'
-import { hasFightAffliction, isImmobile } from './situational'
+import { hasFightAffliction, isCollapsed, isImmobile } from './situational'
 import { setDistance } from './board/geometry'
 import { getDistanceBetween, getPlacedFootprint } from './board/board'
 import { getPartner, getTethersOf, isTether } from './partners'
 
-// The table's ruling: the dead, the unconscious and the immobile hold nobody.
+// The table's ruling: the dead, the unconscious and the immobile hold nobody;
+// nor do the collapsed, who cannot grapple (combat.tex "Collapsed").
 function isIncapacitated(state: SceneState, id: string): boolean {
   const c = state.characters[id]
-  return !c || isDead(c) || hasFightAffliction(state, c, 'unconscious') || isImmobile(state, c)
+  return !c || isDead(c) || hasFightAffliction(state, c, 'unconscious') || isImmobile(state, c) || isCollapsed(state, c)
 }
 
 // Whether the holder still maintains the bind with what it was made with.

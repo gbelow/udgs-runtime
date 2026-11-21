@@ -138,17 +138,7 @@
       "aimPenalty": 0,
       "maxTier": null,
       "flags": [],
-      "wounds": [
-        {
-          "name": "shocked",
-          "tier": 4,
-          "blunt": true,
-          "effect": "disable",
-          "heal": 5,
-          "affliction": "immobile",
-          "consequence": "immobile"
-        }
-      ],
+      "wounds": [],
       "lost": false
     },
     {
@@ -166,7 +156,7 @@
       "wounds": [
         {
           "name": "death",
-          "tier": 4,
+          "tier": 5,
           "blunt": false,
           "effect": "kill",
           "heal": 0,

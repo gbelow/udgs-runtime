@@ -55,12 +55,12 @@ export function getMedicineAbility(kind: MedicineKind): AbilityKey {
   return ABILITY[kind]
 }
 
-// abilities.tex "First Aid": "Make a medicine test against a DL equal to 2x
+// abilities.tex "First Aid": "Make a medicine test against a DL equal to the
 // bleeding".
 export function getFirstAidTerms(state: SceneState, root: FirstAidAction): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[root.actorId]
   const target = root.targetId ? state.characters[root.targetId] : undefined
-  return actor && target ? { skill: getKnowledgeTestTerms('medicine')(actor), DL: [{ label: '2x bleed', value: 2 * target.injuries.bleed }] } : null
+  return actor && target ? { skill: getKnowledgeTestTerms('medicine')(actor), DL: [{ label: 'bleed', value: target.injuries.bleed }] } : null
 }
 
 const FIRST_AID_BLEED: Record<Degree, number> = { miss: 0, graze: 0, hit: 1, critical: 2 }

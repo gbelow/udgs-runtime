@@ -215,38 +215,44 @@ describe('Mercy', () => {
   })
 })
 
-// abilities.tex "Oathbound": "Gains +1 bonus to Charisma. A hit or crit in the
-// morale test prevents the character from being immobile by shock or IL."
+// abilities.json "Oathbound": "A crit in the morale test increases the IL
+// limit to become collapsed by +20", for the round.
 describe('Oathbound', () => {
-  const MISS = 1
-  const HIT = 10
-  // the premise: an immobile character takes no morale test (combat.tex "Out
-  // of the fight"), so the test is made one point under injury capacity
-  const called = () => {
-    const state = inFight(['oathbound'], { roundStep: 'morale', morale: [{ id: 'a', roll: null, optional: false }] })
-    return updateCharacter('a', (c) => ({ ...c, injuries: { ...c.injuries, injuryLevel: getInjuryCapacity(c) - 1 } }))(state)
-  }
-  // the blow in the round that takes them to injury capacity
-  const struck = (s: SceneState) => updateCharacter('a', (c) => ({ ...c, injuries: { ...c.injuries, injuryLevel: getInjuryCapacity(c) } }))(s)
-  const immobile = (s: SceneState) => hasAffliction(s.characters.a, 'immobile')
+  const raise = ABILITIES.oathbound.effect.flatMap((e) => (e.type === 'buff' && e.effect.target === 'injury:capacity' ? [e.effect.value] : []))[0]
+  // the premise: the test is made unhurt, with nothing pressing, so that the
+  // dice reach a crit and fall short of one
+  const called = () => inFight(['oathbound'], { roundStep: 'morale', morale: [{ id: 'a', roll: null, optional: false }] })
+  // the blow in the round that takes them to injury capacity, as it is
+  // without the oath
+  const struck = (s: SceneState, by = 0) => updateCharacter('a', (c) => ({ ...c, injuries: { ...c.injuries, injuryLevel: getInjuryCapacity({ ...c, steeled: false }) + by } }))(s)
+  const collapsed = (s: SceneState) => hasAffliction(s.characters.a, 'collapsed')
+  const rolled = (die: number) => rollMorale('a', 'normal', true, () => die)(called())
+  const degreeOf = (s: SceneState) => s.morale.find((m) => m.id === 'a')?.roll?.degree
+  const DICE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-  it('keeps a hit or a crit from collapsing at injury capacity, for the round', () => {
-    const steeled = struck(rollMorale('a', 'normal', true, () => HIT)(called()))
-    expect(steeled.characters.a.steeled).toBe(true)
-    expect(immobile(steeled)).toBe(false)
+  it('raises the limit after a crit, and only after one', () => {
+    const degrees = DICE.map((die) => degreeOf(rolled(die)))
+    expect(degrees).toContain('critical')
+    expect(degrees.some((d) => d !== 'critical')).toBe(true)
+    for (const die of DICE) {
+      const after = rolled(die)
+      const crit = degreeOf(after) === 'critical'
+      expect(after.characters.a.steeled).toBe(crit)
+      expect(collapsed(struck(after))).toBe(!crit)
+    }
   })
 
-  it('does nothing after a miss', () => {
-    const missed = struck(rollMorale('a', 'normal', true, () => MISS)(called()))
-    expect(missed.characters.a.steeled).toBe(false)
-    expect(immobile(missed)).toBe(true)
+  it('raises it by its own amount', () => {
+    const steeled = rolled(DICE.find((die) => degreeOf(rolled(die)) === 'critical')!)
+    expect(collapsed(struck(steeled, raise - 1))).toBe(false)
+    expect(collapsed(struck(steeled, raise))).toBe(true)
   })
 
   it('is over with the round', () => {
-    const steeled = struck(rollMorale('a', 'normal', true, () => HIT)(called()))
+    const steeled = rolled(DICE.find((die) => degreeOf(rolled(die)) === 'critical')!)
     const ended = nextRound(() => 5)({ ...steeled, morale: [], roundStep: null, inTurnCharacter: '' })
     expect(ended.characters.a.steeled).toBe(false)
-    expect(immobile(ended)).toBe(true)
+    expect(collapsed(struck(ended))).toBe(true)
   })
 
   it('adds its Charisma', () => {

@@ -7,7 +7,7 @@ import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
 import { getEndTurnBar, getStartTurnBar } from '../rules/turn'
 import { getStressRoundBar } from '../rules/stress'
-import { getInjuryCapacity, isDead } from '../../character/rules/afflictions'
+import { getDeathIL, getInjuryCapacity, isDead } from '../../character/rules/afflictions'
 import { getProtectors } from '../rules/protect'
 import { makeAction } from '../factories'
 import { SURGES } from '../../tables'
@@ -103,7 +103,7 @@ describe('limit stress turns', () => {
   it('cancel the one owed by a character who dies taking it', () => {
     const base = fighter('a', { limitStress: 'coward' })
     const IL = getInjuryCapacity(base) - 1
-    const bleed = Math.ceil((base.injuries.deathThreshold - IL + 1) / SURGES.movement.STA)
+    const bleed = Math.ceil((getDeathIL(base) - IL + 1) / SURGES.movement.STA)
     const coward = { ...base, injuries: { ...base.injuries, injuryLevel: IL, bleed } }
     const owing = oweStress(tested([coward], [5]))
     expect(getStressRoundBar(owing)).not.toBeNull()

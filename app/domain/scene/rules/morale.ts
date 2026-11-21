@@ -12,7 +12,7 @@ import { getBuffBonus, getGrantingAbility, getRollModes, hasGrant } from '../../
 import { ABILITIES } from '../../abilities'
 import type { RollMode } from '../../play/dice'
 import { getFightName } from './fighters'
-import { getSituationalAfflictions, isImmobile } from './situational'
+import { getSituationalAfflictions, isCollapsed } from './situational'
 import { isNearBlindGround } from './detection'
 import { isRunningInChase } from './chase'
 import { isParked } from './parked'
@@ -148,8 +148,8 @@ const MORALE_AFFLICTIONS: readonly AfflictionKey[] = ['afraid', 'enraged', 'conf
 
 // combat.tex "Morale test triggers": "at the beginning of a round when
 // aggravating factors are at 3 or more, when under specific afflictions" —
-// afraid, enraged or confused. The dead, the unconscious, the immobile and the
-// parked make none (the table's ruling for the immobile), and neither does
+// afraid, enraged or confused. The dead, the unconscious, the collapsed and
+// the parked make none (combat.tex "Out of the fight"), and neither does
 // anyone running in a chase: the test is combat's (the table's ruling).
 export function getMoraleCalled(state: SceneState): string[] {
   return Object.keys(state.characters).filter((id) => {
@@ -162,7 +162,7 @@ export function getMoraleCalled(state: SceneState): string[] {
 
 function canTestMorale(state: SceneState, id: string): boolean {
   const c = state.characters[id]
-  return !!c && !isDead(c) && !hasAffliction(c, 'unconscious', getSituationalAfflictions(state, id)) && !isImmobile(state, c) && !isParked(state, id) && !isRunningInChase(state, id)
+  return !!c && !isDead(c) && !hasAffliction(c, 'unconscious', getSituationalAfflictions(state, id)) && !isCollapsed(state, c) && !isParked(state, id) && !isRunningInChase(state, id)
 }
 
 // abilities.json "Hype Up": "They can decide to do a morale test in the

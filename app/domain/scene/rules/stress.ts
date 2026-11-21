@@ -93,11 +93,11 @@ export function getStressTurns(state: SceneState): Compulsion[] {
 
 // Whether the limit stress action is still owed: not taken, and its character
 // still in the fight to take it. combat.tex "Morale", "Out of the fight":
-// "Immobile and unconscious characters do not take morale tests"; the table's
-// ruling: one who dies or goes immobile while owing it has it cancelled.
+// "Collapsed and unconscious characters do not take morale tests"; the table's
+// ruling: one who dies or collapses while owing it has it cancelled.
 function isOwed(state: SceneState, t: Compulsion): boolean {
   const c = state.characters[t.id]
-  return !t.taken && !!c && !isDead(c) && !hasFightAffliction(state, c, 'immobile') && !hasFightAffliction(state, c, 'unconscious')
+  return !t.taken && !!c && !isDead(c) && !hasFightAffliction(state, c, 'collapsed') && !hasFightAffliction(state, c, 'unconscious')
 }
 
 export function getNextStress(state: SceneState): Compulsion | null {

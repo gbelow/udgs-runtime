@@ -55,7 +55,7 @@ import { NEEDS_FOCUS, isLearnedSurge } from '../../character/rules/surge'
 import { canAffordRest } from '../../character/rules/rest'
 import { getIncomingAP, getRoundChangeActBar, getRoundPhase } from './roundChange'
 import { getChaseRestBar } from './chase'
-import { hasFightAffliction, isImmobile, isSuffocating } from './situational'
+import { hasFightAffliction, isCollapsed, isImmobile, isSuffocating } from './situational'
 import { getSidestepBar } from './sidestep'
 import { getPrepareCost } from './cunning'
 
@@ -210,7 +210,7 @@ function listOwn(state: SceneState, c: CampaignCharacter, kinds?: ReadonlySet<Ac
 // What stands closed among the character's own actions: who they are, what they
 // are doing, what surge is in hand, whose turn it is.
 function closeOwn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeWhileDiceWait(state, closeByRoundChange(state, closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileForced(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options))))))))))
+  return closeWhileDiceWait(state, closeByRoundChange(state, closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileForced(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfCollapsed(state, c, closeIfImmobile(state, c, closeIfUnconscious(c, options)))))))))))
 }
 
 // The table's ruling: while the scene waits on a die it called for, nothing
@@ -251,7 +251,7 @@ function closeWhileHolding(state: SceneState, c: CampaignCharacter, options: Act
 // surge could open it: closed for its price (one the payer cannot pay, or
 // no single price to tell by), or until a surge is made; never one closed
 // by whose turn it is, a die the table waits on, the round change, or the
-// character immobile or unconscious. Each surge is asked on this same fight,
+// character immobile, collapsed or unconscious. Each surge is asked on this same fight,
 // with the character as it would leave them, and only of the kinds with
 // such an option. A surge only an ability gives is asked on the fight with
 // the surge made, of every kind: what it gives is read off the character in
@@ -272,7 +272,7 @@ function withSurges(state: SceneState, c: CampaignCharacter, payer: CampaignChar
   const surges = isInTurn(state, c.id) ? probed : [...probed.filter((p) => p.kind !== 'movement'), ...probed.filter((p) => p.kind === 'movement')]
   const giving = opens && surges.some((p) => isLearnedSurge(p.kind))
   if (now.every((o) => o.available) && !giving) return now
-  const fixed = new Set([NOT_YOUR_TURN, IMMOBILE, UNCONSCIOUS, getDiceBar(state.calls), getRoundChangeActBar(state)])
+  const fixed = new Set([NOT_YOUR_TURN, IMMOBILE, COLLAPSED, UNCONSCIOUS, getDiceBar(state.calls), getRoundChangeActBar(state)])
   const charged = isCombatStarted(state)
   const liftable = (o: ActionOption) => !o.available && !fixed.has(o.reason) && (o.cost === null || !canAfford(payer, o.cost, charged) || LIFTED_BY_A_SURGE.has(o.reason))
   const closed = new Set(now.filter(liftable).map((o) => o.draft.kind))
@@ -326,7 +326,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return closeBySurge(state, refunded, closeIfImmobile(state, refunded, closeIfUnconscious(refunded, getTriggersFor(state, open, characterId).filter((trigger) => !kinds || kinds.has(trigger.kind)).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(state, refunded, closeIfCollapsed(state, refunded, closeIfImmobile(state, refunded, closeIfUnconscious(refunded, getTriggersFor(state, open, characterId).filter((trigger) => !kinds || kinds.has(trigger.kind)).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     // what giving up an action of their own refunds, for the answers that give it up
     const c = withRefund(state, reserved, open.id, kind)
@@ -479,7 +479,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         return [answer({ kind }, null, reason)]
       }
     }
-  }))))
+  })))))
 }
 
 // The actions a character may take on their own initiative, one entry per
@@ -674,6 +674,7 @@ function afford(state: SceneState, c: CampaignCharacter, cost: ActionCost): stri
 }
 
 const IMMOBILE = 'immobile'
+const COLLAPSED = 'collapsed'
 const UNCONSCIOUS = 'unconscious'
 
 // combat.tex "Immobile": "Cannot move and cannot use any combat or movement
@@ -681,6 +682,12 @@ const UNCONSCIOUS = 'unconscious'
 function closeIfImmobile(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
   if (!isImmobile(state, c)) return options
   return options.map((o) => (o.draft.kind === 'releaseSpell' || (o.draft.kind === 'grapple' && o.draft.maneuver === 'escape')) ? o : { ...o, available: false, reason: IMMOBILE })
+}
+
+// combat.tex "Collapsed": "cannot use any of the combat skills nor force"; how they
+// may move is the move's own (rules/move.ts).
+function closeIfCollapsed(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return isCollapsed(state, c) ? closeWith(options, (o) => (getActionDef(o.draft.kind).combatOrForce ? COLLAPSED : null)) : options
 }
 
 // The unconscious do nothing but rest.

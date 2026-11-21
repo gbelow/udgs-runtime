@@ -6,7 +6,7 @@ import { isLamedByHeld } from '../../item/rules/hands'
 import { getWoundAfflictions } from './wounds'
 import { getStanceAfflictions } from './body'
 import { getCurseAfflictions } from './curses'
-import { getSuppressed } from './effects'
+import { getBuffBonus, getSuppressed } from './effects'
 
 // The full affliction set: what the GM toggled by hand, plus everything the
 // character's own state forces on them, plus what their surroundings put on
@@ -67,13 +67,10 @@ export function getForcedAfflictions(character: Character, suppressed: ReadonlyS
   // combat.tex "Wounds": a carried wound's consequence, for as long as it is,
   // and the legs lost or broken, as many as the stance can bear;
   // spells.tex "Curse": a carried curse's, the same
-  // combat.tex "Injuries and Death": collapsing at injury capacity, unless
-  // the collapse is suppressed (abilities.tex "Unstoppable"); the body lies
-  // where it fell, prone (the user's ruling), so others step over it.
-  if (character.injuries.injuryLevel >= getInjuryCapacity(character) && !suppressed.has('collapse')) {
-    afflictions.add('immobile')
-    afflictions.add('prone')
-  }
+  // combat.tex "Injuries and Death": collapsed at injury capacity; a body
+  // lies where it fell, prone (the user's ruling), so others step over it
+  if (character.injuries.injuryLevel >= getInjuryCapacity(character)) afflictions.add('collapsed')
+  if (isDead(character)) afflictions.add('prone')
 
   for (const key of getWoundAfflictions(character, suppressed)) afflictions.add(key)
   for (const key of getStanceAfflictions(character)) afflictions.add(key)
@@ -159,21 +156,21 @@ export function getInjuryPenalty(c: Character): number {
   return Math.floor(c.injuries.injuryLevel / getIT(c))
 }
 
-// combat.tex "Injuries and Death": death past 50 IL, the fifth multiple of
+// combat.tex "Injuries and Death": death past 100 IL, the tenth multiple of
 // the threshold.
-const DEATH_PENALTY = 5
+const DEATH_PENALTY = 10
 
 export function isDead(c: Character): boolean {
   return isCampaignCharacter(c) && c.injuries.injuryLevel >= getDeathIL(c)
 }
 
 // combat.tex "Injuries and Death": injury capacity, the IL at which the
-// character collapses and goes immobile, is the fourth multiple of the
-// threshold.
-const CAPACITY_PENALTY = 4
+// character collapses, is the fifth multiple of the threshold, raised by
+// what their abilities add to it (abilities.json "Iron Will", "Unstoppable").
+const CAPACITY_PENALTY = 5
 
 export function getInjuryCapacity(c: CampaignCharacter): number {
-  return CAPACITY_PENALTY * getIT(c)
+  return CAPACITY_PENALTY * getIT(c) + getBuffBonus(c, 'injury:capacity')
 }
 
 // The IL that is death: the least at which the character is dead.
@@ -181,12 +178,14 @@ export function getDeathIL(c: CampaignCharacter): number {
   return DEATH_PENALTY * getIT(c)
 }
 
-// The injury penalty read as a stage for display, 0 (unhurt) to 5 (dead):
-// combat.tex "Injuries and Death" puts collapse at 40 IL and death past 50,
-// and nothing past death is a further stage.
+// How hurt the character is, as a stage for display: 1 to 3 the injury
+// penalty while standing, 4 collapsed, 5 dead.
 export type InjuryStage = 0 | 1 | 2 | 3 | 4 | 5
 export function getInjuryStage(c: Character): InjuryStage {
-  return Math.min(5, Math.max(0, getInjuryPenalty(c))) as InjuryStage
+  if (!isCampaignCharacter(c)) return 0
+  if (isDead(c)) return 5
+  if (c.injuries.injuryLevel >= getInjuryCapacity(c)) return 4
+  return Math.min(3, Math.max(0, getInjuryPenalty(c))) as InjuryStage
 }
 
 // The 10 is flat — the rulebook gives nothing that moves it. The per-character

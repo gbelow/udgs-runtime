@@ -13,12 +13,12 @@ import { getActionCost } from '../../character/rules/actionCosts'
 import { line, setDistance } from './board/geometry'
 import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, LEVEL_EYES, seesAcross, withPlacements } from './board/board'
 import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
-import { isImmobile } from './situational'
+import { isCollapsed, isImmobile } from './situational'
 import { getFreeStep, getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
 import { getMovePlacements, getMoveWaypoint } from './board/waypoint'
 import { getAction, getAncestry, getLiveReactionsTo, getPassedUp, getRootOf, getSpawned } from './log'
 import { getHeldOf, keepsHeldOn } from './hold'
-import { ACTIONS, isReaction } from './actionCatalog'
+import { ACTIONS, getActionDef, isReaction } from './actionCatalog'
 import { getJoinReaction } from './coordinated'
 import { isInInterceptRange, isOnProtectLine } from './protect'
 import type { Trigger } from './reactions'
@@ -155,6 +155,8 @@ function getUndiscountedMainCost(state: SceneState, c: CampaignCharacter, p: Pre
 // "They must have enough AP to perform the reaction when the trigger occurs."
 export function getPreparedBar(state: SceneState, c: CampaignCharacter, p: PrepareAction): string | null {
   if (isImmobile(state, c)) return 'immobile'
+  // combat.tex "Collapsed": "cannot use any of the combat skills nor force"
+  if (p.main && isCollapsed(state, c) && getActionDef(p.main).combatOrForce) return 'collapsed'
   const cost = getMainCost(state, c, p)
   if (!cost) return 'cannot be made now'
   return canAfford(c, cost, isCombatStarted(state)) ? null : CANNOT_AFFORD

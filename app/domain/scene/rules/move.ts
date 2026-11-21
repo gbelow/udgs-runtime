@@ -8,7 +8,7 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getSurgeAPLeft } from '../../character/rules/surge'
 import { hasAffliction } from '../../character/rules/afflictions'
-import { isImmobile } from './situational'
+import { isCollapsed, isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, cellNumber, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
@@ -173,7 +173,10 @@ export type MovementOption = {
 // jump". combat.tex "Grappled": "Movement requires pushing or
 // dragging the other participants in the grapple" — a block of push at a
 // time (combat.tex "Push and drag"), though standing up crosses no cells
-// and stays open to them. "Immobile: Cannot move".
+// and stays open to them. "Immobile: Cannot move". "Collapsed: ... can
+// only tread, crawl, swim or stand up".
+const COLLAPSED_MOVES: ReadonlySet<MovementKind> = new Set(['tread', 'crawl', 'swim'])
+
 export function getMovementOptions(state: SceneState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = hasAffliction(c, 'prone')
   const lame = hasAffliction(c, 'lame')
@@ -185,9 +188,11 @@ export function getMovementOptions(state: SceneState, c: CampaignCharacter, acti
   const budget = action ? getMoveBudget(c, action) : null
   const held = isInGrapple(state, c.id)
   const immobile = isImmobile(state, c)
+  const collapsed = isCollapsed(state, c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const { AP, STA } = getMovementBlock(c, kind)
     const gate = immobile ? { available: false, reason: 'immobile' }
+      : collapsed && !COLLAPSED_MOVES.has(kind) ? { available: false, reason: 'collapsed' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
       : movementGate(kind, { AP, STA }, hanging, prone, lame, swimming, waterNear, cliffNear, granted, budget)
     return { kind, speed: getMovementSpeed(c, kind), block: { AP, STA: runsFree(c, kind) ? 0 : STA }, ...gate }

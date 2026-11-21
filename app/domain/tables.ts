@@ -216,8 +216,8 @@ export const injuryMap: Record<string, { IL: number; bleed: number }> = {
   T1: { IL: 5, bleed: 0 },
   T2: { IL: 10, bleed: 1 },
   T3: { IL: 20, bleed: 2 },
-  T4: { IL: 30, bleed: 3 },
-  T5: { IL: 50, bleed: 4 },
+  T4: { IL: 30, bleed: 4 },
+  T5: { IL: 50, bleed: 6 },
 }
 export const MAX_TIER = 5
 
@@ -307,9 +307,9 @@ export const THROW_ITEM_RANGE = 10
 // wound is carried in the injuries and puts its part out of use (a hand's or
 // a leg's consequence is read off the body, body.ts); `affliction` is only
 // what reaches past the part. A `sever` wound ("no heal") is not carried: the
-// part it takes is lost. `blunt` wounds are measured on the blunt tier alone
-// (Shocked, "T4 blunt"). combat.tex "Head": "Tier 4 damage causes instant
-// death" is the head's `kill`.
+// part it takes is lost. `blunt` wounds are measured on the blunt tier alone.
+// combat.tex "Head": "Tier 5 damage causes instant death" is the head's
+// `kill`.
 type PartWoundPreset = { name: string; tier: number; blunt: boolean; effect: (typeof WOUND_EFFECTS)[number]; heal: number; affliction: AfflictionKey | null; consequence: string }
 
 const wound = (w: Partial<PartWoundPreset> & Pick<PartWoundPreset, 'name' | 'tier' | 'consequence'>): PartWoundPreset =>
@@ -322,9 +322,7 @@ const wound = (w: Partial<PartWoundPreset> & Pick<PartWoundPreset, 'name' | 'tie
 // part of each kind starts from its row; `other` is a place the book does
 // not describe, starting from nothing.
 export const PART_PRESETS = {
-  chest: { aimPenalty: 0, maxTier: null, flags: [], wounds: [
-    wound({ name: 'shocked', tier: 4, blunt: true, heal: 5, affliction: 'immobile', consequence: 'immobile' }),
-  ] },
+  chest: { aimPenalty: 0, maxTier: null, flags: [], wounds: [] },
   hand: { aimPenalty: 10, maxTier: 2, flags: ['bareWithoutGauntlets'], wounds: [
     wound({ name: 'broken hand', tier: 2, heal: 10, consequence: 'useless hand' }),
     wound({ name: 'amputated hand', tier: 4, effect: 'sever', consequence: 'loses hand' }),
@@ -334,7 +332,7 @@ export const PART_PRESETS = {
     wound({ name: 'amputated leg', tier: 5, effect: 'sever', consequence: 'loses leg' }),
   ] },
   head: { aimPenalty: 5, maxTier: null, flags: ['stunUnconscious'], wounds: [
-    wound({ name: 'death', tier: 4, effect: 'kill', consequence: 'instant death' }),
+    wound({ name: 'death', tier: 5, effect: 'kill', consequence: 'instant death' }),
   ] },
   other: { aimPenalty: 0, maxTier: null, flags: [], wounds: [] },
 } as const satisfies Record<(typeof HIT_LOCATIONS)[number], { aimPenalty: number; maxTier: number | null; flags: readonly (typeof PART_FLAGS)[number][]; wounds: readonly PartWoundPreset[] }>
@@ -389,6 +387,7 @@ const AFFLICTION_DEFS = {
   prone: { controlable: false, category: "mobility" },
   grappled: { controlable: true, category: "mobility" },
   immobile: { controlable: true, category: "mobility" },
+  collapsed: { controlable: false, category: "mobility" },
 
   offuscated: { sense: { key: 'vision', penalty: 3 }, group: 'sight', rank: 1, controlable: true, category: "sensory" },
   blind: { sense: { key: 'vision', lost: true }, group: 'sight', rank: 2, controlable: true, category: "sensory" },

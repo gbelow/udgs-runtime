@@ -559,7 +559,7 @@ export type WoundEffect = z.infer<typeof WoundEffectSchema>
 export const PartWoundSchema = z.object({
   name: str.default(''),
   tier: num.int().min(0).default(0),
-  // measured on the blunt tier alone (combat.tex "Wounds": Shocked, "T4 blunt")
+  // measured on the blunt tier alone
   blunt: z.boolean().default(false),
   effect: WoundEffectSchema.default('disable'),
   heal: num.default(0),
@@ -663,8 +663,6 @@ export const InjuriesSchema = z.object({
   staunched: z.boolean().default(false),
   potion: z.number().default(0),
   injuryThreshold: z.number().default(10),
-  unconsciousThreshold: z.number().default(40),
-  deathThreshold: z.number().default(50),
 }).strip()
 
 export type Injuries = z.infer<typeof InjuriesSchema>
@@ -770,8 +768,9 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // throw's reach, in percent, `SD:projectile` the SD a shot is scored
 // against when its target does not react, `castDL:` what a choice made before a cast's
 // roll adds to its DL, per extension for `extend`, and `resist:compulsion`
-// what a morale test gets against the compulsion it would activate, and
-// `downtime:` the test of an activity).
+// what a morale test gets against the compulsion it would activate,
+// `downtime:` the test of an activity, and `injury:capacity` the IL the
+// character collapses at).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -794,6 +793,7 @@ export const BUFF_TARGETS = [
   ...prefixed('resist', ['compulsion'] as const),
   ...prefixed('characteristic', ['charisma'] as const),
   ...prefixed('downtime', ['celebrate'] as const),
+  ...prefixed('injury', ['capacity'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])

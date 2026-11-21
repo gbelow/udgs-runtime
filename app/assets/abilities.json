@@ -4041,7 +4041,7 @@
             }
           ]
         ],
-        "description": "Receives +2 in Will.",
+        "description": "Receives +2 in Will. Resists +10 IL before collapse.",
         "effect": [
           {
             "name": "",
@@ -4051,6 +4051,17 @@
               "target": "skill:will",
               "operation": "+",
               "value": 1,
+              "when": null
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "injury:capacity",
+              "operation": "+",
+              "value": 10,
               "when": null
             }
           }
@@ -4262,8 +4273,20 @@
             }
           ]
         ],
-        "description": "The character has no limit action.",
-        "effect": [],
+        "description": "The character has no limit action. Resists +10 IL before collapse.",
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "injury:capacity",
+              "operation": "+",
+              "value": 10,
+              "when": null
+            }
+          }
+        ],
         "recipes": [],
         "grants": [
           "unshakable"
@@ -4545,25 +4568,16 @@
             }
           ]
         ],
-        "description": "Does not become immobilized by shock nor by IL while enraged.",
+        "description": "Increases the limit to become collapsed by 20 while enraged.",
         "effect": [
           {
             "name": "",
             "trigger": "instant",
-            "type": "suppression",
+            "type": "buff",
             "effect": {
-              "name": "",
-              "target": "wound:shocked",
-              "when": "enraged"
-            }
-          },
-          {
-            "name": "",
-            "trigger": "instant",
-            "type": "suppression",
-            "effect": {
-              "name": "",
-              "target": "collapse",
+              "target": "injury:capacity",
+              "operation": "+",
+              "value": 20,
               "when": "enraged"
             }
           }
@@ -5916,7 +5930,7 @@
             }
           ]
         ],
-        "description": "Gains +1 bonus to Charisma. A hit or crit in the morale test prevents the character from being immobile by shock or IL.",
+        "description": "Gains +1 bonus to Charisma. A crit in the morale test increases the IL limit to become collapsed by +20.",
         "effect": [
           {
             "name": "",
@@ -5932,20 +5946,11 @@
           {
             "name": "",
             "trigger": "instant",
-            "type": "suppression",
+            "type": "buff",
             "effect": {
-              "name": "",
-              "target": "wound:shocked",
-              "when": "steeled"
-            }
-          },
-          {
-            "name": "",
-            "trigger": "instant",
-            "type": "suppression",
-            "effect": {
-              "name": "",
-              "target": "collapse",
+              "target": "injury:capacity",
+              "operation": "+",
+              "value": 20,
               "when": "steeled"
             }
           }
