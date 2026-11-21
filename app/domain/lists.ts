@@ -79,7 +79,7 @@ export const WEAPON_PROPERTIES = [
   'grapple II',
   'sweeping',
   'braced',
-  'shaft',
+  'soft',
   'DEF',
   'hook',
   'piercing',

@@ -256,6 +256,9 @@ export const OVERSIZE_STR = 5
 export const LARGE_HANDS_STR = 3
 export const UNDERSIZE_STR = 5
 
+// gear.tex "Soft": "All STR x DM damage bonuses of this attack are halved."
+export const SOFT_STR_SHARE = 0.5
+
 // gear.tex "STR x": the STR a weapon asks for, for every size it is above (or
 // below) the wielder's.
 export const STR_REQ_PER_SIZE = 5

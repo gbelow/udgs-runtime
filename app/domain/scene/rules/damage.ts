@@ -88,8 +88,8 @@ const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer:
   smash: (d, times, { weapon, properties }) => addTo(d, 'blunt', getSmashBonus(times, weapon, hasProperty(properties, 'smasher'))),
   handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
   assassinate: (d) => d,
-  braced: (d, _, { attacker, weapon, properties }) => addPhysical(d, getBracedBonus(weapon, attacker), properties),
-  hook: (d, _, { state, root, attacker, weapon, properties }) => addPhysical(d, getHookBonus(weapon, attacker, getHookedMotion(state, root)), properties),
+  braced: (d, _, { attacker, weapon, properties }) => addPhysical(d, getBracedBonus(weapon, properties, attacker), properties),
+  hook: (d, _, { state, root, attacker, weapon, properties }) => addPhysical(d, getHookBonus(weapon, properties, attacker, getHookedMotion(state, root)), properties),
 }
 
 // ---------------------------------------------------------------------------

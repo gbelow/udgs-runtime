@@ -1,7 +1,7 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDMAt } from "./size";
-import { BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, SMASH_UNSMASHER_SHARE, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { BOWS, DISTANCE_FREE, LARGE_HANDS_STR, OVERSIZE_STR, SOFT_STR_SHARE, STR_REQ_PER_SIZE, UNDERSIZE_STR, SHARP_HOP, SLICE_SHARE, SLICE_UNBLADED_SHARE, SMASH_DM, SMASH_UNSMASHER_SHARE, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getRangeMetres, hasProperty, canSharpen, isSharpEdge } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
@@ -70,16 +70,22 @@ export function getEdgeHOP(properties: readonly WeaponProperty[], edge: Edge | n
   return isSharpEdge(edge) && canSharpen(properties) ? SHARP_HOP[edge] : 0
 }
 
+// gear.tex "Soft": "All STR x DM damage bonuses of this attack are halved."
+// The share of STR a row's damage bonuses take.
+function getSTRBonusShare(properties: readonly WeaponProperty[]): number {
+  return hasProperty(properties, 'soft') ? SOFT_STR_SHARE : 1
+}
+
 // combat.tex "Braced Attack": "damage bonus of +1.5x STR x DM on a hit".
-export function getBracedBonus(weapon: Weapon, c: Character): number {
-  return Math.floor(1.5 * getWieldSTR(weapon, c) * getWeaponDM(weapon))
+export function getBracedBonus(weapon: Weapon, properties: readonly WeaponProperty[], c: Character): number {
+  return Math.floor(1.5 * getSTRBonusShare(properties) * getWieldSTR(weapon, c) * getWeaponDM(weapon))
 }
 
 // combat.tex "Hook Attack": the trip "gets +STR/2 x DM damage if the opponent
 // attempts to perform an evasive jump and +STR x DM if they are running".
-export function getHookBonus(weapon: Weapon, c: Character, target: 'running' | 'jumping' | null): number {
+export function getHookBonus(weapon: Weapon, properties: readonly WeaponProperty[], c: Character, target: 'running' | 'jumping' | null): number {
   const multiplier = target === 'running' ? 1 : target === 'jumping' ? 0.5 : 0
-  return Math.floor(multiplier * getWieldSTR(weapon, c) * getWeaponDM(weapon))
+  return Math.floor(multiplier * getSTRBonusShare(properties) * getWieldSTR(weapon, c) * getWeaponDM(weapon))
 }
 
 export function getAPSurcharge(weapon: Weapon, c: Character): number {
@@ -118,9 +124,10 @@ export function cutsWithSTR(properties: readonly WeaponProperty[]): boolean {
 // gear.tex "Size Scaling": the row's printed damage and the STR on top of it
 // are multiplied together by the weapon's DM. A strike adds 0.5 of the
 // wielder's STR, and `extraSTR` is what a heavy one adds on top; both go to
-// the blunt, and to the cut only of a bladed or piercing row.
+// the blunt, and to the cut only of a bladed or piercing row. A soft row
+// takes half of both.
 export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character, extraSTR = 0): Damage {
-  const STRshare = (isStrike(atk) ? 0.5 : 0) + extraSTR
+  const STRshare = ((isStrike(atk) ? 0.5 : 0) + extraSTR) * getSTRBonusShare(atk.properties)
   const bonus = STRshare * getWieldSTR(weapon, c)
   const DM = getWeaponDM(weapon)
   const cutBonus = cutsWithSTR(atk.properties) ? bonus : 0

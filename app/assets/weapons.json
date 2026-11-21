@@ -17,7 +17,8 @@
           "braced",
           "DEF",
           "hook",
-          "draw"
+          "draw",
+          "soft"
         ],
         "payload": []
       },
@@ -36,7 +37,8 @@
         },
         "properties": [
           "draw",
-          "basher"
+          "basher",
+          "soft"
         ],
         "payload": []
       }
@@ -80,7 +82,8 @@
         "properties": [
           "grapple I",
           "DEF",
-          "hook"
+          "hook",
+          "soft"
         ],
         "payload": []
       },
@@ -98,7 +101,8 @@
           "max": 1
         },
         "properties": [
-          "basher"
+          "basher",
+          "soft"
         ],
         "payload": []
       }
@@ -363,7 +367,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "shaft",
+          "soft",
           "DEF"
         ],
         "payload": []
@@ -438,7 +442,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "shaft",
+          "soft",
           "DEF"
         ],
         "payload": []
@@ -578,7 +582,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "shaft"
+          "soft"
         ],
         "payload": []
       }
@@ -633,7 +637,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "shaft",
+          "soft",
           "DEF"
         ],
         "payload": []
@@ -707,7 +711,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "shaft",
+          "soft",
           "DEF"
         ],
         "payload": []
@@ -766,7 +770,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "shaft",
+          "soft",
           "DEF"
         ],
         "payload": []
