@@ -59,7 +59,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   to what was paid, and its actor does nothing else (`closeWhileHolding`). A reaction they make gives it up (`getReactedWithin` notes the held
   action, `giveUpHeld` withdraws it once the reaction is paid), and `getRefundedAP` hands back
   `carried − 1` AP with it, as for an action given up to an opportunity attack; an interruption
-  from outside breaks it (`breakHeld`, from `land`) and nothing is returned. Cauterization is a concentration action too. At the round
+  from outside breaks it (`breakHeld`, from `land`) and nothing is returned. Cauterization and Tend Wounds are concentration actions too. At the round
   change's concentration step its actor chooses (`holdOn` / `letGo`, `commands/nextRound.ts`):
   holding on makes the focus surge again and carries every AP (`carryOver`); letting go finishes it
   once nobody owes a choice (`finishHeld`), priced as what is left (`carried` comes off the price in

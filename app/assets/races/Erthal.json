@@ -9,7 +9,8 @@
   },
   "abilities": [
     "large-hands",
-    "regenerative-reservoir"
+    "regenerative-reservoir",
+    "tend-wounds"
   ],
   "category": "humanoid",
   "size": 3,

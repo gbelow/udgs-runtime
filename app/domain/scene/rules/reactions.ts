@@ -142,6 +142,7 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     case 'gear': return isPricedGearMove(state, root) ? opportunityTriggers(state, root.actorId) : []
     // combat.tex "Opportunity Attack": an action that requires concentration
     case 'firstAid':
+    case 'tendWounds':
     case 'cauterize': return requiresConcentration(root) ? opportunityTriggers(state, root.actorId) : []
     case 'throw': return opportunityTriggers(state, root.actorId)
     // a reload is part of the shot, which is a ranged attack (the table's

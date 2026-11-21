@@ -8,7 +8,9 @@
     "STA": 1
   },
   "talentChoices": 2,
-  "abilities": [],
+  "abilities": [
+    "tend-wounds"
+  ],
   "category": "humanoid",
   "size": 3,
   "height": 2,

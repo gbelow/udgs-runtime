@@ -211,13 +211,15 @@ export const FOG_VISION_RADIUS = 2
 
 // combat.tex "Damage Tiers": the IL and bleed each tier inflicts; the
 // threshold column is armor + tier x TGH and is computed where it is needed.
-export const injuryMap: Record<string, { IL: number; bleed: number }> = {
-  T0: { IL: 1, bleed: 0 },
-  T1: { IL: 5, bleed: 0 },
-  T2: { IL: 10, bleed: 1 },
-  T3: { IL: 20, bleed: 2 },
-  T4: { IL: 30, bleed: 4 },
-  T5: { IL: 50, bleed: 6 },
+// gear.tex "Piercing": "bleed from tiers 1, 2 and 3 is increased by +1"
+// (`piercingBleed`, on top of the tier's bleed).
+export const injuryMap: Record<string, { IL: number; bleed: number; piercingBleed: number }> = {
+  T0: { IL: 1, bleed: 0, piercingBleed: 0 },
+  T1: { IL: 5, bleed: 0, piercingBleed: 1 },
+  T2: { IL: 10, bleed: 1, piercingBleed: 1 },
+  T3: { IL: 20, bleed: 2, piercingBleed: 1 },
+  T4: { IL: 30, bleed: 4, piercingBleed: 0 },
+  T5: { IL: 50, bleed: 6, piercingBleed: 0 },
 }
 export const MAX_TIER = 5
 

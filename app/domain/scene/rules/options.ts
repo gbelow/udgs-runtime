@@ -606,6 +606,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   // abilities.tex "Medicine": aimed at someone bleeding, self included
   firstAid: (state, c) => [option({ kind: 'firstAid' }, getMedicineCost('firstAid'), getMedicineBar(state, c, 'firstAid'))],
   cauterize: (state, c) => [option({ kind: 'cauterize' }, getMedicineCost('cauterize'), getMedicineBar(state, c, 'cauterize'))],
+  tendWounds: (state, c) => [option({ kind: 'tendWounds' }, getMedicineCost('tendWounds'), getMedicineBar(state, c, 'tendWounds'))],
   // gear.tex "Reload": each row in hand that is reloaded, at its own price
   reload: (state, c) => getReloadRows(c).map((row) =>
     option({ kind: 'reload', weaponKey: row.wielded.key, attack: row.atk.name }, getReloadCost(row.atk, c), getReloadBar(state, c, row))),

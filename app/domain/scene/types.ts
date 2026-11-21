@@ -1453,11 +1453,19 @@ export const DrinkActionSchema = z.object({
 }).strip()
 
 // abilities.tex "First Aid": "Tries to stop bleeding through a tourniquet or
-// pressure on self or other" — a medicine test against twice the target's
-// bleed; what it did to them, written at the resolve.
+// pressure on self or other" — a test of medicine and the target's health
+// against the target's bleed; what it did to them, written at the resolve.
 export const FirstAidActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('firstAid'),
+  facts: DeliveriesSchema.nullable().default(null),
+}).strip()
+
+// abilities.json "Tend Wounds": a health test against the actor's own bleed;
+// what it did to them, written at the resolve.
+export const TendWoundsActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('tendWounds'),
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -1611,6 +1619,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ThrowActionSchema,
   DrinkActionSchema,
   FirstAidActionSchema,
+  TendWoundsActionSchema,
   CauterizeActionSchema,
   ReloadActionSchema,
   ExtinguishActionSchema,
@@ -1662,6 +1671,7 @@ export type PlantAction = z.infer<typeof PlantActionSchema>
 export type GearAction = z.infer<typeof GearActionSchema>
 export type DrinkAction = z.infer<typeof DrinkActionSchema>
 export type FirstAidAction = z.infer<typeof FirstAidActionSchema>
+export type TendWoundsAction = z.infer<typeof TendWoundsActionSchema>
 export type CauterizeAction = z.infer<typeof CauterizeActionSchema>
 export type ReloadAction = z.infer<typeof ReloadActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>

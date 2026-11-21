@@ -202,6 +202,9 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     case 'firstAid':
     case 'cauterize':
       return action.targetId !== null && getMedicineTargets(state, action.actorId).includes(action.targetId)
+    // abilities.json "Tend Wounds": the actor's own bleed
+    case 'tendWounds':
+      return (state.characters[action.actorId]?.injuries.bleed ?? 0) > 0
     // gear.tex "Potions and Medicine": a potion in hand with doses enough
     case 'drink':
       return getTakeableHeld(c).takeable.some((i) => i.id === action.itemId)
@@ -417,6 +420,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
       return getManeuverCost(c, action.maneuver)
     // abilities.tex "Medicine": the ability's price
     case 'firstAid':
+    case 'tendWounds':
     case 'cauterize':
       return getMedicineCost(action.kind)
     // combat.tex "Social actions": 5 AP; combat.tex "Surrender": unflagging is free
@@ -494,6 +498,8 @@ export function getFinishBar(state: SceneState, held: RootAction): string | null
     case 'firstAid':
     case 'cauterize':
       return hasAbility(c, getMedicineAbility(held.kind)) && isDeclarationComplete(state, c, held) ? null : 'nobody bleeding within reach'
+    case 'tendWounds':
+      return hasAbility(c, getMedicineAbility(held.kind)) && isDeclarationComplete(state, c, held) ? null : 'not bleeding'
     case 'reload': {
       const row = getReloadRow(c, held)
       return row && getRowStack(c, row, held.ammoId) !== null ? null : 'nothing to load'
@@ -744,6 +750,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'gear':
     case 'drink':
     case 'firstAid':
+    case 'tendWounds':
     case 'cauterize':
     case 'reload':
     case 'social':
@@ -901,6 +908,7 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
     case 'plant':
     case 'gear':
     case 'drink':
+    case 'tendWounds':
     case 'reload':
     case 'social':
     case 'rest':

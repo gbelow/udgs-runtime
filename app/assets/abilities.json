@@ -6543,7 +6543,37 @@
             }
           ]
         ],
-        "description": "Tries to stop bleeding through a tourniquet or pressure on self or other. Make a medicine test against a DL equal to 2x bleeding. On a hit or crit, prevents bleeding that turn completely. Reduces bleeding by 0/0/1/2.",
+        "description": "Tries to stop bleeding through a tourniquet or pressure on self or other. Make a test of medicine + target's health against a DL equal to the bleeding. On a hit or crit, prevents bleeding that turn completely. Reduces bleeding by 0/0/1/2.",
+        "effect": [],
+        "recipes": [],
+        "grants": [],
+        "rollModes": [],
+        "surgeAllows": [],
+        "attitudes": [],
+        "studies": []
+      }
+    ]
+  },
+  "tend-wounds": {
+    "family": "Tend Wounds",
+    "section": "Medicine",
+    "activation": "active",
+    "cost": {
+      "AP": 8,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "concentration": true,
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [],
+        "requirements": [],
+        "description": "Tries to stop their own bleeding through pressure on the wound. Make a health test against a DL equal to the bleeding. Reduces bleeding by 0/0/1/2.",
         "effect": [],
         "recipes": [],
         "grants": [],

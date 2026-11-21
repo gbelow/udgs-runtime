@@ -234,8 +234,9 @@ function getBlowOutcome(facts: Damage, degree: Degree, target: Character): Outco
     bodyTier,
     // the table's ruling: a blow that reaches a tier deals at least 1 IL
     IL: halved ? Math.max(1, Math.floor(row.IL / 2)) : row.IL,
-    // combat.tex "Bleed": "is caused by blunt and cutting damage"
-    bleed: best.type === 'blunt' || best.type === 'cut' ? row.bleed : 0,
+    // combat.tex "Bleed": "is caused by blunt and cutting damage"; gear.tex
+    // "Piercing": more of it at the lower tiers
+    bleed: best.type === 'blunt' || best.type === 'cut' ? row.bleed + (piercing ? row.piercingBleed : 0) : 0,
     ...effectsOf(facts, target, best.tier, tiers, piercing),
     burning,
     arrived,
@@ -408,7 +409,8 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
   const table = injuryMap[`T${outcome.bodyTier}`]
   const halved = outcome.IL !== table.IL
   steps.push(step(`tier ${outcome.bodyTier} is +${table.IL} IL${halved ? `, halved to +${outcome.IL} (${hasProperty(facts.properties, 'piercing') ? 'piercing' : outcome.type})` : ''}`, 'combat.tex "Damage Tiers"'))
-  if (outcome.bleed > 0) steps.push(step(`blunt and cutting damage bleed: +${outcome.bleed}`, 'combat.tex "Bleed"'))
+  if (outcome.bleed > 0) steps.push(step(`blunt and cutting damage bleed: +${table.bleed}`, 'combat.tex "Bleed"'))
+  if (outcome.bleed > table.bleed) steps.push(step(`piercing bleeds +${outcome.bleed - table.bleed} more at tier ${outcome.bodyTier}`, 'gear.tex "Piercing"'))
   const blow = getBlowOutcome(facts, degree, target)
   const { interrupt, stun, raised } = getBluntRule(struckPlace(facts, target))
   if (blow.interruption === 'interrupted') steps.push(step(`a tier ${interrupt}+ blunt or electric injury interrupts: the action and its cost are lost`, 'combat.tex "Interruption"'))

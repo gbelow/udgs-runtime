@@ -16,6 +16,7 @@ export function requiresConcentration(action: Action): boolean {
     case 'cast':
       return !action.quicken
     case 'firstAid':
+    case 'tendWounds':
     case 'cauterize':
       return isConcentrationAbility(action.kind)
     default:

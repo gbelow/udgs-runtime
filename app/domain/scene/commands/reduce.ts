@@ -178,7 +178,7 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         // abilities.tex "Medicine": what the treatment did to whoever it was
         // given; First Aid: "On a hit or crit, prevents bleeding that turn
         // completely" — staunched for the round
-        if (action.kind === 'cauterize') return deliverAll(action.facts?.[c.id] ?? [])(c)
+        if (action.kind === 'cauterize' || action.kind === 'tendWounds') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'firstAid') {
           const treated = deliverAll(action.facts?.[c.id] ?? [])(c)
           return isWon(action) && c.id === action.targetId ? { ...treated, injuries: { ...treated.injuries, staunched: true } } : treated

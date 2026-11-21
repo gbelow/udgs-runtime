@@ -9,7 +9,9 @@
     "INT": -1,
     "SPI": 2
   },
-  "abilities": [],
+  "abilities": [
+    "tend-wounds"
+  ],
   "category": "beast",
   "size": 3,
   "footprint": [

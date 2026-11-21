@@ -11,7 +11,8 @@
   },
   "abilities": [
     "bat-ears",
-    "tireless"
+    "tireless",
+    "tend-wounds"
   ],
   "category": "humanoid",
   "size": 3,
