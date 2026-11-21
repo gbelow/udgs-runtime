@@ -591,8 +591,12 @@ otherwise                    → end turn
 
 ## 12. Spending a hit's overflow (`predict.ts` `getBestSpend`)
 
-Tried: all in smash; if it carries a cut, n slices + rest in smash for every n; bust + the
-same; each again with the braced or hook bonus bought.
+Assassinate is bought first whenever it is offered (the user's ruling), and the rest is spent
+with the 5 HOP it gives. Tried: all in smash; if it carries a cut, n slices + rest in smash
+for every n; bust + the same; each again with the braced or hook bonus bought.
+
+An assassination only works against SD, so the pair table reads a hit's harm again against
+each real defence wherever one is offered undefended, as it does for a hook attack.
 
 ```
 best = lexicographic max of (highest injury tier, sum of tiers, damage − armor)

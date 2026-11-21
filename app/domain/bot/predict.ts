@@ -73,9 +73,11 @@ export function predict(state: SceneState, roll: Supposed, picks: readonly Pick[
 // rest in smash, and bust then every count of slices with the rest in smash.
 // The best is the one whose injury reaches the highest tier, then the one
 // whose kinds reach the most tiers between them, then the one that gets
-// furthest past the target's armor. Each is read off the damage rules as the
-// landing reads them (`getAttackFacts`, `outcomeOf`), with nothing pressed:
-// `root` is a rolled hit, with whatever it has bought already.
+// furthest past the target's armor. An assassination is bought first whenever
+// it is offered, and the rest spent with the HOP it gives (the user's ruling).
+// Each is read off the damage rules as the landing reads them
+// (`getAttackFacts`, `outcomeOf`), with nothing pressed: `root` is a rolled
+// hit, with whatever it has bought already.
 //
 // What a spend comes to reads the hit's degree but not its HOP, so a caller
 // spending the same hit at several HOPs passes one `known` for all of them,
@@ -83,22 +85,29 @@ export function predict(state: SceneState, roll: Supposed, picks: readonly Pick[
 export type Purchases = Partial<Record<HOPPurchase, number>>
 
 export function getBestSpend(state: SceneState, root: AttackAction, known?: Map<string, Outcome | null>): { purchases: Purchases; outcome: Outcome | null } {
+  const offered = getHOPOptions(state, root)
+  if (offered.some((o) => o.purchase === 'assassinate' && o.available)) {
+    const rest = getBestSpend(state, { ...root, spent: { ...root.spent, assassinate: (root.spent.assassinate ?? 0) + 1 } }, known)
+    return { purchases: { assassinate: 1, ...rest.purchases }, outcome: rest.outcome }
+  }
   const target = root.targetId ? state.characters[root.targetId] : undefined
+  const spentWith = (purchases: Purchases) => {
+    const spent = { ...root.spent }
+    for (const [p, n] of Object.entries(purchases) as [HOPPurchase, number][]) spent[p] = (spent[p] ?? 0) + n
+    return spent
+  }
   const read = (purchases: Purchases): Outcome | null => {
     if (!known) return readSpend(purchases)
-    const key = (Object.entries(purchases) as [HOPPurchase, number][]).sort(([a], [b]) => (a < b ? -1 : 1)).map(([p, n]) => `${p}${n}`).join(' ')
+    const key = (Object.entries(spentWith(purchases)) as [HOPPurchase, number][]).filter(([, n]) => n > 0).sort(([a], [b]) => (a < b ? -1 : 1)).map(([p, n]) => `${p}${n}`).join(' ')
     if (known.has(key)) return known.get(key) ?? null
     const outcome = readSpend(purchases)
     known.set(key, outcome)
     return outcome
   }
   const readSpend = (purchases: Purchases): Outcome | null => {
-    const spent = { ...root.spent }
-    for (const [p, n] of Object.entries(purchases) as [HOPPurchase, number][]) spent[p] = (spent[p] ?? 0) + n
-    const facts = getAttackFacts(state, { ...root, spent })
+    const facts = getAttackFacts(state, { ...root, spent: spentWith(purchases) })
     return facts && target ? outcomeOf(facts, target) : null
   }
-  const offered = getHOPOptions(state, root)
   const price = (p: HOPPurchase): number | null => offered.find((o) => o.purchase === p && o.available)?.cost ?? null
   const remaining = getHitHOP(state, root).remaining
   const smash = price('smash')

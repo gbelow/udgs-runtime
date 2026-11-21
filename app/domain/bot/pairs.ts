@@ -9,9 +9,8 @@ import { getAvailableActions } from '../scene/rules/options'
 import { getOwnCost } from '../scene/rules/action'
 import { getStrikeReach } from '../scene/rules/board/board'
 import { findWeaponRow } from '../scene/rules/weaponRow'
-import { getAttackFacts, outcomeOf } from '../scene/rules/damage'
+import { getAttackFacts, getHOPOptions, getHOPPrice, outcomeOf } from '../scene/rules/damage'
 import { isVariantOpen, isVariantOpenOn } from '../scene/rules/strikeDeclaration'
-import { getHOPPrice } from '../scene/rules/damage'
 import { getHeavyDegrees } from '../scene/rules/heavy'
 import { getLoadableAmmo } from '../item/rules/ammo'
 import { getSTA } from '../character/rules/characteristics'
@@ -32,8 +31,8 @@ import { getMostHOP, type HarmByDegree } from './odds'
 // holds for any two places. Harm is 2 x IL + 5 x bleed (the user's ruling).
 //
 // A hit lands in full whatever the defence (combat.tex "Defend"), so a hit's
-// harm is read once, undefended, but for a hook attack's, whose bonus turns on
-// the defence; a graze and a miss are read against each defence.
+// harm is read once, undefended, but for a hook attack's and an assassination's,
+// which turn on the defence; a graze and a miss are read against each defence.
 
 export type PairDefence = {
   // the reaction answered with as the panel offers it, or null for none (the SD)
@@ -198,10 +197,12 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
         const hitsIn = (def: Defended) => Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => hit(def, HOP))
         const hits = hitsIn(defended[0])
         // a hook attack's bonus turns on how the target answers (combat.tex
-        // "Hook Attack": against an evasive jump), so its hits are read again
-        // against each defence
+        // "Hook Attack": against an evasive jump), and so does an assassination
+        // (combat.tex "Assassinate": "only ... against SD"), so their hits are
+        // read again against each defence
+        const assassinates = getHOPOptions(made, rolled(root, 'hit')).some((o) => o.purchase === 'assassinate' && o.available)
         const defences = tested.map(({ def, t }): PairDefence => {
-          const own = bonus === 'hook' && def.draft ? hitsIn(def) : null
+          const own = (bonus === 'hook' || assassinates) && def.draft ? hitsIn(def) : null
           const graze = harms.read(`${answerKey(def)}|graze`, () => harmAt(def.state, root, 'graze', target))
           const miss = harms.read(`${answerKey(def)}|miss`, () => harmAt(def.state, root, 'miss', target))
           const surged = Object.fromEntries(BUFFING_SURGES.flatMap((kind) => {
