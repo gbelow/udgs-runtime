@@ -169,7 +169,11 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 - **define** — free to edit or cancel. Only one root can be declared at a time
   (`declareAction` refuses while anything is open), and only by the character whose turn
   it is (`inTurnCharacter`, `rules/turn.ts`); while a movement or combat surge has AP left,
-  only what it allows (`rules/surge.ts`). Before the combat has started
+  only what it allows (`rules/surge.ts`). The combat surge is made only in one's own turn,
+  the movement surge also while an action is open to answer; once the stack is played out,
+  `advance` takes what is left of an earmarked surge's AP from whoever holds it outside a
+  turn (`dropReactionSurges`, `commands/sequence.ts`), sparing those about to flee and the
+  turn waiting to resume. Before the combat has started
   (`rules/started.ts`, round 0) nobody takes a turn, anyone declares, nothing costs
   AP or STA, and no surge is made or asked for (flee and feint are closed): every price
   check, payment and surge requirement is handed whether the combat has started. The first
@@ -271,7 +275,7 @@ resolveAction ─────────► land(top)
 - **One follow-up each** — `land` stamps every follow-up still to be declared with
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
   others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
-  riposte or a flee, an evasion's move or a flee.
+  riposte or a flee.
 - **None for the interrupted** — `getFollowUps` offers no follow-up still to be declared
   to one the landed action interrupted (`isInterruptedBy`, `rules/interruption.ts`): what
   it landed on them, a shot with the shots joined to it, a crash, an area's or a spell's
@@ -344,7 +348,7 @@ app/domain/scene/
 │   ├── nextRound.ts    the round change, a step at a time (its order in `rules/roundChange.ts`, where it stands in `state.roundStep`): nextRound (AP received on top of what is left, tanatosis woken, the round's registries emptied, swimming and stealth called), continueRound (bleeding, then the environment: burning and gas; the AP cut down to the round's and the round end's upkeep paid by whoever keeps nothing going; then who joins, then each party's choice to run away or give chase (the chase it starts begins here, before the morale tests, so nobody running is tested), then the morale calls (with an optional call for whoever has learned Hype Up and is not called), skipped when nobody is called or offered one; then back to turns); in a chase a step with nothing for anyone passes on its own (with everyone running: no rest, no joining, no morale calls for runners; the chase step while a chase is on), leaving only the ticks and the concentration choice between chase rounds, backToChase (at the chase step, the GM ends the fight that lives in the chase, and whoever it froze wakes to the round's AP), joinChaseFight (at the join step, a party the fight in the chase froze joins it from shooting range at once and wakes to the round's AP), holdOn / letGo (a concentrating character's choice, written to `state.concentration`: held spells' charges, upkeep and the focus surge, an action held over carried on, or everything let go and the held actions finished)
 │   ├── hold.ts         actions held over to the next round: holdOver (the commit), giveUpHeld (a reaction gives it up), breakHeld (an interruption breaks it), finishHeld (the round change: who finishes and the cunning order), carryOver (holding on), releaseNextHeld (taken up at `react` once nothing is open; called by `advance`)
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
-│   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
+│   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint); a reaction's surge AP is lost by `advance` once the stack is played out
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves (settled at once, or left open for Fateful's rerollMorale / keepMorale); skipMorale: an optional call passed up; hypeUp
 │   ├── heldTest.ts     held tests: rollHeld answers a round's call; holdRoll writes a roll down and lets its effect work; holdThrown makes the die of a held test thrown as an action's (a swim test, a climb, a balance test) the round's (called by applyPhase at the roll); dropFallenBalance (at the resolve)
 │   ├── swim.ts         sink, sinkInArmor: the swimmer goes deeper, no deeper than the floor

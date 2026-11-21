@@ -1,4 +1,5 @@
 import type { RollMode } from "../domain/play/dice";
+import type { SurgeKind } from "../domain/types";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import type { ActionDraft, HOPPurchase, ReactionAmend } from "../domain/scene/types";
 import type { chooseManeuver } from "../domain/scene/commands/choices";
@@ -21,7 +22,7 @@ export function useCombatActions() {
   };
   const amend = (fields: Partial<ActionDraft>) => dispatch({ kind: "amend", args: [fields] });
   const target = (id: string) => dispatch({ kind: "target", args: [id] });
-  const react = (reactorId: string, draft: ActionDraft) => dispatch({ kind: "react", args: [reactorId, draft] });
+  const react = (reactorId: string, draft: ActionDraft, surge: SurgeKind | null) => dispatch({ kind: "react", args: [reactorId, draft, surge] });
   const amendReacted = (reactorId: string, fields: ReactionAmend) => dispatch({ kind: "amendReaction", args: [reactorId, fields] });
   const pass = (reactorId: string) => dispatch({ kind: "pass", args: [reactorId] });
   const cancel = () => dispatch({ kind: "cancel", args: [] });

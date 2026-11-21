@@ -25,7 +25,7 @@ import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { getSceneModeOf } from '../rules/test'
-import { MovementOption, ReachableCell, getMoveModes, getMoveTest, getMovementOptions, needsBalanceTest } from '../rules/move'
+import { MovementOption, ReachableCell, getMoveBudget, getMoveModes, getMoveTest, getMovementOptions, needsBalanceTest } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
 import { getMoraleSpell, getSuggestible } from '../rules/moraleSpell'
 import type { LimitStressAction } from '../../lists'
@@ -642,7 +642,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       maneuver: grapple?.maneuver ?? null,
       grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,
-      openedBy: opener && isReactionAction(opener) ? { label: getActionName(opener), roll: opener.roll, budget: open.kind === 'move' ? open.budget : null } : null,
+      openedBy: opener && isReactionAction(opener) ? { label: getActionName(opener), roll: opener.roll, budget: open.kind === 'move' && state.characters[open.actorId] ? getMoveBudget(state.characters[open.actorId], open) : null } : null,
       reactions: reactions.map((r) => ({
         actor: getFightName(state, r.actorId),
         label: getActionName(r),

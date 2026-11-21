@@ -767,7 +767,8 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // penalty a way of shooting takes per step of distance and `hit:` its test,
 // `attribute:` the attribute on top of its training, `body:size` the
 // creature's size, `bow:STR` the STR a bow is drawn with, `reach:throw` a
-// throw's reach, in percent, `castDL:` what a choice made before a cast's
+// throw's reach, in percent, `SD:projectile` the SD a shot is scored
+// against when its target does not react, `castDL:` what a choice made before a cast's
 // roll adds to its DL, per extension for `extend`, and `resist:compulsion`
 // what a morale test gets against the compulsion it would activate, and
 // `downtime:` the test of an activity).
@@ -788,6 +789,7 @@ export const BUFF_TARGETS = [
   ...prefixed('body', ['size'] as const),
   ...prefixed('bow', ['STR'] as const),
   ...prefixed('reach', ['throw'] as const),
+  ...prefixed('SD', ['projectile'] as const),
   ...prefixed('castDL', ['quicken', 'extend'] as const),
   ...prefixed('resist', ['compulsion'] as const),
   ...prefixed('characteristic', ['charisma'] as const),

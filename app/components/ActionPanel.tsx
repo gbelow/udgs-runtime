@@ -314,7 +314,7 @@ export function ActionPanel(){
                   <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
                   <ActionKey look={r.passed ? 'picked' : 'plain'} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</ActionKey>
                   {r.options.map((o) =>
-                    <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
+                    <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft, o.surge)} />)}
                   <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
                   {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
                 </div>
@@ -650,7 +650,7 @@ function OptionButton({ option, active = false, onClick }: { option: ActionOptio
       <ActionKey look={active ? 'picked' : 'plain'} icon={ACTION_ICONS[option.draft.kind]} cost={costLabel(option.cost)}
         disabled={!option.available} onClick={onClick}>
         {option.label}
-        {option.surge ? <span className='text-accent'>surge</span> : null}
+        {option.surge ? <span className='text-accent'>{option.surge} surge</span> : null}
       </ActionKey>
     </Closed>
   )

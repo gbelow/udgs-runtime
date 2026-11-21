@@ -1089,6 +1089,10 @@ export const MoveActionSchema = z.object({
   // "Evasion": the reflex's AP "is used to move and does not need to be
   // spent again, but any STA cost must be paid")
   prepaid: num.default(0),
+  // combat.tex "Evasion": "On a miss, the character ... can spend their whole
+  // movement surge AP" on the move, on top of the budget, however much of it
+  // is left when the move is made
+  surgeBudget: z.boolean().default(false),
   // the kinds of movement the reaction that opened it allows, whatever the
   // mover could otherwise make (combat.tex "Avoiding an Explosion": on a
   // critical "the character can run", on a hit "jump in any direction") —

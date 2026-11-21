@@ -85,8 +85,8 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   `rules/rest.ts`, its AP the rule recipes' in `rules/carriedMove.ts`):
   a move opened over it, a tread only, its 4 AP prepaid, played out before the rest or
   the spell lands.
-- **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
-  evasion a shot missed, it is a `fleeFollowUp` pushed beneath the other follow-ups
+- **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike it is a
+  `fleeFollowUp` pushed beneath the other follow-ups
   (`getFleeFollowUps`), declared as flee or end (`flee`, end by default; committed as
   end it is withdrawn), offered only to one who can flee (`getFleeBar`: not in turn, not
   immobile or grappled, the surge affordable). Either is priced as the movement surge, made
@@ -105,8 +105,8 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   delivery. The target's one evasion is declared against the lead (`getShotLead`) and every
   shot is scored against it; a guard answers only the shots it stands in front of
   (`isGuardingShot`, per shooter). A joined shot triggers only the opportunity attacks its
-  shooter draws. The evader's flee follows the lead's roll; their move is lost if any shot
-  interrupted them (`getShotGroup`).
+  shooter draws. The evader's move follows the lead's roll (on a miss it may spend the
+  whole movement surge, `surgeBudget`); it is lost if any shot interrupted them (`getShotGroup`).
 - **Cover** (`rules/board/board.ts`) — sight and fire are two lines: `seesAcross` is cut only by an
   opaque blocking cell, `firesAcross` by any blocking cell, glass included, and `getCoverAcross`
   finds the weakest wall on the most open line of fire, met at the sturdiest cell on that line.

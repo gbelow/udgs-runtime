@@ -26,6 +26,7 @@ import { getFeinted } from '../rules/feint'
 import { getNextStress, owesStressTurn } from '../rules/stress'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
+import { endSurge } from '../../character/commands/actionSurge'
 import { layToRest, updateCharacter } from './characters'
 import { meetAttitudes } from '../../character/commands/attitudes'
 import { meetUnprotected } from './protection'
@@ -65,7 +66,7 @@ export function advance(state: SceneState, newId: () => string, caller: Caller):
   if (caller.waiting()) return state
   const top = getOpenAction(state)
   if (!top) {
-    const rested = layToRest(state)
+    const rested = layToRest(dropReactionSurges(state))
     const finishing = releaseNextHeld(rested)
     return finishing !== rested ? finishing : handOverToFleers(handOverToCompelled(rested))
   }
@@ -77,6 +78,18 @@ export function advance(state: SceneState, newId: () => string, caller: Caller):
   // combat.tex "Concentration": the attacks an action held over drew are
   // fought; unless they came to nothing of it, it waits for the round to change
   return top.holding && !isVoided(state, top) ? advance(parkHeld(state, top), newId, caller) : land(state, top, newId, caller)
+}
+
+// combat.tex "Action surge": "Ending the turn or the reaction loses the
+// surge AP". Once the stack is played out every reaction to it has ended, so
+// whoever holds earmarked surge AP outside a turn loses what is left of it,
+// and the run it made free with it; the one in turn, those about to flee and
+// those whose turn waits to resume keep theirs.
+function dropReactionSurges(state: SceneState): SceneState {
+  const keeping = new Set([getTurnHolder(state), ...state.fleers, ...state.turnQueue.map((q) => q.id)])
+  return Object.values(state.characters)
+    .filter((c) => c.surgeFloor !== null && !keeping.has(c.id))
+    .reduce((s, c) => updateCharacter(c.id, (ch) => ({ ...endSurge(ch), runsFree: false }), 'reaction ends')(s), state)
 }
 
 // The action's effect: settled as it stands, landed on everyone it

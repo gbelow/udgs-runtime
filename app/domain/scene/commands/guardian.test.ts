@@ -80,14 +80,14 @@ function thrustAtAlly(guardian = shielded('g', ['protection-surge'])): SceneStat
 describe('the protection surge', () => {
   it('offers one who has learned it a block that runs onto the line, made with the surge, and nobody else', () => {
     const s = thrustAtAlly()
-    const block = option(s, 'g', 'block (protection surge) with Wooden Shield (surge first)')
+    const block = option(s, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')
     expect(block).toMatchObject({ available: true, surge: 'protection' })
     expect(getAvailableActions(s, 'o').some((o) => o.draft.kind === 'block')).toBe(false)
   })
 
   it('is made as the block is declared, and the run puts the guardian where the strike meets their block', () => {
     const start = thrustAtAlly()
-    const declared = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (surge first)')!.draft, newId)(start)
+    const declared = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
     expect(declared.characters.g.usedSurge).toBe('protection')
     expect(declared.characters.g.resources.AP).toBe(start.characters.g.resources.AP + getSurgeAP('protection')(start.characters.g))
     const s = takeStep(declared)
@@ -115,7 +115,7 @@ describe('the protection surge', () => {
     let s = onBoard({ atk: [0, 0], ally: [-3, 0], g: [-3, 3] }, archer('atk'), fighter('ally'), shielded('g', ['protection-surge']))
     s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
     const start = commitAction(() => 5, newId)(setTarget('ally')(s))
-    const guard = option(start, 'g', 'guard (protection surge) with Wooden Shield (surge first)')
+    const guard = option(start, 'g', 'guard (protection surge) with Wooden Shield (protection surge first)')
     expect(guard).toMatchObject({ available: true, surge: 'protection' })
     const moved = takeStep(declareReaction('g', guard!.draft, newId)(start))
     expect(getAdjacentIds(moved, 'ally')).toContain('g')
@@ -150,7 +150,7 @@ describe('Bulwark', () => {
 
   it('adds to the block the surge repositioned for', () => {
     const start = thrustAtAlly(shielded('g', ['protection-surge', 'bulwark-1']))
-    const s = takeStep(declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (surge first)')!.draft, newId)(start))
+    const s = takeStep(declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start))
     expect(getDLTerms(s, getOpenAction(s)!)).toContainEqual(term)
   })
 
@@ -174,7 +174,7 @@ describe('Bulwark', () => {
 describe('Rallying Guard', () => {
   it('rallies the guardian’s allies as the surge is made', () => {
     const start = thrustAtAlly(shielded('g', ['protection-surge', 'rallying-guard']))
-    const s = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (surge first)')!.draft, newId)(start)
+    const s = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
     expect(s.pressure.some((p) => p.from === 'g' && p.kind === 'rally' && p.target === 'ally')).toBe(true)
   })
 })
@@ -185,7 +185,7 @@ describe('Rallying Guard', () => {
 describe('the Guardian attitudes', () => {
   it('pay for the surge made', () => {
     const start = thrustAtAlly()
-    const s = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (surge first)')!.draft, newId)(start)
+    const s = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
     expect(xp(s, 'g') - xp(start, 'g')).toBe(attitudeXP('protectionSurge'))
   })
 

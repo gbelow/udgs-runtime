@@ -4,6 +4,7 @@ import { ABILITIES, AbilityKey, getLearnedAbilityKeys, hasAbility, isAbilityKey 
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
 import { getLastingEffects } from '../../item/rules/consumables'
+import { SURGES } from '../../tables'
 
 function isBuff(effect: Effect): effect is Extract<Effect, { type: 'buff' }> {
   return effect.type === 'buff'
@@ -69,9 +70,9 @@ export function getSurgeAllows(character: Character): SurgeAllow[] {
 
 // What each buff condition reads off the character.
 const BUFF_CONDITIONS: Record<BuffCondition, (c: Character) => boolean> = {
-  // combat.tex "Action surge": the rest of the turn a movement surge was made
-  // in (abilities.tex "Tactical Movement")
-  movementSurge: (c) => isCampaignCharacter(c) && c.runsFree,
+  // the round a movement surge was made in (abilities.tex "Tactical
+  // Movement")
+  movementSurge: (c) => isCampaignCharacter(c) && c.usedSurge === 'movement',
   // abilities.tex "Claws": "if not wearing gloves"
   noGauntlets: (c) => !c.hasGauntlets,
   // combat.tex "Afflictions": enraged is put on by a morale test and never
@@ -137,8 +138,17 @@ function getPotionEffects(character: Character): Effect[] {
   return character.active.flatMap((entry) => (entry?.kind === 'potion' ? getLastingEffects(entry.key) : []))
 }
 
+// combat.tex "Action surge": what the surge made this round keeps on the
+// character until the round changes.
+function getSurgeEffects(character: Character): Effect[] {
+  if (!isCampaignCharacter(character) || character.usedSurge === null) return []
+  const kind = character.usedSurge
+  const surge: { STA: number; buffs?: readonly Buff[] } = SURGES[kind]
+  return (surge.buffs ?? []).map((effect): Effect => ({ name: `${kind} surge`, trigger: 'instant', type: 'buff', effect }))
+}
+
 // Everything currently contributing: passive abilities always, toggles and
-// held spells while on, potions while they last. Read off the catalogs every
+// held spells while on, potions while they last, the round's surge. Read off the catalogs every
 // time — the character holds only references.
 export function getContributingEffects(character: Character): Effect[] {
   const known = contributing.get(character)
@@ -161,7 +171,7 @@ function collectContributingEffects(character: Character): Effect[] {
   // upkeep; what it did to anyone was delivered when it was cast
   const held = getActiveSpellKeys(character).flatMap((key) =>
     SPELLS[key].effects.flatMap((e): Effect[] => (e.target === 'self' && e.type !== 'damage' ? [{ name: e.name, trigger: e.trigger, type: e.type, effect: e.effect } as Effect] : [])))
-  return [...passive, ...active, ...held, ...getPotionEffects(character)]
+  return [...passive, ...active, ...held, ...getPotionEffects(character), ...getSurgeEffects(character)]
 }
 
 // The suppressions in effect: what blocks a rule outright for the character,

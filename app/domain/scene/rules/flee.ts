@@ -48,16 +48,10 @@ export function getFleeStep(state: SceneState, move: MoveAction): number | null 
   return steps.length > 0 ? Math.min(...steps) : null
 }
 
-// Who the landed action offers a flee as a follow-up, in the order the
-// answers were declared, when they can flee: a strike's target ("after
-// receiving a melee attack"), and — combat.tex "Evasion": "On a miss, the
-// character does not take the attack and can spend their movement surge
-// immediately to escape" — each evader a missed shot leaves free to move.
+// Who the landed action offers a flee as a follow-up, when they can flee: a
+// strike's target ("after receiving a melee attack").
 export function getFleeFollowUps(state: SceneState, root: RootAction): string[] {
-  const offered = root.kind === 'strike' && root.targetId ? [root.targetId]
-    : root.kind === 'shoot' && root.roll?.degree === 'miss'
-      ? getReactionsTo(state, root.id).flatMap((r) => (r.kind === 'evasion' ? [r.actorId] : []))
-      : []
+  const offered = root.kind === 'strike' && root.targetId ? [root.targetId] : []
   return offered.filter((id) => {
     const c = state.characters[id]
     return !!c && getFleeBar(state, c) === null

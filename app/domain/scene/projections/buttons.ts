@@ -99,7 +99,7 @@ function actionButtonsOf(state: SceneState, id: string): OpenButton[] {
   if (!open) return options().map((o): OpenButton => ({ command: { kind: 'declare', args: [id, o.draft] }, label: `${name}: ${getOptionLabel(state, id, o)}` }))
   if (getNextStep(state) !== 'react') return []
   return [
-    ...options().map((o): OpenButton => ({ command: { kind: 'react', args: [id, o.draft] }, label: `${name}: ${getOptionLabel(state, id, o)}` })),
+    ...options().map((o): OpenButton => ({ command: { kind: 'react', args: [id, o.draft, o.surge] }, label: `${name}: ${getOptionLabel(state, id, o)}` })),
     ...button(canAnswer(open, id) && (!open.passed.includes(id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)), { kind: 'pass', args: [id] }, `${name}: pass`),
   ]
 }

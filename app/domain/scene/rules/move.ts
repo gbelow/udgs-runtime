@@ -6,6 +6,7 @@ import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, ROUND_AP, RUN_START_AP, SWIM_FAIL
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
+import { getSurgeAPLeft } from '../../character/rules/surge'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
@@ -181,7 +182,7 @@ export function getMovementOptions(state: SceneState, c: CampaignCharacter, acti
   const cliffNear = isNextToCliff(state, c)
   const hanging = state.board?.placements[c.id]?.climb != null
   const granted = action?.movements ?? null
-  const budget = action?.budget ?? null
+  const budget = action ? getMoveBudget(c, action) : null
   const held = isInGrapple(state, c.id)
   const immobile = isImmobile(state, c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
@@ -262,7 +263,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
   if (!from || !ground || (action.path.length === 0 && !diving)) return false
   const cells = action.movement === 'climb' ? getClimbCells(state, action) : action.path.length
   if (action.movement === 'jump' && cells > getJumpSpeed(c, action)) return false
-  if (!withinBudget(getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
+  if (!withinBudget(getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), getMoveBudget(c, action))) return false
 
   if (action.movement === 'climb' && !(isClimbable(state, action) && (isUntestedClimb(state, action) || cells >= 1 || !!getClimbPlan(state, action)?.top))) return false
   if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
@@ -311,6 +312,15 @@ function getJumpSpeed(c: Character, action: MoveAction): number {
 // above where it sets out, so a 2m jump goes up a metre.
 function getJumpCeiling(c: Character, from: Placement): number {
   return from.elevation + getMovementSpeed(c, 'jump') / 2
+}
+
+// The most AP the move may cost, null for no cap: its budget, and on top of
+// it what is left of a movement surge's AP when the move may spend all of it
+// (combat.tex "Evasion": "can spend their whole movement surge AP"), made
+// before the move or after.
+export function getMoveBudget(c: Character, action: MoveAction): number | null {
+  if (action.budget === null || !action.surgeBudget || !isCampaignCharacter(c) || c.usedSurge !== 'movement') return action.budget
+  return action.budget + getSurgeAPLeft(c)
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -715,7 +725,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   const affordable = (steps: number) => {
     const total = drawn.length + steps
     if (kind === 'jump' && total > getJumpSpeed(c, action)) return false
-    return payable(getMovePrice(state, c, best, total)) && withinBudget(getMoveCost(c, kind, total), action.budget)
+    return payable(getMovePrice(state, c, best, total)) && withinBudget(getMoveCost(c, kind, total), getMoveBudget(c, action))
   }
   const ceiling = getJumpCeiling(c, from)
   const start = drawn.at(-1) ?? from.cell

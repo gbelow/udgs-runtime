@@ -263,8 +263,13 @@ type ListFor = (on: SceneState, surged: CampaignCharacter, kinds?: ReadonlySet<A
 // closed until a surge is made
 const LIFTED_BY_A_SURGE: ReadonlySet<string | null> = new Set([CANNOT_AFFORD, NOT_ENOUGH_AP, CHOOSE_A_SURGE, NEEDS_FOCUS])
 
+// An answer is listed once for each surge that would open it (a movement
+// surge and a reaction surge both may), the surge it is pressed with, the
+// movement surge's last outside the character's turn; an action of their own
+// is marked with the first.
 function withSurges(state: SceneState, c: CampaignCharacter, payer: CampaignCharacter, now: ActionOption[], list: ListFor, opens: boolean): ActionOption[] {
-  const surges = getSurgeProbes(state, c, opens)
+  const probed = getSurgeProbes(state, c, opens)
+  const surges = isInTurn(state, c.id) ? probed : [...probed.filter((p) => p.kind !== 'movement'), ...probed.filter((p) => p.kind === 'movement')]
   const giving = opens && surges.some((p) => isLearnedSurge(p.kind))
   if (now.every((o) => o.available) && !giving) return now
   const fixed = new Set([NOT_YOUR_TURN, IMMOBILE, UNCONSCIOUS, getDiceBar(state.calls), getRoundChangeActBar(state)])
@@ -277,13 +282,11 @@ function withSurges(state: SceneState, c: CampaignCharacter, payer: CampaignChar
     const listed = opens && isLearnedSurge(p.kind) ? list(p.state, surged) : list(state, surged, closed)
     return { kind: p.kind, options: listed.filter((a) => a.available && isSurgeFor(c, p.kind, a.draft)) }
   })
-  const opened = now.map((o) => {
-    if (o.available) return o
-    for (const { kind, options } of probes) {
-      const viaSurge = options.find((a) => sameDraft(a.draft, o.draft))
-      if (viaSurge) return opens ? { ...viaSurge, surge: kind } : { ...o, surge: kind, reason: 'needs a surge' }
-    }
-    return o
+  const opened = now.flatMap((o): ActionOption[] => {
+    if (o.available) return [o]
+    const via = probes.flatMap(({ kind, options }) => options.filter((a) => sameDraft(a.draft, o.draft)).slice(0, 1).map((a) => ({ ...a, surge: kind })))
+    if (via.length === 0) return [o]
+    return opens ? via : [{ ...o, surge: via[0].surge, reason: 'needs a surge' }]
   })
   if (!giving) return opened
   const given = probes.filter((p) => isLearnedSurge(p.kind)).flatMap(({ kind, options }) => options.map((a) => ({ ...a, surge: kind })))
@@ -742,12 +745,14 @@ export function findOpenJump(state: SceneState, characterId: string): ActionOpti
   return getAvailableActions(state, characterId).find((o) => o.draft.kind === 'evasiveJump' && o.available) ?? null
 }
 
-export function findOption(state: SceneState, characterId: string, draft: ActionDraft): ActionOption | null {
+// The option the draft declares; `surge`, for an answer listed once per
+// surge that opens it, the one pressed (any, when not said).
+export function findOption(state: SceneState, characterId: string, draft: ActionDraft, surge?: SurgeKind | null): ActionOption | null {
   const c = state.characters[characterId]
   if (c && !getOpenAction(state) && draft.kind in OWN_OPTIONS) {
     return closeOwn(state, c, OWN_OPTIONS[draft.kind as DeclarableKind](state, c)).find((o) => sameDraft(o.draft, draft)) ?? null
   }
-  return getAvailableActions(state, characterId).find((o) => sameDraft(o.draft, draft)) ?? null
+  return getAvailableActions(state, characterId).find((o) => sameDraft(o.draft, draft) && (surge === undefined || o.surge === surge)) ?? null
 }
 
 // A field holding a value made of fields (a gear move) is the same where it

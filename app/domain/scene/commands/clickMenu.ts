@@ -1,4 +1,5 @@
 import type { ActionDraft, Coord, SceneState, Updater } from '../types'
+import type { SurgeKind } from '../../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { SPELLS } from '../../spells'
 import { ACTION_CATEGORIES, getActionDef, type ActionCategory } from '../rules/actionCatalog'
@@ -28,7 +29,7 @@ export type MenuAim =
 // would fill in, aimed where the click was, or answer the action in play.
 export type MenuPress =
   | { kind: 'declare', actorId: string, draft: ActionDraft, fields: Partial<ActionDraft>, aim: MenuAim }
-  | { kind: 'answer', reactorId: string, draft: ActionDraft }
+  | { kind: 'answer', reactorId: string, draft: ActionDraft, surge: SurgeKind | null }
   | { kind: 'pass', reactorId: string }
 
 export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, press: MenuPress }
@@ -39,7 +40,7 @@ export type ClickMenu = { title: string, select: string | null, entries: MenuEnt
 export function pressMenu(press: MenuPress, newId: () => string): Updater {
   return (state) => {
     switch (press.kind) {
-      case 'answer': return declareReaction(press.reactorId, press.draft, newId)(state)
+      case 'answer': return declareReaction(press.reactorId, press.draft, newId, press.surge)(state)
       case 'pass': return passReaction(press.reactorId)(state)
       case 'declare': {
         const declared = declareAction(press.actorId, press.draft, newId)(state)
@@ -113,7 +114,7 @@ function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
   const answers = getAvailableActions(state, id).filter((o) => o.available && o.reactionTo !== null)
   if (answers.length === 0) return null
   const entries: MenuEntry[] = [
-    ...answers.map((o): MenuEntry => ({ label: getOptionLabel(state, id, o), category: 'answer', cost: o.cost, press: { kind: 'answer', reactorId: id, draft: o.draft } })),
+    ...answers.map((o): MenuEntry => ({ label: getOptionLabel(state, id, o), category: 'answer', cost: o.cost, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge } })),
     { label: 'nothing', category: 'answer', cost: null, press: { kind: 'pass', reactorId: id } },
   ]
   return { title: `${getFightName(state, id)} answers`, select: id, entries }

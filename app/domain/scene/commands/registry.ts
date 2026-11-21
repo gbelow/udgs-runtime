@@ -76,7 +76,7 @@ export const sceneCommands = {
   menu: command((ctx, press: MenuPress) => pressMenu(press, ctx.newId)).by((_, press) => ({ id: press.kind === 'declare' ? press.actorId : press.reactorId })),
   amend: command((_, fields: Partial<ActionDraft>) => amendAction(fields)).by(panel('open')),
   target: command((_, targetId: string) => setTarget(targetId)).by(panel('open')),
-  react: command((ctx, reactorId: string, draft: ActionDraft) => declareReaction(reactorId, draft, ctx.newId)).by(reactor),
+  react: command((ctx, reactorId: string, draft: ActionDraft, surge?: SurgeKind | null) => declareReaction(reactorId, draft, ctx.newId, surge)).by(reactor),
   amendReaction: command((_, reactorId: string, fields: ReactionAmend) => amendReaction(reactorId, fields)).by(reactor),
   pass: command((_, reactorId: string) => passReaction(reactorId)).by(reactor),
   cancel: command(() => cancelAction()).by(panel('open')),

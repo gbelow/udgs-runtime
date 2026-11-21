@@ -1869,27 +1869,16 @@
             }
           ]
         ],
-        "description": "Gains +2 to SD or reflex for the rest of the turn after using movement surge. Also works for approaching in skirmishes.",
+        "description": "Gains +3 against projectiles when using movement surge, even without using reflexes actively. Also works for approaching in skirmishes.",
         "effect": [
           {
             "name": "",
             "trigger": "instant",
             "type": "buff",
             "effect": {
-              "target": "skill:SD",
+              "target": "SD:projectile",
               "operation": "+",
-              "value": 2,
-              "when": "movementSurge"
-            }
-          },
-          {
-            "name": "",
-            "trigger": "instant",
-            "type": "buff",
-            "effect": {
-              "target": "skill:reflex",
-              "operation": "+",
-              "value": 2,
+              "value": 3,
               "when": "movementSurge"
             }
           }

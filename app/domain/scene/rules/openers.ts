@@ -13,7 +13,7 @@ import { getHold } from './fireAgain'
 import { getCounterAttack, getCounterAttackOf, getCounterSlot, type CounterSlot } from './counter'
 import { getInterruptionOf } from './interruption'
 import { withSweepArc } from './sweep'
-import { getEscapeAfterBlast, getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
+import { getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
 import { getReactionDegree } from './explosion'
 import { getCounterspellCast, isInCounterspellReach } from './counterspell'
 
@@ -62,13 +62,11 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   follow: {
     after: (state, root, reaction, newId) => openMove(reaction, newId, getFollowMove(root)),
   },
-  // the escape the reflex clears the way for goes before the blast, the one
-  // a miss leaves after it (combat.tex "Avoiding an Explosion")
+  // the escape the reflex clears the way for goes before the blast
+  // (combat.tex "Avoiding an Explosion")
   avoidExplosion: {
-    after: (state, root, reaction, newId) => {
-      const degree = getReactionDegree(state, reaction)
-      return openMove(reaction, newId, root.kind === 'explosion' ? getEscapeBeforeBlast(reaction, degree) : root.kind === 'blast' ? getEscapeAfterBlast(reaction, degree) : null)
-    },
+    after: (state, root, reaction, newId) =>
+      openMove(reaction, newId, root.kind === 'explosion' ? getEscapeBeforeBlast(reaction, getReactionDegree(state, reaction)) : null),
   },
   // combat.tex "Opportunity Attack": each attack the root drew is opened in
   // the order it comes to them; a move or a push has everyone it carries

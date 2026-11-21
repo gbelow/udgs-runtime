@@ -79,7 +79,7 @@ const highlighted = (h: Harness) => h.view().cells.filter((c) => c.reachable !==
 const ownOptions = (h: Harness, id: string) => getAvailableActions(h.state(), id).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
 
 // The defences open to anyone against the committed action.
-const answersOffered = (h: Harness) => Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft })))
+const answersOffered = (h: Harness) => Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft, surge: o.surge })))
 
 // The cells a blast or an explosion may be aimed at.
 const aimable = (h: Harness, open: { kind: string }) => h.view().cells.filter((c) => open.kind === 'blast' || c.center)
@@ -300,7 +300,7 @@ function plays(): Play[] {
       name: 'react',
       run: (h, pick) => {
         const options = answersOffered(h)
-        if (options.length) { const o = pick(options); h.send({ kind: 'react', args: [o.id, o.draft] }) }
+        if (options.length) { const o = pick(options); h.send({ kind: 'react', args: [o.id, o.draft, o.surge] }) }
       },
     },
     { name: 'drop a held item', run: (h, pick) => { const c = h.active() ? h.state().characters[h.active()!] : undefined; if (c?.held.length) h.send({ kind: 'dropToFloor', args: [c.id, pick(c.held).id, false] }) } },
@@ -765,7 +765,7 @@ function answerOpen(h: Harness, pick: Picker, tries: number) {
     const offered = answersOffered(h)
     const kind = pick([...new Set(offered.map((o) => o.draft.kind))])
     const answer = pick(offered.filter((o) => o.draft.kind === kind))
-    h.send({ kind: 'react', args: [answer.id, answer.draft] })
+    h.send({ kind: 'react', args: [answer.id, answer.draft, answer.surge] })
     const there = highlighted(h)
     if (there.length && pick([true, false])) h.click({ on: 'cell', cell: pick(there).cell })
     answerWithAStrike(h, answer.id, pick)
@@ -985,7 +985,7 @@ function ambush(h: Harness, pick: Picker) {
   if (nearest) h.click({ on: 'cell', cell: nearest.cell })
   h.commit()
   const prepared = answersOffered(h).filter((o) => o.draft.kind === 'prepared')
-  if (prepared.length) { const o = pick(prepared); h.send({ kind: 'react', args: [o.id, o.draft] }) }
+  if (prepared.length) { const o = pick(prepared); h.send({ kind: 'react', args: [o.id, o.draft, o.surge] }) }
   playOut(h, pick)
 }
 
@@ -1013,7 +1013,7 @@ function rescue(h: Harness, pick: Picker) {
   h.declare(pick(attacks).draft as ActionDraft)
   finishDeclaration(h, pick)
   const defenses = answersOffered(h).filter((o) => o.id === performer && 'preparedId' in o.draft && o.draft.preparedId)
-  if (defenses.length) h.send({ kind: 'react', args: [performer, pick(defenses).draft] })
+  if (defenses.length) { const o = pick(defenses); h.send({ kind: 'react', args: [performer, o.draft, o.surge] }) }
   playOut(h, pick)
 }
 
@@ -1038,7 +1038,7 @@ function shelter(h: Harness, pick: Picker) {
   h.commit()
   if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
   const covers = answersOffered(h).filter((o) => o.draft.kind === 'guard' && o.draft.cover)
-  if (covers.length) { const o = pick(covers); h.send({ kind: 'react', args: [o.id, o.draft] }) }
+  if (covers.length) { const o = pick(covers); h.send({ kind: 'react', args: [o.id, o.draft, o.surge] }) }
   playOut(h, pick)
 }
 
@@ -1183,7 +1183,8 @@ function reflexShotPlay(h: Harness): Play[] {
       for (const id of reflexes) {
         const offered = getAvailableActions(h.state(), id).filter((o) => o.available && o.draft.kind === 'counterattack')
         if (!offered.length) continue
-        h.send({ kind: 'react', args: [id, pick(offered).draft] })
+        const o = pick(offered)
+        h.send({ kind: 'react', args: [id, o.draft, o.surge] })
         answerWithAStrike(h, id, pick)
       }
       answerOpen(h, pick, pick([0, 1, 2, 3, 4]))

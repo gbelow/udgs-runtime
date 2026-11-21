@@ -249,14 +249,15 @@ export function withdrawSpawnedAction(thrown: Throw, newId: () => string): Updat
 }
 
 // A reaction to the committed action (combat.tex "Reactions"), declared
-// before the die by anyone the action triggers something in. A character has
-// one answer at a time: a new one replaces it.
-export function declareReaction(actorId: string, draft: ActionDraft, newId: () => string): Updater {
+// before the die by anyone the action triggers something in, with the surge
+// the answer is pressed with where one opens it. A character has one answer
+// at a time: a new one replaces it.
+export function declareReaction(actorId: string, draft: ActionDraft, newId: () => string, surge?: SurgeKind | null): Updater {
   return (state) => {
     const open = getAnswerableOpen(state)
     if (!open) return state
     if (!canAnswer(open, actorId)) return state
-    const chosen = findOption(state, actorId, draft)
+    const chosen = findOption(state, actorId, draft, surge)
     if (!chosen?.available) return state
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined, preparedId: 'preparedId' in draft ? draft.preparedId : undefined })
     const targetId = trigger?.against ?? open.actorId

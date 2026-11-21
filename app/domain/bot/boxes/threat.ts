@@ -1033,7 +1033,7 @@ function opportunity(input: SeatInput, id: string, w: ThreatWeights): Decision |
   let best: { draft: ActionDraft; picks: Pick[]; score: number; why: string } | null = null
   for (const o of offers) {
     // declared on a copy, as pressed, for the rows the draw opens
-    const declared = trial(view, { kind: 'react', args: [id, o.draft] })
+    const declared = trial(view, { kind: 'react', args: [id, o.draft, o.surge] })
     const drawn = getUnfinishedAnswers(declared, open).find((r) => r.actorId === id)
     const target = drawn?.targetId ? view.characters[drawn.targetId] : undefined
     if (!drawn || !target) continue

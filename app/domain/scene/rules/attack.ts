@@ -498,12 +498,16 @@ function getStrikeDLTerms(state: SceneState, root: StrikeAction): Term[] {
 // combat.tex "Accuracy": a shot is scored "against the opponent's reflexes
 // or their SD, should they choose not to react"; "Guard": "Shield Cover is
 // added to guard as a bonus", the guard's own reflexes when it is an ally's.
+// abilities.tex "Tactical Movement": "+3 against projectiles ... even
+// without using reflexes actively", on the SD (`SD:projectile`).
 function getShotDLTerms(state: SceneState, root: ActionOf<'shoot'>): Term[] {
   const reaction = getDefendingReaction(state, root)
   if (isFloorAttack(root)) return reaction ? shotDefenseTerms(state, reaction) : getGroundDL(state, root)
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
-  return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender, getSituationalAfflictions(state, defender.id)) }]
+  if (reaction) return shotDefenseTerms(state, reaction)
+  const projectile = getBuffBonus(defender, 'SD:projectile')
+  return [{ label: 'SD', value: getSD(defender, getSituationalAfflictions(state, defender.id)) }, ...(projectile !== 0 ? [{ label: 'against projectiles', value: projectile }] : [])]
 }
 
 // spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:

@@ -141,18 +141,23 @@ export function getContestMode(state: SceneState, id: string): RollMode {
   return getContestModes(state, id).includes(mode) ? mode : 'normal'
 }
 
-// Why the character cannot make a movement or combat surge now, or null:
-// those are made only in the character's own turn — and in a flee turn,
-// only the movement surge (combat.tex "Flee"). There are none before the
-// combat has started. The protection surge is made only with the defense
-// that repositions for it (abilities.tex "Protection Surge"), never on its
-// own.
+// Why the character cannot make the surge now, or null. combat.tex "Action
+// surge": "An action surge can be done at any time during the round", but
+// the combat surge only in the character's own turn (the table's ruling: a
+// reaction surge does better for a reaction), and outside it the movement
+// surge only while there is an action to answer, whose reaction loses what
+// is left of its AP (commands/sequence.ts `dropReactionSurges`). In a flee
+// turn only the movement surge (combat.tex "Flee"). There are none before
+// the combat has started. The protection surge is made only with the
+// defense that repositions for it (abilities.tex "Protection Surge"), never
+// on its own.
 export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind, answering = false): string | null {
   if (!isCombatStarted(state)) return 'combat has not started'
   if (kind === 'protection' && !answering) return 'made only with a defense that repositions for an ally'
   if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
   if (state.forcedSurge === id && !isFeintSurge(kind)) return 'a feint forces a surge other than focus or recovery'
-  return SURGES[kind].earmarked && !isInTurn(state, id) ? 'only in your own turn' : null
+  if (!SURGES[kind].earmarked || isInTurn(state, id)) return null
+  return kind === 'movement' && getOpenAction(state) ? null : kind === 'movement' ? 'in your own turn or with a reaction' : 'only in your own turn'
 }
 
 // combat.tex "End of the round": "A round ends when no one has AP left and
