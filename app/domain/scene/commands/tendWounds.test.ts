@@ -10,7 +10,7 @@ import { answerScene } from './answer'
 import { toTable } from '../../play/calls'
 import { getInjuryCapacity } from '../../character/rules/afflictions'
 import { getHealth } from '../../character/rules/skills'
-import { getKnowledgeTestTerms } from '../../character/rules/knowledge'
+import { getKnowledge, getKnowledgeTestTerms } from '../../character/rules/knowledge'
 import { sumTerms } from '../../character/rules/terms'
 
 let n = 0
@@ -82,5 +82,23 @@ describe('the end of a fight', () => {
     expect(ended.characters.m.injuries.bleed).toBe(0)
     expect(ended.characters.m.injuries.injuryLevel).toBeGreaterThan(before.characters.m.injuries.injuryLevel)
     expect(ended.characters.e.injuries.injuryLevel).toBe(before.characters.e.injuries.injuryLevel)
+  })
+
+  // abilities.tex "First Aid": "At the end of the fights, a character with
+  // first aid can add its medicine knowledge to everyone's tend wounds test";
+  // the user's ruling: an ally's, one neither dead nor unconscious.
+  it('adds the medicine of an ally with First Aid to the test, and of no enemy or unconscious one', () => {
+    const skillWith = (medic: CampaignCharacter, partyOf: Record<string, string>) => {
+      const state = fought()
+      const waiting = endCombat(toTable(() => 0))({ ...state, partyOf, agreedToEnd: [...state.agreedToEnd, 'x'], characters: { ...state.characters, x: medic } })
+      return Object.values(waiting.calls).find((c) => c.roller === 'm')!.test!.skill
+    }
+    const doc = { ...medic('x'), injuries: { ...medic('x').injuries, bleed: 0 } }
+    const alone = skillWith({ ...doc, abilities: {} }, { m: 'p', e: 'q', x: 'p' })
+    const medicine = getKnowledge('medicine')(doc)
+    expect(medicine).toBeGreaterThan(0)
+    expect(skillWith(doc, { m: 'p', e: 'q', x: 'p' })).toBe(alone + medicine)
+    expect(skillWith(doc, { m: 'p', e: 'q', x: 'q' })).toBe(alone)
+    expect(skillWith({ ...doc, afflictions: ['unconscious'] }, { m: 'p', e: 'q', x: 'p' })).toBe(alone)
   })
 })

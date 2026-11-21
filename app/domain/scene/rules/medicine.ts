@@ -5,7 +5,11 @@ import type { ActionCost } from '../../character/rules/actionCosts'
 import type { Term } from '../../character/rules/terms'
 import { ABILITIES, hasAbility, type AbilityKey } from '../../abilities'
 import { canAfford, canAffordOrHold, CANNOT_AFFORD } from '../../character/rules/cost'
-import { getKnowledgeTestTerms } from '../../character/rules/knowledge'
+import { getKnowledge, getKnowledgeTestTerms } from '../../character/rules/knowledge'
+import { isDead } from '../../character/rules/afflictions'
+import { isAlly } from './protection'
+import { hasFightAffliction } from './situational'
+import type { Test } from '../../play/test'
 import { landed } from '../../character/rules/production'
 import { getHealth } from '../../character/rules/skills'
 import { getTendWoundsTest } from '../../character/rules/tendWounds'
@@ -90,6 +94,23 @@ const stopBleed = (name: string, amount: number) =>
 export function getFirstAidFacts(root: FirstAidAction): FirstAidAction['facts'] {
   const bleed = FIRST_AID_BLEED[root.roll?.degree ?? 'miss']
   return root.targetId ? { [root.targetId]: bleed > 0 ? [stopBleed('first aid', bleed)] : [] } : {}
+}
+
+// abilities.tex "First Aid": "At the end of the fights, a character with
+// first aid can add its medicine knowledge to everyone's tend wounds test":
+// the best medicine among the patient's allies, themselves included, who
+// have learned it and are neither dead nor unconscious (the user's ruling).
+export function getAfterFightMedicine(state: SceneState, patientId: string): Term[] {
+  const best = Object.values(state.characters)
+    .filter((m) => isAlly(state, m.id, patientId) && hasAbility(m, ABILITY.firstAid) && !isDead(m) && !hasFightAffliction(state, m, 'unconscious'))
+    .reduce<number | null>((top, m) => Math.max(top ?? -Infinity, getKnowledge('medicine')(m)), null)
+  return best === null ? [] : [{ label: 'first aid: medicine', value: best }]
+}
+
+// combat.tex "Bleed": the tend wounds test made as the fight ends, with what
+// a medic adds to it.
+export function getAfterFightTest(state: SceneState, c: CampaignCharacter): Test {
+  return getTendWoundsTest(c, getAfterFightMedicine(state, c.id))
 }
 
 // combat.tex "Tend Wounds": "stops 0/0/1/2 bleed per use", and staunches
