@@ -520,6 +520,9 @@ AttackSteps(cell → foe) = the fewest cells walked from cell to a cell where my
                           and bodies, up and down only what can be walked), as far as the
                           board goes; none where no walk gets there
 ```
+Walked `ROUTE_STEPS` cells out first, then twice as far each time nothing meets the foe, up to
+the whole board: the table cuts a walk by the cells walked alone, so the nearest cell found
+within a shorter walk is the nearest of all, with the same way there.
 
 ### 4.1 Opportunity attacks drawn (`approach.ts`)
 
@@ -794,7 +797,9 @@ presence(foe)  = 1 for a foe noticed; w.fade ^ (rounds since noticed) for one re
 A box is made with its weights (`threatBox(w)`), and every function that reads one takes them
 as a required argument, never a default, so a call that forgets them does not compile. The
 tables the weights do not touch (pairs, harms, step maps) are shared by every bot; those
-they do are kept per weights.
+they do are kept per weights. The table's walks a bot reads (step maps, routes, the walks a
+turn weighs) are kept by what a walk reads (`walks.ts` `getKeptWalk`), not by the state they
+were asked in, so the many states a box makes walk once.
 
 `THREAT_TUNING` (`threat.ts`), shared by every box:
 
@@ -850,6 +855,8 @@ Fixed counts (not weights):
 | `RUN_BLOCKS`                    | 2       | boxes/threat.ts least run a movement surge pays for |
 | `SEARCH_CELLS`, `SEARCH_SPREAD` | 12, 240 | boxes/threat.ts search            |
 | `MAP_ROUNDS`                    | 1       | threat.ts step map depth          |
+| `ROUTE_STEPS`                   | 12      | threat.ts first route walk, doubled until it meets |
+| `WALKS`, `CONTENTS`             | 3000, 50000 | walks.ts walks kept a board, contents told apart |
 | `BALLPARK`                      | 3       | belief.ts                         |
 | `FORGET_AFTER`                  | 2       | memory.ts (the user's ruling)     |
 | `QUIVER`                        | 20      | belief.ts (gear.tex "Quiver")     |

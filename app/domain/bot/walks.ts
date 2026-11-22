@@ -62,7 +62,7 @@ const sheetOf = (c: object, walking: boolean): string => {
 
 const walked = perParts<ReachableCell[]>(WALKS)
 
-export function getWalks(state: SceneState, action: MoveAction): ReachableCell[] {
+export function getKeptWalk(state: SceneState, action: MoveAction): ReachableCell[] {
   const board = state.board
   if (!board) return getWalkableCells(state, action)
   const key = [

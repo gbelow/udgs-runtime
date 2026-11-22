@@ -15,15 +15,17 @@ import { getOpenAction } from '../log'
 // makes with an action, only those the recipe allows (rules/combinedMove.ts).
 // What every reader of a move's reach (the board, the panel, a click) asks.
 // A state is replaced, never changed, so the reach of a move in it is walked
-// once, however many of them ask.
+// once, however many of them ask. `walk` is how the cells it can walk to are
+// read, the table's walk unless a reader that remembers walks across states
+// gives its own.
 const walked = new WeakMap<SceneState, WeakMap<MoveAction, ReachableCell[]>>()
 
-export function getReachableCells(state: SceneState, action: MoveAction): ReachableCell[] {
+export function getReachableCells(state: SceneState, action: MoveAction, walk: (state: SceneState, action: MoveAction) => ReachableCell[] = getWalkableCells): ReachableCell[] {
   const byAction = walked.get(state) ?? new WeakMap<MoveAction, ReachableCell[]>()
   walked.set(state, byAction)
   const known = byAction.get(action)
   if (known) return known
-  const made = getSidestepCells(state, action, getUsableCells(state, action, getWalkableCells(state, action))).filter(({ cell }) => isCompelledAway(state, action, cell) && isCombinedLanding(state, action, cell))
+  const made = getSidestepCells(state, action, getUsableCells(state, action, walk(state, action))).filter(({ cell }) => isCompelledAway(state, action, cell) && isCombinedLanding(state, action, cell))
   byAction.set(action, made)
   return made
 }

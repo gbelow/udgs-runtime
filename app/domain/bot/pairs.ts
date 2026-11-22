@@ -238,8 +238,10 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
 
 // A sheet as the pair table reads it: who it is and what changes on every
 // press (AP, STA, the surge made and what it left, the face's thirds) left
-// out, and its injury level read as the penalty it gives (combat.tex "Injury
-// level (IL)"), which is all of it an attack or a defence reads, so the table
+// out, and its limit stress action, which only a compulsion in the fight
+// reads, never an attack or a defence; its injury level read as the penalty
+// it gives (combat.tex "Injury level (IL)"), which is all of it an attack or
+// a defence reads, so the table
 // is read again only when something it rests on changes, and two copies of
 // one sheet share it.
 // The items of a sheet by the token the tables know each by: the order it is
@@ -286,8 +288,9 @@ const signatures = new WeakMap<CampaignCharacter, string>()
 function signature(c: CampaignCharacter): string {
   let sig = signatures.get(c)
   if (sig === undefined) {
-    const { id, resources, usedSurge, surgeFloor, runsFree, shown, injuries, ...rest } = c
+    const { id, resources, usedSurge, surgeFloor, runsFree, shown, injuries, limitStress, ...rest } = c
     void id
+    void limitStress
     void usedSurge
     void surgeFloor
     void runsFree

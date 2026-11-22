@@ -2,7 +2,7 @@ import type { CampaignCharacter, Coord, MovementKind, SurgeKind, Third } from '.
 import type { SceneState } from '../scene/types'
 import type { RollMode } from '../play/dice'
 import { getMovementOptions } from '../scene/rules/move'
-import { getWalks } from './walks'
+import { getKeptWalk } from './walks'
 import { makeAction } from '../scene/factories'
 import { coordKey, disk, distance, extentCells, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
@@ -231,7 +231,7 @@ function walkMap(state: SceneState, id: string): StepMap | null {
   const AP = Math.ceil(metres / walk.speed) * walk.block.AP
   const rich: SceneState = { ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP, STA: Math.max(c.resources.STA, Math.ceil(metres / walk.speed) * walk.block.STA) } } } }
   const map: StepMap = new Map([[coordKey(from), 0]])
-  for (const r of getWalks(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }))) {
+  for (const r of getKeptWalk(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }))) {
     const key = coordKey(r.cell)
     if (!map.has(key) || r.steps < map.get(key)!) map.set(key, r.steps)
   }
@@ -593,24 +593,30 @@ function getLongestAttack(c: CampaignCharacter): LongestAttack {
 
 const getLongestReach = (c: CampaignCharacter): number => getLongestAttack(c)?.reach ?? 0
 
-// Every cell the character, standing at `from`, walks to, with the fewest
-// cells it walks there and the way, the nearest first: walked as the step map
-// walks (`walkMap`), but as far as the board goes, with no round to stop at.
+// Every cell the character, standing at `from`, walks to within `steps`
+// cells, with the fewest cells it walks there and the way, the nearest first:
+// walked as the step map walks (`walkMap`), but with no round to stop at, as
+// far as `steps` goes, or the whole board (`whole`). The table's walk is cut
+// by the cells walked alone, whichever way they go, so every cell within
+// `steps` comes with the same fewest cells and the same way as the whole
+// board's walk gives it.
 type Route = { cell: Coord; steps: number; path: Coord[]; elevation: number }
+type Routes = { routes: Route[]; whole: boolean }
 
-const routeMaps = new WeakMap<SceneState, Map<string, Route[] | null>>()
+const routeMaps = new WeakMap<SceneState, Map<string, Routes | null>>()
 
-function getRoutes(state: SceneState, id: string, from: Coord): Route[] | null {
-  const byKey = routeMaps.get(state) ?? new Map<string, Route[] | null>()
+function getRoutes(state: SceneState, id: string, from: Coord, steps: number): Routes | null {
+  const byKey = routeMaps.get(state) ?? new Map<string, Routes | null>()
   routeMaps.set(state, byKey)
   const key = `${id}|${coordKey(from)}`
-  if (byKey.has(key)) return byKey.get(key) ?? null
-  const made = walkRoutes(state, id, from)
+  const known = byKey.get(key)
+  if (byKey.has(key) && (!known || known.whole || known.routes.some((r) => r.steps >= steps))) return known ?? null
+  const made = walkRoutes(state, id, from, steps)
   byKey.set(key, made)
   return made
 }
 
-function walkRoutes(state: SceneState, id: string, from: Coord): Route[] | null {
+function walkRoutes(state: SceneState, id: string, from: Coord, steps: number): Routes | null {
   const c = state.characters[id]
   const board = state.board
   const placement = board?.placements[id]
@@ -618,12 +624,13 @@ function walkRoutes(state: SceneState, id: string, from: Coord): Route[] | null 
   const open = getMovementOptions(state, c).filter((o): o is typeof o & { kind: MovementKind } => o.available && o.speed > 0 && o.block.AP > 0 && o.kind !== 'jump')
   const walk = open.find((o) => o.kind === 'walk') ?? open[0]
   if (!walk) return null
-  // enough blocks to walk every cell of the board
-  const blocks = Math.ceil(extentCells(board.origin, board.extent).length / walk.speed)
+  // enough blocks to walk `steps` cells, or every cell of the board
+  const all = Math.ceil(extentCells(board.origin, board.extent).length / walk.speed)
+  const blocks = Math.min(all, Math.ceil(steps / walk.speed))
   const there = sameCell(placement.cell, from) ? placement : placeAt(board, placement, from)
   const rich = withPlacements({ ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP: blocks * walk.block.AP, STA: Math.max(c.resources.STA, blocks * walk.block.STA) } } } }, { [id]: there })
-  const walked = getWalks(rich, makeAction('move', { id: 'route-map', actorId: id, movement: walk.kind })).map(({ cell, steps, path, elevation }) => ({ cell, steps, path, elevation }))
-  return [{ cell: from, steps: 0, path: [], elevation: there.elevation }, ...walked].sort((x, y) => x.steps - y.steps)
+  const walked = getKeptWalk(rich, makeAction('move', { id: 'route-map', actorId: id, movement: walk.kind })).map(({ cell, steps, path, elevation }) => ({ cell, steps, path, elevation }))
+  return { routes: [{ cell: from, steps: 0, path: [], elevation: there.elevation }, ...walked].sort((x, y) => x.steps - y.steps), whole: blocks === all }
 }
 
 // Whether `a` standing in `r.cell` on the floor there at `r.elevation` meets
@@ -653,6 +660,7 @@ function meetsFrom(state: SceneState, a: string, d: string, at: Coord, r: Route,
 export type AttackRoute = { steps: number; path: Coord[] }
 
 const attackRoutes = new WeakMap<SceneState, Map<string, AttackRoute | null>>()
+const ROUTE_STEPS = 12
 
 export function getAttackRoute(state: SceneState, a: string, d: string, from: Coord | null = cellOf(state, a), at: Coord | null = cellOf(state, d)): AttackRoute | null {
   const c = state.characters[a]
@@ -662,11 +670,16 @@ export function getAttackRoute(state: SceneState, a: string, d: string, from: Co
   const key = `${a}|${d}|${coordKey(from)}|${coordKey(at)}`
   if (byKey.has(key)) return byKey.get(key) ?? null
   const attack = getLongestAttack(c)
-  const routes = attack ? getRoutes(state, a, from) : null
   let made: AttackRoute | null = null
-  if (attack && routes) {
-    const hit = routes.find((r) => distance(r.cell, at) <= attack.reach && meetsFrom(state, a, d, at, r, attack))
-    made = hit ? { steps: hit.steps, path: hit.path } : null
+  // walked `ROUTE_STEPS` cells out, then twice as far each time nothing meets
+  // `d`, as far as the board goes: the nearest cell that meets it within a
+  // walk is the nearest of all (`getRoutes`)
+  for (let steps = ROUTE_STEPS; attack; steps *= 2) {
+    const walked = getRoutes(state, a, from, steps)
+    if (!walked) break
+    const hit = walked.routes.find((r) => distance(r.cell, at) <= attack.reach && meetsFrom(state, a, d, at, r, attack))
+    if (hit) made = { steps: hit.steps, path: hit.path }
+    if (hit || walked.whole) break
   }
   byKey.set(key, made)
   return made

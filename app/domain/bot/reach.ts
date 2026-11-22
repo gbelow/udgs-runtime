@@ -1,6 +1,7 @@
 import type { MovementKind } from '../types'
 import type { Coord, MoveAction, SceneState } from '../scene/types'
 import { getMovementOptions, type ReachableCell } from '../scene/rules/move'
+import { getKeptWalk } from './walks'
 import { getReachableCells } from '../scene/rules/board/reach'
 import { getMoveTramples } from '../scene/rules/trample'
 import { getOpenAction } from '../scene/rules/log'
@@ -48,7 +49,7 @@ function read(state: SceneState, id: string): Reach | null {
   const declared = declaredOn.get(from) ?? new Map<string, SceneState>()
   declaredOn.set(from, declared)
   declared.set(id, moving)
-  return { movement, surged: surged !== state, cells: getReachableCells(moving, open), from, moving }
+  return { movement, surged: surged !== state, cells: getReachableCells(moving, open, getKeptWalk), from, moving }
 }
 
 const declaredOn = new WeakMap<SceneState, Map<string, SceneState>>()

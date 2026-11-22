@@ -5,7 +5,7 @@ import type { CampaignCharacter, Coord, MovementKind, Third } from '../types'
 import type { SceneState } from '../scene/types'
 import type { RollMode } from '../play/dice'
 import { getMovementOptions } from '../scene/rules/move'
-import { getWalks } from './walks'
+import { getKeptWalk } from './walks'
 import { makeAction } from '../scene/factories'
 import { coordKey, disk, distance, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
@@ -196,7 +196,7 @@ function walkMap(state: SceneState, id: string): StepMap | null {
   const AP = Math.ceil(metres / walk.speed) * walk.block.AP
   const rich: SceneState = { ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP, STA: Math.max(c.resources.STA, Math.ceil(metres / walk.speed) * walk.block.STA) } } } }
   const map: StepMap = new Map([[coordKey(from), 0]])
-  for (const r of getWalks(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }))) {
+  for (const r of getKeptWalk(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }))) {
     const key = coordKey(r.cell)
     if (!map.has(key) || r.steps < map.get(key)!) map.set(key, r.steps)
   }

@@ -6,6 +6,7 @@ import { isAttackAction } from '../../scene/rules/actionCatalog'
 import { getFreeAttackOptions, hasUnfocusedRow } from '../../scene/rules/attack'
 import { isCombatStarted } from '../../scene/rules/started'
 import { getMovementOptions } from '../../scene/rules/move'
+import { getKeptWalk } from '../walks'
 import { getReachableCells } from '../../scene/rules/board/reach'
 import { isClearWalk } from '../reach'
 import { distance } from '../../scene/rules/board/geometry'
@@ -72,7 +73,7 @@ function stepCloser(state: SceneState, id: string, foe: Coord, apart: number): I
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  const best = getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).reduce<{ cell: Coord; elevation: number; apart: number } | null>((b, r) => {
+  const best = getReachableCells(moving, action as MoveAction, getKeptWalk).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).reduce<{ cell: Coord; elevation: number; apart: number } | null>((b, r) => {
     const d = distance(r.cell, foe)
     return d < (b?.apart ?? apart) ? { cell: r.cell, elevation: r.elevation, apart: d } : b
   }, null)

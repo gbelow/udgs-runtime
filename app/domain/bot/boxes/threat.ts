@@ -10,6 +10,7 @@ import { getHeavyName } from '../../character/rules/gear'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
 import { getMovementOptions } from '../../scene/rules/move'
+import { getKeptWalk } from '../walks'
 import { getReachableCells } from '../../scene/rules/board/reach'
 import { isClearWalk } from '../reach'
 import { distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
@@ -185,7 +186,7 @@ function walkAt(state: SceneState, id: string, movement: MovementKind): Walk | n
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  return { movement, cells: getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path, elevation: r.elevation })) }
+  return { movement, cells: getReachableCells(moving, action as MoveAction, getKeptWalk).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path, elevation: r.elevation })) }
 }
 
 // The walk at the character's fastest movement.
