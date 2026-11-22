@@ -20,7 +20,7 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachDrawn, getStandingCost, type Drawn } from '../approach'
 import { getSides } from '../table'
 import { getHarm, getPair, type PairAttack, type PairDefence } from '../pairs'
-import { cellOf, getAttackRoute, getTargetSpend, getRoundValue, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmTaken, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getAPValue, getSTAWorth, getOutcome, getPresence, getTeam, getThreatened, getThreatening, threatValue, type SpendCost } from '../threat'
+import { cellOf, getAttackRoute, getTargetSpend, getRoundValue, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmTaken, getSmoothHarmTaken, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getAPValue, getSTAWorth, getOutcome, getPresence, getTeam, getThreatened, getThreatening, threatValue, type SpendCost } from '../threat'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import { REST_TUNING, type RestTuning } from '../rest'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
@@ -30,6 +30,7 @@ import { isCollapsed } from '../../scene/rules/situational'
 import { getMedicineAbility, getMedicineBar } from '../../scene/rules/medicine'
 import { hasAbility } from '../../abilities'
 import { getObjective, getRoundsToAttack, isRuinous } from '../objective'
+import { ROUND_AP } from '../../tables'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
 // every term weighed by a tweakable. A turn asks two questions (the user's
@@ -53,15 +54,15 @@ import { getObjective, getRoundsToAttack, isRuinous } from '../objective'
 // - with no attack worth making, a walk is worth the potential harm the
 //   character could do from the cell to the foe it threatens most, counting
 //   every attack a fresh round pays for once the walk in is paid, so that
-//   closing on a foe is worth the attacks it frees (the user's ruling), less
-//   the worst single foe's potential threat on it there, and, for every
-//   cell it closes on a foe too far off to have a potential threat on,
-//   `aggression` (the user's ruling: a foe it cannot yet hurt is still gone after),
+//   closing on a foe is worth the attacks it frees (the user's ruling), and,
+//   for every cell it closes on a foe too far off to have a potential threat
+//   on, `aggression` (the user's ruling: a foe it cannot yet hurt is still gone after),
 //   less `company` for every metre from the nearest ally beyond the next
-//   cell (the user's ruling: everyone is safer close to allies), standing
-//   still the same, and less the walk at the same price and the worst single foe's immediate
-//   threat on it at the cell, with what it has left to defend once it has
-//   walked there; it walks when that beats standing by a margin;
+//   cell (the user's ruling: everyone is safer close to allies), less the
+//   walk at its price and the foes' immediate threat on it at the cell, with
+//   what it has left to defend once it has walked there, the only exposure
+//   it counts (the user's ruling: exposure counted once); standing still the
+//   same, with all it holds; it walks when that beats standing by a margin;
 // - with nothing worth doing, its objective tips the scale (the user's
 //   ruling): of the attacks on the foe it threatens most and the walks, those
 //   that bring it fewer rounds from attacking that foe than standing still and
@@ -84,7 +85,9 @@ import { getObjective, getRoundsToAttack, isRuinous } from '../objective'
 //   foe threatens, from a cell on the line it is made from, by `guardian`
 //   (the user's ruling: a defender whose defence takes off much is rather
 //   passive);
-// - in the immediate danger of a foe above `flee` where it stands, it runs
+// - in the immediate danger of a foe above `flee` where it stands, unless a
+//   walk of its own brought it there this round or the last expecting as much
+//   (the user's ruling), it runs
 //   where that danger, with what the walk leaves it to defend, is least,
 //   where what it takes off beats the walk at its price by `margin`; the run
 //   or the attack, whichever is worth more;
@@ -223,9 +226,36 @@ const attackName = (attack: PairAttack) => `${attack.row.attack}${attack.heavy ?
 
 type Plan =
   | { kind: 'attack'; intent: Intent; score: number; why: string }
-  | { kind: 'walk'; intent: Intent; score: number; why: string }
+  | { kind: 'walk'; intent: Intent; score: number; why: string; expects?: Expects }
   | { kind: 'surge'; surge: SurgeKind; score: number; why: string }
   | { kind: 'care'; intent: Intent; score: number; why: string }
+
+// What a walk expects where it ends (the user's ruling, 2026-11-22: one who
+// walked in knowing the danger does not run from it): the harm a fresh round
+// of the foes' strikes is believed to do it at `cell` (`getHarmTaken`,
+// fresh), with a fresh round's AP and the STA the walk leaves it. Kept by the
+// box, by character, for the round the walk is made in and the next.
+type Expects = { cell: Coord; harm: number }
+
+const expected = new WeakMap<ThreatWeights, Map<string, Expects & { round: number }>>()
+
+function getExpects(view: SceneState, members: readonly string[], id: string, cell: Coord, STA: number, w: ThreatWeights): Expects {
+  return { cell, harm: getHarmTaken(view, members, id, cell, { AP: ROUND_AP, STA }, w, true) }
+}
+
+function keepExpects(w: ThreatWeights, id: string, round: number, expects: Expects): void {
+  const byId = expected.get(w) ?? new Map<string, Expects & { round: number }>()
+  expected.set(w, byId)
+  byId.set(id, { ...expects, round })
+}
+
+// Whether the character stands where a walk of its own brought it this round
+// or the last, and the harm it is believed to take there is no more than the
+// walk expected, by `margin`.
+function isExpected(view: SceneState, id: string, here: Coord, taken: number, w: ThreatWeights): boolean {
+  const kept = expected.get(w)?.get(id)
+  return !!kept && sameCell(kept.cell, here) && view.round - kept.round <= 1 && taken <= kept.harm + w.margin
+}
 
 // The ways the turn may be paid for: with no surge, or after the combat or the
 // movement surge (combat.tex "Action surge"), tried on the fight as a person
@@ -529,11 +559,11 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
   }
   let target: ((foe: string) => number) | null = null
   let threat: ((foe: string) => number) | null = null
-  const now = getHarmTaken(view, members, id, cellOf(view, id), left, w)
+  const now = getSmoothHarmTaken(view, members, id, cellOf(view, id), left, w)
   const score = (harm: number, drain: number, foe: string, at: Coord | null, kept: { AP: number; STA: number }, AP: number, STA: number): AttackScore => {
     target ??= relative((f) => w.threatened * getThreatened(view, members, f, w) + w.threatening * getThreatening(view, members, f, w))
     threat ??= relative((f) => getThreatening(view, members, f, w))
-    const parts = { harm: w.harm * harm, target: target(foe), drain: w.drain * drain, threat: threat(foe), defence: w.reserve * Math.max(0, getHarmTaken(view, members, id, at, kept, w) - now), STA: STAWorth(STA), AP: w.spent * AP }
+    const parts = { harm: w.harm * harm, target: target(foe), drain: w.drain * drain, threat: threat(foe), defence: w.reserve * Math.max(0, getSmoothHarmTaken(view, members, id, at, kept, w) - now), STA: STAWorth(STA), AP: w.spent * AP }
     return { ...parts, total: gainOf({ ...parts, total: 0 }) - parts.defence - parts.STA - parts.AP }
   }
   return { dangerLeft, price, STAWorth, score }
@@ -747,7 +777,7 @@ function planAttack(ctx: TurnContext, compelled = false, on: readonly string[] =
           const opens = opensAfter(arrivedAt(paidView, id, cell, AP, STA), id, attackIntent(id, attack, foe))
           if (!opens || (opens === 'givingUp' && attack.cost.AP > heldAP(b, AP))) continue
           if (surge) best = { kind: 'surge', surge, score, why: surge === 'focus' ? `focuses to shoot: ${why}` : `makes the ${surge} surge: ${why}` }
-          else best = fromHere ? { kind: 'attack', intent: next, score, why } : { kind: 'walk', intent: next, score, why: `walks to attack: ${why}` }
+          else best = fromHere ? { kind: 'attack', intent: next, score, why } : { kind: 'walk', intent: next, score, why: `walks to attack: ${why}`, expects: cell ? getExpects(view, ctx.members, id, cell, held.STA, w) : undefined }
         }
       }
     }
@@ -769,7 +799,7 @@ function planFlee(ctx: TurnContext): Plan | null {
   const { STAWorth } = ctx.measures
   if (!here) return null
   const taken = getHarmTaken(view, members, id, here, left, w)
-  if (taken <= w.flee) return null
+  if (taken <= w.flee || isExpected(view, id, here, taken, w)) return null
   const now = getOutcome(view, members, id, here, left, w)
   const worst = foes.reduce<{ id: string; danger: number } | null>((q, f) => {
     const danger = threatValue(getImmediateThreat(view, members, f, id, here, w))
@@ -798,15 +828,18 @@ function planFlee(ctx: TurnContext): Plan | null {
 type WalkMove = { cell: Coord; elevation: number; score: number; budget: Budget; movement: MovementKind; spentSTA: number; guard: { AP: number; STA: number } }
 
 function getWalkMoves(ctx: TurnContext): { stay: number; moves: WalkMove[] } | null {
-  const { view, members, id, w, unnoticed, me, here, foes, budgets, drawn, keeping, kept } = ctx
-  const { price } = ctx.measures
+  const { view, members, id, w, unnoticed, me, here, foes, left, budgets, drawn, keeping, kept } = ctx
   if (!here) return null
+  // the walk's AP and STA at their price, with no danger in it: the danger the
+  // walk leaves the character in is its `arrival`, counted once (the user's
+  // ruling, 2026-11-22: exposure counted once)
+  const price = (AP: number, STA: number) => getSpendPrice({ AP, STA }, me.resources.STA, me.injuries.bleed, 0, w)
   // everyone is safer close to allies (the user's ruling): the metres to the nearest one, beyond the next cell
   const friends = getTeam(view, members).filter((t) => t !== id).flatMap((t) => cellOf(view, t) ?? [])
   const apart = (cell: Coord): number => (friends.length ? Math.max(0, Math.min(...friends.map((f) => distance(cell, f))) - 1) : 0)
   const standing = (cell: Coord): number => {
     const offence = foes.reduce((most, foe) => Math.max(most, threatValue(getPotentialThreat(view, members, id, foe, cellOf(view, foe), cell, w))), 0)
-    return w.offence * offence - w.peril * getDanger(view, members, id, 'potential', cell, undefined, w) - w.company * apart(cell)
+    return w.offence * offence - w.company * apart(cell)
   }
   // the cells a walk closes on the foes too far off for its potential threat
   // to reach (the user's ruling), by the cells still to walk to attack them
@@ -820,7 +853,8 @@ function getWalkMoves(ctx: TurnContext): { stay: number; moves: WalkMove[] } | n
     const left = getAttackRoute(view, id, b.foe, cell)
     return left ? Math.max(most, b.steps - left.steps) : most
   }, 0)
-  const stay = standing(here) + kept
+  // standing still is charged the danger it is in too, with all it holds
+  const stay = standing(here) + kept - w.arrival * getDanger(view, members, id, 'immediate', here, left, w)
   const moves: WalkMove[] = []
   const worst = foes.reduce<{ id: string; danger: number } | null>((q, f) => {
     const danger = threatValue(getPotentialThreat(view, members, f, id, here, cellOf(view, f), w))
@@ -834,7 +868,7 @@ function getWalkMoves(ctx: TurnContext): { stay: number; moves: WalkMove[] } | n
       // a surge's AP is dropped at the turn's end, so only the AP of its own is left to defend with
       const guard = { AP: heldAP(b, AP), STA: Math.max(0, b.STA - STA) }
       const arrival = w.arrival * getDanger(view, members, id, 'immediate', cell, guard, w)
-      const score = standing(cell) + pull(cell) - price(ownAP(view, id, b, AP, spent), STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - arrival + keeping(cell, guard.AP)
+      const score = standing(cell) + pull(cell) - price(ownAP(view, id, b, AP, spent), STA + b.surgeSTA) - drawn(cell, AP, STA, runs(walk), path) - arrival + keeping(cell, guard.AP)
       moves.push({ cell, elevation, score: score - stay, budget: b, movement: walk.movement, spentSTA: me.resources.STA - guard.STA, guard })
     }
   }
@@ -842,10 +876,10 @@ function getWalkMoves(ctx: TurnContext): { stay: number; moves: WalkMove[] } | n
 }
 
 // The walk, as a plan: the surge that pays for it first, if any.
-function walkPlan(view: SceneState, id: string, move: WalkMove, why: string): Plan | null {
+function walkPlan(view: SceneState, members: readonly string[], id: string, move: WalkMove, why: string, w: ThreatWeights): Plan | null {
   if (move.budget.surge) return { kind: 'surge', surge: move.budget.surge, score: move.score, why: `makes the ${move.budget.surge} surge: ${why}` }
   const intent = moveIntent(id, move.movement, move.cell, move.elevation)
-  return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: move.score, why } : null
+  return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: move.score, why, expects: getExpects(view, members, id, move.cell, move.guard.STA, w) } : null
 }
 
 const bestOf = <T extends { score: number }>(xs: readonly T[]): T | null => xs.reduce<T | null>((best, x) => (!best || x.score > best.score ? x : best), null)
@@ -856,7 +890,7 @@ function planWalk(ctx: TurnContext): Plan | null {
   const walks = getWalkMoves(ctx)
   const move = walks && bestOf(walks.moves)
   if (!walks || !move || move.score <= ctx.w.margin) return null
-  return walkPlan(ctx.view, ctx.id, move, `walks where it threatens more, is threatened less and goes after its foes (${move.movement}, ${move.score.toFixed(1)} over standing at ${walks.stay.toFixed(1)})`)
+  return walkPlan(ctx.view, ctx.members, ctx.id, move, `walks where it threatens more, is threatened less and goes after its foes (${move.movement}, ${move.score.toFixed(1)} over standing at ${walks.stay.toFixed(1)})`, ctx.w)
 }
 
 // With nothing worth doing (the user's ruling, 2026-11-22: the objective tips
@@ -883,7 +917,7 @@ function planObjective(ctx: TurnContext): Plan | null {
   }))
   const why = (what: string) => `nothing is worth doing, so it goes after ${target}, whom it threatens most: ${what}`
   if (attack && (!walk || attack.score >= walk.score)) return { ...attack, why: why(attack.why) }
-  return walk && walkPlan(view, id, walk, why(`${walk.movement}s to ${getRoundsToAttack(view, id, objective, walk.cell)} round(s) from attacking it, from ${now ?? 'none'} (${walk.score.toFixed(1)})`))
+  return walk && walkPlan(view, members, id, walk, why(`${walk.movement}s to ${getRoundsToAttack(view, id, objective, walk.cell)} round(s) from attacking it, from ${now ?? 'none'} (${walk.score.toFixed(1)})`), w)
 }
 
 // The turn of a character its limit stress action makes violent: an attack
@@ -1296,6 +1330,7 @@ function takeTurn(input: SeatInput, id: string, w: ThreatWeights, find: Find, pr
     const made = press(give, `gives up the ${getBindingSurge(input.view().characters[id])} surge AP left to attack: ${plan.why}`)
     if (made) return made
   }
+  if (plan?.kind === 'walk' && plan.expects) keepExpects(w, id, input.view().round, plan.expects)
   if (plan?.kind === 'attack' || plan?.kind === 'walk' || plan?.kind === 'care') return { kind: 'declare', intent: plan.intent, why: plan.why }
   if (plan?.kind === 'surge') {
     const surge = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === plan.surge)

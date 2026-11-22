@@ -153,6 +153,9 @@ think about scene win conditions
 
 add a llm questions chat
 
+think about keeping docs and app in sync
+
 think about absorption rules for each kind of damage, especially piercing and cutting. 
 
 increase death threshold to 100. immobile to 50 and allow convictions to change that.
+

@@ -974,6 +974,19 @@ export function getHarmTaken(state: SceneState, plays: readonly string[], id: st
   return undefended - fill(slots, guard.AP, guard.STA)
 }
 
+// `getHarmTaken` with what the AP saves spread evenly over a round's AP (the
+// user's ruling, 2026-11-22: the defence lost curve smoothed): what a round's
+// AP, or `guard`'s where it holds more, saves answering the foes' strikes,
+// for every AP of `guard` its even share. Saved best first, the first AP
+// spent of a full round would cost nothing and the last everything, so that
+// each action read alone spends a round's defence a little at a time; read
+// evenly, every AP spent costs the same.
+export function getSmoothHarmTaken(state: SceneState, plays: readonly string[], id: string, at: Coord | null, guard: { AP: number; STA: number }, tuning: ThreatTuning): number {
+  const { slots, undefended } = getDefendingSlots(state, plays, id, at, tuning)
+  const round = Math.max(ROUND_AP, guard.AP)
+  return undefended - (fill(slots, round, guard.STA) * Math.max(0, guard.AP)) / round
+}
+
 // What spending on a defence costs `target`, standing at `at` with `guard`,
 // as it is believed to read it (`getRoundValue`): what the AP and STA spent
 // would have saved or done otherwise this round, `attacker`'s strike being
