@@ -15,7 +15,8 @@ import { writeTrace } from './lib/trace'
 import { formatTable } from './lib/table'
 
 // Boxes played against each other on the arena's scenarios (tools/lib/scenarios.ts `CLOSE`),
-// each seed twice with the boxes trading sides (bot/arena.ts), the fights shared
+// each seed twice with the boxes trading sides (bot/arena.ts), two seeds unless
+// `--seeds` says otherwise (four fights a scenario), the fights shared
 // out over worker threads.
 //
 //   pnpm arena [--seeds n] [--box a,b] [--only text] [--rounds n] [--workers n] [--set name=value,...] [--set2 name=value,...]
@@ -108,7 +109,7 @@ if (!isMainThread) {
   writeFileSync(out, writeTrace(title, played, { red, blue }) + '\n')
   console.log(`${played.end} in round ${played.rounds}: ${out}`)
 } else {
-  const seeds = Number(flag('seeds') ?? 20)
+  const seeds = Number(flag('seeds') ?? 2)
   const boxes = (flag('box') ?? 'nearest,nearest').split(',') as [string, string]
   for (const b of boxes) if (!BOXES[b]) throw new Error(`No box "${b}": there are ${Object.keys(BOXES).join(', ')}`)
   const only = flag('only')
