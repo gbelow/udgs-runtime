@@ -53,14 +53,14 @@ standing   = my threat on the foe I threaten most − company
 | offence | my potential threat from the cell | `offence` 1 | 65.7 → 105.0 |
 | company | metres from the nearest ally, beyond the next cell | `company` 1 | 7 → 1 |
 | pull | cells closer to a foe I could not reach in a fresh round | `aggression` 4 | 0 (the Ranger is in reach) |
-| price | 3 an AP of my own walked, STA at its price; a surge's AP is not priced, its STA is | `THREAT_TUNING` | 21.9 |
+| price | 2 an AP of my own walked, STA at its price; a surge's AP is not priced, its STA is | `THREAT_TUNING` | 21.9 |
 | OAs drawn | the opportunity attacks the walk sets off | `opportunity` 1 | 0 |
 | arrival | the foes' immediate threat on me at the cell, with what the walk leaves me to defend with; staying is charged it too, with everything it holds; the only exposure a walk counts (the user's ruling 2026-11-22) | `arrival` 1 | 0 → 13.0 |
 | keeping | what the AP I keep is worth to allies I could defend | `guardian` 1 | 0 |
 
 Here: staying scores 58.7, the run beside the Ranger +10.4, and a run to (−9,−1) (3 m short of
-it, the same threat, 2 AP of its own) +15.4, which is taken. A 7 AP walk scores +8.3: the 3 a
-point of its own AP is what puts a walk below the surge's run, and a run without the surge
+it, the same threat, 2 AP of its own) +15.4, which is taken. A 7 AP walk scores +8.3: the price
+of its own AP is what puts a walk below the surge's run, and a run without the surge
 (−11.7 beside the Ranger) pays its STA.
 
 ### Attacking (§3): is this attack worth making?
@@ -76,8 +76,8 @@ gain  = harm it leaves × how much the target matters + what its defence costs i
 | target | how threatened the foe is by my team, and how threatening it is to it, relative to the other foes | `threatened` 0.6, `threatening` 0.2 |
 | drain | what the believed defence costs the target | `drain` 1 |
 | defence lost | what an AP of defence is worth at the cell the attack is made from (what a round's AP saves answering the foes' strikes there, over the round's AP), for every AP of my own the attack spends; the first AP costs as much as the last | `reserve` 1 |
-| STA | `STAWorth` of the attack's STA, the surge's, and what answering the OAs drawn spends: 2 a point of bleed for every STA, and the AP the combat surge buys with it, over the STA left | `STAScale` 3 |
-| AP | every AP of my own the attack itself spends; a surge's AP not | `spent` 1 |
+| STA | `STAPrice` of the attack's STA, the surge's, and what answering the OAs drawn spends: 3 an STA with the pool full, up to 4.5 with it empty, and 2 a point of bleed for every STA | `STA` 3, `depletion` 0.5 |
+| AP | `APPrice` of every AP of my own the attack itself spends; a surge's AP not | `AP` 2 |
 | walk in | where the attack is made after a walk: the walk's score over standing still, as §4 scores it (its offence, pull, price and arrival); none from where I stand (the user's ruling 2026-11-22) | as §4 |
 | OAs drawn | the opportunity attacks the walk sets off, and a shot fired beside a foe | `opportunity` 1 |
 
@@ -218,19 +218,28 @@ for each defence d:  value(d) = undefended − harm(attack, d, gap)   the harm d
 
 ### Spending (`threat.ts`)
 
+A building block every decision calls (the user's ruling, 2026-11-22): it reads only what is
+spent and the spender's pool and bleed, never the danger the spender is in or what the AP
+would do elsewhere. The AP price is there so that nothing is done for a marginal gain; STA
+grows dearer as the pool runs down, not by a huge margin.
+
 ```
-APPrice(AP, danger)        = AP · (w.AP + w.danger · danger)
-STAPrice(spent, held, bl)  = spent · (w.STA · w.STAScale / max(1, held − spent) + 2 · bleed)
-SpendPrice(cost, …)        = APPrice + STAPrice
+APPrice(AP)                    = w.AP · AP
+STAPrice(spent, held, pool, bl) = spent · (w.STA · (1 + w.depletion · used) + 2 · bleed)
+    used = 1 − (held − spent / 2) / pool, between 0 and 1   (the pool read halfway through)
+SpendPrice(c, cost, held)      = APPrice(cost.AP) + STAPrice(cost.STA, held, STA(c), c's bleed)
 ```
 
-With the defaults: an AP costs `3 + 0.1 · danger`; an STA costs `9 / (STA left after)`,
+With the defaults: an AP costs 2; an STA costs 3 with the pool full and 4.5 with it empty,
 plus 2 per point of bleed. A gained STA is worth the same price read for the pool it ends in.
-These still price walking (§4), searching (§5) and resting (§9).
+Every action pays STA at `STAPrice`. AP: an attack (§3), a walk (§4), a search (§5) and a rest
+(§9) pay `APPrice`; a defence, whoever makes it (the target's below, mine in §6, an ally's in §7 and §4.2, the
+OAs a walk draws in §4.1), pays
+its AP at the round value instead (the user's ruling: whether a defence is worth making is
+whether its AP would do more answering another attack, or attacking). A surge's AP is not
+priced (§3 `ownAP`); its STA and what the recovery surge it gives up would give back are.
 
-Round value and STA in harm (`getRoundValue`, `getAPValue`, `getSTAWorth`; the user's rulings:
-whether a defence is worth making is whether its AP would do more answering another attack or
-attacking, at any time in the round; STA is priced by the bleed it causes and the AP it buys):
+Round value (`getRoundValue`, used only to weigh a defence and how a round comes out):
 
 ```
 slots     defending: every foe's strikes still to come on me (as in HarmTaken), each worth
@@ -240,10 +249,9 @@ slots     defending: every foe's strikes still to come on me (as in HarmTaken), 
                      worth the harm it leaves, as often as AP and STA pay
 V(AP, STA) = the most the slots are worth, filled best per AP first (fractions kept),
              with no attack or with the attack on whichever foe gives most
-APvalue    = the most any slot is worth per AP
-STAWorth(spent, held) = spent · (2 · bleed + APvalue · combat surge AP / combat surge STA
-                                 · w.STAScale / max(1, held − spent))
 ```
+
+STA only bounds what V fills; V charges nothing for it, so a defence adds `STAPrice` of its STA.
 
 ### Defended harm: what an attack is worth (`threat.ts` `getDefendedHarm`)
 
@@ -252,10 +260,10 @@ leaves it the least harm and spending together:
 
 ```
 cost(d)   = harm(attack, d) + spend(d.cost)
-spend     = V_target(guard) − V_target(guard − d.cost) + STAWorth(d.STA)
-            live (getTargetSpend: its round value, my strike the one answered); in the
-            pair threat, read once for the fight, the same pick with
-            d.AP · APvalue_pair(target) + STAWorth(d.STA)   (the user's ruling: one pick,
+spend     = V_target(guard) − V_target(guard − d.cost)
+            live (getTargetSpend: its round value, my strike the one answered; its STA not
+            priced); in the pair threat, read once for the fight, the same pick with
+            d.AP · APvalue_pair(target) + STAPrice(d.STA)   (the user's ruling: one pick,
             the same numbers everywhere)
 APvalue_pair(c on foe) = the most harm per AP of c's attacks on foe, read with the
             defence foe picks at SpendPrice (getPairAPValue, so the reading does not go round)
@@ -424,8 +432,10 @@ gain            = w.harm · met.harm · T(foe) / mean T over the foes
                   factor relative to the other foes; AP burned worth more on a foe more
                   threatening, however vulnerable)
 defence lost    = w.reserve · DefencePerAP(cell) · attackAP          (0 when attackAP is 0)
-STA             = STAWorth(attack STA + surgeSTA + STA answering the OAs drawn)   (§2)
-AP              = w.spent · attackAP   (the user's ruling of 2026-11-22: every AP of its
+STA             = STAPrice(attack STA + surgeSTA + STA answering the OAs drawn)   (§2);
+                  surgeSTA the focus surge's too, for a shot that needs it: its STA and
+                  the recovery it gives up
+AP              = APPrice(attackAP)   (the user's ruling of 2026-11-22: every AP of its
                   own costs, even where the defence it loses costs nothing; flat, no
                   danger; an opportunity attack pays it for its own AP)
 walk in         = place(cell) − place(here) of §4 (getPlace: standing, pull, the walk's
@@ -443,7 +453,7 @@ score = gain − defence lost − STA − AP + walk in
       − w.opportunity · OAs a shot draws from where it is fired   (shots)
 
 make it if score > 0   (or always, if compelled: violent)
-with the combat surge only if gain > STAWorth(surgeSTA)
+with the combat surge only if gain > STAPrice(surgeSTA)
 ```
 
 Candidate cells (`getAttackCells`; the user's ruling: of the walk, only the cheapest route
@@ -501,7 +511,7 @@ pull(cell)     = w.aggression · max over foes under no potential threat from he
                  with no route left out, at least 0
 
 place(cell)    = standing(cell) + pull(cell)
-               − SpendPrice(ownAP(walk AP), walk STA + surgeSTA, no danger)  (§3 ownAP)
+               − SpendPrice(ownAP(walk AP), walk STA + surgeSTA)  (§2, §3 ownAP)
                − w.arrival · Danger(me, immediate, cell, AP/STA left after the walk)
 place(here)    = standing(here) − w.arrival · Danger(me, immediate, here, all it holds)
                  (getPlace, read once a turn; §3's walk in is place(cell) − place(here))
@@ -551,7 +561,7 @@ within a shorter walk is the nearest of all, with the same way there.
 walk:  Σ_holder best strike it can pay for that opens on a step (or on a run/jump if running),
        met at the step getApproachStep says it draws,
        met = DefendedHarm(strike, distance at that step, my guard,
-                          spend = V(guard) − V(guard − cost) + STAWorth(STA))
+                          spend = V(guard) − V(guard − cost) + STAPrice(STA))
              answered as I answer an attack on my turn (§6)
        drawn = met.harm   (the harm alone; what answering spends comes off what I hold)
        distances along the walked path, or straight a metre a step when no path is known
@@ -570,7 +580,8 @@ skip unless threat.worth − toMe > w.cover
 bare  = harm(same strike on me, none)
 for each block / intercept d:
     left = threat.undefended · harm(strike on me, d) / bare
-    gain = threat.worth − left − SpendPrice(d.cost, my STA, my bleed, 0)
+    gain = threat.worth − left − (V(my means) − V(my means − d.cost) + STAPrice(d.STA))
+           (V my round value where I stand, §2: a defence's AP at what it would do otherwise)
 
 keeping(cell, AP) = w.guardian · max gain over protections with d.AP ≤ AP
                     and cell on the protect line
@@ -588,7 +599,7 @@ Outcome(cell, AP, STA) = harm the foes' strikes there do me undefended − V(cel
                          can do there, answering strikes or striking whoever I reach, §2)
 now       = Outcome(here, all it holds)
 after     = Outcome(cell, AP/STA left after the walk)
-run(cell) = now − after − STAWorth(walk STA + surgeSTA) − w.opportunity · OAs drawn
+run(cell) = now − after − STAPrice(walk STA + surgeSTA) − w.opportunity · OAs drawn
 
 run if best run(cell) > w.margin; against the best attack, the higher score is made
 ```
@@ -645,11 +656,11 @@ Where it knows of none:
 ```
 score(cell) = w.search · cells it would see that nobody of the side sees
             + w.aggression · (dist(here, board middle) − dist(cell, board middle))
-            − SpendPrice(ownAP(walk AP), walk STA + surgeSTA, 0)
+            − SpendPrice(ownAP(walk AP), walk STA + surgeSTA)
             − w.peril · (Danger(me, potential, cell) − Danger(me, potential, here))
                                                     remembered foes included
-A search is weighed for the round to come only: no immediate danger, in the score or the
-AP's price (the user's ruling: a foe stumbled on unseen is detection's matter).
+A search is weighed for the round to come only: no immediate danger in the score (the user's
+ruling: a foe stumbled on unseen is detection's matter).
 
 walk if best score > w.margin
 ```
@@ -664,7 +675,7 @@ A shot at me from within my reach: the opportunity attack first (§8), if worth 
 ```
 none:      score = harm(attack, none at DL) − V(kept(0), my STA)
 defence d: score = harm(attack, d at DL) − V(kept(d.AP), my STA − d.STA)
-                 + STAWorth(d.STA)
+                 + STAPrice(d.STA)
                  + (someone else already guards me ? w.redundant : 0)
 V = my round value (§2), the attacker's strike left out of those to come
 kept(spent) = max(0, min(AP − spent, AP − surge AP left))   surge AP left counted only when it
@@ -681,7 +692,7 @@ each surge the panel offers (reaction, movement), where STA > 0 (the user's ruli
 harm it would take is more than what the STA is worth; an opportunity attack or a riposte on
 me answered the same way), the attack and the answers read again on the fight with it made
 (the movement surge's reflexes in the pair's DL, its AP not kept):
-    gain     = lowest score − lowest score after the surge − STAWorth(the surge's STA
+    gain     = lowest score − lowest score after the surge − STAPrice(the surge's STA
                + what the recovery surge would have given back)
     made     the surge with the most gain, if gain > 0
 ```
@@ -703,7 +714,10 @@ skip unless toAlly.worth − toMe > w.cover
 for each block / intercept / guard offered (none a surge with a press of its own opens;
 a learned one, the protection surge, is made with its defence):
     score = harm left on the ally at the DL the table gives with it declared
-          + SpendPrice(cost, my STA, my bleed, Danger(me, immediate, here, after paying))
+          + V(my means) − V(my means − own AP, my STA − STA) + STAPrice(STA)
+    own AP = its AP less what the surge's AP pays; STA = its STA, and with the surge the
+             surge's and what the recovery surge it gives up would give back
+             (V my round value where I stand, §2, as §6 weighs a defence)
 
 make the lowest if score < toAlly.worth
 ```
@@ -724,9 +738,12 @@ make the best if score > 0
 
 ```
 back      = STA the rest gives back
-STAworth  = STAPrice(back, STA + back, 0)
+STAworth  = STAPrice(back, STA + back, my pool, no bleed)
 danger    = Danger(me, potential)
-overdraw  = SpendPrice({ AP: ROUND_AP − min(ROUND_AP, AP − cost) }, STA, bleed, danger)
+short     = ROUND_AP − min(ROUND_AP, AP − cost)        the AP taken from the round to come
+overdraw  = APPrice(short) + w.overdrawDanger · danger · short
+            (the user's ruling, 2026-11-15: dearer the more threatened; a decision term of the
+            rest's own, kept out of the price)
 
 rest:   worth = STAworth − overdraw
 social: worth = STAworth + w.restSay · socialValue − overdraw
@@ -826,10 +843,9 @@ were asked in, so the many states a box makes walk once.
 
 | weight        | default   | read in                                       |
 | ------------- | --------- | --------------------------------------------- |
-| `AP`          | 3         | APPrice (not in §3: an attack's AP is its defensive potential) |
-| `danger`      | 0.1       | APPrice: per point of danger left             |
-| `STA`         | 3         | STAPrice                                      |
-| `STAScale`    | 3         | STAPrice, STAWorth                            |
+| `AP`          | 2         | APPrice, per AP                               |
+| `STA`         | 3         | STAPrice, per STA with the pool full          |
+| `depletion`   | 0.5       | STAPrice: how much dearer with the pool empty |
 | `forcing`     | 0.25      | DefendedHarm: per point the defence takes off |
 | `opportunity` | 1         | §3, §4 OAs drawn                          |
 | `end`         | `'middle'`| fromThird: which end of a face's third, or its middle |
@@ -843,6 +859,7 @@ were asked in, so the many states a box makes walk once.
 | ------------ | ------- | ------------------------------ |
 | `restSay`    | 2       | §9, per point of social value |
 | `rallyFirst` | 0       | §9, > 0 puts rallies first    |
+| `overdrawDanger` | 0.1 | §9, per AP overdrawn per point of potential danger |
 
 `THREAT_WEIGHTS` (`boxes/threat.ts`) adds:
 
@@ -865,7 +882,6 @@ were asked in, so the many states a box makes walk once.
 | `guardian`    | 1       | §4.2 AP kept for allies                                 |
 | `reserve`     | 1       | §3 defence lost, per AP of its own spent                |
 | `drain`       | 1       | §3 what the believed defence costs the target           |
-| `spent`       | 1       | §3 per AP of its own the attack itself spends (the walk in is priced as §4 prices it) |
 
 Fixed counts (not weights):
 

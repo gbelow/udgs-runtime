@@ -3,9 +3,9 @@ import { getAvailableActions } from '../scene/rules/options'
 import { getActionDef } from '../scene/rules/actionCatalog'
 import { getRoundPhase } from '../scene/rules/roundChange'
 import { getPressingFactors, getSocialValue } from '../scene/rules/morale'
-import { getRecoveredSTA, getSTARegen } from '../character/rules/characteristics'
+import { getRecoveredSTA, getSTA, getSTARegen } from '../character/rules/characteristics'
 import { MORALE_TRIGGER, ROUND_AP } from '../tables'
-import { getDanger, getSpendPrice, getSTAPrice, getTeam, THREAT_TUNING, type ThreatTuning } from './threat'
+import { getAPPrice, getDanger, getSTAPrice, getTeam, THREAT_TUNING, type ThreatTuning } from './threat'
 
 // What a character does with the round's rest step, for any box (the user's
 // ruling, 2026-11-15): the AP left when the round ends is lost, and a social
@@ -25,9 +25,12 @@ export type RestTuning = ThreatTuning & {
   restSay: number
   // above 0, a rally is said before an intimidation (a personality)
   rallyFirst: number
+  // what an AP overdrawn from the round to come costs more for every point of
+  // the worst foe's potential threat on the character
+  overdrawDanger: number
 }
 
-export const REST_TUNING: RestTuning = { ...THREAT_TUNING, restSay: 2, rallyFirst: 0 }
+export const REST_TUNING: RestTuning = { ...THREAT_TUNING, restSay: 2, rallyFirst: 0, overdrawDanger: 0.1 }
 
 export type RestChoice = { draft: ActionDraft; worth: number; why: string }
 
@@ -58,13 +61,17 @@ export function getRestChoice(view: SceneState, members: readonly string[], id: 
   const rest = offered.find((o) => o.draft.kind === 'rest')
   const STA = c.resources.STA
   const back = getRecoveredSTA(c, STA, getSTARegen(c)) - STA
-  const STAworth = getSTAPrice(back, STA + back, 0, tuning)
+  const STAworth = getSTAPrice(back, STA + back, getSTA(c), 0, tuning)
   const danger = getDanger(view, members, id, 'potential', undefined, undefined, tuning)
   // at the rest step the coming round's AP are handed out already, kept above
   // the round's until the step is over (scene/commands/nextRound.ts): what the
   // rest takes from that round is what it leaves it short of the round's AP,
-  // priced as any spend is, by the worst foe's potential threat on the character
-  const overdraw = (AP: number) => getSpendPrice({ AP: ROUND_AP - Math.min(ROUND_AP, c.resources.AP - AP), STA: 0 }, STA, c.injuries.bleed, danger, tuning)
+  // at their price and `overdrawDanger` more for each by the worst foe's
+  // potential threat on the character
+  const overdraw = (AP: number) => {
+    const short = ROUND_AP - Math.min(ROUND_AP, c.resources.AP - AP)
+    return getAPPrice(short, tuning) + short * tuning.overdrawDanger * danger
+  }
   const choices = [
     ...(spoken?.cost ? [{ draft: spoken.draft, worth: STAworth + tuning.restSay * mine - overdraw(spoken.cost.AP), why: say }] : []),
     ...(rest?.cost ? [{ draft: rest.draft, worth: STAworth - overdraw(rest.cost.AP), why: 'rest' }] : []),

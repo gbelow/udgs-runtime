@@ -21,7 +21,7 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachDrawn, getStandingCost, type Drawn } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
-import { withSheet, cellOf, getTargetDanger, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmDanger, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getSTAPrice, getTeam, getThreatened, getThreatening, threatValue } from '../threatOldReading'
+import { withSheet, cellOf, getTargetDanger, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmDanger, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getSTAPrice, getTeam, getThreatened, getThreatening, threatValue, type ThreatTuning as OldTuning } from '../threatOldReading'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import { REST_TUNING, type RestTuning } from '../rest'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
@@ -98,7 +98,7 @@ import { getPayBar } from '../../item/rules/moves'
 // The rest (morale, concentration, landing what it rolled, a surge it is held
 // to) it plays as the nearest box does.
 
-export type ThreatWeights = RestTuning & {
+export type ThreatWeights = RestTuning & OldTuning & {
   harm: number
   threatened: number
   threatening: number
@@ -131,7 +131,7 @@ export type ThreatWeights = RestTuning & {
   reserve: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, arrival: 1, search: 1, margin: 1, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 10 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, danger: 0.1, STAScale: 3, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, arrival: 1, search: 1, margin: 1, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 10 }
 
 const NOTHING_DRAWN: Drawn = { worth: 0, harm: 0, AP: 0, STA: 0 }
 

@@ -24,19 +24,17 @@ $$E = \sum_{f=0}^{9} p_{mode}(f)\; h\big(f + s - DL\big),\qquad h(x)=\begin{case
 
 A shot is read at $10$ m (`PAIR_GAP`), its distance penalty off $s$.
 
-**Prices.** AP left in danger $D$; STA out of a pool $S$, bleeding $b$:
+**Prices**, a building block every decision calls: no danger, no round value. AP flat; STA held $S$ of a pool $S_{max}$, bleeding $b$, dearer as the pool runs down (read halfway through the spending):
 
-$$P_{AP}(a,D) = a\,(\alpha + \delta D) \qquad P_{STA}(x,S,b) = x\left(\frac{\sigma\,k}{\max(1,S-x)} + 2b\right) \qquad P = P_{AP}+P_{STA}$$
+$$P_{AP}(a) = \alpha\,a \qquad P_{STA}(x) = x\left(\sigma\,(1 + \mu u) + 2b\right),\quad u = 1 - \frac{S - x/2}{S_{max}} \qquad P = P_{AP}+P_{STA}$$
 
-**STA worth** (what STA would have bought: combat-surge AP at the AP's value $v$, ratio $\rho = AP_{surge}/STA_{surge}$):
-
-$$\text{STAw}(x) = x\left(2b + \frac{v\,\rho\,k}{\max(1,S-x)}\right)$$
+Every action pays its STA at $P_{STA}$, a surge's and the recovery it gives up included. AP: an attack, a walk, a search and a rest pay $P_{AP}$; a defence pays its AP at the round value, $V(g) - V(g-c)$. A surge's AP is free.
 
 **The defence the target picks** and what the attack is then **worth**:
 
 $$d^* = \arg\min_{d\ \text{affordable}} \big[E_d + \text{spend}(c_d)\big] \qquad W = E_{d^*} + \text{spend}(c_{d^*}) + \varphi\,(E_\varnothing - E_{d^*})$$
 
-with $\text{spend}(c) = V(g) - V(g-c)$: what that AP/STA would have done otherwise this round (see $V$ below).
+with $\text{spend}(c) = V(g) - V(g-c)$: what that AP/STA would have done otherwise this round (see $V$ below); in the pair threat, $c_{AP}\,v_{pair} + P_{STA}(c_{STA})$.
 
 **Threat** of $a$ on $d$: the attack with best $W/AP$ (declarable, $E_\varnothing>0$), walked in, then repeated, then fillers:
 
@@ -68,17 +66,17 @@ No foe noticed: **search**. Collapsed: stop own bleed (score $5\,b$). Limit-stre
 ### Attack (`planAttack`)
 Over every foe, row, walk (walk, run), cell that reaches it (`ATTACK_SCAN`), and budget (none, movement surge for a run of $\ge2$ blocks, combat surge only for attacks nothing else pays):
 
-$$S_{atk} = w_h E_{d^*}\,\tau_t + w_d\,\text{spend}(c_{d^*})\,\theta_t - w_r\,\delta_{AP}\,a_{own} - \text{STAw}(x) - w_s\,a_{own} + \big(\text{Place}(cell) - \text{Stay}\big) - \omega H_{OA}$$
+$$S_{atk} = w_h E_{d^*}\,\tau_t + w_d\,\text{spend}(c_{d^*})\,\theta_t - w_r\,\delta_{AP}\,a_{own} - P_{STA}(x) - P_{AP}(a_{own}) + \big(\text{Place}(cell) - \text{Stay}\big) - \omega H_{OA}$$
 
 $$\tau_t = \frac{0.6\,\text{Threatened}_t + 0.2\,\text{Threatening}_t}{\text{mean over foes}} \qquad \theta_t = \frac{\text{Threatening}_t}{\text{mean}}$$
 
 Threatened = team's summed potential $T$ on the foe; Threatening = foe's worst potential $T$ on anyone of the team.
-$a_{own}$ = AP not paid by a surge (surge AP is free, its STA is not). Made if $S_{atk}>0$; with the combat surge only if the gain $>\text{STAw}(\text{surge STA})$.
+$a_{own}$ = AP not paid by a surge (surge AP is free, its STA is not). Made if $S_{atk}>0$; with the combat surge only if the gain $>P_{STA}(\text{surge STA})$.
 
 ### Flee (`planFlee`)
 Only if $H_{tk}(\text{here}) > w_{flee}$ and it didn't walk there itself expecting it:
 
-$$S_{flee} = O_{here} - O_{cell}(g') - \text{STAw}(x) - \omega H_{OA} \quad > w_{margin}$$
+$$S_{flee} = O_{here} - O_{cell}(g') - P_{STA}(x) - \omega H_{OA} \quad > w_{margin}$$
 
 ### Walk (`planWalk`)
 Cells: 3 towards each foe, 3 away from the worst, towards friends.
@@ -106,26 +104,26 @@ Nothing known: $w_{search}\cdot$ unseen cells shown $+ w_{agg}\cdot$ closer to t
 
 **Answer an attack** (`weighDefences`): minimise over none and each offered defence
 
-$$\text{score}(d) = E_d - V(g - c_d) + \text{STAw}(c_{d,STA}) + [\text{already guarded}]\,w_{red}$$
+$$\text{score}(d) = E_d - V(g - c_d) + P_{STA}(c_{d,STA}) + [\text{already guarded}]\,w_{red}$$
 
-A surge is pressed first if it lowers the best score by more than $\text{STAw}$(its STA + recovery given up). A shot from within reach: the opportunity attack first, if worth it.
+A surge is pressed first if it lowers the best score by more than $P_{STA}$(its STA + recovery given up). A shot from within reach: the opportunity attack first, if worth it.
 
-**Protect an ally** (`protect`): if $W_{ally} - W_{me} > w_{cover}$ and nobody guards it, pick block/intercept/guard minimising $E_{left} + P(c, D)$; do it if $< W_{ally}$.
+**Protect an ally** (`protect`): if $W_{ally} - W_{me} > w_{cover}$ and nobody guards it, pick block/intercept/guard minimising $E_{left} + V(g) - V(g - c_{own}) + P_{STA}(c_{STA})$ (a protection surge's AP pays first; its STA and the recovery given up are counted); do it if $< W_{ally}$.
 
 **Opportunity attack**: $S_{atk} > 0$ (no walk term).
 
 **Rest step** (`rest.ts`): rest or a social action (rally first if an ally is at the morale trigger):
 
-$$S_{rest} = P_{STA}(\text{back}) + w_{say}\,\text{social} - P_{AP}\big(\text{AP short of next round}, D^{pot}\big) \quad > 0$$
+$$S_{rest} = P_{STA}(\text{back}) + w_{say}\,\text{social} - (\alpha + \delta\,D^{pot})\,\text{AP short of next round} \quad > 0$$
 
 ## 4. Weights
 
 | | value | | value |
 |---|---|---|---|
-| $\alpha$ AP | 3 | $w_h$ harm | 1 |
+| $\alpha$ AP | 2 | $w_h$ harm | 1 |
 | $\sigma$ STA | 3 | $w_d$ drain | 1 |
-| $k$ STAScale | 3 | $w_r$ reserve | 1 |
-| $\delta$ danger | 0.1 | $w_s$ spent | 1 |
+| $\mu$ depletion | 0.5 | $w_r$ reserve | 1 |
+| $\delta$ overdrawDanger (rest) | 0.1 | | |
 | $\varphi$ forcing | 0.25 | $w_o$ offence | 1 |
 | $\omega$ opportunity | 1 | $w_p$ peril | 1 |
 | $\pi$ pile | 1 | $w_{agg}$ aggression | 4 |

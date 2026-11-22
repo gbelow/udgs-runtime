@@ -49,16 +49,14 @@ import { isMeleeRange } from '../weaponProperties'
 
 export type ThreatTuning = {
   // what spending costs a character, for any spender and anything spent on
-  // (`getSpendPrice`): an AP at `AP` plus `danger` times the danger the
-  // spender is left in, an STA at `STA` as `getSTAPrice` prices it
+  // (`getSpendPrice`): an AP at `AP`, an STA at `STA` with a full pool and
+  // `depletion` times that more with an empty one (`getSTAPrice`)
   AP: number
   STA: number
-  danger: number
+  depletion: number
   // what an attack is worth more for every point of harm the defence takes
   // off (`getDefendedHarm`)
   forcing: number
-  // the STA against which a pool is measured (`getSTAPrice`)
-  STAScale: number
   // what a walk or an attack of the character's own is worth less for every
   // point of worth of the opportunity attacks it draws (bot/approach.ts)
   opportunity: number
@@ -78,7 +76,7 @@ export type ThreatTuning = {
   fade: number
 }
 
-export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 3, opportunity: 1, end: 'middle', pile: 1, share: 0, fade: 0.5 }
+export const THREAT_TUNING: ThreatTuning = { AP: 2, STA: 3, depletion: 0.5, forcing: 0.25, opportunity: 1, end: 'middle', pile: 1, share: 0, fade: 0.5 }
 
 // How much of a foe counts where it stands in `state`: all of one the seat
 // notices, `fade` to the power of the rounds since it was noticed for one it
@@ -349,29 +347,33 @@ export function getAnswers(attack: PairAttack, gap: number, budget: { AP: number
 }
 
 // The price of resources, the one each is priced at whoever spends or gains
-// them and on whatever, weighed by the tuning's `AP`, `danger` and `STA`.
+// them and on whatever, weighed by the tuning's `AP`, `STA` and `depletion`.
+// A building block every decision calls (the user's ruling, 2026-11-22): it
+// reads only what is spent and the spender's pool and bleed, never the
+// danger the spender is in or what the AP would do elsewhere.
 
-// What `AP` AP cost one left in `danger` by spending them (the user's ruling:
-// every AP spent costs something, more the more threatened the spender is
-// left): each at `AP` plus `danger` times the danger.
-export function getAPPrice(AP: number, danger: number, tuning: ThreatTuning): number {
-  return Math.max(0, AP) * (tuning.AP + tuning.danger * danger)
+// What `AP` AP cost (the user's ruling: every AP spent costs something, so
+// that nothing is done for a marginal gain): `AP` each.
+export function getAPPrice(AP: number, tuning: ThreatTuning): number {
+  return Math.max(0, AP) * tuning.AP
 }
 
-// What `spent` STA cost one holding `held`, at `STA` for each: dearer the
-// less would be left, so that a small pool, or one run down, is spent
-// sparingly; and every STA spent bleeding adds its IL (combat.tex "Bleed"),
-// harm to the spender. What STA gained is worth is the same price, read for
-// the pool it ends in.
-export function getSTAPrice(spent: number, held: number, bleed: number, tuning: ThreatTuning): number {
+// What `spent` STA cost one holding `held` of a pool of `pool`, bleeding
+// `bleed`: `STA` each with the pool full, dearer by `depletion` times that
+// with it empty, read halfway through the spending (the user's ruling: STA
+// grows dearer as it is run down, not by a huge margin); and every STA spent
+// bleeding adds its IL (combat.tex "Bleed"), 2 harm each. What STA gained is
+// worth is the same price, read for the pool it ends in.
+export function getSTAPrice(spent: number, held: number, pool: number, bleed: number, tuning: ThreatTuning): number {
   if (spent <= 0) return 0
-  return spent * (tuning.STA * tuning.STAScale / Math.max(1, held - spent) + 2 * bleed)
+  const used = Math.min(1, Math.max(0, 1 - (held - spent / 2) / Math.max(1, pool)))
+  return spent * (tuning.STA * (1 + tuning.depletion * used) + 2 * bleed)
 }
 
-// What spending `spent` costs one holding `held` STA, bleeding `bleed`, left
-// in `danger` by it: its AP (`getAPPrice`) and its STA (`getSTAPrice`).
-export function getSpendPrice(spent: { AP: number; STA: number }, held: number, bleed: number, danger: number, tuning: ThreatTuning): number {
-  return getAPPrice(spent.AP, danger, tuning) + getSTAPrice(spent.STA, held, bleed, tuning)
+// What spending `spent` costs `c` holding `held` STA: its AP (`getAPPrice`)
+// and its STA (`getSTAPrice`, at its pool and bleed).
+export function getSpendPrice(c: CampaignCharacter, spent: { AP: number; STA: number }, held: number, tuning: ThreatTuning): number {
+  return getAPPrice(spent.AP, tuning) + getSTAPrice(spent.STA, held, getSTA(c), c.injuries.bleed, tuning)
 }
 
 // What spending `spent` on a defence costs the one defending, read where it
@@ -386,11 +388,10 @@ export type SpendCost = (spent: { AP: number; STA: number }) => number
 // leave unanswered drains it whichever way it answers (the user's ruling).
 // What it spends costs what `spent` says (`getTargetSpend`: what the AP and
 // STA would have done otherwise this round); with none given, as inside the
-// threats themselves, which that is read from, its price (`getSpendPrice`)
-// with no danger read.
-export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', bleed = 0, tuning: ThreatTuning, spent?: SpendCost): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
+// threats themselves, which that is read from, its price (`getSpendPrice`).
+export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: number; STA: number }, mode: ModeOf = 'now', defender: CampaignCharacter, tuning: ThreatTuning, spent?: SpendCost): { worth: number; harm: number; defence: PairDefence; undefended: number; answers: Answer[] } | null {
   const { undefended, answers } = getAnswers(attack, gap, budget, mode)
-  const cost = (a: Answer) => a.harm + (spent ? spent(a.defence.cost) : getSpendPrice(a.defence.cost, budget.STA, bleed, 0, tuning))
+  const cost = (a: Answer) => a.harm + (spent ? spent(a.defence.cost) : getSpendPrice(defender, a.defence.cost, budget.STA, tuning))
   const best = answers.filter((a) => a.affordable).reduce<Answer | null>((b, a) => (!b || cost(a) < cost(b) ? a : b), null)
   return best ? { worth: cost(best) + tuning.forcing * best.value, harm: best.harm, defence: best.defence, undefended, answers } : null
 }
@@ -500,7 +501,7 @@ const PAIR_GAP = 10
 // as the target picks one live (`getTargetSpend`), by the harm it leaves and
 // what it spends (the user's ruling: one pick, the same numbers everywhere),
 // its AP read at what an AP does for it against the attacker
-// (`getPairAPValue`) and its STA at its worth (`getSTAWorth`). Kept by the pair
+// (`getPairAPValue`) and its STA at its price (`getSTAPrice`). Kept by the pair
 // table the two sheets read (`getPair`, which leaves out what each has left),
 // and by the STA and bleed the defence is priced with.
 const pairThreats = new WeakMap<PairAttack[], WeakMap<ThreatTuning, Map<string, PairThreat>>>()
@@ -520,7 +521,7 @@ function keptPair(cache: typeof pairThreats, pair: PairAttack[], tuning: ThreatT
 
 function readPair(pair: PairAttack[], defender: CampaignCharacter, STA: number, tuning: ThreatTuning, spend?: SpendCost): PairThreat {
   return pair.flatMap((attack) => {
-    const met = getDefendedHarm(attack, PAIR_GAP, { AP: ROUND_AP, STA }, 'now', defender.injuries.bleed, tuning, spend)
+    const met = getDefendedHarm(attack, PAIR_GAP, { AP: ROUND_AP, STA }, 'now', defender, tuning, spend)
     return met ? [{ attack, worth: met.worth, harm: met.harm, defence: met.defence, undefended: met.undefended, answers: met.answers, perAP: met.worth / Math.max(1, attack.cost.AP) }] : []
   })
 }
@@ -541,7 +542,7 @@ export function getPairThreat(attacker: CampaignCharacter, defender: CampaignCha
   const pair = getPair(attacker, defender, surge)
   return keptPair(pairThreats, pair, tuning, `${STA}|${defender.injuries.bleed}`, () => {
     const APvalue = getPairAPValue(defender, attacker, tuning)
-    return readPair(pair, defender, STA, tuning, (spent) => spent.AP * APvalue + getSTAWorth(defender, spent.STA, STA, APvalue, tuning))
+    return readPair(pair, defender, STA, tuning, (spent) => spent.AP * APvalue + getSTAPrice(spent.STA, STA, getSTA(defender), defender.injuries.bleed, tuning))
   })
 }
 
@@ -955,27 +956,6 @@ export function getRoundValue(state: SceneState, plays: readonly string[], id: s
 // pay for once the walk in is paid.
 export function getStrikeValue(state: SceneState, plays: readonly string[], id: string, at: Coord | null, AP: number, STA: number, tuning: ThreatTuning): number {
   return getAttackingSlots(state, plays, id, at, tuning).reduce((most, a) => (AP - a.moveAP >= a.slot.AP ? Math.max(most, fill([a.slot], AP - a.moveAP, STA)) : most), 0)
-}
-
-// What an AP is worth to `id` standing at `at` this round: the most for every
-// AP of the uses its round value fills (`getRoundValue`), answering a foe's
-// strike or striking a foe.
-export function getAPValue(state: SceneState, plays: readonly string[], id: string, at: Coord | null, tuning: ThreatTuning): number {
-  const { slots } = getDefendingSlots(state, plays, id, at, tuning)
-  const attacks = getAttackingSlots(state, plays, id, at, tuning)
-  return [...slots, ...attacks.map((a) => a.slot)].reduce((most, slot) => (slot.value > 0 && slot.n > 0 ? Math.max(most, perAP(slot)) : most), 0)
-}
-
-// What spending `spent` of `held` STA is worth to `c` (the user's ruling): the
-// IL it bleeds, 2 harm each (combat.tex "Bleed": every STA spent bleeding adds
-// its IL), and the AP it would have bought, its main use (the combat surge's
-// AP for its STA, each at `APvalue`, `getAPValue`), dearer the less is left,
-// `STAScale` over what is left.
-export function getSTAWorth(c: CampaignCharacter, spent: number, held: number, APvalue: number, tuning: ThreatTuning): number {
-  if (spent <= 0) return 0
-  const STA = getSurgeSTA('combat')(c)
-  const bought = STA > 0 ? getSurgeAP('combat')(c) / STA : 1
-  return spent * (2 * c.injuries.bleed + (APvalue * bought * tuning.STAScale) / Math.max(1, held - spent))
 }
 
 // How `id` standing at `at` comes out of the round, holding `guard` (the

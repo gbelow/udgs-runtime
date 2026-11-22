@@ -49,7 +49,7 @@ function getDrawnAlong(state: SceneState, holder: string, walker: string, distan
     if (attack.kind !== 'strike' || !(running ? attack.opens.approach : attack.opens.step) || attack.cost.AP > means.AP || attack.cost.STA > means.STA) continue
     const step = getApproachStep([...distances], attack.reach)
     if (step === null) continue
-    const met = getDefendedHarm(attack, distances[step], guard, 'now', w.injuries.bleed, tuning, spend)
+    const met = getDefendedHarm(attack, distances[step], guard, 'now', w, tuning, spend)
     if (met && met.worth > best.worth) best = { worth: met.worth, harm: met.harm, AP: met.defence.cost.AP, STA: met.defence.cost.STA }
   }
   return best
@@ -96,7 +96,7 @@ export function getStandingOpportunityWorth(state: SceneState, holder: string, a
   let best: { worth: number; harm: number } | null = null
   for (const attack of getPair(h, a)) {
     if (attack.kind !== 'strike' || !attack.opens.step || attack.reach < gap || attack.cost.AP > means.AP || attack.cost.STA > means.STA) continue
-    const met = getDefendedHarm(attack, gap, guard, 'now', a.injuries.bleed, tuning, spend)
+    const met = getDefendedHarm(attack, gap, guard, 'now', a, tuning, spend)
     if (met && (!best || met.worth > best.worth)) best = met
   }
   return best ? best[read] : 0
