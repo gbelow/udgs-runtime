@@ -76,7 +76,7 @@ gain  = harm it leaves × how much the target matters + what its defence costs i
 | target | how threatened the foe is by my team, and how threatening it is to it, relative to the other foes | `threatened` 0.6, `threatening` 0.2 |
 | drain | what the believed defence costs the target | `drain` 1 |
 | defence lost | what an AP of defence is worth at the cell the attack is made from (what a round's AP saves answering the foes' strikes there, over the round's AP), for every AP of my own the attack spends; the first AP costs as much as the last | `reserve` 1 |
-| STA | `STAWorth` of the attack's STA, the surge's, and what answering the OAs drawn spends: 2 a point of bleed for every STA, and the AP the combat surge buys with it, over the STA left | `STAScale` 10 |
+| STA | `STAWorth` of the attack's STA, the surge's, and what answering the OAs drawn spends: 2 a point of bleed for every STA, and the AP the combat surge buys with it, over the STA left | `STAScale` 3 |
 | AP | every AP of my own the attack itself spends; a surge's AP not | `spent` 1 |
 | walk in | where the attack is made after a walk: the walk's score over standing still, as §4 scores it (its offence, pull, price and arrival); none from where I stand (the user's ruling 2026-11-22) | as §4 |
 | OAs drawn | the opportunity attacks the walk sets off, and a shot fired beside a foe | `opportunity` 1 |
@@ -224,7 +224,7 @@ STAPrice(spent, held, bl)  = spent · (w.STA · w.STAScale / max(1, held − spe
 SpendPrice(cost, …)        = APPrice + STAPrice
 ```
 
-With the defaults: an AP costs `3 + 0.1 · danger`; an STA costs `30 / (STA left after)`,
+With the defaults: an AP costs `3 + 0.1 · danger`; an STA costs `9 / (STA left after)`,
 plus 2 per point of bleed. A gained STA is worth the same price read for the pool it ends in.
 These still price walking (§4), searching (§5) and resting (§9).
 
@@ -808,7 +808,7 @@ were asked in, so the many states a box makes walk once.
 | `AP`          | 3         | APPrice (not in §3: an attack's AP is its defensive potential) |
 | `danger`      | 0.1       | APPrice: per point of danger left             |
 | `STA`         | 3         | STAPrice                                      |
-| `STAScale`    | 10        | STAPrice, STAWorth                            |
+| `STAScale`    | 3         | STAPrice, STAWorth                            |
 | `forcing`     | 0.25      | DefendedHarm: per point the defence takes off |
 | `opportunity` | 1         | §3, §4 OAs drawn                          |
 | `end`         | `'middle'`| fromThird: which end of a face's third, or its middle |

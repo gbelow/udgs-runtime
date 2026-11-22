@@ -78,7 +78,7 @@ export type ThreatTuning = {
   fade: number
 }
 
-export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 10, opportunity: 1, end: 'middle', pile: 1, share: 0, fade: 0.5 }
+export const THREAT_TUNING: ThreatTuning = { AP: 3, STA: 3, danger: 0.1, forcing: 0.25, STAScale: 3, opportunity: 1, end: 'middle', pile: 1, share: 0, fade: 0.5 }
 
 // How much of a foe counts where it stands in `state`: all of one the seat
 // notices, `fade` to the power of the rounds since it was noticed for one it
@@ -600,12 +600,12 @@ const getLongestReach = (c: CampaignCharacter): number => getLongestAttack(c)?.r
 // by the cells walked alone, whichever way they go, so every cell within
 // `steps` comes with the same fewest cells and the same way as the whole
 // board's walk gives it.
-type Route = { cell: Coord; steps: number; path: Coord[]; elevation: number }
+export type Route = { cell: Coord; steps: number; path: Coord[]; elevation: number }
 type Routes = { routes: Route[]; whole: boolean }
 
 const routeMaps = new WeakMap<SceneState, Map<string, Routes | null>>()
 
-function getRoutes(state: SceneState, id: string, from: Coord, steps: number): Routes | null {
+export function getRoutes(state: SceneState, id: string, from: Coord, steps: number): Routes | null {
   const byKey = routeMaps.get(state) ?? new Map<string, Routes | null>()
   routeMaps.set(state, byKey)
   const key = `${id}|${coordKey(from)}`

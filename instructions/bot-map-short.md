@@ -124,7 +124,7 @@ $$S_{rest} = P_{STA}(\text{back}) + w_{say}\,\text{social} - P_{AP}\big(\text{AP
 |---|---|---|---|
 | $\alpha$ AP | 3 | $w_h$ harm | 1 |
 | $\sigma$ STA | 3 | $w_d$ drain | 1 |
-| $k$ STAScale | 10 | $w_r$ reserve | 1 |
+| $k$ STAScale | 3 | $w_r$ reserve | 1 |
 | $\delta$ danger | 0.1 | $w_s$ spent | 1 |
 | $\varphi$ forcing | 0.25 | $w_o$ offence | 1 |
 | $\omega$ opportunity | 1 | $w_p$ peril | 1 |
