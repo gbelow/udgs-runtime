@@ -453,10 +453,24 @@ the one of the next `ATTACK_SCAN` (8) cheapest that draws the least; shots keep 
 cells with a line of fire, strikes only cells whose melee gap the table measures within
 reach (`getStrikeCells`: walls, and height between the two).
 
-Walks weighed (`getWalks`), here and in §4 and §5: one at each of walk and run that is open,
+Walks weighed (`getTurnWalks`), here and in §4: one at each of walk and run that is open,
 and one at the fastest movement open (so one who can only swim, climb or crawl still has
 one); every candidate cell is tried at each, with that walk's AP and STA, and the move is
-declared at its movement. The coward's getaway (§10) walks at the fastest movement only.
+declared at its movement. The coward's getaway (§10) and the search (§5) walk as the table
+walks (`walkAt`); the rest read one search a turn (the user's ruling 2026-11-22: a place to
+go is picked, then walked to):
+```
+routes    = every cell walked to from here at a walk, as far as the furthest any budget
+            carries a walk or a run, the fewest cells there and the way, on every floor the
+            walk reaches by stairs (getRoutes, getTurnRoutes)
+cost(b,m) = getMovePrice of the route's cells at movement m (on land a walk costs its cells,
+            whichever way they go); a cell is in walk (b,m) when b pays for it
+taken     = the table is asked only of the move picked, best first, and takes it only at no
+            more than the price weighed (takesWalk; a run turns no sharper than it may, so the
+            table's run may be longer)
+```
+An attack's candidates are weighed in full and settled into a plan from the best down: the
+first the table takes is made.
 
 Budgets (`getBudgets`, `canPay`):
 ```
@@ -506,10 +520,17 @@ gain(cell)     = walk(cell) − stay       (the plan's score: harm gained over d
 walk if best gain(cell) > w.margin
 ```
 
-Candidate cells (`getDirectedCells`): per foe, the 3 cells that close most on it and the
-closest cell of each AP block (so a walk may stop short), and the same of the cells of the
-walk that lie on its route to attacking the foe (`getAttackRoute`); the 3 cells farthest
-from the foe with the worst potential threat; per ally, the 3 cells that close most on it.
+Candidate cells (`getPlaces`, the user's ruling 2026-11-22: only the routes towards the foes
+and the best cell): per foe, of the cells of the walk on its route to attacking the foe
+(`getAttackRoute`), the `TOWARDS` (3) that close most on it and the closest of each AP block
+(so a walk may stop short); and the `BEST_CELLS` (3) cells of the walk where the character
+threatens most and is threatened least:
+```
+best(cell) = w.offence · max over foes threatValue(PotentialThreat(me → foe, from cell))
+           − w.arrival · Danger(immediate, cell, what the walk leaves it)
+```
+only cells walked to clear. The steps still to walk from a cell on the route are read off the
+route (the rest of a fewest cells' way is the fewest from that cell).
 
 The actual distance to attack (`threat.ts` `getAttackRoute`, the user's ruling 2026-11-22):
 ```
@@ -572,8 +593,8 @@ run(cell) = now − after − STAWorth(walk STA + surgeSTA) − w.opportunity ·
 run if best run(cell) > w.margin; against the best attack, the higher score is made
 ```
 
-Candidate cells: `getDirectedCells` with no foe or ally to close on, so the `AWAY` cells
-furthest from the foe whose immediate threat on it is worst.
+Candidate cells: `getPlaces` with no foe to close on, so the `BEST_CELLS` best cells (§4);
+the best the table takes at its price is run.
 
 ### 4.4 The objective, when nothing is worth doing (`objective.ts`, `boxes/threat.ts` `planObjective`)
 
@@ -850,7 +871,7 @@ Fixed counts (not weights):
 
 | constant                        | value   | file                              |
 | ------------------------------- | ------- | --------------------------------- |
-| `TOWARDS`, `AWAY`               | 3, 3    | boxes/threat.ts walk candidates   |
+| `TOWARDS`, `BEST_CELLS`         | 3, 3    | boxes/threat.ts walk candidates   |
 | `ATTACK_SCAN`                   | 8       | boxes/threat.ts attack candidates |
 | `RUN_BLOCKS`                    | 2       | boxes/threat.ts least run a movement surge pays for |
 | `SEARCH_CELLS`, `SEARCH_SPREAD` | 12, 240 | boxes/threat.ts search            |

@@ -669,6 +669,16 @@ export function getAttackRoute(state: SceneState, a: string, d: string, from: Co
   attackRoutes.set(state, byKey)
   const key = `${a}|${d}|${coordKey(from)}|${coordKey(at)}`
   if (byKey.has(key)) return byKey.get(key) ?? null
+  // from a cell on the way from where `a` stands, the rest of that way: a
+  // cell on the fewest cells' way is the rest of them from its end
+  const own = cellOf(state, a)
+  const base = own && !sameCell(own, from) && sameCell(at, cellOf(state, d) ?? at) ? getAttackRoute(state, a, d) : null
+  const on = base ? base.path.findIndex((cell) => sameCell(cell, from)) : -1
+  if (base && on >= 0) {
+    const rest = { steps: base.steps - (on + 1), path: base.path.slice(on + 1) }
+    byKey.set(key, rest)
+    return rest
+  }
   const attack = getLongestAttack(c)
   let made: AttackRoute | null = null
   // walked `ROUTE_STEPS` cells out, then twice as far each time nothing meets
