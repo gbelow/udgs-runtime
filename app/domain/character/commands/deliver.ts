@@ -140,7 +140,7 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
       injuries: {
         ...hurt.injuries,
         injuryLevel: outcome.dead ? Math.max(injuryLevel, getDeathIL(c)) : injuryLevel,
-        bleed: c.injuries.bleed + outcome.bleed,
+        bleed: Math.max(c.injuries.bleed, outcome.bleed),
         burning: outcome.burning ?? c.injuries.burning,
       },
       resources: { ...c.resources, AP: c.resources.AP - outcome.apLoss },
