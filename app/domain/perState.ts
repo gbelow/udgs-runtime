@@ -31,8 +31,9 @@ export function perPair<T, A extends object, B extends object>(project: (pair: {
 // A projection computed once per set of parts and a key: the parts are objects
 // every write replaces rather than changes (a board's terrain, its storeys), so
 // the same parts and key give the same result however much of the state around
-// them was written since.
-export function perParts<T>(): (parts: readonly object[], key: string, project: () => T) => T {
+// them was written since. With a `limit`, each set of parts keeps only that
+// many keys, those least lately asked for dropped first.
+export function perParts<T>(limit = Infinity): (parts: readonly object[], key: string, project: () => T) => T {
   type Node = { next: WeakMap<object, Node>; done: Map<string, T> }
   const root: Node = { next: new WeakMap(), done: new Map() }
   return (parts, key, project) => {
@@ -45,8 +46,16 @@ export function perParts<T>(): (parts: readonly object[], key: string, project: 
       }
       node = next
     }
-    if (node.done.has(key)) return node.done.get(key) as T
+    if (node.done.has(key)) {
+      const known = node.done.get(key) as T
+      if (limit < Infinity) {
+        node.done.delete(key)
+        node.done.set(key, known)
+      }
+      return known
+    }
     const result = project()
+    if (node.done.size >= limit) node.done.delete(node.done.keys().next().value as string)
     node.done.set(key, result)
     return result
   }

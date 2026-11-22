@@ -1,7 +1,8 @@
 import type { CampaignCharacter, Coord, MovementKind, SurgeKind, Third } from '../types'
 import type { SceneState } from '../scene/types'
 import type { RollMode } from '../play/dice'
-import { getMovementOptions, getWalkableCells } from '../scene/rules/move'
+import { getMovementOptions } from '../scene/rules/move'
+import { getWalks } from './walks'
 import { makeAction } from '../scene/factories'
 import { coordKey, disk, distance, extentCells, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
@@ -230,7 +231,7 @@ function walkMap(state: SceneState, id: string): StepMap | null {
   const AP = Math.ceil(metres / walk.speed) * walk.block.AP
   const rich: SceneState = { ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP, STA: Math.max(c.resources.STA, Math.ceil(metres / walk.speed) * walk.block.STA) } } } }
   const map: StepMap = new Map([[coordKey(from), 0]])
-  for (const r of getWalkableCells(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }))) {
+  for (const r of getWalks(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }))) {
     const key = coordKey(r.cell)
     if (!map.has(key) || r.steps < map.get(key)!) map.set(key, r.steps)
   }
@@ -621,7 +622,7 @@ function walkRoutes(state: SceneState, id: string, from: Coord): Route[] | null 
   const blocks = Math.ceil(extentCells(board.origin, board.extent).length / walk.speed)
   const there = sameCell(placement.cell, from) ? placement : placeAt(board, placement, from)
   const rich = withPlacements({ ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP: blocks * walk.block.AP, STA: Math.max(c.resources.STA, blocks * walk.block.STA) } } } }, { [id]: there })
-  const walked = getWalkableCells(rich, makeAction('move', { id: 'route-map', actorId: id, movement: walk.kind })).map(({ cell, steps, path, elevation }) => ({ cell, steps, path, elevation }))
+  const walked = getWalks(rich, makeAction('move', { id: 'route-map', actorId: id, movement: walk.kind })).map(({ cell, steps, path, elevation }) => ({ cell, steps, path, elevation }))
   return [{ cell: from, steps: 0, path: [], elevation: there.elevation }, ...walked].sort((x, y) => x.steps - y.steps)
 }
 
