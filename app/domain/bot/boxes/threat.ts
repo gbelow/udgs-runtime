@@ -152,9 +152,11 @@ export type ThreatWeights = RestTuning & {
   // what an attack is worth for every point the defence it is believed to be
   // answered with costs the target (`getTargetSpend`)
   drain: number
+  // what an attack is worth less for every AP it spends, the walk in included
+  spent: number
 }
 
-export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, arrival: 1, search: 1, recall: 20, margin: 1, flee: 10, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 1, drain: 1 }
+export const THREAT_WEIGHTS: ThreatWeights = { ...REST_TUNING, harm: 1, threatened: 0.6, threatening: 0.2, offence: 1, peril: 1, aggression: 4, arrival: 1, search: 1, recall: 20, margin: 1, flee: 10, cover: 0, redundant: 5, company: 1, guardian: 1, reserve: 1, drain: 1, spent: 1 }
 
 const NOTHING_DRAWN: Drawn = { worth: 0, harm: 0, AP: 0, STA: 0 }
 
@@ -473,10 +475,14 @@ export type AttackScore = {
   defence: number
   // the STA it spends (`getSTAWorth`)
   STA: number
+  // the AP it spends, the walk in and the attack together, `spent` for each
+  // (the user's ruling: every AP costs something, even where the defence it
+  // loses costs nothing)
+  AP: number
 }
 
 const gainOf = (s: AttackScore): number => s.harm * s.target + s.drain * s.threat
-const showScore = (s: AttackScore): string => `gain ${gainOf(s).toFixed(1)} (harm ${s.harm.toFixed(1)} x ${s.target.toFixed(2)} + drain ${s.drain.toFixed(1)} x ${s.threat.toFixed(2)}) - defence lost ${s.defence.toFixed(1)} - STA ${s.STA.toFixed(1)}`
+const showScore = (s: AttackScore): string => `gain ${gainOf(s).toFixed(1)} (harm ${s.harm.toFixed(1)} x ${s.target.toFixed(2)} + drain ${s.drain.toFixed(1)} x ${s.threat.toFixed(2)}) - defence lost ${s.defence.toFixed(1)} - STA ${s.STA.toFixed(1)} - AP ${s.AP.toFixed(1)}`
 
 type AttackMeasures = {
   // the worst foe's threat this round on the character at `at`, with what it
@@ -489,8 +495,8 @@ type AttackMeasures = {
   // what spending `spent` STA is worth to the character (`getSTAWorth`)
   STAWorth: (spent: number) => number
   // an attack leaving `harm` on `foe` and costing it `drain` to answer, made
-  // from `at`, spending `STA`, the character left `kept` to defend with there
-  score: (harm: number, drain: number, foe: string, at: Coord | null, kept: { AP: number; STA: number }, STA: number) => AttackScore
+  // from `at`, spending `AP` and `STA`, the character left `kept` to defend with there
+  score: (harm: number, drain: number, foe: string, at: Coord | null, kept: { AP: number; STA: number }, AP: number, STA: number) => AttackScore
 }
 
 // `from` is the harm it is believed to take where it stands with all it holds,
@@ -516,11 +522,11 @@ function getAttackMeasures(view: SceneState, members: readonly string[], id: str
   let target: ((foe: string) => number) | null = null
   let threat: ((foe: string) => number) | null = null
   const now = from ?? getHarmTaken(view, members, id, cellOf(view, id), left, w)
-  const score = (harm: number, drain: number, foe: string, at: Coord | null, kept: { AP: number; STA: number }, STA: number): AttackScore => {
+  const score = (harm: number, drain: number, foe: string, at: Coord | null, kept: { AP: number; STA: number }, AP: number, STA: number): AttackScore => {
     target ??= relative((f) => w.threatened * getThreatened(view, members, f, w) + w.threatening * getThreatening(view, members, f, w))
     threat ??= relative((f) => getThreatening(view, members, f, w))
-    const parts = { harm: w.harm * harm, target: target(foe), drain: w.drain * drain, threat: threat(foe), defence: w.reserve * Math.max(0, getHarmTaken(view, members, id, at, kept, w) - now), STA: STAWorth(STA) }
-    return { ...parts, total: gainOf({ ...parts, total: 0 }) - parts.defence - parts.STA }
+    const parts = { harm: w.harm * harm, target: target(foe), drain: w.drain * drain, threat: threat(foe), defence: w.reserve * Math.max(0, getHarmTaken(view, members, id, at, kept, w) - now), STA: STAWorth(STA), AP: w.spent * AP }
+    return { ...parts, total: gainOf({ ...parts, total: 0 }) - parts.defence - parts.STA - parts.AP }
   }
   return { dangerLeft, price, STAWorth, score }
 }
@@ -702,7 +708,7 @@ function planAttack(ctx: TurnContext, compelled = false): Plan | null {
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w, spend)
           if (!met || met.undefended <= 0) continue
           const held = { AP: Math.max(0, b.AP - spent - answering.AP), STA: Math.max(0, b.STA - STAspent - answering.STA) }
-          const parts = attackScore(met.harm, spend(met.defence.cost), foe, cell, held, STAspent + b.surgeSTA + answering.STA)
+          const parts = attackScore(met.harm, spend(met.defence.cost), foe, cell, held, spent, STAspent + b.surgeSTA + answering.STA)
           if (b.surge === 'combat' && gainOf(parts) <= STAWorth(b.surgeSTA)) continue
           const drew = w.opportunity * answering.harm + (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
           const score = parts.total - drew
@@ -743,6 +749,7 @@ function planArmsAttack(ctx: TurnContext): Plan | null {
   const attacksOf = (c: typeof me) => new Set(noticed.flatMap((foe) => getPair(c, foe).filter((a) => a.opens.action).map((a) => `${foe.id}|${a.kind}|${a.row.weaponKey}|${a.row.attack}|${a.row.variant}|${a.heavy}|${a.ammoId}`)))
   const held = attacksOf(me)
   const from = getHarmTaken(view, members, id, here, left, w)
+  const price = getSwitchPrice(view, members, id, w)
   let best: Plan | null = null
   for (const sw of getSwitches(me)) {
     if (sw.cost.AP > left.AP || sw.cost.STA > left.STA || ((sw.cost.AP > 0 || sw.cost.STA > 0) && getPayBar(me, sw.cost, true))) continue
@@ -752,13 +759,15 @@ function planArmsAttack(ctx: TurnContext): Plan | null {
     const attack = then && planAttack(then)
     if (!attack) continue
     const drew = sw.paid > 0 ? sw.paid * ctx.fired(here, sw.cost.AP, sw.cost.STA) : 0
-    const score = attack.score - ctx.measures.STAWorth(sw.cost.STA) - drew
+    const back = getWayBack(me, sw.after)
+    const resists = price(back.AP, back.STA)
+    const score = attack.score - ctx.measures.STAWorth(sw.cost.STA) - drew - resists
     if (score <= 0 || (best && score <= best.score)) continue
     // every move of it the table takes, each from the sheet the ones before leave
     // (a surge's AP may not pay for every gear move, combat.tex "Action surge")
     if (!sw.moves.every((move, i) => declare(i === 0 ? view : withSheet(view, id, sw.before[i]), { actorId: id, option: { kind: 'gear', move }, picks: [] }, TRIAL).ok)) continue
     const intent: Intent = { actorId: id, option: { kind: 'gear', move: sw.moves[0] }, picks: [] }
-    const why = `changes arms to attack (${sw.moves.map((m) => m.kind).join(', ')}, ${sw.cost.AP} AP, drawn ${drew.toFixed(1)}, ${score.toFixed(1)}): ${attack.why}`
+    const why = `changes arms to attack (${sw.moves.map((m) => m.kind).join(', ')}, ${sw.cost.AP} AP, ${back.AP} AP back ${resists.toFixed(1)}, drawn ${drew.toFixed(1)}, ${score.toFixed(1)}): ${attack.why}`
     const moves = sw.moves.slice(1).map((move, i) => ({ plan: { kind: 'arms' as const, intent: { actorId: id, option: { kind: 'gear' as const, move }, picks: [] }, score, why }, arms: armsOf(sw.before[i + 1]), AP: -1 }))
     best = { kind: 'arms', intent, score, why, then: [...moves, { plan: attack, arms: armsOf(sw.after), AP: sheet.resources.AP }] }
   }
@@ -769,6 +778,27 @@ function planArmsAttack(ctx: TurnContext): Plan | null {
 // off a stack is given a fresh id when it is drawn.
 function armsOf(c: SceneState['characters'][string]): string {
   return c.held.map((item) => `${item.refId}:${getGrip(c, item.id)}`).sort().join(',')
+}
+
+// The cheapest way (by AP, then STA) from the arms `after` leaves back to the
+// ones `c` holds now (bot/arms.ts), which an attack after a change of arms is
+// charged when it is planned (the user's ruling: changing gear resists as
+// putting it back away costs); nothing where no switch leads back.
+function getWayBack(c: SceneState['characters'][string], after: SceneState['characters'][string]): { AP: number; STA: number } {
+  const arms = armsOf(c)
+  return getSwitches(after).reduce<{ AP: number; STA: number } | null>((best, sw) => (armsOf(sw.after) === arms && (!best || sw.cost.AP < best.AP || (sw.cost.AP === best.AP && sw.cost.STA < best.STA)) ? sw.cost : best), null) ?? { AP: 0, STA: 0 }
+}
+
+// What a change of arms spending `AP` and `STA` costs the character, read
+// with a round's full AP and the STA it holds now (the user's ruling, for every
+// change of arms): what they would have saved or done otherwise this round
+// (`getRoundValue`) and the STA's worth (`getSTAWorth`).
+function getSwitchPrice(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): (AP: number, STA: number) => number {
+  const me = view.characters[id]
+  const value = getRoundValue(view, members, id, cellOf(view, id), w)
+  const held = value(ROUND_AP, me.resources.STA)
+  const { STAWorth } = getAttackMeasures(view, members, id, w)
+  return (AP, STA) => held - value(Math.max(0, ROUND_AP - AP), Math.max(0, me.resources.STA - STA)) + STAWorth(STA)
 }
 
 // The pursuits the box keeps, by character.
@@ -1137,7 +1167,7 @@ function opportunity(input: SeatInput, id: string, w: ThreatWeights): Decision |
       const spend = getTargetSpend(view, target.id, id, cellOf(view, target.id), guard, w)
       const met = getDefendedHarm(attack, attack.reach, guard, 'now', target.injuries.bleed, w, spend)
       if (!met || met.undefended <= 0) continue
-      const parts = measures.score(met.harm, spend(met.defence.cost), target.id, at, { AP: me.resources.AP - AP, STA: me.resources.STA - STA }, STA)
+      const parts = measures.score(met.harm, spend(met.defence.cost), target.id, at, { AP: me.resources.AP - AP, STA: me.resources.STA - STA }, AP, STA)
       const score = parts.total
       if (score <= 0 || (best && score <= best.score)) continue
       const picks: Pick[] = [{ part: 'row', value: attack.row }, ...(attack.declaresHeavy ? [{ part: 'modifier' as const, value: { key: `heavy${attack.heavy}`, on: true } }] : [])]
@@ -1215,8 +1245,7 @@ function takeStressTurn(input: SeatInput, id: string, w: ThreatWeights, find: Fi
 // ruling), to the most harm the character could do one foe from where it
 // stands in a fresh round (`getStrikeValue`) and to the harm it would take
 // there in one (`getHarmTaken`, fresh: what a shield blocks counted), is
-// worth more than the switch costs: what its AP would have done otherwise
-// this round (`getRoundValue`) and its STA (`getSTAWorth`), with the
+// worth more than the switch costs (`getSwitchPrice`), with the
 // opportunity attacks its priced moves draw (bot/approach.ts), and by
 // `margin`: the first of its moves, declared.
 function planSwitch(view: SceneState, members: readonly string[], id: string, w: ThreatWeights): Plan | null {
@@ -1227,11 +1256,8 @@ function planSwitch(view: SceneState, members: readonly string[], id: string, w:
   const offence = (state: SceneState) => getStrikeValue(state, members, id, here, ROUND_AP, me.resources.STA, w)
   const peril = (state: SceneState) => getHarmTaken(state, members, id, here, { AP: ROUND_AP, STA: me.resources.STA }, w, true)
   const now = { offence: offence(view), peril: peril(view) }
-  const value = getRoundValue(view, members, id, here, w)
-  const held = value(me.resources.AP, me.resources.STA)
-  const { STAWorth } = getAttackMeasures(view, members, id, w)
-  const price = (AP: number, STA: number) => held - value(Math.max(0, me.resources.AP - AP), Math.max(0, me.resources.STA - STA)) + STAWorth(STA)
-  const drawn = w.opportunity * getStandingCost(view, id, here, foes, (f) => getMeans(view.characters[f], false, w), { AP: me.resources.AP, STA: me.resources.STA }, w, 'harm', (spent) => held - value(Math.max(0, me.resources.AP - spent.AP), Math.max(0, me.resources.STA - spent.STA)) + STAWorth(spent.STA))
+  const price = getSwitchPrice(view, members, id, w)
+  const drawn = w.opportunity * getStandingCost(view, id, here, foes, (f) => getMeans(view.characters[f], false, w), { AP: me.resources.AP, STA: me.resources.STA }, w, 'harm', (spent) => price(spent.AP, spent.STA))
   let best: { intent: Intent; why: string; gain: number } | null = null
   for (const sw of getSwitches(me)) {
     if ((sw.cost.AP > 0 || sw.cost.STA > 0) && getPayBar(me, sw.cost, true)) continue

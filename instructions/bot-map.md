@@ -326,8 +326,11 @@ gain            = w.harm · met.harm · T(foe) / mean T over the foes
                   threatening, however vulnerable)
 defence lost    = w.reserve · max(0, after − now)
 STA             = STAWorth(STAspent + surgeSTA)                     (§2)
+AP              = w.spent · spent   (the user's ruling of 2026-11-22: every AP costs, even
+                  where the defence it loses costs nothing; once for the walk in and the
+                  attack, flat, no danger; an opportunity attack pays it for its own AP)
 
-score = gain − defence lost − STA
+score = gain − defence lost − STA − AP
       − w.opportunity · OAs the walk draws (§4.1)
       − w.opportunity · OAs a shot draws from where it is fired   (shots)
 
@@ -371,7 +374,15 @@ now   = HarmTaken(me, here, all it holds), with the arms held now   (the `now` o
 score = §3's score on the switched sheet, `now` as above
       − STAWorth(switch STA)
       − (priced moves in the switch) · w.opportunity · OAs standing here draws
+      − spend(back)
+back  = the cheapest switch (by AP, then STA) from the arms the switch leaves to the arms
+        held now; none where no switch leads back
+spend = §6's spend: read with the round's full AP and the STA held now
 ```
+
+`back` is the resistance to changing gear (the user's ruling of 2026-11-22): a change of arms
+is charged, when planned, what putting it back away would cost. Drawing a stiletto off the
+belt costs nothing, putting it back costs AP, so the draw pays for it now.
 
 The switch's AP is paid inside §3's defence lost (held is what is left after it), and so is
 what the new arms do to the harm it takes. It competes with §3 and §4.3 in `planNow`, among
@@ -497,7 +508,9 @@ offence = StrikeValue(me, here, round's AP, my STA)     the most harm my stronge
           does one foe, as often as AP and STA pay once the walk in is paid (getStrikeValue)
 peril   = HarmTaken(me, here, round's AP and my STA, fresh)   the foes' strikes in a fresh
           round, shared as in §2 (a shield's blocks counted through the pair threat)
-spend   = V(my AP, my STA) − V(after the switch's AP and STA) + STAWorth(switch STA)   (§2)
+spend   = V(round's AP, my STA) − V(round's AP − switch AP, my STA − switch STA)
+          + STAWorth(switch STA)   (§2; full AP and the STA held now, the user's ruling,
+          for every change of arms: the way back of §3.1 too)
 
 gain = w.offence · (offence_after − offence_now)
      − w.peril   · (peril_after − peril_now)
@@ -703,6 +716,7 @@ they do are kept per weights.
 | `guardian`    | 1       | §4.2 AP kept for allies                                 |
 | `reserve`     | 1       | §3 defence lost                                         |
 | `drain`       | 1       | §3 what the believed defence costs the target           |
+| `spent`       | 1       | §3 per AP an attack spends, the walk in included        |
 
 Fixed counts (not weights):
 
