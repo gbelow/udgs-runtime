@@ -20,22 +20,20 @@ Two questions (the user's ruling): **now** (`planNow`: what to do now) and **lat
 threatBox (boxes/threat.ts)
 │
 ├─ for each wait the table has on the seat
-│   ├─ answer ──► answer()         attacked?      §7  defend / let it come
-│   │                              ally attacked? §8  protect
-│   │                              drew an OA?    §9  opportunity attack
+│   ├─ answer ──► answer()         attacked?      §6  defend / let it come
+│   │                              ally attacked? §7  protect
+│   │                              drew an OA?    §8  opportunity attack
 │   ├─ turn ────► takeTurn()       asked again after every action (chains)
-│   │              ├─ limit stress owed?           §11 violent / coward
-│   │              ├─ collapsed?                   §11.1 stop its bleed, else nothing
+│   │              ├─ limit stress owed?           §10 violent / coward
+│   │              ├─ collapsed?                   §10.1 stop its bleed, else nothing
 │   │              ├─ now: planNow()               (no foe noticed: nothing now)
 │   │              │    best of attack             §3  if score > 0
-│   │              │         attack after a switch §3.1 if score > 0
 │   │              │         run from danger       §4.3 if harm taken > flee, score > margin
 │   │              └─ later: planLater()
-│   │                   ├─ planSwitch()            §6  change arms, if gain > margin
 │   │                   ├─ no foe in sight/noticed §5  search
 │   │                   └─ else best walk          §4  if score > stay + margin
-│   ├─ rest ────► getRestChoice()                  §10 rest / rally / intimidate
-│   └─ action / morale / concentration ──► settleWait (boxes/nearest.ts), HOP spend §12
+│   ├─ rest ────► getRestChoice()                  §9 rest / rally / intimidate
+│   └─ action / morale / concentration ──► settleWait (boxes/nearest.ts), HOP spend §11
 │
 ├─ someone else's turn, still contestable: toggleContest for the member whose
 │   planNow, on the fight as winning would leave it, scores most (anyone's turn)
@@ -91,7 +89,7 @@ E[harm] = Σ_face p(face) · { hits[min(over − 5, last)]   if over ≥ 5
                              miss                         otherwise }
 ```
 
-`hits[h]` is the harm at HOP `h`, with the overflow spent as §12 spends it.
+`hits[h]` is the harm at HOP `h`, with the overflow spent as §11 spends it.
 
 ### Skill at a distance (`threat.ts` `getSkillAt`)
 
@@ -134,7 +132,7 @@ SpendPrice(cost, …)        = APPrice + STAPrice
 
 With the defaults: an AP costs `3 + 0.1 · danger`; an STA costs `30 / (STA left after)`,
 plus 2 per point of bleed. A gained STA is worth the same price read for the pool it ends in.
-These still price walking (§4), searching (§5) and resting (§10).
+These still price walking (§4), searching (§5) and resting (§9).
 
 Round value and STA in harm (`getRoundValue`, `getAPValue`, `getSTAWorth`; the user's rulings:
 whether a defence is worth making is whether its AP would do more answering another attack or
@@ -300,9 +298,8 @@ Which each decision reads:
 | run from danger (§4.3)            | danger now, danger at the cell              |                                    |
 | walk (§4)                         | AP's price, danger on arrival, allies kept  | standing (offence, peril), pull    |
 | search (§5)                       |                                             |                                    |
-| change of arms (§6)               |                                             | offence, peril                     |
-| defend, protect, OA (§7, §8, §9)  | the attack met; danger left after (AP's price) |                                 |
-| rest (§10), coward's getaway (§11) |                                            | danger                             |
+| defend, protect, OA (§6, §7, §8)  | the attack met; danger left after (AP's price) |                                 |
+| rest (§9), coward's getaway (§10) |                                            | danger                             |
 
 ---
 
@@ -346,7 +343,7 @@ reach (`getStrikeCells`: walls, and height between the two).
 Walks weighed (`getWalks`), here and in §4 and §5: one at each of walk and run that is open,
 and one at the fastest movement open (so one who can only swim, climb or crawl still has
 one); every candidate cell is tried at each, with that walk's AP and STA, and the move is
-declared at its movement. The coward's getaway (§11) walks at the fastest movement only.
+declared at its movement. The coward's getaway (§10) walks at the fastest movement only.
 
 Budgets (`getBudgets`, `canPay`):
 ```
@@ -364,35 +361,6 @@ givingUp  the table takes it only once the surge's AP left is given up ("end sur
 neither   not made
 ```
 
-### 3.1 Attack after a change of arms (`boxes/threat.ts` `planArmsAttack`)
-
-For every switch the character can pay for (`arms.ts`) that opens an attack on a foe it
-notices that the arms held now lack (an attack told by its row, heavy degree and ammo), the
-attack of §3 on the sheet the switch leaves, its AP and STA spent:
-
-```
-now   = HarmTaken(me, here, all it holds), with the arms held now   (the `now` of §3)
-score = §3's score on the switched sheet, `now` as above
-      − STAWorth(switch STA)
-      − (priced moves in the switch) · w.opportunity · OAs standing here draws
-      − spend(back)
-back  = the cheapest switch (by AP, then STA) from the arms the switch leaves to the arms
-        held now; none where no switch leads back
-spend = §6's spend: read with the round's full AP and the STA held now
-```
-
-`back` is the resistance to changing gear (the user's ruling of 2026-11-22): a change of arms
-is charged, when planned, what putting it back away would cost. Drawing a stiletto off the
-belt costs nothing, putting it back costs AP, so the draw pays for it now.
-
-The switch's AP is paid inside §3's defence lost (held is what is left after it), and so is
-what the new arms do to the harm it takes. It competes with §3 and §4.3 in `planNow`, among
-the switches whose every move the table takes. Once its first move is declared, the rest of
-the switch and the attack follow (the user's ruling: an arms attack planned is made): each
-step is taken while the character holds the arms it was planned from (by kind of item and
-grip) and, for the attack, has the AP left it was planned with, and while the table takes
-it; otherwise the turn is weighed again.
-
 ---
 
 ## 4. Walk when nothing is to be done now (`boxes/threat.ts` `planWalk`)
@@ -403,7 +371,8 @@ standing(cell) = w.offence · max_foe threatValue(potential me → foe, me at ce
                − w.company · max(0, metres to nearest ally − 1)
 
 pull(cell)     = w.aggression · max over foes under no potential threat from here
-                 of (cells from here to the foe − cells from the cell to the foe)
+                 of (AttackSteps(here → foe) − AttackSteps(cell → foe)), foes and cells
+                 with no route left out, at least 0
 
 walk(cell)     = standing(cell) + pull(cell)
                − SpendPrice(walk AP, walk STA + surgeSTA, Danger(me, immediate, cell, AP/STA − walk))
@@ -417,8 +386,19 @@ walk if best walk(cell) > stay + w.margin
 ```
 
 Candidate cells (`getDirectedCells`): per foe, the 3 cells that close most on it and the
-closest cell of each AP block (so a walk may stop short); the 3 cells farthest from the
-foe with the worst potential threat; per ally, the 3 cells that close most on it.
+closest cell of each AP block (so a walk may stop short), and the same of the cells of the
+walk that lie on its route to attacking the foe (`getAttackRoute`); the 3 cells farthest
+from the foe with the worst potential threat; per ally, the 3 cells that close most on it.
+
+The actual distance to attack (`threat.ts` `getAttackRoute`, the user's ruling 2026-11-22):
+```
+AttackSteps(cell → foe) = the fewest cells walked from cell to a cell where my
+                          furthest-reaching attack meets the foe (a shot: within its
+                          reach with a line of fire; a strike: the melee gap the table
+                          measures within reach), walked as the table walks (around walls
+                          and bodies, up and down only what can be walked), as far as the
+                          board goes; none where no walk gets there
+```
 
 ### 4.1 Opportunity attacks drawn (`approach.ts`)
 
@@ -427,7 +407,7 @@ walk:  Σ_holder best strike it can pay for that opens on a step (or on a run/ju
        met at the step getApproachStep says it draws,
        met = DefendedHarm(strike, distance at that step, my guard,
                           spend = V(guard) − V(guard − cost) + STAWorth(STA))
-             answered as I answer an attack on my turn (§7)
+             answered as I answer an attack on my turn (§6)
        drawn = met.harm   (the harm alone; what answering spends comes off what I hold)
        distances along the walked path, or straight a metre a step when no path is known
 shot / priced gear move:  Σ_holder best strike opening on a step with reach ≥ gap, its harm
@@ -477,9 +457,10 @@ Also when every foe in the view is one the character does not notice (the user's
 Where the side knows a foe stands (an ally sees it, or the seat remembers where it was last
 noticed, heard among others), the search is for that place (the user's ruling):
 ```
-score(cell) = w.recall · Σ presence(f) over known foes f whose cell it would see (§13)
+score(cell) = w.recall · Σ presence(f) over known foes f whose cell it would see (§12)
             + w.offence · (offence(cell) − offence(here))
-            + w.aggression · (nearest known foe from here − nearest known foe from the cell)
+            + w.aggression · (nearest(here) − nearest(cell)), 0 if either has no route
+nearest(c)  = min AttackSteps(c → f) over known foes f (§4)
 offence(c)  = max threatValue(potential me → f, me at c) over known foes f seen from c
               (as §4's standing; the user's ruling: a cell an archer sees a foe from is one it
               can shoot from)
@@ -501,33 +482,9 @@ walk if best score > w.margin
 
 ---
 
-## 6. Change of arms (`boxes/threat.ts` `planSwitch`, `arms.ts`)
+## 6. Answering an attack on me (`boxes/threat.ts` `answer`)
 
-```
-all in harm (the user's ruling), read for a fresh round:
-offence = StrikeValue(me, here, round's AP, my STA)     the most harm my strongest per AP
-          does one foe, as often as AP and STA pay once the walk in is paid (getStrikeValue)
-peril   = HarmTaken(me, here, round's AP and my STA, fresh)   the foes' strikes in a fresh
-          round, shared as in §2 (a shield's blocks counted through the pair threat)
-spend   = V(round's AP, my STA) − V(round's AP − switch AP, my STA − switch STA)
-          + STAWorth(switch STA)   (§2; full AP and the STA held now, the user's ruling,
-          for every change of arms: the way back of §3.1 too)
-
-gain = w.offence · (offence_after − offence_now)
-     − w.peril   · (peril_after − peril_now)
-     − spend
-     − (priced moves in the switch) · w.opportunity · OAs standing here draws
-
-declare the first move of the best switch if gain > w.margin, among the switches whose
-every move the table takes, each asked from the sheet the moves before it leave (a surge's
-AP may not pay for every gear move)
-```
-
----
-
-## 7. Answering an attack on me (`boxes/threat.ts` `answer`)
-
-A shot at me from within my reach: the opportunity attack first (§9), if worth making.
+A shot at me from within my reach: the opportunity attack first (§8), if worth making.
 
 ```
 none:      score = harm(attack, none at DL) − V(kept(0), my STA)
@@ -559,7 +516,7 @@ kind (`getKnownAttack`).
 
 ---
 
-## 8. Protecting an ally (`boxes/threat.ts` `protect`)
+## 7. Protecting an ally (`boxes/threat.ts` `protect`)
 
 Only when nobody guards the ally yet and the ally has not reacted.
 
@@ -578,7 +535,7 @@ make the lowest if score < toAlly.worth
 
 ---
 
-## 9. Opportunity attack I draw (`boxes/threat.ts` `opportunity`)
+## 8. Opportunity attack I draw (`boxes/threat.ts` `opportunity`)
 
 ```
 for each row the draw opens, each heavy degree:
@@ -588,7 +545,7 @@ make the best if score > 0
 
 ---
 
-## 10. Round's rest step (`rest.ts` `getRestChoice`)
+## 9. Round's rest step (`rest.ts` `getRestChoice`)
 
 ```
 back      = STA the rest gives back
@@ -606,7 +563,7 @@ take the best if worth > 0
 
 ---
 
-## 11. Limit stress turn (`boxes/threat.ts` `takeStressTurn`)
+## 10. Limit stress turn (`boxes/threat.ts` `takeStressTurn`)
 
 ```
 social stress action owed    → default to coward
@@ -616,7 +573,7 @@ coward (surge AP left)       → getAway: walk to the cell of least Danger(poten
 otherwise                    → end turn
 ```
 
-### 11.1 Collapsed (`boxes/threat.ts` `planCollapsed`)
+### 10.1 Collapsed (`boxes/threat.ts` `planCollapsed`)
 
 A collapsed character (combat.tex "Collapsed") does one thing with a turn (the user's ruling):
 
@@ -628,11 +585,11 @@ else                         → First Aid on itself if learned, else Tend Wound
 neither open                 → nothing
 ```
 
-Asked in `planNow`; `planLater` gives nothing, so it never walks, searches or changes arms.
+Asked in `planNow`; `planLater` gives nothing, so it never walks or searches.
 
 ---
 
-## 12. Spending a hit's overflow (`predict.ts` `getBestSpend`)
+## 11. Spending a hit's overflow (`predict.ts` `getBestSpend`)
 
 Assassinate is bought first whenever it is offered (the user's ruling), and the rest is spent
 with the 5 HOP it gives. Tried: all in smash; if it carries a cut, n slices + rest in smash
@@ -649,7 +606,7 @@ The pair table (§1 `hits`) and the landing both spend this way.
 
 ---
 
-## 13. What a seat knows (`belief.ts` `getBelief`)
+## 12. What a seat knows (`belief.ts` `getBelief`)
 
 ```
 own members:         full sheet
@@ -697,18 +654,18 @@ they do are kept per weights.
 | `STA`         | 3         | STAPrice                                      |
 | `STAScale`    | 10        | STAPrice, STAWorth                            |
 | `forcing`     | 0.25      | DefendedHarm: per point the defence takes off |
-| `opportunity` | 1         | §3, §4, §6 OAs drawn                          |
+| `opportunity` | 1         | §3, §4 OAs drawn                          |
 | `end`         | `'middle'`| fromThird: which end of a face's third, or its middle |
 | `pile`        | 1         | Danger: share of every foe's threat but the worst |
 | `share`       | 0         | Danger: a foe's threat divided among those it threatens |
-| `fade`        | 0.5       | presence of a remembered foe, per round since noticed (§13) |
+| `fade`        | 0.5       | presence of a remembered foe, per round since noticed (§12) |
 
 `REST_TUNING` (`rest.ts`) adds:
 
 | weight       | default | read in                        |
 | ------------ | ------- | ------------------------------ |
-| `restSay`    | 2       | §10, per point of social value |
-| `rallyFirst` | 0       | §10, > 0 puts rallies first    |
+| `restSay`    | 2       | §9, per point of social value |
+| `rallyFirst` | 0       | §9, > 0 puts rallies first    |
 
 `THREAT_WEIGHTS` (`boxes/threat.ts`) adds:
 
@@ -717,16 +674,16 @@ they do are kept per weights.
 | `harm`        | 1       | §3 harm multiplier                                      |
 | `threatened`  | 0.6     | §3 target: team's threat on the foe                     |
 | `threatening` | 0.2     | §3 target: foe's threat on the team                     |
-| `offence`     | 1       | §4 standing, §6 harm I could do                         |
-| `peril`       | 1       | §4 standing, §5 next round's danger added, §6 harm I would take |
+| `offence`     | 1       | §4 standing                         |
+| `peril`       | 1       | §4 standing, §5 next round's danger added |
 | `aggression`  | 4       | §4 pull per cell nearer a foe out of reach, §5 per cell nearer the middle |
 | `arrival`     | 1       | §4 immediate danger at the cell walked to               |
 | `search`      | 1       | §5 per cell newly seen                                  |
 | `recall`      | 20      | §5 per remembered foe whose cell comes into sight       |
-| `margin`      | 1       | §4, §4.3, §5, §6 must beat by                           |
+| `margin`      | 1       | §4, §4.3, §5 must beat by                           |
 | `flee`        | 10      | §4.3 harm it must be believed to take to run now        |
-| `cover`       | 0       | §4.2, §8 ally's threat over mine                        |
-| `redundant`   | 5       | §7 own defence when someone guards                      |
+| `cover`       | 0       | §4.2, §7 ally's threat over mine                        |
+| `redundant`   | 5       | §6 own defence when someone guards                      |
 | `company`     | 1       | §4 per metre from nearest ally beyond the next cell     |
 | `guardian`    | 1       | §4.2 AP kept for allies                                 |
 | `reserve`     | 1       | §3 defence lost                                         |
@@ -751,7 +708,7 @@ Fixed counts (not weights):
 
 `nearestBox` (`boxes/nearest.ts`) is the baseline: walk to the nearest foe, attack it with
 the first row the table takes, focus if only a focused shot is left, pass every answer,
-spend overflow as §12. No formula beyond distance.
+spend overflow as §11. No formula beyond distance.
 
 The old box (`boxes/threatOld.ts`, `--box old` in `pnpm arena`) is the threat box as it
 was before §0's two questions: a change of arms weighed first, then an attack, then a walk,
@@ -759,4 +716,4 @@ and the first member with anything to do starting the turn, reading threat as it
 read before the pair threat (`threatOldReading.ts`: the best attack read for every cell and
 guard, the walk in's opportunity attacks counted, the worst foe's danger alone). It is kept
 only to play the threat box against; its formulas are not mapped here. Its rest step
-(§10) reads `rest.ts`, shared with the threat box.
+(§9) reads `rest.ts`, shared with the threat box.
