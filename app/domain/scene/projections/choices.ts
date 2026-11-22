@@ -8,7 +8,7 @@ import { getAim } from '../rules/aim'
 import { getSteadyPath, isSteadyShot } from '../rules/steadyArms'
 import { getDragReach } from '../rules/drag'
 import { getAttackLandings, getEvasiveJumper } from '../rules/board/boardMode'
-import { getEvasiveJumpPlacements } from '../rules/move'
+import { getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
 import { isAimable } from '../rules/explosion'
 import { ring, sameCell } from '../rules/board/geometry'
 import { isJumpAttack } from '../rules/attackJump'
@@ -181,6 +181,15 @@ function cellChoices(state: SceneState): OpenChoice[] {
     return list.filter((cell) => !seen.has(`${cell.q},${cell.r}`) && !!seen.add(`${cell.q},${cell.r}`)).map((cell) =>
       choice(actorId, 'cell', { q: cell.q, r: cell.r }, !!picked && sameCell(picked, cell), { kind: 'click', args: [{ on: 'cell', cell }, null, false, actorId] }, `${label} ${cell.q},${cell.r}`))
   }
+  // a move's reach: a choice for each floor of a cell it comes to, clicked at
+  // the height of that floor (`getReachAt`)
+  const reach = (actorId: string, list: readonly ReachableCell[], label: string): OpenChoice[] => {
+    const floors = new Map<string, number>()
+    list.forEach((r) => floors.set(`${r.cell.q},${r.cell.r}`, (floors.get(`${r.cell.q},${r.cell.r}`) ?? 0) + 1))
+    const seen = new Set<string>()
+    return list.filter((r) => !seen.has(`${r.cell.q},${r.cell.r}@${r.elevation}`) && !!seen.add(`${r.cell.q},${r.cell.r}@${r.elevation}`)).map((r) =>
+      choice(actorId, 'cell', { q: r.cell.q, r: r.cell.r, height: r.elevation }, false, { kind: 'click', args: [{ on: 'cell', cell: r.cell, height: r.elevation }, null, false, actorId] }, `${label} ${r.cell.q},${r.cell.r}${floors.get(`${r.cell.q},${r.cell.r}`)! > 1 ? ` at ${r.elevation} m` : ''}`))
+  }
   const jumper = getEvasiveJumper(state)
   if (jumper) {
     const jump = getLiveReactionsTo(state, open.id).find((a) => a.actorId === jumper && a.kind === 'evasiveJump')
@@ -189,8 +198,8 @@ function cellChoices(state: SceneState): OpenChoice[] {
   }
   const landings = getAttackLandings(state)
   if (landings.length > 0) return cells(open.actorId, landings.filter((p) => !(isJumpAttack(open) && open.jumpTo && sameCell(open.jumpTo.cell, p.cell))).map((p) => p.cell), 'jump to')
-  if (open.kind === 'move' && open.step === 'define') return cells(open.actorId, getReachableCells(state, open).map((r) => r.cell), 'go to')
-  if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) return cells(open.actorId, getReachableCells(state, getSteadyPath(state, open)).map((r) => r.cell), 'walk to')
+  if (open.kind === 'move' && open.step === 'define') return reach(open.actorId, getReachableCells(state, open), 'go to')
+  if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) return reach(open.actorId, getReachableCells(state, getSteadyPath(state, open)), 'walk to')
   if (open.kind === 'drag' && open.step === 'define') return cells(open.actorId, getDragReach(state, open).map((r) => r.cell), 'push to')
   const aim = getAim(state, open)
   if (aim) return cells(open.actorId, aim.cells, 'aim at')

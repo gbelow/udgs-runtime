@@ -1870,11 +1870,11 @@
           "climbDL": null,
           "noise": 0,
           "dark": false,
-          "surface": "Stone tiles",
-          "art": "/surfaces/stone_tile_1.webp",
+          "surface": null,
+          "art": null,
           "layers": [],
           "piece": null,
-          "hole": false,
+          "hole": true,
           "lattice": false
         },
         "2,-1": {
@@ -1895,11 +1895,11 @@
           "climbDL": null,
           "noise": 0,
           "dark": false,
-          "surface": "Stone tiles",
-          "art": "/surfaces/stone_tile_1.webp",
+          "surface": null,
+          "art": null,
           "layers": [],
           "piece": null,
-          "hole": false,
+          "hole": true,
           "lattice": false
         },
         "2,-2": {
@@ -1995,11 +1995,11 @@
           "climbDL": null,
           "noise": 0,
           "dark": false,
-          "surface": "Stone tiles",
-          "art": "/surfaces/stone_tile_1.webp",
+          "surface": null,
+          "art": null,
           "layers": [],
           "piece": null,
-          "hole": false,
+          "hole": true,
           "lattice": false
         },
         "4,-3": {
@@ -2020,11 +2020,11 @@
           "climbDL": null,
           "noise": 0,
           "dark": false,
-          "surface": "Stone tiles",
-          "art": "/surfaces/stone_tile_1.webp",
+          "surface": null,
+          "art": null,
           "layers": [],
           "piece": null,
-          "hole": false,
+          "hole": true,
           "lattice": false
         },
         "4,-4": {
@@ -2070,11 +2070,11 @@
           "climbDL": null,
           "noise": 0,
           "dark": false,
-          "surface": "Stone tiles",
-          "art": "/surfaces/stone_tile_1.webp",
+          "surface": null,
+          "art": null,
           "layers": [],
           "piece": null,
-          "hole": false,
+          "hole": true,
           "lattice": false
         },
         "2,-5": {

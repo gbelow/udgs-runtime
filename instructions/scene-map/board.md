@@ -69,8 +69,13 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   doorway shines in as a beam, the light outside for `WINDOW_LIGHT.reach` in and `spread` around it,
   a step darker out to `dimFactor` times both and none past, and a
   source's, which shines from its holder's eyes and never through a solid floor. A `lattice` storey cell (leaves, a grating) is stood on like a floor but
-  closes nothing under it: a line passes it, and a climb up a face beside it is not stopped by it. One with neither raised ground nor a wall under it (a canopy over open ground) has nothing to climb, so it is reached only within the climber's start, as a stand up (`Face.overhead`), and a climb down from it goes no further than the hang (`Face.bare`): the climber then jumps off or lets go. The move search reaches each cell once, the first way it comes there,
-  so a walk changes floors a segment at a time (up a stair, end the segment, walk on upstairs).
+  closes nothing under it: a line passes it, and a climb up a face beside it is not stopped by it. One with neither raised ground nor a wall under it (a canopy over open ground) has nothing to climb, so it is reached only within the climber's start, as a stand up (`Face.overhead`), and a climb down from it goes no further than the hang (`Face.bare`): the climber then jumps off or lets go. The move search carries the height of the feet from step to step and
+  reaches each cell once on each floor it comes to (`walkOut`'s levels), so one walk goes up a
+  stair and on along the storey over ground it walked already; a cell a step is refused into may
+  still be come to from another. Each way found says the floor it ends on
+  (`ReachableCell.elevation`), and a click on a cell reached on two floors takes the way onto the
+  one it was made at (`getReachAt`, `Click.height`), the shortest with no height said; the panel's
+  choices offer one for each floor.
   The fight's board is looked at from a height (`projections/storeyView.ts`): the cells are drawn
   as the floor someone there stands on, open air veiled, others on another floor drawn apart;
   what the board offers and what a click means do not change with it. A wall of the ground is

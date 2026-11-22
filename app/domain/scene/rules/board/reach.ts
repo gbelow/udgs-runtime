@@ -1,4 +1,6 @@
-import type { SceneState, MoveAction } from '../../types'
+import type { Board, Coord, SceneState, MoveAction } from '../../types'
+import { sameCell } from './geometry'
+import { getTerrainAt } from './board'
 import { getWalkableCells, type ReachableCell } from '../move'
 import { getUsableCells } from '../prepared'
 import { isCompelledAway } from '../stress'
@@ -24,6 +26,17 @@ export function getReachableCells(state: SceneState, action: MoveAction): Reacha
   const made = getSidestepCells(state, action, getUsableCells(state, action, getWalkableCells(state, action))).filter(({ cell }) => isCompelledAway(state, action, cell) && isCombinedLanding(state, action, cell))
   byAction.set(action, made)
   return made
+}
+
+// Of the ways a reach comes to `cell` (once for each floor there it comes
+// to), the one on the floor a click made from `height` points at: the floor
+// feet at that height stand on there, the ground's for null. The shortest
+// where no height is said, or none comes to that floor.
+export function getReachAt<R extends Pick<ReachableCell, 'cell' | 'elevation'>>(board: Board | null, reachable: readonly R[], cell: Coord, height?: number | null): R | undefined {
+  const at = reachable.filter((r) => sameCell(r.cell, cell))
+  if (height === undefined || at.length < 2 || !board) return at[0]
+  const floor = getTerrainAt(board, cell, height ?? 0).floor
+  return at.find((r) => r.elevation === floor) ?? at[0]
 }
 
 // The same move declared twice on the same fight, once in each of two states

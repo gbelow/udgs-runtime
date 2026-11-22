@@ -153,7 +153,8 @@ const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
 const argOf = (command: SceneCommand): unknown => (command.args as readonly unknown[])[0]
 
-type Walk = { movement: MovementKind; cells: { cell: Coord; AP: number; STA: number; path: Coord[] }[] }
+// `elevation`: the floor the walk ends on in the cell (a cell may be come to on two)
+type Walk = { movement: MovementKind; cells: { cell: Coord; AP: number; STA: number; path: Coord[]; elevation: number }[] }
 
 // The movements open to the character this turn, fastest first.
 function openMovements(state: SceneState, id: string): MovementKind[] {
@@ -172,7 +173,7 @@ function walkAt(state: SceneState, id: string, movement: MovementKind): Walk | n
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  return { movement, cells: getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path })) }
+  return { movement, cells: getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path, elevation: r.elevation })) }
 }
 
 // The walk at the character's fastest movement.
@@ -195,7 +196,8 @@ function getWalks(state: SceneState, id: string): Walk[] {
 // whether the walk runs or jumps, which a braced attack answers (combat.tex "Braced Attack")
 const runs = (walk: Walk | null): boolean => walk?.movement === 'run' || walk?.movement === 'jump'
 
-const moveIntent = (id: string, movement: MovementKind, cell: Coord): Intent => ({ actorId: id, option: { kind: 'move' }, picks: [{ part: 'movement', value: movement }, { part: 'cell', value: cell }] })
+// a walk to `cell`, on the floor there at `elevation` (`getReachAt`)
+const moveIntent = (id: string, movement: MovementKind, cell: Coord, elevation: number): Intent => ({ actorId: id, option: { kind: 'move' }, picks: [{ part: 'movement', value: movement }, { part: 'cell', value: { q: cell.q, r: cell.r, height: elevation } }] })
 
 const attackIntent = (id: string, attack: PairAttack, target: string): Intent => ({
   actorId: id,
@@ -359,7 +361,7 @@ function getDirectedCells(view: SceneState, id: string, here: Coord, walk: Walk,
 // strike's: the melee gap the table measures within reach, `getStrikeCells`).
 const ATTACK_SCAN = 8
 
-type AttackCell = { cell: Coord | null; AP: number; STA: number; path: Coord[] }
+type AttackCell = { cell: Coord | null; AP: number; STA: number; path: Coord[]; elevation?: number }
 
 function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number, draws: (c: AttackCell) => number, clear: (cell: Coord) => boolean = () => true): AttackCell[] {
   if (!here || !at || (distance(here, at) <= reach && clear(here))) return [{ cell: here, AP: 0, STA: 0, path: [] }]
@@ -569,12 +571,12 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
   const perilHere = getDanger(view, members, id, 'potential', here, undefined, w)
   const every = Math.max(1, Math.ceil(dark.length / SEARCH_SPREAD))
   const read = dark.filter((_, i) => i % every === 0)
-  let best: { cell: Coord; score: number; found: number; budget: Budget; movement: MovementKind } | null = null
+  let best: { cell: Coord; elevation: number; score: number; found: number; budget: Budget; movement: MovementKind } | null = null
   for (const { b, walks } of getWalkBudgets(view, id, getBudgets(view, id))) for (const walk of walks) {
     const far = walk.cells.filter((c) => !sameCell(c.cell, here)).sort((x, y) => distance(y.cell, here) - distance(x.cell, here))
     const step = Math.max(1, Math.floor(far.length / SEARCH_CELLS))
     for (let i = 0; i < far.length; i += step) {
-      const { cell, AP, STA } = far[i]
+      const { cell, AP, STA, elevation } = far[i]
       if (!isWalkPaid(view, id, b, AP)) continue
       const found = read.filter((c) => sees(cell, c)).length * every
       const recalled = known.reduce((sum, k) => sum + (sees(cell, k.at) ? k.presence : 0), 0)
@@ -583,7 +585,7 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
       const peril = w.peril * (getDanger(view, members, id, 'potential', cell, undefined, w) - perilHere)
       const threat = known.length ? w.offence * (offence(cell) - offenceHere) : 0
       const score = w.search * found + w.recall * recalled + threat + w.aggression * closer - getSpendPrice({ AP, STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, 0, w) - peril
-      if (!best || score > best.score) best = { cell, score, found, budget: b, movement: walk.movement }
+      if (!best || score > best.score) best = { cell, elevation, score, found, budget: b, movement: walk.movement }
     }
   }
   if (!best || best.score <= w.margin) return null
@@ -591,7 +593,7 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
     ? `searches where its side knows a foe stands: walks to see ${known.length > 1 ? 'them' : 'it'} (${best.score.toFixed(1)})`
     : `searches: walks where it sees about ${best.found} cells nobody of its side sees (${best.score.toFixed(1)})`
   if (best.budget.surge) return { kind: 'surge', surge: best.budget.surge, score: best.score, why: `makes the ${best.budget.surge} surge: ${why}` }
-  const intent = moveIntent(id, best.movement, best.cell)
+  const intent = moveIntent(id, best.movement, best.cell, best.elevation)
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: best.score, why } : null
 }
 
@@ -686,7 +688,7 @@ function planAttack(ctx: TurnContext, compelled = false): Plan | null {
         const board = view.board
         const clear = attack.kind === 'shoot' && board && at ? (c: Coord) => firesAcross(board, [c], [at], getEyes(view, id, foe)) : getStrikeCells(view, id, foe, at, attack.reach)
         const draws = (c: AttackCell) => drawnOn(c.cell, c.AP, c.STA, runs(walk), c.path, b).harm
-        for (const { cell, AP, STA, path } of getAttackCells(here, walk, at, attack.reach, draws, clear)) {
+        for (const { cell, AP, STA, path, elevation } of getAttackCells(here, walk, at, attack.reach, draws, clear)) {
           if (b.surge === 'movement' && (runBlock === null || AP < RUN_BLOCKS * runBlock)) continue
           const gap = cell && at ? distance(cell, at) : 0
           const needsFocus = attack.needsFocus && me.usedSurge !== 'focus'
@@ -712,7 +714,7 @@ function planAttack(ctx: TurnContext, compelled = false): Plan | null {
           // takes it, after the surge that pays for it: a foe seen may still be out of the line
           // of fire, and a surge made for a move refused is wasted
           const fromHere = !here || !cell || sameCell(cell, here)
-          const next = fromHere ? attackIntent(id, attack, foe) : walk ? moveIntent(id, walk.movement, cell) : null
+          const next = fromHere ? attackIntent(id, attack, foe) : walk && elevation !== undefined ? moveIntent(id, walk.movement, cell, elevation) : null
           const surge = needsFocus ? 'focus' : b.surge
           const paidView = needsFocus ? trial(view, { kind: 'surge', args: [id, 'focus'] }) : b.view
           if (!next || (!fromHere && !declare(paidView, next, TRIAL).ok)) continue
@@ -749,19 +751,19 @@ function planFlee(ctx: TurnContext): Plan | null {
     const danger = threatValue(getImmediateThreat(view, members, f, id, here, w))
     return !q || danger > q.danger ? { id: f, danger } : q
   }, null)
-  let run: { cell: Coord; score: number; after: number; budget: Budget; movement: MovementKind } | null = null
+  let run: { cell: Coord; elevation: number; score: number; after: number; budget: Budget; movement: MovementKind } | null = null
   for (const { b, walks } of getWalkBudgets(view, id, budgets)) for (const walk of walks) {
-    for (const { cell, AP, STA, path } of getDirectedCells(view, id, here, walk, [], worst ? worst.id : null, [])) {
+    for (const { cell, AP, STA, path, elevation } of getDirectedCells(view, id, here, walk, [], worst ? worst.id : null, [])) {
       if (sameCell(cell, here) || !isWalkPaid(view, id, b, AP)) continue
       const after = getOutcome(view, members, id, cell, { AP: heldAP(b, AP), STA: Math.max(0, b.STA - STA) }, w)
       const score = now - after - STAWorth(STA + b.surgeSTA) - drawn(cell, AP, STA, runs(walk), path)
-      if (!run || score > run.score) run = { cell, score, after, budget: b, movement: walk.movement }
+      if (!run || score > run.score) run = { cell, elevation, score, after, budget: b, movement: walk.movement }
     }
   }
   if (!run || run.score <= w.margin) return null
   const why = `runs from the danger it is in (${run.movement}, harm taken ${taken.toFixed(1)}; the round comes out ${now.toFixed(1)} to ${run.after.toFixed(1)}, ${run.score.toFixed(1)})`
   if (run.budget.surge) return { kind: 'surge', surge: run.budget.surge, score: run.score, why: `makes the ${run.budget.surge} surge: ${why}` }
-  const intent = moveIntent(id, run.movement, run.cell)
+  const intent = moveIntent(id, run.movement, run.cell, run.elevation)
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: run.score, why } : null
 }
 
@@ -791,13 +793,13 @@ function planWalk(ctx: TurnContext): Plan | null {
     return left ? Math.max(most, b.steps - left.steps) : most
   }, 0)
   const stay = standing(here) + kept
-  let move: { cell: Coord; score: number; budget: Budget; movement: MovementKind } | null = null
+  let move: { cell: Coord; elevation: number; score: number; budget: Budget; movement: MovementKind } | null = null
   const worst = foes.reduce<{ id: string; danger: number } | null>((q, f) => {
     const danger = threatValue(getPotentialThreat(view, members, f, id, here, cellOf(view, f), w))
     return !q || danger > q.danger ? { id: f, danger } : q
   }, null)
   for (const { b, walks } of getWalkBudgets(view, id, budgets)) for (const walk of walks) {
-    for (const { cell, AP, STA, path } of getDirectedCells(view, id, here, walk, foes, worst && worst.danger > 0 ? worst.id : null, friends)) {
+    for (const { cell, AP, STA, path, elevation } of getDirectedCells(view, id, here, walk, foes, worst && worst.danger > 0 ? worst.id : null, friends)) {
       if (sameCell(cell, here)) continue
       if (!isWalkPaid(view, id, b, AP)) continue
       const spent = AP
@@ -805,13 +807,13 @@ function planWalk(ctx: TurnContext): Plan | null {
       const guard = { AP: heldAP(b, AP), STA: Math.max(0, b.STA - STA) }
       const arrival = w.arrival * getDanger(view, members, id, 'immediate', cell, guard, w)
       const score = standing(cell) + pull(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - arrival + keeping(cell, guard.AP)
-      if (!move || score > move.score) move = { cell, score, budget: b, movement: walk.movement }
+      if (!move || score > move.score) move = { cell, elevation, score, budget: b, movement: walk.movement }
     }
   }
   if (!move || move.score <= stay + w.margin) return null
   const why = `walks where it threatens more, is threatened less and goes after its foes (${move.movement}, ${move.score.toFixed(1)} over ${stay.toFixed(1)})`
   if (move.budget.surge) return { kind: 'surge', surge: move.budget.surge, score: move.score, why: `makes the ${move.budget.surge} surge: ${why}` }
-  const intent = moveIntent(id, move.movement, move.cell)
+  const intent = moveIntent(id, move.movement, move.cell, move.elevation)
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: move.score, why } : null
 }
 
@@ -1230,10 +1232,10 @@ function getAway(view: SceneState, members: readonly string[], id: string, w: Th
   const walk = getWalk(view, id)
   if (!walk) return null
   const safest = walk.cells
-    .map((c) => ({ cell: c.cell, danger: getDanger(view, members, id, 'potential', c.cell, undefined, w) }))
+    .map((c) => ({ cell: c.cell, elevation: c.elevation, danger: getDanger(view, members, id, 'potential', c.cell, undefined, w) }))
     .sort((a, b) => a.danger - b.danger)
-    .find((c) => declare(view, moveIntent(id, walk.movement, c.cell), TRIAL).ok)
-  return safest ? { kind: 'declare', intent: moveIntent(id, walk.movement, safest.cell), why: `gets away (danger ${safest.danger.toFixed(1)})` } : null
+    .find((c) => declare(view, moveIntent(id, walk.movement, c.cell, c.elevation), TRIAL).ok)
+  return safest ? { kind: 'declare', intent: moveIntent(id, walk.movement, safest.cell, safest.elevation), why: `gets away (danger ${safest.danger.toFixed(1)})` } : null
 }
 
 // Outside a turn of its own, the seat asks for one as a player at the table

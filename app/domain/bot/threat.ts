@@ -3,7 +3,7 @@ import type { SceneState } from '../scene/types'
 import type { RollMode } from '../play/dice'
 import { getMovementOptions, getWalkableCells } from '../scene/rules/move'
 import { makeAction } from '../scene/factories'
-import { coordKey, disk, distance, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
+import { coordKey, disk, distance, extentCells, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
 import { getSTA } from '../character/rules/characteristics'
 import { getMovementBlock } from '../character/rules/movement'
@@ -14,8 +14,9 @@ import { getRememberedAge } from './memory'
 import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
 import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
+import { getHeight } from '../character/rules/size'
 import { getWeaponRows, isRowUsable } from '../scene/rules/weaponRow'
-import { firesAcross, getBodyAt, getEyes, getMeleeGap, getReach, placeAt } from '../scene/rules/board/board'
+import { firesAcross, getBodyAt, getEyes, getMeleeGap, getReach, placeAt, withPlacements } from '../scene/rules/board/board'
 import { isMeleeRange } from '../weaponProperties'
 
 // The threat one character puts on another (the user's rulings, 2026-11-14,
@@ -179,10 +180,11 @@ export function withSheet(state: SceneState, id: string, c: CampaignCharacter): 
   const walksAlike = !!was && walkingOf(state, was) === walkingOf(next, c)
   const keep = <T>(cache: WeakMap<SceneState, Map<string, T>>) => {
     const known = cache.get(state)
-    if (known) cache.set(next, new Map([...known].filter(([key]) => walksAlike || key !== id)))
+    if (known) cache.set(next, new Map([...known].filter(([key]) => walksAlike || key.split('|')[0] !== id)))
   }
   keep(paces)
   keep(stepMaps)
+  keep(routeMaps)
   return next
 }
 
@@ -538,18 +540,105 @@ function makeThreat(a: Party, d: Party, means: Means, guardSTA: number, when: 'n
   return strikes === null ? null : { ...core, moveAP, strikes }
 }
 
-// The longest reach of the attacks the character can make with what it holds
-// as it holds it (`isRowUsable`: a bow in one hand shoots nothing), in metres:
-// a melee row's reach (`getReach`), a shot's (`getShotReach`).
-const reaches = new WeakMap<CampaignCharacter, number>()
+// The attack the character can make with what it holds as it holds it
+// (`isRowUsable`: a bow in one hand shoots nothing) that reaches furthest:
+// its reach in metres, a melee row's (`getReach`) or a shot's
+// (`getShotReach`), and whether it is a shot. Null with nothing to attack with.
+type LongestAttack = { reach: number; shoots: boolean } | null
 
-function getLongestReach(c: CampaignCharacter): number {
-  let most = reaches.get(c)
-  if (most === undefined) {
-    most = getWeaponRows(c).filter((row) => isRowUsable(c, row)).reduce((m, row) => Math.max(m, isMeleeRange(row.atk.range) ? getReach(row.weapon, row.atk.range) : getShotReach(row.atk, row.weapon, c)), 0)
-    reaches.set(c, most)
+const longest = new WeakMap<CampaignCharacter, LongestAttack>()
+
+function getLongestAttack(c: CampaignCharacter): LongestAttack {
+  if (longest.has(c)) return longest.get(c) ?? null
+  const made = getWeaponRows(c).filter((row) => isRowUsable(c, row)).reduce<LongestAttack>((best, row) => {
+    const range = row.atk.range
+    const shoots = !isMeleeRange(range)
+    const reach = isMeleeRange(range) ? getReach(row.weapon, range) : getShotReach(row.atk, row.weapon, c)
+    return !best || reach > best.reach ? { reach, shoots } : best
+  }, null)
+  longest.set(c, made)
+  return made
+}
+
+const getLongestReach = (c: CampaignCharacter): number => getLongestAttack(c)?.reach ?? 0
+
+// Every cell the character, standing at `from`, walks to, with the fewest
+// cells it walks there and the way, the nearest first: walked as the step map
+// walks (`walkMap`), but as far as the board goes, with no round to stop at.
+type Route = { cell: Coord; steps: number; path: Coord[]; elevation: number }
+
+const routeMaps = new WeakMap<SceneState, Map<string, Route[] | null>>()
+
+function getRoutes(state: SceneState, id: string, from: Coord): Route[] | null {
+  const byKey = routeMaps.get(state) ?? new Map<string, Route[] | null>()
+  routeMaps.set(state, byKey)
+  const key = `${id}|${coordKey(from)}`
+  if (byKey.has(key)) return byKey.get(key) ?? null
+  const made = walkRoutes(state, id, from)
+  byKey.set(key, made)
+  return made
+}
+
+function walkRoutes(state: SceneState, id: string, from: Coord): Route[] | null {
+  const c = state.characters[id]
+  const board = state.board
+  const placement = board?.placements[id]
+  if (!c || !board || !placement) return null
+  const open = getMovementOptions(state, c).filter((o): o is typeof o & { kind: MovementKind } => o.available && o.speed > 0 && o.block.AP > 0 && o.kind !== 'jump')
+  const walk = open.find((o) => o.kind === 'walk') ?? open[0]
+  if (!walk) return null
+  // enough blocks to walk every cell of the board
+  const blocks = Math.ceil(extentCells(board.origin, board.extent).length / walk.speed)
+  const there = sameCell(placement.cell, from) ? placement : placeAt(board, placement, from)
+  const rich = withPlacements({ ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP: blocks * walk.block.AP, STA: Math.max(c.resources.STA, blocks * walk.block.STA) } } } }, { [id]: there })
+  const walked = getWalkableCells(rich, makeAction('move', { id: 'route-map', actorId: id, movement: walk.kind })).map(({ cell, steps, path, elevation }) => ({ cell, steps, path, elevation }))
+  return [{ cell: from, steps: 0, path: [], elevation: there.elevation }, ...walked].sort((x, y) => x.steps - y.steps)
+}
+
+// Whether `a` standing in `r.cell` on the floor there at `r.elevation` meets
+// `d` standing at `at` with `attack`: a shot along a line of fire from its
+// eyes there, a strike across the melee gap the table measures.
+function meetsFrom(state: SceneState, a: string, d: string, at: Coord, r: Route, attack: NonNullable<LongestAttack>): boolean {
+  const board = state.board
+  const ca = state.characters[a]
+  const cd = state.characters[d]
+  const pa = board?.placements[a]
+  const pd = board?.placements[d]
+  if (!board || !ca || !cd || !pa || !pd) return true
+  const there = { ...pa, cell: r.cell, elevation: r.elevation, climb: null }
+  const target = sameCell(pd.cell, at) ? pd : placeAt(board, pd, at)
+  if (!attack.shoots) return getMeleeGap(board, getBodyAt(ca, there), getBodyAt(cd, target)) <= attack.reach
+  const eyes = board.levels.length ? { from: r.elevation + getHeight(ca), to: target.elevation + getHeight(cd) } : getEyes(state, a, d)
+  return firesAcross(board, [r.cell], [at], eyes)
+}
+
+// The actual distance to attack (the user's ruling, 2026-11-22): the fewest
+// cells `a`, standing at `from`, walks to stand where its furthest-reaching
+// attack (`getLongestAttack`) meets `d` standing at `at` (a shot along a line
+// of fire, a strike across the melee gap the table measures), and the way
+// there. Walked as the table walks (`getRoutes`): around walls and bodies, up
+// and down only what can be walked, however many rounds it takes. Null where
+// no walk gets there, or `a` has nothing to attack with.
+export type AttackRoute = { steps: number; path: Coord[] }
+
+const attackRoutes = new WeakMap<SceneState, Map<string, AttackRoute | null>>()
+
+export function getAttackRoute(state: SceneState, a: string, d: string, from: Coord | null = cellOf(state, a), at: Coord | null = cellOf(state, d)): AttackRoute | null {
+  const c = state.characters[a]
+  if (!c || !from || !at || !state.board) return null
+  const byKey = attackRoutes.get(state) ?? new Map<string, AttackRoute | null>()
+  attackRoutes.set(state, byKey)
+  const key = `${a}|${d}|${coordKey(from)}|${coordKey(at)}`
+  if (byKey.has(key)) return byKey.get(key) ?? null
+  const attack = getLongestAttack(c)
+  const routes = attack ? getRoutes(state, a, from) : null
+  let made: AttackRoute | null = null
+  if (attack && routes) {
+    const hit = routes.find((r) => distance(r.cell, at) <= attack.reach && meetsFrom(state, a, d, at, r, attack))
+    made = hit ? { steps: hit.steps, path: hit.path } : null
   }
-  return most
+  byKey.set(key, made)
+  return made
 }
 
 // Whether `a`, from where it stands, cannot come within its longest reach of

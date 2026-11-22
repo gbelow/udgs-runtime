@@ -74,30 +74,46 @@ export function sidesBetween(a: Direction, b: Direction): number {
 
 // Breadth-first from `start`, one ring of cells per step for as long as
 // `further` allows that many steps: every cell first come to along a path
-// whose cells `enter` all admitted, with that path. A `steer` keeps the
-// walk to a heading: no step turns more than `turn` sides off the step
-// before it, nor the first off `heading` unless that is null.
-export function walkOut(start: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean, steer?: { heading: Direction | null; turn: number }): { cell: Coord; path: Coord[]; steps: number }[] {
-  const seen = new Set([cellNumber(start)])
-  const reached = steer ? new Set([cellNumber(start)]) : seen
-  const found: { cell: Coord; path: Coord[]; steps: number }[] = []
-  let frontier: { cell: Coord; path: Coord[]; heading: Direction | null }[] = [{ cell: start, path: [], heading: steer?.heading ?? null }]
+// whose cells `enter` all admitted, with that path. A cell is come to once
+// on each level: `enter` is asked with the level of the step before (`level`
+// where the walk sets out) and answers false, or the level the step comes to
+// (true for the same one), so that the same cell on two floors is two places
+// to reach; each found cell carries the level of every step of its path. A
+// cell a step is refused into may still be come to from another. A `steer`
+// keeps the walk to a heading: no step turns more than `turn` sides off the
+// step before it, nor the first off `heading` unless that is null.
+export type WalkedCell = { cell: Coord; path: Coord[]; steps: number; level: number; levels: number[] }
+
+export function walkOut(start: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[], level: number) => boolean | number, steer?: { heading: Direction | null; turn: number }, level = 0): WalkedCell[] {
+  const sets = () => new Map<number, number[]>([[cellNumber(start), [level]]])
+  // whether this is the first time `key` is come to on `on`
+  const first = (set: Map<number, number[]>, key: number, on: number) => {
+    const levels = set.get(key) ?? []
+    if (levels.includes(on)) return false
+    levels.push(on)
+    set.set(key, levels)
+    return true
+  }
+  const seen = sets()
+  const reached = steer ? sets() : seen
+  const found: WalkedCell[] = []
+  let frontier: { cell: Coord; path: Coord[]; levels: number[]; level: number; heading: Direction | null }[] = [{ cell: start, path: [], levels: [], level, heading: steer?.heading ?? null }]
   for (let steps = 1; frontier.length > 0 && further(steps); steps++) {
     const next: typeof frontier = []
-    for (const { cell, path, heading } of frontier) {
+    for (const node of frontier) {
       for (const d of ROTATIONS) {
-        if (steer && heading !== null && sidesBetween(heading, d) > steer.turn) continue
-        const n = add(cell, DIRECTIONS[d])
-        const at = cellNumber(n)
-        const key = steer ? at * 8 + d : at
-        if (seen.has(key)) continue
-        seen.add(key)
-        const walked = [...path, n]
-        if (!enter(n, walked)) continue
-        next.push({ cell: n, path: walked, heading: d })
-        if (steer && reached.has(at)) continue
-        reached.add(at)
-        found.push({ cell: n, path: walked, steps })
+        if (steer && node.heading !== null && sidesBetween(node.heading, d) > steer.turn) continue
+        const n = add(node.cell, DIRECTIONS[d])
+        const cell = cellNumber(n)
+        const walked = [...node.path, n]
+        const entered = enter(n, walked, node.level)
+        if (entered === false) continue
+        const comes = entered === true ? node.level : entered
+        if (!first(seen, steer ? cell * 8 + d : cell, comes)) continue
+        const levels = [...node.levels, comes]
+        next.push({ cell: n, path: walked, levels, level: comes, heading: d })
+        if (steer && !first(reached, cell, comes)) continue
+        found.push({ cell: n, path: walked, steps, level: comes, levels })
       }
     }
     frontier = next

@@ -703,16 +703,20 @@ export function hasJumpSpace(state: SceneState, defenderId: string, attackerId: 
 // ---------------------------------------------------------------------------
 // Reach of a move
 
-export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path: Coord[] }
+// `elevation`: how high the feet are where the path ends, the floor it comes to.
+export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path: Coord[]; elevation: number }
 
 // Every anchor the character can walk to at the move's kind of movement
 // and pay for as they stand, with the shortest path there: a breadth-first
 // walk over cells its footprint (as oriented now) may cross, stopping where
-// the price outruns what it has or the move's cap. Cells it may cross but
-// not rest on are walked through and left out. A move drawn in segments
-// (`drawsSegments`) walks on from the end of the path drawn so far, and each
-// path found is that path and the walk after it; a run keeps to its turn
-// rate across the join. A jump goes only in a straight line.
+// the price outruns what it has or the move's cap. Each step comes to the
+// floor the feet reach from the step before, so a cell with floors at two
+// heights is reached on each the walk can come to, once on each, with its
+// own path. Cells it may cross but not rest on are walked through and left
+// out. A move drawn in segments (`drawsSegments`) walks on from the end of
+// the path drawn so far, and each path found is that path and the walk after
+// it; a run keeps to its turn rate across the join. A jump goes only in a
+// straight line.
 export function getWalkableCells(state: SceneState, action: MoveAction): ReachableCell[] {
   const { actorId, movement: kind } = action
   const c = state.characters[actorId]
@@ -735,54 +739,53 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   const ceiling = getJumpCeiling(c, from)
   const start = drawn.at(-1) ?? from.cell
   const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : path.length === 1 ? start : (drawn.at(-2) ?? from.cell))
-  // how high the feet are on each cell the walk has come to, the first way it
-  // came there; a jump's are where it set out
-  const feet = new Map([[cellNumber(start), drawn.length > 0 ? getMovePlacements(state, action).at(-1)?.elevation ?? from.elevation : from.elevation]])
-  const floorAt = (cell: Coord) => ground.at(kind === 'jump' ? from.elevation : feet.get(cellNumber(cell)) ?? from.elevation)
-  const wetAt = (cell: Coord) => isWet(getFootprint(c, { ...from, cell }), floorAt(cell))
+  // how high the feet are where the walk sets out; each step carries its own
+  // height on (`walkOut`'s level), and a jump's stay where it set out
+  const startFeet = drawn.length > 0 ? getMovePlacements(state, action).at(-1)?.elevation ?? from.elevation : from.elevation
+  const feetOf = (level: number) => (kind === 'jump' ? from.elevation : level)
+  const wetAt = (cell: Coord, level: number) => isWet(getFootprint(c, { ...from, cell }), ground.at(feetOf(level)))
   // a step is entered the same way whatever heading it is come at from
-  const entered = new Map<number, Map<number, boolean>>()
-  const enter = (cell: Coord, path: Coord[]) => {
+  const entered = new Map<string, number | false>()
+  const enter = (cell: Coord, path: Coord[], level: number = startFeet): number | false => {
     const before = stepFrom(path)
-    const into = cellNumber(cell)
-    const fromBefore = entered.get(cellNumber(before)) ?? new Map<number, boolean>()
-    entered.set(cellNumber(before), fromBefore)
-    const known = fromBefore.get(into)
+    const key = `${cellNumber(before)}@${feetOf(level)}>${cellNumber(cell)}`
+    const known = entered.get(key)
     if (known !== undefined) return known
     const bound = kind === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
-    const floor = bound ? ground.at(bound.floor) : floorAt(before)
+    const floor = bound ? ground.at(bound.floor) : ground.at(feetOf(level))
     const footprint = getFootprint(c, { ...from, cell })
-    const ok = (kind !== 'climb' || bound !== null) && isOnBoard(state, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater: wetAt(before), ceiling })
-    if (ok && !feet.has(into)) feet.set(into, floor.elevation(cell))
-    fromBefore.set(into, ok)
-    return ok
+    const ok = (kind !== 'climb' || bound !== null) && isOnBoard(state, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater: wetAt(before, level), ceiling })
+    const comes = ok ? floor.elevation(cell) : false
+    entered.set(key, comes)
+    return comes
   }
   const heading = drawn.length > 0 ? directionTo(stepFrom([]), start) : null
   const turnRate = getTurnRate(kind)
   // the cells drawn on already, and where the move sets out, take the path
   // back to them when picked (`pickPathCell`), so they are not offered
   const onPath = new Set([from.cell, ...drawn].map(coordKey))
-  const walked = kind === 'jump'
-    ? getJumps(from.cell, affordable, enter)
-    : walkOut(start, affordable, enter, turnRate === null ? undefined : { heading, turn: turnRate })
+  // each cell come to with how high the feet are there and at the step before
+  const walked: { cell: Coord; path: Coord[]; level: number; before: number }[] = kind === 'jump'
+    ? getJumps(from.cell, affordable, enter).map(({ cell, path }) => ({ cell, path, level: from.elevation, before: from.elevation }))
+    : walkOut(start, affordable, enter, turnRate === null ? undefined : { heading, turn: turnRate }, startFeet).map(({ cell, path, level, levels }) => ({ cell, path, level, before: levels.at(-2) ?? startFeet }))
   // a climb may also go on up the raised ground the climber stands on a ledge
   // of, which is their own cell
-  const column = kind === 'climb' ? [{ cell: from.cell, path: [from.cell] }] : []
+  const column = kind === 'climb' ? [{ cell: from.cell, path: [from.cell], level: from.elevation, before: from.elevation }] : []
   // one hanging may climb back onto the floor they hang from, offered on the
   // cell they climb towards
   const hung = kind === 'climb' && state.board ? getClimbBack(state.board, from) : null
   const back = hung ? { cell: hung.cell, floor: hung.floor } : null
   return [...walked, ...column]
-    .filter(({ cell, path }) => {
+    .flatMap(({ cell, path, level, before }) => {
       const own = sameCell(cell, from.cell)
       const rise = own && state.board ? getClimbTarget(state.board, from, cell) : null
-      if (own && !rise) return false
+      if (own && !rise) return []
       const footprint = getFootprint(c, { ...from, cell })
-      const floor = rise ? ground.at(rise.floor) : floorAt(cell)
-      return (own || !onPath.has(coordKey(cell))) && isCrossable(footprint, floor, kind, wetAt(stepFrom(path))) && canEndAt(state, c, action, footprint, floor) && (kind !== 'climb' || (path.length === 1 && [null, back].some((ledge) => isClimbable(state, { ...action, path, ledge }))))
+      const floor = rise ? ground.at(rise.floor) : ground.at(feetOf(level))
+      const ends = (own || !onPath.has(coordKey(cell))) && isCrossable(footprint, floor, kind, wetAt(stepFrom(path), before)) && canEndAt(state, c, action, footprint, floor) && (kind !== 'climb' || (path.length === 1 && [null, back].some((ledge) => isClimbable(state, { ...action, path, ledge }))))
+      return ends ? [{ cell, path: [...drawn, ...path], elevation: floor.elevation(cell) }] : []
     })
-    .map(({ cell, path }) => ({ cell, path: [...drawn, ...path] }))
-    .map(({ cell, path }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres, ledge: null }, path.length), path }))
+    .map(({ cell, path, elevation }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres, ledge: null }, path.length), path, elevation }))
     .filter(({ cost }) => payable(cost))
 }
 
@@ -816,12 +819,12 @@ export function getJumpPath(from: Coord, to: Coord): Coord[] {
 
 // Every cell a jump may go to in a straight line, as far as `further`
 // allows, whose cells on the way `enter` all admitted.
-function getJumps(from: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean): { cell: Coord; path: Coord[] }[] {
+function getJumps(from: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean | number): { cell: Coord; path: Coord[] }[] {
   const jumps: { cell: Coord; path: Coord[] }[] = []
   for (let steps = 1; further(steps); steps++) {
     for (const cell of ring(from, steps)) {
       const path = getJumpPath(from, cell)
-      if (path.every((p, i) => enter(p, i === 0 ? [p] : [path[i - 1], p]))) jumps.push({ cell, path })
+      if (path.every((p, i) => enter(p, i === 0 ? [p] : [path[i - 1], p]) !== false)) jumps.push({ cell, path })
     }
   }
   return jumps

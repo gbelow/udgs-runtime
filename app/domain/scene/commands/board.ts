@@ -17,7 +17,7 @@ import { getPieceStructure, getStructureAt, layPiece, liftPiece } from '../rules
 import { without } from '../../utils'
 import { drawsSegments, getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
 import { findOpenJump } from '../rules/options'
-import { getReachableCells } from '../rules/board/reach'
+import { getReachAt, getReachableCells } from '../rules/board/reach'
 import { canStandAt } from '../rules/board/ground'
 import { getMoveOrigin, getPathTurns, withoutLastSegment } from '../rules/board/waypoint'
 import { aimAtCell, amendAction, declareReaction } from './action'
@@ -459,11 +459,11 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
   if (!open) return null
   const own = (apply: Updater) => ({ actor: open.actorId, apply })
   if (open.kind === 'move' && open.step === 'define') {
-    const drawn = pickPathCell(state, open, cell)
+    const drawn = pickPathCell(state, open, cell, height)
     return own(drawn ? amendAction(open.movement === 'climb' ? { ...drawn, ledge: null } : drawn) : unchanged)
   }
   if (open.kind === 'shoot' && open.step === 'define' && isSteadyShot(state, open)) {
-    const drawn = pickPathCell(state, getSteadyPath(state, open), cell)
+    const drawn = pickPathCell(state, getSteadyPath(state, open), cell, height)
     return own(drawn ? amendAction({ ...drawn, firedAt: null }) : unchanged)
   }
   // abilities.tex "Lunge", "Jump Shot": where the jump the attack carries lands
@@ -498,8 +498,9 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
 // taken back if it is the path's end, the path cut back to the cell if it
 // is on the way (all of it at the origin), and otherwise, if the move can
 // reach it, the path with a segment more, the shortest way there from the
-// end. A jump or a climb is one segment, which a new cell replaces.
-function pickPathCell(state: SceneState, action: MoveAction, cell: Coord): { path: Coord[]; turns: number[] } | null {
+// end, onto the floor there the click was made at (`getReachAt`). A jump or a
+// climb is one segment, which a new cell replaces.
+function pickPathCell(state: SceneState, action: MoveAction, cell: Coord, height?: number | null): { path: Coord[]; turns: number[] } | null {
   const from = getMoveOrigin(state, action)?.cell
   if (!from) return null
   const { path } = action
@@ -507,7 +508,7 @@ function pickPathCell(state: SceneState, action: MoveAction, cell: Coord): { pat
   if (path.length > 0 && sameCell(path[path.length - 1], cell)) return withoutLastSegment(action)
   const at = [from, ...path].findLastIndex((p) => sameCell(p, cell))
   if (path.length > 0 && at >= 0) return { path: path.slice(0, at), turns }
-  const there = getReachableCells(state, action).find((r) => sameCell(r.cell, cell))
+  const there = getReachAt(state.board, getReachableCells(state, action), cell, height)
   if (!there) return null
   return { path: there.path, turns: drawsSegments(action.movement) && path.length > 0 ? [...turns, path.length] : [] }
 }

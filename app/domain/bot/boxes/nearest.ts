@@ -72,12 +72,12 @@ function stepCloser(state: SceneState, id: string, foe: Coord, apart: number): I
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  const best = getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).reduce<{ cell: Coord; apart: number } | null>((b, r) => {
+  const best = getReachableCells(moving, action as MoveAction).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).reduce<{ cell: Coord; elevation: number; apart: number } | null>((b, r) => {
     const d = distance(r.cell, foe)
-    return d < (b?.apart ?? apart) ? { cell: r.cell, apart: d } : b
+    return d < (b?.apart ?? apart) ? { cell: r.cell, elevation: r.elevation, apart: d } : b
   }, null)
   if (!best) return null
-  const intent: Intent = { actorId: id, option: { kind: 'move' }, picks: [{ part: 'movement', value: movement }, { part: 'cell', value: best.cell }] }
+  const intent: Intent = { actorId: id, option: { kind: 'move' }, picks: [{ part: 'movement', value: movement }, { part: 'cell', value: { q: best.cell.q, r: best.cell.r, height: best.elevation } }] }
   return declare(state, intent, TRIAL).ok ? intent : null
 }
 

@@ -449,7 +449,8 @@ function buildBoardView(state: SeenScene): BoardView {
     : steady ? getReachableCells(state, steady)
     : group && pusher ? getDragReach(state, group).map((r) => ({ ...r, cost: getMoveCost(pusher, group.movement, r.steps) }))
     : []
-  const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))
+  // a cell come to on two floors is drawn with the shorter way
+  const reachableByKey = new Map([...reachable].reverse().map((r) => [coordKey(r.cell), r]))
   const pathByKey = new Map((pending?.path ?? []).map((cell, i) => [coordKey(cell), i + 1]))
   const swept = new Set(pending?.kind === 'move' ? getMoveSweep(state, pending).flat().map(coordKey) : [])
   const destination = pending?.path[pending.path.length - 1] ?? null
