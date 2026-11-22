@@ -9,6 +9,92 @@ Notation: `w.x` is a weight (table at the end), `foe`, `ally`, `me` are characte
 `Σ` sums and `max` takes the largest over what follows. A "price" is what spending costs
 the spender; a "worth" is what something costs or gains, in harm points.
 
+Start with "Reading a decision" below: what each question adds and takes off, in words, with
+the numbers of one real decision. Sections 0 to 12 after it are the reference, formula by
+formula.
+
+---
+
+## Reading a decision
+
+Everything is in **harm**: 2 a point of IL, 5 a point of bleed (§1), so a character at its
+injury capacity of 50 IL has taken about 100. Every score is a gain over doing nothing, so
+anything above 0 (above `margin`, 1, for a walk or a run) is worth doing. A bot log line
+quotes the score and its parts.
+
+The example numbers below come from one saved fight (2026-11-22): a Human Noble (warhammer,
+8 AP, 10 STA, no bleed) 11 m from a Human Ranger on open ground. They show the size of each
+term, not a rule.
+
+### What a character is worth to a foe: threat (§2)
+
+| part | reads | example |
+| --- | --- | --- |
+| worth of one attack | the harm it leaves against the defence the target is believed to pick, plus what that defence costs the target | hammer, heavy II (5 AP, 1 STA): 65.7 |
+| strikes | how often the strongest attack per AP fits in the round once the walk in is paid (the movement surge pays for the walk first) | 1 from 11 m away, 1 beside |
+| fillers | the AP and STA left after the strikes, spent on the attacks worth most that still fit, of the same kind and reach | none from 11 m (5 AP left, the hammer took them); a spear point beside (3 AP left) |
+| threat | strikes and fillers added up | 65.7 from 11 m, 105.0 beside |
+
+**Potential** threat is for a fresh round (8 AP, a surge open) and answers "where to be";
+**immediate** threat is for what is left this round and answers "what now". **Danger** is
+the foes' threat on me, added up.
+
+### Walking (§4): is it worth moving?
+
+```
+gain(cell) = standing(cell) − standing(here) + pull − price − OAs drawn − arrival + keeping
+standing   = my threat on the foe I threaten most − danger on me − company
+```
+
+| term | reads | weight | noble, from standing still to a run beside the Ranger (movement surge) |
+| --- | --- | --- | --- |
+| offence | my potential threat from the cell | `offence` 1 | 65.7 → 105.0 |
+| peril | the foes' potential threat on me at the cell | `peril` 1 | 0 → 13.0 |
+| company | metres from the nearest ally, beyond the next cell | `company` 1 | 7 → 1 |
+| pull | cells closer to a foe I could not reach in a fresh round | `aggression` 4 | 0 (the Ranger is in reach) |
+| price | 3 an AP of my own walked (+0.1 a point of danger), STA at its price; a surge's AP is not priced, its STA is | `THREAT_TUNING` | 25.8 |
+| OAs drawn | the opportunity attacks the walk sets off | `opportunity` 1 | 0 |
+| arrival | the foes' immediate threat on me at the cell, with what the walk leaves me to defend with | `arrival` 1 | 13.0 |
+| keeping | what the AP I keep is worth to allies I could defend | `guardian` 1 | 0 |
+
+Here: staying scores 58.7, the run beside the Ranger −6.5, and a run to (−9,−1) (6 m short of
+it, the same threat) +1.1. A 7 AP walk scores −13.8: the 3 a point of its own AP is what puts
+a walk below the surge's run. Note that the Ranger's arrow is counted twice, once as peril and
+once as arrival.
+
+### Attacking (§3): is this attack worth making?
+
+```
+score = gain − defence lost − STA − AP − OAs drawn
+gain  = harm it leaves × how much the target matters + what its defence costs it × how threatening it is
+```
+
+| term | reads | weight |
+| --- | --- | --- |
+| harm | `getDefendedHarm`: the harm left against the believed defence | `harm` 1 |
+| target | how threatened the foe is by my team, and how threatening it is to it, relative to the other foes | `threatened` 0.6, `threatening` 0.2 |
+| drain | what the believed defence costs the target | `drain` 1 |
+| defence lost | how much more harm I am believed to take this round at the cell, with what I have left, than where I stand with everything | `reserve` 1 |
+| STA | `STAWorth`: 2 a point of bleed for every STA, and the AP the combat surge buys with it, over the STA left | `STAScale` 10 |
+| AP | every AP of my own spent, walk in included; a surge's AP not | `spent` 1 |
+| OAs drawn | the opportunity attacks the walk sets off, and a shot fired beside a foe | `opportunity` 1 |
+
+From an earlier fight: a noble's stab on a soldier with no AP left to defend scored gain 27.8,
+defence lost 76.8, score −56, and was not made.
+
+### Running from danger (§4.3)
+
+Asked only when the harm I am believed to take this round where I stand is above `flee`
+(10). The run is worth how much better the round comes out at the cell than here, less its
+STA and the OAs it draws; made above `margin`. A walk in (§4) that ends where this harm is
+above 10 makes this question come up on the next action.
+
+### When nothing is worth doing: the objective (§4.4)
+
+Of the options that bring me fewer rounds from attacking the foe I threaten most, and that
+do not leave me believed collapsed, the best scored, as long as it loses less than standing
+still costs this round (the danger here and the bleed to come).
+
 ---
 
 ## 0. Where a decision comes from
@@ -31,7 +117,9 @@ threatBox (boxes/threat.ts)
 │   │              │         run from danger       §4.3 if harm taken > flee, score > margin
 │   │              └─ later: planLater()
 │   │                   ├─ no foe in sight/noticed §5  search
-│   │                   └─ else best walk          §4  if score > stay + margin
+│   │                   ├─ else best walk          §4  if gain over stay > margin
+│   │                   └─ else the objective      §4.4 the best scored of what brings it
+│   │                                                   nearer attacking its foe, however low
 │   ├─ rest ────► getRestChoice()                  §9 rest / rally / intimidate
 │   └─ action / morale / concentration ──► settleWait (boxes/nearest.ts), HOP spend §11
 │
@@ -206,11 +294,14 @@ On top of it, where the two stand and what they have left (`makeThreat`):
 ```
 attack      = getStrongestPerAP: the highest perAP among those a can declare on its turn
               (not one only a reaction makes) that do d some harm undefended
-threat      = that attack, moveAP, strikes
-threatValue = strikes · worth                                   with no guard given
-            = k · worth + (n − k) · undefended                  with `guard`: n strikes,
-              k = min(n, guard.AP / defence AP, guard.STA / defence STA), the guard
-              spent across them
+threat      = that attack, moveAP, strikes, fillers
+fillers     = with the AP and STA the strikes leave, the attack worth most that still fits,
+              again while one fits; only those declared on the turn, doing harm undefended,
+              of the attack's kind and reaching as far (getFillers; the user's ruling
+              2026-11-22: a round is filled with attacks)
+threatValue = Σ worth over the strikes, then the fillers         with no guard given
+            = the same, in that order, each answered while the guard  with `guard`
+              still pays for its defence (worth), the rest at undefended
 ```
 
 |                    | potential                              | immediate                                  |
@@ -324,9 +415,13 @@ gain            = w.harm · met.harm · T(foe) / mean T over the foes
                   threatening, however vulnerable)
 defence lost    = w.reserve · max(0, after − now)
 STA             = STAWorth(STAspent + surgeSTA)                     (§2)
-AP              = w.spent · spent   (the user's ruling of 2026-11-22: every AP costs, even
-                  where the defence it loses costs nothing; once for the walk in and the
-                  attack, flat, no danger; an opportunity attack pays it for its own AP)
+AP              = w.spent · ownAP(spent)   (the user's ruling of 2026-11-22: every AP of
+                  its own costs, even where the defence it loses costs nothing; once for the
+                  walk in and the attack, flat, no danger; an opportunity attack pays it for
+                  its own AP)
+ownAP(spent)    = spent less what a surge's AP pays: a movement surge's the walk only, any
+                  other's all of it (a surge's AP is lost at the turn's end, so the surge
+                  costs only its STA; the user's ruling 2026-11-22)
 
 score = gain − defence lost − STA − AP
       − w.opportunity · OAs the walk draws (§4.1)
@@ -375,14 +470,17 @@ pull(cell)     = w.aggression · max over foes under no potential threat from he
                  with no route left out, at least 0
 
 walk(cell)     = standing(cell) + pull(cell)
-               − SpendPrice(walk AP, walk STA + surgeSTA, Danger(me, immediate, cell, AP/STA − walk))
+               − SpendPrice(ownAP(walk AP), walk STA + surgeSTA, Danger(me, immediate, cell, AP/STA − walk))  (§3 ownAP)
                − w.opportunity · OAs drawn on the way
                − w.arrival · Danger(me, immediate, cell, AP/STA left after the walk)
                + keeping(cell, AP held of its own)
 
 stay           = standing(here) + kept
 
-walk if best walk(cell) > stay + w.margin
+gain(cell)     = walk(cell) − stay       (the plan's score: harm gained over doing
+                                          nothing, as an attack's score is)
+
+walk if best gain(cell) > w.margin
 ```
 
 Candidate cells (`getDirectedCells`): per foe, the 3 cells that close most on it and the
@@ -448,6 +546,33 @@ run if best run(cell) > w.margin; against the best attack, the higher score is m
 Candidate cells: `getDirectedCells` with no foe or ally to close on, so the `AWAY` cells
 furthest from the foe whose immediate threat on it is worst.
 
+### 4.4 The objective, when nothing is worth doing (`objective.ts`, `boxes/threat.ts` `planObjective`)
+
+Asked on `planLater` once no walk clears `w.margin` (and no attack or run cleared its
+bar on `planNow`). The user's ruling (2026-11-22): the meters alone make doing nothing
+look free, so the objective tips the scale; doing nothing is no progress.
+
+```
+objective foe   = the noticed, placed foe with the most perAP of my strongest attack
+                  per AP on it (pair threat, fresh round; getObjective): the foe I
+                  threaten most, wherever anyone stands
+Rounds(cell)    = max(1, ⌈(⌈AttackSteps(cell → foe) / metres⌉ · AP a block
+                          + that attack's AP) / ROUND_AP⌉)
+                  at my fastest movement costing no STA, counted from the next round
+                  (getRoundsToAttack); none where no route, or the attack > ROUND_AP
+ruinous(option) = IL + spent STA · bleed + HarmTaken(at, what it leaves) / 2
+                  ≥ injury capacity     (isRuinous; harm read as IL at 2 a point)
+
+staying cost    = Danger(me, immediate, here, all it holds) + harm(IL = bleed)
+                  (getStayingCost: what waiting costs this round, the bleed at the next
+                  round's start)
+allowed         = the attack on the objective foe scored as §3 with no bar (an attack
+                  this turn, 0 rounds), and every §4 walk with Rounds(cell) < Rounds(here)
+                  (any walk where Rounds(here) is none), none of them ruinous, each
+                  with score > −staying cost
+take the best scored of the allowed; with none, carryOn (agree to end)
+```
+
 ---
 
 ## 5. Search when no foe is seen or noticed (`boxes/threat.ts` `planSearch`)
@@ -470,7 +595,7 @@ Where it knows of none:
 ```
 score(cell) = w.search · cells it would see that nobody of the side sees
             + w.aggression · (dist(here, board middle) − dist(cell, board middle))
-            − SpendPrice(walk AP, walk STA + surgeSTA, 0)
+            − SpendPrice(ownAP(walk AP), walk STA + surgeSTA, 0)
             − w.peril · (Danger(me, potential, cell) − Danger(me, potential, here))
                                                     remembered foes included
 A search is weighed for the round to come only: no immediate danger, in the score or the
@@ -688,7 +813,7 @@ they do are kept per weights.
 | `guardian`    | 1       | §4.2 AP kept for allies                                 |
 | `reserve`     | 1       | §3 defence lost                                         |
 | `drain`       | 1       | §3 what the believed defence costs the target           |
-| `spent`       | 1       | §3 per AP an attack spends, the walk in included        |
+| `spent`       | 1       | §3 per AP of its own an attack spends, the walk in included |
 
 Fixed counts (not weights):
 

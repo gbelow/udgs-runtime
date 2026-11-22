@@ -31,8 +31,9 @@ import { isMeleeRange } from '../weaponProperties'
 // not in it, and it picks no attack: what reads it does.
 //
 // On top of it (`makeThreat`): the attack with the most worth for every AP it
-// costs, the AP of the walk into its reach, and how many times what is left
-// pays for it. Potential threat is next round's:
+// costs, the AP of the walk into its reach, how many times what is left
+// pays for it, and the attacks worth most that what is left after those still
+// pays for (`getFillers`). Potential threat is next round's:
 // as many times as a fresh round (8 AP and the movement surge) pays for once
 // the walk in is paid, none where the walk in and one attack do not fit in
 // the round (the user's ruling: a foe further off is gone after by the
@@ -109,18 +110,25 @@ export type PairThreat = readonly AttackThreat[]
 // after it: this round, as many as the attacker's means pay for
 // (`getImmediateStrikes`); next round, as many as a fresh round pays for
 // (`getPotentialStrikes`).
-export type Threat = AttackThreat & { moveAP: number; strikes: number }
+// `fillers`: the attacks the AP and STA left after the strikes pay for besides (`getFillers`).
+export type Threat = AttackThreat & { moveAP: number; strikes: number; fillers: AttackThreat[] }
 
-// What a threat is worth: every strike at its worth; with the `guard` the
-// target defends with, only as many strikes as the guard answers, the rest
-// landing at the harm undefended (the guard is spent across them).
+// What a threat is worth: every strike, and every filler after them, at its
+// worth; with the `guard` the target defends with, only those the guard
+// answers, in that order, the rest landing at the harm undefended (the guard
+// is spent across them).
 export function threatValue(t: Threat | null, guard?: { AP: number; STA: number }): number {
   if (!t) return 0
-  if (!guard) return t.strikes * t.worth
-  const n = t.strikes
-  const { AP, STA } = t.defence.cost
-  const answered = Math.min(n, AP > 0 ? Math.floor(guard.AP / AP) : n, STA > 0 ? Math.floor(guard.STA / STA) : n)
-  return answered * t.worth + (n - answered) * t.undefended
+  const hits: AttackThreat[] = [...Array.from({ length: t.strikes }, () => t), ...t.fillers]
+  if (!guard) return hits.reduce((sum, h) => sum + h.worth, 0)
+  let { AP, STA } = guard
+  return hits.reduce((sum, h) => {
+    const cost = h.defence.cost
+    if (AP < cost.AP || STA < cost.STA) return sum + h.undefended
+    AP -= cost.AP
+    STA -= cost.STA
+    return sum + h.worth
+  }, 0)
 }
 
 // The least or the most a third of `most` could hold (character/lenses/face.ts
@@ -388,26 +396,33 @@ export function getDefendedHarm(attack: PairAttack, gap: number, budget: { AP: n
 
 type Party = { state: SceneState; id: string; at: Coord | null }
 
+// How many times the attack is made after the walk in, out of `AP` and `STA`,
+// and what is left of them after it.
+type Strikes = { strikes: number; AP: number; STA: number }
+
+function strikesOf(attack: PairAttack, AP: number, STA: number): Strikes {
+  const byAP = attack.cost.AP > 0 ? Math.floor(AP / attack.cost.AP) : AP >= 0 ? 1 : 0
+  const bySTA = attack.cost.STA > 0 ? Math.floor(STA / attack.cost.STA) : byAP
+  const strikes = Math.max(0, Math.min(byAP, bySTA))
+  return { strikes, AP: AP - strikes * attack.cost.AP, STA: STA - strikes * attack.cost.STA }
+}
+
 // How many times the attack, after the walk in, can be made this round from
 // `means` (the user's ruling: a threat counts the attacker's AP, ours as a
 // foe's): with no surge, the movement surge paying for the walk (what is left
 // of it given up for the attack), or the combat surge, which pays for both
 // (combat.tex "Action surge"), where the attacker may make it (`combat`, null
-// where it may not: an afraid one may not), whichever pays for the most;
-// neither alongside the focus surge a row needs. Null when not even once.
-function getImmediateStrikes(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }, combat: { AP: number; STA: number } | null, focused: boolean): number | null {
+// where it may not: an afraid one may not), whichever pays for the most, and
+// of those the one leaving the most AP; neither alongside the focus surge a
+// row needs. Null when not even once.
+function getImmediateStrikes(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }, combat: { AP: number; STA: number } | null, focused: boolean): Strikes | null {
   if (attack.needsFocus && !focused && !means.surge) return null
   const canSurge = means.surge && !(attack.needsFocus && !focused)
-  const count = (AP: number, STA: number) => {
-    const byAP = attack.cost.AP > 0 ? Math.floor(AP / attack.cost.AP) : AP >= 0 ? 1 : 0
-    const bySTA = attack.cost.STA > 0 ? Math.floor(STA / attack.cost.STA) : byAP
-    return Math.min(byAP, bySTA)
-  }
-  const ways = [count(means.AP - moveAP, means.STA)]
-  if (canSurge) ways.push(count(means.AP - Math.max(0, moveAP - surge.AP), means.STA - surge.STA))
-  if (canSurge && combat) ways.push(count(means.AP + combat.AP - moveAP, means.STA - combat.STA))
-  const strikes = Math.max(...ways)
-  return strikes >= 1 ? strikes : null
+  const ways = [strikesOf(attack, means.AP - moveAP, means.STA)]
+  if (canSurge) ways.push(strikesOf(attack, means.AP - Math.max(0, moveAP - surge.AP), means.STA - surge.STA))
+  if (canSurge && combat) ways.push(strikesOf(attack, means.AP + combat.AP - moveAP, means.STA - combat.STA))
+  const best = ways.reduce((b, w) => (w.strikes > b.strikes || (w.strikes === b.strikes && w.AP > b.AP) ? w : b))
+  return best.strikes >= 1 ? best : null
 }
 
 // How many times the attack is made in a fresh round once the walk in is
@@ -415,14 +430,28 @@ function getImmediateStrikes(attack: PairAttack, moveAP: number, means: Means, s
 // the movement surge (not alongside the focus surge a row needs) paying for
 // the walk first, the rest out of the round's own AP. Null when the walk in
 // and one attack do not fit in the round.
-function getPotentialStrikes(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }): number | null {
+function getPotentialStrikes(attack: PairAttack, moveAP: number, means: Means, surge: { AP: number; STA: number }): Strikes | null {
   const surged = !attack.needsFocus && moveAP > 0
-  const AP = means.AP - (surged ? Math.max(0, moveAP - surge.AP) : moveAP)
-  const STA = means.STA - (surged ? surge.STA : 0)
-  const byAP = attack.cost.AP > 0 ? Math.floor(AP / attack.cost.AP) : 1
-  const bySTA = attack.cost.STA > 0 ? Math.floor(STA / attack.cost.STA) : byAP
-  const strikes = Math.min(byAP, bySTA)
-  return strikes >= 1 ? strikes : null
+  const made = strikesOf(attack, means.AP - (surged ? Math.max(0, moveAP - surge.AP) : moveAP), means.STA - (surged ? surge.STA : 0))
+  return made.strikes >= 1 ? made : null
+}
+
+// What the AP and STA left, once the strongest attack per AP is made as often
+// as it can be, pay for besides (the user's ruling, 2026-11-22: a round is
+// filled with attacks): the attack worth most of those that fit what is left,
+// again and again while one fits. Only attacks the attacker declares on its
+// turn that do the target some harm undefended, of the same kind and reaching
+// as far as the strongest one, so that they are made from where it is.
+function getFillers(pair: PairThreat, core: AttackThreat, AP: number, STA: number): AttackThreat[] {
+  const fits = pair.filter((t) => t.attack.opens.action && t.undefended > 0 && t.attack.kind === core.attack.kind && t.attack.reach >= core.attack.reach && (t.attack.cost.AP > 0 || t.attack.cost.STA > 0))
+  const made: AttackThreat[] = []
+  for (;;) {
+    const next = fits.reduce<AttackThreat | null>((b, t) => (t.attack.cost.AP <= AP && t.attack.cost.STA <= STA && (!b || t.worth > b.worth) ? t : b), null)
+    if (!next) return made
+    made.push(next)
+    AP -= next.attack.cost.AP
+    STA -= next.attack.cost.STA
+  }
 }
 
 // The combat surge the attacker may make this round, or null: the table's own
@@ -530,14 +559,15 @@ function makeThreat(a: Party, d: Party, means: Means, guardSTA: number, when: 'n
   const attacker = a.state.characters[a.id]
   const defender = d.state.characters[d.id]
   if (!attacker || !defender) return null
-  const core = getStrongestPerAP(getPairThreat(attacker, defender, guardSTA, tuning, when === 'potential' ? null : defender.usedSurge))
+  const pair = getPairThreat(attacker, defender, guardSTA, tuning, when === 'potential' ? null : defender.usedSurge)
+  const core = getStrongestPerAP(pair)
   if (!core) return null
   const { attack } = core
   const moveAP = closingAP(getPace(a.state, a.id), closingSteps(a.state, a.id, a.at, d.id, d.at, attack.reach, attack.kind === 'shoot' ? fireLine(a, d) : meleeLine(a, d, attack.reach)))
   if (moveAP === null) return null
   const surge = { AP: getSurgeAP('movement')(attacker), STA: getSurgeSTA('movement')(attacker) }
-  const strikes = when === 'now' ? getImmediateStrikes(attack, moveAP, means, surge, combatSurge(attacker), attacker.usedSurge === 'focus') : getPotentialStrikes(attack, moveAP, means, surge)
-  return strikes === null ? null : { ...core, moveAP, strikes }
+  const made = when === 'now' ? getImmediateStrikes(attack, moveAP, means, surge, combatSurge(attacker), attacker.usedSurge === 'focus') : getPotentialStrikes(attack, moveAP, means, surge)
+  return made === null ? null : { ...core, moveAP, strikes: made.strikes, fillers: getFillers(pair, core, made.AP, made.STA) }
 }
 
 // The attack the character can make with what it holds as it holds it

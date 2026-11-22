@@ -46,6 +46,8 @@ export const CLOSE: Scenario[] = [
   { name: 'duel, defender and noble', red: [['Erthal Defender', [0, -8]]], blue: [['Human Noble', [1, -8]]] },
   { name: 'three a side, close', red: red([[-2, -9], [-2, -8], [-2, -7]]), blue: blue([[2, -9], [2, -8], [2, -7]]) },
   { name: 'four a side, archers behind', red: [...red([[-2, -9], [-2, -8], [-2, -7]]), ['Human Ranger', [-6, -8]]], blue: [...blue([[2, -9], [2, -8], [2, -7]]), ['Human Ranger', [6, -8]]] },
+  // the three a side, each side together some 17 m apart across the open grass, in each other's sight
+  { name: 'three a side, far', red: red([[-5, -9], [-6, -8], [-6, -7]]), blue: blue([[12, -9], [11, -8], [11, -7]]) },
 ]
 
 const readJson = (file: string): unknown => JSON.parse(readFileSync(path.join(process.cwd(), file), 'utf-8'))

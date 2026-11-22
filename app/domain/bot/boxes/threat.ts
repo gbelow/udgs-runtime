@@ -29,6 +29,7 @@ import { getTurnHolder, keepsSurgeAP } from '../../scene/rules/turn'
 import { isCollapsed } from '../../scene/rules/situational'
 import { getMedicineAbility, getMedicineBar } from '../../scene/rules/medicine'
 import { hasAbility } from '../../abilities'
+import { getObjective, getRoundsToAttack, isRuinous } from '../objective'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
 // every term weighed by a tweakable. A turn asks two questions (the user's
@@ -61,6 +62,12 @@ import { hasAbility } from '../../abilities'
 //   still the same, and less the walk at the same price and the worst single foe's immediate
 //   threat on it at the cell, with what it has left to defend once it has
 //   walked there; it walks when that beats standing by a margin;
+// - with nothing worth doing, its objective tips the scale (the user's
+//   ruling): of the attacks on the foe it threatens most and the walks, those
+//   that bring it fewer rounds from attacking that foe than standing still and
+//   do not leave it believed collapsed by the round's end, the best scored,
+//   where it loses less against standing still than standing still costs
+//   this round (`planObjective`, bot/objective.ts);
 // - with no foe in sight, or none it notices (the user's ruling: a foe it
 //   cannot aim at is looked for), it searches (`planSearch`): it walks where
 //   it would see most of what its side does not, drawn towards the board's
@@ -82,7 +89,8 @@ import { hasAbility } from '../../abilities'
 //   where what it takes off beats the walk at its price by `margin`; the run
 //   or the attack, whichever is worth more;
 // - an attack or a walk may be paid for after a combat or a movement surge;
-//   every AP spent is priced, a surge's included (the user's ruling);
+//   every AP of its own spent is priced, and of a surge its STA, not its AP,
+//   which is lost at the turn's end (the user's ruling, 2026-11-22);
 // - attacked, it answers with the defence (or none) that leaves the least
 //   harm and price together, after the opportunity attack a shot at it draws
 //   where that is worth making; where someone else defends it already, its
@@ -385,6 +393,16 @@ function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null,
 // the turn's end, so only the AP of its own is left to defend with.
 const heldAP = (b: Budget, spent: number): number => Math.max(0, Math.min(b.AP - spent, b.AP - b.surgeAP))
 
+// The AP of `spent` (a walk of `walkAP` and whatever follows it) the character
+// pays out of its own, a surge's AP paying first for what it may: a movement
+// surge's only the walk (combat.tex "Action surge"), any other's all of it.
+// Only those are priced (the user's ruling, 2026-11-22): a surge's AP is lost
+// at the turn's end, so what the surge costs is its STA.
+function ownAP(view: SceneState, id: string, b: Budget, walkAP: number, spent: number): number {
+  const kind = b.surge ?? view.characters[id]?.usedSurge ?? null
+  return Math.max(0, spent - Math.min(b.surgeAP, kind === 'movement' ? walkAP : spent))
+}
+
 // What the AP a character keeps is worth to its allies (the user's ruling: a
 // character whose defence takes off much should rather keep its AP, and stand
 // where it can defend): every ally under a foe's immediate threat of a strike
@@ -584,7 +602,7 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
       const closer = !known.length ? distance(here, board.origin) - distance(cell, board.origin) : nearestHere !== null && nearestThere !== null ? nearestHere - nearestThere : 0
       const peril = w.peril * (getDanger(view, members, id, 'potential', cell, undefined, w) - perilHere)
       const threat = known.length ? w.offence * (offence(cell) - offenceHere) : 0
-      const score = w.search * found + w.recall * recalled + threat + w.aggression * closer - getSpendPrice({ AP, STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, 0, w) - peril
+      const score = w.search * found + w.recall * recalled + threat + w.aggression * closer - getSpendPrice({ AP: ownAP(view, id, b, AP, AP), STA: STA + b.surgeSTA }, me.resources.STA, me.injuries.bleed, 0, w) - peril
       if (!best || score > best.score) best = { cell, elevation, score, found, budget: b, movement: walk.movement }
     }
   }
@@ -661,9 +679,14 @@ function getTurnContext(view: SceneState, members: readonly string[], id: string
 // rulings): none at 0 STA but the focus a row needs; the movement surge only
 // for a run of at least `RUN_BLOCKS` blocks; the combat surge only for an
 // attack the character's own AP (or the movement surge's) cannot pay for, and
-// only where its gain is worth the surge's STA.
-function planAttack(ctx: TurnContext, compelled = false): Plan | null {
-  const { view, id, w, unnoticed, me, here, foes, budgets, drawnOn, fired } = ctx
+// only where its gain is worth the surge's STA. `on` keeps it to the foes
+// named, and `allowed` to the attacks it lets through, read at the cell the
+// attack is made from with the STA all of it spends and what it leaves.
+type Allowed = (at: Coord | null, spentSTA: number, guard: { AP: number; STA: number }) => boolean
+
+function planAttack(ctx: TurnContext, compelled = false, on: readonly string[] = ctx.foes, allowed: Allowed = () => true): Plan | null {
+  const { view, id, w, unnoticed, me, here, budgets, drawnOn, fired } = ctx
+  const foes = on
   const { score: attackScore, STAWorth } = ctx.measures
   const runBlock = getMovementOptions(view, me).find((o) => o.kind === 'run')?.block.AP ?? null
   // the order the budgets are tried in: none, then the movement surge, then the combat surge
@@ -704,7 +727,8 @@ function planAttack(ctx: TurnContext, compelled = false): Plan | null {
           const met = getDefendedHarm(attack, gap, guard, 'now', target.injuries.bleed, w, spend)
           if (!met || met.undefended <= 0) continue
           const held = { AP: Math.max(0, b.AP - spent - answering.AP), STA: Math.max(0, b.STA - STAspent - answering.STA) }
-          const parts = attackScore(met.harm, spend(met.defence.cost), foe, cell, held, spent, STAspent + b.surgeSTA + answering.STA)
+          if (!allowed(cell, me.resources.STA - held.STA, held)) continue
+          const parts = attackScore(met.harm, spend(met.defence.cost), foe, cell, held, ownAP(view, id, b, AP, spent), STAspent + b.surgeSTA + answering.STA)
           if (b.surge === 'combat' && gainOf(parts) <= STAWorth(b.surgeSTA)) continue
           const drew = w.opportunity * answering.harm + (attack.kind === 'shoot' ? fired(cell, AP, STA) : 0)
           const score = parts.total - drew
@@ -767,10 +791,14 @@ function planFlee(ctx: TurnContext): Plan | null {
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: run.score, why } : null
 }
 
-// With no attack to make now, a walk by where the character threatens more
-// and is threatened less.
-function planWalk(ctx: TurnContext): Plan | null {
-  const { view, members, id, w, unnoticed, here, foes, budgets, drawn, keeping, kept } = ctx
+// The walks a turn weighs (`getDirectedCells`), each scored by what it gains
+// over standing still (`stay`), so that it reads on the scale an attack's
+// score does: harm gained over doing nothing. With the STA all of it spends
+// and what it leaves to answer with.
+type WalkMove = { cell: Coord; elevation: number; score: number; budget: Budget; movement: MovementKind; spentSTA: number; guard: { AP: number; STA: number } }
+
+function getWalkMoves(ctx: TurnContext): { stay: number; moves: WalkMove[] } | null {
+  const { view, members, id, w, unnoticed, me, here, foes, budgets, drawn, keeping, kept } = ctx
   const { price } = ctx.measures
   if (!here) return null
   // everyone is safer close to allies (the user's ruling): the metres to the nearest one, beyond the next cell
@@ -793,7 +821,7 @@ function planWalk(ctx: TurnContext): Plan | null {
     return left ? Math.max(most, b.steps - left.steps) : most
   }, 0)
   const stay = standing(here) + kept
-  let move: { cell: Coord; elevation: number; score: number; budget: Budget; movement: MovementKind } | null = null
+  const moves: WalkMove[] = []
   const worst = foes.reduce<{ id: string; danger: number } | null>((q, f) => {
     const danger = threatValue(getPotentialThreat(view, members, f, id, here, cellOf(view, f), w))
     return !q || danger > q.danger ? { id: f, danger } : q
@@ -806,15 +834,56 @@ function planWalk(ctx: TurnContext): Plan | null {
       // a surge's AP is dropped at the turn's end, so only the AP of its own is left to defend with
       const guard = { AP: heldAP(b, AP), STA: Math.max(0, b.STA - STA) }
       const arrival = w.arrival * getDanger(view, members, id, 'immediate', cell, guard, w)
-      const score = standing(cell) + pull(cell) - price(spent, STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - arrival + keeping(cell, guard.AP)
-      if (!move || score > move.score) move = { cell, elevation, score, budget: b, movement: walk.movement }
+      const score = standing(cell) + pull(cell) - price(ownAP(view, id, b, AP, spent), STA + b.surgeSTA, cell) - drawn(cell, AP, STA, runs(walk), path) - arrival + keeping(cell, guard.AP)
+      moves.push({ cell, elevation, score: score - stay, budget: b, movement: walk.movement, spentSTA: me.resources.STA - guard.STA, guard })
     }
   }
-  if (!move || move.score <= stay + w.margin) return null
-  const why = `walks where it threatens more, is threatened less and goes after its foes (${move.movement}, ${move.score.toFixed(1)} over ${stay.toFixed(1)})`
+  return { stay, moves }
+}
+
+// The walk, as a plan: the surge that pays for it first, if any.
+function walkPlan(view: SceneState, id: string, move: WalkMove, why: string): Plan | null {
   if (move.budget.surge) return { kind: 'surge', surge: move.budget.surge, score: move.score, why: `makes the ${move.budget.surge} surge: ${why}` }
   const intent = moveIntent(id, move.movement, move.cell, move.elevation)
   return declare(view, intent, TRIAL).ok ? { kind: 'walk', intent, score: move.score, why } : null
+}
+
+const bestOf = <T extends { score: number }>(xs: readonly T[]): T | null => xs.reduce<T | null>((best, x) => (!best || x.score > best.score ? x : best), null)
+
+// With no attack to make now, a walk by where the character threatens more
+// and is threatened less, where it gains over standing still by `margin`.
+function planWalk(ctx: TurnContext): Plan | null {
+  const walks = getWalkMoves(ctx)
+  const move = walks && bestOf(walks.moves)
+  if (!walks || !move || move.score <= ctx.w.margin) return null
+  return walkPlan(ctx.view, ctx.id, move, `walks where it threatens more, is threatened less and goes after its foes (${move.movement}, ${move.score.toFixed(1)} over standing at ${walks.stay.toFixed(1)})`)
+}
+
+// With nothing worth doing (the user's ruling, 2026-11-22: the objective tips
+// the scale when every option is bad): of the attacks on the foe it threatens
+// most (bot/objective.ts `getObjective`) and the walks, only those that bring
+// it fewer rounds from attacking that foe than standing still does
+// (`getRoundsToAttack`; an attack this turn the fewest of all) and that do not
+// ruin it (`isRuinous`), the one the meters score best, so long as what it
+// loses against standing still is less than standing still costs this round
+// (`getStayingCost`): where waiting costs nothing, the meters' no stands.
+function planObjective(ctx: TurnContext): Plan | null {
+  const { view, members, id, w, here } = ctx
+  const objective = here && getObjective(view, id, ctx.foes, ctx.unnoticed, w)
+  if (!here || !objective) return null
+  const target = view.characters[objective.foe]?.name ?? objective.foe
+  const now = getRoundsToAttack(view, id, objective, here)
+  const floor = -getStayingCost(ctx)
+  const allowed: Allowed = (at, spentSTA, guard) => !isRuinous(view, members, id, at, spentSTA, guard, w)
+  const attacked = planAttack(ctx, true, [objective.foe], allowed)
+  const attack = attacked && attacked.score > floor ? attacked : null
+  const walk = bestOf((getWalkMoves(ctx)?.moves ?? []).filter((m) => {
+    const then = getRoundsToAttack(view, id, objective, m.cell)
+    return m.score > floor && then !== null && (now === null || then < now) && allowed(m.cell, m.spentSTA, m.guard)
+  }))
+  const why = (what: string) => `nothing is worth doing, so it goes after ${target}, whom it threatens most: ${what}`
+  if (attack && (!walk || attack.score >= walk.score)) return { ...attack, why: why(attack.why) }
+  return walk && walkPlan(view, id, walk, why(`${walk.movement}s to ${getRoundsToAttack(view, id, objective, walk.cell)} round(s) from attacking it, from ${now ?? 'none'} (${walk.score.toFixed(1)})`))
 }
 
 // The turn of a character its limit stress action makes violent: an attack
@@ -837,16 +906,26 @@ function planNow(view: SceneState, members: readonly string[], id: string, w: Th
   return [planAttack(ctx), planFlee(ctx)].reduce<Plan | null>((best, p) => (p && (!best || p.score > best.score) ? p : best), null)
 }
 
+// What standing still costs the character this round (the user's ruling: the
+// objective may lose no more than waiting costs): the danger it is in where it
+// stands with all it holds (`getDanger`, immediate), and the IL its bleed adds
+// at the next round's start (combat.tex "Bleed"), in harm.
+function getStayingCost(ctx: TurnContext): number {
+  const { view, members, id, w, here, me, left } = ctx
+  return getDanger(view, members, id, 'immediate', here, left, w) + getHarm(OutcomeSchema.parse({ IL: me.injuries.bleed }))
+}
+
 // How the character would better its position with the turn it holds in
 // `view`, once it has nothing to do now (the user's ruling): a walk, or with
-// no foe it notices, a search.
+// no foe it notices, a search; and with nothing worth doing, what its
+// objective asks (`planObjective`).
 function planLater(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, unnoticed: ReadonlySet<string>): Plan | null {
   const me = view.characters[id]
   if (me && isCollapsed(view, me)) return null
   const ctx = getTurnContext(view, members, id, w, unnoticed)
   if (!ctx) return null
   if (ctx.foes.every((f) => unnoticed.has(f))) return planSearch(view, members, id, w)
-  return planWalk(ctx)
+  return planWalk(ctx) ?? planObjective(ctx)
 }
 
 // The turn of a collapsed character (the user's ruling): only its own bleed
