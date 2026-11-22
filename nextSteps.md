@@ -114,10 +114,6 @@ poison
 --------------
 
 
-## simulation
-- build ai strategies
-
-
 
 ## multiplayer
 - reconnecting
@@ -126,30 +122,18 @@ poison
 
 
 ## issues
-- spell learning formula potentially wrong
 - cauterization burning damage using attack.ts
 
 
-abilities that teach other abilities - magic theory, ferocity lv 4, 
-
-After that, in my recommended order:
-
-1. Encounter templates. Today an encounter is a party you build by hand. A template would be a saved group: which characters, how many of each, and which party each goes in. Dropping one in would create a party with no timeline yet, ready to send to a scene. This builds directly on what we have: collections pick the characters, parties hold them, and scenes take them by party. It's also the piece behind "dropping a saved party into combat", which is only half done.
-2. Campaign export and import as JSON. It's cheap, because the save format is already validated and copes with old or partial saves. It gives you a backup before campaigns get valuable.
-3. Homebrew entries. Your own catalog entries, stored in Redis and merged with the built-in ones whenever a catalog is read. This is the biggest of the four, because every catalog read has to merge both sources.
-4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
 
 intercepting with bare hands - damage or not?
-
-
-## conviction attitudes
-- done: abilities carry `attitudes` (event + XP on a conviction); Fatalism automated (will hit at DL >= will +1/+2, limit stress -2); manual conviction XP +/- on the sheet
-- next: the other convictions (Stoicism, Adaptation, Domination, Ferocity, Guardian); will tests against morale spells and outside fights; auto-grant conviction abilities; end of session (negative XP loses a level, renounce at 0 with -4)
 
 
 allow dealing damage to own character. click deal 10 damage blunt.
 
 think about scene win conditions
+
+make the demo
 
 add a llm questions chat
 
@@ -157,5 +141,4 @@ think about keeping docs and app in sync
 
 think about absorption rules for each kind of damage, especially piercing and cutting. 
 
-increase death threshold to 100. immobile to 50 and allow convictions to change that.
 
