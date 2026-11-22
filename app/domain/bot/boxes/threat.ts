@@ -30,7 +30,7 @@ import { getTurnHolder, keepsSurgeAP } from '../../scene/rules/turn'
 import { isCollapsed } from '../../scene/rules/situational'
 import { getMedicineAbility, getMedicineBar } from '../../scene/rules/medicine'
 import { hasAbility } from '../../abilities'
-import { getObjective, getRoundsToAttack, isRuinous } from '../objective'
+import { getObjective, getAPToAttack, isRuinous } from '../objective'
 import { ROUND_AP } from '../../tables'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
@@ -67,7 +67,7 @@ import { ROUND_AP } from '../../tables'
 //   same, with all it holds; it walks when that beats standing by a margin;
 // - with nothing worth doing, its objective tips the scale (the user's
 //   ruling): of the attacks on the foe it threatens most and the walks, those
-//   that bring it fewer rounds from attacking that foe than standing still and
+//   that bring it fewer AP from attacking that foe than standing still and
 //   do not leave it believed collapsed by the round's end, the best scored,
 //   where it loses less against standing still than standing still costs
 //   this round (`planObjective`, bot/objective.ts);
@@ -1039,8 +1039,8 @@ function planWalk(ctx: TurnContext): Plan | null {
 // With nothing worth doing (the user's ruling, 2026-11-22: the objective tips
 // the scale when every option is bad): of the attacks on the foe it threatens
 // most (bot/objective.ts `getObjective`) and the walks, only those that bring
-// it fewer rounds from attacking that foe than standing still does
-// (`getRoundsToAttack`; an attack this turn the fewest of all) and that do not
+// it fewer AP from attacking that foe than standing still does
+// (`getAPToAttack`; an attack this turn the fewest of all) and that do not
 // ruin it (`isRuinous`), the one the meters score best, so long as what it
 // loses against standing still is less than standing still costs this round
 // (`getStayingCost`): where waiting costs nothing, the meters' no stands.
@@ -1049,19 +1049,19 @@ function planObjective(ctx: TurnContext): Plan | null {
   const objective = here && getObjective(view, id, ctx.foes, ctx.unnoticed, w)
   if (!here || !objective) return null
   const target = view.characters[objective.foe]?.name ?? objective.foe
-  const now = getRoundsToAttack(view, id, objective, here)
+  const now = getAPToAttack(view, id, objective, here)
   const floor = -getStayingCost(ctx)
   const allowed: Allowed = (at, spentSTA, guard) => !isRuinous(view, members, id, at, spentSTA, guard, w)
   const attacked = planAttack(ctx, true, [objective.foe], allowed)
   const attack = attacked && attacked.score > floor ? attacked : null
   const walks = (getWalkMoves(ctx)?.moves ?? []).filter((m) => {
-    const then = getRoundsToAttack(view, id, objective, m.cell)
+    const then = getAPToAttack(view, id, objective, m.cell)
     return m.score > floor && then !== null && (now === null || then < now) && allowed(m.cell, m.spentSTA, m.guard)
   })
   const why = (what: string) => `nothing is worth doing, so it goes after ${target}, whom it threatens most: ${what}`
   const best = walks.reduce((most, m) => Math.max(most, m.score), -Infinity)
   if (attack && attack.score >= best) return { ...attack, why: why(attack.why) }
-  return bestWalkPlan(ctx, walks, (walk) => why(`${walk.movement}s to ${getRoundsToAttack(view, id, objective, walk.cell)} round(s) from attacking it, from ${now ?? 'none'} (${walk.score.toFixed(1)})`)) ?? (attack && { ...attack, why: why(attack.why) })
+  return bestWalkPlan(ctx, walks, (walk) => why(`${walk.movement}s to ${getAPToAttack(view, id, objective, walk.cell)} AP from attacking it, from ${now ?? 'none'} (${walk.score.toFixed(1)})`)) ?? (attack && { ...attack, why: why(attack.why) })
 }
 
 // The turn of a character its limit stress action makes violent: an attack

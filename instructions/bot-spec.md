@@ -117,7 +117,7 @@ Score = (threat on me here − threat on me there) / w.courage − allies × w.t
 
 # Reposition
 
-Prefers aggro to greedy if w.greedy = 1, and the opposite if it is 0. 
+Prefers aggro to aggro if w.aggro = 1, and the opposite if it is 0. 
 
 ## Tactical
 
@@ -157,7 +157,7 @@ w.retarget = 2
 w.courage = 1
 w.teamwork = 1
 w.baseAPcost = 1
-w.greedy = 0
+w.aggro = 0
 
 
 

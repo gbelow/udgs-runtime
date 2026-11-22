@@ -11,8 +11,9 @@ import { cellOf, getAttackRoute, getHarmTaken, getMeans, getPairThreat, getStron
 // standing still, unless it ruins the character. Nothing here decides; it reads.
 //
 // The objective is to take the foe it threatens most out of the fight (the
-// user's ruling); progress is how many rounds it is from attacking that foe
-// with AP of its own.
+// user's ruling); progress is how many AP of its own it is from attacking
+// that foe (the user's ruling, 2026-11-22: counted in AP, not rounds, so that
+// coming nearer is progress even within a round of the foe).
 
 export type Objective = { foe: string; attackAP: number }
 
@@ -34,25 +35,22 @@ export function getObjective(view: SceneState, id: string, foes: readonly string
   return best && { foe: best.foe, attackAP: best.attackAP }
 }
 
-// How many rounds the character, standing at `from`, is from attacking the
-// objective's foe with AP of its own: the walk to where its attack meets the
-// foe (`getAttackRoute`) at its fastest movement that costs no STA, and the
-// attack after it, paid for out of whole rounds from the next (what is left of
-// this one is not counted: standing still spends none of it). At least 1, as
-// an attack this turn is the option's own to say; null where no walk gets there,
-// or the walk and the attack do not fit in any number of rounds.
-export function getRoundsToAttack(view: SceneState, id: string, objective: Objective, from: Coord): number | null {
+// How many AP of its own the character, standing at `from`, is from
+// attacking the objective's foe: the walk to where its attack meets the foe
+// (`getAttackRoute`) at its fastest movement that costs no STA, in whole
+// blocks, and the attack after it. Null where no walk gets there, or the
+// attack does not fit in a round.
+export function getAPToAttack(view: SceneState, id: string, objective: Objective, from: Coord): number | null {
   const me = view.characters[id]
   if (!me || objective.attackAP > ROUND_AP) return null
   const route = getAttackRoute(view, id, objective.foe, from)
   if (!route) return null
-  if (route.steps === 0) return 1
+  if (route.steps === 0) return objective.attackAP
   const pace = getMovementOptions(view, me)
     .filter((o) => o.available && o.speed > 0 && o.block.AP > 0 && o.block.STA === 0)
     .reduce<{ metres: number; AP: number } | null>((b, o) => (!b || o.speed / o.block.AP > b.metres / b.AP ? { metres: o.speed, AP: o.block.AP } : b), null)
   if (!pace) return null
-  const AP = Math.ceil(route.steps / pace.metres) * pace.AP + objective.attackAP
-  return Math.max(1, Math.ceil(AP / ROUND_AP))
+  return Math.ceil(route.steps / pace.metres) * pace.AP + objective.attackAP
 }
 
 // Whether an option ruins the character (the user's ruling: the guard): the IL
