@@ -1,5 +1,5 @@
-import type { Coord, MovementKind, SurgeKind } from '../../types'
-import { getBindingSurge, getSurgeAPLeft, getSurgeRecovery, isLearnedSurge } from '../../character/rules/surge'
+import { OutcomeSchema, type Coord, type MovementKind, type SurgeKind } from '../../types'
+import { getBindingSurge, getSurgeAPLeft, getSurgeRecovery, isLearnedSurge, NEEDS_FOCUS } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
 import type { Action, ActionDraft, MoveAction, SceneState, StrikeAction } from '../../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../../scene/commands/registry'
@@ -19,7 +19,7 @@ import { makeAction } from '../../scene/factories'
 import { declare, type Intent, type Pick } from '../declare'
 import { getApproachDrawn, getStandingCost, type Drawn } from '../approach'
 import { getSides } from '../table'
-import { getPair, type PairAttack, type PairDefence } from '../pairs'
+import { getHarm, getPair, type PairAttack, type PairDefence } from '../pairs'
 import { withSheet, cellOf, getTargetSpend, getRoundValue, getDanger, getDefendedHarm, getStrikeCells, getHarmAgainst, getHarmTaken, getImmediateThreat, getMeans, getPotentialThreat, getSpendPrice, getAPValue, getSTAWorth, getStrikeValue, getOutcome, getPresence, getTeam, getThreatened, getThreatening, threatValue, type SpendCost } from '../threat'
 import { ROUND_AP } from '../../tables'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
@@ -30,6 +30,9 @@ import { getTurnHolder, keepsSurgeAP } from '../../scene/rules/turn'
 import { getSwitches } from '../arms'
 import { getPayBar } from '../../item/rules/moves'
 import { getGrip } from '../../item/rules/hands'
+import { isCollapsed } from '../../scene/rules/situational'
+import { getMedicineAbility, getMedicineBar } from '../../scene/rules/medicine'
+import { hasAbility } from '../../abilities'
 
 // Moves by potential threat and attacks by immediate threat (bot/threat.ts),
 // every term weighed by a tweakable. A turn asks two questions (the user's
@@ -227,6 +230,7 @@ type Plan =
   | { kind: 'walk'; intent: Intent; score: number; why: string }
   | { kind: 'arms'; intent: Intent; score: number; why: string; then?: Pursuit['steps'] }
   | { kind: 'surge'; surge: SurgeKind; score: number; why: string }
+  | { kind: 'care'; intent: Intent; score: number; why: string }
 
 // What an arms attack still has to do once its first move is made (the user's
 // ruling: an arms attack planned is made): each step with the arms and the AP
@@ -921,6 +925,8 @@ function planViolent(view: SceneState, members: readonly string[], id: string, w
 // change of arms, or the run from the danger it is in, whichever is worth
 // more; null when it has nothing to do now.
 function planNow(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, unnoticed: ReadonlySet<string>): Plan | null {
+  const me = view.characters[id]
+  if (me && isCollapsed(view, me)) return planCollapsed(view, id)
   const ctx = getTurnContext(view, members, id, w, unnoticed)
   if (!ctx || ctx.foes.every((f) => unnoticed.has(f))) return null
   return [planAttack(ctx), planArmsAttack(ctx), planFlee(ctx)].reduce<Plan | null>((best, p) => (p && (!best || p.score > best.score) ? p : best), null)
@@ -930,12 +936,33 @@ function planNow(view: SceneState, members: readonly string[], id: string, w: Th
 // `view`, once it has nothing to do now (the user's ruling): a change of
 // arms, a walk, or with no foe it notices, a search.
 function planLater(view: SceneState, members: readonly string[], id: string, w: ThreatWeights, unnoticed: ReadonlySet<string>): Plan | null {
+  const me = view.characters[id]
+  if (me && isCollapsed(view, me)) return null
   const arms = planSwitch(view, members, id, w)
   if (arms) return arms
   const ctx = getTurnContext(view, members, id, w, unnoticed)
   if (!ctx) return null
   if (ctx.foes.every((f) => unnoticed.has(f))) return planSearch(view, members, id, w)
   return planWalk(ctx)
+}
+
+// The turn of a collapsed character (the user's ruling): only its own bleed
+// stopped, by First Aid where it has learned it, else by Tend Wounds (combat.tex
+// "Tend Wounds"), after the focus surge both need; worth the harm the bleed
+// does (§1). With no bleed, or neither open to it, it does nothing with a turn.
+function planCollapsed(view: SceneState, id: string): Plan | null {
+  const me = view.characters[id]
+  if (!me || me.injuries.bleed === 0) return null
+  const score = getHarm(OutcomeSchema.parse({ bleed: me.injuries.bleed }))
+  const focused = me.usedSurge === null ? trial(view, { kind: 'surge', args: [id, 'focus'] }) : null
+  for (const kind of ['firstAid', 'tendWounds'] as const) {
+    if (kind === 'firstAid' && !hasAbility(me, getMedicineAbility(kind))) continue
+    const intent: Intent = { actorId: id, option: { kind }, picks: kind === 'firstAid' ? [{ part: 'target', value: id }] : [] }
+    const why = `collapsed, stops its bleed of ${me.injuries.bleed} with ${kind === 'firstAid' ? 'first aid' : 'tend wounds'}`
+    if (declare(view, intent, TRIAL).ok) return { kind: 'care', intent, score, why }
+    if (getMedicineBar(view, me, kind) === NEEDS_FOCUS && focused && focused !== view && declare(focused, intent, TRIAL).ok) return { kind: 'surge', surge: 'focus', score, why: `focuses: ${why}` }
+  }
+  return null
 }
 
 // What the character would do with the turn it holds in `view`: what it
@@ -1329,7 +1356,7 @@ function takeTurn(input: SeatInput, id: string, w: ThreatWeights, find: Find, pr
     const made = press(give, `gives up the ${getBindingSurge(input.view().characters[id])} surge AP left to attack: ${plan.why}`)
     if (made) return made
   }
-  if (plan?.kind === 'attack' || plan?.kind === 'walk' || plan?.kind === 'arms') return { kind: 'declare', intent: plan.intent, why: plan.why }
+  if (plan?.kind === 'attack' || plan?.kind === 'walk' || plan?.kind === 'arms' || plan?.kind === 'care') return { kind: 'declare', intent: plan.intent, why: plan.why }
   if (plan?.kind === 'surge') {
     const surge = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === plan.surge)
     const made = press(surge, plan.why)

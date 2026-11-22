@@ -25,6 +25,7 @@ threatBox (boxes/threat.ts)
 │   │                              drew an OA?    §9  opportunity attack
 │   ├─ turn ────► takeTurn()       asked again after every action (chains)
 │   │              ├─ limit stress owed?           §11 violent / coward
+│   │              ├─ collapsed?                   §11.1 stop its bleed, else nothing
 │   │              ├─ now: planNow()               (no foe noticed: nothing now)
 │   │              │    best of attack             §3  if score > 0
 │   │              │         attack after a switch §3.1 if score > 0
@@ -614,6 +615,20 @@ violent                      → planViolent (attack whatever its score, else wa
 coward (surge AP left)       → getAway: walk to the cell of least Danger(potential)
 otherwise                    → end turn
 ```
+
+### 11.1 Collapsed (`boxes/threat.ts` `planCollapsed`)
+
+A collapsed character (combat.tex "Collapsed") does one thing with a turn (the user's ruling):
+
+```
+bleed = 0                    → nothing: no turn asked for, the round agreed to end
+else                         → First Aid on itself if learned, else Tend Wounds,
+                               after the focus surge both need
+                               score = harm(bleed) (§1), the turn asked for on it
+neither open                 → nothing
+```
+
+Asked in `planNow`; `planLater` gives nothing, so it never walks, searches or changes arms.
 
 ---
 
