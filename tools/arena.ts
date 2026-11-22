@@ -7,8 +7,8 @@ import { playFight, tally, type Fight } from '../app/domain/bot/arena'
 import type { Box } from '../app/domain/bot/decision'
 import type { SceneState } from '../app/domain/scene/types'
 import { nearestBox } from '../app/domain/bot/boxes/nearest'
-import { threatBox as oldBox, THREAT_WEIGHTS as OLD_WEIGHTS } from '../app/domain/bot/boxes/threatOld'
-import { threatBox, THREAT_WEIGHTS, type ThreatWeights } from '../app/domain/bot/boxes/threat'
+import { specBox, SPEC_WEIGHTS } from '../app/domain/bot/boxes/spec'
+import { threatBox, THREAT_WEIGHTS } from '../app/domain/bot/boxes/threat'
 import { CLOSE as SCENARIOS, setUp, ARENA } from './lib/scenarios'
 import { run } from '../app/domain/bot/seat'
 import { writeTrace } from './lib/trace'
@@ -24,27 +24,30 @@ import { formatTable } from './lib/table'
 //
 // `--box` names the two boxes (BOXES), the first the one the report speaks
 // for; `--only` plays only the scenarios whose name holds the text; `--set`
-// changes weights of the first box, if it is a threat box (`THREAT_WEIGHTS`),
-// and `--set2` those of the second, so that a weight can be played against
+// changes weights of the first box (`THREAT_WEIGHTS`, `SPEC_WEIGHTS`), and
+// `--set2` those of the second, so that a weight can be played against
 // the weights as they are. A broken
 // fight (stalled, a decision refused, or out of steps) is listed with its seed,
 // which plays it again exactly. The report goes to reports/arena/arena.md;
 // `--trace` plays one fight and tells it round by round in
 // reports/arena/trace-<scenario>-<seed>.md.
 
-// `set` overrides the threat box's weights (`--set`, `--set2`)
-const BOXES: Record<string, (set: Partial<ThreatWeights>) => Box> = {
+// `set` overrides the box's weights (`--set`, `--set2`)
+type Weights = Partial<Record<string, number>>
+const BOXES: Record<string, (set: Weights) => Box> = {
   nearest: () => nearestBox,
   threat: (set) => threatBox({ ...THREAT_WEIGHTS, ...set }),
-  old: (set) => oldBox({ ...OLD_WEIGHTS, ...set }),
+  spec: (set) => specBox({ ...SPEC_WEIGHTS, ...set }),
 }
 
-// `--set exposure=0,danger=0.05`: weights of the threat box, each one it has
-function weightsOf(text: string | null): Partial<ThreatWeights> {
+// `--set exposure=0,danger=0.05`: weights of a box, each one the threat or the spec box has
+const KNOWN: Record<string, unknown> = { ...THREAT_WEIGHTS, ...SPEC_WEIGHTS }
+
+function weightsOf(text: string | null): Weights {
   if (!text) return {}
   return Object.fromEntries(text.split(',').map((pair) => {
     const [key, value] = pair.split('=')
-    if (!(key in THREAT_WEIGHTS) || typeof THREAT_WEIGHTS[key as keyof ThreatWeights] !== 'number' || !Number.isFinite(Number(value))) throw new Error(`No weight "${key}" to set to "${value}": there are ${Object.keys(THREAT_WEIGHTS).join(', ')}`)
+    if (typeof KNOWN[key] !== 'number' || !Number.isFinite(Number(value))) throw new Error(`No weight "${key}" to set to "${value}": there are ${Object.keys(KNOWN).join(', ')}`)
     return [key, Number(value)]
   }))
 }
@@ -56,7 +59,6 @@ function flag(name: string): string | null {
 
 type Job = { scenario: string; seed: number; swapped: boolean }
 type Played = Job & { fight: Fight; decisions: [number, number]; ms: [number, number]; took: number }
-type Weights = Partial<ThreatWeights>
 type Setup = { boxes: [string, string]; rounds: number; set: [Weights, Weights] }
 
 const setText = (set: Weights) => Object.entries(set).map(([k, v]) => `${k} ${v}`).join(', ')
