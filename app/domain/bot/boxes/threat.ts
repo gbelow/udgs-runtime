@@ -166,8 +166,21 @@ const TRIAL: CommandContext = { thrower: () => 0, newId: () => 'trial' }
 const trial = (state: SceneState, command: SceneCommand) => toUpdater(command, TRIAL)(state)
 const argOf = (command: SceneCommand): unknown => (command.args as readonly unknown[])[0]
 
-// `elevation`: the floor the walk ends on in the cell (a cell may be come to on two)
-type Walk = { movement: MovementKind; cells: { cell: Coord; AP: number; STA: number; path: Coord[]; elevation: number }[] }
+// `elevation`: the floor the walk ends on in the cell (a cell may be come to on two).
+// `clear`: whether the walk to a cell of `cells` comes into nobody standing
+// (`isClearWalk`), asked only of the cells a turn picks from, each once.
+type WalkCell = { cell: Coord; AP: number; STA: number; path: Coord[]; elevation: number }
+type Walk = { movement: MovementKind; cells: WalkCell[]; clear: (c: WalkCell) => boolean }
+
+// The first `n` of `cells`, in their order, that walk clear (`Walk.clear`).
+function firstClear(walk: Walk, cells: readonly WalkCell[], n = Infinity): WalkCell[] {
+  const found: WalkCell[] = []
+  for (const c of cells) {
+    if (found.length >= n) break
+    if (walk.clear(c)) found.push(c)
+  }
+  return found
+}
 
 // The movements open to the character this turn, fastest first.
 function openMovements(state: SceneState, id: string): MovementKind[] {
@@ -180,13 +193,21 @@ function openMovements(state: SceneState, id: string): MovementKind[] {
 }
 
 // The cells the character can walk to this turn at `movement`, with no
-// surge, through nobody standing (`isClearWalk`), what the walk costs, and
-// the cells it is walked through.
+// surge, what the walk costs, the cells it is walked through, and whether it
+// comes into nobody standing on the way there (`clear`): a bot never walks
+// through anyone, so a cell picked is picked among those it walks to clear.
 function walkAt(state: SceneState, id: string, movement: MovementKind): Walk | null {
   const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
-  return { movement, cells: getReachableCells(moving, action as MoveAction, getKeptWalk).filter((r) => isClearWalk(moving, action as MoveAction, r.path)).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path, elevation: r.elevation })) }
+  const cells = getReachableCells(moving, action as MoveAction, getKeptWalk).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path, elevation: r.elevation }))
+  const known = new Map<WalkCell, boolean>()
+  const clear = (c: WalkCell): boolean => {
+    let is = known.get(c)
+    if (is === undefined) known.set(c, (is = isClearWalk(moving, action as MoveAction, c.path)))
+    return is
+  }
+  return { movement, cells, clear }
 }
 
 // The walk at the character's fastest movement.
@@ -355,17 +376,15 @@ function opensAfter(state: SceneState, id: string, intent: Intent): 'open' | 'gi
 const TOWARDS = 3
 const AWAY = 3
 
-type WalkCell = Walk['cells'][number]
-
 function getDirectedCells(view: SceneState, id: string, here: Coord, walk: Walk, foes: readonly string[], worst: string | null, friends: readonly Coord[]): WalkCell[] {
   const picked = new Map<string, WalkCell>()
   const add = (cells: WalkCell[]) => cells.forEach((c) => picked.set(`${c.cell.q},${c.cell.r}`, c))
   const cheaper = (a: WalkCell, b: WalkCell) => a.AP + a.STA - (b.AP + b.STA)
   const closest = (cells: WalkCell[], left: (c: WalkCell) => number) => {
     const closing = [...cells].sort((a, b) => left(a) - left(b) || cheaper(a, b))
-    add(closing.slice(0, TOWARDS))
+    add(firstClear(walk, closing, TOWARDS))
     const byBlock = new Map<number, WalkCell>()
-    closing.forEach((c) => byBlock.has(c.AP) || byBlock.set(c.AP, c))
+    closing.forEach((c) => byBlock.has(c.AP) || !walk.clear(c) || byBlock.set(c.AP, c))
     add([...byBlock.values()])
   }
   for (const foe of foes) {
@@ -382,11 +401,11 @@ function getDirectedCells(view: SceneState, id: string, here: Coord, walk: Walk,
   const from = worst ? cellOf(view, worst) : null
   if (from) {
     const now = distance(here, from)
-    add(walk.cells.filter((c) => distance(c.cell, from) > now).sort((a, b) => distance(b.cell, from) - distance(a.cell, from) || cheaper(a, b)).slice(0, AWAY))
+    add(firstClear(walk, walk.cells.filter((c) => distance(c.cell, from) > now).sort((a, b) => distance(b.cell, from) - distance(a.cell, from) || cheaper(a, b)), AWAY))
   }
   for (const at of friends) {
     const now = distance(here, at)
-    add(walk.cells.filter((c) => distance(c.cell, at) < now).sort((a, b) => distance(a.cell, at) - distance(b.cell, at) || cheaper(a, b)).slice(0, TOWARDS))
+    add(firstClear(walk, walk.cells.filter((c) => distance(c.cell, at) < now).sort((a, b) => distance(a.cell, at) - distance(b.cell, at) || cheaper(a, b)), TOWARDS))
   }
   return [...picked.values()]
 }
@@ -406,7 +425,7 @@ type AttackCell = { cell: Coord | null; AP: number; STA: number; path: Coord[]; 
 function getAttackCells(here: Coord | null, walk: Walk | null, at: Coord | null, reach: number, draws: (c: AttackCell) => number, clear: (cell: Coord) => boolean = () => true): AttackCell[] {
   if (!here || !at || (distance(here, at) <= reach && clear(here))) return [{ cell: here, AP: 0, STA: 0, path: [] }]
   if (!walk) return []
-  const reaching = walk.cells.filter((c) => !sameCell(c.cell, here) && distance(c.cell, at) <= reach && clear(c.cell)).sort((a, b) => a.AP - b.AP || a.STA - b.STA)
+  const reaching = firstClear(walk, walk.cells.filter((c) => !sameCell(c.cell, here) && distance(c.cell, at) <= reach && clear(c.cell)).sort((a, b) => a.AP - b.AP || a.STA - b.STA), 1 + ATTACK_SCAN)
   const cheapest = reaching[0]
   if (!cheapest) return []
   const drawn = draws(cheapest)
@@ -628,7 +647,7 @@ function planSearch(view: SceneState, members: readonly string[], id: string, w:
   const read = dark.filter((_, i) => i % every === 0)
   let best: { cell: Coord; elevation: number; score: number; found: number; budget: Budget; movement: MovementKind } | null = null
   for (const { b, walks } of getWalkBudgets(view, id, getBudgets(view, id))) for (const walk of walks) {
-    const far = walk.cells.filter((c) => !sameCell(c.cell, here)).sort((x, y) => distance(y.cell, here) - distance(x.cell, here))
+    const far = walk.cells.filter((c) => !sameCell(c.cell, here) && walk.clear(c)).sort((x, y) => distance(y.cell, here) - distance(x.cell, here))
     const step = Math.max(1, Math.floor(far.length / SEARCH_CELLS))
     for (let i = 0; i < far.length; i += step) {
       const { cell, AP, STA, elevation } = far[i]
@@ -1385,9 +1404,9 @@ function getAway(view: SceneState, members: readonly string[], id: string, w: Th
   const walk = getWalk(view, id)
   if (!walk) return null
   const safest = walk.cells
-    .map((c) => ({ cell: c.cell, elevation: c.elevation, danger: getDanger(view, members, id, 'potential', c.cell, undefined, w) }))
+    .map((c) => ({ c, cell: c.cell, elevation: c.elevation, danger: getDanger(view, members, id, 'potential', c.cell, undefined, w) }))
     .sort((a, b) => a.danger - b.danger)
-    .find((c) => declare(view, moveIntent(id, walk.movement, c.cell, c.elevation), TRIAL).ok)
+    .find((c) => walk.clear(c.c) && declare(view, moveIntent(id, walk.movement, c.cell, c.elevation), TRIAL).ok)
   return safest ? { kind: 'declare', intent: moveIntent(id, walk.movement, safest.cell, safest.elevation), why: `gets away (danger ${safest.danger.toFixed(1)})` } : null
 }
 
