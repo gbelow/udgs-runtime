@@ -522,7 +522,7 @@ export type AttackScore = {
   // nothing)
   AP: number
   // the walk to where the attack is made from, as a walk is scored over
-  // standing still (`getWalkWorth`; the user's ruling, 2026-11-22: an attack
+  // standing still (`getPlace`; the user's ruling, 2026-11-22: an attack
   // with a walk in is the walk's score and the attack's), none from where it stands
   walk: number
 }
