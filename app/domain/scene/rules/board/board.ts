@@ -24,7 +24,7 @@ import { getPieceCells, liftPiece } from './piece'
 // creating.tex "Size and Space Occupation": the cells a placed character
 // covers on the board: its footprint turned to the placement's orientation
 // and moved to its anchor.
-export function getFootprint(c: Character, placement: Placement): Coord[] {
+export function getFootprint(c: Pick<Character, 'footprint'>, placement: Placement): Coord[] {
   return c.footprint.map((offset) => add(placement.cell, rotate(offset, placement.orientation)))
 }
 
@@ -509,15 +509,29 @@ const FLOOR: TerrainCell = TerrainCellSchema.parse({ blocking: true })
 // gone through, which a cell with a wall has no floor of its own to be.
 function holds(board: Board, key: string, centre: number, reach: number, stops: (t: TerrainCell) => boolean): boolean {
   const ground = board.terrain[key]
-  const ceiling = Math.min(Infinity, ...board.levels.filter((l) => l.terrain[key]).map((l) => getStoreyFloor(l, l.terrain[key])))
+  const storeys = getStoreysOver(board.levels).get(key)
+  if (!storeys) return ground !== undefined && stops(ground)
+  const ceiling = Math.min(Infinity, ...storeys.map((l) => getStoreyFloor(l, l.terrain[key])))
   if (ground && centre < ceiling && stops(ground)) return true
-  return board.levels.some((level) => {
+  return storeys.some((level) => {
     const here = level.terrain[key]
     if (!here) return false
     const floor = getStoreyFloor(level, here)
     const goesThrough = !here.hole && !here.lattice && !here.blocking && Math.abs(floor - centre) <= reach
     return (goesThrough && stops(FLOOR)) || (floor <= centre && centre < level.floor + level.height && stops(here))
   })
+}
+
+// The storeys that have each cell, in their order.
+const storeysKept = new WeakMap<Board['levels'], Map<string, Board['levels']>>()
+
+function getStoreysOver(levels: Board['levels']): Map<string, Board['levels']> {
+  const known = storeysKept.get(levels)
+  if (known) return known
+  const over = new Map<string, Board['levels']>()
+  for (const level of levels) for (const key of Object.keys(level.terrain)) over.set(key, [...(over.get(key) ?? []), level])
+  storeysKept.set(levels, over)
+  return over
 }
 
 // The thin walls a cell stands, each where it lies in the plane: on the

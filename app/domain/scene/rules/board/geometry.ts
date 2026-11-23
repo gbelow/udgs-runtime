@@ -84,7 +84,16 @@ export function sidesBetween(a: Direction, b: Direction): number {
 // step before it, nor the first off `heading` unless that is null.
 export type WalkedCell = { cell: Coord; path: Coord[]; steps: number; level: number; levels: number[] }
 
-export function walkOut(start: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[], level: number) => boolean | number, steer?: { heading: Direction | null; turn: number }, level = 0): WalkedCell[] {
+export function walkOut(start: Coord, further: (steps: number) => boolean, enter: Enter, steer?: Steer, level = 0): WalkedCell[] {
+  return openWalk(start, enter, steer, level)(further)
+}
+
+type Enter = (cell: Coord, path: Coord[], level: number) => boolean | number
+type Steer = { heading: Direction | null; turn: number }
+
+// `walkOut` kept open: asked again, it gives what it has found already as far
+// as `further` allows this time, and walks on only past that.
+export function openWalk(start: Coord, enter: Enter, steer?: Steer, level = 0): (further: (steps: number) => boolean) => WalkedCell[] {
   const sets = () => new Map<number, number[]>([[cellNumber(start), [level]]])
   // whether this is the first time `key` is come to on `on`
   const first = (set: Map<number, number[]>, key: number, on: number) => {
@@ -98,7 +107,10 @@ export function walkOut(start: Coord, further: (steps: number) => boolean, enter
   const reached = steer ? sets() : seen
   const found: WalkedCell[] = []
   let frontier: { cell: Coord; path: Coord[]; levels: number[]; level: number; heading: Direction | null }[] = [{ cell: start, path: [], levels: [], level, heading: steer?.heading ?? null }]
-  for (let steps = 1; frontier.length > 0 && further(steps); steps++) {
+  // how many cells had been found after each number of steps
+  const ends = [0]
+  const walkOn = () => {
+    const steps = ends.length
     const next: typeof frontier = []
     for (const node of frontier) {
       for (const d of ROTATIONS) {
@@ -117,8 +129,16 @@ export function walkOut(start: Coord, further: (steps: number) => boolean, enter
       }
     }
     frontier = next
+    ends.push(found.length)
   }
-  return found
+  return (further) => {
+    let steps = 0
+    while ((steps + 1 < ends.length || frontier.length > 0) && further(steps + 1)) {
+      steps++
+      if (steps === ends.length) walkOn()
+    }
+    return found.slice(0, ends[steps])
+  }
 }
 
 // Every cell exactly `radius` steps from the centre; the centre itself at 0.

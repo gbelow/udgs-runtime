@@ -1,6 +1,6 @@
 import { isCombatStarted } from './started'
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
-import type { Action, SceneState, Coord, Degree, Direction, MoveAction, MoveFacts, Placement } from '../types'
+import type { Action, Board, SceneState, Coord, Degree, Direction, MoveAction, MoveFacts, Placement } from '../types'
 import { getMoveHeld } from './heldRoll'
 import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, ROUND_AP, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_AP, type MovementBlock } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
@@ -11,7 +11,7 @@ import { hasAffliction } from '../../character/rules/afflictions'
 import { isCollapsed, isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getStandMovement } from '../../character/rules/movement'
-import { DIRECTIONS, ROTATIONS, cellNumber, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, walkOut } from './board/geometry'
+import { DIRECTIONS, ROTATIONS, cellNumber, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, openWalk } from './board/geometry'
 import { getClimbBack, getClimbBound, getClimbTarget, getBalanceDLAt, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
@@ -32,6 +32,7 @@ import { findOpenRoot, getAction, getAncestry, getDrawnOpportunityAttacks, getOp
 import { getFleeStep } from './flee'
 import { withDisplaced } from './displace'
 import { isCarriedByAttack, isHalfJump } from './combinedMove'
+import { perParts } from '../../perState'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -246,7 +247,7 @@ export function isLameBarred(kind: MovementKind): boolean {
 // Whether a declared path may be walked
 
 // Whether a footprint lies wholly on the board: no move leaves it.
-function isOnBoard(state: SceneState, footprint: Coord[]): boolean {
+function isOnBoard(state: Pick<SceneState, 'board'>, footprint: Coord[]): boolean {
   const board = state.board
   return !board || footprint.every((cell) => inExtent(board.origin, board.extent, cell))
 }
@@ -736,7 +737,6 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
     if (kind === 'jump' && total > getJumpSpeed(c, action)) return false
     return payable(getMovePrice(state, c, best, total)) && withinBudget(getMoveCost(c, kind, total), getMoveBudget(c, action))
   }
-  const ceiling = getJumpCeiling(c, from)
   const start = drawn.at(-1) ?? from.cell
   const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : path.length === 1 ? start : (drawn.at(-2) ?? from.cell))
   // how high the feet are where the walk sets out; each step carries its own
@@ -744,30 +744,15 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   const startFeet = drawn.length > 0 ? getMovePlacements(state, action).at(-1)?.elevation ?? from.elevation : from.elevation
   const feetOf = (level: number) => (kind === 'jump' ? from.elevation : level)
   const wetAt = (cell: Coord, level: number) => isWet(getFootprint(c, { ...from, cell }), ground.at(feetOf(level)))
-  // a step is entered the same way whatever heading it is come at from
-  const entered = new Map<string, number | false>()
-  const enter = (cell: Coord, path: Coord[], level: number = startFeet): number | false => {
-    const before = stepFrom(path)
-    const key = `${cellNumber(before)}@${feetOf(level)}>${cellNumber(cell)}`
-    const known = entered.get(key)
-    if (known !== undefined) return known
-    const bound = kind === 'climb' && state.board ? getClimbTarget(state.board, from, cell) : null
-    const floor = bound ? ground.at(bound.floor) : ground.at(feetOf(level))
-    const footprint = getFootprint(c, { ...from, cell })
-    const ok = (kind !== 'climb' || bound !== null) && isOnBoard(state, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater: wetAt(before, level), ceiling })
-    const comes = ok ? floor.elevation(cell) : false
-    entered.set(key, comes)
-    return comes
-  }
-  const heading = drawn.length > 0 ? directionTo(stepFrom([]), start) : null
-  const turnRate = getTurnRate(kind)
+  const walker: Walker = { board: state.board, footprint: c.footprint, from, kind, ceiling: getJumpCeiling(c, from), startFeet }
+  const steer = getSteer(kind, drawn.length > 0 ? directionTo(stepFrom([]), start) : null)
   // the cells drawn on already, and where the move sets out, take the path
   // back to them when picked (`pickPathCell`), so they are not offered
   const onPath = new Set([from.cell, ...drawn].map(coordKey))
   // each cell come to with how high the feet are there and at the step before
   const walked: { cell: Coord; path: Coord[]; level: number; before: number }[] = kind === 'jump'
-    ? getJumps(from.cell, affordable, enter).map(({ cell, path }) => ({ cell, path, level: from.elevation, before: from.elevation }))
-    : walkOut(start, affordable, enter, turnRate === null ? undefined : { heading, turn: turnRate }, startFeet).map(({ cell, path, level, levels }) => ({ cell, path, level, before: levels.at(-2) ?? startFeet }))
+    ? getJumps(from.cell, affordable, enterOf(walker, stepFrom)).map(({ cell, path }) => ({ cell, path, level: from.elevation, before: from.elevation }))
+    : (kind === 'climb' || drawn.length > 0 ? openWalk(start, enterOf(walker, stepFrom), steer, startFeet) : getOpenWalk(walker))(affordable).map(({ cell, path, level, levels }) => ({ cell, path, level, before: levels.at(-2) ?? startFeet }))
   // a climb may also go on up the raised ground the climber stands on a ledge
   // of, which is their own cell
   const column = kind === 'climb' ? [{ cell: from.cell, path: [from.cell], level: from.elevation, before: from.elevation }] : []
@@ -789,6 +774,51 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
     .filter(({ cost }) => payable(cost))
 }
 
+// What a walk over the ground reads, whoever stands on it and whatever it
+// costs: the board, the body and how it sets out (`startFeet`: how high its
+// feet are there), and for a jump the height it clears (`getJumpCeiling`).
+type Walker = { board: Board | null; footprint: Coord[]; from: Placement; kind: MovementKind; ceiling: number; startFeet: number }
+
+// Whether the next step of a walk may be taken, and the level it comes to
+// (`walkOut`'s `enter`). `stepFrom` is the cell a path's last step is taken
+// from; a step is entered the same way whatever heading it is come at from.
+function enterOf({ board, footprint: cells, from, kind, ceiling, startFeet }: Walker, stepFrom: (path: Coord[]) => Coord): (cell: Coord, path: Coord[], level?: number) => number | false {
+  const bare = { board: board && { ...board, placements: {} }, characters: {} }
+  const ground = readGround(bare, '')
+  const footprintAt = (cell: Coord) => getFootprint({ footprint: cells }, { ...from, cell })
+  const feetOf = (level: number) => (kind === 'jump' ? from.elevation : level)
+  const entered = new Map<string, number | false>()
+  return (cell, path, level = startFeet) => {
+    if (!ground) return false
+    const before = stepFrom(path)
+    const key = `${cellNumber(before)}@${feetOf(level)}>${cellNumber(cell)}`
+    const known = entered.get(key)
+    if (known !== undefined) return known
+    const bound = kind === 'climb' && board ? getClimbTarget(board, from, cell) : null
+    const floor = bound ? ground.at(bound.floor) : ground.at(feetOf(level))
+    const footprint = footprintAt(cell)
+    const fromWater = isWet(footprintAt(before), ground.at(feetOf(level)))
+    const ok = (kind !== 'climb' || bound !== null) && isOnBoard(bare, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater, ceiling })
+    const comes = ok ? floor.elevation(cell) : false
+    entered.set(key, comes)
+    return comes
+  }
+}
+
+// A walk from where the character stands, kept open (`openWalk`) by what it
+// reads: it is the same walk whoever else moves and whatever anyone spends or
+// suffers, and only its price and where it may end are read anew.
+const OPEN_WALKS = 100
+const openWalks = perParts<ReturnType<typeof openWalk>>(OPEN_WALKS)
+
+function getOpenWalk(walker: Walker): ReturnType<typeof openWalk> {
+  const { board, footprint, from, kind } = walker
+  const open = () => openWalk(from.cell, enterOf(walker, (path) => (path.length > 1 ? path[path.length - 2] : from.cell)), getSteer(kind, null), from.elevation)
+  if (!board) return open()
+  const key = `${kind}|${coordKey(from.cell)}|${from.orientation}|${from.elevation}|${footprint.map(coordKey).join(' ')}|${coordKey(board.origin)}|${board.extent.q},${board.extent.r},${board.extent.s}`
+  return openWalks([board.terrain, board.levels], key, open)
+}
+
 // Whether a kind of movement is drawn in segments, each walked on from the
 // end of the last: all but a jump, which goes in a straight line, and a
 // climb, which is one face.
@@ -801,6 +831,11 @@ export function drawsSegments(kind: MoveKind): boolean {
 // during running is 60 degrees", one side a step; a run may set out any way.
 function getTurnRate(kind: MoveKind): number | null {
   return kind === 'run' ? 1 : null
+}
+
+function getSteer(kind: MoveKind, heading: Direction | null): { heading: Direction | null; turn: number } | undefined {
+  const turn = getTurnRate(kind)
+  return turn === null ? undefined : { heading, turn }
 }
 
 // combat.tex "Movement": a jump cannot be "turned in the middle", so its

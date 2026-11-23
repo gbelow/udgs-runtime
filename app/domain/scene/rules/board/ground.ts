@@ -28,7 +28,7 @@ export type Ground = { at: (height: number) => Floor }
 
 // `landing` holds where others are bound to come to rest as well as where they
 // stand now (`getStrikeLandings`).
-export function readGround(state: SceneState, mover: string, landing: Record<string, Placement> = {}): Ground | null {
+export function readGround(state: Pick<SceneState, 'board' | 'characters'>, mover: string, landing: Record<string, Placement> = {}): Ground | null {
   const board = state.board
   if (!board) return null
   const occupancy = getOccupancy(board, state.characters)
