@@ -73,9 +73,8 @@ Calculate distance as the character would run, if they can run. Otherwise consid
 
 STAharm = w.STA x STA + w.IL x STA x bleed
 
-Cost(character) = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm )
+Cost(character) = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of all foes on character(after - before)) + STAharm )
 <!-- Defensive Cost = w.caution x(w.AP x (w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm) -->
-
 
 ## Face. What a seat knows (`belief.ts` `getBelief`)
 
@@ -114,9 +113,9 @@ Pick largest of: Score = Defense value - Cost. Taking the hit is an option.
 
 allies = Number of party members within 10m of the departure location.
 
-Score = (threat on me here − threat on me there) / w.courage − allies × w.teamwork - STAharm - OA drawn
+Score = (threat on me here − threat on me there) − allies × w.teamwork - STAharm - OA drawn
   
-  if score beats alternatives, move towards place with the lowest immediate threat.
+  if score beats alternatives and is larger than courage, move towards place with the lowest immediate threat.
   threat on me there counts after AP expense.
 
 
@@ -128,7 +127,7 @@ Pick the target who is detected and takes the highest E[harm] from the character
 
 Move to place where Score = max(w.aggro x ally potential threat -  enemy potential threat)
 
-Decide to reposition if score(there - here) - cost > 0.
+Decide to reposition if score(there - here) - Cost > 0.
 
 Pick the movement type where Cost is minimal and escape is not triggered.
 
@@ -149,15 +148,15 @@ If no foe is seen, the bot lists its seen and unseen spaces and moves up to w.se
 # Constants
 
 w.STA = 2
-w.AP = 1.2
-w.caution = 1.7
+w.AP = 1.3
+w.caution = 1.8
 w.aggressivity = 0.5
 w.IL = 2
 w.bleed = 5
 w.search = 4
 w.solitude = 10
 w.retarget = 2
-w.courage = 1
+w.courage = 20
 w.teamwork = 1
 w.baseAPcost = 1
 w.aggro = 1

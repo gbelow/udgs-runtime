@@ -6,7 +6,7 @@ import { getRecoveredSTA } from '../../character/rules/characteristics'
 import { getOpenAction } from '../../scene/rules/log'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
-import { coordKey, distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
+import { cellNumber, coordKey, distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
 import { firesAcross, getEyes, getEyesToward, seesAcross } from '../../scene/rules/board/board'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
 import { getTurnHolder, hasAgreedToEnd, keepsSurgeAP } from '../../scene/rules/turn'
@@ -19,7 +19,7 @@ import { getPair, type PairAttack } from '../pairs'
 import { cellOf, getHarmAgainst, getHarmOnBleeding, getMeans, getStrikeCells, getTeam, type SpendCost } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getCost, getSTAHarm, type SpecWeights } from '../cost'
-import { getLayer, getThreatBy, getThreatHarm, getThreatOn, isRuinous, SHOT_GAP, type Guard } from '../threatMap'
+import { getCostDelta, getLayer, getLayersBy, getLayersOn, getThreatBy, getThreatHarm, getThreatOn, isRuinous, sumLayers, SHOT_GAP, type Guard, type Layers } from '../threatMap'
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getAttackCells, getBudgets, getCollapsedCare, getKnownAttack, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesWalk, trial, TRIAL, wonBy, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
@@ -55,7 +55,7 @@ import type { Notes } from '../memory'
 // overflow spent as `getBestSpend` spends it, the round's rest step) it plays
 // as the nearest box does.
 
-export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.2, STA: 2, caution: 1.7, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 1, teamwork: 1, baseAPcost: 1, aggro: 1, aggressivity: 0.5 }
+export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.3, STA: 2, caution: 1.8, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 20, teamwork: 1, baseAPcost: 1, aggro: 1, aggressivity: 0.5 }
 
 // spec "Escape": the party members within this many metres of where the character sets out
 const ESCAPE_COMPANY = 10
@@ -67,6 +67,10 @@ type Plan = (
 ) & { then?: readonly Intent[] }
 
 const NOTHING_DRAWN: Drawn = { worth: 0, harm: 0, AP: 0, STA: 0 }
+
+// The foes' immediate threat on a character somewhere, and the change a Cost
+// reads in it from where the character stands now (spec "Cost", `getCostDelta`).
+type OnMe = { threat: number; delta: number }
 
 // What every plan of the turn reads of the fight as the character holds it.
 type Ctx = {
@@ -84,8 +88,9 @@ type Ctx = {
   target: string | null
   left: Guard
   budgets: Budget[]
-  // the foes' immediate threat on the character at `cell` holding `AP`, and where it stands now
-  onMe: (cell: Coord | null, AP: number) => number
+  // the foes' immediate threat on the character at `cell` holding `AP`, each
+  // read once, and the threat where it stands now
+  onMe: (cell: Coord | null, AP: number) => OnMe
   now: number
   picks: Map<string, TargetPick>
 }
@@ -96,8 +101,19 @@ function getCtx(view: SceneState, members: readonly string[], id: string, w: Spe
   const here = cellOf(view, id)
   const foes = getSides(view, members).foes.filter((f) => cellOf(view, f) !== null)
   const left = { AP: me.resources.AP, STA: me.resources.STA }
-  const onMe = (cell: Coord | null, AP: number) => getThreatOn(view, members, id, 'immediate', w, [{ id, at: cell, AP }])
-  return { view, members, id, w, me, here, foes, targets: foes.filter((f) => !unnoticed.has(f)), team: getTeam(view, members), target, left, budgets: getBudgets(view, id), onMe, now: onMe(here, left.AP), picks: new Map() }
+  const layersOn = (cell: Coord | null, AP: number) => getLayersOn(view, members, id, 'immediate', w, [{ id, at: cell, AP }])
+  const standing = layersOn(here, left.AP)
+  const read = new Map<string, OnMe>()
+  const onMe = (cell: Coord | null, AP: number): OnMe => {
+    const key = `${cell ? cellNumber(cell) : ''}|${AP}`
+    const known = read.get(key)
+    if (known) return known
+    const layers = layersOn(cell, AP)
+    const made = { threat: sumLayers(layers), delta: getCostDelta(standing, layers) }
+    read.set(key, made)
+    return made
+  }
+  return { view, members, id, w, me, here, foes, targets: foes.filter((f) => !unnoticed.has(f)), team: getTeam(view, members), target, left, budgets: getBudgets(view, id), onMe, now: sumLayers(standing), picks: new Map() }
 }
 
 const held = (b: Budget, AP: number, STA: number): Guard => ({ AP: heldAP(b, AP), STA: Math.max(0, b.STA - STA) })
@@ -130,8 +146,8 @@ function companyAt(ctx: Ctx, cell: Coord): number {
 
 // The defence the target of `attack`, `gap` metres away, is believed to pick
 // (spec "Defend", read for it): of those it can pay for, the most harm it
-// saves less its Cost, the threat of everyone on it read with the AP the
-// defence leaves it and the character at `cell` holding `AP`, as the target
+// saves less its Cost, the threat of the character's side on it read with
+// the AP the defence leaves it and the character at `cell` holding `AP`, as the target
 // meets the attack once it is paid for; taking the hit at 0. `TargetPick.AP`:
 // what the target is left holding.
 // `counted`: the harm the attack is scored with, of the bleed only what it
@@ -147,7 +163,7 @@ function pickOf(ctx: Ctx, attack: PairAttack, index: number, gap: number, foe: s
   const { view, members, w, team } = ctx
   const target = view.characters[foe]
   const guard = getMeans(target, false, w)
-  const threatOn = (held: number) => getThreatBy(view, members, team, foe, 'immediate', w, [{ id: foe, AP: held }, { id: ctx.id, at: cell, AP }])
+  const threatOn = (held: number) => getLayersBy(view, members, team, foe, 'immediate', w, [{ id: foe, AP: held }, { id: ctx.id, at: cell, AP }])
   const before = threatOn(guard.AP)
   const none = attack.defences.find((d) => d.draft === null)
   const undefended = none ? getHarmAgainst(attack, none, gap) : 0
@@ -156,7 +172,7 @@ function pickOf(ctx: Ctx, attack: PairAttack, index: number, gap: number, foe: s
     if (d.draft === null || d.cost.AP > guard.AP || d.cost.STA > guard.STA) continue
     const harm = getHarmAgainst(attack, d, gap)
     const kept = guard.AP - d.cost.AP
-    const score = undefended - harm - getCost(d.cost.AP, d.cost.STA, threatOn(kept) - before, target.injuries.bleed, w)
+    const score = undefended - harm - getCost(d.cost.AP, d.cost.STA, getCostDelta(before, threatOn(kept)), target.injuries.bleed, w)
     if (score > best.score) best = { score, harm, defence: d.draft.kind, AP: kept, met: d }
   }
   const counted = best.met ? getHarmOnBleeding(attack, best.met, gap, target.injuries.bleed) : best.harm
@@ -203,7 +219,7 @@ function getThreatGain(ctx: Ctx, foe: string, cell: Coord | null, AP: number, pi
 const COVER_WEIGHED = 4
 
 function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.targets): Plan | null {
-  const { view, members, id, w, me, here, budgets } = ctx
+  const { view, id, w, me, here, budgets } = ctx
   const runBlock = getRunBlock(view, id)
   const focusSTA = getSurgeSTA('focus')(me) + getRecoveredSTA(me, me.resources.STA, getSurgeRecovery('recovery')(me)) - me.resources.STA
   const rank = (b: Budget) => (b.surge === null ? 0 : b.surge === 'movement' ? 1 : 2)
@@ -239,11 +255,11 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
           const none = attack.defences.find((d) => d.draft === null)
           if (!none || getHarmAgainst(attack, none, gap) <= 0) continue
           const guard = held(b, spent, STAspent)
-          if (isRuinous(view, members, id, cell, me.resources.STA - guard.STA, guard.AP, w)) continue
+          const onMe = ctx.onMe(cell, guard.AP)
+          if (isRuinous(me, me.resources.STA - guard.STA, onMe.threat, w)) continue
           const pick = pickOf(ctx, attack, i, gap, foe, cell, guard.AP)
           const onTarget = getThreatGain(ctx, foe, cell, guard.AP, pick)
-          const delta = ctx.onMe(cell, guard.AP) - ctx.now
-          const cost = getCost(ownAP(view, id, b, AP, spent), STAspent + b.surgeSTA + (needsFocus ? focusSTA : 0), delta, me.injuries.bleed, w)
+          const cost = getCost(ownAP(view, id, b, AP, spent), STAspent + b.surgeSTA + (needsFocus ? focusSTA : 0), onMe.delta, me.injuries.bleed, w)
           const drew = answering.harm + (attack.kind === 'shoot' ? firedFrom(ctx, cell, AP, STA) : 0)
           const score = pick.counted + onTarget - cost - drew + pick.prevented
           const why = `${attack.kind}s ${target.name} (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${onTarget.toFixed(1)} - cost ${cost.toFixed(1)} - drawn ${drew.toFixed(1)} + threat from it ${pick.prevented.toFixed(1)} = ${score.toFixed(1)})`
@@ -270,10 +286,11 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
             for (const after of getWalks(arrived, id)) for (const r of after.cells) {
               if (sameCell(r.cell, from) || !canPay(b, AP + r.AP, attack.cost.AP + answering.AP) || STAspent + r.STA > b.STA || !after.clear(r)) continue
               const left = held(b, spent + r.AP, STAspent + r.STA)
-              if (isRuinous(view, members, id, r.cell, me.resources.STA - left.STA, left.AP, w)) continue
+              const there = ctx.onMe(r.cell, left.AP)
+              if (isRuinous(me, me.resources.STA - left.STA, there.threat, w)) continue
               const leaving = getApproachDrawn(view, id, from, r.cell, runs(after), ctx.foes, (f) => getMeans(view.characters[f], false, w), guard, w, r.path, spendingOf(ctx)).harm
               const coverOn = getThreatGain(ctx, foe, r.cell, left.AP, pick)
-              const coverCost = getCost(ownAP(view, id, b, AP + r.AP, spent + r.AP), STAspent + r.STA + (needsFocus ? focusSTA : 0), ctx.onMe(r.cell, left.AP) - ctx.now, me.injuries.bleed, w)
+              const coverCost = getCost(ownAP(view, id, b, AP + r.AP, spent + r.AP), STAspent + r.STA + (needsFocus ? focusSTA : 0), there.delta, me.injuries.bleed, w)
               const coverScore = pick.counted + coverOn - coverCost - drew - leaving + pick.prevented
               if (best && coverScore <= best.score) continue
               const coverWhy = `${attack.kind}s ${target.name} and walks to cover (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${coverOn.toFixed(1)} - cost ${coverCost.toFixed(1)} - drawn ${(drew + leaving).toFixed(1)} + threat from it ${pick.prevented.toFixed(1)} = ${coverScore.toFixed(1)})`
@@ -296,8 +313,9 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
   return null
 }
 
-// A walk weighed: the cell, the walk and the budget paying for it, and what it leaves the character holding.
-type Step = { b: Budget; walk: Walk; c: WalkCell; guard: Guard; threat: number }
+// A walk weighed: the cell, the walk and the budget paying for it, and what it leaves the character holding;
+// the foes' immediate threat on it there, and the change a Cost reads in it (`Ctx.onMe`).
+type Step = { b: Budget; walk: Walk; c: WalkCell; guard: Guard; threat: number; delta: number }
 
 // Every walk the character could make this turn (`getWalkBudgets`), each with
 // the foes' immediate threat on it where it ends, holding what the walk leaves.
@@ -308,7 +326,7 @@ function getSteps(ctx: Ctx): Step[] {
   for (const { b, walks } of getWalkBudgets(view, id, ctx.budgets)) for (const walk of walks) for (const c of walk.cells) {
     if (sameCell(c.cell, here) || !isWalkPaid(view, id, b, c.AP)) continue
     const guard = held(b, c.AP, c.STA)
-    steps.push({ b, walk, c, guard, threat: ctx.onMe(c.cell, guard.AP) })
+    steps.push({ b, walk, c, guard, ...ctx.onMe(c.cell, guard.AP) })
   }
   return steps
 }
@@ -335,12 +353,13 @@ function stepPlan(ctx: Ctx, s: Step, score: number, why: string): Plan | null {
   return takesWalk(ctx.view, ctx.id, intent, s.c.AP, s.c.STA) ? { kind: 'walk', intent, score, why } : null
 }
 
-const allowed = (ctx: Ctx, s: Step): boolean => s.walk.clear(s.c) && !isRuinous(ctx.view, ctx.members, ctx.id, s.c.cell, ctx.me.resources.STA - s.guard.STA, s.guard.AP, ctx.w)
+const allowed = (ctx: Ctx, s: Step): boolean => s.walk.clear(s.c) && !isRuinous(ctx.me, ctx.me.resources.STA - s.guard.STA, s.threat, ctx.w)
 
 // spec "Escape": to the cell of the least immediate threat on the character,
-// read with what the walk leaves it, scored by the danger it sheds over
-// `courage`, less `teamwork` for every party member within ESCAPE_COMPANY
-// metres of where it sets out, the walk's STA and the opportunity attacks it draws.
+// read with what the walk leaves it, scored by the danger it sheds, less
+// `teamwork` for every party member within ESCAPE_COMPANY metres of where it
+// sets out, the walk's STA and the opportunity attacks it draws; taken only
+// where that is above `courage`.
 function planEscape(ctx: Ctx): Plan | null {
   const { here, now, w, me } = ctx
   if (!here || now <= 0) return null
@@ -348,8 +367,8 @@ function planEscape(ctx: Ctx): Plan | null {
   for (const s of [...stepsOf(ctx)].sort((x, y) => x.threat - y.threat || x.c.AP + x.c.STA - (y.c.AP + y.c.STA))) {
     if (!allowed(ctx, s)) continue
     const drew = drawnOn(ctx, s.c.cell, s.c.AP, s.c.STA, runs(s.walk), s.c.path, s.b).harm
-    const score = (now - s.threat) / w.courage - company * w.teamwork - getSTAHarm(s.c.STA + s.b.surgeSTA, me.injuries.bleed, w) - drew
-    if (score <= 0) return null
+    const score = now - s.threat - company * w.teamwork - getSTAHarm(s.c.STA + s.b.surgeSTA, me.injuries.bleed, w) - drew
+    if (score <= w.courage) return null
     const plan = stepPlan(ctx, s, score, `escapes (${s.walk.movement}, threat ${now.toFixed(1)} to ${s.threat.toFixed(1)}, ${company} near, drawn ${drew.toFixed(1)}: ${score.toFixed(1)})`)
     if (plan) return plan
   }
@@ -395,8 +414,8 @@ function tacticalScore(ctx: Ctx, target: string, cell: Coord): number {
 
 // spec "Tactical": towards the character's target (`noteTargets`). Of the
 // cells it walks to where an escape would not be called for (the danger
-// there, over the least danger of any cell it walks to, over `courage`, less
-// `teamwork` for every party member near, comes to nothing), and whose Score
+// there, over the least danger of any cell it walks to, less `teamwork` for
+// every party member near, comes to no more than `courage`), and whose Score
 // betters the one where it stands by more than the walk's Cost and the
 // opportunity attacks it draws, the best scoring of each movement, by the
 // movement whose Cost is least. `free` leaves the AP out of the cost (spec
@@ -410,12 +429,12 @@ function planTactical(ctx: Ctx, free: boolean): Plan | null {
   const stay = tacticalScore(ctx, target, here)
   const steps = stepsOf(ctx)
   const safest = steps.reduce((least, s) => Math.min(least, s.threat), ctx.now)
-  const calm = (s: Step) => (s.threat - safest) / w.courage - companyAt(ctx, s.c.cell) * w.teamwork <= 0
+  const calm = (s: Step) => s.threat - safest - companyAt(ctx, s.c.cell) * w.teamwork <= w.courage
   const byMovement = new Map<string, { s: Step; gain: number; cost: number }[]>()
   for (const s of steps) {
     if (!calm(s)) continue
     const gain = tacticalScore(ctx, target, s.c.cell) - stay
-    const cost = getCost(ownAP(view, id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, s.threat - ctx.now, me.injuries.bleed, w, free)
+    const cost = getCost(ownAP(view, id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, s.delta, me.injuries.bleed, w, free)
     if (gain - cost <= 0) continue
     const key = `${s.b.surge ?? ''}|${s.walk.movement}`
     byMovement.set(key, [...(byMovement.get(key) ?? []), { s, gain, cost }])
@@ -512,11 +531,11 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: S
 // with the AP the defence leaves it; taking the hit at 0. An earmarked surge's AP left is lost when the
 // stack is played out by one who does not keep it, so it is spent first. An
 // answer only a surge opens is left out: the surge is weighed by itself
-// (`answer`). `now`: the threat on the character before the block the
+// (`answer`). `now`: the foes' layers on the character before the block the
 // defence is part of, read before any surge made for it.
 type Defence = { draft: ActionDraft | null; score: number; harm: number }
 
-function weighDefences(view: SceneState, members: readonly string[], id: string, attack: PairAttack, gap: number, w: SpecWeights, now: number): Defence {
+function weighDefences(view: SceneState, members: readonly string[], id: string, attack: PairAttack, gap: number, w: SpecWeights, now: Layers): Defence {
   const open = getOpenAction(view)
   const me = view.characters[id]
   const AP = me.resources.AP
@@ -530,7 +549,7 @@ function weighDefences(view: SceneState, members: readonly string[], id: string,
     if (!d) continue
     const harm = getHarmAgainst(attack, d, gap)
     const after = Math.max(0, Math.min(AP - d.cost.AP, AP - dropped))
-    const delta = getThreatOn(view, members, id, 'immediate', w, [{ id, AP: after }]) - now
+    const delta = getCostDelta(now, getLayersOn(view, members, id, 'immediate', w, [{ id, AP: after }]))
     const score = undefended - harm - getCost(d.cost.AP, d.cost.STA, delta, me.injuries.bleed, w)
     if (score > best.score) best = { draft: o.draft, score, harm }
   }
@@ -556,7 +575,7 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
   if (struck) return struck
   const known = getKnownAttack(view, open, id)
   if (!known) return press(find('pass', id), 'lets it come: does not know the attack')
-  const now = getThreatOn(view, input.members, id, 'immediate', w)
+  const now = getLayersOn(view, input.members, id, 'immediate', w)
   const best = weighDefences(view, input.members, id, known.attack, known.gap, w, now)
   const surges = me.resources.STA > 0 ? input.buttons.filter((b) => b.command.kind === 'surge' && argOf(b.command) === id) : []
   let surging: { button: (typeof surges)[number]; gain: number; why: string } | null = null
@@ -610,10 +629,11 @@ function opportunity(input: SeatInput, id: string, w: SpecWeights): Decision | n
       const none = attack.defences.find((d) => d.draft === null)
       if (!none || getHarmAgainst(attack, none, attack.reach) <= 0) continue
       const left = Math.max(0, me.resources.AP - AP)
-      if (isRuinous(view, input.members, id, here, STA, left, w)) continue
+      const onMe = ctx.onMe(here, left)
+      if (isRuinous(me, STA, onMe.threat, w)) continue
       const pick = pickOf(ctx, attack, i, attack.reach, target.id, here, left)
       const onTarget = getThreatGain(ctx, target.id, here, left, pick)
-      const cost = getCost(AP, STA, ctx.onMe(here, left) - ctx.now, me.injuries.bleed, w)
+      const cost = getCost(AP, STA, onMe.delta, me.injuries.bleed, w)
       const score = pick.counted + onTarget - cost + pick.prevented
       if (score <= 0 || (best && score <= best.score)) continue
       const picks: Pick[] = [{ part: 'row', value: attack.row }, ...(attack.declaresHeavy ? [{ part: 'modifier' as const, value: { key: `heavy${attack.heavy}`, on: true } }] : [])]

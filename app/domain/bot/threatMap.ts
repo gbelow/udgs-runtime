@@ -1,5 +1,5 @@
-import type { Coord, SurgeKind } from '../types'
-import type { SceneState } from '../scene/types'
+import type { CampaignCharacter, Coord, SurgeKind } from '../types'
+import type { Board, SceneState } from '../scene/types'
 import { cellNumber, coordKey, disk, distance, sameCell } from '../scene/rules/board/geometry'
 import { firesAcross, getEyes, placeAt } from '../scene/rules/board/board'
 import { canStandAt } from '../scene/rules/board/ground'
@@ -168,23 +168,50 @@ const shifted = (view: SceneState, plays: readonly string[], id: string, shifts:
 const PEEK_BLOCKS = 2
 const shotWalks = new WeakMap<SceneState, Map<string, number | null>>()
 
+// The lines of fire from cell to cell between eyes so high: the ground's alone
+// (its terrain and storeys), whoever stands at their ends, so each is kept by
+// the ground.
+type Lines = Map<number, Map<number, boolean>>
+const linesKept = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, Lines>>>()
+
+function lineOfFire(board: Board, eyes: ReturnType<typeof getEyes>): (a: Coord, b: Coord) => boolean {
+  let byTerrain = linesKept.get(board.levels)
+  if (!byTerrain) linesKept.set(board.levels, (byTerrain = new WeakMap()))
+  let byEyes = byTerrain.get(board.terrain)
+  if (!byEyes) byTerrain.set(board.terrain, (byEyes = new Map()))
+  const key = `${eyes.from}:${eyes.to}`
+  let lines = byEyes.get(key)
+  if (!lines) byEyes.set(key, (lines = new Map()))
+  const kept = lines
+  return (a, b) => {
+    const toN = cellNumber(b)
+    let into = kept.get(toN)
+    if (!into) kept.set(toN, (into = new Map()))
+    const fromN = cellNumber(a)
+    let open = into.get(fromN)
+    if (open === undefined) into.set(fromN, (open = firesAcross(board, [a], [b], eyes)))
+    return open
+  }
+}
+
 function shotWalk(view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number): number | null {
   const board = view.board
   const p = board?.placements[a]
   if (!board || !p) return null
-  const eyes = getEyes(view, a, d)
-  const fires = (c: Coord) => distance(c, at) <= reach && firesAcross(board, [c], [at], eyes)
-  if (fires(from)) return 0
-  const byView = shotWalks.get(view) ?? new Map<string, number | null>()
-  shotWalks.set(view, byView)
+  let byView = shotWalks.get(view)
+  if (!byView) shotWalks.set(view, (byView = new Map()))
   const key = `${a}|${d}|${reach}|${cellNumber(from)}|${cellNumber(at)}`
-  if (byView.has(key)) return byView.get(key) ?? null
+  const known = byView.get(key)
+  if (known !== undefined) return known
+  const open = lineOfFire(board, getEyes(view, a, d))
+  const fires = (c: Coord) => distance(c, at) <= reach && open(c, at)
   const pace = getPace(view, a)
-  let fewest: number | null = null
-  if (pace) for (const c of disk(from, PEEK_BLOCKS * pace.metres)) {
-    const AP = Math.ceil(distance(from, c) / pace.metres) * pace.AP
-    if (AP === 0 || (fewest !== null && AP >= fewest)) continue
-    if (fires(c) && firesAcross(board, [from], [c], eyes) && canStandAt(view, a, placeAt(board, placeAt(board, p, from), c))) fewest = AP
+  let fewest: number | null = fires(from) ? 0 : null
+  // nearest first, so the first that will do is the fewest AP away
+  if (fewest === null && pace) for (const c of disk(from, PEEK_BLOCKS * pace.metres)) {
+    if (sameCell(c, from) || !fires(c) || !open(from, c) || !canStandAt(view, a, placeAt(board, placeAt(board, p, from), c))) continue
+    fewest = Math.ceil(distance(from, c) / pace.metres) * pace.AP
+    break
   }
   byView.set(key, fewest)
   return fewest
@@ -252,6 +279,34 @@ export function getThreatBy(view: SceneState, members: readonly string[], side: 
   return side.reduce((sum, a) => sum + getLayer(view, members, a, d, when, w, shifts), 0)
 }
 
+// The layer of each of `side` on `d`, in the order of `side`.
+export type Layers = readonly number[]
+
+export function getLayersBy(view: SceneState, members: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Layers {
+  return side.map((a) => getLayer(view, members, a, d, when, w, shifts))
+}
+
+export const sumLayers = (layers: Layers): number => layers.reduce((sum, layer) => sum + layer, 0)
+
+// The foes' layers on `id`.
+export function getLayersOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Layers {
+  return getLayersBy(view, members, getSides(view, members).foes, id, when, w, shifts)
+}
+
+// spec "Cost": the change in the threat of everyone on a character, after
+// less before, over the square root of how many threaten it on either side
+// of the change (the user's ruling, 2026-11-23); both the layers of one side,
+// in one order.
+export function getCostDelta(before: Layers, after: Layers): number {
+  let change = 0
+  let threatening = 0
+  for (let i = 0; i < after.length; i++) {
+    change += after[i] - before[i]
+    if (before[i] > 0 || after[i] > 0) threatening++
+  }
+  return threatening === 0 ? 0 : change / Math.sqrt(threatening)
+}
+
 // The foes' threat on `id`.
 export function getThreatOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
   return getThreatBy(view, members, getSides(view, members).foes, id, when, w, shifts)
@@ -259,12 +314,10 @@ export function getThreatOn(view: SceneState, members: readonly string[], id: st
 
 // Whether an option leaves the character collapsed or dead (spec "Guard"):
 // the IL it stands at, the IL its bleed adds for every STA `spentSTA` spends
-// (combat.tex "Bleed"), and the foes' immediate threat on it at `at` holding
-// `AP`, read as IL at `IL` harm a point, reaching its injury capacity
+// (combat.tex "Bleed"), and `threat`, the foes' immediate threat on it where
+// the option leaves it, read as IL at `IL` harm a point, reaching its injury capacity
 // (combat.tex "Injuries and Death").
-export function isRuinous(view: SceneState, members: readonly string[], id: string, at: Coord | null, spentSTA: number, AP: number, w: SpecWeights): boolean {
-  const me = view.characters[id]
-  if (!me) return true
-  const IL = me.injuries.injuryLevel + spentSTA * me.injuries.bleed + getThreatOn(view, members, id, 'immediate', w, [{ id, at, AP }]) / w.IL
+export function isRuinous(me: CampaignCharacter, spentSTA: number, threat: number, w: SpecWeights): boolean {
+  const IL = me.injuries.injuryLevel + spentSTA * me.injuries.bleed + threat / w.IL
   return IL >= getInjuryCapacity(me)
 }

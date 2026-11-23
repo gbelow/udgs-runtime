@@ -12,7 +12,7 @@ export type SpecWeights = RestTuning & {
   caution: number
   // what spending any AP at all costs, besides what it leaves the spender exposed to
   baseAPcost: number
-  // Escape: the danger shed is divided by `courage`, and every ally within
+  // Escape: taken only where its score is above `courage`; every ally within
   // ESCAPE_COMPANY metres of where it sets out takes off `teamwork`
   courage: number
   teamwork: number
@@ -40,7 +40,8 @@ export function getSTAHarm(STA: number, bleed: number, w: SpecWeights): number {
 // spec "Cost": what an action costs the character making it, an attack, a
 // walk or a defence alike: spending `AP` (any at all pays `baseAPcost`),
 // `delta` (the change in the immediate threat of everyone on it, after less
-// before), and `STA`. `free` leaves the AP out (spec "Decide take turn":
+// before, over the square root of how many threaten it: threatMap.ts
+// `getCostDelta`), and `STA`. `free` leaves the AP out (spec "Decide take turn":
 // before agreeing to end the round).
 export function getCost(AP: number, STA: number, delta: number, bleed: number, w: SpecWeights, free = false): number {
   const spent = free ? 0 : w.AP * ((AP > 0 ? w.baseAPcost : 0) + delta)
