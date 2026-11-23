@@ -507,7 +507,7 @@ export function SurgeTile(){
 
 // Everyone in the fight as a strip of chips by party: a click picks the
 // active character, or aims the open action at a target.
-function CharacterList(){
+export function CharacterList(){
   const { parties, pick, picked } = useCombatRoster()
 
   return(

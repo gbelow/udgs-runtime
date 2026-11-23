@@ -1,10 +1,12 @@
-import { App } from "./components/App"; 
+import { App } from "./components/App";
 import { getBasicCharList, getCharacterList, getCampaignList, getCollectionList, getCurrentProfile, getMapList, getBoardMapList, getStructureList, getProfileList, getRaceList } from "./actions";
 import { AppStoreProvider } from "./stores/appStoreProvider";
 import { isDevServer } from "./devServer";
 import z from "zod";
 
-export default async function Home() {
+// The whole app, what the home page opens on the dev server; everyone else
+// has the landing page and the demo for now.
+export async function FullApp() {
   // Fetch initial data server-side for faster initial load
   const [baseRes, playerRes, raceRes, mapRes, boardRes, structureRes, profileRes, profileListRes, collectionRes, campaignRes] = await Promise.all([
     getBasicCharList(),

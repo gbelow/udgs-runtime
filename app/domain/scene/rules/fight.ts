@@ -3,6 +3,7 @@ import type { SceneState, Table } from '../types'
 import { getPlayingOutBar } from './log'
 import { getNextRoundBar } from './turn'
 import type { Homecoming } from '../../campaign/types'
+import { getInjuryCapacity, isDead } from '../../character/rules/afflictions'
 
 // Why the fight cannot give its characters back to the party now: the
 // combat is ended first.
@@ -66,4 +67,22 @@ function getSplitFrom(fight: SceneState, partyId: string, campaignParties: Recor
   const from = fight.parties[partyId]?.from
   if (!from || seen.includes(from)) return null
   return campaignParties[from] ? from : getSplitFrom(fight, from, campaignParties, [...seen, partyId])
+}
+
+// combat.tex "Injuries and Death": dead, or collapsed at its injury capacity.
+export function isDown(state: SceneState, id: string): boolean {
+  const c = state.characters[id]
+  return !c || isDead(c) || c.injuries.injuryLevel >= getInjuryCapacity(c)
+}
+
+// The fight parties that still have someone standing who has not surrendered.
+export function getStandingParties(state: SceneState): string[] {
+  const standing = Object.keys(state.characters).filter((id) => !isDown(state, id) && !state.surrendered.includes(id))
+  return [...new Set(standing.map((id) => state.partyOf[id] ?? ''))]
+}
+
+// Whether at most one side of the fight is left standing, which ends a fight
+// nobody runs as GM (bot/autoTable.ts) and decides the demo.
+export function isOneSideLeft(state: SceneState): boolean {
+  return getStandingParties(state).length <= 1
 }

@@ -124,5 +124,57 @@
       }
     ],
     "treasure": []
+  },
+  "Demo": {
+    "name": "Demo",
+    "text": "",
+    "board": "Arena 1",
+    "parties": [
+      {
+        "name": "Your party",
+        "members": [
+          {
+            "key": "Erthal Defender",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Halkir squire",
+            "count": 1,
+            "player": null
+          },
+          {
+            "key": "Human Ranger",
+            "count": 1,
+            "player": null
+          }
+        ],
+        "spawn": 1,
+        "visitor": true
+      },
+      {
+        "name": "Porcupine",
+        "members": [
+          {
+            "key": "Human Noble",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Erthal Soldier",
+            "count": 1,
+            "player": "bot:threat"
+          },
+          {
+            "key": "Surbit Thief",
+            "count": 1,
+            "player": "bot:threat"
+          }
+        ],
+        "spawn": 2,
+        "visitor": false
+      }
+    ],
+    "treasure": []
   }
 }

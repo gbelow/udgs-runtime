@@ -154,8 +154,13 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   are priced per metre by the degree that metre's water gives the score, and a dive is swum
   like a metre of path.
 - Board edits outside any action (`createBoard`, `placeCharacter`,
-  `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
+  `turnCharacter`, `paintTerrain`, `paintSpawn`) live in `commands/board.ts` and are refused while an
   action is open. `makeBoard` (`factories.ts`) ingests a kept board best-effort.
+- **Spawn areas.** A board keeps numbered spawn areas by cell (`Board.spawns`, painted in the
+  battle map editor), and the fight keeps the area each party is placed in (`spawnOf`, set from a
+  prepared scene's parties by `bringInCast`). Until the fight starts, `placeCharacter` puts a
+  character only where their whole footprint is in their party's area (`rules/board/spawn.ts`);
+  the GM's reposition tool is not held to it. The board view marks the areas until the start.
 - **Painting storeys.** `paintTerrain` with a `level` paints that storey of the board's own:
   a cell of it is open air until painted, `floor` and `hole` lay a floor or a stairwell, and the
   brushes that change a height or lay water (`GROUND_ONLY_BRUSHES`) paint no storey. `addLevel`,

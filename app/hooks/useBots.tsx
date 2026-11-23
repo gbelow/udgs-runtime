@@ -46,7 +46,14 @@ const REPEATS = 3;
 // `REPEATS` times in a row, until another is to be made; a move only held
 // back is not pressed, and is not counted. While the GM has
 // paused them, they make no move at all.
-export function useBots() {
+// `table`: whether the table presses for a GM nobody plays (bot/autoTable.ts),
+// as the demo has none, and whether it holds the first round back until it is
+// told to begin.
+export type BotTable = { auto: boolean; holdStart: boolean };
+const WITH_GM: BotTable = { auto: false, holdStart: false };
+
+export function useBots(table: BotTable = WITH_GM) {
+  const { auto, holdStart } = table;
   const mode = useTableStore((s) => s.mode);
   const viewerOf = useGuestViewerCheck();
   const thrower = useThrower();
@@ -77,12 +84,13 @@ export function useBots() {
       const state = useCombatStore.getState();
       const ownerOf = viewerOf(BOTS[0].id, false).ownerOf;
       const seats = getBotSeats(state, ownerOf);
-      if (seats.length === 0) return;
+      if (seats.length === 0 && !auto) return;
       const opts: MoveOptions = {
         ctx: { thrower: realDice, newId: () => crypto.randomUUID() },
         botDice: realDice,
         rngOf: () => Math.random,
-        autoTable: false,
+        autoTable: auto,
+        holdStart,
         viewerOf: (seat) => viewerOf(seat.profile ?? seat.id, false),
         memories,
       };
@@ -132,5 +140,5 @@ export function useBots() {
     const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) soon(); });
     const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) { held = null; soon(); } });
     return () => { offCombat(); offOwners(); offPaused(); if (timer) clearTimeout(timer); };
-  }, [mode]);
+  }, [mode, auto, holdStart]);
 }

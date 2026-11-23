@@ -35,11 +35,28 @@ export type SceneCast = { id: string; key: string; party: string; partyName: str
 // so who plays them is known before it is played.
 export function getSceneCast(sceneId: string, waiting: WaitingScene): SceneCast[] {
   const preset = getScenePreset(waiting.preset)
+  return getPresetCast(sceneId, preset, (p, m) => getScenePlayer(waiting, preset, p, m))
+}
+
+// Everyone a preset brings in when played as `sceneId`, each played by
+// whoever `playerOf` says plays their line.
+export function getPresetCast(sceneId: string, preset: ScenePreset, playerOf: (party: number, member: number) => string | null): SceneCast[] {
   return preset.parties.flatMap((party, p) => party.members.flatMap((member, m) =>
     Array.from({ length: Math.max(0, member.count) }, (_, n) => ({
-      id: `${sceneId}:${p}:${m}:${n}`, key: member.key, party: `${sceneId}:${p}`, partyName: party.name,
-      player: getScenePlayer(waiting, preset, p, m),
+      id: `${sceneId}:${p}:${m}:${n}`, key: member.key, party: getScenePartyId(sceneId, p), partyName: party.name,
+      player: playerOf(p, m),
     }))))
+}
+
+// The fight party a preset's party is brought in as, played as `sceneId`.
+export function getScenePartyId(sceneId: string, party: number): string {
+  return `${sceneId}:${party}`
+}
+
+// The spawn area each of the preset's parties is placed in, by the fight
+// party it is brought in as; a party placed anywhere has none.
+export function getSceneSpawns(sceneId: string, preset: ScenePreset): Record<string, number> {
+  return Object.fromEntries(preset.parties.flatMap((party, p) => (party.spawn > 0 ? [[getScenePartyId(sceneId, p), party.spawn]] : [])))
 }
 
 // The catalog characters the waiting scene is played with, by key.

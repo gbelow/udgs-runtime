@@ -19,6 +19,8 @@ pnpm test:fuzz # the board fuzzer and the slow tests (FUZZ_SEEDS=n for a wider s
 pnpm relay    # the table relay for multiplayer (ws://localhost:8787, NEXT_PUBLIC_RELAY_URL)
 ```
 
+Routes: `/` is the whole app on the dev server and the landing page everywhere else (the landing page is at `/home` on the dev server); `/demo` is the demo (a prepared scene against the bots, named with its collection in `app/assets/demo.json`; nothing saved, no profile).
+
 Package manager is **pnpm**, Node v22+. Redis persistence requires `.env` with `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` (see `.env.example`).
 
 ## Architecture

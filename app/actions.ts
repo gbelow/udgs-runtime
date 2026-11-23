@@ -11,6 +11,7 @@ import { cookies } from 'next/headers';
 import { cache } from 'react';
 import type { ZodType } from 'zod';
 import { isDevServer } from './devServer';
+import { DEMO } from './domain/demo';
 import type { CampaignCharacter } from './domain/types';
 import { CATALOGS, isCatalogName } from './forms/catalogs';
 import { isBaseCharacter, without } from './domain/utils';
@@ -751,6 +752,20 @@ const COLLECTIONS_KEY = 'collections';
 async function readCollection(id: string): Promise<Collection | null> {
   const parsed = CollectionSchema.safeParse(await redis.hget(COLLECTIONS_KEY, id));
   return parsed.success ? parsed.data : null;
+}
+
+// The keys of the collection the demo offers its visitor (`DEMO`), read
+// for anyone, profile or none, since the demo names it; null when the demo
+// names none, or it is gone or not of characters.
+export async function getDemoCollection(): Promise<ActionResult<string[] | null>> {
+  if (!DEMO.collection) return { ok: true, data: null };
+  try {
+    const collection = await readCollection(DEMO.collection);
+    return { ok: true, data: collection && collection.kind === 'characters' ? collection.keys : null };
+  } catch (err) {
+    console.error('Error reading the demo collection:', err);
+    return { ok: false, error: 'Failed to read the demo collection.' };
+  }
 }
 
 // The collections the profile at the screen sees: their own, those shared

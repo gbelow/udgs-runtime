@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../rules/started'
 import type { Bind, Board, TerrainCell, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, StructureArt, SurfaceArt } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -138,6 +139,8 @@ export type BoardCellMarks = {
   isCenter: boolean
   threatened: boolean
   zone: Degree | null
+  // the spawn area the cell is in, drawn until the fight starts
+  spawn: number | null
   // what lies on the floor here
   items: string[]
 }
@@ -492,6 +495,7 @@ function buildBoardView(state: SeenScene): BoardView {
   const beyond = [...new Set([...Object.keys(occupancy), ...threatened])].filter((key) => !reached.has(key) && !!parseCoordKey(key))
   const ground = getBoardGround(board, beyond)
   const left = getGroundMarks(state)
+  const started = isCombatStarted(state)
   const cells: BoardCellView[] = ground.cells.map((g) => {
     const there = reachableByKey.get(g.key)
     return {
@@ -510,6 +514,7 @@ function buildBoardView(state: SeenScene): BoardView {
       center: centers.has(g.key),
       isCenter: aimedAt !== null && sameCell(aimedAt, g.cell),
       threatened: threatened.has(g.key),
+      spawn: started ? null : board.spawns[g.key] ?? null,
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, g.cell)).map((f) => f.item.name),
     }
   })
@@ -635,7 +640,7 @@ export function getRimMarks(of: Pick<BoardCellMarks, 'visibility' | 'light' | 'l
   return {
     visibility: of.visibility, light: of.light, lit: of.lit, ambient: of.ambient, unseen: of.unseen,
     fire: 0, fuels: [], suffocating: false, occupants: [], chosen: false, reachable: null, pathStep: null, swept: false,
-    isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, items: [],
+    isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, spawn: null, items: [],
   }
 }
 

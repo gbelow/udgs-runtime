@@ -4,12 +4,13 @@ import { Plus, X } from 'lucide-react'
 import { CatalogDrawer } from '../RunParts'
 import { Button, IconButton, NumberInput, SectionLabel, TextInput, selectClass } from '../ui'
 import { SCENE_PLAYERS, useScenePresetDraft } from '../../hooks/useScenePresets'
+import { SPAWN_AREAS } from '../../domain/lists'
 
 // The parties a prepared scene brings into its fight, each the enemy of
 // every other: a card each, made of catalog characters picked from the
 // catalog opened beside the cards, so many copies of each and who plays them.
 export function SceneParties({ value, onChange }: { value: Record<string, unknown>, onChange: (value: Record<string, unknown>) => void }) {
-  const { parties, addParty, renameParty, removeParty, addMember, setCount, setPlayer, removeMember } = useScenePresetDraft(value, onChange)
+  const { parties, addParty, renameParty, removeParty, setSpawn, setVisitor, addMember, setCount, setPlayer, removeMember } = useScenePresetDraft(value, onChange)
   const [adding, setAdding] = useState<number | null>(null)
   const open = adding !== null && adding < parties.length ? adding : null
   const remove = (party: number) => { setAdding(null); removeParty(party) }
@@ -32,6 +33,18 @@ export function SceneParties({ value, onChange }: { value: Record<string, unknow
                 <TextInput className='text-sm grow min-w-0' aria-label={`party ${p + 1} name`} placeholder={`party ${p + 1}`}
                   value={party.name} onChange={(e) => renameParty(p, e.target.value)} />
                 <IconButton icon={X} tone='bad' aria-label={`remove party ${p + 1}`} onClick={() => remove(p)} />
+              </div>
+              <div className='flex flex-row flex-wrap items-center gap-2 text-xs'>
+                <label className='flex flex-row items-center gap-1' title='the spawn area of the battle map the party is placed in before the fight starts'>placed in
+                  <select aria-label={`party ${p + 1} spawn area`} className={selectClass} value={party.spawn} onChange={(e) => setSpawn(p, Number(e.target.value))}>
+                    <option value={0}>anywhere</option>
+                    {SPAWN_AREAS.map((a) => <option key={a} value={a}>{`area ${a}`}</option>)}
+                  </select>
+                </label>
+                <label className='flex flex-row items-center gap-1' title="the demo's visitor fills this party and plays it; its members are the party offered ready-made">
+                  <input type='checkbox' aria-label={`party ${p + 1} is the demo visitor's`} checked={party.visitor} onChange={(e) => setVisitor(p, e.target.checked)} />
+                  the demo visitor&apos;s
+                </label>
               </div>
               {party.members.map((member, m) => (
                 <div key={`${member.key}-${m}`} className='flex flex-row items-center gap-1'>

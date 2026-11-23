@@ -1,5 +1,5 @@
 import type { SceneState } from '../scene/types'
-import { isDead, getInjuryCapacity } from '../character/rules/afflictions'
+import { isDown } from '../scene/rules/fight'
 import { getOpenAction } from '../scene/rules/log'
 import { getAvailableActions, getAwaited, getUnfinishedAnswers } from '../scene/rules/options'
 import { getActionDef } from '../scene/rules/actionCatalog'
@@ -13,11 +13,7 @@ import { getCommandActor } from '../scene/commands/registry'
 // buttons it may press, and what the table waits on it for. `members` are the
 // characters its owner plays; `gm` whether that owner is the GM.
 
-// combat.tex "Injuries and Death": dead, or collapsed at its injury capacity.
-export function isDown(state: SceneState, id: string): boolean {
-  const c = state.characters[id]
-  return !c || isDead(c) || c.injuries.injuryLevel >= getInjuryCapacity(c)
-}
+export { isDown }
 
 // `mine`: the members in the fight. `allies`: everyone else in the same party
 // of the fight as one of them, whoever plays them. `foes`: everyone else still

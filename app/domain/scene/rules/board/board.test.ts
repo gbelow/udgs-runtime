@@ -43,6 +43,7 @@ describe('a fight without a board is a fight where every positional gate passes'
     terrain: {},
     levels: [],
     pieces: {},
+    spawns: {},
     surface: null,
     seed: 0,
     light: 'bright',

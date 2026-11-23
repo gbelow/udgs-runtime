@@ -191,7 +191,7 @@ function Overlay({ title, wide = false, shown, close, children }: { title: strin
 
 // The dice tray opened by itself for every die called for from someone the
 // screen plays, whichever sequence calls for it, and the turn followed.
-function AutoThrow(){
+export function AutoThrow(){
   useFollowTurn()
   useSceneAutoThrow()
   useETAutoThrow()
@@ -255,7 +255,7 @@ function SheetTabs({ own }: { own: boolean }){
 // resources, the injury dials and the pending tests are the character's,
 // edited and rolled by whoever plays them, while the kill button, the wounds
 // and the afflictions are the GM's.
-function Status({ resource, resourceEnd, needs, injuryAction }: { resource?: ReactNode, resourceEnd?: ReactNode, needs: boolean, injuryAction?: ReactNode }){
+export function Status({ resource, resourceEnd, needs, injuryAction }: { resource?: ReactNode, resourceEnd?: ReactNode, needs: boolean, injuryAction?: ReactNode }){
   return(
     <>
       <ControlLocked><ResourceTiles needs={needs} after={resourceEnd}>{resource}</ResourceTiles></ControlLocked>

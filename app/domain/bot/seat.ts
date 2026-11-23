@@ -64,8 +64,10 @@ export type MoveOptions = {
   // the dice a bot throws when a die is called for one of its characters
   botDice: Dice
   rngOf: (seatId: string) => () => number
-  // whether the table presses for a GM nobody plays
+  // whether the table presses for a GM nobody plays, and whether it holds
+  // the first round back until it is told to begin (`getTablePress`)
   autoTable: boolean
+  holdStart?: boolean
   // whom a seat presses as: its own player viewer when not given
   viewerOf?: (seat: Seat) => Viewer
   // what each seat remembers of the foes it noticed, and its box's notes, by seat id (`noteSeats`)
@@ -200,7 +202,7 @@ function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions,
   }
   yield* askSeats(state, asked.filter((a) => a.waits.length > 0), 'any', opts)
 
-  const press = opts.autoTable ? getTablePress(state) : null
+  const press = opts.autoTable ? getTablePress(state, opts.holdStart) : null
   if (press) yield { by: 'table', who: null, why: press.kind, viewer: GM, commands: [press] }
 
   const idle = asked.filter((a) => a.waits.length === 0)

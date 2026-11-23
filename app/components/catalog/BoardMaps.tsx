@@ -8,7 +8,7 @@ import { useBoardCamera, useCellAt } from '../../hooks/useBoardCanvas'
 import { useBoardLook, type BoardLook } from '../../hooks/useBoardLook'
 import { useBoardVeil, useLitCell } from '../../hooks/useBoardVeil'
 import { useBoardMapEditor, useStructureEditor } from '../../hooks/useBoardMaps'
-import { GROUND_BRUSHES, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, PIECE_TURNS, STOREY_BRUSHES } from '../../domain/lists'
+import { GROUND_BRUSHES, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, PIECE_TURNS, SPAWN_AREAS, STOREY_BRUSHES } from '../../domain/lists'
 import type { TerrainBrush } from '../../domain/types'
 import type { Coord, SurfaceTarget } from '../../domain/scene/types'
 
@@ -37,8 +37,9 @@ export function StructuresEditor() {
 }
 
 // What a click on the board does: paint (or lay the surface held), lay the
-// structure held as a piece, pick the piece there, or move the piece picked.
-type Tool = 'paint' | 'place' | 'pick' | 'move'
+// structure held as a piece, pick the piece there, move the piece picked, or
+// paint a spawn area (or take cells out of every area).
+type Tool = 'paint' | 'place' | 'pick' | 'move' | 'spawn'
 
 function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: { label: string, editor: Editor, look: BoardLook, setStoreyAt: (at: number) => void, chosen: string | null, choose: ((id: string | null) => void) | null }) {
   const { rows, view, map, openId, devServer, storeys, storey, piece, open, create, remove, save, setName, paint, light, laySurface, generateGround, resize, addStorey, removeStorey, setStorey } = editor
@@ -50,6 +51,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
   const [tool, setTool] = useState<Tool>('paint')
   const [held, setHeld] = useState<string | null>(null)
   const [turns, setTurns] = useState(0)
+  const [area, setArea] = useState<number | null>(SPAWN_AREAS[0])
   const camera = useBoardCamera()
   const cellAt = useCellAt()
   const veil = useBoardVeil(view)
@@ -63,6 +65,7 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
     if (tool === 'place' && held) editor.placePiece(held, cell, turns)
     else if (tool === 'pick' && choose) { choose(editor.pieceAt(cell)); setTool('paint') }
     else if (tool === 'move' && piece) { editor.movePiece(piece, cell); setTool('paint') }
+    else if (tool === 'spawn') editor.paintSpawn(cell, area, radius)
     else if (tool === 'paint' && laying) laySurface(cell, laying, frozen, radius, onto)
     else if (tool === 'paint' && brush && brushes.includes(brush)) paint(cell, brush, radius)
   }
@@ -116,6 +119,13 @@ function KeptBoardEditor({ label, editor, look, setStoreyAt, chosen, choose }: {
           <SectionLabel>paint</SectionLabel>
           {brushes.map((b) => <Button key={b} size='xs' selected={tool === 'paint' && brush === b} onClick={() => { setBrush(b); setLaying(null); setTool('paint') }}><BrushFace brush={b} icons={editor.brushIcons} /></Button>)}
         </div>
+        {choose && !piece ? (
+          <div className='flex flex-row flex-wrap gap-1 items-center'>
+            <SectionLabel>spawn areas</SectionLabel>
+            {SPAWN_AREAS.map((a) => <Button key={a} size='xs' selected={tool === 'spawn' && area === a} title={`paint cells into spawn area ${a}, where a prepared scene places a party`} onClick={() => { setArea(a); setTool('spawn') }}>{`area ${a}`}</Button>)}
+            <Button size='xs' selected={tool === 'spawn' && area === null} title='take cells out of every spawn area' onClick={() => { setArea(null); setTool('spawn') }}>no area</Button>
+          </div>
+        ) : null}
         <BrushSize radius={radius} setRadius={setRadius} />
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>light</SectionLabel>

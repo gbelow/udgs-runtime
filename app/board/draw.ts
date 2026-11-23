@@ -220,6 +220,15 @@ const ZONE_FILL: Record<NonNullable<BoardCellView['zone']>, Paint> = {
   miss: { color: 'bad', alpha: 0.05 },
 }
 
+// The spawn areas by number (`SPAWN_AREAS`), the first in the tone of what
+// is offered.
+const SPAWN_FILL: Record<number, Paint> = {
+  1: { color: 'good', alpha: 0.45 },
+  2: { color: 'bad', alpha: 0.4 },
+  3: { color: 'accent', alpha: 0.45 },
+  4: { color: 'injury-2', alpha: 0.45 },
+}
+
 function cellFill(c: BoardCellView): Paint | null {
   if (c.isJumpTo) return { color: 'good', alpha: 0.4 }
   if (c.pathStep !== null) return { color: 'accent', alpha: 0.4 }
@@ -227,6 +236,7 @@ function cellFill(c: BoardCellView): Paint | null {
   if (c.zone) return ZONE_FILL[c.zone]
   if (c.reachable || c.jump || c.center) return { color: 'good', alpha: 0.35 }
   if (c.threatened) return { color: 'bad', alpha: 0.1 }
+  if (c.spawn !== null) return SPAWN_FILL[c.spawn] ?? SPAWN_FILL[1]
   if (c.fire > 0) return { color: 'injury-2', alpha: 0.3 }
   if (c.fuels.length > 0) return { color: 'accent', alpha: 0.15 }
   if (c.suffocating) return { color: 'fg', alpha: 0.25 }
@@ -238,10 +248,11 @@ function cellStroke(c: BoardCellView): { paint: Paint; width: number } {
   const offered = !!(c.reachable || c.jump || c.center)
   const paint: Paint = c.isDestination || c.isJumpTo || c.isCenter || c.chosen ? { color: 'accent' }
     : offered ? { color: 'good' }
+    : c.spawn !== null ? { ...(SPAWN_FILL[c.spawn] ?? SPAWN_FILL[1]), alpha: 0.9 }
     : c.piece !== null ? { color: 'accent', alpha: 0.4 }
     : c.art !== null ? { color: 'line', alpha: 0.3 }
     : { color: 'line' }
-  return { paint, width: c.chosen ? 0.14 : offered ? 0.12 : 0.06 }
+  return { paint, width: c.chosen ? 0.14 : offered || c.spawn !== null ? 0.12 : 0.06 }
 }
 
 export function drawCells(kit: Kit, cells: BoardCellView[], hex: Point[]): Container {

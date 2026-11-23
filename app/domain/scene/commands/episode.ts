@@ -1,10 +1,10 @@
-import type { CampaignState } from '../../campaign/types'
+import type { CampaignState, ScenePreset } from '../../campaign/types'
 import type { CampaignCharacter } from '../../types'
 import { isDead } from '../../character/rules/afflictions'
 import { leaveForGood } from '../../campaign/commands/roster'
 import type { FloorItem, SceneState, Table, TableUpdater } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import { getPlaySceneBar, getSceneCast, getScenePreset } from '../../campaign/rules/scenes'
+import { getPlaySceneBar, getSceneCast, getScenePreset, getSceneSpawns, type SceneCast } from '../../campaign/rules/scenes'
 import { getPlaceKey } from '../../campaign/rules/place'
 import { getRosterName } from '../../campaign/rules/roster'
 import { record } from '../../campaign/commands/journal'
@@ -35,13 +35,24 @@ export function playScene(sceneId: string, board: unknown | null, sheets: Record
     })({ ...table.campaign, scenes: without(table.campaign.scenes, sceneId) })
     const fight = board === null ? { ...table.fight, board: null } : loadBoardMap(board)(table.fight)
     const sent = sendToFight(waiting.members.filter((id) => campaign.characters[id]))({ campaign, fight })
-    const parties = cast.reduce<Table>((t, c) => ({ ...t, fight: createParty(c.party, c.partyName)(t.fight) }), sent)
+    const played = bringInCast(sceneId, preset, cast, sheets, newId)(sent)
+    return { ...played, fight: { ...played.fight, foundAt: waiting.at ? getPlaceKey(waiting.at) : null } }
+  }
+}
+
+// What a preset played as `sceneId` brings into the fight: each of its
+// parties as a fight party of its own, placed in its spawn area, made of the
+// cast (new copies of the catalog characters in `sheets`), and its treasure
+// lying on the floor.
+export function bringInCast(sceneId: string, preset: ScenePreset, cast: readonly SceneCast[], sheets: Record<string, unknown>, newId: () => string): TableUpdater {
+  return (table) => {
+    const parties = cast.reduce<Table>((t, c) => ({ ...t, fight: createParty(c.party, c.partyName)(t.fight) }), table)
     const played = cast.reduce<Table>((t, c) => loadIntoFight({ ...makeCampaignCharacter(sheets[c.key] as object), id: c.id }, newId, c.party)(t), parties)
     const floor: FloorItem[] = preset.treasure.flatMap(({ key, amount }) => {
       const item = getCatalogItem(key, amount)
       return item ? [{ item: { ...item, id: newId() }, cell: null, planted: null }] : []
     })
-    return { ...played, fight: { ...played.fight, floor: [...played.fight.floor, ...floor], foundAt: waiting.at ? getPlaceKey(waiting.at) : null } }
+    return { ...played, fight: { ...played.fight, floor: [...played.fight.floor, ...floor], spawnOf: { ...played.fight.spawnOf, ...getSceneSpawns(sceneId, preset) } } }
   }
 }
 

@@ -81,10 +81,15 @@ export const ScenePartyMemberSchema = z.object({
 })
 export type ScenePartyMember = z.infer<typeof ScenePartyMemberSchema>
 
-// A party a prepared scene brings into its fight, the enemy of every other.
+// A party a prepared scene brings into its fight, the enemy of every other:
+// the spawn area of the battle map it is placed in (0 for anywhere), and
+// whether it is the party a visitor to the demo fills and plays, its members
+// then the line-up offered ready-made.
 export const ScenePartySchema = z.object({
   name: z.string().default(''),
   members: z.array(ScenePartyMemberSchema).default([]),
+  spawn: z.number().int().min(0).default(0),
+  visitor: z.boolean().default(false),
 })
 export type SceneParty = z.infer<typeof ScenePartySchema>
 

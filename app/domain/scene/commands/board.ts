@@ -1,8 +1,9 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
-import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type SurfaceTarget, type TerrainCell, type Updater } from '../types'
+import { BoardExtentSchema, BoardSchema, SpawnAreaSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type SurfaceTarget, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
-import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
+import { coordKey, directionTo, disk, distance, extentCells, inExtent, parseCoordKey, sameCell, turn } from '../rules/board/geometry'
+import { isInSpawnArea } from '../rules/board/spawn'
 import { BRUSH_RADIUS_MOST, CHORD_BRUSH_CORNER, DRAWN_WIDTH_LEAST, DRAWN_WIDTH_STEP, GROUND_ONLY_BRUSHES } from '../../lists'
 import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
@@ -58,6 +59,7 @@ export function resizeBoard(extent: BoardExtent): Updater {
         ...off,
         extent: resized.data,
         terrain: beyond.terrain.reduce(without, off.terrain),
+        spawns: Object.fromEntries(Object.entries(off.spawns).filter(([key]) => { const c = parseCoordKey(key); return c !== null && inExtent(off.origin, resized.data, c) })),
         levels: off.levels.map((level, i) => ({ ...level, terrain: beyond.levels[i].reduce(without, level.terrain) })),
       },
       floor: state.floor.map((f) => (beyond.floor.includes(f.item.id) ? { ...f, cell: null } : f)),
@@ -170,13 +172,31 @@ export function loadBoardMap(raw: unknown): Updater {
 }
 
 // Puts a character down where the table says, at the height of the ground
-// there: anywhere until the fight has started, then only a character not yet
-// on the board. Placement by hand, not a move: it costs nothing and follows
-// no path, and only the footprint's own rules apply. Once the fight is under
-// way, a character on the board is moved by a move, or by the GM
+// there: anywhere until the fight has started (within their party's spawn
+// area, if it has one), then only a character not yet on the board.
+// Placement by hand, not a move: it costs nothing and follows no path, and
+// only the footprint's own rules apply. Once the fight is under way, a
+// character on the board is moved by a move, or by the GM
 // (`repositionCharacter`).
 export function placeCharacter(id: string, cell: Coord): Updater {
-  return (state) => (state.board?.placements[id] && isCombatStarted(state) ? state : repositionCharacter(id, cell)(state))
+  return (state) => {
+    if (state.board?.placements[id] && isCombatStarted(state)) return state
+    const placed = repositionCharacter(id, cell)(state)
+    return isInSpawnArea(placed, id) ? placed : state
+  }
+}
+
+// Paints the cells around `cell` into spawn area `area`, or out of every
+// area (null). Refused while an action is open, as painting is.
+export function paintSpawn(cell: Coord, area: number | null, radius = 0): Updater {
+  return (state) => {
+    const board = state.board
+    if (!board || getOpenAction(state) || (area !== null && !SpawnAreaSchema.safeParse(area).success)) return state
+    const reach = Number.isInteger(radius) ? Math.max(0, Math.min(BRUSH_RADIUS_MOST, radius)) : 0
+    const keys = disk(cell, reach).filter((c) => inExtent(board.origin, board.extent, c)).map(coordKey)
+    const spawns = keys.reduce<Record<string, number>>((acc, key) => (area === null ? without(acc, key) : { ...acc, [key]: area }), board.spawns)
+    return { ...state, board: { ...board, spawns } }
+  }
 }
 
 // The GM's hand: puts a character down anywhere, as they are oriented,

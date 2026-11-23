@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { getScenePresets } from "../domain/campaign/rules/scenes";
 import { ScenePresetSchema, type ScenePreset } from "../domain/campaign/types";
-import { addSceneMember, addSceneParty, removeSceneMember, removeSceneParty, renameSceneParty, setSceneMember } from "../domain/campaign/commands/scenePreset";
+import { addSceneMember, addSceneParty, removeSceneMember, removeSceneParty, setScenePartySpawn, setScenePartyVisitor, renameSceneParty, setSceneMember } from "../domain/campaign/commands/scenePreset";
 import { BOTS, getOwnerOptions } from "../domain/profiles";
 import type { Character } from "../domain/types";
 import { isBaseCharacter } from "../domain/utils";
@@ -37,6 +37,8 @@ export function useScenePresetDraft(value: Record<string, unknown>, onChange: (v
     addParty: () => apply(addSceneParty('')),
     renameParty: (party: number, name: string) => apply(renameSceneParty(party, name)),
     removeParty: (party: number) => apply(removeSceneParty(party)),
+    setSpawn: (party: number, spawn: number) => apply(setScenePartySpawn(party, spawn)),
+    setVisitor: (party: number, visitor: boolean) => apply(setScenePartyVisitor(party, visitor)),
     addMember: (party: number, character: Character) => {
       if (isBaseCharacter(character)) apply(addSceneMember(party, character.name));
       else toast.error("Only a catalog character can join a prepared scene's party.");

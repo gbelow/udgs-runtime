@@ -16,6 +16,16 @@ export function renameSceneParty(party: number, name: string): PresetUpdater {
   return (preset) => withParties(preset, preset.parties.map((p, i) => (i === party ? { ...p, name } : p)))
 }
 
+// The spawn area a party is placed in (0 for anywhere).
+export function setScenePartySpawn(party: number, spawn: number): PresetUpdater {
+  return (preset) => withParties(preset, preset.parties.map((p, i) => (i === party ? { ...p, spawn: Math.max(0, Math.floor(spawn)) } : p)))
+}
+
+// Whether a party is the one the demo's visitor plays: one party at most.
+export function setScenePartyVisitor(party: number, visitor: boolean): PresetUpdater {
+  return (preset) => withParties(preset, preset.parties.map((p, i) => ({ ...p, visitor: i === party ? visitor : visitor ? false : p.visitor })))
+}
+
 export function removeSceneParty(party: number): PresetUpdater {
   return (preset) => withParties(preset, preset.parties.filter((_, i) => i !== party))
 }

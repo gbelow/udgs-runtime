@@ -34,6 +34,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
     return kept.length === Object.keys(parties).length ? parties : Object.fromEntries(kept)
   },
   partyOf: unseen,
+  spawnOf: keep,
   round: keep,
   elapsed: keep,
   chase: keep,
