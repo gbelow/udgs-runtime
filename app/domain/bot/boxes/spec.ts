@@ -6,7 +6,7 @@ import { getRecoveredSTA } from '../../character/rules/characteristics'
 import { getOpenAction } from '../../scene/rules/log'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
-import { distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
+import { coordKey, distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
 import { firesAcross, getEyes, getEyesToward, seesAcross } from '../../scene/rules/board/board'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
 import { getTurnHolder, hasAgreedToEnd, keepsSurgeAP } from '../../scene/rules/turn'
@@ -55,7 +55,7 @@ import type { Notes } from '../memory'
 // overflow spent as `getBestSpend` spends it, the round's rest step) it plays
 // as the nearest box does.
 
-export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.5, STA: 2, caution: 1.7, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 1, teamwork: 1, baseAPcost: 1, aggro: 1 }
+export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.2, STA: 2, caution: 1.7, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 1, teamwork: 1, baseAPcost: 1, aggro: 1, aggressivity: 0.5 }
 
 // spec "Escape": the party members within this many metres of where the character sets out
 const ESCAPE_COMPANY = 10
@@ -131,19 +131,23 @@ function companyAt(ctx: Ctx, cell: Coord): number {
 // The defence the target of `attack`, `gap` metres away, is believed to pick
 // (spec "Defend", read for it): of those it can pay for, the most harm it
 // saves less its Cost, the threat of everyone on it read with the AP the
-// defence leaves it; taking the hit at 0. `AP`: what it is left holding.
+// defence leaves it and the character at `cell` holding `AP`, as the target
+// meets the attack once it is paid for; taking the hit at 0. `TargetPick.AP`:
+// what the target is left holding.
 // `counted`: the harm the attack is scored with, of the bleed only what it
 // adds over what the target bleeds already (`getHarmOnBleeding`).
-type TargetPick = { harm: number; counted: number; defence: string; AP: number }
+// `prevented`: w.aggressivity times the target's immediate threat on the
+// character's side (`getThreatFrom`).
+type TargetPick = { harm: number; counted: number; defence: string; AP: number; prevented: number }
 
-function pickOf(ctx: Ctx, attack: PairAttack, index: number, gap: number, foe: string): TargetPick {
-  const key = `${foe}|${index}|${gap}`
+function pickOf(ctx: Ctx, attack: PairAttack, index: number, gap: number, foe: string, cell: Coord | null, AP: number): TargetPick {
+  const key = `${foe}|${index}|${gap}|${cell ? coordKey(cell) : ''}|${AP}`
   const known = ctx.picks.get(key)
   if (known) return known
   const { view, members, w, team } = ctx
   const target = view.characters[foe]
   const guard = getMeans(target, false, w)
-  const threatOn = (AP: number) => getThreatBy(view, members, team, foe, 'immediate', w, [{ id: foe, AP }])
+  const threatOn = (held: number) => getThreatBy(view, members, team, foe, 'immediate', w, [{ id: foe, AP: held }, { id: ctx.id, at: cell, AP }])
   const before = threatOn(guard.AP)
   const none = attack.defences.find((d) => d.draft === null)
   const undefended = none ? getHarmAgainst(attack, none, gap) : 0
@@ -151,12 +155,12 @@ function pickOf(ctx: Ctx, attack: PairAttack, index: number, gap: number, foe: s
   for (const d of attack.defences) {
     if (d.draft === null || d.cost.AP > guard.AP || d.cost.STA > guard.STA) continue
     const harm = getHarmAgainst(attack, d, gap)
-    const AP = guard.AP - d.cost.AP
-    const score = undefended - harm - getCost(d.cost.AP, d.cost.STA, threatOn(AP) - before, target.injuries.bleed, w)
-    if (score > best.score) best = { score, harm, defence: d.draft.kind, AP, met: d }
+    const kept = guard.AP - d.cost.AP
+    const score = undefended - harm - getCost(d.cost.AP, d.cost.STA, threatOn(kept) - before, target.injuries.bleed, w)
+    if (score > best.score) best = { score, harm, defence: d.draft.kind, AP: kept, met: d }
   }
   const counted = best.met ? getHarmOnBleeding(attack, best.met, gap, target.injuries.bleed) : best.harm
-  const pick: TargetPick = { harm: best.harm, counted, defence: best.defence, AP: best.AP }
+  const pick: TargetPick = { harm: best.harm, counted, defence: best.defence, AP: best.AP, prevented: getThreatFrom(ctx, foe) }
   ctx.picks.set(key, pick)
   return pick
 }
@@ -165,6 +169,15 @@ function pickOf(ctx: Ctx, attack: PairAttack, index: number, gap: number, foe: s
 // off, what it was before.
 const harmText = (pick: TargetPick, target: CampaignCharacter): string =>
   pick.counted === pick.harm ? pick.harm.toFixed(1) : `${pick.counted.toFixed(1)} (${pick.harm.toFixed(1)}, bleeding ${target.injuries.bleed} already)`
+
+// spec "Attacking": w.aggressivity times the immediate threat of `foe` on
+// everyone of the character's side as they stand, the aggression an attack
+// on it goes against (the user's term, 2026-11-23: a multiplier over its
+// threat, not a change in it).
+function getThreatFrom(ctx: Ctx, foe: string): number {
+  const { view, members, w, team } = ctx
+  return w.aggressivity * team.reduce((sum, t) => sum + getLayer(view, members, foe, t, 'immediate', w), 0)
+}
 
 // spec "Attacking": the change in the immediate threat of everyone on `foe`,
 // after the attack less before: the character at `cell` holding `AP`, `foe`
@@ -227,13 +240,13 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
           if (!none || getHarmAgainst(attack, none, gap) <= 0) continue
           const guard = held(b, spent, STAspent)
           if (isRuinous(view, members, id, cell, me.resources.STA - guard.STA, guard.AP, w)) continue
-          const pick = pickOf(ctx, attack, i, gap, foe)
+          const pick = pickOf(ctx, attack, i, gap, foe, cell, guard.AP)
           const onTarget = getThreatGain(ctx, foe, cell, guard.AP, pick)
           const delta = ctx.onMe(cell, guard.AP) - ctx.now
           const cost = getCost(ownAP(view, id, b, AP, spent), STAspent + b.surgeSTA + (needsFocus ? focusSTA : 0), delta, me.injuries.bleed, w)
           const drew = answering.harm + (attack.kind === 'shoot' ? firedFrom(ctx, cell, AP, STA) : 0)
-          const score = pick.counted + onTarget - cost - drew
-          const why = `${attack.kind}s ${target.name} (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${onTarget.toFixed(1)} - cost ${cost.toFixed(1)} - drawn ${drew.toFixed(1)} = ${score.toFixed(1)})`
+          const score = pick.counted + onTarget - cost - drew + pick.prevented
+          const why = `${attack.kind}s ${target.name} (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${onTarget.toFixed(1)} - cost ${cost.toFixed(1)} - drawn ${drew.toFixed(1)} + threat from it ${pick.prevented.toFixed(1)} = ${score.toFixed(1)})`
           const fromHere = !here || !cell || sameCell(cell, here)
           const movement = walk?.movement
           const settleWith = (score: number, why: string, after: readonly Intent[]) => (): Plan | null => {
@@ -261,9 +274,9 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
               const leaving = getApproachDrawn(view, id, from, r.cell, runs(after), ctx.foes, (f) => getMeans(view.characters[f], false, w), guard, w, r.path, spendingOf(ctx)).harm
               const coverOn = getThreatGain(ctx, foe, r.cell, left.AP, pick)
               const coverCost = getCost(ownAP(view, id, b, AP + r.AP, spent + r.AP), STAspent + r.STA + (needsFocus ? focusSTA : 0), ctx.onMe(r.cell, left.AP) - ctx.now, me.injuries.bleed, w)
-              const coverScore = pick.counted + coverOn - coverCost - drew - leaving
+              const coverScore = pick.counted + coverOn - coverCost - drew - leaving + pick.prevented
               if (best && coverScore <= best.score) continue
-              const coverWhy = `${attack.kind}s ${target.name} and walks to cover (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${coverOn.toFixed(1)} - cost ${coverCost.toFixed(1)} - drawn ${(drew + leaving).toFixed(1)} = ${coverScore.toFixed(1)})`
+              const coverWhy = `${attack.kind}s ${target.name} and walks to cover (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${coverOn.toFixed(1)} - cost ${coverCost.toFixed(1)} - drawn ${(drew + leaving).toFixed(1)} + threat from it ${pick.prevented.toFixed(1)} = ${coverScore.toFixed(1)})`
               best = { score: coverScore, settle: settleWith(coverScore, coverWhy, [moveIntent(id, after.movement, r.cell, r.elevation)]) }
             }
             return best
@@ -598,13 +611,13 @@ function opportunity(input: SeatInput, id: string, w: SpecWeights): Decision | n
       if (!none || getHarmAgainst(attack, none, attack.reach) <= 0) continue
       const left = Math.max(0, me.resources.AP - AP)
       if (isRuinous(view, input.members, id, here, STA, left, w)) continue
-      const pick = pickOf(ctx, attack, i, attack.reach, target.id)
+      const pick = pickOf(ctx, attack, i, attack.reach, target.id, here, left)
       const onTarget = getThreatGain(ctx, target.id, here, left, pick)
       const cost = getCost(AP, STA, ctx.onMe(here, left) - ctx.now, me.injuries.bleed, w)
-      const score = pick.counted + onTarget - cost
+      const score = pick.counted + onTarget - cost + pick.prevented
       if (score <= 0 || (best && score <= best.score)) continue
       const picks: Pick[] = [{ part: 'row', value: attack.row }, ...(attack.declaresHeavy ? [{ part: 'modifier' as const, value: { key: `heavy${attack.heavy}`, on: true } }] : [])]
-      best = { draft: o.draft, picks, score, why: `opportunity attack on ${target.name} (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${onTarget.toFixed(1)} - cost ${cost.toFixed(1)} = ${score.toFixed(1)})` }
+      best = { draft: o.draft, picks, score, why: `opportunity attack on ${target.name} (${attackName(attack)}: harm ${harmText(pick, target)} against ${pick.defence} + threat on it ${onTarget.toFixed(1)} - cost ${cost.toFixed(1)} + threat from it ${pick.prevented.toFixed(1)} = ${score.toFixed(1)})` }
     }
   }
   if (!best) return null

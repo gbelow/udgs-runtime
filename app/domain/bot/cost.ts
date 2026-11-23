@@ -22,6 +22,9 @@ export type SpecWeights = RestTuning & {
   // Score
   retarget: number
   aggro: number
+  // Attacking: what the target's threat on the character's side is
+  // multiplied by, added to an attack's score
+  aggressivity: number
   // Search: the most AP a search walk spends, and the most metres from the
   // nearest ally one may end at, unless it comes nearer
   search: number

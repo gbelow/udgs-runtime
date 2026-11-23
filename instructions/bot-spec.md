@@ -92,7 +92,9 @@ everyone else seen:  the face, with attributes and skills = floor(real / 3) · 3
 
 Choose the target with the highest score.
 
-Score= Expected harm(assume the defense the target would take) + delta immediate threat on opponent(after - before) - Cost - OA drawn
+Score= Expected harm(assume the defense the target would take) - Cost - OA drawn + delta immediate threat on opponent(after - before) + w.aggressivity x immediate threat from opponent
+
+Read this as The harm I m expected to cause - how much that costs me to defend myself - what expected harm it does to me + how much more vulnerable that makes my opponent + how dangerous is this foe
 
 
 ##  Spending a hit's overflow (`predict.ts` `getBestSpend`)
@@ -110,7 +112,7 @@ Pick largest of: Score = Defense value - Cost. Taking the hit is an option.
 
 # Escape
 
-allies = Number of party members within 5m at the departure location.
+allies = Number of party members within 10m of the departure location.
 
 Score = (threat on me here − threat on me there) / w.courage − allies × w.teamwork - STAharm - OA drawn
   
@@ -147,8 +149,9 @@ If no foe is seen, the bot lists its seen and unseen spaces and moves up to w.se
 # Constants
 
 w.STA = 2
-w.AP = 2
-w.caution = 2
+w.AP = 1.2
+w.caution = 1.7
+w.aggressivity = 0.5
 w.IL = 2
 w.bleed = 5
 w.search = 4
