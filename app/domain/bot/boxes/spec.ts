@@ -523,11 +523,12 @@ function planNow(view: SceneState, members: readonly string[], id: string, w: Sp
 }
 
 // Whether the round is as good as over for the character's foes: every one
-// has agreed to end it or is believed to have no AP left, so that what the
-// character's AP would defend this round is nothing.
+// has agreed to end it or shows its AP in the lowest third, which a spent foe
+// shows and is as little as a seat is told, so that what the character's AP
+// would defend this round is next to nothing.
 function isRoundEnding(ctx: Ctx): boolean {
   const { view, w } = ctx
-  return getSides(view, ctx.members).foes.every((f) => hasAgreedToEnd(view, f) || getBelievedAP(view.characters[f], false, w) <= 0)
+  return getSides(view, ctx.members).foes.every((f) => hasAgreedToEnd(view, f) || view.characters[f].shown?.AP === 0 || getBelievedAP(view.characters[f], false, w) <= 0)
 }
 
 // How the character would better its position once it has nothing to do now:
