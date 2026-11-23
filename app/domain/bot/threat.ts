@@ -143,9 +143,15 @@ export type Means = { AP: number; STA: number; surge: boolean }
 // What a character has left this round as the seat takes it: its own sheet
 // for one it plays, the face for anyone else.
 export function getMeans(c: CampaignCharacter, plays: boolean, tuning: ThreatTuning): Means {
+  const AP = getBelievedAP(c, plays, tuning)
   const surge = c.usedSurge === null
-  if (plays || !c.shown) return { AP: c.resources.AP, STA: c.resources.STA, surge }
-  return { AP: fromThird(c.shown.AP, ROUND_AP, tuning.end), STA: fromThird(c.shown.STA, getSTA(c), tuning.end), surge }
+  if (plays || !c.shown) return { AP, STA: c.resources.STA, surge }
+  return { AP, STA: fromThird(c.shown.STA, getSTA(c), tuning.end), surge }
+}
+
+// The AP of `getMeans`, for a reader that asks for nothing else.
+export function getBelievedAP(c: CampaignCharacter, plays: boolean, tuning: ThreatTuning): number {
+  return plays || !c.shown ? c.resources.AP : fromThird(c.shown.AP, ROUND_AP, tuning.end)
 }
 
 // A fresh round's means: the round's AP and the movement surge; STA does not

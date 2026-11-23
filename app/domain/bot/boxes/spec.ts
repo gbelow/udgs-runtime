@@ -7,7 +7,7 @@ import { getOpenAction } from '../../scene/rules/log'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
 import { cellNumber, coordKey, distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
-import { firesAcross, getEyes, getEyesToward, seesAcross } from '../../scene/rules/board/board'
+import { getEyes, getEyesToward, seesAcross } from '../../scene/rules/board/board'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
 import { getTurnHolder, hasAgreedToEnd, keepsSurgeAP } from '../../scene/rules/turn'
 import { isCollapsed } from '../../scene/rules/situational'
@@ -16,10 +16,10 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachDrawn, getStandingCost, type Drawn } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack } from '../pairs'
-import { cellOf, getHarmAgainst, getHarmOnBleeding, getMeans, getStrikeCells, getTeam, type SpendCost } from '../threat'
+import { cellOf, getBelievedAP, getHarmAgainst, getHarmOnBleeding, getMeans, getStrikeCells, getTeam, type SpendCost } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getCost, getSTAHarm, type SpecWeights } from '../cost'
-import { getCostDelta, getLayer, getLayersBy, getLayersOn, getThreatBy, getThreatHarm, getThreatOn, isRuinous, sumLayers, SHOT_GAP, type Guard, type Layers } from '../threatMap'
+import { getCostDelta, getLayer, getLayersBy, getLayersOn, getThreatBy, getThreatHarm, getThreatOn, isRuinous, lineOfFire, sumLayers, SHOT_GAP, type Guard, type Layers } from '../threatMap'
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getAttackCells, getBudgets, getCollapsedCare, getKnownAttack, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesWalk, trial, TRIAL, wonBy, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
@@ -240,7 +240,8 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
         const key = `${foe}|${i}`
         if (!attack.opens.action || (b.surge === 'combat' && paid.has(key))) continue
         const board = view.board
-        const clear = attack.kind === 'shoot' && board && at ? (c: Coord) => firesAcross(board, [c], [at], getEyes(view, id, foe)) : getStrikeCells(view, id, foe, at, attack.reach)
+        const fires = attack.kind === 'shoot' && board && at ? lineOfFire(board, getEyes(view, id, foe)) : null
+        const clear = fires && at ? (c: Coord) => fires(c, at) : getStrikeCells(view, id, foe, at, attack.reach)
         const draws = (c: { cell: Coord | null; AP: number; STA: number; path: Coord[] }) => drawnOn(ctx, c.cell, c.AP, c.STA, runs(walk), c.path, b).harm
         for (const { cell, AP, STA, path, elevation } of getAttackCells(here, walk, at, attack.reach, draws, clear)) {
           if (b.surge === 'movement' && (runBlock === null || AP < RUN_BLOCKS * runBlock)) continue
@@ -506,7 +507,7 @@ function planNow(view: SceneState, members: readonly string[], id: string, w: Sp
 // character's AP would defend this round is nothing.
 function isRoundEnding(ctx: Ctx): boolean {
   const { view, w } = ctx
-  return getSides(view, ctx.members).foes.every((f) => hasAgreedToEnd(view, f) || getMeans(view.characters[f], false, w).AP <= 0)
+  return getSides(view, ctx.members).foes.every((f) => hasAgreedToEnd(view, f) || getBelievedAP(view.characters[f], false, w) <= 0)
 }
 
 // How the character would better its position once it has nothing to do now:

@@ -184,11 +184,18 @@ export function isSuppressed(character: Character, target: string): boolean {
   return getSuppressed(character).has(target)
 }
 
-export function collectBuffs(character: Character): Buff[] {
-  return getContributingEffects(character).filter(isBuff).map((e) => e.effect).filter((b) => holds(character, b))
+// The buffs in effect, collected once for each character as what contributes to it is.
+export function collectBuffs(character: Character): readonly Buff[] {
+  const known = buffsOn.get(character)
+  if (known) return known
+  const buffs = getContributingEffects(character).filter(isBuff).map((e) => e.effect).filter((b) => holds(character, b))
+  buffsOn.set(character, buffs)
+  return buffs
 }
 
-export function groupBuffsByTarget(buffs: Buff[]): Record<string, Buff[]> {
+const buffsOn = new WeakMap<Character, readonly Buff[]>()
+
+export function groupBuffsByTarget(buffs: readonly Buff[]): Record<string, Buff[]> {
   const grouped: Record<string, Buff[]> = {}
   for (const buff of buffs) {
     (grouped[buff.target] ??= []).push(buff)
@@ -211,7 +218,7 @@ export function getBuffBonus(character: Character, target: BuffTarget): number {
 // What a buff gives: its value, or with `per`, its value for every
 // `per.every` points of the attribute, the attribute read with the buffs on
 // it that do not scale themselves.
-function buffWorth(character: Character, buffs: Buff[], b: Buff): number {
+function buffWorth(character: Character, buffs: readonly Buff[], b: Buff): number {
   if (!b.per) return b.value
   const key = b.per.attribute
   const attribute = character.trainables[key].value + buffs.reduce((sum, a) => a.target === `attribute:${key}` && a.operation === '+' && !a.per ? sum + a.value : sum, 0)

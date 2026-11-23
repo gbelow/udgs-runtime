@@ -6,7 +6,7 @@ import { canStandAt } from '../scene/rules/board/ground'
 import { getInjuryCapacity } from '../character/rules/afflictions'
 import { getHeight } from '../character/rules/size'
 import { getPair, type PairAttack } from './pairs'
-import { cellOf, getHarmAgainst, getMeans, getPace, getPresence, getOpenStepMap, getStrikeCells } from './threat'
+import { cellOf, getBelievedAP, getHarmAgainst, getPace, getPresence, getOpenStepMap, getStrikeCells } from './threat'
 import { getSides } from './table'
 import type { SpecWeights } from './cost'
 
@@ -157,7 +157,7 @@ export type Shift = { id: string; at?: Coord | null; AP?: number }
 const shifted = (view: SceneState, plays: readonly string[], id: string, shifts: readonly Shift[], w: SpecWeights): { at: Coord | null; AP: number } => {
   const s = shifts.find((x) => x.id === id)
   const c = view.characters[id]
-  return { at: s && s.at !== undefined ? s.at : cellOf(view, id), AP: s?.AP ?? (c ? getMeans(c, plays.includes(id), w).AP : 0) }
+  return { at: s && s.at !== undefined ? s.at : cellOf(view, id), AP: s?.AP ?? (c ? getBelievedAP(c, plays.includes(id), w) : 0) }
 }
 
 // The AP of the walk `a`, standing at `from`, makes to a cell with a line of
@@ -174,7 +174,7 @@ const shotWalks = new WeakMap<SceneState, Map<string, number | null>>()
 type Lines = Map<number, Map<number, boolean>>
 const linesKept = new WeakMap<Board['levels'], WeakMap<Board['terrain'], Map<string, Lines>>>()
 
-function lineOfFire(board: Board, eyes: ReturnType<typeof getEyes>): (a: Coord, b: Coord) => boolean {
+export function lineOfFire(board: Board, eyes: ReturnType<typeof getEyes>): (a: Coord, b: Coord) => boolean {
   let byTerrain = linesKept.get(board.levels)
   if (!byTerrain) linesKept.set(board.levels, (byTerrain = new WeakMap()))
   let byEyes = byTerrain.get(board.terrain)
