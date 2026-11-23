@@ -44,6 +44,7 @@ export function playFight({ start, sides, boxes }: Matchup, seed: number, swappe
       return inner(input)
     }
     watched.remembers = inner.remembers
+    watched.notes = inner.notes
     return watched
   }
   const seats: Seat[] = [{ id: 'red', members: sides[0], box: box(0) }, { id: 'blue', members: sides[1], box: box(1) }]

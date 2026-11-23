@@ -3,6 +3,7 @@ import type { CommandContext, SceneCommand } from '../scene/commands/registry'
 import type { OpenButton } from '../scene/projections/buttons'
 import type { OpenChoice } from '../scene/projections/choices'
 import type { Wait } from './table'
+import type { Notes } from './memory'
 import { declare, settle, type Intent, type Pick as Fill } from './declare'
 import { getOpenAction } from '../scene/rules/log'
 
@@ -48,13 +49,20 @@ export type SeatInput = {
   // turn asked for or contested for it), 'any' anything, a turn asked for to
   // better its position among it
   pass: Pass
+  // what the seat's box noted for itself at the last look at the fight (`Box`'s `notes`)
+  notes: Notes
 }
 
 export type Pass = 'immediate' | 'any'
 
 // A box decides on what its seat is shown; one that `remembers` is shown the
 // foes its seat remembers too, where they were last noticed (bot/memory.ts).
-export type Box = ((input: SeatInput) => Decision) & { remembers?: boolean }
+// One with `notes` notes something for itself at every look at the fight,
+// from what it noted last and the fight as the seat sees it, and is shown it.
+export type Box = ((input: SeatInput) => Decision) & {
+  remembers?: boolean
+  notes?: (previous: Notes | undefined, view: SceneState, members: readonly string[]) => Notes
+}
 
 export type Executed = { ok: true; commands: SceneCommand[] } | { ok: false; refused: string }
 

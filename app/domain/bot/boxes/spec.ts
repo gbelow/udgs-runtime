@@ -1,11 +1,11 @@
-import type { Coord, SurgeKind } from '../../types'
+import type { CampaignCharacter, Coord, SurgeKind } from '../../types'
 import type { ActionDraft, SceneState } from '../../scene/types'
 import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
 import { getOpenAction } from '../../scene/rules/log'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
-import { coordKey, disk, distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
+import { distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
 import { firesAcross, getEyes, getEyesToward, seesAcross } from '../../scene/rules/board/board'
 import { getStressDue, getStressSocial, getStressTurn } from '../../scene/rules/stress'
 import { getTurnHolder, hasAgreedToEnd, keepsSurgeAP } from '../../scene/rules/turn'
@@ -15,13 +15,14 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getApproachDrawn, getStandingCost, type Drawn } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack } from '../pairs'
-import { cellOf, getHarmAgainst, getMeans, getRoutes, getStrikeCells, getTeam, type SpendCost } from '../threat'
+import { cellOf, getHarmAgainst, getMeans, getStrikeCells, getTeam, type SpendCost } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getCost, getSTAHarm, type SpecWeights } from '../cost'
 import { getLayer, getThreatBy, getThreatHarm, getThreatOn, isRuinous, SHOT_GAP, type Guard } from '../threatMap'
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getAttackCells, getBudgets, getCollapsedCare, getKnownAttack, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesWalk, trial, TRIAL, wonBy, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
+import type { Notes } from '../memory'
 
 // The box instructions/bot-spec.md describes, read section by section:
 //
@@ -29,10 +30,16 @@ import type { Box, Decision, Pass, SeatInput } from '../decision'
 //   would do now: an attack, or an escape from the danger where it stands,
 //   whichever scores more, above nothing; once the turn is its own it asks
 //   that again after every action, then how to better its position
-//   (Tactical and Aggro, in the order `aggro` says; Search with no foe the
-//   side knows of), and with nothing worth doing once no foe can still act
+//   (Tactical, towards the target it keeps; Search with no foe the side
+//   knows of), and with nothing worth doing once no foe can still act
 //   this round, Tactical once more with the AP left out of its cost, before
-//   it ends the turn and agrees to end the round;
+//   it ends the turn and agrees to end the round. An action decided is
+//   played through as one block (the user's ruling, 2026-11-23): the surge
+//   that pays for it, the walk and the attack it is made of, each declared in
+//   turn without weighing it again, the next turn asked for to go on with it
+//   where the turn is lost to a contest, and decided afresh only once the
+//   rest of it can no longer be done or the round is over; a reaction is
+//   weighed when it is asked for;
 // - an attack scores the harm it leaves against the defence the target is
 //   believed to pick, and how the threat of everyone on the target changes
 //   once both have paid, less its Cost and the opportunity attacks it draws
@@ -47,14 +54,16 @@ import type { Box, Decision, Pass, SeatInput } from '../decision'
 // overflow spent as `getBestSpend` spends it, the round's rest step) it plays
 // as the nearest box does.
 
-export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 2, STA: 2, caution: 1, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 1, teamwork: 1, baseAPcost: 1, aggro: 0 }
+export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 2, STA: 2, caution: 1.7, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 1, teamwork: 1, baseAPcost: 1, aggro: 1 }
 
 // spec "Escape": the party members within this many metres of where the character sets out
 const ESCAPE_COMPANY = 5
 
-type Plan =
+// An action decided: its first step, and what is declared after it (`then`).
+type Plan = (
   | { kind: 'attack' | 'walk' | 'care'; intent: Intent; score: number; why: string }
   | { kind: 'surge'; surge: SurgeKind; score: number; why: string }
+) & { then?: readonly Intent[] }
 
 const NOTHING_DRAWN: Drawn = { worth: 0, harm: 0, AP: 0, STA: 0 }
 
@@ -70,6 +79,8 @@ type Ctx = {
   foes: string[]
   targets: string[]
   team: string[]
+  // the character's target (spec "Tactical", `noteTargets`), null for none
+  target: string | null
   left: Guard
   budgets: Budget[]
   // the foes' immediate threat on the character at `cell` holding `AP`, and where it stands now
@@ -78,14 +89,14 @@ type Ctx = {
   picks: Map<string, TargetPick>
 }
 
-function getCtx(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>): Ctx | null {
+function getCtx(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>, target: string | null = null): Ctx | null {
   const me = view.characters[id]
   if (!me) return null
   const here = cellOf(view, id)
   const foes = getSides(view, members).foes.filter((f) => cellOf(view, f) !== null)
   const left = { AP: me.resources.AP, STA: me.resources.STA }
   const onMe = (cell: Coord | null, AP: number) => getThreatOn(view, members, id, 'immediate', w, [{ id, at: cell, AP }])
-  return { view, members, id, w, me, here, foes, targets: foes.filter((f) => !unnoticed.has(f)), team: getTeam(view, members), left, budgets: getBudgets(view, id), onMe, now: onMe(here, left.AP), picks: new Map() }
+  return { view, members, id, w, me, here, foes, targets: foes.filter((f) => !unnoticed.has(f)), team: getTeam(view, members), target, left, budgets: getBudgets(view, id), onMe, now: onMe(here, left.AP), picks: new Map() }
 }
 
 const held = (b: Budget, AP: number, STA: number): Guard => ({ AP: heldAP(b, AP), STA: Math.max(0, b.STA - STA) })
@@ -214,10 +225,11 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
               const surge = needsFocus ? 'focus' : b.surge
               const paidView = needsFocus ? trial(view, { kind: 'surge', args: [id, 'focus'] }) : b.view
               if (!next || (!fromHere && !takesWalk(paidView, id, next, AP, STA))) return null
-              const opens = opensAfter(arrivedAt(paidView, id, cell, AP, STA), id, attackIntent(id, attack, foe))
+              const strike = attackIntent(id, attack, foe)
+              const opens = opensAfter(arrivedAt(paidView, id, cell, AP, STA), id, strike)
               if (!opens || (opens === 'givingUp' && attack.cost.AP > heldAP(b, AP))) return null
-              if (surge) return { kind: 'surge', surge, score, why: surge === 'focus' ? `focuses to shoot: ${why}` : `makes the ${surge} surge: ${why}` }
-              if (!fromHere) return { kind: 'walk', intent: next, score, why: `walks to attack: ${why}` }
+              if (surge) return { kind: 'surge', surge, score, why: surge === 'focus' ? `focuses to shoot: ${why}` : `makes the ${surge} surge: ${why}`, then: fromHere ? [strike] : [next, strike] }
+              if (!fromHere) return { kind: 'walk', intent: next, score, why: `walks to attack: ${why}`, then: [strike] }
               return opensAfter(view, id, next) ? { kind: 'attack', intent: next, score, why } : null
             },
           })
@@ -256,8 +268,8 @@ const stepsOf = (ctx: Ctx): Step[] => kept.get(ctx) ?? (kept.set(ctx, getSteps(c
 // A step as a plan: the surge that pays for it first, if any; null where the
 // table does not take the walk at the price it was weighed at.
 function stepPlan(ctx: Ctx, s: Step, score: number, why: string): Plan | null {
-  if (s.b.surge) return { kind: 'surge', surge: s.b.surge, score, why: `makes the ${s.b.surge} surge: ${why}` }
   const intent = moveIntent(ctx.id, s.walk.movement, s.c.cell, s.c.elevation)
+  if (s.b.surge) return { kind: 'surge', surge: s.b.surge, score, why: `makes the ${s.b.surge} surge: ${why}`, then: [intent] }
   return takesWalk(ctx.view, ctx.id, intent, s.c.AP, s.c.STA) ? { kind: 'walk', intent, score, why } : null
 }
 
@@ -282,120 +294,87 @@ function planEscape(ctx: Ctx): Plan | null {
   return null
 }
 
-// The character's potential threat on every foe from `cell`, less theirs on it there.
-function standing(ctx: Ctx, cell: Coord): number {
-  const { view, members, id, w, foes } = ctx
-  const moved = [{ id, at: cell }]
-  const mine = foes.reduce((sum, f) => sum + getLayer(view, members, id, f, 'potential', w, moved), 0)
-  return mine - getThreatOn(view, members, id, 'potential', w, moved)
+// spec "Tactical": the most harm `me`'s attacks are believed to leave `foe`
+// answering with an evade (`getThreatHarm`), where they stand playing no part
+// (a shot read from SHOT_GAP metres).
+function getTargetHarm(me: CampaignCharacter, foe: CampaignCharacter | undefined): number {
+  if (!foe) return 0
+  return getPair(me, foe).reduce((most, a) => (a.opens.action ? Math.max(most, getThreatHarm(a, a.kind === 'shoot' ? SHOT_GAP : a.reach)) : most), 0)
 }
 
-// spec "Tactical": the cell where the team's potential threat on the foes
-// less theirs on the team is most, which only the character's own share of
-// changes, where that gain less the walk's Cost and the
-// opportunity attacks it draws is above nothing; `free` leaves the AP out of
-// the cost (spec "Decide take turn"). Of the walks scored best before what
-// they draw, TACTICAL_SCAN are read for it.
+// spec "Tactical": each member's target, kept from one look at the fight to
+// the next. A member with none, or whose target the side no longer knows to
+// stand anywhere, takes the foe it would harm most (`getTargetHarm`); one with
+// a target changes it only for a foe it would harm more than `retarget` times
+// as much.
+function noteTargets(previous: Notes | undefined, view: SceneState, members: readonly string[], w: SpecWeights): Notes {
+  const foes = getSides(view, members).foes.filter((f) => cellOf(view, f) !== null)
+  const targets: Record<string, string> = {}
+  for (const id of members) {
+    const me = view.characters[id]
+    if (!me || !foes.length) continue
+    const harm = (f: string) => getTargetHarm(me, view.characters[f])
+    const best = foes.reduce((b, f) => (harm(f) > harm(b) ? f : b))
+    const kept = previous?.[id]
+    targets[id] = kept && foes.includes(kept) && harm(best) <= w.retarget * harm(kept) ? kept : best
+  }
+  return targets
+}
+
+// spec "Tactical": a cell's Score, `aggro` times the character's potential
+// threat on its target from there, less every foe's potential threat on it
+// there. The rest of the team's threat on the target, and the foes' on the
+// rest of the team, are the same wherever it stands, so they are left out.
+function tacticalScore(ctx: Ctx, target: string, cell: Coord): number {
+  const { view, members, id, w } = ctx
+  const moved = [{ id, at: cell }]
+  return w.aggro * getLayer(view, members, id, target, 'potential', w, moved) - getThreatOn(view, members, id, 'potential', w, moved)
+}
+
+// spec "Tactical": towards the character's target (`noteTargets`). Of the
+// cells it walks to where an escape would not be called for (the danger
+// there, over the least danger of any cell it walks to, over `courage`, less
+// `teamwork` for every party member near, comes to nothing), and whose Score
+// betters the one where it stands by more than the walk's Cost and the
+// opportunity attacks it draws, the best scoring of each movement, by the
+// movement whose Cost is least. `free` leaves the AP out of the cost (spec
+// "Decide take turn"). Of each movement's cells, TACTICAL_SCAN are read for
+// what they draw, best scoring first.
 const TACTICAL_SCAN = 8
 
 function planTactical(ctx: Ctx, free: boolean): Plan | null {
-  const { view, id, w, me, here } = ctx
-  if (!here || !ctx.foes.length) return null
-  const stay = standing(ctx, here)
-  const scored = stepsOf(ctx).flatMap((s) => {
-    const gain = standing(ctx, s.c.cell) - stay
-    if (gain <= 0) return []
-    const cost = getCost(ownAP(view, id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, s.threat - ctx.now, me.injuries.bleed, w, free)
-    return gain - cost > 0 ? [{ s, gain, cost, score: gain - cost }] : []
-  }).sort((x, y) => y.score - x.score)
-  const read: { s: Step; score: number; why: string }[] = []
-  for (const k of scored) {
-    if (read.length >= TACTICAL_SCAN) break
-    if (!allowed(ctx, k.s)) continue
-    const drew = drawnOn(ctx, k.s.c.cell, k.s.c.AP, k.s.c.STA, runs(k.s.walk), k.s.c.path, k.s.b).harm
-    const score = k.score - drew
-    if (score > 0) read.push({ s: k.s, score, why: `repositions${free ? ' before the round ends' : ''} (${k.s.walk.movement}, standing ${k.gain.toFixed(1)} better - cost ${k.cost.toFixed(1)} - drawn ${drew.toFixed(1)}: ${score.toFixed(1)})` })
-  }
-  for (const r of read.sort((x, y) => y.score - x.score)) {
-    const plan = stepPlan(ctx, r.s, r.score, r.why)
-    if (plan) return plan
-  }
-  return null
-}
-
-// The cells a walk from `foe` standing at `at` takes to each cell (`getRoutes`),
-// read for a cell it does not come to (one somebody stands in) as one more than
-// the fewest of the cells around it, and straight past where it walks.
-const fields = new WeakMap<SceneState, Map<string, (cell: Coord) => number>>()
-
-function fieldOf(view: SceneState, foe: string, at: Coord, around: Coord): (cell: Coord) => number {
-  const byFoe = fields.get(view) ?? new Map<string, (cell: Coord) => number>()
-  fields.set(view, byFoe)
-  const known = byFoe.get(foe)
-  if (known) return known
-  const steps = new Map<string, number>()
-  for (const r of getRoutes(view, foe, at, distance(at, around) + 2 * ROUND_AP)?.routes ?? []) {
-    const k = coordKey(r.cell)
-    if (!steps.has(k) || r.steps < steps.get(k)!) steps.set(k, r.steps)
-  }
-  const field = (cell: Coord): number => {
-    const own = steps.get(coordKey(cell))
-    if (own !== undefined) return own
-    const near = disk(cell, 1).reduce<number | null>((least, c) => {
-      const s = steps.get(coordKey(c))
-      return s !== undefined && (least === null || s < least) ? s : least
-    }, null)
-    return near !== null ? near + 1 : distance(cell, at)
-  }
-  byFoe.set(foe, field)
-  return field
-}
-
-// spec "Aggro": the most harm the character's attacks are believed to leave
-// `foe` answering with an evade (`getThreatHarm`), where they stand playing no
-// part (a shot read from SHOT_GAP metres).
-function getMostHarm(ctx: Ctx, foe: string): number {
-  const { view, me } = ctx
-  const target = view.characters[foe]
-  if (!target) return 0
-  return getPair(me, target).reduce((most, a) => (a.opens.action ? Math.max(most, getThreatHarm(a, a.kind === 'shoot' ? SHOT_GAP : a.reach)) : most), 0)
-}
-
-// spec "Aggro": after the foe the character is believed to harm most, where
-// that is more than `retarget` times the harm it would do every foe it has a
-// potential threat on; to a cell nearer it where an escape would not be
-// called for (the danger there, over the least danger of any cell the
-// character walks to, over `courage`, less `teamwork` for every party member
-// near, comes to nothing), the nearest of each movement, by the movement
-// whose Cost is least.
-function planAggro(ctx: Ctx): Plan | null {
-  const { view, members, id, w, me, here, foes } = ctx
-  if (!here || !foes.length) return null
-  const harm = new Map(foes.map((f) => [f, getMostHarm(ctx, f)]))
-  const best = foes.reduce((b, f) => (harm.get(f)! > harm.get(b)! ? f : b))
-  const reached = foes.filter((f) => getLayer(view, members, id, f, 'potential', w) > 0)
-  if (reached.some((f) => harm.get(best)! <= w.retarget * harm.get(f)!)) return null
-  const at = cellOf(view, best)
-  if (!at) return null
-  const field = fieldOf(view, best, at, here)
-  const from = field(here)
+  const { view, id, w, me, here, target } = ctx
+  if (!here || !target || !ctx.foes.includes(target)) return null
+  const stay = tacticalScore(ctx, target, here)
   const steps = stepsOf(ctx)
   const safest = steps.reduce((least, s) => Math.min(least, s.threat), ctx.now)
   const calm = (s: Step) => (s.threat - safest) / w.courage - companyAt(ctx, s.c.cell) * w.teamwork <= 0
-  const byMovement = new Map<string, { s: Step; closer: number; cost: number }>()
+  const byMovement = new Map<string, { s: Step; gain: number; cost: number }[]>()
   for (const s of steps) {
-    const closer = from - field(s.c.cell)
-    if (closer <= 0 || !calm(s)) continue
+    if (!calm(s)) continue
+    const gain = tacticalScore(ctx, target, s.c.cell) - stay
+    const cost = getCost(ownAP(view, id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, s.threat - ctx.now, me.injuries.bleed, w, free)
+    if (gain - cost <= 0) continue
     const key = `${s.b.surge ?? ''}|${s.walk.movement}`
-    const cost = getCost(ownAP(view, id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, s.threat - ctx.now, me.injuries.bleed, w)
-    const was = byMovement.get(key)
-    if (was && (closer < was.closer || (closer === was.closer && cost >= was.cost))) continue
-    if (!allowed(ctx, s)) continue
-    byMovement.set(key, { s, closer, cost })
+    byMovement.set(key, [...(byMovement.get(key) ?? []), { s, gain, cost }])
   }
-  const name = view.characters[best]?.name ?? best
-  for (const m of [...byMovement.values()].sort((x, y) => x.cost - y.cost)) {
-    const plan = stepPlan(ctx, m.s, m.closer, `goes after ${name} (${m.s.walk.movement}, ${m.closer} cells nearer, defensive cost ${m.cost.toFixed(1)})`)
+  const name = view.characters[target]?.name ?? target
+  const picked: { s: Step; cost: number; score: number; why: string }[] = []
+  for (const cells of byMovement.values()) {
+    let read = 0
+    for (const k of cells.sort((x, y) => y.gain - x.gain)) {
+      if (read >= TACTICAL_SCAN) break
+      if (!allowed(ctx, k.s)) continue
+      read++
+      const drew = drawnOn(ctx, k.s.c.cell, k.s.c.AP, k.s.c.STA, runs(k.s.walk), k.s.c.path, k.s.b).harm
+      const score = k.gain - k.cost - drew
+      if (score <= 0) continue
+      picked.push({ s: k.s, cost: k.cost, score, why: `repositions${free ? ' before the round ends' : ''} towards ${name} (${k.s.walk.movement}, score ${k.gain.toFixed(1)} better - cost ${k.cost.toFixed(1)} - drawn ${drew.toFixed(1)}: ${score.toFixed(1)})` })
+      break
+    }
+  }
+  for (const r of picked.sort((x, y) => x.cost - y.cost)) {
+    const plan = stepPlan(ctx, r.s, r.score, r.why)
     if (plan) return plan
   }
   return null
@@ -404,7 +383,7 @@ function planAggro(ctx: Ctx): Plan | null {
 // spec "Search": with no foe the side knows of, a walk of at most `search` AP
 // spent this round towards the nearest cell nobody of its side sees, never
 // ending more than `solitude` metres from the nearest ally unless it comes
-// nearer one. A foe the side knows of is gone after by Aggro.
+// nearer one. A foe the side knows of is gone after by Tactical.
 function planSearch(ctx: Ctx): Plan | null {
   const { view, id, w, me, here, team } = ctx
   const board = view.board
@@ -450,25 +429,20 @@ function isRoundEnding(ctx: Ctx): boolean {
 }
 
 // How the character would better its position once it has nothing to do now:
-// Search with no foe the side knows of, else Tactical and Aggro in the order
-// `aggro` says, and failing both, once the round is as good as over for its
-// foes (`isRoundEnding`), Tactical with the AP left out of its cost.
-function planLater(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>): Plan | null {
+// Search with no foe the side knows of, else Tactical towards `target`, and
+// failing that, once the round is as good as over for its foes
+// (`isRoundEnding`), Tactical with the AP left out of its cost.
+function planLater(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>, target: string | null): Plan | null {
   const me = view.characters[id]
   if (me && isCollapsed(view, me)) return null
-  const ctx = getCtx(view, members, id, w, unnoticed)
+  const ctx = getCtx(view, members, id, w, unnoticed, target)
   if (!ctx) return null
   if (!ctx.foes.length) return planSearch(ctx)
-  const order = w.aggro >= 1 ? [() => planAggro(ctx), () => planTactical(ctx, false)] : [() => planTactical(ctx, false), () => planAggro(ctx)]
-  for (const plan of order) {
-    const made = plan()
-    if (made) return made
-  }
-  return isRoundEnding(ctx) ? planTactical(ctx, true) : null
+  return planTactical(ctx, false) ?? (isRoundEnding(ctx) ? planTactical(ctx, true) : null)
 }
 
-function planTurn(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>, pass: Pass): Plan | null {
-  return planNow(view, members, id, w, unnoticed) ?? (pass === 'any' ? planLater(view, members, id, w, unnoticed) : null)
+function planTurn(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>, pass: Pass, target: string | null): Plan | null {
+  return planNow(view, members, id, w, unnoticed) ?? (pass === 'any' ? planLater(view, members, id, w, unnoticed, target) : null)
 }
 
 // spec "Defend": of the defences the panel offers against `attack`, the one
@@ -638,8 +612,8 @@ function takeStressTurn(input: SeatInput, id: string, w: SpecWeights, find: Find
     return press(surge, `makes the ${due.surge} surge its limit stress action owes`)
   }
   if (turn.action === 'violent') {
-    const ctx = getCtx(view, input.members, id, w, input.unnoticed(id))
-    const plan = ctx && (planAttack(ctx, true) ?? planAggro(ctx))
+    const ctx = getCtx(view, input.members, id, w, input.unnoticed(id), input.notes[id] ?? null)
+    const plan = ctx && (planAttack(ctx, true) ?? planTactical(ctx, true))
     if (plan?.kind === 'attack' || plan?.kind === 'walk') return { kind: 'declare', intent: plan.intent, why: `violent: ${plan.why}` }
   }
   if (turn.action === 'coward' && getSurgeAPLeft(me) > 0) {
@@ -649,54 +623,93 @@ function takeStressTurn(input: SeatInput, id: string, w: SpecWeights, find: Find
   return endTurn(input, id, find, press)
 }
 
-// The turn as the box weighed it before starting it (`specBox`), on the fight
-// as starting it would leave it, kept for the turn it then takes: read again
-// only where the fight the turn is taken in is not the one weighed.
-type Weighed = { view: SceneState; members: readonly string[]; unnoticed: ReadonlySet<string>; plan: Plan }
+// An action decided and not yet played through (see the head of this file):
+// the plan, and the steps left of it, kept for the round it was decided in.
+type BlockStep = { surge: SurgeKind } | { intent: Intent }
+type Block = { round: number; plan: Plan; steps: BlockStep[]; started: boolean }
+type Blocks = Map<string, Block>
 
-const weighed = new WeakMap<SpecWeights, Map<string, Weighed>>()
+const blockOf = (view: SceneState, plan: Plan): Block => ({
+  round: view.round,
+  plan,
+  steps: [plan.kind === 'surge' ? { surge: plan.surge } : { intent: plan.intent }, ...(plan.then ?? []).map((intent) => ({ intent }))],
+  started: false,
+})
 
-function keepWeighed(w: SpecWeights, id: string, kept: Weighed): void {
-  const byId = weighed.get(w) ?? new Map<string, Weighed>()
-  weighed.set(w, byId)
-  byId.set(id, kept)
+// The character's block, where it was decided this round.
+function heldBlock(blocks: Blocks, view: SceneState, id: string): Block | null {
+  const block = blocks.get(id)
+  if (block && block.round === view.round) return block
+  blocks.delete(id)
+  return null
 }
 
-function recallWeighed(w: SpecWeights, id: string, view: SceneState, members: readonly string[], unnoticed: ReadonlySet<string>): Weighed | null {
-  const byId = weighed.get(w)
-  const kept = byId?.get(id)
-  if (!kept) return null
-  byId!.delete(id)
-  const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x))
-  return sameSet(new Set(kept.members), new Set(members)) && sameSet(kept.unnoticed, unnoticed) && isSame(kept.view, view) ? kept : null
+// The cell a walk declared by `intent` ends on.
+function walkEnd(intent: Intent): Coord | null {
+  if (intent.option.kind !== 'move') return null
+  const cell = intent.picks.find((p) => p.part === 'cell')?.value as Coord | undefined
+  return cell ?? null
 }
 
-// Whether two values written as JSON are alike, parts they share passed over.
-function isSame(a: unknown, b: unknown): boolean {
-  if (a === b) return true
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null || Array.isArray(a) !== Array.isArray(b)) return false
-  const x = a as Record<string, unknown>
-  const y = b as Record<string, unknown>
-  const keys = Object.keys(x)
-  return keys.length === Object.keys(y).length && keys.every((k) => Object.hasOwn(y, k) && isSame(x[k], y[k]))
+// The next step of the character's block: each step done already passed
+// over, null (and the block dropped) once none is left or the next can no
+// longer be done.
+function carryBlock(input: SeatInput, id: string, blocks: Blocks, press: Press): Decision | null {
+  const view = input.view()
+  const block = heldBlock(blocks, view, id)
+  const me = view.characters[id]
+  if (!block || !me) return null
+  while (block.steps.length) {
+    const step = block.steps[0]
+    const why = block.started ? `carries on: ${block.plan.why}` : block.plan.why
+    if ('surge' in step) {
+      if (me.usedSurge === step.surge) {
+        block.steps.shift()
+        continue
+      }
+      const button = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === step.surge)
+      const made = press(button, why)
+      if (!made) break
+      block.steps.shift()
+      block.started = true
+      return made
+    }
+    const end = walkEnd(step.intent)
+    const here = cellOf(view, id)
+    if (end && here && sameCell(end, here)) {
+      block.steps.shift()
+      continue
+    }
+    const opens = end ? (declare(view, step.intent, TRIAL).ok ? 'open' : null) : opensAfter(view, id, step.intent)
+    if (opens === 'givingUp') {
+      const give = input.buttons.find((b) => b.command.kind === 'edit' && argOf(b.command) === id && (b.command.args[1] as { kind: string }).kind === 'endSurge')
+      const made = press(give, `gives up the surge AP left to attack: ${why}`)
+      if (made) {
+        block.started = true
+        return made
+      }
+    }
+    if (opens !== 'open') break
+    block.steps.shift()
+    block.started = true
+    return { kind: 'declare', intent: step.intent, why }
+  }
+  blocks.delete(id)
+  return null
 }
 
-// The turn the character holds, one action at a time, read again after each.
-function takeTurn(input: SeatInput, id: string, w: SpecWeights, find: Find, press: Press): Decision | null {
+// The turn the character holds, one action at a time: the block it decided
+// played through, then the next action decided.
+function takeTurn(input: SeatInput, id: string, w: SpecWeights, blocks: Blocks, find: Find, press: Press): Decision | null {
   const stress = takeStressTurn(input, id, w, find, press)
   if (stress !== 'none') return stress
+  const carried = carryBlock(input, id, blocks, press)
+  if (carried) return carried
   const view = input.view()
-  const kept = recallWeighed(w, id, view, input.members, input.unnoticed(id))
-  const plan = kept ? kept.plan : planTurn(view, input.members, id, w, input.unnoticed(id), 'any')
-  if (plan?.kind === 'attack' && opensAfter(view, id, plan.intent) === 'givingUp') {
-    const give = input.buttons.find((b) => b.command.kind === 'edit' && argOf(b.command) === id && (b.command.args[1] as { kind: string }).kind === 'endSurge')
-    const made = press(give, `gives up the surge AP left to attack: ${plan.why}`)
-    if (made) return made
-  }
-  if (plan && plan.kind !== 'surge') return { kind: 'declare', intent: plan.intent, why: plan.why }
-  if (plan?.kind === 'surge') {
-    const surge = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === plan.surge)
-    const made = press(surge, plan.why)
+  const plan = planTurn(view, input.members, id, w, input.unnoticed(id), 'any', input.notes[id] ?? null)
+  if (plan) {
+    blocks.set(id, blockOf(view, plan))
+    const made = carryBlock(input, id, blocks, press)
     if (made) return made
   }
   return endTurn(input, id, find, press) ?? getAway(view, input.members, id, w, input.unnoticed(id))
@@ -709,12 +722,13 @@ function takeTurn(input: SeatInput, id: string, w: SpecWeights, find: Find, pres
 // for what it would do now, or on the pass that asks for anything, for what
 // would better its position once no member has anything to do now.
 export function specBox(w: SpecWeights): Box {
+  const blocks: Blocks = new Map()
   const box: Box = (input) => {
     const { members, waits, buttons } = input
     const { find, press } = finding(buttons)
     for (const wait of waits) {
       const made = wait.for === 'answer' ? answer(input, wait.id, w, find, press)
-        : wait.for === 'turn' ? takeTurn(input, wait.id, w, find, press)
+        : wait.for === 'turn' ? takeTurn(input, wait.id, w, blocks, find, press)
         : settleWait(input, wait, find, press, w)
       if (made) return made
     }
@@ -722,35 +736,42 @@ export function specBox(w: SpecWeights): Box {
     const planned = plansOf(w, view)
     const holder = getTurnHolder(view)
     if (holder && !members.includes(holder) && !members.some((id) => view.contenders.includes(id))) {
-      let contest: { id: string; plan: Plan } | null = null
+      let contest: { id: string; plan: Plan; kept: boolean } | null = null
       for (const id of members) {
         if (!find('toggleContest', id)) continue
-        const plan = planned(`${id}|contest`, () => planNow(wonBy(view, id), members, id, w, input.unnoticed(id)))
-        if (plan && (!contest || plan.score > contest.plan.score)) contest = { id, plan }
+        const kept = heldBlock(blocks, view, id)
+        const plan = kept ? kept.plan : planned(`${id}|contest`, () => planNow(wonBy(view, id), members, id, w, input.unnoticed(id)))
+        if (plan && (!contest || plan.score > contest.plan.score)) contest = { id, plan, kept: kept !== null }
       }
       const made = contest && press(find('toggleContest', contest.id), `contests the turn: ${contest.plan.why}`)
-      if (made) return made
+      if (made && contest) {
+        if (!contest.kept) blocks.set(contest.id, blockOf(view, contest.plan))
+        return made
+      }
     }
-    let best: { id: string; begun: SceneState; plan: Plan } | null = null
+    let best: { id: string; begun: SceneState; plan: Plan; kept: boolean } | null = null
     for (const pass of input.pass === 'any' ? (['immediate', 'any'] as const) : (['immediate'] as const)) {
       for (const id of members) {
         const start = find('startTurn', id)
         if (!start) continue
         const begun = trial(view, start.command)
         const unnoticed = input.unnoticed(id)
-        const plan = planned(`${id}|${pass}`, () => (pass === 'immediate' ? planNow(begun, members, id, w, unnoticed) : planLater(begun, members, id, w, unnoticed)))
-        if (plan && (!best || plan.score > best.plan.score)) best = { id, begun, plan }
+        const target = input.notes[id] ?? null
+        const kept = heldBlock(blocks, view, id)
+        const plan = kept ? kept.plan : planned(`${id}|${pass}|${target}`, () => (pass === 'immediate' ? planNow(begun, members, id, w, unnoticed) : planLater(begun, members, id, w, unnoticed, target)))
+        if (plan && (!best || plan.score > best.plan.score)) best = { id, begun, plan, kept: kept !== null }
       }
       if (best) break
     }
     const start = best && find('startTurn', best.id)
     if (best && start) {
-      keepWeighed(w, best.id, { view: best.begun, members, unnoticed: input.unnoticed(best.id), plan: best.plan })
+      if (!best.kept) blocks.set(best.id, blockOf(best.begun, best.plan))
       return { kind: 'press', pick: start, why: `has something worth doing: ${best.plan.why}` }
     }
     return input.pass === 'any' ? carryOn(input, find) : { kind: 'wait', why: 'nothing to do now' }
   }
   box.remembers = true
+  box.notes = (previous, view, members) => noteTargets(previous, view, members, w)
   return box
 }
 

@@ -18,7 +18,7 @@ import { getInjuryPenalty } from '../character/rules/afflictions'
 import { getTestMode, mayRollRisky } from '../character/rules/effects'
 import { ROUND_AP, SURGES } from '../tables'
 import { getBestSpend } from './predict'
-import { getMostHOP, type HarmByDegree } from './odds'
+import { getMostHOP, readHits, type HarmByDegree, type Hits } from './odds'
 
 // What one character's attacks do to another, each against each defence the
 // other could answer with, read off the table's own rules: the attack and
@@ -45,9 +45,10 @@ export type PairDefence = {
   surged?: Partial<Record<SurgeKind, number>>
   graze: number
   miss: number
-  // harm on a hit at each HOP from 0 against this defence, where it differs
-  // from the attack's own (a hook attack's bonus against an evasive jump)
-  hits?: number[]
+  // harm on a hit at each HOP from 0 against this defence, where it may
+  // differ from the attack's own (a hook attack's bonus against an evasive
+  // jump, an assassination against the SD)
+  hits?: Hits
 }
 
 export type PairAttack = {
@@ -87,8 +88,8 @@ export type PairAttack = {
   // tests"; an attack is never thrown safely)
   mode: RollMode
   modes: RollMode[]
-  // harm on a hit at each HOP from 0
-  hits: number[]
+  // harm on a hit at each HOP from 0, each read when first asked for
+  hits: Hits
   defences: PairDefence[]
 }
 
@@ -194,7 +195,7 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
           return t ? [{ def, t }] : []
         })
         const most = getMostHOP(test.skill, Math.min(...tested.map((x) => x.t.DL)))
-        const hitsIn = (def: Defended) => Array.from({ length: Math.max(0, most + 1) }, (_, HOP) => hit(def, HOP))
+        const hitsIn = (def: Defended) => readHits(Math.max(0, most + 1), (HOP) => hit(def, HOP))
         const hits = hitsIn(defended[0])
         // a hook attack's bonus turns on how the target answers (combat.tex
         // "Hook Attack": against an evasive jump), and so does an assassination
@@ -209,7 +210,7 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
             const made = getRootTest({ ...def.state, characters: { ...def.state.characters, [d]: { ...target, usedSurge: kind } } }, root)
             return made && made.DL !== t.DL ? [[kind, made.DL]] : []
           }))
-          return { draft: def.draft, cost: def.cost, DL: t.DL, ...(Object.keys(surged).length > 0 ? { surged } : {}), graze, miss, ...(own && own.some((h, i) => h !== hits[i]) ? { hits: own } : {}) }
+          return { draft: def.draft, cost: def.cost, DL: t.DL, ...(Object.keys(surged).length > 0 ? { surged } : {}), graze, miss, ...(own ? { hits: own } : {}) }
         })
         attacks.push({
           kind,
@@ -237,8 +238,8 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
 }
 
 // A sheet as the pair table reads it: who it is and what changes on every
-// press (AP, STA, the surge made and what it left, the face's thirds) left
-// out, and its limit stress action, which only a compulsion in the fight
+// press (AP, STA, the surge made and what it left, the face's thirds, the XP
+// trained, `withoutXP`) left out, and its limit stress action, which only a compulsion in the fight
 // reads, never an attack or a defence; its injury level read as the penalty
 // it gives (combat.tex "Injury level (IL)"), which is all of it an attack or
 // a defence reads, so the table
@@ -283,6 +284,13 @@ function getItemIds(c: CampaignCharacter): string {
   return ids
 }
 
+// A sheet's trainables with the XP trained towards each left out: only
+// learning reads it (character/rules/experience.ts, character/commands/
+// learning.ts), never an attack, a defence or what lands, and play writes it
+// many times in a fight (temperament XP among others).
+const withoutXP = (trainables: Record<string, { XP: number }>): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(trainables).map(([key, t]) => [key, { ...t, XP: 0 }]))
+
 const signatures = new WeakMap<CampaignCharacter, string>()
 
 function signature(c: CampaignCharacter): string {
@@ -295,7 +303,7 @@ function signature(c: CampaignCharacter): string {
     void surgeFloor
     void runsFree
     void shown
-    sig = tokenized(c, { ...rest, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, injuryLevel: getInjuryPenalty(c) } })
+    sig = tokenized(c, { ...rest, trainables: withoutXP(rest.trainables), resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, injuryLevel: getInjuryPenalty(c) } })
     signatures.set(c, sig)
   }
   return sig
@@ -323,7 +331,7 @@ function harmSignature(c: CampaignCharacter): string {
     void steeled
     void limitStress
     void shown
-    const kept = Object.fromEntries(Object.entries(trainables).filter(([, t]) => t.type !== 'skill' && t.type !== 'knowledge'))
+    const kept = withoutXP(Object.fromEntries(Object.entries(trainables).filter(([, t]) => t.type !== 'skill' && t.type !== 'knowledge')))
     sig = tokenized(c, { ...rest, trainables: kept, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, bleed: 0, injuryLevel: getInjuryPenalty(c) } })
     harmSignatures.set(c, sig)
   }

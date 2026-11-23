@@ -9,7 +9,7 @@ import { getBelief } from './belief'
 import { getMyButtons, getMyChoices, getWaits, type Wait } from './table'
 import { toCommands, type Box, type Decision, type Pass, type SeatInput } from './decision'
 import { getTablePress } from './autoTable'
-import { remember, withRemembered, type SeatMemories } from './memory'
+import { remember, withRemembered, type SeatMemories, type SeatMemory } from './memory'
 
 // Bots at the table. A seat is a bot that owns the characters it plays, as a
 // player owns theirs: it presses as a player viewer whose profile is the
@@ -68,14 +68,23 @@ export type MoveOptions = {
   autoTable: boolean
   // whom a seat presses as: its own player viewer when not given
   viewerOf?: (seat: Seat) => Viewer
-  // what each seat remembers of the foes it noticed, by seat id (`noteSeats`)
+  // what each seat remembers of the foes it noticed, and its box's notes, by seat id (`noteSeats`)
   memories?: SeatMemories
 }
 
 // Every seat's memory once it has looked at the fight as it stands
-// (bot/memory.ts `remember`), for whoever runs the seats to keep between moves.
+// (bot/memory.ts `remember`), and its box's notes from that look, for
+// whoever runs the seats to keep between moves.
 export function noteSeats(memories: SeatMemories, state: SceneState, seats: readonly Seat[]): SeatMemories {
-  return Object.fromEntries(seats.flatMap((seat) => (seat.box.remembers ? [[seat.id, remember(memories[seat.id], state, seat.members)]] : [])))
+  return Object.fromEntries(seats.flatMap((seat) => {
+    const { remembers, notes } = seat.box
+    if (!remembers && !notes) return []
+    const was = memories[seat.id]
+    const foes = remembers ? remember(was?.foes, state, seat.members) : {}
+    const members = present(state, seat)
+    const noted = notes && members.length ? notes(was?.notes, withRemembered(getBelief(state, members, members[0]), foes), members) : {}
+    return [[seat.id, { foes, notes: noted }]]
+  }))
 }
 
 export type StepOptions = MoveOptions & {
@@ -133,7 +142,7 @@ type Seen = { view: SceneState | null; unnoticed: Map<string, ReadonlySet<string
 
 const seenKept = new WeakMap<SceneState, Map<string, Seen>>()
 
-function seenBy(state: SceneState, members: readonly string[], memory: SeatMemories[string] | undefined): Seen {
+function seenBy(state: SceneState, members: readonly string[], memory: SeatMemory | undefined): Seen {
   const bySeat = seenKept.get(state) ?? new Map<string, Seen>()
   seenKept.set(state, bySeat)
   const key = `${members.join(',')}|${Object.entries(memory ?? {}).map(([id, m]) => `${id}@${m.round}`).join(',')}`
@@ -147,7 +156,7 @@ function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[]
   const buttons = getMyButtons(state, members)
   const choices = getMyChoices(state, members)
   if (waits.length === 0 && buttons.length === 0 && choices.length === 0) return null
-  const memory = seat.box.remembers ? opts.memories?.[seat.id] : undefined
+  const memory = seat.box.remembers ? opts.memories?.[seat.id]?.foes : undefined
   const seen = seenBy(state, members, memory)
   const read = () => (seen.view ??= withRemembered(getBelief(state, members, members[0]), memory))
   const unnoticed = seen.unnoticed
@@ -164,6 +173,7 @@ function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[]
     },
     rng: opts.rngOf(seat.id),
     pass,
+    notes: opts.memories?.[seat.id]?.notes ?? {},
   }
 }
 

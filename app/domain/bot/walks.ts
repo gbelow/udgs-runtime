@@ -1,6 +1,9 @@
 import type { MoveAction, SceneState } from '../scene/types'
 import { getWalkableCells, type ReachableCell } from '../scene/rules/move'
 import { perParts } from '../perState'
+import { getHeight } from '../character/rules/size'
+import { isProne } from '../scene/rules/board/ground'
+import { withoutPlacements } from '../scene/rules/board/board'
 
 // The table's walk (`getWalkableCells`), remembered by what it reads rather
 // than by the state object. A box reads the fight in many states made from
@@ -72,4 +75,45 @@ export function getKeptWalk(state: SceneState, action: MoveAction): ReachableCel
     ...Object.entries(state.characters).map(([id, c]) => `${id}:${sheetOf(c, id === action.actorId)}`),
   ].join('|')
   return walked([board.terrain, board.levels, board.pieces], key, () => getWalkableCells(state, action))
+}
+
+// The same walk for a reader that takes it as an estimate (the bot's step
+// maps, threat.ts `getStepMap`): of every sheet only the body is read (its
+// footprint, its height and whether it lies prone), and of the one walking
+// `walking` besides, what its walking reads (threat.ts `walkingOf`), and its
+// own held tests. A press that moves nobody, and leaves every body and the
+// walker's walking as they were, walks nothing again: a sheet's injuries,
+// faces and skills, which most presses write, are left out.
+//
+// `alone` walks it with nobody else on the board, so that it reads only the
+// walker and the ground: it is walked again only when the walker moves or
+// its walking changes, whoever else moves.
+const bodyWalked = perParts<ReachableCell[]>(WALKS)
+
+// of the tests held for the round, a walk reads only the walker's own
+// (rules/heldRoll.ts `getMoveHeld`)
+const BODY_READ = ['round', 'binds', 'compulsions', 'chase'] as const
+const BOARD_AND_PLACEMENTS: ReadonlySet<string> = new Set([...BOARD_PARTS, 'placements'])
+
+const bodyOf = (state: SceneState, id: string): string => {
+  const c = state.characters[id]
+  return c ? `${contentOf(c.footprint)}~${getHeight(c)}~${isProne(state, id)}` : '~'
+}
+
+export function getKeptBodyWalk(state: SceneState, action: MoveAction, walking: string, alone = false): ReachableCell[] {
+  const board = state.board
+  if (!board) return getWalkableCells(state, action)
+  const id = action.actorId
+  const placed = alone ? [`${contentOf(board.placements[id])}`, `${id}:${bodyOf(state, id)}`] : Object.keys(state.characters).map((other) => `${other}:${bodyOf(state, other)}`)
+  const key = [
+    alone ? 'alone' : 'all',
+    fieldsOf(action),
+    walking,
+    BODY_READ.map((k) => `${k}=${contentOf(state[k])}`).join(','),
+    JSON.stringify(state.heldTests.filter((t) => t.id === id)),
+    fieldsOf(board, alone ? BOARD_AND_PLACEMENTS : BOARD_PARTS),
+    ...placed,
+  ].join('|')
+  const walkedOn = alone ? withoutPlacements(state, Object.keys(board.placements).filter((other) => other !== id)) : state
+  return bodyWalked([board.terrain, board.levels, board.pieces], key, () => getWalkableCells(walkedOn, action))
 }

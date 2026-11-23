@@ -29,8 +29,16 @@ export function getFaceOdds(mode: RollMode): readonly number[] {
 }
 
 // What an attack's test does to its target at each degree, in harm: a miss,
-// a graze, and a hit at each HOP from 0 (the last stands for any HOP past it).
-export type HarmByDegree = { miss: number; graze: number; hits: readonly number[] }
+// a graze, and a hit at each HOP from 0 to `count` - 1 (the last stands for
+// any HOP past it), each read when it is first asked for (`readHits`).
+export type Hits = { count: number; at: (HOP: number) => number }
+export type HarmByDegree = { miss: number; graze: number; hits: Hits }
+
+// The hits of `count` HOPs, `read` once for each HOP asked for.
+export function readHits(count: number, read: (HOP: number) => number): Hits {
+  const known: number[] = []
+  return { count, at: (HOP) => (known[HOP] ??= read(HOP)) }
+}
 
 // play.tex "Hit Overflow Point": over the DL by 5 is a hit with the rest as
 // HOP; by 0 a graze, where the attack grazes at all (gear.tex "Piercing"); a
@@ -38,7 +46,7 @@ export type HarmByDegree = { miss: number; graze: number; hits: readonly number[
 export function getExpectedHarm(skill: number, DL: number, grazes: boolean, mode: RollMode, harm: HarmByDegree): number {
   return getFaceOdds(mode).reduce((sum, p, face) => {
     const over = face + skill - DL
-    const at = over >= 5 ? (harm.hits.length ? harm.hits[Math.min(over - 5, harm.hits.length - 1)] : 0) : over >= 0 && grazes ? harm.graze : harm.miss
+    const at = over >= 5 ? (harm.hits.count ? harm.hits.at(Math.min(over - 5, harm.hits.count - 1)) : 0) : over >= 0 && grazes ? harm.graze : harm.miss
     return sum + p * at
   }, 0)
 }

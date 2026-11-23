@@ -16,10 +16,11 @@ export type SpecWeights = RestTuning & {
   // ESCAPE_COMPANY metres of where it sets out takes off `teamwork`
   courage: number
   teamwork: number
-  // Aggro: how many times more harm a foe out of reach must be open to than
-  // every foe in reach, for the character to go after it
+  // Tactical: how many times more harm another foe must be open to than the
+  // character's target, for it to become the target; and what the
+  // character's potential threat on its target is multiplied by in a cell's
+  // Score
   retarget: number
-  // 1: Aggro is tried before Tactical, 0: Tactical before Aggro
   aggro: number
   // Search: the most AP a search walk spends, and the most metres from the
   // nearest ally one may end at, unless it comes nearer

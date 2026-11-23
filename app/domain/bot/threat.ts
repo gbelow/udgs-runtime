@@ -2,7 +2,7 @@ import type { CampaignCharacter, Coord, MovementKind, SurgeKind, Third } from '.
 import type { SceneState } from '../scene/types'
 import type { RollMode } from '../play/dice'
 import { getMovementOptions } from '../scene/rules/move'
-import { getKeptWalk } from './walks'
+import { getKeptBodyWalk, getKeptWalk } from './walks'
 import { makeAction } from '../scene/factories'
 import { coordKey, disk, distance, extentCells, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
@@ -191,6 +191,7 @@ export function withSheet(state: SceneState, id: string, c: CampaignCharacter): 
   }
   keep(paces)
   keep(stepMaps)
+  keep(openMaps)
   keep(routeMaps)
   return next
 }
@@ -212,12 +213,26 @@ export function getStepMap(state: SceneState, id: string): StepMap | null {
   const byId = stepMaps.get(state) ?? new Map<string, StepMap | null>()
   stepMaps.set(state, byId)
   if (byId.has(id)) return byId.get(id) ?? null
-  const made = walkMap(state, id)
+  const made = walkMap(state, id, false)
   byId.set(id, made)
   return made
 }
 
-function walkMap(state: SceneState, id: string): StepMap | null {
+// The same, walked as if nobody else stood on the board: only the ground
+// bends it, so it changes only when the character moves or its walking does
+// (threatMap.ts, spec "Threat").
+const openMaps = new WeakMap<SceneState, Map<string, StepMap | null>>()
+
+export function getOpenStepMap(state: SceneState, id: string): StepMap | null {
+  const byId = openMaps.get(state) ?? new Map<string, StepMap | null>()
+  openMaps.set(state, byId)
+  if (byId.has(id)) return byId.get(id) ?? null
+  const made = walkMap(state, id, true)
+  byId.set(id, made)
+  return made
+}
+
+function walkMap(state: SceneState, id: string, alone: boolean): StepMap | null {
   const c = state.characters[id]
   const from = cellOf(state, id)
   const pace = getPace(state, id)
@@ -228,13 +243,21 @@ function walkMap(state: SceneState, id: string): StepMap | null {
   const metres = MAP_ROUNDS * (ROUND_AP + getSurgeAP('movement')(c)) * (pace.metres / pace.AP)
   const AP = Math.ceil(metres / walk.speed) * walk.block.AP
   const rich: SceneState = { ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP, STA: Math.max(c.resources.STA, Math.ceil(metres / walk.speed) * walk.block.STA) } } } }
+  const cells = getKeptBodyWalk(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }), walkingOf(rich, rich.characters[id]), alone)
+  const known = mapsOfWalks.get(cells)
+  if (known) return known
   const map: StepMap = new Map([[coordKey(from), 0]])
-  for (const r of getKeptWalk(rich, makeAction('move', { id: 'step-map', actorId: id, movement: walk.kind }))) {
+  for (const r of cells) {
     const key = coordKey(r.cell)
     if (!map.has(key) || r.steps < map.get(key)!) map.set(key, r.steps)
   }
+  mapsOfWalks.set(cells, map)
   return map
 }
+
+// One map for one walk, so that what is read off a map (threatMap.ts) is
+// kept for as long as the walk is.
+const mapsOfWalks = new WeakMap<object, StepMap>()
 
 // The most cells the map walks to anywhere.
 const edges = new WeakMap<StepMap, number>()

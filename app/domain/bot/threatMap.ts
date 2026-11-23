@@ -3,8 +3,9 @@ import type { SceneState } from '../scene/types'
 import { coordKey, disk, distance, sameCell } from '../scene/rules/board/geometry'
 import { firesAcross, getEyes } from '../scene/rules/board/board'
 import { getInjuryCapacity } from '../character/rules/afflictions'
+import { getHeight } from '../character/rules/size'
 import { getPair, type PairAttack } from './pairs'
-import { cellOf, getHarmAgainst, getMeans, getPace, getPresence, getStepMap, getStrikeCells } from './threat'
+import { cellOf, getHarmAgainst, getMeans, getPace, getPresence, getOpenStepMap, getStrikeCells } from './threat'
 import { getSides } from './table'
 import type { SpecWeights } from './cost'
 
@@ -20,8 +21,9 @@ import type { SpecWeights } from './cost'
 // believed to hold, surge AP counted as any other. The harm is what the
 // attack leaves answered with an evade, always (`getThreatHarm`). The walk is
 // at the attacker's fastest pace (`getPace`: a run where it can run), and goes
-// no further than a fresh round's step map; a shot needs no walk where it has
-// a line of fire within its reach, and has no reach anywhere else. A foe the
+// no further than a fresh round's step map, walked on the ground alone
+// (`meleeSteps`); a shot needs no walk where it has a line of fire within its
+// reach, and has no reach anywhere else. A foe the
 // seat remembers counts its presence (bot/memory.ts, fading by the round).
 // Nothing here decides.
 
@@ -53,17 +55,52 @@ export function getThreatHarm(attack: PairAttack, gap: number): number {
   return harm
 }
 
+// spec "Threat": each character's share kept by itself, as a field over the
+// cells around it. Its step map (threat.ts `getOpenStepMap`) is walked on the
+// ground alone, as if nobody else stood there, so it is the same wherever
+// anyone else stands and is walked again only when the character moves. Each
+// cell of the field holds the fewest cells it walks to strike a foe standing
+// there; what that is worth comes from the foe (`getReach`: its harm against
+// an evade, the AP each holds), read when asked. A move of the foe's changes
+// nothing in it.
+//
 // The fewest cells `a`, standing at `from`, walks to strike `d` standing at
-// `at` with `reach`: none where it reaches already, walked on `a`'s step map
-// where it stands, or back on `d`'s from where `d` stands, else straight.
+// `at` with `reach`: read off `a`'s field where `a` stands, off `d`'s, walked
+// back, where `d` stands, else straight.
 function meleeSteps(view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number): number | null {
-  const strikes = getStrikeCells(view, a, d, at, reach)
-  if (distance(from, at) <= reach && strikes(from)) return 0
   const here = cellOf(view, a)
   const there = cellOf(view, d)
-  if (here && sameCell(here, from)) return stepsInto(getStepMap(view, a), at, reach, strikes)
-  if (there && sameCell(there, at)) return stepsInto(getStepMap(view, d), from, reach)
-  return Math.max(1, distance(from, at) - Math.floor(reach))
+  const mine = here && sameCell(here, from) ? getOpenStepMap(view, a) : null
+  if (mine) return inField(mine, `on|${bodyKey(view, d, at)}|${reach}`, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(mine, at, reach, getStrikeCells(view, a, d, at, reach))))
+  const theirs = there && sameCell(there, at) ? getOpenStepMap(view, d) : null
+  if (theirs) return inField(theirs, `by|${bodyKey(view, a, from)}|${reach}`, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(theirs, from, reach)))
+  return fieldSteps(view, a, from, d, at, reach, () => Math.max(1, distance(from, at) - Math.floor(reach)))
+}
+
+const fieldSteps = (view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number, walked: () => number | null): number | null =>
+  distance(from, at) <= reach && getStrikeCells(view, a, d, at, reach)(from) ? 0 : walked()
+
+const fields = new WeakMap<object, Map<string, number | null>>()
+
+function inField(map: object, key: string, make: () => number | null): number | null {
+  let field = fields.get(map)
+  if (!field) fields.set(map, (field = new Map()))
+  if (field.has(key)) return field.get(key)!
+  const made = make()
+  field.set(key, made)
+  return made
+}
+
+// What a strike reads of a body supposed standing at `at` (threat.ts
+// `getStrikeCells`): its shape and height, and how it stands where it is,
+// whole where `at` is its own cell. Not whose it is: a field is read alike for
+// every foe of one shape.
+function bodyKey(view: SceneState, id: string, at: Coord): string {
+  const c = view.characters[id]
+  const p = view.board?.placements[id]
+  if (!c || !p) return `${id}|${coordKey(at)}`
+  const shape = `${JSON.stringify(c.footprint)}|${getHeight(c)}|${p.orientation}|${p.elevation}`
+  return `${coordKey(at)}|${shape}|${sameCell(p.cell, at) ? JSON.stringify(p.climb) : ''}`
 }
 
 function stepsInto(map: Map<string, number> | null, at: Coord, reach: number, clear: (c: Coord) => boolean = () => true): number | null {

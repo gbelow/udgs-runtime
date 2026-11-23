@@ -18,7 +18,13 @@ export const FORGET_AFTER = 2
 
 export type Sighting = { sheet: CampaignCharacter; placement: Placement; party: string | undefined; round: number }
 export type SeatMemory = Readonly<Record<string, Sighting>>
-export type SeatMemories = Readonly<Record<string, SeatMemory>>
+
+// What a box notes for itself from one look at the fight to the next, by
+// member (decision.ts `Box`'s `notes`): the spec box's target for each.
+export type Notes = Readonly<Record<string, string>>
+
+// Each seat's, by seat id: the foes it remembers and its box's notes.
+export type SeatMemories = Readonly<Record<string, { foes: SeatMemory; notes: Notes }>>
 
 // The seat's memory once it has looked at the fight as it stands.
 export function remember(memory: SeatMemory | undefined, state: SceneState, members: readonly string[]): SeatMemory {
