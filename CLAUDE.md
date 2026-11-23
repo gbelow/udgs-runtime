@@ -100,3 +100,6 @@ Cheat-sheets in `RPG_Below_v7_en/.claude/skills/*/SKILL.md` (`skill-test-core`, 
 ## Roadmap context
 
 `nextSteps.md` (feature ideas) and `README.md` (architecture rationale, tradeoffs, and the "how to change things safely" workflow) hold design intent. `ui-design-patterns.md` contains the instructions for ui.
+
+## BOT
+- Read the bot-spec in instructions any time you are working on the bot
