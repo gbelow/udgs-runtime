@@ -202,7 +202,8 @@ function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions,
   }
   yield* askSeats(state, asked.filter((a) => a.waits.length > 0), 'any', opts)
 
-  const press = opts.autoTable ? getTablePress(state, opts.holdStart) : null
+  const players = Object.keys(state.characters).filter((id) => !seats.some((s) => s.members.includes(id)))
+  const press = opts.autoTable ? getTablePress(state, players, opts.holdStart) : null
   if (press) yield { by: 'table', who: null, why: press.kind, viewer: GM, commands: [press] }
 
   const idle = asked.filter((a) => a.waits.length === 0)

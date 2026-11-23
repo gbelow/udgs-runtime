@@ -1,3 +1,4 @@
+import { getRestAwaited } from '../rules/resting'
 import type { SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
@@ -142,6 +143,7 @@ function roundChangeButtonsOf(state: SceneState, id: string): OpenButton[] {
   return [
     ...concentration,
     ...morale,
+    ...button(getRestAwaited(state).includes(id), { kind: 'doneResting', args: [[id]] }, `${name}: done resting`),
     ...button(getLeadershipView(state, id)?.bar === null, { kind: 'leadershipRally', args: [id] }, `${name}: rally`),
   ]
 }

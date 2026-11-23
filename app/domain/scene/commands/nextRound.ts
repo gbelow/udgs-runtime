@@ -1,3 +1,4 @@
+import { getRestAwaited } from '../rules/resting'
 import { getSTA } from '../../character/rules/characteristics'
 import { ROUND_AP } from '../../tables'
 import type { CampaignCharacter } from '../../types'
@@ -134,6 +135,15 @@ export function joinChaseFight(partyId: string, to: string): Updater {
   }
 }
 
+// Those of the characters the rest step still waits for say they are done
+// resting and speaking.
+export function doneResting(ids: string[]): Updater {
+  return (state) => {
+    const done = getRestAwaited(state).filter((id) => ids.includes(id))
+    return done.length === 0 ? state : { ...state, doneResting: [...state.doneResting, ...done] }
+  }
+}
+
 // The round change moves on to its next step, once the one it is at has
 // nothing owed.
 export function continueRound(thrown: Throw): Updater {
@@ -146,7 +156,7 @@ function continueWith(caller: Caller): Updater {
 
 function stepOn(state: SceneState, caller: Caller): SceneState {
   switch (state.roundStep) {
-    case 'rest': return openConcentration(passEnvironment(state), caller)
+    case 'rest': return openConcentration(passEnvironment({ ...state, doneResting: [] }), caller)
     case 'concentration': return { ...state, roundStep: 'join' }
     case 'join': return { ...state, roundStep: 'chase' }
     case 'chase': {

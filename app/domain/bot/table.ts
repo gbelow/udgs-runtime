@@ -1,10 +1,10 @@
 import type { SceneState } from '../scene/types'
 import { isDown } from '../scene/rules/fight'
 import { getOpenAction } from '../scene/rules/log'
-import { getAvailableActions, getAwaited, getUnfinishedAnswers } from '../scene/rules/options'
-import { getActionDef } from '../scene/rules/actionCatalog'
+import { getAwaited, getUnfinishedAnswers } from '../scene/rules/options'
+import { getRestAwaited } from '../scene/rules/resting'
 import { getTurnHolder } from '../scene/rules/turn'
-import { getConcentrationOwed, getRoundPhase } from '../scene/rules/roundChange'
+import { getConcentrationOwed } from '../scene/rules/roundChange'
 import { getButtonsOf, getSharedButtons, type OpenButton } from '../scene/projections/buttons'
 import { getOpenChoices, type OpenChoice } from '../scene/projections/choices'
 import { getCommandActor } from '../scene/commands/registry'
@@ -79,7 +79,7 @@ export function getWaits(state: SceneState, members: readonly string[]): Wait[] 
   const awaited = open?.step === 'react' ? [...getAwaited(state), ...getUnfinishedAnswers(state, open).map((r) => r.actorId)] : []
   const owed = getConcentrationOwed(state)
   const holder = getTurnHolder(state)
-  const resting = getRoundPhase(state) === 'rest'
+  const resting = getRestAwaited(state)
   return members.flatMap((id): Wait[] => {
     const morale = state.morale.find((m) => m.id === id)
     const waits: Wait['for'][] = [
@@ -89,7 +89,7 @@ export function getWaits(state: SceneState, members: readonly string[]): Wait[] 
       ...(!open && holder === id ? ['turn' as const] : []),
       ...(owed.includes(id) ? ['concentration' as const] : []),
       ...(morale && ((morale.roll === null && !morale.optional) || morale.roll?.open) ? ['morale' as const] : []),
-      ...(resting && getAvailableActions(state, id).some((o) => o.available && getActionDef(o.draft.kind).rest) ? ['rest' as const] : []),
+      ...(resting.includes(id) ? ['rest' as const] : []),
     ]
     return waits.map((why) => ({ id, for: why }))
   })

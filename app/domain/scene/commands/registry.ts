@@ -26,7 +26,7 @@ import { pressGear } from './gear'
 import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../../character/commands/registry'
 import { rollHeld } from './heldTest'
 import { hypeUp, keepMorale, rerollMorale, rollMorale, setTablePressure, skipMorale } from './morale'
-import { backToChase, continueRound, holdOn, joinChaseFight, letGo, nextRound } from './nextRound'
+import { backToChase, continueRound, doneResting, holdOn, joinChaseFight, letGo, nextRound } from './nextRound'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
 import { breakFree, giveOrder, mock } from './domination'
@@ -154,6 +154,7 @@ export const sceneCommands = {
   endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),
   rollContest: command((ctx) => rollContest(ctx.thrower)).by(gm),
   nextRound: command((ctx) => nextRound(ctx.thrower)).by(gm),
+  doneResting: command((_, ids: string[]) => doneResting(ids)).by((_, ids) => ({ anyOf: ids })),
   continueRound: command((ctx) => continueRound(ctx.thrower)).by(gm),
   endCombat: command((ctx) => endCombat(ctx.thrower)).by(gm),
   followScene: command((ctx, partyId: string) => followScene(partyId, ctx.thrower)).by(gm),

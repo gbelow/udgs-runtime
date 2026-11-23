@@ -4,7 +4,8 @@ import { realDice } from "../components/utils";
 import { barOf, playOf } from "../net/parts";
 import { BOTS } from "../domain/profiles";
 import { getBotSeats } from "../domain/bot/bots";
-import { CONTEST_WINDOW_MS, getNextMove, getPace, noteSeats, type MoveOptions } from "../domain/bot/seat";
+import { getLiveStep, NEW_LIVE, type Live } from "../domain/bot/live";
+import { noteSeats, type MoveOptions } from "../domain/bot/seat";
 import type { SeatMemories } from "../domain/bot/memory";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -34,18 +35,11 @@ export function useBotsPaused() {
 // A beat between a bot's moves, so that the table can follow them.
 const BEAT_MS = 300;
 
-// How many times in a row a bot may make the very same move before the bots
-// stop, so that a bot pressing something that leads nowhere does not spin.
-const REPEATS = 3;
-
 // The bots at the fight, played on the screen that keeps the table (never a
-// guest's): after every change to the fight, the next move of whichever bot
-// seat has one (`getNextMove`), sent as a guest's press is, as the bot, and
-// held back as long as `getPace` says. A move the table refuses stops the
-// bots until the fight changes, and so does the same move pressed more than
-// `REPEATS` times in a row, until another is to be made; a move only held
-// back is not pressed, and is not counted. While the GM has
-// paused them, they make no move at all.
+// guest's): after every change to the fight, what is done next
+// (bot/live.ts `getLiveStep`), a move sent as a guest's press is, as the bot.
+// A move the table refuses stops the bots until the fight changes. While the
+// GM has paused them, they make no move at all.
 // `table`: whether the table presses for a GM nobody plays (bot/autoTable.ts),
 // as the demo has none, and whether it holds the first round back until it is
 // told to begin.
@@ -63,13 +57,7 @@ export function useBots(table: BotTable = WITH_GM) {
   useEffect(() => {
     if (mode === 'guest') return;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    // when the turn a bot's character holds was first seen held
-    let held: { turn: number; at: number } | null = null;
-    // the seat asked first, after the one that moved last
-    let from = 0;
-    // the last move pressed, and how many times in a row
-    let last = '';
-    let repeats = 0;
+    let kept: Live = NEW_LIVE;
     // what each bot seat remembers of the foes it noticed, noted at every change to the fight
     let memories: SeatMemories = {};
     const note = () => {
@@ -94,23 +82,14 @@ export function useBots(table: BotTable = WITH_GM) {
         viewerOf: (seat) => viewerOf(seat.profile ?? seat.id, false),
         memories,
       };
-      const { move, next, refused } = getNextMove(state, seats, opts, from);
+      const { step, live: next, refused } = getLiveStep(kept, state, seats, opts, Date.now());
+      kept = next;
       if (refused.length) console.warn('[bots]', refused);
-      if (!move) return;
-      from = next;
-      const pace = getPace(state, seats, move);
-      if (pace === 'contested') return;
-      if (pace === 'contestable') {
-        const now = Date.now();
-        if (held?.turn !== state.turn) held = { turn: state.turn, at: now };
-        const left = held.at + CONTEST_WINDOW_MS - now;
-        if (left > 0) { timer = setTimeout(play, left); return; }
-      }
-      const said = JSON.stringify([move.by, move.who, move.commands]);
-      repeats = said === last ? repeats + 1 : 1;
-      last = said;
-      if (repeats > REPEATS) {
-        if (repeats === REPEATS + 1) {
+      if (step.do === 'nothing') return;
+      if (step.do === 'wait') { timer = setTimeout(play, step.ms); return; }
+      const { move } = step;
+      if (step.do === 'stop') {
+        if (step.first) {
           toast.error('A bot keeps making the same move: the bots stop until something else happens.');
           useBotLogStore.getState().add({ round: state.round, who: (move.who && state.characters[move.who]?.name) || move.by, why: move.why, refused: 'the same move again: stopped' });
         }
@@ -138,7 +117,7 @@ export function useBots(table: BotTable = WITH_GM) {
     soon();
     const offCombat = useCombatStore.subscribe(() => { note(); soon(); });
     const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) soon(); });
-    const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) { held = null; soon(); } });
+    const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) { kept = { ...kept, held: null }; soon(); } });
     return () => { offCombat(); offOwners(); offPaused(); if (timer) clearTimeout(timer); };
   }, [mode, auto, holdStart]);
 }

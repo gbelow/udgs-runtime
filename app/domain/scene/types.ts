@@ -2008,6 +2008,9 @@ export const SceneStateSchema = z.object({
   // combat.tex "End of the round": who has said they agree to end it; who
   // has nothing left to spend agrees without saying so
   agreedToEnd: z.array(z.string()).default([]),
+  // who has said, in the round change's rest step, that they are done resting
+  // and speaking, kept until the step is left
+  doneResting: z.array(str).default([]),
   // The round change under way, null while the round is played in turns
   roundStep: RoundStepSchema.nullable().default(null),
   // who has chosen, at this round change, to hold on to what they concentrate

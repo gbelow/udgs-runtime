@@ -16,6 +16,7 @@ export function resetCombat(state: SceneState): SceneState {
     contenders: [], contestModes: {},
     lastContest: null,
     agreedToEnd: [],
+    doneResting: [],
     morale: [],
     compulsions: [],
     heldTests: [],

@@ -277,6 +277,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   toggleContest: (s) => combatCommands.toggleContest('b')(deepFreeze(cleared(s))),
   setContestMode: (s) => combatCommands.setContestMode('b', 'normal')(deepFreeze(combatCommands.toggleContest('b')(deepFreeze(cleared(s))))),
   toggleAgreeToEnd: (s) => combatCommands.toggleAgreeToEnd('b')(deepFreeze(cleared(s))),
+  doneResting: (s) => combatCommands.doneResting(['a', 'b'])(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'rest' })),
   agreeAllToEnd: (s) => combatCommands.agreeAllToEnd(['a', 'b'])(deepFreeze(cleared(s))),
   rollContest: (s) => combatCommands.rollContest(() => 5)(deepFreeze(combatCommands.toggleContest('b')(deepFreeze(cleared(s))))),
   surge: (s) => combatCommands.surge('a', 'combat')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, usedSurge: null } } })),

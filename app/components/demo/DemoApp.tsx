@@ -166,10 +166,22 @@ function Placing() {
   )
 }
 
-// The round change while it runs, the board otherwise.
+// The round change while it runs, with the board in its place for as long as
+// one of the visitor's characters takes the limit stress action they owe,
+// opened from their card; the board otherwise.
 function DemoSpace() {
   const { view } = useRoundChange()
-  return view ? <div className='flex-1 min-h-0 overflow-y-auto'><RoundChangePanel openMap={null} /></div> : <DemoBoard />
+  const [mapOf, setMapOf] = useState<number | null>(null)
+  if (!view) return <DemoBoard />
+  if (view.stressTurn !== null && view.stressTurn.turn === mapOf) {
+    return (
+      <>
+        <div><Button size='xs' onClick={() => setMapOf(null)}>back to the round change</Button></div>
+        <DemoBoard />
+      </>
+    )
+  }
+  return <div className='flex-1 min-h-0 overflow-y-auto'><RoundChangePanel openMap={setMapOf} selfRun /></div>
 }
 
 const MODE_TEXT = {

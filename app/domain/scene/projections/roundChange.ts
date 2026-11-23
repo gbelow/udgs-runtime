@@ -11,8 +11,7 @@ import { getMoraleCalled } from '../rules/morale'
 import { getSceneCards, type SceneCard } from './cards'
 import { ROUND_AP } from '../../tables'
 import { isDead } from '../../character/rules/afflictions'
-import { getAvailableActions } from '../rules/options'
-import { getActionDef } from '../rules/actionCatalog'
+import { canStillRest, getRestAwaited } from '../rules/resting'
 import { getFightName, getMembers, getPartyName } from '../rules/fighters'
 import { isParkedParty } from '../rules/parked'
 
@@ -71,6 +70,8 @@ export type RoundChangeView = {
   continueLabel: string
   // what moving the round change on leaves nobody able to do, a line each
   closing: string[]
+  // who may still rest or speak and has not said they are done
+  resting: { id: string; name: string }[]
   // the owed limit stress action being taken now: whose it is, and the turn
   // it is taken in, which tells it from another of theirs later
   stressTurn: { id: string; turn: number } | null
@@ -106,7 +107,7 @@ function getClosing(state: SceneState, phase: RoundPhase): string[] {
     case 'rest':
       return Object.values(state.characters).filter((c) => !isDead(c)).flatMap((c) => {
         const lost = [
-          getAvailableActions(state, c.id).some((o) => o.available && getActionDef(o.draft.kind).rest) ? 'can no longer rest or speak' : null,
+          canStillRest(state, c.id) ? 'can no longer rest or speak' : null,
           c.resources.AP > ROUND_AP ? `loses ${c.resources.AP - ROUND_AP} unspent AP` : null,
         ].filter((x) => x !== null)
         return lost.length > 0 ? [`${getFightName(state, c.id)} ${lost.join(' and ')}`] : []
@@ -156,6 +157,7 @@ function buildRoundChange(state: SeenScene): RoundChangeView | null {
     continueBar: getContinueBar(state),
     continueLabel: phase === 'chase' ? getChaseStepLabel(state) : CONTINUE_LABELS[phase],
     closing: getClosing(state, phase),
+    resting: getRestAwaited(state).map((id) => ({ id, name: getFightName(state, id) })),
     stressTurn: stress ? { id: stress.id, turn: state.turn } : null,
     parties: getSceneCards(state).map((party) => ({
       ...party,

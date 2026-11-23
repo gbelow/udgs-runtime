@@ -52,6 +52,11 @@ export function useCombatCommands() {
   const nextRound = () => dispatch({ kind: "nextRound", args: [] })
   const endCombat = () => dispatch({ kind: "endCombat", args: [] })
   const continueRound = () => dispatch({ kind: "continueRound", args: [] })
+  // everyone this screen plays is done resting
+  const doneResting = () => {
+    const ids = getControlledIds(Object.keys(useCombatStore.getState().characters), viewer())
+    if (ids.length > 0) dispatch({ kind: "doneResting", args: [ids] })
+  }
   const holdOn = (id: string) => dispatch({ kind: "holdOn", args: [id] })
   const letGo = (id: string) => dispatch({ kind: "letGo", args: [id] })
   const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => dispatch({ kind: "rollMorale", args: [id, mode, enemyNear, die] })
@@ -69,5 +74,5 @@ export function useCombatCommands() {
   const renameParty = (partyId: string, name: string) => dispatch({ kind: "renameParty", args: [partyId, name] })
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
 
-  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, leadershipRally, breakFree, giveOrder, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, doneResting, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, leadershipRally, breakFree, giveOrder, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
 }

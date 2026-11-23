@@ -8,6 +8,7 @@ import { ActionKey, Menu, MenuItem, NumberInput, Panel, SectionLabel, Tooltip } 
 import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../hooks/useCombatState'
 import { GmLocked, LockedFor } from './Locks'
 import { useCombatCommands } from '../hooks/useCombatCommands'
+import { useActorBar } from '../hooks/useControl'
 import { RollButtons } from './DieCalls'
 import type { OrdersRow, RoundCard, RoundChangeView, RoundStepView } from '../domain/scene/projections/roundChange'
 
@@ -43,8 +44,9 @@ export function Forfeits({ lines, inline = false }: { lines: string[], inline?: 
 
 // The round change in the middle of the run screen: its steps, where it
 // stands, and each character with what it did to them and what they still
-// choose in it.
-export function RoundChangePanel({ openMap }: { openMap: ((turn: number) => void) | null }){
+// choose in it. At a table that runs itself (`selfRun`) nobody moves it on:
+// in its rest step the players say they are done instead.
+export function RoundChangePanel({ openMap, selfRun = false }: { openMap: ((turn: number) => void) | null, selfRun?: boolean }){
   const { view, pick } = useRoundChange()
   const { round } = useCombatState()
   const { continueRound } = useCombatCommands()
@@ -70,9 +72,11 @@ export function RoundChangePanel({ openMap }: { openMap: ((turn: number) => void
           <div className='flex-1 min-w-48'>
             {view.closing.length > 0 ? <Forfeits lines={view.closing} /> : <span className='text-xs text-muted'>nobody loses a chance by moving on</span>}
           </div>
-          <Tooltip text={view.continueBar}>
-            <ActionKey look={view.closing.length > 0 ? 'warn' : 'go'} icon={ChevronRight} aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</ActionKey>
-          </Tooltip>
+          {selfRun ? <DoneResting view={view} /> : (
+            <Tooltip text={view.continueBar}>
+              <ActionKey look={view.closing.length > 0 ? 'warn' : 'go'} icon={ChevronRight} aria-label='continueRound' disabled={view.continueBar !== null} onClick={continueRound}>{view.continueLabel}</ActionKey>
+            </Tooltip>
+          )}
         </div>
         {HINTS[view.phase] ? <span className='text-xs text-muted'>{HINTS[view.phase]}</span> : null}
         {view.phase === 'join' ? <JoinChaseFight /> : null}
@@ -90,6 +94,20 @@ export function RoundChangePanel({ openMap }: { openMap: ((turn: number) => void
         ))}
       </div>
     </Panel>
+  )
+}
+
+// Whom the rest step waits for, and the press that says everyone this screen
+// plays is done resting.
+function DoneResting({ view }: { view: RoundChangeView }){
+  const { doneResting } = useCombatCommands()
+  const bar = useActorBar({ anyOf: view.resting.map((r) => r.id) })
+  if (view.phase !== 'rest') return null
+  if (bar !== null) return <span className='text-xs text-muted'>{view.resting.length > 0 ? `waiting for ${view.resting.map((r) => r.name).join(', ')}` : 'moving on'}</span>
+  return (
+    <Tooltip text={view.continueBar ?? 'your characters are done resting and speaking: the round change moves on'}>
+      <ActionKey look='go' icon={ChevronRight} aria-label='doneResting' disabled={view.continueBar !== null} onClick={doneResting}>done resting</ActionKey>
+    </Tooltip>
   )
 }
 
