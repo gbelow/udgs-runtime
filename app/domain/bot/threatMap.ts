@@ -65,17 +65,23 @@ export function getThreatHarm(attack: PairAttack, gap: number): number {
 // nothing in it.
 //
 // The fewest cells `a`, standing at `from`, walks to strike `d` standing at
-// `at` with `reach`: read off `a`'s field where `a` stands, off `d`'s, walked
-// back, where `d` stands, else straight.
-function meleeSteps(view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number): number | null {
+// `at` with `reach`: read off `d`'s field, walked back, where `d` stands, to
+// the cells `a` strikes it at from `from`; off `a`'s where `a` stands; else
+// straight. One `moved` (read where a shift puts it, even onto its own cell)
+// has its field left out, so that a cell weighed reads the same as the one it
+// is weighed against, wherever the character stands.
+function meleeSteps(view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number, moved: Moved): number | null {
   const here = cellOf(view, a)
   const there = cellOf(view, d)
-  const mine = here && sameCell(here, from) ? getOpenStepMap(view, a) : null
+  const theirs = !moved.d && there && sameCell(there, at) ? getOpenStepMap(view, d) : null
+  if (theirs) return inField(theirs, 'by', shapeOf(view, a, from), reach, from, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(theirs, from, reach, (cell) => getStrikeCells(view, a, d, cell, reach)(from))))
+  const mine = !moved.a && here && sameCell(here, from) ? getOpenStepMap(view, a) : null
   if (mine) return inField(mine, 'on', shapeOf(view, d, at), reach, at, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(mine, at, reach, getStrikeCells(view, a, d, at, reach))))
-  const theirs = there && sameCell(there, at) ? getOpenStepMap(view, d) : null
-  if (theirs) return inField(theirs, 'by', shapeOf(view, a, from), reach, from, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(theirs, from, reach)))
   return fieldSteps(view, a, from, d, at, reach, () => Math.max(1, distance(from, at) - Math.floor(reach)))
 }
+
+// Which of the pair a shift puts at a cell.
+type Moved = { a: boolean; d: boolean }
 
 const fieldSteps = (view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number, walked: () => number | null): number | null =>
   distance(from, at) <= reach && getStrikeCells(view, a, d, at, reach)(from) ? 0 : walked()
@@ -131,11 +137,11 @@ function stepsInto(map: Map<string, number> | null, at: Coord, reach: number, cl
 
 // The AP of the walk `a` makes from `from` to attack `d` at `at`, null where
 // it cannot.
-function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, attack: PairAttack): number | null {
+function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, attack: PairAttack, moved: Moved): number | null {
   const board = view.board
   if (!board) return 0
   if (attack.kind === 'shoot') return distance(from, at) <= attack.reach && firesAcross(board, [from], [at], getEyes(view, a, d)) ? 0 : null
-  const steps = meleeSteps(view, a, from, d, at, attack.reach)
+  const steps = meleeSteps(view, a, from, d, at, attack.reach, moved)
   const pace = getPace(view, a)
   return steps === null ? null : steps === 0 ? 0 : pace ? Math.ceil(steps / pace.metres) * pace.AP : null
 }
@@ -157,10 +163,10 @@ type Reach = { walk: number; harm: number }[]
 
 const profiles = new WeakMap<SceneState, Map<string, Map<number, Map<number, Reach>>>>()
 
-function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coord, surge: SurgeKind | null): Reach {
+function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coord, surge: SurgeKind | null, moved: Moved): Reach {
   let byPair = profiles.get(view)
   if (!byPair) profiles.set(view, (byPair = new Map()))
-  const pairKey = `${a}|${d}|${surge}`
+  const pairKey = `${a}|${d}|${surge}|${moved.a}|${moved.d}`
   let byFrom = byPair.get(pairKey)
   if (!byFrom) byPair.set(pairKey, (byFrom = new Map()))
   const fromN = cellNumber(from)
@@ -174,7 +180,7 @@ function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coo
   const cd = view.characters[d]
   if (ca && cd) for (const attack of getPair(ca, cd, surge)) {
     if (!attack.opens.action) continue
-    const walk = walkAP(view, a, from, d, at, attack)
+    const walk = walkAP(view, a, from, d, at, attack, moved)
     if (walk === null) continue
     const harm = getThreatHarm(attack, attack.kind === 'shoot' ? distance(from, at) : attack.reach)
     if (harm > 0) made.push({ walk, harm: harm / ROUND })
@@ -186,11 +192,11 @@ function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coo
 // The most harm(evasion) / 8 x (AP - walk AP) of `a`'s attacks on `d`, `a`
 // standing at `from` holding `AP`, `d` at `at`, against the surge `d` has
 // made where it is read now.
-function getReach(view: SceneState, a: string, from: Coord, d: string, at: Coord, AP: number, when: When, w: SpecWeights): number {
+function getReach(view: SceneState, a: string, from: Coord, d: string, at: Coord, AP: number, when: When, w: SpecWeights, moved: Moved): number {
   const cd = view.characters[d]
   if (!view.characters[a] || !cd || AP <= 0) return 0
   let most = 0
-  for (const { walk, harm } of getProfile(view, a, from, d, at, when === 'potential' ? null : cd.usedSurge)) if (walk < AP) most = Math.max(most, harm * (AP - walk))
+  for (const { walk, harm } of getProfile(view, a, from, d, at, when === 'potential' ? null : cd.usedSurge, moved)) if (walk < AP) most = Math.max(most, harm * (AP - walk))
   return most === 0 ? 0 : most * getPresence(view, a, w) * getPresence(view, d, w)
 }
 
@@ -201,8 +207,9 @@ export function getLayer(view: SceneState, plays: readonly string[], a: string, 
   const by = shifted(view, plays, a, shifts, w)
   const on = shifted(view, plays, d, shifts, w)
   if (!by.at || !on.at) return 0
-  if (when === 'potential') return getReach(view, a, by.at, d, on.at, ROUND, when, w)
-  return (OPEN / (OPEN_FROM + Math.max(0, on.AP))) * getReach(view, a, by.at, d, on.at, by.AP, when, w)
+  const moved = { a: shifts.some((s) => s.id === a && s.at !== undefined), d: shifts.some((s) => s.id === d && s.at !== undefined) }
+  if (when === 'potential') return getReach(view, a, by.at, d, on.at, ROUND, when, w, moved)
+  return (OPEN / (OPEN_FROM + Math.max(0, on.AP))) * getReach(view, a, by.at, d, on.at, by.AP, when, w, moved)
 }
 
 // The threat of `side` on `d`: each one's layer, added up.
