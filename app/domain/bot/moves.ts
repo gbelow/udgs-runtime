@@ -125,9 +125,16 @@ export const canPay = (b: Budget, move: number, attack: number): boolean => move
 // user's ruling, 2026-11-20); never at 0 STA.
 export const RUN_BLOCKS = 2
 
+const runBlocks = new WeakMap<SceneState, Map<string, number | null>>()
+
 export function getRunBlock(view: SceneState, id: string): number | null {
+  let byId = runBlocks.get(view)
+  if (!byId) runBlocks.set(view, (byId = new Map()))
+  if (byId.has(id)) return byId.get(id)!
   const me = view.characters[id]
-  return (me && getMovementOptions(view, me).find((o) => o.kind === 'run')?.block.AP) ?? null
+  const made = (me && getMovementOptions(view, me).find((o) => o.kind === 'run')?.block.AP) ?? null
+  byId.set(id, made)
+  return made
 }
 
 // The walks each budget pays for with no attack after them: none's every

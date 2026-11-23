@@ -1,6 +1,6 @@
-import type { Coord } from '../types'
+import type { Coord, SurgeKind } from '../types'
 import type { SceneState } from '../scene/types'
-import { coordKey, disk, distance, sameCell } from '../scene/rules/board/geometry'
+import { cellNumber, coordKey, disk, distance, sameCell } from '../scene/rules/board/geometry'
 import { firesAcross, getEyes } from '../scene/rules/board/board'
 import { getInjuryCapacity } from '../character/rules/afflictions'
 import { getHeight } from '../character/rules/size'
@@ -71,36 +71,52 @@ function meleeSteps(view: SceneState, a: string, from: Coord, d: string, at: Coo
   const here = cellOf(view, a)
   const there = cellOf(view, d)
   const mine = here && sameCell(here, from) ? getOpenStepMap(view, a) : null
-  if (mine) return inField(mine, `on|${bodyKey(view, d, at)}|${reach}`, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(mine, at, reach, getStrikeCells(view, a, d, at, reach))))
+  if (mine) return inField(mine, 'on', shapeOf(view, d, at), reach, at, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(mine, at, reach, getStrikeCells(view, a, d, at, reach))))
   const theirs = there && sameCell(there, at) ? getOpenStepMap(view, d) : null
-  if (theirs) return inField(theirs, `by|${bodyKey(view, a, from)}|${reach}`, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(theirs, from, reach)))
+  if (theirs) return inField(theirs, 'by', shapeOf(view, a, from), reach, from, () => fieldSteps(view, a, from, d, at, reach, () => stepsInto(theirs, from, reach)))
   return fieldSteps(view, a, from, d, at, reach, () => Math.max(1, distance(from, at) - Math.floor(reach)))
 }
 
 const fieldSteps = (view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number, walked: () => number | null): number | null =>
   distance(from, at) <= reach && getStrikeCells(view, a, d, at, reach)(from) ? 0 : walked()
 
-const fields = new WeakMap<object, Map<string, number | null>>()
+// A map's fields, one for each way it is read (`on` a foe, walked back `by`
+// one), each shape of the other body and each reach: the steps at each cell,
+// by its number.
+const fields = new WeakMap<object, Map<string, Map<number, number | null>>>()
 
-function inField(map: object, key: string, make: () => number | null): number | null {
-  let field = fields.get(map)
-  if (!field) fields.set(map, (field = new Map()))
-  if (field.has(key)) return field.get(key)!
+function inField(map: object, way: 'on' | 'by', shape: string | null, reach: number, cell: Coord, make: () => number | null): number | null {
+  if (shape === null) return make()
+  let byShape = fields.get(map)
+  if (!byShape) fields.set(map, (byShape = new Map()))
+  const key = `${way}|${shape}|${reach}`
+  let field = byShape.get(key)
+  if (!field) byShape.set(key, (field = new Map()))
+  const n = cellNumber(cell)
+  const known = field.get(n)
+  if (known !== undefined) return known
   const made = make()
-  field.set(key, made)
+  field.set(n, made)
   return made
 }
 
-// What a strike reads of a body supposed standing at `at` (threat.ts
-// `getStrikeCells`): its shape and height, and how it stands where it is,
-// whole where `at` is its own cell. Not whose it is: a field is read alike for
-// every foe of one shape.
-function bodyKey(view: SceneState, id: string, at: Coord): string {
-  const c = view.characters[id]
+// What a strike reads of a body supposed standing elsewhere (threat.ts
+// `getStrikeCells`): its shape and height, how it faces and the floor it
+// stands on. Not whose it is: a field is read alike for every foe of one
+// shape. Null for a climber read where it climbs, whose climb a strike reads
+// too: that is never kept.
+const shapes = new WeakMap<SceneState, Map<string, string | null>>()
+
+function shapeOf(view: SceneState, id: string, at: Coord): string | null {
   const p = view.board?.placements[id]
-  if (!c || !p) return `${id}|${coordKey(at)}`
-  const shape = `${JSON.stringify(c.footprint)}|${getHeight(c)}|${p.orientation}|${p.elevation}`
-  return `${coordKey(at)}|${shape}|${sameCell(p.cell, at) ? JSON.stringify(p.climb) : ''}`
+  if (p && p.climb !== null && sameCell(p.cell, at)) return null
+  let byId = shapes.get(view)
+  if (!byId) shapes.set(view, (byId = new Map()))
+  if (byId.has(id)) return byId.get(id)!
+  const c = view.characters[id]
+  const made = c && p ? `${JSON.stringify(c.footprint)}|${getHeight(c)}|${p.orientation}|${p.elevation}` : null
+  byId.set(id, made)
+  return made
 }
 
 function stepsInto(map: Map<string, number> | null, at: Coord, reach: number, clear: (c: Coord) => boolean = () => true): number | null {
@@ -114,27 +130,14 @@ function stepsInto(map: Map<string, number> | null, at: Coord, reach: number, cl
 }
 
 // The AP of the walk `a` makes from `from` to attack `d` at `at`, null where
-// it cannot. It reads only where the two stand, the kind of attack and its
-// reach, so it is kept by those for the state, whatever guard or round it is
-// read for.
-const walks = new WeakMap<SceneState, Map<string, number | null>>()
-
+// it cannot.
 function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, attack: PairAttack): number | null {
   const board = view.board
   if (!board) return 0
-  let byKey = walks.get(view)
-  if (!byKey) walks.set(view, (byKey = new Map()))
-  const key = `${a}|${coordKey(from)}|${d}|${coordKey(at)}|${attack.kind}|${attack.reach}`
-  if (byKey.has(key)) return byKey.get(key)!
-  let made: number | null
-  if (attack.kind === 'shoot') made = distance(from, at) <= attack.reach && firesAcross(board, [from], [at], getEyes(view, a, d)) ? 0 : null
-  else {
-    const steps = meleeSteps(view, a, from, d, at, attack.reach)
-    const pace = getPace(view, a)
-    made = steps === null ? null : steps === 0 ? 0 : pace ? Math.ceil(steps / pace.metres) * pace.AP : null
-  }
-  byKey.set(key, made)
-  return made
+  if (attack.kind === 'shoot') return distance(from, at) <= attack.reach && firesAcross(board, [from], [at], getEyes(view, a, d)) ? 0 : null
+  const steps = meleeSteps(view, a, from, d, at, attack.reach)
+  const pace = getPace(view, a)
+  return steps === null ? null : steps === 0 ? 0 : pace ? Math.ceil(steps / pace.metres) * pace.AP : null
 }
 
 // What may be read in place of where a character stands and the AP it holds.
@@ -146,34 +149,49 @@ const shifted = (view: SceneState, plays: readonly string[], id: string, shifts:
   return { at: s && s.at !== undefined ? s.at : cellOf(view, id), AP: s?.AP ?? (c ? getMeans(c, plays.includes(id), w).AP : 0) }
 }
 
-const reaches = new WeakMap<SceneState, WeakMap<SpecWeights, Map<string, number>>>()
+// `a`'s attacks on `d`, `a` standing at `from` and `d` at `at`: for each one
+// that reaches and harms, the AP of the walk in and its harm(evasion) / 8.
+// Whatever AP either holds, these are the same, so they are kept by the two
+// cells alone, and the AP is put in only when the threat is read.
+type Reach = { walk: number; harm: number }[]
 
-// The most harm(evasion) / 8 × (AP − walk AP) of `a`'s attacks on `d`, `a`
+const profiles = new WeakMap<SceneState, Map<string, Map<number, Map<number, Reach>>>>()
+
+function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coord, surge: SurgeKind | null): Reach {
+  let byPair = profiles.get(view)
+  if (!byPair) profiles.set(view, (byPair = new Map()))
+  const pairKey = `${a}|${d}|${surge}`
+  let byFrom = byPair.get(pairKey)
+  if (!byFrom) byPair.set(pairKey, (byFrom = new Map()))
+  const fromN = cellNumber(from)
+  let byAt = byFrom.get(fromN)
+  if (!byAt) byFrom.set(fromN, (byAt = new Map()))
+  const atN = cellNumber(at)
+  const known = byAt.get(atN)
+  if (known) return known
+  const made: Reach = []
+  const ca = view.characters[a]
+  const cd = view.characters[d]
+  if (ca && cd) for (const attack of getPair(ca, cd, surge)) {
+    if (!attack.opens.action) continue
+    const walk = walkAP(view, a, from, d, at, attack)
+    if (walk === null) continue
+    const harm = getThreatHarm(attack, attack.kind === 'shoot' ? distance(from, at) : attack.reach)
+    if (harm > 0) made.push({ walk, harm: harm / ROUND })
+  }
+  byAt.set(atN, made)
+  return made
+}
+
+// The most harm(evasion) / 8 x (AP - walk AP) of `a`'s attacks on `d`, `a`
 // standing at `from` holding `AP`, `d` at `at`, against the surge `d` has
 // made where it is read now.
 function getReach(view: SceneState, a: string, from: Coord, d: string, at: Coord, AP: number, when: When, w: SpecWeights): number {
-  const ca = view.characters[a]
   const cd = view.characters[d]
-  if (!ca || !cd || AP <= 0) return 0
-  let byW = reaches.get(view)
-  if (!byW) reaches.set(view, (byW = new WeakMap()))
-  let byKey = byW.get(w)
-  if (!byKey) byW.set(w, (byKey = new Map()))
-  const surge = when === 'potential' ? null : cd.usedSurge
-  const key = `${a}|${coordKey(from)}|${d}|${coordKey(at)}|${AP}|${surge}`
-  const known = byKey.get(key)
-  if (known !== undefined) return known
+  if (!view.characters[a] || !cd || AP <= 0) return 0
   let most = 0
-  for (const attack of getPair(ca, cd, surge)) {
-    if (!attack.opens.action) continue
-    const walk = walkAP(view, a, from, d, at, attack)
-    if (walk === null || walk >= AP) continue
-    const harm = getThreatHarm(attack, attack.kind === 'shoot' ? distance(from, at) : attack.reach)
-    if (harm > 0) most = Math.max(most, (harm / ROUND) * (AP - walk))
-  }
-  const made = most * getPresence(view, a, w) * getPresence(view, d, w)
-  byKey.set(key, made)
-  return made
+  for (const { walk, harm } of getProfile(view, a, from, d, at, when === 'potential' ? null : cd.usedSurge)) if (walk < AP) most = Math.max(most, harm * (AP - walk))
+  return most === 0 ? 0 : most * getPresence(view, a, w) * getPresence(view, d, w)
 }
 
 // `a`'s layer on `d` (see above), each where it stands holding what it is
