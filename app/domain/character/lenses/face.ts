@@ -6,7 +6,8 @@ import { getAfflictions } from '../rules/afflictions'
 // multiplayer-plan.md "Hidden information": what a viewer is shown of a
 // character they see but do not play — the token: who it is, how big, what it
 // wears and holds in the open and where it is wounded. The table's ruling:
-// how hurt it is (its injury level) shows too, and of its AP and its STA only
+// how hurt it is (its injury level) and how much it bleeds show too (the
+// user's ruling, 2026-11-23), and of its AP and its STA only
 // which third of a round's AP and of its STA is left (`shown`), never the
 // numbers. The surge it has made this round shows, as it is declared at the
 // table. Of its afflictions, those seen on the token (`SHOWN_AFFLICTIONS`).
@@ -39,7 +40,7 @@ export function getPublicFace(character: CampaignCharacter): CampaignCharacter {
     face = {
       ...blank,
       ...Object.fromEntries(FACE_KEYS.map((k) => [k, character[k]])),
-      injuries: { ...blank.injuries, injuryLevel: character.injuries.injuryLevel },
+      injuries: { ...blank.injuries, injuryLevel: character.injuries.injuryLevel, bleed: character.injuries.bleed },
       afflictions: getAfflictions(character).filter((key) => SHOWN_AFFLICTIONS.has(key)),
       shown: { AP: thirdOf(character.resources.AP, ROUND_AP), STA: thirdOf(character.resources.STA, getSTA(character)) },
     }

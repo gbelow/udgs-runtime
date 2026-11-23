@@ -49,6 +49,8 @@ export type PairDefence = {
   // differ from the attack's own (a hook attack's bonus against an evasive
   // jump, an assassination against the SD)
   hits?: Hits
+  // the bleed each of those leaves (`getBleed`), beside the harm it is part of
+  bleeds: HarmByDegree
 }
 
 export type PairAttack = {
@@ -93,7 +95,9 @@ export type PairAttack = {
   defences: PairDefence[]
 }
 
-export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + 5 * o.bleed : 0)
+export const BLEED_HARM = 5
+export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + BLEED_HARM * o.bleed : 0)
+const getBleed = (o: Outcome | null | undefined): number => o?.bleed ?? 0
 
 // The surges that put buffs on whoever makes them for the round
 // (character/rules/effects.ts `getSurgeEffects`).
@@ -120,9 +124,9 @@ function rolled(root: AttackAction, degree: 'miss' | 'graze' | 'hit', HOP = 0): 
 
 // What the attack does to the defender at a graze or a miss against the
 // defence it was answered with, as the landing reads it.
-function harmAt(state: SceneState, root: AttackAction, degree: 'miss' | 'graze', defender: CampaignCharacter): number {
+function harmAt(state: SceneState, root: AttackAction, degree: 'miss' | 'graze', defender: CampaignCharacter, read: (o: Outcome | null) => number = getHarm): number {
   const facts = getAttackFacts(state, rolled(root, degree))
-  return facts ? getHarm(outcomeOf(facts, defender)) : 0
+  return facts ? read(outcomeOf(facts, defender)) : 0
 }
 
 // The attacks one character's rows make on another, declared as records
@@ -184,19 +188,23 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
         const answerKey = (def: Defended) => `${attackKey}|${def.draft ? `${keyed(def.draft)}|${def.cost.AP}|${def.cost.STA}` : 'none'}`
         // the spends of a hit read once for every HOP it is read at (`getBestSpend`)
         const spends = new Map<Defended, Map<string, Outcome | null>>()
-        const hit = (def: Defended, HOP: number) => harms.read(`${answerKey(def)}|hit|${HOP}`, () => {
+        const hitOf = (def: Defended, HOP: number, part: 'harm' | 'bleed') => harms.read(`${answerKey(def)}|hit|${HOP}${part === 'bleed' ? '|bleed' : ''}`, () => {
           const at = rolled(root, 'hit', HOP)
           const known = spends.get(def) ?? new Map<string, Outcome | null>()
           spends.set(def, known)
-          return getHarm(getBestSpend(def.state, bonus === 'braced' ? { ...at, spent: { braced: 1 } } : at, known).outcome)
+          const outcome = getBestSpend(def.state, bonus === 'braced' ? { ...at, spent: { braced: 1 } } : at, known).outcome
+          return part === 'bleed' ? getBleed(outcome) : getHarm(outcome)
         })
+        const hit = (def: Defended, HOP: number) => hitOf(def, HOP, 'harm')
         const tested = defended.flatMap((def) => {
           const t = getRootTest(def.state, root)
           return t ? [{ def, t }] : []
         })
         const most = getMostHOP(test.skill, Math.min(...tested.map((x) => x.t.DL)))
         const hitsIn = (def: Defended) => readHits(Math.max(0, most + 1), (HOP) => hit(def, HOP))
+        const bleedsIn = (def: Defended) => readHits(Math.max(0, most + 1), (HOP) => hitOf(def, HOP, 'bleed'))
         const hits = hitsIn(defended[0])
+        const bleeds = bleedsIn(defended[0])
         // a hook attack's bonus turns on how the target answers (combat.tex
         // "Hook Attack": against an evasive jump), and so does an assassination
         // (combat.tex "Assassinate": "only ... against SD"), so their hits are
@@ -206,11 +214,16 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
           const own = (bonus === 'hook' || assassinates) && def.draft ? hitsIn(def) : null
           const graze = harms.read(`${answerKey(def)}|graze`, () => harmAt(def.state, root, 'graze', target))
           const miss = harms.read(`${answerKey(def)}|miss`, () => harmAt(def.state, root, 'miss', target))
+          const bled = {
+            graze: harms.read(`${answerKey(def)}|graze|bleed`, () => harmAt(def.state, root, 'graze', target, getBleed)),
+            miss: harms.read(`${answerKey(def)}|miss|bleed`, () => harmAt(def.state, root, 'miss', target, getBleed)),
+            hits: own ? bleedsIn(def) : bleeds,
+          }
           const surged = Object.fromEntries(BUFFING_SURGES.flatMap((kind) => {
             const made = getRootTest({ ...def.state, characters: { ...def.state.characters, [d]: { ...target, usedSurge: kind } } }, root)
             return made && made.DL !== t.DL ? [[kind, made.DL]] : []
           }))
-          return { draft: def.draft, cost: def.cost, DL: t.DL, ...(Object.keys(surged).length > 0 ? { surged } : {}), graze, miss, ...(own ? { hits: own } : {}) }
+          return { draft: def.draft, cost: def.cost, DL: t.DL, ...(Object.keys(surged).length > 0 ? { surged } : {}), graze, miss, ...(own ? { hits: own } : {}), bleeds: bled }
         })
         attacks.push({
           kind,
