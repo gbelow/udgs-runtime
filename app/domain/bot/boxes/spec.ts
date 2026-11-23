@@ -1,5 +1,6 @@
 import type { CampaignCharacter, Coord, SurgeKind } from '../../types'
 import type { ActionDraft, SceneState } from '../../scene/types'
+import type { SceneCommand } from '../../scene/commands/registry'
 import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
 import { getOpenAction } from '../../scene/rules/log'
@@ -262,8 +263,19 @@ function getSteps(ctx: Ctx): Step[] {
   return steps
 }
 
-const kept = new WeakMap<Ctx, Step[]>()
-const stepsOf = (ctx: Ctx): Step[] => kept.get(ctx) ?? (kept.set(ctx, getSteps(ctx)), kept.get(ctx)!)
+// The walks weighed once per view, character and side, whichever plan asks first.
+const kept = new WeakMap<SpecWeights, WeakMap<SceneState, Map<string, Step[]>>>()
+
+function stepsOf(ctx: Ctx): Step[] {
+  const byView = kept.get(ctx.w) ?? new WeakMap<SceneState, Map<string, Step[]>>()
+  kept.set(ctx.w, byView)
+  const known = byView.get(ctx.view) ?? new Map<string, Step[]>()
+  byView.set(ctx.view, known)
+  const key = `${ctx.id}|${ctx.members.join(',')}`
+  let steps = known.get(key)
+  if (!steps) known.set(key, (steps = getSteps(ctx)))
+  return steps
+}
 
 // A step as a plan: the surge that pays for it first, if any; null where the
 // table does not take the walk at the price it was weighed at.
@@ -757,7 +769,7 @@ export function specBox(w: SpecWeights): Box {
       for (const id of members) {
         const start = find('startTurn', id)
         if (!start) continue
-        const begun = trial(view, start.command)
+        const begun = begunBy(view, id, start.command)
         const unnoticed = input.unnoticed(id)
         const target = input.notes[id] ?? null
         const kept = heldBlock(blocks, view, id)
@@ -776,6 +788,18 @@ export function specBox(w: SpecWeights): Box {
   box.remembers = true
   box.notes = (previous, view, members) => noteTargets(previous, view, members, w)
   return box
+}
+
+// The fight as it would be had the character started the turn, one trial per
+// view and character, so that every plan weighed on it reads the same state.
+const begunKept = new WeakMap<SceneState, Map<string, SceneState>>()
+
+function begunBy(view: SceneState, id: string, command: SceneCommand): SceneState {
+  const known = begunKept.get(view) ?? new Map<string, SceneState>()
+  begunKept.set(view, known)
+  let begun = known.get(id)
+  if (!begun) known.set(id, (begun = trial(view, command)))
+  return begun
 }
 
 // The plans weighed on a view of the fight, by member and question, so that a
