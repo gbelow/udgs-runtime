@@ -73,7 +73,7 @@ Calculate distance as the character would run, if they can run. Otherwise consid
 
 STAharm = w.STA x STA + w.IL x STA x bleed
 
-Cost = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm )
+Cost(character) = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm )
 <!-- Defensive Cost = w.caution x(w.AP x (w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm) -->
 
 
@@ -92,7 +92,7 @@ everyone else seen:  the face, with attributes and skills = floor(real / 3) · 3
 
 Choose the target with the highest score.
 
-Score= Expected harm(assume the defense the target would take) + delta immediate threat on opponent(after - before) - Offensive Cost - OA drawn
+Score= Expected harm(assume the defense the target would take) + delta immediate threat on opponent(after - before) - Cost - OA drawn
 
 
 ##  Spending a hit's overflow (`predict.ts` `getBestSpend`)
@@ -106,7 +106,7 @@ Highest Tier or damage wins. On a draw, prefer smash.
 
 # Defend
 
-Pick largest of: Score = Defense value - Defensive cost. Taking the hit is an option. 
+Pick largest of: Score = Defense value - Cost. Taking the hit is an option. 
 
 # Escape
 
@@ -120,23 +120,19 @@ Score = (threat on me here − threat on me there) / w.courage − allies × w.t
 
 # Reposition
 
-Prefers aggro to aggro if w.aggro = 1, and the opposite if it is 0. 
-
 ## Tactical
 
-Move to place where Score = max(ally potential threat - enemy potential threat)
+Pick the target who is detected and takes the highest E[harm] from the characters attack, considering evasion. If a potential target has E[harm] > w.retarget x E[harm], use the new target. 
 
-Decide to reposition if score difference - Offensive cost > 0.
+Move to place where Score = max(w.aggro x ally potential threat -  enemy potential threat)
 
-## Aggro
+Decide to reposition if score(there - here) - cost > 0.
 
-Pick the target who is detected and takes the highest E[harm] from the characters attack, considering evasion. If E[harm] > w.retarget x E[harm] of every enemy against whom there is potential threat, move towards the new target. 
-
-Pick the movement type where Defensive Cost is minimal, escape is not triggered and the character is closer to the target.
+Pick the movement type where Cost is minimal and escape is not triggered.
 
 ## Search
 
-Any enemy that is detected through a passive sense or remembered can be pursued with aggro.
+Any enemy that is detected through a passive sense or remembered can be pursued with tactical movement.
 
 If no foe is seen, the bot lists its seen and unseen spaces and moves up to w.search AP towards the nearest unseen spaces. Allies never end a move farther than w.solitude from the nearest ally, unless the move brings you closer.
 
@@ -145,13 +141,14 @@ If no foe is seen, the bot lists its seen and unseen spaces and moves up to w.se
 ## Surges
 - at 0 STA, only focus or recovery surges. The board enforces it anyways.
 - no focus surge unless the action it opens is allowed.
+- When an action involves multiple steps, execute all of them as one block. 
 
 
 # Constants
 
 w.STA = 2
 w.AP = 2
-w.caution = 1
+w.caution = 2
 w.IL = 2
 w.bleed = 5
 w.search = 4
@@ -160,7 +157,7 @@ w.retarget = 2
 w.courage = 1
 w.teamwork = 1
 w.baseAPcost = 1
-w.aggro = 0
+w.aggro = 1
 
 
 
