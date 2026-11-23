@@ -73,7 +73,7 @@ Calculate distance as the character would run, if they can run. Otherwise consid
 
 STAharm = w.STA x STA + w.IL x STA x bleed
 
-Cost(character) = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of all foes on character(after - before)) + STAharm )
+Cost(character) = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of all foes on character(after - before)/sqrt(n foes)) + STAharm )
 <!-- Defensive Cost = w.caution x(w.AP x (w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm) -->
 
 ## Face. What a seat knows (`belief.ts` `getBelief`)
@@ -109,6 +109,8 @@ Highest Tier or damage wins. On a draw, prefer smash.
 
 Pick largest of: Score = Defense value - Cost. Taking the hit is an option. 
 
+Against projectiles - use reposition with the AP from the evasion.
+
 # Escape
 
 allies = Number of party members within 10m of the departure location.
@@ -129,7 +131,7 @@ Move to place where Score = max(w.aggro x ally potential threat -  enemy potenti
 
 Decide to reposition if score(there - here) - Cost > 0.
 
-Pick the movement type where Cost is minimal and escape is not triggered.
+Pick the cell and movement type where Score − Cost is highest and escape is not triggered.
 
 ## Search
 
@@ -144,6 +146,10 @@ If no foe is seen, the bot lists its seen and unseen spaces and moves up to w.se
 - no focus surge unless the action it opens is allowed.
 - When an action involves multiple steps, execute all of them as one block. 
 
+## simulation
+- always 1 worker per simulation, max 10 workers.
+- look at vscode autosave for simulations made by the player
+
 
 # Constants
 
@@ -156,7 +162,7 @@ w.bleed = 5
 w.search = 4
 w.solitude = 10
 w.retarget = 2
-w.courage = 20
+w.courage = 40
 w.teamwork = 1
 w.baseAPcost = 1
 w.aggro = 1

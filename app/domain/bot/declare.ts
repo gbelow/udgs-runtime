@@ -20,7 +20,8 @@ import { getOpenChoices, STEPPED_PARTS, type ChoicePart, type OpenChoice } from 
 // Pure: it reads and presses on the state it is given, so a declaration can be
 // tried on the side, and the commands it returns are the ones to send to the
 // table. An answer to the open action is declared the same way, with no commit.
-// What is chosen once the die is thrown is settled the same way (`settle`).
+// What is chosen once the die is thrown is settled the same way (`settle`), and an
+// action opened for its actor to declare is filled in the same way (`declareOpened`).
 
 export type Pick = { part: ChoicePart; value: unknown }
 
@@ -134,11 +135,28 @@ export function declare(start: SceneState, intent: Intent, ctx: CommandContext):
     if (strike && !strike.complete) return refuse(`the answer still asks for ${asked(choices())}`)
     return { ok: true, commands: p.commands, ready: p.state, state: p.state }
   }
+  return commit(p, actorId)
+}
+
+// The open declaration committed once every step of it is filled in.
+function commit(p: Presses, actorId: string): Declared {
+  const refuse = (refused: string): Declared => ({ ok: false, commands: p.commands, state: p.state, refused })
   const step = getNextStep(p.state)
-  if (step !== 'commit') return refuse(`the declaration still asks for ${step === 'declare' ? asked(choices()) : step}`)
+  if (step !== 'commit') return refuse(`the declaration still asks for ${step === 'declare' ? asked(getOpenChoices(p.state).filter((c) => c.actorId === actorId)) : step}`)
   const ready = p.state
   if (!p.press({ kind: 'commit', args: [] })) return refuse('the commit was refused')
   return { ok: true, commands: p.commands, ready, state: p.state }
+}
+
+// The open action, opened for its actor to declare (the move an evasion
+// opens), filled in with `picks` and committed, refused as a declaration is.
+export function declareOpened(start: SceneState, picks: readonly Pick[], ctx: CommandContext): Declared {
+  const p = pressing(start, ctx)
+  const refuse = (refused: string): Declared => ({ ok: false, commands: p.commands, state: p.state, refused })
+  const open = getOpenAction(start)
+  if (open?.step !== 'define' || !open.spawnedBy) return refuse('nothing opened waits to be declared')
+  const unmade = fillIn(p, open.actorId, picks)
+  return unmade ? refuse(unmade) : commit(p, open.actorId)
 }
 
 // What is chosen once the open action's die is thrown, pressed as the table

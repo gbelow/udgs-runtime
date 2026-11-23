@@ -20,7 +20,7 @@ import { cellOf, getBelievedAP, getHarmAgainst, getHarmOnBleeding, getMeans, get
 import { REST_TUNING } from '../rest'
 import { getCost, getSTAHarm, type SpecWeights } from '../cost'
 import { getCostDelta, getLayer, getLayersBy, getLayersOn, getThreatBy, getThreatHarm, getThreatOn, isRuinous, lineOfFire, sumLayers, SHOT_GAP, type Guard, type Layers } from '../threatMap'
-import { argOf, arrivedAt, attackIntent, attackName, canPay, getAttackCells, getBudgets, getCollapsedCare, getKnownAttack, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesWalk, trial, TRIAL, wonBy, type Budget, type Walk, type WalkCell } from '../moves'
+import { argOf, arrivedAt, attackIntent, attackName, canPay, getAttackCells, getBudgets, getCollapsedCare, getKnownAttack, getOpenedWalks, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesOpenedWalk, takesWalk, trial, TRIAL, wonBy, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
 import type { Notes } from '../memory'
@@ -55,7 +55,7 @@ import type { Notes } from '../memory'
 // overflow spent as `getBestSpend` spends it, the round's rest step) it plays
 // as the nearest box does.
 
-export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.3, STA: 2, caution: 1.8, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 20, teamwork: 1, baseAPcost: 1, aggro: 1, aggressivity: 0.5 }
+export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.3, STA: 2, caution: 1.8, IL: 2, bleed: 5, search: 4, solitude: 10, retarget: 2, courage: 40, teamwork: 1, baseAPcost: 1, aggro: 1, aggressivity: 0.5 }
 
 // spec "Escape": the party members within this many metres of where the character sets out
 const ESCAPE_COMPANY = 10
@@ -416,50 +416,70 @@ function tacticalScore(ctx: Ctx, target: string, cell: Coord): number {
 // spec "Tactical": towards the character's target (`noteTargets`). Of the
 // cells it walks to where an escape would not be called for (the danger
 // there, over the least danger of any cell it walks to, less `teamwork` for
-// every party member near, comes to no more than `courage`), and whose Score
-// betters the one where it stands by more than the walk's Cost and the
-// opportunity attacks it draws, the best scoring of each movement, by the
-// movement whose Cost is least. `free` leaves the AP out of the cost (spec
-// "Decide take turn"). Of each movement's cells, TACTICAL_SCAN are read for
-// what they draw, best scoring first.
-const TACTICAL_SCAN = 8
-
+// every party member near, comes to no more than `courage`), by whatever
+// movement, the one whose Score betters the one where it stands by the most
+// over the walk's Cost and the opportunity attacks it draws, if above
+// nothing. `free` leaves the AP out of the cost (spec "Decide take turn").
+// What a walk draws only takes from its score, so the cells are read best
+// first and no further than the best one found.
 function planTactical(ctx: Ctx, free: boolean): Plan | null {
+  return pickTactical(ctx, stepsOf(ctx), free, (s, score, why) => stepPlan(ctx, s, score, why))
+}
+
+// The best of `steps` that `settle` takes, as `planTactical` says.
+function pickTactical<T extends { score: number }>(ctx: Ctx, steps: readonly Step[], free: boolean, settle: (s: Step, score: number, why: string) => T | null): T | null {
   const { view, id, w, me, here, target } = ctx
   if (!here || !target || !ctx.foes.includes(target)) return null
   const stay = tacticalScore(ctx, target, here)
-  const steps = stepsOf(ctx)
   const safest = steps.reduce((least, s) => Math.min(least, s.threat), ctx.now)
   const calm = (s: Step) => s.threat - safest - companyAt(ctx, s.c.cell) * w.teamwork <= w.courage
-  const byMovement = new Map<string, { s: Step; gain: number; cost: number }[]>()
+  const weighed: { s: Step; gain: number; cost: number; net: number }[] = []
   for (const s of steps) {
     if (!calm(s)) continue
     const gain = tacticalScore(ctx, target, s.c.cell) - stay
     const cost = getCost(ownAP(view, id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, s.delta, me.injuries.bleed, w, free)
-    if (gain - cost <= 0) continue
-    const key = `${s.b.surge ?? ''}|${s.walk.movement}`
-    byMovement.set(key, [...(byMovement.get(key) ?? []), { s, gain, cost }])
+    if (gain - cost > 0) weighed.push({ s, gain, cost, net: gain - cost })
   }
   const name = view.characters[target]?.name ?? target
-  const picked: { s: Step; cost: number; score: number; why: string }[] = []
-  for (const cells of byMovement.values()) {
-    let read = 0
-    for (const k of cells.sort((x, y) => y.gain - x.gain)) {
-      if (read >= TACTICAL_SCAN) break
-      if (!allowed(ctx, k.s)) continue
-      read++
-      const drew = drawnOn(ctx, k.s.c.cell, k.s.c.AP, k.s.c.STA, runs(k.s.walk), k.s.c.path, k.s.b).harm
-      const score = k.gain - k.cost - drew
-      if (score <= 0) continue
-      picked.push({ s: k.s, cost: k.cost, score, why: `repositions${free ? ' before the round ends' : ''} towards ${name} (${k.s.walk.movement}, score ${k.gain.toFixed(1)} better - cost ${k.cost.toFixed(1)} - drawn ${drew.toFixed(1)}: ${score.toFixed(1)})` })
-      break
-    }
+  let best: T | null = null
+  for (const { s, gain, cost, net } of weighed.sort((x, y) => y.net - x.net)) {
+    const least = best?.score ?? 0
+    if (net <= least) break
+    if (!allowed(ctx, s)) continue
+    const drew = drawnOn(ctx, s.c.cell, s.c.AP, s.c.STA, runs(s.walk), s.c.path, s.b).harm
+    const score = net - drew
+    if (score <= least) continue
+    best = settle(s, score, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${gain.toFixed(1)} better - cost ${cost.toFixed(1)} - drawn ${drew.toFixed(1)}: ${score.toFixed(1)})`) ?? best
   }
-  for (const r of picked.sort((x, y) => x.cost - y.cost)) {
-    const plan = stepPlan(ctx, r.s, r.score, r.why)
-    if (plan) return plan
-  }
-  return null
+  return best
+}
+
+// The move a reaction has opened for the character (combat.tex "Evasion": the
+// reflex's AP "is used to move and does not need to be spent again"), made as
+// Tactical moves (the user's ruling, 2026-11-23), at the Cost of what the
+// reaction has not paid: a move wholly paid for costs its STA and the change
+// in the threat on the character. A surge's AP left is lost whether it moves
+// or not. Null with no such move open, or none worth making.
+function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | null {
+  const view = input.view()
+  const walks = getOpenedWalks(view, id)
+  const ctx = walks && getCtx(view, input.members, id, w, input.unnoticed(id), input.notes[id] ?? null)
+  if (!walks || !ctx?.here) return null
+  const { here, budgets } = ctx
+  const b = budgets[0]
+  const layersAt = (at: Coord, AP: number) => getLayersOn(view, input.members, id, 'immediate', w, [{ id, at, AP }])
+  const staying = layersAt(here, heldAP(b, 0))
+  const steps = walks.flatMap((walk) => walk.cells.flatMap((c): Step[] => {
+    if (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA) return []
+    const guard = held(b, c.AP, c.STA)
+    const layers = layersAt(c.cell, guard.AP)
+    return [{ b, walk, c, guard, threat: sumLayers(layers), delta: getCostDelta(staying, layers) }]
+  }))
+  const picked = pickTactical(ctx, steps, false, (s, score, why) => {
+    const intent = moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation)
+    return takesOpenedWalk(view, id, intent, s.c.AP, s.c.STA) ? { score, why, picks: intent.picks } : null
+  })
+  return picked && { kind: 'declareOpened', picks: picked.picks, why: `with the move its reaction opened, ${picked.why}` }
 }
 
 // spec "Search": with no foe the side knows of, a walk of at most `search` AP
@@ -822,7 +842,7 @@ export function specBox(w: SpecWeights): Box {
     for (const wait of waits) {
       const made = wait.for === 'answer' ? answer(input, wait.id, w, find, press)
         : wait.for === 'turn' ? takeTurn(input, wait.id, w, blocks, find, press)
-        : settleWait(input, wait, find, press, w)
+        : (wait.for === 'action' ? stepOpened(input, wait.id, w) : null) ?? settleWait(input, wait, find, press, w)
       if (made) return made
     }
     const view = input.view()

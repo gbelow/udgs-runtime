@@ -4,7 +4,7 @@ import type { OpenButton } from '../scene/projections/buttons'
 import type { OpenChoice } from '../scene/projections/choices'
 import type { Wait } from './table'
 import type { Notes } from './memory'
-import { declare, settle, type Intent, type Pick as Fill } from './declare'
+import { declare, declareOpened, settle, type Intent, type Pick as Fill } from './declare'
 import { getOpenAction } from '../scene/rules/log'
 
 // What comes out of a decision box, and what goes into it. The box is a pure
@@ -22,6 +22,9 @@ export type Decision = { why: string } & (
   // an option declared and committed, or an answer given, spelled out whole
   // (bot/declare.ts)
   | { kind: 'declare'; intent: Intent }
+  // the open action, opened for one of the seat's members to declare, filled
+  // in and committed
+  | { kind: 'declareOpened'; picks: Fill[] }
   // what is chosen once the open action's die is thrown, then landed unless
   // `land` is false
   | { kind: 'settle'; picks: Fill[]; land?: boolean }
@@ -82,6 +85,12 @@ export function toCommands(state: SceneState, input: Pick<SeatInput, 'members' |
     case 'declare': {
       if (!input.members.includes(decision.intent.actorId)) return { ok: false, refused: `${decision.intent.actorId} is not the seat's to play` }
       const made = declare(state, decision.intent, ctx)
+      return made.ok ? { ok: true, commands: made.commands } : { ok: false, refused: made.refused }
+    }
+    case 'declareOpened': {
+      const actor = getOpenAction(state)?.actorId
+      if (!actor || !input.members.includes(actor)) return { ok: false, refused: "the open action is not the seat's to declare" }
+      const made = declareOpened(state, decision.picks, ctx)
       return made.ok ? { ok: true, commands: made.commands } : { ok: false, refused: made.refused }
     }
     case 'settle': {

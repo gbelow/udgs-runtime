@@ -3,10 +3,11 @@ import { getBindingSurge, getSurgeAPLeft, getSurgeRecovery, NEEDS_FOCUS } from '
 import { getRecoveredSTA } from '../character/rules/characteristics'
 import type { Action, ActionDraft, MoveAction, SceneState } from '../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../scene/commands/registry'
-import { getOpenAction } from '../scene/rules/log'
+import { getAction, getOpenAction } from '../scene/rules/log'
+import { isReactionAction } from '../scene/rules/actionCatalog'
 import { getHeavyDegree } from '../scene/rules/heavy'
 import { getHeavyName } from '../character/rules/gear'
-import { getMovementOptions, getMovePrice } from '../scene/rules/move'
+import { getMovementOptions, getMovePrice, type MovementOption } from '../scene/rules/move'
 import { getReachableCells } from '../scene/rules/board/reach'
 import { distance, sameCell } from '../scene/rules/board/geometry'
 import { placeAt, withPlacements } from '../scene/rules/board/board'
@@ -14,7 +15,7 @@ import { getMedicineAbility, getMedicineBar } from '../scene/rules/medicine'
 import { hasAbility } from '../abilities'
 import { getKeptWalk } from './walks'
 import { isClearWalk } from './reach'
-import { declare, type Intent } from './declare'
+import { declare, declareOpened, type Declared, type Intent } from './declare'
 import { getHarm, getPair, type PairAttack } from './pairs'
 import { cellOf, getHarmAgainst } from './threat'
 
@@ -46,8 +47,11 @@ export function firstClear(walk: Walk, cells: readonly WalkCell[], n = Infinity)
 // The movements open to the character this turn, fastest first.
 export function openMovements(state: SceneState, id: string): MovementKind[] {
   const c = state.characters[id]
-  if (!c) return []
-  return getMovementOptions(state, c)
+  return c ? fastestFirst(getMovementOptions(state, c)) : []
+}
+
+function fastestFirst(options: MovementOption[]): MovementKind[] {
+  return options
     .filter((o): o is typeof o & { kind: MovementKind } => o.available && o.speed > 0)
     .sort((a, b) => b.speed - a.speed)
     .map((o) => o.kind)
@@ -57,7 +61,12 @@ export function openMovements(state: SceneState, id: string): MovementKind[] {
 // costs, the cells it is walked through, and whether it comes into nobody
 // standing on the way there: a bot never walks through anyone.
 export function walkAt(state: SceneState, id: string, movement: MovementKind): Walk | null {
-  const moving = trial(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), { kind: 'amend', args: [{ movement }] })
+  return walkDeclared(trial(state, { kind: 'declare', args: [id, { kind: 'move' }] }), id, movement)
+}
+
+// The cells the move the character has open to declare can take it to at `movement`.
+function walkDeclared(declared: SceneState, id: string, movement: MovementKind): Walk | null {
+  const moving = trial(declared, { kind: 'amend', args: [{ movement }] })
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
   const cells = getReachableCells(moving, action as MoveAction, getKeptWalk).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path, elevation: r.elevation }))
@@ -77,8 +86,22 @@ const WEIGHED: readonly MovementKind[] = ['walk', 'run']
 
 export function getWalks(state: SceneState, id: string, only?: MovementKind): Walk[] {
   const open = openMovements(state, id)
-  const kinds = only ? (open.includes(only) ? [only] : []) : [...new Set([...open.slice(0, 1), ...WEIGHED.filter((m) => open.includes(m))])]
+  const kinds = only ? (open.includes(only) ? [only] : []) : weighedOf(open)
   return kinds.flatMap((m) => walkAt(state, id, m) ?? [])
+}
+
+const weighedOf = (open: MovementKind[]): MovementKind[] => [...new Set([...open.slice(0, 1), ...WEIGHED.filter((m) => open.includes(m))])]
+
+// The move a reaction of the character's has opened for it to declare or pass
+// up (combat.tex "Evasion"), and the walks it may be, each costing what the
+// reaction has not paid already; null when none is open.
+export function getOpenedWalks(state: SceneState, id: string): Walk[] | null {
+  const open = getOpenAction(state)
+  const c = state.characters[id]
+  if (open?.kind !== 'move' || open.actorId !== id || open.step !== 'define' || !c) return null
+  const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
+  if (!opener || !isReactionAction(opener)) return null
+  return weighedOf(fastestFirst(getMovementOptions(state, c, open))).flatMap((m) => walkDeclared(state, id, m) ?? [])
 }
 
 // whether the walk runs or jumps, which a braced attack answers (combat.tex "Braced Attack")
@@ -188,7 +211,15 @@ export function ownAP(view: SceneState, id: string, b: Budget, walkAP: number, s
 
 // Whether the table takes the walk `intent` at no more than `AP` and `STA`.
 export function takesWalk(state: SceneState, id: string, intent: Intent, AP: number, STA: number): boolean {
-  const made = declare(state, intent, TRIAL)
+  return isPricedAt(declare(state, intent, TRIAL), id, AP, STA)
+}
+
+// Whether the table takes the open move filled in as `intent` fills it, at no more than `AP` and `STA`.
+export function takesOpenedWalk(state: SceneState, id: string, intent: Intent, AP: number, STA: number): boolean {
+  return isPricedAt(declareOpened(state, intent.picks, TRIAL), id, AP, STA)
+}
+
+function isPricedAt(made: Declared, id: string, AP: number, STA: number): boolean {
   if (!made.ok) return false
   const move = getOpenAction(made.ready)
   const c = made.ready.characters[id]

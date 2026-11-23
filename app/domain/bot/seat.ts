@@ -106,6 +106,7 @@ function whoDecided(state: SceneState, members: readonly string[], decision: Dec
   switch (decision.kind) {
     case 'declare':
       return decision.intent.actorId
+    case 'declareOpened':
     case 'settle':
       return getOpenAction(state)?.actorId ?? null
     case 'press': {
