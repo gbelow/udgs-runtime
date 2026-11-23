@@ -6,7 +6,7 @@ import { canStandAt } from '../scene/rules/board/ground'
 import { getInjuryCapacity } from '../character/rules/afflictions'
 import { getHeight } from '../character/rules/size'
 import { getPair, type PairAttack } from './pairs'
-import { cellOf, getBelievedAP, getHarmAgainst, getPace, getPresence, getWalkPace, getOpenStepMap, getStrikeCells } from './threat'
+import { cellOf, getBelievedAP, getHarmAgainst, getPace, getCarriedMetres, getPaceAt, getPresence, getOpenStepMap, getStrikeCells } from './threat'
 import { getSides } from './table'
 import type { SpecWeights } from './cost'
 
@@ -19,7 +19,8 @@ import type { SpecWeights } from './cost'
 //   potential = harm(evasion) × (8 − the AP of that walk) / 8
 //
 // the most of the attacker's attacks, never below 0, with the AP each is
-// believed to hold, surge AP counted as any other. The harm is what the
+// believed to hold, surge AP counted as any other. The metres an attack
+// brings itself (threat.ts `getCarriedMetres`) are walked for nothing. The harm is what the
 // attack leaves answered with an evade, always (`getThreatHarm`). The walk is
 // at the attacker's fastest pace (`getPace`: a run where it can run), and goes
 // no further than a fresh round's step map, walked on the ground alone
@@ -146,8 +147,10 @@ function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, 
   const board = view.board
   if (!board) return 0
   const steps = meleeSteps(view, a, from, d, at, attack.reach, moved)
+  if (steps === null) return null
+  const walked = steps - getCarriedMetres(view, a, attack)
   const pace = getPace(view, a)
-  return steps === null ? null : steps === 0 ? 0 : pace ? Math.ceil(steps / pace.metres) * pace.AP : null
+  return walked <= 0 ? 0 : pace ? Math.ceil(walked / pace.metres) * pace.AP : null
 }
 
 // What may be read in place of where a character stands and the AP it holds.
@@ -164,8 +167,9 @@ const shifted = (view: SceneState, plays: readonly string[], id: string, shifts:
 // the nearest of the cells within PEEK_BLOCKS blocks of its walk (the user's
 // ruling, 2026-11-23: at a walk, never a run) that it can
 // stand on and walks to in a line no wall stops; null where none has, or
-// where `AP` does not pay for one block and leave some for the shot. Read
-// the same from any cell, wherever `a` stands, and kept by the two cells.
+// where `AP` does not pay for one block and leave some for the shot. The
+// metres the shot carries (`getCarriedMetres`) come before the blocks, and
+// cost nothing. Read the same from any cell, wherever `a` stands, and kept by the two cells.
 const PEEK_BLOCKS = 2
 const shotWalks = new WeakMap<SceneState, Map<string, number | null>>()
 
@@ -220,27 +224,29 @@ function* getPeekCells(board: Board, eyes: ReturnType<typeof getEyes>, from: Coo
   }
 }
 
-function shotWalk(view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number, AP: number): number | null {
+function shotWalk(view: SceneState, a: string, from: Coord, d: string, at: Coord, attack: PairAttack, AP: number): number | null {
+  const { reach } = attack
   const board = view.board
   if (!board) return 0
   const p = board.placements[a]
   if (!p) return null
   const eyes = getEyes(view, a, d)
   if (distance(from, at) <= reach && lineOfFire(board, eyes)(from, at)) return 0
-  const pace = getWalkPace(view, a)
-  if (!pace || AP <= pace.AP) return null
-  const radius = PEEK_BLOCKS * pace.metres
-  if (distance(from, at) > reach + radius) return null
+  const pace = getPaceAt(view, a, 'walk')
+  const carried = getCarriedMetres(view, a, attack)
+  const radius = carried + (pace && AP > pace.AP ? PEEK_BLOCKS * pace.metres : 0)
+  if (radius === 0 || distance(from, at) > reach + radius) return null
   let byView = shotWalks.get(view)
   if (!byView) shotWalks.set(view, (byView = new Map()))
-  const key = `${a}|${d}|${reach}|${cellNumber(from)}|${cellNumber(at)}`
+  const key = `${a}|${d}|${reach}|${cellNumber(from)}|${cellNumber(at)}|${carried}|${radius}`
   const known = byView.get(key)
   if (known !== undefined) return known
   let fewest: number | null = null
   // nearest first, so the first that will do is the fewest AP away
   for (const c of getPeekCells(board, eyes, from, at, reach, radius)) {
     if (!canStandAt(view, a, placeAt(board, placeAt(board, p, from), c))) continue
-    fewest = Math.ceil(distance(from, c) / pace.metres) * pace.AP
+    const walked = distance(from, c) - carried
+    fewest = walked <= 0 || !pace ? 0 : Math.ceil(walked / pace.metres) * pace.AP
     break
   }
   byView.set(key, fewest)
@@ -275,7 +281,7 @@ function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coo
     if (!attack.opens.action) continue
     const harm = getThreatHarm(attack, attack.kind === 'shoot' ? distance(from, at) : attack.reach) / ROUND
     if (harm <= 0) continue
-    if (attack.kind === 'shoot') made.push({ walk: (AP) => shotWalk(view, a, from, d, at, attack.reach, AP), harm })
+    if (attack.kind === 'shoot') made.push({ walk: (AP) => shotWalk(view, a, from, d, at, attack, AP), harm })
     else {
       const walk = walkAP(view, a, from, d, at, attack, moved)
       if (walk !== null) made.push({ walk: () => walk, harm })

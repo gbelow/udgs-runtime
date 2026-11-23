@@ -1,4 +1,4 @@
-import type { CampaignCharacter, SurgeKind } from '../types'
+import type { CampaignCharacter, MovementKind, SurgeKind } from '../types'
 import { ActionSchema, SceneStateSchema, type ActionDraft, type AttackAction, type SceneState, type StrikeAction } from '../scene/types'
 import type { ActionCost } from '../character/rules/actionCosts'
 import type { Outcome } from '../character/rules/damage'
@@ -7,6 +7,9 @@ import { appendActions } from '../scene/commands/log'
 import { getDefaultAim, getFreeAttackOptions, getRootTest, hasUnfocusedRow } from '../scene/rules/attack'
 import { getAvailableActions } from '../scene/rules/options'
 import { getOwnCost } from '../scene/rules/action'
+import { getClosingHop } from '../scene/rules/attackJump'
+import { getDeclarableMoveAP } from '../scene/rules/carriedMove'
+import { getMoveBlockCells } from '../scene/rules/move'
 import { getStrikeReach } from '../scene/rules/board/board'
 import { findWeaponRow } from '../scene/rules/weaponRow'
 import { getAttackFacts, getHOPOptions, getHOPPrice, outcomeOf } from '../scene/rules/damage'
@@ -79,6 +82,10 @@ export type PairAttack = {
   cost: ActionCost
   // metres
   reach: number
+  // the movement the attack may be made with, bought with it, and how many
+  // metres nearer it brings the attack (abilities.tex "Steady Arms", "Lunge");
+  // null for none
+  carries: { movement: MovementKind; metres: number } | null
   // the penalty a shot takes per step of distance (`getDistancePenalty`); null for a strike
   distanceRate: number | null
   // whether the row is open only once the focus surge is made
@@ -127,6 +134,14 @@ function rolled(root: AttackAction, degree: 'miss' | 'graze' | 'hit', HOP = 0): 
 function harmAt(state: SceneState, root: AttackAction, degree: 'miss' | 'graze', defender: CampaignCharacter, read: (o: Outcome | null) => number = getHarm): number {
   const facts = getAttackFacts(state, rolled(root, degree))
   return facts ? read(outcomeOf(facts, defender)) : 0
+}
+
+// The farthest of the movements the attack could be declared with.
+function getCarries(state: SceneState, root: AttackAction, attacker: CampaignCharacter): PairAttack['carries'] {
+  const tread = getMoveBlockCells(attacker, 'tread', getDeclarableMoveAP(state, root))
+  const hop = getClosingHop(state, root)
+  if (tread <= 0 && hop <= 0) return null
+  return tread > hop ? { movement: 'tread', metres: tread } : { movement: 'jump', metres: hop }
 }
 
 // The attacks one character's rows make on another, declared as records
@@ -235,6 +250,7 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
           onHit,
           cost,
           reach,
+          carries: getCarries(made, root, actor),
           distanceRate: kind === 'shoot' ? option.distance : null,
           needsFocus: kind === 'shoot' && !open.has(`${row.weaponKey}/${row.attack}/${row.variant}`),
           skill: test.skill,

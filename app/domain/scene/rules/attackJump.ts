@@ -1,3 +1,4 @@
+import type { Character } from '../../types'
 import type { Action, MoveAction, Placement, SceneState, ShootAction, StrikeAction } from '../types'
 import { FALL } from '../../tables'
 import { getMovementSpeed } from '../../character/rules/movement'
@@ -6,7 +7,7 @@ import { ROTATIONS, disk, sameCell, setDistance } from './board/geometry'
 import { getFootprint, getMeleeThreateners, getPlacedFootprint, placeAt, withPlacements } from './board/board'
 import { readGround } from './board/ground'
 import { getJumpPath, isPathLegal } from './move'
-import { getCombinedOf, isOpenedRow, type CombinedEntry } from './combinedMove'
+import { getCombinedMoves, getCombinedOf, isOpenedRow, type CombinedEntry } from './combinedMove'
 import { isFloorAttack } from './equipment'
 import { getTargetIds } from './action'
 
@@ -80,6 +81,19 @@ function isTheWay(state: SceneState, entry: CombinedEntry, attack: JumpAttack, f
   }
 }
 
+// How many metres the jump an attack carries goes, half a jump.
+function getHop(c: Character): number {
+  return Math.floor(getMovementSpeed(c, 'jump') / 2)
+}
+
+// How many metres nearer its target a jump could bring the attack, were it
+// declared with one: a jump away from everyone brings it none.
+export function getClosingHop(state: SceneState, attack: JumpAttack): number {
+  const c = state.characters[attack.actorId]
+  const closes = !!c && getCombinedMoves(c, attack.kind).some((e) => e.recipe.reach === 'halfJump' && (e.recipe.toward === 'towardTarget' || e.recipe.toward === 'any') && isOpenedRow(c, e, attack))
+  return closes ? getHop(c) : 0
+}
+
 // Every place half a jump from where the attacker stands lands on, as a
 // jump of theirs may go there, and not down a drop that would be a fall:
 // one placement for each cell, turned as they stand where that lands.
@@ -88,7 +102,7 @@ function getHops(state: SceneState, attack: JumpAttack, entry: CombinedEntry): P
   const from = state.board?.placements[attack.actorId]
   const floor = from && readGround(state, attack.actorId)?.at(from.elevation)
   if (!c || !from || !floor) return []
-  const hop = Math.floor(getMovementSpeed(c, 'jump') / 2)
+  const hop = getHop(c)
   const turns = [from.orientation, ...ROTATIONS.filter((o) => o !== from.orientation)]
   return disk(from.cell, hop).flatMap((cell) => {
     if (sameCell(cell, from.cell) || floor.elevation(from.cell) - floor.elevation(cell) >= FALL.minHeight) return []

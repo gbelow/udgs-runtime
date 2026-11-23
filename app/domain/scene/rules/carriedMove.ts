@@ -54,6 +54,14 @@ export function getDeclaredMoveAP(state: SceneState, action: RootAction): number
   return c && entry ? getBudget(state, c, entry, action) : 0
 }
 
+// The AP of treading the action could be declared with: the farthest of the
+// moves its actor's recipes let go with it, none declared yet.
+export function getDeclarableMoveAP(state: SceneState, action: RootAction): number {
+  const c = state.characters[action.actorId]
+  if (!c) return 0
+  return Math.max(0, ...getDeclaredCarriedMoves(c, action.kind).filter((e) => goesWith(e, action)).map((e) => getBudget(state, c, e, action)))
+}
+
 // The carried moves a fighter may declare with an action of the kind.
 export function getDeclaredCarriedMoves(c: Character, kind: ActionKind): CarriedEntry[] {
   return getRecipesOf(c, 'carriedMove').filter((e) => e.recipe.path === 'declared' && e.recipe.on === kind)

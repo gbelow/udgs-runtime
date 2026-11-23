@@ -177,18 +177,25 @@ export function getPace(state: SceneState, id: string): Pace | null {
   return pace
 }
 
-// The same at a walk, null for one who cannot walk now.
-const walkPaces = new WeakMap<SceneState, Map<string, Pace | null>>()
+// The same at one movement, null for one it is not open to now.
+const pacesAt = new WeakMap<SceneState, Map<string, Pace | null>>()
 
-export function getWalkPace(state: SceneState, id: string): Pace | null {
-  const byId = walkPaces.get(state) ?? new Map<string, Pace | null>()
-  walkPaces.set(state, byId)
-  if (byId.has(id)) return byId.get(id) ?? null
+export function getPaceAt(state: SceneState, id: string, kind: MovementKind): Pace | null {
+  const byKey = pacesAt.get(state) ?? new Map<string, Pace | null>()
+  pacesAt.set(state, byKey)
+  const key = `${id}|${kind}`
+  if (byKey.has(key)) return byKey.get(key) ?? null
   const c = state.characters[id]
-  const walk = c && getMovementOptions(state, c).find((o) => o.kind === 'walk' && o.available && o.speed > 0 && o.block.AP > 0)
-  const pace = walk ? { metres: walk.speed, AP: walk.block.AP, STA: walk.block.STA, running: false } : null
-  byId.set(id, pace)
+  const open = c && getMovementOptions(state, c).find((o) => o.kind === kind && o.available && o.speed > 0 && o.block.AP > 0)
+  const pace = open ? { metres: open.speed, AP: open.block.AP, STA: open.block.STA, running: kind === 'run' || kind === 'jump' } : null
+  byKey.set(key, pace)
   return pace
+}
+
+// The metres nearer the attack brings itself with the movement it carries,
+// where that is open to the attacker.
+export function getCarriedMetres(state: SceneState, id: string, attack: PairAttack): number {
+  return attack.carries && getPaceAt(state, id, attack.carries.movement) ? attack.carries.metres : 0
 }
 
 // What of a sheet its walking reads (`getPace`, `walkMap`): the movements
@@ -210,7 +217,7 @@ export function withSheet(state: SceneState, id: string, c: CampaignCharacter): 
     if (known) cache.set(next, new Map([...known].filter(([key]) => walksAlike || key.split('|')[0] !== id)))
   }
   keep(paces)
-  keep(walkPaces)
+  keep(pacesAt)
   keep(stepMaps)
   keep(openMaps)
   keep(routeMaps)
