@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useGameTab } from '../hooks/useGameTab';
 import { RunScreen } from './RunScreen';
 import { CharacterCreator } from './CharacterCreator';
@@ -39,6 +40,7 @@ export function App(){
     <>      
       <header className="w-full h-12 border-b border-line bg-surface px-2">
         <div className='flex flex-row justify-start items-stretch h-full gap-1'>
+          <Link href='/home' aria-label='head_home' className='flex items-center px-3 text-sm border-b-2 -mb-px border-transparent text-muted hover:text-fg'>Home</Link>
           {TABS.map(({ tab, label, mobile }) => (
             <button key={tab} type='button' aria-label={`head_${tab}`}
               className={`px-3 text-sm border-b-2 -mb-px ${mobile ? '' : 'hidden md:block '}${(tab === 'run' ? inRun : tab === 'catalog' ? inCatalog : selectedGameTab === tab) ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'}`}
