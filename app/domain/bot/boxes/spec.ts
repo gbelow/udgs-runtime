@@ -450,15 +450,15 @@ function planTurn(view: SceneState, members: readonly string[], id: string, w: S
 // with the AP the defence leaves it; taking the hit at 0. An earmarked surge's AP left is lost when the
 // stack is played out by one who does not keep it, so it is spent first. An
 // answer only a surge opens is left out: the surge is weighed by itself
-// (`answer`).
+// (`answer`). `now`: the threat on the character before the block the
+// defence is part of, read before any surge made for it.
 type Defence = { draft: ActionDraft | null; score: number; harm: number }
 
-function weighDefences(view: SceneState, members: readonly string[], id: string, attack: PairAttack, gap: number, w: SpecWeights): Defence {
+function weighDefences(view: SceneState, members: readonly string[], id: string, attack: PairAttack, gap: number, w: SpecWeights, now: number): Defence {
   const open = getOpenAction(view)
   const me = view.characters[id]
   const AP = me.resources.AP
   const dropped = !keepsSurgeAP(view, id) ? getSurgeAPLeft(me) : 0
-  const now = getThreatOn(view, members, id, 'immediate', w)
   const none = attack.defences.find((d) => d.draft === null)
   const undefended = none ? getHarmAgainst(attack, none, gap) : 0
   let best: Defence = { draft: null, score: 0, harm: undefended }
@@ -480,7 +480,9 @@ function weighDefences(view: SceneState, members: readonly string[], id: string,
 // the panel offers (the reaction surge, or the movement surge with its
 // reflexes, combat.tex "Reflex") is made first where the defence it opens,
 // read on the fight with it made, scores more by more than its STA and the
-// recovery it gives up cost (the user's ruling, 2026-11-20). Anything else
+// recovery it gives up cost (the user's ruling, 2026-11-20); the surge and
+// the defence are one block (the user's ruling, 2026-11-23), so the threat
+// on the character before it is read before the surge. Anything else
 // it is asked to answer, it answers with an opportunity attack or lets pass.
 function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press: Press): Decision | null {
   const view = input.view()
@@ -492,7 +494,8 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
   if (struck) return struck
   const known = getKnownAttack(view, open, id)
   if (!known) return press(find('pass', id), 'lets it come: does not know the attack')
-  const best = weighDefences(view, input.members, id, known.attack, known.gap, w)
+  const now = getThreatOn(view, input.members, id, 'immediate', w)
+  const best = weighDefences(view, input.members, id, known.attack, known.gap, w, now)
   const surges = me.resources.STA > 0 ? input.buttons.filter((b) => b.command.kind === 'surge' && argOf(b.command) === id) : []
   let surging: { button: (typeof surges)[number]; gain: number; why: string } | null = null
   for (const surge of surges) {
@@ -504,7 +507,7 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
     if (surged === view || made?.usedSurge !== kind || !after) continue
     const recovered = getRecoveredSTA(me, me.resources.STA, getSurgeRecovery('recovery')(me)) - me.resources.STA
     const cost = w.caution * getSTAHarm(me.resources.STA - made.resources.STA + recovered, me.injuries.bleed, w)
-    const withSurge = weighDefences(surged, input.members, id, after.attack, after.gap, w)
+    const withSurge = weighDefences(surged, input.members, id, after.attack, after.gap, w, now)
     const gain = withSurge.score - best.score - cost
     if (withSurge.draft === null || gain <= 0 || (surging && gain <= surging.gain)) continue
     surging = { button: surge, gain, why: `makes the ${kind} surge to answer with ${withSurge.draft.kind} (${withSurge.score.toFixed(1)} against ${best.score.toFixed(1)}, the surge ${cost.toFixed(1)})` }

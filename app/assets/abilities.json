@@ -1869,7 +1869,7 @@
             }
           ]
         ],
-        "description": "Gains +3 against projectiles when using movement surge, even without using reflexes actively. Also works for approaching in skirmishes.",
+        "description": "Gains +AGI/3 against projectiles when using movement surge, even without using reflexes actively. Also works for approaching in skirmishes.",
         "effect": [
           {
             "name": "",
@@ -1878,8 +1878,12 @@
             "effect": {
               "target": "SD:projectile",
               "operation": "+",
-              "value": 3,
-              "when": "movementSurge"
+              "value": 1,
+              "when": "movementSurge",
+              "per": {
+                "attribute": "AGI",
+                "every": 3
+              }
             }
           }
         ],

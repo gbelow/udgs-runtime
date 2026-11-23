@@ -500,7 +500,7 @@ function getStrikeDLTerms(state: SceneState, root: StrikeAction): Term[] {
 // combat.tex "Accuracy": a shot is scored "against the opponent's reflexes
 // or their SD, should they choose not to react"; "Guard": "Shield Cover is
 // added to guard as a bonus", the guard's own reflexes when it is an ally's.
-// abilities.tex "Tactical Movement": "+3 against projectiles ... even
+// abilities.tex "Tactical Movement": "+AGI/3 against projectiles ... even
 // without using reflexes actively", on the SD (`SD:projectile`).
 function getShotDLTerms(state: SceneState, root: ActionOf<'shoot'>): Term[] {
   const reaction = getDefendingReaction(state, root)

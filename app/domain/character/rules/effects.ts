@@ -204,8 +204,18 @@ export function getBuffsForTarget(character: Character, target: BuffTarget): Buf
 // Only `+` buffs are summed: a `*` or `set` cannot be expressed as one term of
 // a breakdown, and no ability uses one yet.
 export function getBuffBonus(character: Character, target: BuffTarget): number {
-  return collectBuffs(character)
-    .reduce((sum, b) => b.target === target && b.operation === '+' ? sum + b.value : sum, 0)
+  const buffs = collectBuffs(character)
+  return buffs.reduce((sum, b) => b.target === target && b.operation === '+' ? sum + buffWorth(character, buffs, b) : sum, 0)
+}
+
+// What a buff gives: its value, or with `per`, its value for every
+// `per.every` points of the attribute, the attribute read with the buffs on
+// it that do not scale themselves.
+function buffWorth(character: Character, buffs: Buff[], b: Buff): number {
+  if (!b.per) return b.value
+  const key = b.per.attribute
+  const attribute = character.trainables[key].value + buffs.reduce((sum, a) => a.target === `attribute:${key}` && a.operation === '+' && !a.per ? sum + a.value : sum, 0)
+  return b.value * Math.floor(attribute / b.per.every)
 }
 
 

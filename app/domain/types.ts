@@ -808,6 +808,9 @@ export const BuffSchema = z.object({
   operation: str.default('+'), // +, *, set
   value: num.default(0),
   when: BuffConditionSchema.nullable().default(null), // null: always
+  // the value given for every `every` points of the attribute, rounded down
+  // (abilities.tex "Tactical Movement": "+AGI/3"); none: the value as it is
+  per: z.object({ attribute: z.enum(['STR', 'AGI', 'STA']), every: num }).strip().optional(),
 }).strip()
 
 export type Buff = z.infer<typeof BuffSchema>

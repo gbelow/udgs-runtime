@@ -508,9 +508,9 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // ruling: the move is what makes it one; its AP pay for anything after).
 export const RECOVERY_SURGE_SHORT = 1
 export const SURGES = {
-  // combat.tex "Reflex": "Using a movement surge gives a +3 bonus to
+  // combat.tex "Reflex": "Using a movement surge gives a +AGI/3 bonus to
   // reflexes for that round"
-  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'escape', 'reactions'], buffs: [{ target: 'skill:reflex', operation: '+', value: 3, when: null }], restriction: 'In your own turn, or with a reaction; what is left of its AP is lost when the turn or the reaction ends. A push or a drag is not movement here, escaping a grapple is. Running costs no STA for the rest of the turn. +3 to reflexes for the round.' },
+  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'escape', 'reactions'], buffs: [{ target: 'skill:reflex', operation: '+', value: 1, when: null, per: { attribute: 'AGI', every: 3 } }], restriction: 'In your own turn, or with a reaction; what is left of its AP is lost when the turn or the reaction ends. A push or a drag is not movement here, escaping a grapple is. Running costs no STA for the rest of the turn. +AGI/3 to reflexes for the round.' },
   combat:   { STA: 2, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
   reaction: { STA: 2, AP: () => 4, earmarked: false, reactive: true, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
   protection: { STA: 2, AP: () => 4, earmarked: false, reactive: true, learned: 'protectionSurge', restriction: 'Made with a block, intercept or guard that repositions to defend an ally attacked within 10 m. No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
