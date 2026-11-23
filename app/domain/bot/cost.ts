@@ -33,16 +33,12 @@ export function getSTAHarm(STA: number, bleed: number, w: SpecWeights): number {
   return STA <= 0 ? 0 : w.STA * STA + w.IL * STA * bleed
 }
 
-// What an action of the character's own costs it: spending `AP` (any at all
-// pays `baseAPcost`), leaving it `delta` more exposed to its foes this round
-// (their immediate threat on it after, less before), and `STA`. `free` leaves
-// the AP out (spec "Decide take turn": before agreeing to end the round).
-export function getOffensiveCost(AP: number, STA: number, delta: number, bleed: number, w: SpecWeights, free = false): number {
+// spec "Cost": what an action costs the character making it, an attack, a
+// walk or a defence alike: spending `AP` (any at all pays `baseAPcost`),
+// `delta` (the change in the immediate threat of everyone on it, after less
+// before), and `STA`. `free` leaves the AP out (spec "Decide take turn":
+// before agreeing to end the round).
+export function getCost(AP: number, STA: number, delta: number, bleed: number, w: SpecWeights, free = false): number {
   const spent = free ? 0 : w.AP * ((AP > 0 ? w.baseAPcost : 0) + delta)
   return w.caution * (spent + getSTAHarm(STA, bleed, w))
-}
-
-// What a defence costs the one making it: what it leaves it exposed to, and its STA.
-export function getDefensiveCost(STA: number, delta: number, bleed: number, w: SpecWeights): number {
-  return w.caution * (w.AP * delta + getSTAHarm(STA, bleed, w))
 }

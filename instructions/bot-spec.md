@@ -41,15 +41,15 @@ over(face) = face + skill − DL
 `hits[h]` is the harm at HOP `h`, with the overflow spent as §11 spends it.
 ranged attacks use 20m when distance is not specified.
 
+
+
 ## Skill at a distance (`threat.ts` `getSkillAt`)
 
 skill(gap) = skill − distancePenalty(rate, min(gap, reach))  
 
 ## Harm against a defence (`threat.ts` `getHarmAgainst`)
 
-harm(attack, defence, gap) = E[harm](skill(gap), defence.DL, grazes, mode, harm table vs defence)
-mode 'now'  = how the attacker throws now
-mode 'best' = max over the modes it may throw
+harm(attack, defence) = E[harm](attack roll, defence.DL, harm table vs defence)
 
 ## Defences against one attack (`threat.ts` `getAnswers`)
 
@@ -61,8 +61,10 @@ affordable(d) = d.AP ≤ budget.AP and d.STA ≤ budget.STA - only if the defend
 ## Threat
 How much danger a character is in at its current position.
 
-- Immediate threat: how much damage a character can receive now if staying here: sum of { E[harm]/10 x (current AP - distance to reach/movement speed(rounded up)) } for everyone that can attack you.
-- Potential threat: how much damage a character can take on a fresh round if staying here: sum of { E[harm]/10 x (10 AP - distance to reach/movement speed(rounded up)) } for everyone that can attack you
+- Immediate threat: how much damage a character can receive now if staying here: sum of {(12/(4+ defender current AP)) x harm(evasion) x (current AP - distance to reach/movement speed(rounded up))/8 } for everyone that can attack you.
+- Potential threat: how much damage a character can take on a fresh round if staying here: sum of { harm(evasion) x (8 AP - distance to reach/movement speed(rounded up))/8 } for everyone that can attack you
+
+Harm here only uses evasion for melee and ranged attacks.
 
 Create a threat map. Each character has their share cached separately. 
 Calculate distance as the character would run, if they can run. Otherwise consider walk.
@@ -71,8 +73,8 @@ Calculate distance as the character would run, if they can run. Otherwise consid
 
 STAharm = w.STA x STA + w.IL x STA x bleed
 
-Offensive Cost = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of opponents(after - before)) + STAharm )
-Defensive Cost = w.caution x(w.AP x (delta immediate threat of opponent(after - before)) + STAharm)
+Cost = w.caution x(w.AP x ( w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm )
+<!-- Defensive Cost = w.caution x(w.AP x (w.baseAPcost + delta immediate threat of everyone on character(after - before)) + STAharm) -->
 
 
 ## Face. What a seat knows (`belief.ts` `getBelief`)
@@ -91,6 +93,7 @@ everyone else seen:  the face, with attributes and skills = floor(real / 3) · 3
 Choose the target with the highest score.
 
 Score= Expected harm(assume the defense the target would take) + delta immediate threat on opponent(after - before) - Offensive Cost - OA drawn
+
 
 ##  Spending a hit's overflow (`predict.ts` `getBestSpend`)
 
@@ -127,7 +130,7 @@ Decide to reposition if score difference - Offensive cost > 0.
 
 ## Aggro
 
-Pick the target who is detected and has the highest E[harm]. If E[harm] > w.retarget x E[harm] of every enemy against whom there is potential threat, move towards the new target. 
+Pick the target who is detected and takes the highest E[harm] from the characters attack, considering evasion. If E[harm] > w.retarget x E[harm] of every enemy against whom there is potential threat, move towards the new target. 
 
 Pick the movement type where Defensive Cost is minimal, escape is not triggered and the character is closer to the target.
 

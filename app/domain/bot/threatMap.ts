@@ -1,4 +1,4 @@
-import type { CampaignCharacter, Coord } from '../types'
+import type { Coord } from '../types'
 import type { SceneState } from '../scene/types'
 import { coordKey, disk, distance, sameCell } from '../scene/rules/board/geometry'
 import { firesAcross, getEyes } from '../scene/rules/board/board'
@@ -6,52 +6,50 @@ import { getInjuryCapacity } from '../character/rules/afflictions'
 import { getPair, type PairAttack } from './pairs'
 import { cellOf, getHarmAgainst, getMeans, getPace, getPresence, getStepMap, getStrikeCells } from './threat'
 import { getSides } from './table'
-import { getSTAHarm, type SpecWeights } from './cost'
+import type { SpecWeights } from './cost'
 
 // The threat of instructions/bot-spec.md "Threat": how much harm a character
 // could take standing at a cell, from everyone who can attack it, read as one
 // layer for every attacker (`getLayer`), each kept by itself:
 //
-//   layer = harm per AP of the attacker's best attack × (its AP − the AP of
-//           the walk into that attack's reach), never below 0
+//   immediate = 12 / (4 + the defender's AP) × harm(evasion) × (the
+//               attacker's AP − the AP of the walk into the attack's reach) / 8
+//   potential = harm(evasion) × (8 − the AP of that walk) / 8
 //
-// immediate with the AP the attacker is believed to have left, potential with
-// a fresh round's FRESH_AP. The harm is what the attack leaves against the
-// defence the target picks with what it holds (`getPickedHarm`), so that the
-// less it holds, the more it is open to. The walk is at the attacker's
-// fastest pace (`getPace`: a run where it can run), and goes no further than a
-// fresh round's step map; a shot needs no walk where it has a line of fire
-// within its reach, and has no reach anywhere else. A foe the seat remembers
-// counts its presence (bot/memory.ts, fading by the round). Nothing here decides.
+// the most of the attacker's attacks, never below 0, with the AP each is
+// believed to hold, surge AP counted as any other. The harm is what the
+// attack leaves answered with an evade, always (`getThreatHarm`). The walk is
+// at the attacker's fastest pace (`getPace`: a run where it can run), and goes
+// no further than a fresh round's step map; a shot needs no walk where it has
+// a line of fire within its reach, and has no reach anywhere else. A foe the
+// seat remembers counts its presence (bot/memory.ts, fading by the round).
+// Nothing here decides.
 
 export type When = 'immediate' | 'potential'
 export type Guard = { AP: number; STA: number }
 
-// spec "Threat": a fresh round's AP
-export const FRESH_AP = 10
+// spec "Threat": a fresh round's AP, which the harm is read over, and the
+// open the defender's AP leaves it: OPEN / (OPEN_FROM + its AP)
+const ROUND = 8
+const OPEN = 12
+const OPEN_FROM = 4
 // spec "Expected harm": the metres a shot is read from when no distance is given
 export const SHOT_GAP = 20
 
-// The harm `attack` leaves `target`, `gap` metres away, against the defence
-// it would pick holding `guard`: of those it can pay for (none among them),
-// the one leaving the least harm and STA at its price.
-const picked = new WeakMap<PairAttack, Map<string, number>>()
+// spec "Threat": the harm `attack` leaves its target, `gap` metres away,
+// answered with an evade, whatever the target holds to pay for it; none where
+// the attack offers no evade. The harm a decision reads compares every defence
+// the target can pay for (`pickOf` and `weighDefences` in boxes/spec.ts).
+const picked = new WeakMap<PairAttack, Map<number, number>>()
 
-export function getPickedHarm(attack: PairAttack, gap: number, target: CampaignCharacter, guard: Guard, w: SpecWeights): number {
-  const key = `${gap}|${guard.AP}|${guard.STA}|${target.injuries.bleed}|${w.caution}|${w.STA}|${w.IL}`
-  const byKey = picked.get(attack) ?? new Map<string, number>()
-  picked.set(attack, byKey)
-  const known = byKey.get(key)
+export function getThreatHarm(attack: PairAttack, gap: number): number {
+  const byGap = picked.get(attack) ?? new Map<number, number>()
+  picked.set(attack, byGap)
+  const known = byGap.get(gap)
   if (known !== undefined) return known
-  let best: { score: number; harm: number } | null = null
-  for (const d of attack.defences) {
-    if (d.cost.AP > guard.AP || d.cost.STA > guard.STA) continue
-    const harm = getHarmAgainst(attack, d, gap)
-    const score = harm + w.caution * getSTAHarm(d.cost.STA, target.injuries.bleed, w)
-    if (!best || score < best.score) best = { score, harm }
-  }
-  const harm = best?.harm ?? 0
-  byKey.set(key, harm)
+  const defence = attack.defences.find((d) => d.draft?.kind === 'evade')
+  const harm = defence ? getHarmAgainst(attack, defence, gap) : 0
+  byGap.set(gap, harm)
   return harm
 }
 
@@ -102,59 +100,74 @@ function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, 
   return made
 }
 
-const layers = new WeakMap<SceneState, WeakMap<SpecWeights, Map<string, number>>>()
+// What may be read in place of where a character stands and the AP it holds.
+export type Shift = { id: string; at?: Coord | null; AP?: number }
 
-// `a`'s layer on `d` (see above): `a` standing at `from`, `d` at `at` holding
-// `guard`. Of `plays`, only whether it holds `a` counts (its sheet, or its face).
-export function getLayer(view: SceneState, plays: readonly string[], a: string, from: Coord | null, d: string, at: Coord | null, when: When, guard: Guard, w: SpecWeights): number {
+const shifted = (view: SceneState, plays: readonly string[], id: string, shifts: readonly Shift[], w: SpecWeights): { at: Coord | null; AP: number } => {
+  const s = shifts.find((x) => x.id === id)
+  const c = view.characters[id]
+  return { at: s && s.at !== undefined ? s.at : cellOf(view, id), AP: s?.AP ?? (c ? getMeans(c, plays.includes(id), w).AP : 0) }
+}
+
+const reaches = new WeakMap<SceneState, WeakMap<SpecWeights, Map<string, number>>>()
+
+// The most harm(evasion) / 8 × (AP − walk AP) of `a`'s attacks on `d`, `a`
+// standing at `from` holding `AP`, `d` at `at`, against the surge `d` has
+// made where it is read now.
+function getReach(view: SceneState, a: string, from: Coord, d: string, at: Coord, AP: number, when: When, w: SpecWeights): number {
   const ca = view.characters[a]
   const cd = view.characters[d]
-  if (!ca || !cd || !from || !at) return 0
-  let byW = layers.get(view)
-  if (!byW) layers.set(view, (byW = new WeakMap()))
+  if (!ca || !cd || AP <= 0) return 0
+  let byW = reaches.get(view)
+  if (!byW) reaches.set(view, (byW = new WeakMap()))
   let byKey = byW.get(w)
   if (!byKey) byW.set(w, (byKey = new Map()))
-  const key = `${when}|${a}|${plays.includes(a)}|${coordKey(from)}|${d}|${coordKey(at)}|${guard.AP}|${guard.STA}`
+  const surge = when === 'potential' ? null : cd.usedSurge
+  const key = `${a}|${coordKey(from)}|${d}|${coordKey(at)}|${AP}|${surge}`
   const known = byKey.get(key)
   if (known !== undefined) return known
-  const AP = when === 'potential' ? FRESH_AP : getMeans(ca, plays.includes(a), w).AP
   let most = 0
-  if (AP > 0) {
-    for (const attack of getPair(ca, cd, when === 'potential' ? null : cd.usedSurge)) {
-      if (!attack.opens.action) continue
-      const walk = walkAP(view, a, from, d, at, attack)
-      if (walk === null || walk >= AP) continue
-      const harm = getPickedHarm(attack, attack.kind === 'shoot' ? distance(from, at) : attack.reach, cd, guard, w)
-      if (harm > 0) most = Math.max(most, (harm / Math.max(1, attack.cost.AP)) * (AP - walk))
-    }
+  for (const attack of getPair(ca, cd, surge)) {
+    if (!attack.opens.action) continue
+    const walk = walkAP(view, a, from, d, at, attack)
+    if (walk === null || walk >= AP) continue
+    const harm = getThreatHarm(attack, attack.kind === 'shoot' ? distance(from, at) : attack.reach)
+    if (harm > 0) most = Math.max(most, (harm / ROUND) * (AP - walk))
   }
   const made = most * getPresence(view, a, w) * getPresence(view, d, w)
   byKey.set(key, made)
   return made
 }
 
-// The foes' threat on `id` standing at `at`, holding `guard`: every foe's layer, added up.
-export function getThreatOn(view: SceneState, members: readonly string[], id: string, at: Coord | null, guard: Guard, when: When, w: SpecWeights): number {
-  return getSides(view, members).foes.reduce((sum, foe) => sum + getLayer(view, members, foe, cellOf(view, foe), id, at, when, guard, w), 0)
+// `a`'s layer on `d` (see above), each where it stands holding what it is
+// believed to, but as `shifts` reads it. Of `plays`, only whether it holds a
+// character counts (its sheet, or its face).
+export function getLayer(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+  const by = shifted(view, plays, a, shifts, w)
+  const on = shifted(view, plays, d, shifts, w)
+  if (!by.at || !on.at) return 0
+  if (when === 'potential') return getReach(view, a, by.at, d, on.at, ROUND, when, w)
+  return (OPEN / (OPEN_FROM + Math.max(0, on.AP))) * getReach(view, a, by.at, d, on.at, by.AP, when, w)
 }
 
-// The threat of `side` on `foe` standing at `at` holding `guard`, each where
-// it stands but `moved`, read as standing at `to`.
-export function getThreatBy(view: SceneState, members: readonly string[], side: readonly string[], foe: string, at: Coord | null, guard: Guard, when: When, w: SpecWeights, moved?: { id: string; to: Coord | null }): number {
-  return side.reduce((sum, a) => sum + getLayer(view, members, a, moved?.id === a ? moved.to : cellOf(view, a), foe, at, when, guard, w), 0)
+// The threat of `side` on `d`: each one's layer, added up.
+export function getThreatBy(view: SceneState, members: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+  return side.reduce((sum, a) => sum + getLayer(view, members, a, d, when, w, shifts), 0)
 }
 
-// The guard a fresh round leaves a character: FRESH_AP, and the STA it holds.
-export const freshGuard = (STA: number): Guard => ({ AP: FRESH_AP, STA })
+// The foes' threat on `id`.
+export function getThreatOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+  return getThreatBy(view, members, getSides(view, members).foes, id, when, w, shifts)
+}
 
 // Whether an option leaves the character collapsed or dead (spec "Guard"):
 // the IL it stands at, the IL its bleed adds for every STA `spentSTA` spends
 // (combat.tex "Bleed"), and the foes' immediate threat on it at `at` holding
-// `guard`, read as IL at `IL` harm a point, reaching its injury capacity
+// `AP`, read as IL at `IL` harm a point, reaching its injury capacity
 // (combat.tex "Injuries and Death").
-export function isRuinous(view: SceneState, members: readonly string[], id: string, at: Coord | null, spentSTA: number, guard: Guard, w: SpecWeights): boolean {
+export function isRuinous(view: SceneState, members: readonly string[], id: string, at: Coord | null, spentSTA: number, AP: number, w: SpecWeights): boolean {
   const me = view.characters[id]
   if (!me) return true
-  const IL = me.injuries.injuryLevel + spentSTA * me.injuries.bleed + getThreatOn(view, members, id, at, guard, 'immediate', w) / w.IL
+  const IL = me.injuries.injuryLevel + spentSTA * me.injuries.bleed + getThreatOn(view, members, id, 'immediate', w, [{ id, at, AP }]) / w.IL
   return IL >= getInjuryCapacity(me)
 }
