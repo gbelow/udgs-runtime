@@ -4,6 +4,8 @@ import { perParts } from '../perState'
 import { getHeight } from '../character/rules/size'
 import { isProne } from '../scene/rules/board/ground'
 import { withoutPlacements } from '../scene/rules/board/board'
+import { getHeldRolls } from '../scene/rules/heldRoll'
+import { isCombatStarted } from '../scene/rules/started'
 
 // The table's walk (`getWalkableCells`), remembered by what it reads rather
 // than by the state object. A box reads the fight in many states made from
@@ -80,19 +82,28 @@ export function getKeptWalk(state: SceneState, action: MoveAction): ReachableCel
 // The same walk for a reader that takes it as an estimate (the bot's step
 // maps, threat.ts `getStepMap`): of every sheet only the body is read (its
 // footprint, its height and whether it lies prone), and of the one walking
-// `walking` besides, what its walking reads (threat.ts `walkingOf`), and its
-// own held tests. A press that moves nobody, and leaves every body and the
-// walker's walking as they were, walks nothing again: a sheet's injuries,
-// faces and skills, which most presses write, are left out.
+// `walking` besides, what its walking reads (threat.ts `walkingOf`), and the
+// scores of its own held tests a move goes on. Of the round, only whether the
+// fight has begun (rules/started.ts). A press that moves nobody, and leaves
+// every body and the walker's walking as they were, walks nothing again: a
+// sheet's injuries, faces and skills, which most presses write, are left out,
+// and so are the round's number and the held tests called and not yet thrown.
 //
 // `alone` walks it with nobody else on the board, so that it reads only the
 // walker and the ground: it is walked again only when the walker moves or
 // its walking changes, whoever else moves.
 const bodyWalked = perParts<ReachableCell[]>(WALKS)
 
-// of the tests held for the round, a walk reads only the walker's own
-// (rules/heldRoll.ts `getMoveHeld`)
-const BODY_READ = ['round', 'binds', 'compulsions', 'chase'] as const
+const BODY_READ = ['binds', 'compulsions', 'chase'] as const
+
+// The held tests a move goes on (rules/heldRoll.ts `getMoveHeld`), the
+// walker's own, as the scores thrown: one called and not yet thrown reads as
+// none (`getHeldRoll`).
+const MOVE_HELD = ['swim', 'climb', 'balance'] as const
+const heldScores = (state: SceneState, id: string): string => {
+  const rolls = getHeldRolls(state, id)
+  return MOVE_HELD.map((kind) => contentOf(rolls[kind] ?? null)).join(',')
+}
 const BOARD_AND_PLACEMENTS: ReadonlySet<string> = new Set([...BOARD_PARTS, 'placements'])
 
 const bodyOf = (state: SceneState, id: string): string => {
@@ -109,8 +120,9 @@ export function getKeptBodyWalk(state: SceneState, action: MoveAction, walking: 
     alone ? 'alone' : 'all',
     fieldsOf(action),
     walking,
+    `${isCombatStarted(state)}`,
     BODY_READ.map((k) => `${k}=${contentOf(state[k])}`).join(','),
-    JSON.stringify(state.heldTests.filter((t) => t.id === id)),
+    heldScores(state, id),
     fieldsOf(board, alone ? BOARD_AND_PLACEMENTS : BOARD_PARTS),
     ...placed,
   ].join('|')
