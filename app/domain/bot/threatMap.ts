@@ -1,7 +1,8 @@
 import type { Coord, SurgeKind } from '../types'
 import type { SceneState } from '../scene/types'
 import { cellNumber, coordKey, disk, distance, sameCell } from '../scene/rules/board/geometry'
-import { firesAcross, getEyes } from '../scene/rules/board/board'
+import { firesAcross, getEyes, placeAt } from '../scene/rules/board/board'
+import { canStandAt } from '../scene/rules/board/ground'
 import { getInjuryCapacity } from '../character/rules/afflictions'
 import { getHeight } from '../character/rules/size'
 import { getPair, type PairAttack } from './pairs'
@@ -23,7 +24,8 @@ import type { SpecWeights } from './cost'
 // at the attacker's fastest pace (`getPace`: a run where it can run), and goes
 // no further than a fresh round's step map, walked on the ground alone
 // (`meleeSteps`); a shot needs no walk where it has a line of fire within its
-// reach, and has no reach anywhere else. A foe the
+// reach, and otherwise the walk to the nearest cell that has one
+// (`shotSteps`, the user's peek, 2026-11-23). A foe the
 // seat remembers counts its presence (bot/memory.ts, fading by the round).
 // Nothing here decides.
 
@@ -143,7 +145,7 @@ function stepsInto(map: Map<string, number> | null, at: Coord, reach: number, cl
 function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, attack: PairAttack, moved: Moved): number | null {
   const board = view.board
   if (!board) return 0
-  if (attack.kind === 'shoot') return distance(from, at) <= attack.reach && firesAcross(board, [from], [at], getEyes(view, a, d)) ? 0 : null
+  if (attack.kind === 'shoot') return shotWalk(view, a, from, d, at, attack.reach)
   const steps = meleeSteps(view, a, from, d, at, attack.reach, moved)
   const pace = getPace(view, a)
   return steps === null ? null : steps === 0 ? 0 : pace ? Math.ceil(steps / pace.metres) * pace.AP : null
@@ -156,6 +158,36 @@ const shifted = (view: SceneState, plays: readonly string[], id: string, shifts:
   const s = shifts.find((x) => x.id === id)
   const c = view.characters[id]
   return { at: s && s.at !== undefined ? s.at : cellOf(view, id), AP: s?.AP ?? (c ? getMeans(c, plays.includes(id), w).AP : 0) }
+}
+
+// The AP of the walk `a`, standing at `from`, makes to a cell with a line of
+// fire on `d` at `at` within `reach` metres: none where `from` has one, else
+// the nearest of the cells within PEEK_BLOCKS blocks of its pace that it can
+// stand on and walks to in a line no wall stops; null where none has. Read
+// the same from any cell, wherever `a` stands, and kept by the two cells.
+const PEEK_BLOCKS = 2
+const shotWalks = new WeakMap<SceneState, Map<string, number | null>>()
+
+function shotWalk(view: SceneState, a: string, from: Coord, d: string, at: Coord, reach: number): number | null {
+  const board = view.board
+  const p = board?.placements[a]
+  if (!board || !p) return null
+  const eyes = getEyes(view, a, d)
+  const fires = (c: Coord) => distance(c, at) <= reach && firesAcross(board, [c], [at], eyes)
+  if (fires(from)) return 0
+  const byView = shotWalks.get(view) ?? new Map<string, number | null>()
+  shotWalks.set(view, byView)
+  const key = `${a}|${d}|${reach}|${cellNumber(from)}|${cellNumber(at)}`
+  if (byView.has(key)) return byView.get(key) ?? null
+  const pace = getPace(view, a)
+  let fewest: number | null = null
+  if (pace) for (const c of disk(from, PEEK_BLOCKS * pace.metres)) {
+    const AP = Math.ceil(distance(from, c) / pace.metres) * pace.AP
+    if (AP === 0 || (fewest !== null && AP >= fewest)) continue
+    if (fires(c) && firesAcross(board, [from], [c], eyes) && canStandAt(view, a, placeAt(board, placeAt(board, p, from), c))) fewest = AP
+  }
+  byView.set(key, fewest)
+  return fewest
 }
 
 // `a`'s attacks on `d`, `a` standing at `from` and `d` at `at`: for each one
