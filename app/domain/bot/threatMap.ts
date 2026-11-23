@@ -6,7 +6,7 @@ import { canStandAt } from '../scene/rules/board/ground'
 import { getInjuryCapacity } from '../character/rules/afflictions'
 import { getHeight } from '../character/rules/size'
 import { getPair, type PairAttack } from './pairs'
-import { cellOf, getBelievedAP, getHarmAgainst, getPace, getPresence, getOpenStepMap, getStrikeCells } from './threat'
+import { cellOf, getBelievedAP, getHarmAgainst, getPace, getPresence, getWalkPace, getOpenStepMap, getStrikeCells } from './threat'
 import { getSides } from './table'
 import type { SpecWeights } from './cost'
 
@@ -24,7 +24,7 @@ import type { SpecWeights } from './cost'
 // at the attacker's fastest pace (`getPace`: a run where it can run), and goes
 // no further than a fresh round's step map, walked on the ground alone
 // (`meleeSteps`); a shot needs no walk where it has a line of fire within its
-// reach, and otherwise the walk to the nearest cell that has one
+// reach, and otherwise the walk, at a walking pace, to the nearest cell that has one
 // (`shotWalk`, the user's peek, 2026-11-23). A foe the
 // seat remembers counts its presence (bot/memory.ts, fading by the round).
 // Nothing here decides.
@@ -161,7 +161,8 @@ const shifted = (view: SceneState, plays: readonly string[], id: string, shifts:
 
 // The AP of the walk `a`, standing at `from`, makes to a cell with a line of
 // fire on `d` at `at` within `reach` metres: none where `from` has one, else
-// the nearest of the cells within PEEK_BLOCKS blocks of its pace that it can
+// the nearest of the cells within PEEK_BLOCKS blocks of its walk (the user's
+// ruling, 2026-11-23: at a walk, never a run) that it can
 // stand on and walks to in a line no wall stops; null where none has, or
 // where `AP` does not pay for one block and leave some for the shot. Read
 // the same from any cell, wherever `a` stands, and kept by the two cells.
@@ -226,7 +227,7 @@ function shotWalk(view: SceneState, a: string, from: Coord, d: string, at: Coord
   if (!p) return null
   const eyes = getEyes(view, a, d)
   if (distance(from, at) <= reach && lineOfFire(board, eyes)(from, at)) return 0
-  const pace = getPace(view, a)
+  const pace = getWalkPace(view, a)
   if (!pace || AP <= pace.AP) return null
   const radius = PEEK_BLOCKS * pace.metres
   if (distance(from, at) > reach + radius) return null

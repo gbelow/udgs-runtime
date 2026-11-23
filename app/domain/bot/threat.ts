@@ -177,6 +177,20 @@ export function getPace(state: SceneState, id: string): Pace | null {
   return pace
 }
 
+// The same at a walk, null for one who cannot walk now.
+const walkPaces = new WeakMap<SceneState, Map<string, Pace | null>>()
+
+export function getWalkPace(state: SceneState, id: string): Pace | null {
+  const byId = walkPaces.get(state) ?? new Map<string, Pace | null>()
+  walkPaces.set(state, byId)
+  if (byId.has(id)) return byId.get(id) ?? null
+  const c = state.characters[id]
+  const walk = c && getMovementOptions(state, c).find((o) => o.kind === 'walk' && o.available && o.speed > 0 && o.block.AP > 0)
+  const pace = walk ? { metres: walk.speed, AP: walk.block.AP, STA: walk.block.STA, running: false } : null
+  byId.set(id, pace)
+  return pace
+}
+
 // What of a sheet its walking reads (`getPace`, `walkMap`): the movements
 // open to it, each one's speed, block and price, and the STA it holds.
 function walkingOf(state: SceneState, c: CampaignCharacter): string {
@@ -196,6 +210,7 @@ export function withSheet(state: SceneState, id: string, c: CampaignCharacter): 
     if (known) cache.set(next, new Map([...known].filter(([key]) => walksAlike || key.split('|')[0] !== id)))
   }
   keep(paces)
+  keep(walkPaces)
   keep(stepMaps)
   keep(openMaps)
   keep(routeMaps)
