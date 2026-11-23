@@ -1,25 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { ScenePresetSchema } from '../domain/campaign/types'
-import { newBoardMap, paintSpawnBoardMap } from '../domain/scene/commands/boardMapEdit'
+import { newBoardMap } from '../domain/scene/commands/boardMapEdit'
+import { paintPresetSpawn } from '../domain/scene/commands/presetSpawn'
 import { playDemo } from '../domain/scene/commands/demo'
 
 // Spawn areas (the user's ruling, 2026-11-23): until the fight starts, a party
-// of a prepared scene is placed by hand only in the area of the battle map the
-// scene gives it. The view marks the areas, and a click must agree with it.
+// of a prepared scene is placed by hand only in the area the scene painted for
+// it over its battle map. The view marks the areas, and a click must agree.
 
 const standsAt = (h: Harness, name: string) => h.view().cells.filter((c) => c.occupants.includes(h.idOf(name))).map((c) => c.key)
 
-// Ann and Bob, to be placed in area 1, against Cy and Di, already standing in
-// area 2, on a map whose areas were painted with the editor's brush.
+// Ann and Bob, to be placed in the first party's area, against Cy and Di,
+// already standing in the second's, both painted with the scene editor's brush.
 function scene(): Harness {
-  const map = [paintSpawnBoardMap({ q: -4, r: 0 }, 1, 1), paintSpawnBoardMap({ q: 4, r: 0 }, 2, 1)].reduce((m, paint) => paint(m), newBoardMap(6))
-  const preset = ScenePresetSchema.parse({
+  const map = newBoardMap(6)
+  const parties = ScenePresetSchema.parse({
     parties: [
-      { name: 'Ours', spawn: 1, visitor: true },
-      { name: 'Theirs', spawn: 2, members: [{ key: 'Cy' }, { key: 'Di' }] },
+      { name: 'Ours', visitor: true },
+      { name: 'Theirs', members: [{ key: 'Cy' }, { key: 'Di' }] },
     ],
   })
+  const preset = [paintPresetSpawn(map, 0, { q: -4, r: 0 }, 1), paintPresetSpawn(map, 1, { q: 4, r: 0 }, 1)].reduce((p, paint) => paint(p), parties)
   const sheets = Object.fromEntries(['Ann', 'Bob', 'Cy', 'Di'].map((name) => [name, { name }]))
   let n = 0
   const made = playDemo(preset, ['Ann', 'Bob'], map, sheets, () => `x${++n}`)

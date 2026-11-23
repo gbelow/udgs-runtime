@@ -11,7 +11,7 @@ import type { BoardLook } from "./useBoardLook";
 import { getPieceAt, getPieceStructure } from "../domain/scene/rules/board/piece";
 import { coordKey } from "../domain/scene/rules/board/geometry";
 import { mapOfStructure, newStructureMap, structureOfMap } from "../domain/scene/factories";
-import { addLevelBoardMap, artBoardMap, generateGroundBoardMap, laySurfaceBoardMap, movePieceBoardMap, placePieceBoardMap, removeLevelBoardMap, removePieceBoardMap, setLevelBoardMap, turnPieceBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, paintSpawnBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
+import { addLevelBoardMap, artBoardMap, generateGroundBoardMap, laySurfaceBoardMap, movePieceBoardMap, placePieceBoardMap, removeLevelBoardMap, removePieceBoardMap, setLevelBoardMap, turnPieceBoardMap, lightBoardMap, surfaceBoardMap, newBoardMap, paintBoardMap, renameBoardMap, resizeBoardMap, type BoardMapUpdater } from "../domain/scene/commands/boardMapEdit";
 import { useBoardMapDraftStore, useStructureDraftStore } from "../stores/useBoardMapDraftStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -167,7 +167,6 @@ function useKeptBoardEditor(useDraft: typeof useBoardMapDraftStore, storeyAt: nu
     setName: (name: string) => edit(renameBoardMap(name)),
     setArt: (change: Partial<StructureArt> | null) => edit(artBoardMap(change)),
     paint: (cell: Coord, brush: TerrainBrush, radius: number) => edit(paintBoardMap(cell, brush, radius, level, piece)),
-    paintSpawn: (cell: Coord, area: number | null, radius: number) => edit(paintSpawnBoardMap(cell, area, radius)),
     light: (level: LightLevel) => edit(lightBoardMap(level)),
     surface: (name: string | null) => edit(surfaceBoardMap(name)),
     laySurface: (cell: Coord, name: string, frozen: string | null, radius: number, onto: SurfaceTarget) => edit(laySurfaceBoardMap(cell, name, Math.floor(Math.random() * 0x7fffffff), frozen, radius, level, piece, onto)),

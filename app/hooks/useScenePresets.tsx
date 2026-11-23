@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import { getScenePresets } from "../domain/campaign/rules/scenes";
 import { ScenePresetSchema, type ScenePreset } from "../domain/campaign/types";
-import { addSceneMember, addSceneParty, removeSceneMember, removeSceneParty, setScenePartySpawn, setScenePartyVisitor, renameSceneParty, setSceneMember } from "../domain/campaign/commands/scenePreset";
+import { addSceneMember, addSceneParty, removeSceneMember, removeSceneParty, setScenePartyVisitor, renameSceneParty, setSceneMember } from "../domain/campaign/commands/scenePreset";
 import { BOTS, getOwnerOptions } from "../domain/profiles";
 import type { Character } from "../domain/types";
 import { isBaseCharacter } from "../domain/utils";
@@ -10,6 +10,9 @@ import { useAppStore } from "../stores/useAppStore";
 import { useBoardMapList } from "./useBoardMaps";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useGmBar } from "./useControl";
+import type { Coord } from "../domain/scene/types";
+import { getPresetBoardView, getSceneMaterials } from "../domain/scene/projections/prepared";
+import { paintPresetSpawn } from "../domain/scene/commands/presetSpawn";
 
 // The scenes prepared in the catalog, for an event to lead to.
 export function useScenePresets() {
@@ -37,7 +40,6 @@ export function useScenePresetDraft(value: Record<string, unknown>, onChange: (v
     addParty: () => apply(addSceneParty('')),
     renameParty: (party: number, name: string) => apply(renameSceneParty(party, name)),
     removeParty: (party: number) => apply(removeSceneParty(party)),
-    setSpawn: (party: number, spawn: number) => apply(setScenePartySpawn(party, spawn)),
     setVisitor: (party: number, visitor: boolean) => apply(setScenePartyVisitor(party, visitor)),
     addMember: (party: number, character: Character) => {
       if (isBaseCharacter(character)) apply(addSceneMember(party, character.name));
@@ -56,4 +58,20 @@ export function useScenePlayerOptions() {
   const members = useCampaignStore((s) => s.file.members);
   const options = useMemo(() => getOwnerOptions(members, profiles, null), [members, profiles]);
   return { options, bar: useGmBar() };
+}
+
+// A prepared scene's battle map in its editor, with the parties' spawn areas
+// on it, and the brush that paints a party's area (or, with none, takes cells
+// out of every area). No map when the scene names none the screen has.
+export function useScenePresetBoard(value: Record<string, unknown>, onChange: (value: Record<string, unknown>) => void) {
+  const boardMaps = useAppStore((s) => s.boardMaps);
+  const preset = useMemo(() => ScenePresetSchema.parse(value), [value]);
+  const map = useMemo(() => getSceneMaterials({ board: preset.board, keys: [] }, boardMaps, {}).board, [preset.board, boardMaps]);
+  const view = useMemo(() => (map ? getPresetBoardView(map, preset) : null), [map, preset]);
+  return {
+    view,
+    paint: (party: number | null, cell: Coord, radius: number) => {
+      if (map) onChange({ ...value, parties: paintPresetSpawn(map, party, cell, radius)(preset).parties });
+    },
+  };
 }

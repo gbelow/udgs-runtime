@@ -22,17 +22,10 @@ import { AutoThrow, Status } from '../RunScreen'
 import { ActionLog } from '../ActionPanel'
 import { SimpleResource } from '../CharacterSheet'
 import { Button, IconButton, SectionLabel, Tooltip } from '../ui'
+import { SPAWN_SWATCH } from '../spawnSwatch'
 
 const DiceTray = dynamic(() => import('../DiceTray'), { ssr: false })
 
-// The spawn areas as the board tints them (app/board/draw.ts), for the
-// swatch that shows the visitor theirs.
-const AREA_SWATCH: Record<number, string> = {
-  1: 'bg-good/40 border-good',
-  2: 'bg-bad/40 border-bad',
-  3: 'bg-accent/40 border-accent',
-  4: 'bg-injury-2/40 border-injury-2',
-}
 
 // The demo: the visitor picks a party, then plays the scene against the bots
 // with nothing on the screen but what a player of the fight needs.
@@ -149,7 +142,7 @@ function Round() {
 // the start, closed until everyone stands.
 function Placing() {
   const { view, start, pick } = useDemo()
-  const swatch = view.area === null ? null : AREA_SWATCH[view.area] ?? AREA_SWATCH[1]
+  const swatch = view.area === null ? null : SPAWN_SWATCH[view.area] ?? SPAWN_SWATCH[1]
   return (
     <div className='flex flex-col gap-3'>
       {swatch ? (

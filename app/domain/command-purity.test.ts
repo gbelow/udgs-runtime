@@ -328,7 +328,6 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   repositionCharacter: (s) => combatCommands.repositionCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
   turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(cleared(s))),
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
-  paintSpawn: (s) => combatCommands.paintSpawn({ q: 1, r: 1 }, 1, 1)(deepFreeze(cleared(s))),
   setLight: (s) => combatCommands.setLight('dark')(deepFreeze(cleared(s))),
   setSurface: (s) => combatCommands.setSurface(getSurfaceNames()[0])(deepFreeze(cleared(s))),
   laySurface: (s) => combatCommands.laySurface({ q: 1, r: 1 }, getSurfaceNames()[0], 0, null)(deepFreeze(cleared(s))),
@@ -432,7 +431,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   passBy: ({ campaign }) => campaignCommands.passBy('s')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null, players: {} } } }),
   setScenePlayer: ({ campaign }) => campaignCommands.setScenePlayer('s', '0/0', 'bot:threat')({ ...campaign, scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: false, event: 'E', at: null, players: {} } } }),
   playScene: (t) => campaignCommands.playScene('s', null, {}, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [], scenes: { s: { preset: 'x', party: 'p', members: ['a'], forced: true, event: 'E', at: { map: 'm', node: 'n1' }, players: {} } } }, fight: resetCombatModule.resetCombat(t.fight) })),
-  bringInCast: (t) => campaignCommands.bringInCast('s', ScenePresetSchema.parse({ parties: [{ name: 'P', spawn: 1, members: [{ key: 'k' }] }] }), [{ id: 's:0:0:0', key: 'k', party: 's:0', partyName: 'P', player: null }], { k: { name: 'k' } }, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [] }, fight: resetCombatModule.resetCombat(t.fight) })),
+  bringInCast: (t) => campaignCommands.bringInCast('s', ScenePresetSchema.parse({ parties: [{ name: 'P', spawn: ['0,0'], members: [{ key: 'k' }] }] }), [{ id: 's:0:0:0', key: 'k', party: 's:0', partyName: 'P', player: null }], { k: { name: 'k' } }, () => 'issued')(deepFreeze({ campaign: { ...t.campaign, lent: [] }, fight: resetCombatModule.resetCombat(t.fight) })),
   leaveDead: ({ campaign, fight }) => campaignCommands.leaveDead({ ...fight, foundAt: 'm/n1' }, campaign, Object.values(fight.characters), () => true),
   leaveBehind: ({ campaign, fight }) => campaignCommands.leaveBehind({ ...fight, foundAt: 'm/n1', floor: [{ item: ItemSchema.parse({ id: 'i' }), cell: null, planted: null }] }, campaign),
 }

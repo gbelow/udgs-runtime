@@ -1,7 +1,7 @@
 import type { TerrainBrush } from '../../types'
 import { BoardMapSchema, StructureArtSchema, type BoardExtent, type BoardMap, type Coord, type GroundRecipe, type LightLevel, type Structure, type StructureArt, type SurfaceTarget, type Updater } from '../types'
 import { makeBoardMap, sceneOfMap } from '../factories'
-import { addLevel, editPiece, generateGround, laySurface, movePiece, paintSpawn, paintTerrain, placePiece, removeLevel, removePiece, resizeBoard, setLevel, setSurface, turnPiece } from './board'
+import { addLevel, editPiece, generateGround, laySurface, movePiece, paintTerrain, placePiece, removeLevel, removePiece, resizeBoard, setLevel, setSurface, turnPiece } from './board'
 import { getPieceLevel } from '../rules/board/piece'
 
 // A kept board edited as the fight's board is, with the same brushes: the map
@@ -42,11 +42,6 @@ function onOwner(piece: string | null, level: number | null, change: (level: num
 
 export function paintBoardMap(cell: Coord, brush: TerrainBrush, radius = 0, level: number | null = null, piece: string | null = null): BoardMapUpdater {
   return onOwner(piece, level, (at) => paintTerrain(cell, brush, radius, at))
-}
-
-// The map's spawn areas, painted as the fight's board is.
-export function paintSpawnBoardMap(cell: Coord, area: number | null, radius = 0): BoardMapUpdater {
-  return (map) => viaScene(map, paintSpawn(cell, area, radius))
 }
 
 export function addLevelBoardMap(piece: string | null = null): BoardMapUpdater {

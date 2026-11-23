@@ -191,9 +191,6 @@ export const GRAPPLING_EFFECTS = ['suffocate', 'broken hand', 'broken leg'] as c
 // The widest a brush that lays ground reaches, in steps around the cell clicked.
 export const BRUSH_RADIUS_MOST = 6
 
-// The spawn areas a battle map may have painted on it, by number.
-export const SPAWN_AREAS = [1, 2, 3, 4] as const
-
 // How far a metre of height lifts the ground up the screen when the board is seen
 // from the front, in board units: what it starts at, and the least and most
 // the table may ask for. A hex is a metre across, which is the square root of

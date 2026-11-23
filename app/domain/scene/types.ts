@@ -360,9 +360,6 @@ export const PieceSchema = z.object({
 }).strip()
 export type Piece = z.infer<typeof PieceSchema>
 
-// A spawn area of the board, by its number.
-export const SpawnAreaSchema = num.int().min(1)
-
 export const BoardSchema = z.object({
   placements: z.record(z.string(), PlacementSchema).default({}),
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
@@ -385,9 +382,6 @@ export const BoardSchema = z.object({
   // and the simulation tool and the drawing read it too.
   origin: CoordSchema.default({ q: 0, r: 0 }),
   extent: BoardExtentSchema.default({ q: 6, r: 6, s: 6 }),
-  // the spawn areas painted on it, by cell key: the number of the area the
-  // cell is in, which a prepared scene's party deploys in (`spawnOf`)
-  spawns: z.record(z.string(), SpawnAreaSchema).default({}),
 }).strip()
 export type Board= z.infer<typeof BoardSchema>
 
@@ -1981,9 +1975,10 @@ export const SceneStateSchema = z.object({
   // the table's to change until the fight gives them back to the campaign
   parties: z.record(str, FightPartySchema).default({}),
   partyOf: z.record(str, str).default({}),
-  // the spawn area of the board each fight party is placed in by hand
-  // before the fight starts, by party id; a party with none is placed anywhere
-  spawnOf: z.record(str, SpawnAreaSchema).default({}),
+  // the spawn area each fight party is placed in by hand before the fight
+  // starts, as the prepared scene it came from painted it: cell keys, by party
+  // id; a party with none is placed anywhere
+  spawnOf: z.record(str, z.array(str)).default({}),
   round: z.number().default(0),
   // the game time the scene's rounds have taken, in seconds
   elapsed: num.default(0),

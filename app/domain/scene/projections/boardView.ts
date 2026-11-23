@@ -1,4 +1,4 @@
-import { isCombatStarted } from '../rules/started'
+import { getSpawnParties } from '../rules/board/spawn'
 import type { Bind, Board, TerrainCell, BoardExtent, SceneState, SeenScene, Coord, Degree, LightLevel, Placement, StructureArt, SurfaceArt } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -139,7 +139,8 @@ export type BoardCellMarks = {
   isCenter: boolean
   threatened: boolean
   zone: Degree | null
-  // the spawn area the cell is in, drawn until the fight starts
+  // whose spawn area the cell is in, until the fight starts: the tint of the
+  // party it is drawn in (`getSpawnParties`, from 1)
   spawn: number | null
   // what lies on the floor here
   items: string[]
@@ -495,7 +496,7 @@ function buildBoardView(state: SeenScene): BoardView {
   const beyond = [...new Set([...Object.keys(occupancy), ...threatened])].filter((key) => !reached.has(key) && !!parseCoordKey(key))
   const ground = getBoardGround(board, beyond)
   const left = getGroundMarks(state)
-  const started = isCombatStarted(state)
+  const spawns = getSpawnMarks(state)
   const cells: BoardCellView[] = ground.cells.map((g) => {
     const there = reachableByKey.get(g.key)
     return {
@@ -514,7 +515,7 @@ function buildBoardView(state: SeenScene): BoardView {
       center: centers.has(g.key),
       isCenter: aimedAt !== null && sameCell(aimedAt, g.cell),
       threatened: threatened.has(g.key),
-      spawn: started ? null : board.spawns[g.key] ?? null,
+      spawn: spawns.get(g.key) ?? null,
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, g.cell)).map((f) => f.item.name),
     }
   })
@@ -607,6 +608,14 @@ function buildBoardView(state: SeenScene): BoardView {
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }
       : null,
   }
+}
+
+// The tint of the spawn area each cell is in, by cell key, while the fight
+// has not started; a cell two parties' areas share is drawn in the first's.
+export function getSpawnMarks(state: SceneState): Map<string, number> {
+  const marks = new Map<string, number>()
+  getSpawnParties(state).forEach((party, i) => { for (const key of state.spawnOf[party] ?? []) if (!marks.has(key)) marks.set(key, i + 1) })
+  return marks
 }
 
 // What play leaves on the ground of each cell, read off `state` (for a storey,

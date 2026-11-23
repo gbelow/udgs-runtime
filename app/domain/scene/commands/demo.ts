@@ -3,8 +3,8 @@ import { getPresetCast, getScenePartyId } from '../../campaign/rules/scenes'
 import type { CharacterOwners } from '../../profiles'
 import { DEMO_BOT, DEMO_SCENE, DEMO_VISITOR } from '../../demo'
 import { SceneStateSchema, type SceneState, type Table } from '../types'
-import { extentCells } from '../rules/board/geometry'
-import { getSpawnArea, getSpawnCells } from '../rules/board/spawn'
+import { extentCells, parseCoordKey } from '../rules/board/geometry'
+import { getSpawnArea } from '../rules/board/spawn'
 import { loadBoardMap, placeCharacter } from './board'
 import { bringInCast } from './episode'
 
@@ -43,7 +43,7 @@ function deploy(state: SceneState, id: string): SceneState {
   const board = state.board
   if (!board) return state
   const area = getSpawnArea(state, id)
-  const cells = area === null ? extentCells(board.origin, board.extent) : getSpawnCells(state, area)
+  const cells = area === null ? extentCells(board.origin, board.extent) : area.flatMap((key) => parseCoordKey(key) ?? [])
   for (const cell of cells) {
     const placed = placeCharacter(id, cell)(state)
     if (placed !== state) return placed

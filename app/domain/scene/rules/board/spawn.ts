@@ -1,28 +1,21 @@
-import type { Coord, SceneState } from '../../types'
+import type { SceneState } from '../../types'
 import { isCombatStarted } from '../started'
-import { coordKey, extentCells } from './geometry'
+import { coordKey } from './geometry'
 import { getFootprint } from './board'
 
 // The spawn areas of a prepared scene (the user's ruling, 2026-11-23): each
-// party is placed by hand in the area of the battle map the scene gives it,
-// until the fight starts. Once it has, nobody is placed by hand but whoever
-// was never placed, and they stand where they may.
+// of its parties is placed by hand in the area the scene painted for it over
+// its battle map, until the fight starts. A party the scene painted none for
+// is placed anywhere, and once the fight has started nobody is placed by hand
+// but whoever was never placed, and they stand where they may.
 
-// The area the character is placed in now: their party's, while the fight
-// has not started and the board has that area painted; null for anywhere.
-export function getSpawnArea(state: SceneState, id: string): number | null {
-  const board = state.board
+// The cells (by key) the character is placed in now: their party's area,
+// while the fight has not started; null for anywhere.
+export function getSpawnArea(state: SceneState, id: string): string[] | null {
   const party = state.partyOf[id]
   const area = party === undefined ? undefined : state.spawnOf[party]
-  if (!board || area === undefined || isCombatStarted(state)) return null
-  return Object.values(board.spawns).includes(area) ? area : null
-}
-
-// The cells of the area, in the order the board's extent lists them.
-export function getSpawnCells(state: SceneState, area: number): Coord[] {
-  const board = state.board
-  if (!board) return []
-  return extentCells(board.origin, board.extent).filter((c) => board.spawns[coordKey(c)] === area)
+  if (!state.board || !area || area.length === 0 || isCombatStarted(state)) return null
+  return area
 }
 
 // Whether where the character stands keeps to their spawn area, if they have
@@ -33,5 +26,12 @@ export function isInSpawnArea(state: SceneState, id: string): boolean {
   const c = state.characters[id]
   if (area === null) return true
   if (!placement || !c) return false
-  return getFootprint(c, placement).every((cell) => state.board?.spawns[coordKey(cell)] === area)
+  return getFootprint(c, placement).every((cell) => area.includes(coordKey(cell)))
+}
+
+// The parties with a spawn area while the fight has not started, in the order
+// they joined it: the n-th is drawn in the n-th tint (from 1).
+export function getSpawnParties(state: SceneState): string[] {
+  if (!state.board || isCombatStarted(state)) return []
+  return Object.keys(state.parties).filter((party) => (state.spawnOf[party]?.length ?? 0) > 0)
 }

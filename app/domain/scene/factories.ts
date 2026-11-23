@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, LevelCellSchema, LevelSchema, PieceSchema, PlacementSchema, SceneStateSchema, SpawnAreaSchema, StructureArtSchema, StructureSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardExtent, type BoardMap, type Level, type SceneState, type Structure } from './types'
+import { ActionSchema, BoardExtentSchema, BoardMapSchema, BoardSchema, CoordSchema, LevelCellSchema, LevelSchema, PieceSchema, PlacementSchema, SceneStateSchema, StructureArtSchema, StructureSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board, type BoardExtent, type BoardMap, type Level, type SceneState, type Structure } from './types'
 import { coordKey, distance, parseCoordKey, subtract } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
@@ -21,7 +21,6 @@ const BoardIngestSchema = z.object({
   surface: z.unknown().optional(),
   levels: z.array(z.unknown()).optional(),
   pieces: z.record(z.string(), z.unknown()).optional(),
-  spawns: z.record(z.string(), z.unknown()).optional(),
 }).strip()
 
 const LevelIngestSchema = z.object({
@@ -111,7 +110,6 @@ export function makeBoard(raw: unknown): Board {
     terrain: readEntries(parsed.data.terrain, TerrainCellSchema, (key) => parseCoordKey(key) !== null),
     levels: readLevels(parsed.data.levels),
     pieces: readEntries(parsed.data.pieces, PieceSchema, () => true),
-    spawns: readEntries(parsed.data.spawns, SpawnAreaSchema, (key) => parseCoordKey(key) !== null),
     ...(origin.success ? { origin: origin.data } : {}),
     ...(extent.success && parsed.data.extent !== undefined ? { extent: extent.data } : radius.success ? { extent: { q: radius.data, r: radius.data, s: radius.data } } : {}),
     ...(surface.success ? { surface: surface.data } : {}),

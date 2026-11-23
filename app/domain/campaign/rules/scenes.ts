@@ -55,8 +55,8 @@ export function getScenePartyId(sceneId: string, party: number): string {
 
 // The spawn area each of the preset's parties is placed in, by the fight
 // party it is brought in as; a party placed anywhere has none.
-export function getSceneSpawns(sceneId: string, preset: ScenePreset): Record<string, number> {
-  return Object.fromEntries(preset.parties.flatMap((party, p) => (party.spawn > 0 ? [[getScenePartyId(sceneId, p), party.spawn]] : [])))
+export function getSceneSpawns(sceneId: string, preset: ScenePreset): Record<string, string[]> {
+  return Object.fromEntries(preset.parties.flatMap((party, p) => (party.spawn.length > 0 ? [[getScenePartyId(sceneId, p), party.spawn]] : [])))
 }
 
 // The catalog characters the waiting scene is played with, by key.

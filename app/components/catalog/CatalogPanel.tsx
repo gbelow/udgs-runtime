@@ -11,7 +11,7 @@ import { EventEditor, ItemKeyList } from '../EventEditor'
 import { useEventTemplateDraft } from '../../hooks/useEventTemplate'
 import { useCatalogComparison } from '../../hooks/useCatalogComparison'
 import { ComparisonTable } from './Compare'
-import { SceneParties } from './SceneParties'
+import { SceneParties, SceneSpawns } from './SceneParties'
 
 type Editor = ReturnType<typeof useCatalogEditor>
 
@@ -71,7 +71,7 @@ function DraftForm({ catalog, editor }: { catalog: CatalogName, editor: Editor }
       {catalog === 'events'
         ? <EventTemplateForm value={draft.value} onChange={edit} />
         : <SchemaForm type={type} value={draft.value} onChange={(v) => edit(v as Record<string, unknown>)} overrides={OVERRIDES[catalog]} />}
-      {catalog === 'scenes' ? <SceneParties value={draft.value} onChange={edit} /> : null}
+      {catalog === 'scenes' ? <><SceneParties value={draft.value} onChange={edit} /><SceneSpawns value={draft.value} onChange={edit} /></> : null}
     </>
   )
 }

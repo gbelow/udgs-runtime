@@ -4,7 +4,7 @@ import type { SceneState } from '../types'
 import { isDead } from '../../character/rules/afflictions'
 import { getStandingParties, isDown } from '../rules/fight'
 import { getNextRoundBar } from '../rules/turn'
-import { getSpawnArea } from '../rules/board/spawn'
+import { getSpawnParties } from '../rules/board/spawn'
 import { getFightName } from '../rules/fighters'
 
 // The demo as the visitor sees it: picking their party before the fight,
@@ -50,7 +50,8 @@ export type DemoFate = 'standing' | 'surrendered' | 'down' | 'dead'
 export type DemoOutcome = 'won' | 'lost' | 'draw'
 
 export type DemoView = {
-  // the spawn area the visitor's party is placed in, null for anywhere
+  // the tint of the spawn area the visitor's party is placed in
+  // (`getSpawnParties`), null for anywhere
   area: number | null
   members: { id: string; name: string; placed: boolean }[]
   // why the first round cannot start yet
@@ -72,7 +73,7 @@ export function getDemoView(state: SceneState, party: string, started: boolean):
     return !c || isDead(c) ? 'dead' : isDown(state, id) ? 'down' : state.surrendered.includes(id) ? 'surrendered' : 'standing'
   }
   return {
-    area: mine.length > 0 ? getSpawnArea(state, mine[0]) : null,
+    area: getSpawnParties(state).indexOf(party) + 1 || null,
     members: mine.map((id) => ({ id, name: getFightName(state, id), placed: !unplaced.includes(id) })),
     startBar: started ? 'the fight has begun'
       : unplaced.length > 0 ? `place ${unplaced.map((id) => getFightName(state, id)).join(', ')} first`
