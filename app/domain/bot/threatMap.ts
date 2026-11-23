@@ -39,17 +39,20 @@ const OPEN_FROM = 4
 export const SHOT_GAP = 20
 
 // spec "Threat": the harm `attack` leaves its target, `gap` metres away,
-// answered with an evade, whatever the target holds to pay for it; none where
-// the attack offers no evade. The harm a decision reads compares every defence
-// the target can pay for (`pickOf` and `weighDefences` in boxes/spec.ts).
+// answered with an evasion (an evade against a strike, combat.tex "Evade"; an
+// evasion against a shot, "Evasion"), whatever the target holds to pay for
+// it; none where the attack offers neither. The harm a decision reads
+// compares every defence the target can pay for (`pickOf` and
+// `weighDefences` in boxes/spec.ts).
 const picked = new WeakMap<PairAttack, Map<number, number>>()
+const EVASION = { strike: 'evade', shoot: 'evasion' } as const
 
 export function getThreatHarm(attack: PairAttack, gap: number): number {
   const byGap = picked.get(attack) ?? new Map<number, number>()
   picked.set(attack, byGap)
   const known = byGap.get(gap)
   if (known !== undefined) return known
-  const defence = attack.defences.find((d) => d.draft?.kind === 'evade')
+  const defence = attack.defences.find((d) => d.draft?.kind === EVASION[attack.kind])
   const harm = defence ? getHarmAgainst(attack, defence, gap) : 0
   byGap.set(gap, harm)
   return harm
