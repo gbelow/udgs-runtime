@@ -524,7 +524,7 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
 
 // spec "Immediate actions": an opportunity attack scored as an attack is, made
 // from where the character stands: of the rows the draw opens, the one scoring
-// most, if above nothing.
+// most, if above nothing; never on one who is down, as no attack is.
 function opportunity(input: SeatInput, id: string, w: SpecWeights): Decision | null {
   const view = input.view()
   const open = getOpenAction(view)
@@ -537,7 +537,7 @@ function opportunity(input: SeatInput, id: string, w: SpecWeights): Decision | n
     const declared = trial(view, { kind: 'react', args: [id, o.draft, o.surge] })
     const drawn = getUnfinishedAnswers(declared, open).find((r) => r.actorId === id)
     const target = drawn?.targetId ? view.characters[drawn.targetId] : undefined
-    if (!drawn || !target) continue
+    if (!drawn || !target || !ctx.foes.includes(target.id)) continue
     const rows = getOpenChoices(declared).filter((c) => c.actorId === id && c.part === 'row').map((c) => c.value as PairAttack['row'])
     const pair = getPair(me, target)
     for (let i = 0; i < pair.length; i++) {
