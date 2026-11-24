@@ -400,6 +400,13 @@ export function getAPWorth(on: Exposure, company: number, AP: number): number {
 // spec "Danger": the harm that gets through to it once it evades everything.
 export const getDanger = (on: Exposure, company: number): number => (on.threat - on.prevented) / company
 
+// The harm that gets through to one holding `AP`, which evades its share of
+// the attacks as far as that pays for.
+export function getExposed(on: Exposure, company: number, AP: number): number {
+  const covered = on.defenceAP > 0 ? Math.min(1, (AP * company) / on.defenceAP) : 1
+  return (on.threat - covered * on.prevented) / company
+}
+
 // spec "Escape": the danger that is too much, a share `courage` of the harm
 // the character can still take (combat.tex "Injuries and Death").
 export function getDangerLimit(c: CampaignCharacter, w: SpecWeights): number {

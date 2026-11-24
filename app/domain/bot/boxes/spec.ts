@@ -21,7 +21,7 @@ import { getAnswer, getEvaded, getHarmAdded, getMet, getUndefendedHarm } from '.
 import { cellOf, getAttackRoute, getBelievedAP, getMeans, getPaceAt, getStrikeCells, getTeam } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getSTAHarm, type SpecWeights } from '../cost'
-import { getAPWorth, getCompany, getDanger, getDangerLimit, getExposure, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Guard } from '../threatMap'
+import { getAPWorth, getCompany, getDanger, getDangerLimit, getExposed, getExposure, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Guard } from '../threatMap'
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getBudgets, getCollapsedCare, getKnownAttack, getOpenedWalks, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesOpenedWalk, takesWalk, trial, TRIAL, wonBy, type AttackCell, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
@@ -64,9 +64,10 @@ type Plan = (
   | { kind: 'surge'; surge: SurgeKind; score: number; why: string }
 ) & { then?: readonly Intent[] }
 
-// What an AP is worth to the character at a place (spec "Cost"), and the
-// danger on it there (spec "Danger"), as the fight stands.
-type Place = { worth: number; danger: number }
+// What an AP is worth to the character at a place (spec "Cost"), the danger on
+// it there (spec "Danger"), and the harm that gets through to it there holding
+// so much AP (`getExposed`), as the fight stands.
+type Place = { worth: number; danger: number; exposed: (AP: number) => number }
 // The same for a fresh round: its share of the foes' potential threat on it
 // there, and the danger of that (spec "Tactical").
 type Later = { threat: number; danger: number }
@@ -121,7 +122,7 @@ function getCtx(view: SceneState, members: readonly string[], id: string, w: Spe
     at: kept((cell) => {
       const on = getExposure(view, members, foes, id, 'immediate', w, [{ id, at: cell }])
       const company = getCompany(view, id, cell)
-      return { worth: getAPWorth(on, company, left.AP), danger: getDanger(on, company) }
+      return { worth: getAPWorth(on, company, left.AP), danger: getDanger(on, company), exposed: (AP) => getExposed(on, company, AP) }
     }),
     later: kept((cell) => {
       const on = getExposure(view, members, foes, id, 'potential', w, [{ id, at: cell }])
@@ -383,13 +384,19 @@ function bestStep<T extends { score: number }>(ctx: Ctx, steps: readonly Step[],
   return best
 }
 
-// spec "Escape": only from a danger above `limit`, to wherever the danger it
-// sheds less the walk's Cost and what it draws is most.
+// How much less harm gets through to the character once it has walked, with
+// the AP the walk leaves it, than where it stands with the AP it holds.
+const shed = (ctx: Ctx, s: Step): number => ctx.at(ctx.here).exposed(ctx.left.AP) - s.exposed(heldAP(s.b, s.c.AP))
+
+// spec "Escape": only from a danger above `limit`, to wherever the harm it
+// sheds (`shed`) less the walk's Cost and what it draws is most. The danger
+// itself never reads the character's AP, so that spending it is no reason to
+// run (the user's ruling, 2026-11-24).
 function planEscape(ctx: Ctx): Plan | null {
   const { here, limit } = ctx
   const danger = here ? ctx.at(here).danger : 0
   if (danger <= limit) return null
-  return bestStep(ctx, stepsOf(ctx), (s) => danger - s.danger, false, (s, score, told) => stepPlan(ctx, s, score, `escapes (${s.walk.movement}, danger ${danger.toFixed(1)} over ${limit.toFixed(1)}, ${told})`))
+  return bestStep(ctx, stepsOf(ctx), (s) => shed(ctx, s), false, (s, score, told) => stepPlan(ctx, s, score, `escapes (${s.walk.movement}, danger ${danger.toFixed(1)} over ${limit.toFixed(1)}, ${told})`))
 }
 
 // spec "Strategies", "Attack" (the only one played): each member's target,
@@ -436,8 +443,8 @@ function getTacticalScore(ctx: Ctx, target: string, here: Coord): (cell: Coord) 
 }
 
 // spec "Tactical": towards the character's target, to the cell whose Score
-// betters the one where it stands by the most over the walk's Cost and what it
-// draws, if above nothing; never to a cell whose danger, read with the foes'
+// betters the one where it stands, with the harm it sheds there (`shed`), by
+// the most over the walk's Cost and what it draws, if above nothing; never to a cell whose danger, read with the foes'
 // potential threat, is what it would escape. `free` leaves the AP out of the
 // cost (spec "Decide take turn").
 function planTactical(ctx: Ctx, free: boolean): Plan | null {
@@ -450,7 +457,7 @@ function pickTactical<T extends { score: number }>(ctx: Ctx, steps: readonly Ste
   const score = getTacticalScore(ctx, target, here)
   const stay = score(here)
   const name = view.characters[target]?.name ?? target
-  return bestStep(ctx, steps, (s) => (ctx.later(s.c.cell).danger > limit ? null : score(s.c.cell) - stay), free, (s, net, told) => settle(s, net, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${told})`))
+  return bestStep(ctx, steps, (s) => (ctx.later(s.c.cell).danger > limit ? null : score(s.c.cell) - stay + shed(ctx, s)), free, (s, net, told) => settle(s, net, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${told})`))
 }
 
 // The move a reaction has opened for the character (combat.tex "Evasion": the
