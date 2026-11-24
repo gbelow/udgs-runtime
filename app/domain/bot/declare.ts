@@ -121,7 +121,10 @@ export function declare(start: SceneState, intent: Intent, ctx: CommandContext):
   const answer = answering?.step === 'react'
   const offered = getAvailableActions(start, actorId).filter((o) => o.available && o.reactionTo === (answer ? answering.id : null))
   const matching = offered.filter((o) => Object.entries(intent.option).every(([k, v]) => same((o.draft as Record<string, unknown>)[k], v)))
-  const drafts = [...new Map(matching.map((o) => [canon(o.draft), o.draft])).values()]
+  const named = [...new Map(matching.map((o) => [canon(o.draft), o.draft])).values()]
+  // an option named in full is that one, whatever else is offered with more to it (a guard, and the guard that takes cover)
+  const exact = named.filter((d) => same(d, intent.option))
+  const drafts = exact.length ? exact : named
   if (drafts.length === 0) return refuse(`${intent.option.kind} is not offered to ${actorId} as named`)
   if (drafts.length > 1) return refuse(`${intent.option.kind} as named matches ${drafts.length} options: name more of it`)
   if (!p.press(answer ? { kind: 'react', args: [actorId, drafts[0]] } : { kind: 'declare', args: [actorId, drafts[0]] })) return refuse(`declaring ${intent.option.kind} did nothing`)

@@ -22,8 +22,8 @@ import type { SpecWeights } from './cost'
 //   harm / the attack's AP × (the AP it holds − the AP of the walk)
 //
 // so that nothing turns on an AP more or less. Immediate reads the AP each
-// holds, surge AP counted as any other, and the combat surge's while it has
-// made none; potential a fresh round's and the combat surge's (`attackAP`).
+// holds, surge AP counted as any other, and potential a fresh round's; to
+// either the surge it may still make that leaves it the most (`getLeft`).
 //
 // The harm per AP is read off a pair of fighters once, and for a shot by the
 // metres away, so a cell reads only the AP of the walk to each reach: the
@@ -330,14 +330,17 @@ function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coo
   return made
 }
 
-// The AP attacks are made with: what `a` holds, or a fresh round's, and the
-// combat surge's while it has made no surge this round, which shows on a face
-// (the user's ruling, 2026-11-24); a shot the focus surge opens is made with
-// no other surge.
-function attackAP(a: CampaignCharacter, held: number, focus: boolean, when: When): number {
-  if (when === 'potential') return ROUND_AP + (focus ? 0 : getSurgeAP('combat')(a))
-  if (focus) return a.usedSurge === null || a.usedSurge === 'focus' ? held : 0
-  return held + (a.usedSurge === null ? getSurgeAP('combat')(a) : 0)
+// The AP `a` has left for attacks once it has walked `walk` AP, of what it
+// holds or of a fresh round's: with the surge it may still make, which shows
+// on a face (the user's rulings, 2026-11-24), the combat surge paying for walk
+// and attacks alike, or the movement surge for the walk alone, whichever
+// leaves more. A shot the focus surge opens is made with no other surge.
+function getLeft(a: CampaignCharacter, held: number, walk: number, focus: boolean, when: When): number {
+  const AP = when === 'potential' ? ROUND_AP : held
+  const surge = when === 'potential' ? null : a.usedSurge
+  if (focus) return surge === null || surge === 'focus' ? AP - walk : 0
+  if (surge !== null) return AP - walk
+  return Math.max(AP + getSurgeAP('combat')(a) - walk, AP - Math.max(0, walk - getSurgeAP('movement')(a)))
 }
 
 const isMoved = (shifts: readonly Shift[], id: string): boolean => shifts.some((s) => s.id === id && s.at !== undefined)
@@ -353,10 +356,11 @@ export function getThreat(view: SceneState, plays: readonly string[], a: string,
   if (!by.at || !on.at || !ca || !cd) return NO_ATTACKS
   let most = NO_ATTACKS
   for (const { walk, rate } of getProfile(view, a, by.at, d, on.at, when === 'potential' ? null : cd.usedSurge, { a: isMoved(shifts, a), d: isMoved(shifts, d) }, w)) {
-    const AP = attackAP(ca, by.AP, rate.focus, when)
+    const AP = getLeft(ca, by.AP, 0, rate.focus, when)
     if (AP <= 0 || rate.threat * AP <= most.threat) continue
-    const paid = walk(AP)
-    if (paid !== null && paid < AP && rate.threat * (AP - paid) > most.threat) most = timesOf(rate, AP - paid)
+    const walked = walk(AP)
+    const left = walked === null ? 0 : getLeft(ca, by.AP, walked, rate.focus, when)
+    if (rate.threat * left > most.threat) most = timesOf(rate, left)
   }
   const share = most.threat === 0 ? 1 : getPresence(view, a, w) * getPresence(view, d, w)
   return share === 1 ? most : { ...most, threat: most.threat * share, prevented: most.prevented * share, defenceAP: most.defenceAP * share, times: most.times * share }
@@ -412,11 +416,11 @@ export function getFarThreat(view: SceneState, a: string, d: string, w: SpecWeig
   const pace = getPace(view, a)
   if (!ca || !cd || !pace) return () => 0
   const pair = getPair(ca, cd, null)
-  const rates = [...getStrikeRates(pair, w), ...getShotRates(pair, SHOT_GAP, w)].map((r) => ({ threat: r.threat, AP: attackAP(ca, 0, r.focus, 'potential') }))
-  const edge = Math.max(0, ...rates.map((r) => r.AP)) / pace.AP * pace.metres
+  const rates = [...getStrikeRates(pair, w), ...getShotRates(pair, SHOT_GAP, w)]
+  const edge = (Math.max(0, ...rates.map((r) => ROUND_AP + (r.focus ? 0 : Math.max(getSurgeAP('combat')(ca), getSurgeAP('movement')(ca))))) / pace.AP) * pace.metres
   const presence = getPresence(view, d, w)
   return (walked) => {
-    const AP = (Math.max(0, edge - walked) / pace.metres) * pace.AP
-    return presence * rates.reduce((most, r) => Math.max(most, r.threat * (r.AP - AP)), 0)
+    const walk = (Math.max(0, edge - walked) / pace.metres) * pace.AP
+    return presence * rates.reduce((most, r) => Math.max(most, r.threat * getLeft(ca, 0, walk, r.focus, 'potential')), 0)
   }
 }

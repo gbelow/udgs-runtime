@@ -56,7 +56,7 @@ import type { Notes } from '../memory'
 // overflow spent as `getBestSpend` spends it, the round's rest step) it plays
 // as the nearest box does.
 
-export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.3, STA: 2, IL: 2, bleed: 8, caution: 5, courage: 0.75, aggro: 1, aggressivity: 0.5, search: 4, solitude: 10 }
+export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.3, STA: 3, IL: 2, bleed: 8, caution: 5, courage: 0.75, aggro: 1, aggressivity: 0.5, search: 4, solitude: 10 }
 
 // An action decided: its first step, and what is declared after it (`then`).
 type Plan = (
@@ -549,9 +549,11 @@ function offeredTo(view: SceneState, id: string): (d: PairDefence) => boolean {
 // The answer to an attack on `id`: the opportunity attack a shot draws from
 // it, if one is worth making, then the defence the Defense rule picks (spec
 // "Defend"). A surge the panel offers is made first only where the defence the
-// rule picks with it made could not be paid for without, and prevents more
-// harm than the surge's STA, and the recovery it gives up, costs. Anything
-// else it is asked to answer, it answers with an opportunity attack or lets pass.
+// rule picks with it made prevents more harm than the surge's STA, and the
+// recovery it gives up, costs, and could not be paid for without it; the
+// movement surge for its reflexes too (combat.tex "Reflex"), whatever could.
+// Anything else it is asked to answer, it answers with an opportunity attack
+// or lets pass.
 function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press: Press): Decision | null {
   const view = input.view()
   const open = getOpenAction(view)
@@ -576,7 +578,7 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
     if (surged === view || made?.usedSurge !== kind || !after) continue
     const picked = getAnswer(after.attack, after.gap, made.resources, w, offeredTo(surged, id))
     const draft = picked.defence?.draft
-    if (!draft || known.attack.defences.some((d) => d.draft && sameDraft(d.draft, draft) && payable(d))) continue
+    if (!draft || (kind !== 'movement' && known.attack.defences.some((d) => d.draft && sameDraft(d.draft, draft) && payable(d)))) continue
     const recovered = getRecoveredSTA(me, me.resources.STA, getSurgeRecovery('recovery')(me)) - me.resources.STA
     const cost = getSTAHarm(me.resources.STA - made.resources.STA + recovered + picked.STA, me.injuries.bleed, w)
     const gain = best.harm - picked.harm - cost
@@ -697,7 +699,8 @@ function takeStressTurn(input: SeatInput, id: string, w: SpecWeights, find: Find
 // the plan, and the steps left of it, kept for the round it was decided in.
 type BlockStep = { surge: SurgeKind } | { intent: Intent }
 // `at`: where each target of the block's attacks stood when it was decided;
-// one no longer there drops the block (the user's ruling, 2026-11-23).
+// one no longer there, or that the character no longer notices, drops the
+// block (the user's ruling, 2026-11-23).
 type Block = { round: number; plan: Plan; steps: BlockStep[]; started: boolean; at: Record<string, Coord | null> }
 type Blocks = Map<string, Block>
 
@@ -757,6 +760,7 @@ function carryBlock(input: SeatInput, id: string, blocks: Blocks, press: Press):
     const stood = target ? block.at[target] : null
     const standing = target ? cellOf(view, target) : null
     if (target && stood && (!standing || !sameCell(stood, standing))) break
+    if (target && input.unnoticed(id).has(target)) break
     const opens = end ? (declare(view, step.intent, TRIAL).ok ? 'open' : null) : opensAfter(view, id, step.intent)
     if (opens === 'givingUp') {
       const give = input.buttons.find((b) => b.command.kind === 'edit' && argOf(b.command) === id && (b.command.args[1] as { kind: string }).kind === 'endSurge')

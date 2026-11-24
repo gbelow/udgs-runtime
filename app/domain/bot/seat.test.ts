@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest'
 import type { SceneState } from '../scene/types'
 import type { Viewer } from '../profiles'
 import { applySceneCommand, type CommandContext } from '../scene/commands/registry'
-import { board, meleeTrained, spearman } from '../scene/fixtures'
+import { archer, board, meleeTrained, spearman, towerWarden } from '../scene/fixtures'
 import { addAffliction } from '../character/commands/addAffliction'
+import { getAvailableActions } from '../scene/rules/options'
 import { getFreeAttackOptions } from '../scene/rules/attack'
 import { getOpenChoices } from '../scene/projections/choices'
 import { seededRng, rollD10 } from '../play/dice'
 import { declare } from './declare'
+import { attackIntent } from './moves'
+import { getPair } from './pairs'
 import { THREAT_WEIGHTS, threatBox } from './boxes/threat'
 import { getNextMove, type MoveOptions, type Seat } from './seat'
 
@@ -51,5 +54,27 @@ describe('a strike answered with an evasive jump from the ground', () => {
       from = next
     }
     expect(rolled).toBe(true)
+  })
+})
+
+// A bot with a body shield never guarded a shot: the guard it named was
+// offered beside the guard that takes cover, so it was refused as naming two.
+describe('a shot at someone with a body shield', () => {
+  const rng = seededRng(1)
+  const ctx: CommandContext = { thrower: (e) => rollD10(e, rng), newId: (() => { let n = 0; return () => `t${++n}` })() }
+  const send = (s: SceneState, ...commands: Parameters<typeof applySceneCommand>[1][]) => commands.reduce((at, c) => applySceneCommand(at, c, GM, ctx), s)
+
+  let s: SceneState = board({ a: [0, 0], d: [5, 0] }, archer('a'), towerWarden('d'))
+  s = send(s, { kind: 'startTurn', args: ['a'] }, { kind: 'surge', args: ['a', 'focus'] })
+  const attack = getPair(s.characters.a, s.characters.d).find((a) => a.kind === 'shoot')
+  if (!attack) throw new Error('no shot to make')
+  const shot = declare(s, attackIntent('a', attack, 'd'), ctx)
+  if (!shot.ok) throw new Error(shot.refused)
+  s = send(s, ...shot.commands)
+  const guards = getAvailableActions(s, 'd').filter((o) => o.available && o.draft.kind === 'guard')
+
+  it('is answered with each guard offered, named as it is offered', () => {
+    expect(guards.length).toBeGreaterThan(1)
+    for (const { draft } of guards) expect(declare(s, { actorId: 'd', option: draft, picks: [] }, ctx)).toMatchObject({ ok: true })
   })
 })
