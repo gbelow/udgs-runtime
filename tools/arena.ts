@@ -65,13 +65,16 @@ const setText = (set: Weights) => Object.entries(set).map(([k, v]) => `${k} ${v}
 
 // A box timed: how many decisions it made and how long they took.
 function timed(box: Box, into: { n: number; ms: number }): Box {
-  return (input) => {
+  const told: Box = (input) => {
     const t0 = performance.now()
     const decision = box(input)
     into.ms += performance.now() - t0
     into.n++
     return decision
   }
+  told.remembers = box.remembers
+  told.notes = box.notes
+  return told
 }
 
 function play(jobs: Job[], { boxes, rounds, set: weights }: Setup, done: (p: Played) => void): void {
