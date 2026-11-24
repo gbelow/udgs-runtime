@@ -47,7 +47,7 @@ function useJoin() {
     const { board, sheets } = getSceneMaterials({ board: scene.board, keys }, boardMaps, characters);
     const made = playDemo(scene, picks, board, sheets, () => crypto.randomUUID());
     if (!made) { toast.error('The demo scene cannot be played.'); return; }
-    useBotLogStore.setState({ entries: [], paused: false });
+    useBotLogStore.setState({ entries: [], paused: false, open: true });
     useCampaignStore.getState().openCampaign(
       { campaign: made.table.campaign, exploration: ExplorationStateSchema.parse({}), downtime: DowntimeStateSchema.parse({}), fight: made.table.fight },
       newFile(crypto.randomUUID(), { [DEMO_VISITOR]: 'player' }),

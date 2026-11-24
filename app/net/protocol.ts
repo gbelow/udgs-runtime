@@ -2,6 +2,7 @@ import { SceneStateSchema, type SceneState } from "../domain/scene/types";
 import { CampaignStateSchema, type CampaignState } from "../domain/campaign/types";
 import { ExplorationStateSchema, type ExplorationState } from "../domain/exploration/types";
 import { DowntimeStateSchema, type DowntimeState } from "../domain/downtime/types";
+import type { BotControl } from "../domain/bot/pause";
 import type { CharacterOwners } from "../domain/profiles";
 import type { CampaignFile } from "../stores/useCampaignStore";
 import type { Commands, PartName } from "./parts";
@@ -38,7 +39,7 @@ export const readShared = (raw: Shared): Shared => ({
 
 export type CommandMessage = { [P in PartName]: { kind: 'command'; id: string; part: P; command: Commands[P]; gmMode: boolean } }[PartName];
 
-export type ToHost = CommandMessage | { kind: 'resync' };
+export type ToHost = CommandMessage | { kind: 'resync' } | { kind: 'pauseBots'; paused: boolean };
 
 export type ToGuest =
   | { kind: 'full'; seq: number; state: Shared }
@@ -46,6 +47,7 @@ export type ToGuest =
   | { kind: 'ack'; id: string }
   | { kind: 'refused'; id: string; why: string }
   | { kind: 'moved'; room: string; roomName: string }
+  | { kind: 'bots'; control: BotControl }
   | { kind: 'noHost' };
 
 export type FromRelay =

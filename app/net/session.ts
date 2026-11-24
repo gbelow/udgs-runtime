@@ -1,5 +1,6 @@
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
+import { useBotLogStore } from "../stores/useBotLogStore";
 import type { TableGuest, TableStatus } from "../stores/useTableStore";
 import { apply, diff } from "./diff";
 import { viewFor } from "./view";
@@ -17,8 +18,9 @@ const REFUSED = 'it did not stand at the table';
 // (`viewFor`: a GM sees all, a player what concerns the characters they play),
 // a guest who joins or asks again gets their whole view, and a guest's command
 // is played as sent by them — `play` answers why it was refused, or null.
-// Stops when the returned function is called.
-export function hostTable(socket: WebSocket, play: (message: CommandMessage, profile: string) => string | null, onGuests: (guests: TableGuest[]) => void): () => void {
+// The bots' pause goes to every guest as it changes, and a guest's press of it
+// to `pause`. Stops when the returned function is called.
+export function hostTable(socket: WebSocket, play: (message: CommandMessage, profile: string) => string | null, onGuests: (guests: TableGuest[]) => void, pause: (paused: boolean, profile: string) => void): () => void {
   const guests = new Map<string, { profile: string; sent: Shared; seq: number }>();
   let queued = false;
 
@@ -42,12 +44,22 @@ export function hostTable(socket: WebSocket, play: (message: CommandMessage, pro
   const schedule = () => { if (!queued) { queued = true; queueMicrotask(flush); } };
   const showGuests = () => onGuests([...guests].map(([id, { profile }]) => ({ id, profile })));
 
-  const stops = [useCombatStore.subscribe(schedule), useCampaignStore.subscribe(schedule)];
+  const sendBots = (to: string) => {
+    const { paused, open } = useBotLogStore.getState();
+    send(to, { kind: 'bots', control: { paused, open } });
+  };
+
+  const stops = [
+    useCombatStore.subscribe(schedule),
+    useCampaignStore.subscribe(schedule),
+    useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused || s.open !== before.open) sendBots('*'); }),
+  ];
   socket.onmessage = (e) => {
     const m = JSON.parse(String(e.data)) as FromRelay;
-    if (m.kind === 'join') { guests.set(m.from, { profile: m.profile, sent: current(), seq: 0 }); sendWhole(m.from); showGuests(); }
+    if (m.kind === 'join') { guests.set(m.from, { profile: m.profile, sent: current(), seq: 0 }); sendWhole(m.from); sendBots(m.from); showGuests(); }
     else if (m.kind === 'leave') { guests.delete(m.from); showGuests(); }
     else if (m.data.kind === 'resync') sendWhole(m.from);
+    else if (m.data.kind === 'pauseBots') pause(m.data.paused, m.profile);
     else {
       let why: string | null;
       try { why = play(m.data, m.profile); }
@@ -98,6 +110,7 @@ export function joinTable(socket: WebSocket, onStatus: (status: TableStatus) => 
     else if (m.kind === 'ack') onAnswer(m.id, null);
     else if (m.kind === 'refused') onAnswer(m.id, m.why);
     else if (m.kind === 'moved') onMoved(m.room, m.roomName);
+    else if (m.kind === 'bots') useBotLogStore.setState(m.control);
     else { base = null; onStatus('noHost'); }
   };
   return () => { socket.onmessage = null; };

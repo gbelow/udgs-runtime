@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { realDice } from "../components/utils";
 import { barOf, playOf } from "../net/parts";
-import { BOTS } from "../domain/profiles";
+import { sendToHost } from "../net/session";
+import { BOTS, getOwner } from "../domain/profiles";
 import { getBotSeats } from "../domain/bot/bots";
 import { getLiveStep, NEW_LIVE, type Live } from "../domain/bot/live";
 import { noteSeats, type MoveOptions } from "../domain/bot/seat";
@@ -21,15 +22,35 @@ export function useBotLog() {
   return useMemo(() => entries.filter((e) => e.round === round), [entries, round]);
 }
 
-// Whether the bots are paused on this screen, and the GM's switch for it; a
-// guest's screen plays no bots, so it has none to pause.
+// The bots' pause: whether any bot is in the fight, whether they are paused,
+// the switch and why it is closed to whoever is at the screen, and the space
+// bar's press of it over the board, none while the GM keeps it off or no bot
+// is in the fight. The bots play on the host's screen, so a guest's press goes
+// there.
 export function useBotsPaused() {
   const paused = useBotLogStore((s) => s.paused);
-  const setPaused = useBotLogStore((s) => s.setPaused);
+  const open = useBotLogStore((s) => s.open);
+  const owners = useCampaignStore((s) => s.owners);
+  const inPlay = useCombatStore((s) => getBotSeats(s, (id) => getOwner(id, owners)).length > 0);
+  const gmBar = useGmBar();
+  const bar = open ? null : gmBar;
+  const toggle = () => {
+    if (bar !== null) return;
+    const { mode, socket } = useTableStore.getState();
+    if (mode !== 'guest') useBotLogStore.getState().setPaused(!paused);
+    else if (socket) sendToHost(socket, { kind: 'pauseBots', paused: !paused });
+  };
+  return { paused, inPlay, bar, toggle, space: open && (inPlay || paused) ? toggle : undefined } as const;
+}
+
+// The GM's switch for whether the space bar pauses the bots, for everyone at
+// the table; a guest's screen keeps none of the bots' settings.
+export function useBotsPauseSetting() {
+  const open = useBotLogStore((s) => s.open);
   const guest = useTableStore((s) => s.mode === 'guest');
   const gmBar = useGmBar();
-  const bar = gmBar ?? (guest ? "the bots play on the host's screen" : null);
-  return { paused, bar, toggle: () => { if (bar === null) setPaused(!paused); } } as const;
+  const bar = gmBar ?? (guest ? "set on the host's screen" : null);
+  return { open, bar, toggle: () => { if (bar === null) useBotLogStore.getState().setOpen(!open); } } as const;
 }
 
 // A beat between a bot's moves, so that the table can follow them.
@@ -38,8 +59,8 @@ const BEAT_MS = 300;
 // The bots at the fight, played on the screen that keeps the table (never a
 // guest's): after every change to the fight, what is done next
 // (bot/live.ts `getLiveStep`), a move sent as a guest's press is, as the bot.
-// A move the table refuses stops the bots until the fight changes. While the
-// GM has paused them, they make no move at all.
+// A move the table refuses stops the bots until the fight changes. While they
+// are paused, they make no move at all.
 // `table`: whether the table presses for a GM nobody plays (bot/autoTable.ts),
 // as the demo has none, and whether it holds the first round back until it is
 // told to begin.
@@ -53,6 +74,9 @@ export function useBots(table: BotTable = WITH_GM) {
   const thrower = useThrower();
   const live = useRef({ viewerOf, thrower });
   live.current = { viewerOf, thrower };
+
+  // the demo's pause is the visitor's, whatever this browser remembers
+  useEffect(() => { if (!auto && mode !== 'guest') useBotLogStore.getState().recall(); }, [auto, mode]);
 
   useEffect(() => {
     if (mode === 'guest') return;

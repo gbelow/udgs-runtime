@@ -13,6 +13,7 @@ import { assetUrl } from '../board/assetUrl'
 import type { TerrainBrush } from '../domain/types'
 import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES, SURFACE_TARGETS } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
+import { useBotsPaused } from '../hooks/useBots'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
@@ -104,6 +105,7 @@ export function BoardPanel(){
   const gmBar = useGmBar()
   const open = tools && gmTools
   const camera = useBoardCamera()
+  const { space } = useBotsPaused()
 
   if (!view.present) {
     return (
@@ -181,7 +183,7 @@ export function BoardPanel(){
         </div>
       ) : null}
 
-      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit}
+      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={space}
         onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
         onToken={clickToken}
         onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />

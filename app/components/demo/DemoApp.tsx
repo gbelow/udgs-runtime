@@ -7,7 +7,8 @@ import { useBoard } from '../../hooks/useBoard'
 import { useBoardVeil, useLitCell } from '../../hooks/useBoardVeil'
 import { useBoardCamera, useCellAt } from '../../hooks/useBoardCanvas'
 import { useBoardLook } from '../../hooks/useBoardLook'
-import { useBots } from '../../hooks/useBots'
+import { useBots, useBotsPaused } from '../../hooks/useBots'
+import { BotsPause } from '../BotsPause'
 import { useDemo, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
 import { useCombatState, useRoundChange } from '../../hooks/useCombatState'
@@ -120,6 +121,7 @@ function DemoTable() {
           {hasActive ? <Status resource={<SimpleResource rssName={'AP'} />} resourceEnd={<SurgeTile />} needs={false} /> : <span className='text-xs text-muted'>pick a character</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
+          {started ? <div className='self-start'><BotsPause /></div> : null}
           {started ? (hasActive ? <SceneActions /> : <span className='text-xs text-muted'>pick a character</span>) : <Placing />}
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
@@ -202,6 +204,7 @@ function DemoBoard() {
   const { setLit } = useLitCell(view, veil.setOver)
   const cellAt = useCellAt()
   const camera = useBoardCamera()
+  const { space } = useBotsPaused()
   return (
     <div className='flex flex-col flex-1 min-h-0 gap-1'>
       <div className='flex flex-row flex-wrap items-center gap-1'>
@@ -211,7 +214,7 @@ function DemoBoard() {
         <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
         <ZoomButtons camera={camera} />
       </div>
-      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit}
+      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={started ? space : undefined}
         onCell={(cell) => clickCell(cell, null, false, 0)} onToken={clickToken} onFloorItem={clickFloorItem} />
       <ClickMenuHost />
     </div>

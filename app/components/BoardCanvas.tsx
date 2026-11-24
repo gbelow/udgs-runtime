@@ -18,6 +18,9 @@ type Props = {
   onFloorItem?: (itemId: string) => void
   // the cell the pointer is on, told so that what is drawn over it is veiled
   setLit?: (key: string | null) => void
+  // what the space bar does while the board has the focus, which it takes
+  // under the pointer unless something is being written
+  onSpace?: () => void
 }
 
 const NONE: readonly string[] = []
@@ -25,7 +28,7 @@ const NONE: readonly string[] = []
 // The board drawn on a canvas (app/board), with what the pointer rests on said
 // in words beside it. Pixi is loaded only in the browser.
 export function BoardCanvas(props: Props){
-  const { view, veiled, picked = NONE, label, className } = props
+  const { view, veiled, picked = NONE, label, className, onSpace } = props
   const host = useRef<HTMLDivElement>(null)
   const stage = useRef<BoardStage | null>(null)
   const latest = useRef(props)
@@ -63,13 +66,30 @@ export function BoardCanvas(props: Props){
   const title = hover ? titleOf(view, hover) : null
   return (
     <div className={`relative overflow-hidden select-none ${className ?? ''}`}>
-      <div ref={host} className='absolute inset-0' role='img' aria-label={label} />
+      <div ref={host} className='absolute inset-0 outline-none' role='img' aria-label={label}
+        tabIndex={onSpace ? 0 : undefined}
+        onPointerDown={() => focusBoard(host.current)}
+        onPointerEnter={() => { if (!isWriting()) focusBoard(host.current) }}
+        onPointerMove={() => { if (document.activeElement === document.body) focusBoard(host.current) }}
+        onKeyDown={(e) => {
+          if (!onSpace || e.code !== 'Space') return
+          e.preventDefault()
+          if (!e.repeat) onSpace()
+        }} />
       {title ?
         <div className='pointer-events-none absolute z-10 max-w-xs rounded border border-line bg-raised px-2 py-1 text-xs text-fg shadow'
           style={{ left: hover!.x + 14, top: hover!.y + 14 }}>{title}</div>
         : null}
     </div>
   )
+}
+
+const focusBoard = (host: HTMLElement | null) => { if (host?.hasAttribute('tabindex')) host.focus({ preventScroll: true }) }
+
+// Whether a field being written in has the focus.
+const isWriting = () => {
+  const at = document.activeElement
+  return at instanceof HTMLElement && (at.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(at.tagName))
 }
 
 function titleOf(view: BoardView, hover: BoardHover): string | null {

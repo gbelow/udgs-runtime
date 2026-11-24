@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { barOf, playOf } from "../net/parts";
 import { announceMove, hostTable, joinTable } from "../net/session";
 import type { CommandMessage } from "../net/protocol";
+import { getPauseBar } from "../domain/bot/pause";
+import { useBotLogStore } from "../stores/useBotLogStore";
 import { useTableStore } from "../stores/useTableStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useAppStore } from "../stores/useAppStore";
@@ -26,24 +28,31 @@ export function useTableSession() {
   useEffect(() => {
     if (!socket || !mode) return;
     const { setStatus, setGuests, settle, abandon } = useTableStore.getState();
-    if (mode === 'guest') return joinTable(socket, (status) => {
-      setStatus(status);
-      if (status === 'noHost') abandon('the host is away');
-    }, (id, why) => {
-      settle(id);
-      if (why) toast.error(`The host refused it: ${why}.`);
-    }, (room, roomName) => {
-      const { profile } = played.current;
-      if (!profile) return;
-      useTableStore.getState().open('guest', room, roomName, profile.id);
-      toast.info(`The table moved to ${roomName}, a copy of the campaign.`);
-    });
+    if (mode === 'guest') {
+      const stop = joinTable(socket, (status) => {
+        setStatus(status);
+        if (status === 'noHost') abandon('the host is away');
+      }, (id, why) => {
+        settle(id);
+        if (why) toast.error(`The host refused it: ${why}.`);
+      }, (room, roomName) => {
+        const { profile } = played.current;
+        if (!profile) return;
+        useTableStore.getState().open('guest', room, roomName, profile.id);
+        toast.info(`The table moved to ${roomName}, a copy of the campaign.`);
+      });
+      // the pause was the host's: the bots of this screen are its own again
+      return () => { stop(); useBotLogStore.getState().setPaused(false); useBotLogStore.getState().recall(); };
+    }
     return hostTable(socket, ({ part, command, gmMode }: CommandMessage, profile) => {
       const { viewerOf, thrower } = played.current;
       const why = barOf(part, command, viewerOf(profile, gmMode));
       if (why === null) playOf(part, command, thrower);
       return why;
-    }, setGuests);
+    }, setGuests, (paused, profile) => {
+      const { open, setPaused } = useBotLogStore.getState();
+      if (getPauseBar(open, played.current.viewerOf(profile, false)) === null) setPaused(paused);
+    });
   }, [socket, mode]);
 
   // Another campaign opened on the screen leaves the table it was at, but a
