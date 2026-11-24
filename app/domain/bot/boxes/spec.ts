@@ -1,9 +1,10 @@
 import type { Coord, SurgeKind } from '../../types'
 import type { ActionDraft, SceneState } from '../../scene/types'
 import type { SceneCommand } from '../../scene/commands/registry'
-import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA } from '../../character/rules/surge'
+import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA, isReactiveSurge } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
-import { getOpenAction } from '../../scene/rules/log'
+import { getAction, getOpenAction } from '../../scene/rules/log'
+import { getCombinedOf, isCombinedLanding } from '../../scene/rules/combinedMove'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
 import { cellNumber, coordKey, distance, extentCells, sameCell } from '../../scene/rules/board/geometry'
@@ -17,7 +18,8 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getWorstDrawnAlong, getWorstDrawnAt } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
-import { getAnswer, getEvaded, getHarmAdded, getMet, getUndefendedHarm } from '../harm'
+import { getDefenders, getProtections, type Protection } from '../protect'
+import { getAnswer, getEvaded, getHarmAdded, getHarmOf, getMet, getUndefendedHarm } from '../harm'
 import { cellOf, getAttackRoute, getBelievedAP, getMeans, getPaceAt, getStrikeCells, getTeam } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getSTAHarm, type SpecWeights } from '../cost'
@@ -47,7 +49,8 @@ import type { Notes } from '../memory'
 //   Defense rule picks, what that defence costs the target, the target's
 //   threat on the character's side and the danger it sheds, less its Cost and
 //   the worst opportunity attack it draws (spec "Attacking");
-// - attacked, it defends by the Defense rule (harm.ts `getAnswer`); drawn an
+// - attacked, it defends by the Defense rule (harm.ts `getAnswer`), and defends
+//   an ally more exposed than itself by the same rule (`protect`); drawn an
 //   opportunity attack, it makes it where it scores above nothing as an attack
 //   does;
 // - of the strategies only Attack is played (the user's ruling, 2026-11-24).
@@ -464,7 +467,9 @@ function pickTactical<T extends { score: number }>(ctx: Ctx, steps: readonly Ste
 // reflex's AP "is used to move and does not need to be spent again"), made as
 // Tactical moves (the user's ruling, 2026-11-23), at the Cost of what the
 // reaction has not paid. A surge's AP left is lost whether it moves or not.
-// Null with no such move open, or none worth making.
+// The move a defence of an ally is made after goes to the cell of the least
+// danger the defence can be made from. Null with no such move open, or none
+// worth making.
 function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | null {
   const view = input.view()
   const walks = getOpenedWalks(view, id)
@@ -472,9 +477,17 @@ function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | nu
   if (!walks || !ctx?.here) return null
   const { here, budgets } = ctx
   const b = budgets[0]
+  const open = getOpenAction(view)
+  const opener = open?.spawnedBy ? getAction(view, open.spawnedBy) : null
+  const guarding = opener && 'recipe' in opener && getCombinedOf(ctx.me, opener)?.recipe.order === 'before'
   const steps = walks.flatMap((walk) => walk.cells.flatMap((c): Step[] => (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA ? [] : [{ b, walk, c, ...ctx.at(c.cell) }])))
+  const intentOf = (s: Step) => moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation)
+  if (guarding && open?.kind === 'move') {
+    const landing = steps.filter((s) => isCombinedLanding(view, open, s.c.cell) && s.walk.clear(s.c)).sort((x, y) => x.danger - y.danger || x.c.AP - y.c.AP).find((s) => takesOpenedWalk(view, id, intentOf(s), s.c.AP, s.c.STA))
+    return landing ? { kind: 'declareOpened', picks: intentOf(landing).picks, why: `steps in to defend (${landing.walk.movement}, danger ${landing.danger.toFixed(1)})` } : null
+  }
   const picked = pickTactical(ctx, steps, false, (s, score, why) => {
-    const intent = moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation)
+    const intent = intentOf(s)
     return takesOpenedWalk(view, id, intent, s.c.AP, s.c.STA) ? { score, why, picks: intent.picks } : null
   })
   return picked && { kind: 'declareOpened', picks: picked.picks, why: `with the move its reaction opened, ${picked.why}` }
@@ -559,14 +572,16 @@ function offeredTo(view: SceneState, id: string): (d: PairDefence) => boolean {
 // rule picks with it made prevents more harm than the surge's STA, and the
 // recovery it gives up, costs, and could not be paid for without it; the
 // movement surge for its reflexes too (combat.tex "Reflex"), whatever could.
-// Anything else it is asked to answer, it answers with an opportunity attack
-// or lets pass.
+// Defended by an ally already, it lets the attack come. Anything else it is
+// asked to answer, it answers defending an ally, with an opportunity attack or
+// lets pass.
 function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press: Press): Decision | null {
   const view = input.view()
   const open = getOpenAction(view)
   const me = view.characters[id]
   if (!open || !me) return press(find('pass', id), 'lets it come')
-  if (open.targetId !== id || (open.kind !== 'strike' && open.kind !== 'shoot')) return opportunity(input, id, w) ?? press(find('pass', id), 'lets it come')
+  if (open.targetId !== id || (open.kind !== 'strike' && open.kind !== 'shoot')) return protect(input, id, w) ?? opportunity(input, id, w) ?? press(find('pass', id), 'lets it come')
+  if (getDefenders(view, open).some((d) => d !== id)) return press(find('pass', id), 'lets it come: defended by an ally')
   const struck = open.kind === 'shoot' ? opportunity(input, id, w) : null
   if (struck) return struck
   const known = getKnownAttack(view, open, id)
@@ -601,6 +616,61 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
   const picks = fillAnswer(view, input.members, id, draft, w)
   if (!picks) return press(find('pass', id), `lets it come: ${draft.kind} cannot be finished`)
   return { kind: 'declare', intent: { actorId: id, option: draft, picks }, why: `answers with ${draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${best.AP} AP)` }
+}
+
+// spec "Protect": what an ally is worth defending, its potential threat over
+// the character's own, each on the foe it threatens most from where it stands,
+// at most 1; 1 where the character threatens nobody.
+function getAllyValue(ctx: Ctx, ally: string): number {
+  const { view, members, id, w, foes } = ctx
+  const most = (who: string) => (isCollapsed(view, view.characters[who]) ? 0 : foes.reduce((n, f) => Math.max(n, getThreat(view, members, who, f, 'potential', w).threat), 0))
+  const mine = most(id)
+  return mine > 0 ? Math.min(1, most(ally) / mine) : 1
+}
+
+// spec "Protect": what a reaction surge forgoes, no turn being started after
+// it in the round (combat.tex "Action surge"): the character's immediate
+// threat on its target, as the target's Defense rule answers it; nothing in
+// its own turn, or with no target.
+function getForgone(ctx: Ctx): number {
+  const { view, members, id, w, target } = ctx
+  if (!target || !view.characters[target] || getTurnHolder(view) === id) return 0
+  const { attack, gap, times } = getThreat(view, members, id, target, 'immediate', w)
+  return attack ? times * getAnswer(attack, gap, meansOf(ctx)(target), w).harm : 0
+}
+
+// spec "Protect": an ally attacked is defended where more harm would get
+// through to it than to the character, each where it stands with the AP it
+// holds (`getExposed`), with the block, intercept or guard the Defense rule
+// picks, read for the ally (bot/protect.ts), of those whose prevented harm, as
+// much of it as the ally is worth (`getAllyValue`), is above the Cost, and
+// above what its turns would still do where a reaction surge forgoes them
+// (`getForgone`); never an ally who defends itself or is defended already (the user's ruling: no
+// redundant defence).
+function protect(input: SeatInput, id: string, w: SpecWeights): Decision | null {
+  const view = input.view()
+  const { members } = input
+  const open = getOpenAction(view)
+  const ally = open?.targetId
+  if (!open || (open.kind !== 'strike' && open.kind !== 'shoot') || !ally || ally === id || !getTeam(view, members).includes(ally) || getDefenders(view, open).length > 0) return null
+  const ctx = getCtx(view, members, id, w, new Set(), getTarget(input.notes, id))
+  if (!ctx) return null
+  const { me, foes } = ctx
+  const target = view.characters[ally]
+  const exposed = (who: string, AP: number) => getExposed(getExposure(view, members, foes, who, 'immediate', w), getCompany(view, who, cellOf(view, who)), AP)
+  const theirs = exposed(ally, getMeans(target, members.includes(ally), w).AP)
+  const mine = exposed(id, me.resources.AP)
+  if (theirs <= mine) return null
+  const met = getProtections(view, id, (draft) => fillAnswer(view, members, id, draft, w))
+  if (!met) return null
+  const value = getAllyValue(ctx, ally)
+  const taken = getUndefendedHarm(met.attack, met.gap, w)
+  const costOf = (p: Protection) => costAt(ctx, ctx.at(ctx.here), p.AP, p.defence.cost.STA) + (isReactiveSurge(p.surge) ? getForgone(ctx) : 0)
+  const worth = new Map(met.protections.filter((p) => (taken - getHarmOf(met.attack, p.defence, met.gap, w)) * value > costOf(p)).map((p) => [p.defence, p]))
+  const best = getAnswer(met.attack, met.gap, me.resources, w, (d) => worth.has(d))
+  const made = best.defence && worth.get(best.defence)
+  if (!made) return null
+  return { kind: 'declare', intent: { actorId: id, option: made.draft, picks: made.picks }, why: `defends ${target.name} with ${made.draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${made.AP} AP, worth ${value.toFixed(2)}, cost ${costOf(made).toFixed(1)}; exposed ${theirs.toFixed(1)} against its own ${mine.toFixed(1)})` }
 }
 
 // spec "Immediate actions": an opportunity attack scored as an attack is, made

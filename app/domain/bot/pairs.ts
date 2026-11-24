@@ -104,7 +104,7 @@ export type PairAttack = {
 
 export const BLEED_HARM = 5
 export const getHarm = (o: Outcome | null | undefined): number => (o ? 2 * o.IL + BLEED_HARM * o.bleed : 0)
-const getBleed = (o: Outcome | null | undefined): number => o?.bleed ?? 0
+export const getBleed = (o: Outcome | null | undefined): number => o?.bleed ?? 0
 
 // The surges that put buffs on whoever makes them for the round
 // (character/rules/effects.ts `getSurgeEffects`).
@@ -131,7 +131,7 @@ function rolled(root: AttackAction, degree: 'miss' | 'graze' | 'hit', HOP = 0): 
 
 // What the attack does to the defender at a graze or a miss against the
 // defence it was answered with, as the landing reads it.
-function harmAt(state: SceneState, root: AttackAction, degree: 'miss' | 'graze', defender: CampaignCharacter, read: (o: Outcome | null) => number = getHarm): number {
+export function harmAt(state: SceneState, root: AttackAction, degree: 'miss' | 'graze', defender: CampaignCharacter, read: (o: Outcome | null) => number = getHarm): number {
   const facts = getAttackFacts(state, rolled(root, degree))
   return facts ? read(outcomeOf(facts, defender)) : 0
 }

@@ -43,7 +43,7 @@ export type Guard = { AP: number; STA: number }
 // spec "Expected harm": the metres a shot is read from when no distance is given
 export const SHOT_GAP = 20
 // spec "Cost": the party members within this many metres share the foes' attacks
-const COMPANY = 10
+const COMPANY = 5
 
 // spec "Threat": each character's share kept by itself, as a field over the
 // cells around it. Its step map (threat.ts `getOpenStepMap`) is walked on the
