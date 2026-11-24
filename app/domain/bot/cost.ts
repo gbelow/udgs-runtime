@@ -1,26 +1,20 @@
 import type { RestTuning } from './rest'
 
-// The prices of instructions/bot-spec.md "Cost", for any box that plays by it.
+// The weights of instructions/bot-spec.md "Constants", and what STA costs.
 // Nothing here decides; it prices.
 
 export type SpecWeights = RestTuning & {
-  // harm = IL · IL + bleed · bleed (spec "harm"); the pair tables (pairs.ts
-  // `getHarm`) are read at 2 and 5, the defaults
+  // harm = IL · IL + bleed · bleed (spec "harm")
   IL: number
   bleed: number
-  // what every cost is multiplied by
+  // Defense: the harm an AP has to prevent for a defence to be worth making,
+  // where one leaves little harm
   caution: number
-  // what spending any AP at all costs, besides what it leaves the spender exposed to
-  baseAPcost: number
-  // Escape: taken only where its score is above `courage`; every ally within
-  // ESCAPE_COMPANY metres of where it sets out takes off `teamwork`
+  // Escape: the share of the harm the character can still take at which the
+  // danger on it is too much
   courage: number
-  teamwork: number
-  // Tactical: how many times more harm another foe must be open to than the
-  // character's target, for it to become the target; and what the
-  // character's potential damage on its target is multiplied by in a cell's
-  // Score
-  retarget: number
+  // Tactical: what the character's potential threat on its target is
+  // multiplied by in a cell's Score
   aggro: number
   // Attacking: what the target's threat on the character's side is
   // multiplied by, added to an attack's score
@@ -35,14 +29,4 @@ export type SpecWeights = RestTuning & {
 // adds its IL (combat.tex "Bleed").
 export function getSTAHarm(STA: number, bleed: number, w: SpecWeights): number {
   return STA <= 0 ? 0 : w.STA * STA + w.IL * STA * bleed
-}
-
-// spec "Cost": what an action costs the character making it, an attack, a
-// walk or a defence alike: spending `AP` (any at all pays `baseAPcost`),
-// `delta` (the largest immediate damage any one foe has on it, after less
-// before), and `STA`. `free` leaves the AP out (spec "Decide take turn": before
-// agreeing to end the round).
-export function getCost(AP: number, STA: number, delta: number, bleed: number, w: SpecWeights, free = false): number {
-  const spent = free ? 0 : w.AP * ((AP > 0 ? w.baseAPcost : 0) + delta)
-  return w.caution * (spent + getSTAHarm(STA, bleed, w))
 }

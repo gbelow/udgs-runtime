@@ -2,7 +2,7 @@ import type { Coord } from '../types'
 import type { SceneState } from '../scene/types'
 import { getApproachStep } from '../scene/rules/approach'
 import { distance } from '../scene/rules/board/geometry'
-import { getPair } from './pairs'
+import { getPair, type PairAttack } from './pairs'
 import { getDefendedHarm, type SpendCost, type ThreatTuning } from './threat'
 
 // What walking in on someone, or doing something within their reach that draws
@@ -111,4 +111,41 @@ export function getStandingCost(state: SceneState, actor: string, at: Coord | nu
     const there = state.board?.placements[h]?.cell
     return there ? sum + getStandingOpportunityWorth(state, h, actor, distance(at, there), meansOf(h), guard, tuning, read, spend) : sum
   }, 0)
+}
+
+// The most harm, as `harmOf` reads it undefended, of any one opportunity
+// attack `walker` draws from `holders` walking from `from` along `path`, the
+// cells it is walked through (`running`: run or jumped), each holder with the
+// means `meansOf` says; 0 where it draws none.
+export function getWorstDrawnAlong(state: SceneState, walker: string, from: Coord | null, path: readonly Coord[], running: boolean, holders: readonly string[], meansOf: (id: string) => { AP: number; STA: number }, harmOf: (attack: PairAttack, gap: number) => number): number {
+  if (!from || path.length === 0) return 0
+  return worstOf(state, walker, holders, meansOf, (attack, at) => {
+    if (!(running ? attack.opens.approach : attack.opens.step)) return 0
+    const distances = [from, ...path].map((c) => distance(c, at))
+    const step = getApproachStep(distances, attack.reach)
+    return step === null ? 0 : harmOf(attack, distances[step])
+  })
+}
+
+// The same for doing something that draws one at `at`.
+export function getWorstDrawnAt(state: SceneState, actor: string, at: Coord | null, holders: readonly string[], meansOf: (id: string) => { AP: number; STA: number }, harmOf: (attack: PairAttack, gap: number) => number): number {
+  if (!at) return 0
+  return worstOf(state, actor, holders, meansOf, (attack, there) => {
+    const gap = distance(at, there)
+    return attack.opens.step && attack.reach >= gap ? harmOf(attack, gap) : 0
+  })
+}
+
+function worstOf(state: SceneState, actor: string, holders: readonly string[], meansOf: (id: string) => { AP: number; STA: number }, drawn: (attack: PairAttack, at: Coord) => number): number {
+  const a = state.characters[actor]
+  if (!a) return 0
+  let most = 0
+  for (const h of holders) {
+    const c = state.characters[h]
+    const at = state.board?.placements[h]?.cell
+    if (!c || !at) continue
+    const means = meansOf(h)
+    for (const attack of getPair(c, a)) if (attack.kind === 'strike' && attack.cost.AP <= means.AP && attack.cost.STA <= means.STA) most = Math.max(most, drawn(attack, at))
+  }
+  return most
 }

@@ -12,8 +12,8 @@ import { MOVEMENT_KINDS } from '../lists'
 import { canSurge, getSurgeAP, getSurgeSTA } from '../character/rules/surge'
 import { ROUND_AP } from '../tables'
 import { getRememberedAge } from './memory'
-import { BLEED_HARM, getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
-import { getExpectedHarm, readHits } from './odds'
+import { getPair, harmOf, type PairAttack, type PairDefence } from './pairs'
+import { getExpectedHarm } from './odds'
 import { getSides, isDown } from './table'
 import { getHeight } from '../character/rules/size'
 import { getWeaponRows, isRowUsable } from '../scene/rules/weaponRow'
@@ -380,18 +380,6 @@ export type ModeOf = 'now' | 'best'
 export function getHarmAgainst(attack: PairAttack, defence: PairDefence, gap: number, mode: ModeOf = 'now'): number {
   const at = (m: RollMode) => getExpectedHarm(getSkillAt(attack, gap), defence.DL, attack.grazes, m, harmOf(attack, defence))
   return mode === 'now' ? at(attack.mode) : Math.max(...attack.modes.map(at))
-}
-
-// The harm of the attack against a defence as the attacker counts it on a
-// target already bleeding `bleed`: of the bleed each degree leaves, only what
-// it adds over that (the user's ruling, 2026-11-23; combat.tex "Bleed":
-// "keep the highest between the current bleed and the incoming bleed").
-export function getHarmOnBleeding(attack: PairAttack, defence: PairDefence, gap: number, bleed: number): number {
-  const harm = getHarmAgainst(attack, defence, gap)
-  if (bleed <= 0) return harm
-  const { miss, graze, hits } = defence.bleeds
-  const kept = { miss: Math.min(miss, bleed), graze: Math.min(graze, bleed), hits: readHits(hits.count, (HOP) => Math.min(hits.at(HOP), bleed)) }
-  return harm - BLEED_HARM * getExpectedHarm(getSkillAt(attack, gap), defence.DL, attack.grazes, attack.mode, kept)
 }
 
 // What each defence the target could answer with leaves of the attack's harm,

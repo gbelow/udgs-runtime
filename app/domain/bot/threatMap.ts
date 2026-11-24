@@ -3,75 +3,55 @@ import type { Board, SceneState } from '../scene/types'
 import { cellNumber, coordKey, disk, distance, sameCell } from '../scene/rules/board/geometry'
 import { firesAcross, getEyes, placeAt } from '../scene/rules/board/board'
 import { canStandAt } from '../scene/rules/board/ground'
+import { isDown } from '../scene/rules/fight'
 import { getInjuryCapacity } from '../character/rules/afflictions'
 import { getHeight } from '../character/rules/size'
+import { getSurgeAP } from '../character/rules/surge'
+import { ROUND_AP } from '../tables'
 import { getPair, type PairAttack } from './pairs'
-import { cellOf, getBelievedAP, getHarmAgainst, getPace, getCarriedMetres, getPaceAt, getPresence, getOpenStepMap, getStrikeCells } from './threat'
-import { getSides } from './table'
+import { getEvaded, getUndefendedHarm } from './harm'
+import { cellOf, getBelievedAP, getPace, getCarriedMetres, getPaceAt, getPresence, getOpenStepMap, getStrikeCells } from './threat'
 import type { SpecWeights } from './cost'
 
-// The damage and the threat of instructions/bot-spec.md "Threat": how much
-// harm a character could take standing at a cell, from everyone who can attack
-// it. The damage is read for one attacker on one defender (`getDamage`):
+// The threat, the price of AP and the danger of instructions/bot-spec.md
+// "Threat", "Cost" and "Danger". The threat of one character on another is
+// the harm of its best attack on it, undefended, as many times as the AP it
+// has left once it has walked there pays for, read as a fraction
+// (`getThreat`): the most, over its attacks, of
 //
-//   immediate = 12 / (4 + the defender's AP) × harm(evasion) × (the
-//               attacker's AP − the AP of the walk into the attack's reach) / 8
-//   potential = harm(evasion) × (8 − the AP of that walk) / 8
+//   harm / the attack's AP × (the AP it holds − the AP of the walk)
 //
-// and the attacker's threat is that over the square root of how many foes it
-// has damage on (`getSpread`).
+// so that nothing turns on an AP more or less. Immediate reads the AP each
+// holds, surge AP counted as any other, and the combat surge's while it has
+// made none; potential a fresh round's and the combat surge's (`attackAP`).
 //
-// The damage is the most of the attacker's attacks, never below 0, with the AP each is
-// believed to hold, surge AP counted as any other. The metres an attack
-// brings itself (threat.ts `getCarriedMetres`) are walked for nothing. The harm is what the
-// attack leaves answered with an evade, always (`getThreatHarm`). The walk is
-// at the attacker's fastest pace (`getPace`: a run where it can run), and goes
-// no further than a fresh round's step map, walked on the ground alone
-// (`meleeSteps`); a shot needs no walk where it has a line of fire within its
-// reach, and otherwise the walk, at a walking pace, to the nearest cell that has one
-// (`shotWalk`, the user's peek, 2026-11-23). A foe the
-// seat remembers counts its presence (bot/memory.ts, fading by the round).
-// Nothing here decides.
+// The harm per AP is read off a pair of fighters once, and for a shot by the
+// metres away, so a cell reads only the AP of the walk to each reach: the
+// fewest cells to it (`meleeSteps`), or to a line of fire (`shotWalk`). The
+// metres an attack brings itself (threat.ts `getCarriedMetres`) are walked for
+// nothing. The walk is at the attacker's fastest pace (`getPace`: a run where
+// it can run), not rounded up to its blocks, and goes no further than a
+// fresh round's step map, walked on the ground alone (`meleeSteps`); a shot
+// needs no walk where it has a line of fire within its reach, and otherwise
+// the walk, at a walking pace, to the nearest cell that has one (`shotWalk`,
+// the user's peek, 2026-11-23). A foe the seat remembers counts its presence
+// (bot/memory.ts, fading by the round). Nothing here decides.
 
 export type When = 'immediate' | 'potential'
 export type Guard = { AP: number; STA: number }
 
-// spec "Threat": a fresh round's AP, which the harm is read over, and the
-// open the defender's AP leaves it: OPEN / (OPEN_FROM + its AP)
-const ROUND = 8
-const OPEN = 12
-const OPEN_FROM = 4
 // spec "Expected harm": the metres a shot is read from when no distance is given
 export const SHOT_GAP = 20
-
-// spec "Threat": the harm `attack` leaves its target, `gap` metres away,
-// answered with an evasion (an evade against a strike, combat.tex "Evade"; an
-// evasion against a shot, "Evasion"), whatever the target holds to pay for
-// it; none where the attack offers neither. The harm a decision reads
-// compares every defence the target can pay for (`pickOf` and
-// `weighDefences` in boxes/spec.ts).
-const picked = new WeakMap<PairAttack, Map<number, number>>()
-const EVASION = { strike: 'evade', shoot: 'evasion' } as const
-
-export function getThreatHarm(attack: PairAttack, gap: number): number {
-  const byGap = picked.get(attack) ?? new Map<number, number>()
-  picked.set(attack, byGap)
-  const known = byGap.get(gap)
-  if (known !== undefined) return known
-  const defence = attack.defences.find((d) => d.draft?.kind === EVASION[attack.kind])
-  const harm = defence ? getHarmAgainst(attack, defence, gap) : 0
-  byGap.set(gap, harm)
-  return harm
-}
+// spec "Cost": the party members within this many metres share the foes' attacks
+const COMPANY = 10
 
 // spec "Threat": each character's share kept by itself, as a field over the
 // cells around it. Its step map (threat.ts `getOpenStepMap`) is walked on the
 // ground alone, as if nobody else stood there, so it is the same wherever
 // anyone else stands and is walked again only when the character moves. Each
 // cell of the field holds the fewest cells it walks to strike a foe standing
-// there; what that is worth comes from the foe (`getReach`: its harm against
-// an evade, the AP each holds), read when asked. A move of the foe's changes
-// nothing in it.
+// there; what that is worth comes from the pair (`getProfile`, `getThreat`),
+// read when asked. A move of the foe's changes nothing in it.
 //
 // The fewest cells `a`, standing at `from`, walks to strike `d` standing at
 // `at` with `reach`: read off `d`'s field, walked back, where `d` stands, to
@@ -153,7 +133,7 @@ function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, 
   if (steps === null) return null
   const walked = steps - getCarriedMetres(view, a, attack)
   const pace = getPace(view, a)
-  return walked <= 0 ? 0 : pace ? Math.ceil(walked / pace.metres) * pace.AP : null
+  return walked <= 0 ? 0 : pace ? (walked / pace.metres) * pace.AP : null
 }
 
 // What may be read in place of where a character stands and the AP it holds.
@@ -173,7 +153,7 @@ const shifted = (view: SceneState, plays: readonly string[], id: string, shifts:
 // where `AP` does not pay for one block and leave some for the shot. The
 // metres the shot carries (`getCarriedMetres`) come before the blocks, and
 // cost nothing. Read the same from any cell, wherever `a` stands, and kept by the two cells.
-const PEEK_BLOCKS = 2
+export const PEEK_BLOCKS = 2
 const shotWalks = new WeakMap<SceneState, Map<string, number | null>>()
 
 // The lines of fire from cell to cell between eyes so high: the ground's alone
@@ -256,18 +236,76 @@ function shotWalk(view: SceneState, a: string, from: Coord, d: string, at: Coord
   return fewest
 }
 
-// `a`'s attacks on `d`, `a` standing at `from` and `d` at `at`: for each one
-// that reaches and harms, the AP of the walk in and its harm(evasion) / 8.
-// Whatever AP either holds, these are the same, so they are kept by the two
-// cells alone, and the AP is put in only when the threat is read; so is a
-// shot's walk (`shotWalk`), searched only where the AP pays for one.
-type Reach = { walk: (AP: number) => number | null; harm: number }[]
+// What attacks made on a character come to: their harm undefended, what
+// evading them all prevents of it, and the AP that takes (spec "Cost").
+export type Exposure = { threat: number; prevented: number; defenceAP: number }
 
-const profiles = new WeakMap<SceneState, Map<string, Map<number, Map<number, Reach>>>>()
+// The threat of one character on another, and the attack it is made of, how
+// many times; null for none.
+export type Threat = Exposure & { attack: PairAttack | null; gap: number; times: number }
 
-function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coord, surge: SurgeKind | null, moved: Moved): Reach {
-  let byPair = profiles.get(view)
-  if (!byPair) profiles.set(view, (byPair = new Map()))
+const NO_ATTACKS: Threat = { threat: 0, prevented: 0, defenceAP: 0, attack: null, gap: 0, times: 0 }
+
+// What an AP spent on `attack` comes to, `gap` metres away. `focus`: a shot
+// the focus surge opens.
+type Rate = Exposure & { attack: PairAttack; gap: number; AP: number; focus: boolean }
+
+function rateOf(attack: PairAttack, gap: number, w: SpecWeights): Rate[] {
+  const harm = getUndefendedHarm(attack, gap, w)
+  if (harm <= 0 || !attack.opens.action) return []
+  const evaded = getEvaded(attack, gap, w)
+  const AP = Math.max(1, attack.cost.AP)
+  return [{ threat: harm / AP, prevented: (harm - evaded.harm) / AP, defenceAP: evaded.AP / AP, attack, gap, AP, focus: attack.needsFocus }]
+}
+
+const timesOf = (r: Rate, AP: number): Threat => ({ threat: r.threat * AP, prevented: r.prevented * AP, defenceAP: r.defenceAP * AP, attack: r.attack, gap: r.gap, times: AP / r.AP })
+
+// The best of the rates read at the same spot: of each reach, the metres it
+// brings itself and whether it takes the focus surge, the one of most harm.
+function bestOf(rates: readonly Rate[]): Rate[] {
+  const best = new Map<string, Rate>()
+  for (const r of rates) {
+    const key = `${r.focus}|${r.attack.reach}|${r.attack.carries?.movement}|${r.attack.carries?.metres}`
+    const known = best.get(key)
+    if (!known || r.threat > known.threat) best.set(key, r)
+  }
+  return [...best.values()]
+}
+
+const strikeRates = new WeakMap<SpecWeights, WeakMap<PairAttack[], Rate[]>>()
+const shotRates = new WeakMap<SpecWeights, WeakMap<PairAttack[], Map<number, Rate[]>>>()
+
+function getStrikeRates(pair: PairAttack[], w: SpecWeights): Rate[] {
+  let byPair = strikeRates.get(w)
+  if (!byPair) strikeRates.set(w, (byPair = new WeakMap()))
+  let made = byPair.get(pair)
+  if (!made) byPair.set(pair, (made = bestOf(pair.flatMap((a) => (a.kind === 'strike' ? rateOf(a, a.reach, w) : [])))))
+  return made
+}
+
+function getShotRates(pair: PairAttack[], gap: number, w: SpecWeights): Rate[] {
+  let byPair = shotRates.get(w)
+  if (!byPair) shotRates.set(w, (byPair = new WeakMap()))
+  let byGap = byPair.get(pair)
+  if (!byGap) byPair.set(pair, (byGap = new Map()))
+  let made = byGap.get(gap)
+  if (!made) byGap.set(gap, (made = bestOf(pair.flatMap((a) => (a.kind === 'shoot' ? rateOf(a, gap, w) : [])))))
+  return made
+}
+
+// `a`'s rates on `d`, `a` standing at `from` and `d` at `at`: for each one
+// that reaches, the AP of the walk in. Whatever AP either
+// holds, these are the same, so they are kept by the two cells alone; a
+// shot's walk (`shotWalk`) is searched only where the AP pays for one.
+type Reach = { walk: (AP: number) => number | null; rate: Rate }[]
+
+const profiles = new WeakMap<SpecWeights, WeakMap<SceneState, Map<string, Map<number, Map<number, Reach>>>>>()
+
+function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coord, surge: SurgeKind | null, moved: Moved, w: SpecWeights): Reach {
+  let byView = profiles.get(w)
+  if (!byView) profiles.set(w, (byView = new WeakMap()))
+  let byPair = byView.get(view)
+  if (!byPair) byView.set(view, (byPair = new Map()))
   const pairKey = `${a}|${d}|${surge}|${moved.a}|${moved.d}`
   let byFrom = byPair.get(pairKey)
   if (!byFrom) byPair.set(pairKey, (byFrom = new Map()))
@@ -280,116 +318,105 @@ function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coo
   const made: Reach = []
   const ca = view.characters[a]
   const cd = view.characters[d]
-  if (ca && cd) for (const attack of getPair(ca, cd, surge)) {
-    if (!attack.opens.action) continue
-    const harm = getThreatHarm(attack, attack.kind === 'shoot' ? distance(from, at) : attack.reach) / ROUND
-    if (harm <= 0) continue
-    if (attack.kind === 'shoot') made.push({ walk: (AP) => shotWalk(view, a, from, d, at, attack, AP), harm })
-    else {
-      const walk = walkAP(view, a, from, d, at, attack, moved)
-      if (walk !== null) made.push({ walk: () => walk, harm })
+  if (ca && cd) {
+    const pair = getPair(ca, cd, surge)
+    for (const rate of getStrikeRates(pair, w)) {
+      const walk = walkAP(view, a, from, d, at, rate.attack, moved)
+      if (walk !== null) made.push({ walk: () => walk, rate })
     }
+    for (const rate of getShotRates(pair, distance(from, at), w)) made.push({ walk: (AP) => shotWalk(view, a, from, d, at, rate.attack, AP), rate })
   }
   byAt.set(atN, made)
   return made
 }
 
-// The most harm(evasion) / 8 x (AP - walk AP) of `a`'s attacks on `d`, `a`
-// standing at `from` holding `AP`, `d` at `at`, against the surge `d` has
-// made where it is read now.
-function getReach(view: SceneState, a: string, from: Coord, d: string, at: Coord, AP: number, when: When, w: SpecWeights, moved: Moved): number {
-  const cd = view.characters[d]
-  if (!view.characters[a] || !cd || AP <= 0) return 0
-  let most = 0
-  for (const { walk, harm } of getProfile(view, a, from, d, at, when === 'potential' ? null : cd.usedSurge, moved)) {
-    if (harm * AP <= most) continue
-    const paid = walk(AP)
-    if (paid !== null && paid < AP) most = Math.max(most, harm * (AP - paid))
-  }
-  return most === 0 ? 0 : most * getPresence(view, a, w) * getPresence(view, d, w)
+// The AP attacks are made with: what `a` holds, or a fresh round's, and the
+// combat surge's while it has made no surge this round, which shows on a face
+// (the user's ruling, 2026-11-24); a shot the focus surge opens is made with
+// no other surge.
+function attackAP(a: CampaignCharacter, held: number, focus: boolean, when: When): number {
+  if (when === 'potential') return ROUND_AP + (focus ? 0 : getSurgeAP('combat')(a))
+  if (focus) return a.usedSurge === null || a.usedSurge === 'focus' ? held : 0
+  return held + (a.usedSurge === null ? getSurgeAP('combat')(a) : 0)
 }
 
 const isMoved = (shifts: readonly Shift[], id: string): boolean => shifts.some((s) => s.id === id && s.at !== undefined)
 
-// The damage of `a` on `d` (see above), each where it stands holding what it is
-// believed to, but as `shifts` reads it. Of `plays`, only whether it holds a
-// character counts (its sheet, or its face).
-export function getDamage(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+// The threat of `a` on `d` (see above), each where it stands holding what it
+// is believed to, but as `shifts` reads it. Of `plays`, only whether it holds
+// a character counts (its sheet, or its face).
+export function getThreat(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Threat {
   const by = shifted(view, plays, a, shifts, w)
   const on = shifted(view, plays, d, shifts, w)
-  if (!by.at || !on.at) return 0
-  const moved = { a: isMoved(shifts, a), d: isMoved(shifts, d) }
-  if (when === 'potential') return getReach(view, a, by.at, d, on.at, ROUND, when, w, moved)
-  return (OPEN / (OPEN_FROM + Math.max(0, on.AP))) * getReach(view, a, by.at, d, on.at, by.AP, when, w, moved)
+  const ca = view.characters[a]
+  const cd = view.characters[d]
+  if (!by.at || !on.at || !ca || !cd) return NO_ATTACKS
+  let most = NO_ATTACKS
+  for (const { walk, rate } of getProfile(view, a, by.at, d, on.at, when === 'potential' ? null : cd.usedSurge, { a: isMoved(shifts, a), d: isMoved(shifts, d) }, w)) {
+    const AP = attackAP(ca, by.AP, rate.focus, when)
+    if (AP <= 0 || rate.threat * AP <= most.threat) continue
+    const paid = walk(AP)
+    if (paid !== null && paid < AP && rate.threat * (AP - paid) > most.threat) most = timesOf(rate, AP - paid)
+  }
+  const share = most.threat === 0 ? 1 : getPresence(view, a, w) * getPresence(view, d, w)
+  return share === 1 ? most : { ...most, threat: most.threat * share, prevented: most.prevented * share, defenceAP: most.defenceAP * share, times: most.times * share }
 }
 
-// Whether `a` has damage on `d`, each where `moves` puts it, `a` holding the
-// AP it holds now; kept by the two cells.
-const damaging = new WeakMap<SpecWeights, WeakMap<SceneState, Map<string, boolean>>>()
-
-function isDamaging(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, moves: readonly Shift[]): boolean {
-  const from = shifted(view, plays, a, moves, w).at
-  const at = shifted(view, plays, d, moves, w).at
-  if (!from || !at) return false
-  let byView = damaging.get(w)
-  if (!byView) damaging.set(w, (byView = new WeakMap()))
-  let byKey = byView.get(view)
-  if (!byKey) byView.set(view, (byKey = new Map()))
-  const key = `${a}|${d}|${when}|${plays.includes(a)}|${isMoved(moves, a)}|${isMoved(moves, d)}|${cellNumber(from)}|${cellNumber(at)}`
-  const known = byKey.get(key)
-  if (known !== undefined) return known
-  const made = getDamage(view, plays, a, d, when, w, moves) > 0
-  byKey.set(key, made)
-  return made
+// What everyone of `side` has on `d`, added up.
+export function getExposure(view: SceneState, plays: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Exposure {
+  const sum = { threat: 0, prevented: 0, defenceAP: 0 }
+  for (const a of side) {
+    const t = getThreat(view, plays, a, d, when, w, shifts)
+    sum.threat += t.threat
+    sum.prevented += t.prevented
+    sum.defenceAP += t.defenceAP
+  }
+  return sum
 }
 
-// spec "Threat": how many of its foes `a` has damage on, with the AP it holds
-// now: a supposed move is counted, a supposed spending is not. At least the
-// one its threat is read on.
-function getSpread(view: SceneState, plays: readonly string[], a: string, when: When, w: SpecWeights, shifts: readonly Shift[]): number {
-  const { mine, allies, foes } = getSides(view, plays)
-  const against = mine.includes(a) || allies.includes(a) ? foes : getSides(view, [a]).foes
-  const moves = shifts.flatMap((s) => (s.at === undefined ? [] : [{ id: s.id, at: s.at }]))
-  return Math.max(1, against.reduce((n, d) => n + (isDamaging(view, plays, a, d, when, w, moves) ? 1 : 0), 0))
+// spec "Cost", "Danger": how many of its party stand within COMPANY metres of
+// `cell`, `id` among them.
+export function getCompany(view: SceneState, id: string, cell: Coord | null): number {
+  if (!cell) return 1
+  const party = view.partyOf[id]
+  return Object.keys(view.characters).reduce((n, other) => {
+    const at = other !== id && view.partyOf[other] === party ? cellOf(view, other) : null
+    return at && distance(at, cell) <= COMPANY && !isDown(view, other) && !view.surrendered.includes(other) ? n + 1 : n
+  }, 1)
 }
 
-// The threat of `a` on `d`: its damage, over the square root of its spread.
-export function getThreat(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
-  const damage = getDamage(view, plays, a, d, when, w, shifts)
-  return damage === 0 ? 0 : damage / Math.sqrt(getSpread(view, plays, a, when, w, shifts))
+// spec "Cost": the harm an AP is worth to one holding `AP`, exposed to `on`
+// with `company` beside it: what defending against its share of the attacks
+// prevents, over the AP that takes, or the AP it holds where that is more.
+export function getAPWorth(on: Exposure, company: number, AP: number): number {
+  const over = Math.max(on.defenceAP, company * AP)
+  return over > 0 ? on.prevented / over : 0
 }
 
-// The threat of `side` on `d`: each one's, added up.
-export function getThreatBy(view: SceneState, members: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
-  return side.reduce((sum, a) => sum + getThreat(view, members, a, d, when, w, shifts), 0)
+// spec "Danger": the harm that gets through to it once it evades everything.
+export const getDanger = (on: Exposure, company: number): number => (on.threat - on.prevented) / company
+
+// spec "Escape": the danger that is too much, a share `courage` of the harm
+// the character can still take (combat.tex "Injuries and Death").
+export function getDangerLimit(c: CampaignCharacter, w: SpecWeights): number {
+  return w.courage * w.IL * Math.max(0, getInjuryCapacity(c) - c.injuries.injuryLevel)
 }
 
-// The foes' damage on `id`, added up.
-export function getDamageOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
-  return getSides(view, members).foes.reduce((sum, a) => sum + getDamage(view, members, a, id, when, w, shifts), 0)
-}
-
-// spec "Cost": the most damage any one of `side` has on `d`.
-export function getLargestDamageBy(view: SceneState, members: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
-  return side.reduce((most, a) => Math.max(most, getDamage(view, members, a, d, when, w, shifts)), 0)
-}
-
-// The most damage any one of the foes has on `id`.
-export function getLargestDamageOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
-  return getLargestDamageBy(view, members, getSides(view, members).foes, id, when, w, shifts)
-}
-
-// The foes' threat on `id`.
-export function getThreatOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
-  return getThreatBy(view, members, getSides(view, members).foes, id, when, w, shifts)
-}
-
-// Whether an option leaves the character collapsed or dead (spec "Guard"):
-// the IL it stands at, the IL its bleed adds for every STA `spentSTA` spends
-// (combat.tex "Bleed"), and `damage`, the foes' immediate damage on it where
-// the option leaves it, read as IL at `IL` harm a point, reaching its injury capacity
-// (combat.tex "Injuries and Death").
-export function isRuinous(me: CampaignCharacter, spentSTA: number, damage: number, w: SpecWeights): boolean {
-  const IL = me.injuries.injuryLevel + spentSTA * me.injuries.bleed + damage / w.IL
-  return IL >= getInjuryCapacity(me)
+// spec "Strategies", "Attack": the potential threat of `a` on one it cannot
+// reach in a round, once it has walked `walked` cells of the way there, the
+// way read as shorter by what puts it out of reach: where it stands now is the
+// edge of its potential threat.
+export function getFarThreat(view: SceneState, a: string, d: string, w: SpecWeights): (walked: number) => number {
+  const ca = view.characters[a]
+  const cd = view.characters[d]
+  const pace = getPace(view, a)
+  if (!ca || !cd || !pace) return () => 0
+  const pair = getPair(ca, cd, null)
+  const rates = [...getStrikeRates(pair, w), ...getShotRates(pair, SHOT_GAP, w)].map((r) => ({ threat: r.threat, AP: attackAP(ca, 0, r.focus, 'potential') }))
+  const edge = Math.max(0, ...rates.map((r) => r.AP)) / pace.AP * pace.metres
+  const presence = getPresence(view, d, w)
+  return (walked) => {
+    const AP = (Math.max(0, edge - walked) / pace.metres) * pace.AP
+    return presence * rates.reduce((most, r) => Math.max(most, r.threat * (r.AP - AP)), 0)
+  }
 }
