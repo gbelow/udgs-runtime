@@ -10,15 +10,18 @@ import { cellOf, getBelievedAP, getHarmAgainst, getPace, getCarriedMetres, getPa
 import { getSides } from './table'
 import type { SpecWeights } from './cost'
 
-// The threat of instructions/bot-spec.md "Threat": how much harm a character
-// could take standing at a cell, from everyone who can attack it, read as one
-// layer for every attacker (`getLayer`), each kept by itself:
+// The damage and the threat of instructions/bot-spec.md "Threat": how much
+// harm a character could take standing at a cell, from everyone who can attack
+// it. The damage is read for one attacker on one defender (`getDamage`):
 //
 //   immediate = 12 / (4 + the defender's AP) × harm(evasion) × (the
 //               attacker's AP − the AP of the walk into the attack's reach) / 8
 //   potential = harm(evasion) × (8 − the AP of that walk) / 8
 //
-// the most of the attacker's attacks, never below 0, with the AP each is
+// and the attacker's threat is that over the square root of how many foes it
+// has damage on (`getSpread`).
+//
+// The damage is the most of the attacker's attacks, never below 0, with the AP each is
 // believed to hold, surge AP counted as any other. The metres an attack
 // brings itself (threat.ts `getCarriedMetres`) are walked for nothing. The harm is what the
 // attack leaves answered with an evade, always (`getThreatHarm`). The walk is
@@ -306,49 +309,74 @@ function getReach(view: SceneState, a: string, from: Coord, d: string, at: Coord
   return most === 0 ? 0 : most * getPresence(view, a, w) * getPresence(view, d, w)
 }
 
-// `a`'s layer on `d` (see above), each where it stands holding what it is
+const isMoved = (shifts: readonly Shift[], id: string): boolean => shifts.some((s) => s.id === id && s.at !== undefined)
+
+// The damage of `a` on `d` (see above), each where it stands holding what it is
 // believed to, but as `shifts` reads it. Of `plays`, only whether it holds a
 // character counts (its sheet, or its face).
-export function getLayer(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+export function getDamage(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
   const by = shifted(view, plays, a, shifts, w)
   const on = shifted(view, plays, d, shifts, w)
   if (!by.at || !on.at) return 0
-  const moved = { a: shifts.some((s) => s.id === a && s.at !== undefined), d: shifts.some((s) => s.id === d && s.at !== undefined) }
+  const moved = { a: isMoved(shifts, a), d: isMoved(shifts, d) }
   if (when === 'potential') return getReach(view, a, by.at, d, on.at, ROUND, when, w, moved)
   return (OPEN / (OPEN_FROM + Math.max(0, on.AP))) * getReach(view, a, by.at, d, on.at, by.AP, when, w, moved)
 }
 
-// The threat of `side` on `d`: each one's layer, added up.
+// Whether `a` has damage on `d`, each where `moves` puts it, `a` holding the
+// AP it holds now; kept by the two cells.
+const damaging = new WeakMap<SpecWeights, WeakMap<SceneState, Map<string, boolean>>>()
+
+function isDamaging(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, moves: readonly Shift[]): boolean {
+  const from = shifted(view, plays, a, moves, w).at
+  const at = shifted(view, plays, d, moves, w).at
+  if (!from || !at) return false
+  let byView = damaging.get(w)
+  if (!byView) damaging.set(w, (byView = new WeakMap()))
+  let byKey = byView.get(view)
+  if (!byKey) byView.set(view, (byKey = new Map()))
+  const key = `${a}|${d}|${when}|${plays.includes(a)}|${isMoved(moves, a)}|${isMoved(moves, d)}|${cellNumber(from)}|${cellNumber(at)}`
+  const known = byKey.get(key)
+  if (known !== undefined) return known
+  const made = getDamage(view, plays, a, d, when, w, moves) > 0
+  byKey.set(key, made)
+  return made
+}
+
+// spec "Threat": how many of its foes `a` has damage on, with the AP it holds
+// now: a supposed move is counted, a supposed spending is not. At least the
+// one its threat is read on.
+function getSpread(view: SceneState, plays: readonly string[], a: string, when: When, w: SpecWeights, shifts: readonly Shift[]): number {
+  const { mine, allies, foes } = getSides(view, plays)
+  const against = mine.includes(a) || allies.includes(a) ? foes : getSides(view, [a]).foes
+  const moves = shifts.flatMap((s) => (s.at === undefined ? [] : [{ id: s.id, at: s.at }]))
+  return Math.max(1, against.reduce((n, d) => n + (isDamaging(view, plays, a, d, when, w, moves) ? 1 : 0), 0))
+}
+
+// The threat of `a` on `d`: its damage, over the square root of its spread.
+export function getThreat(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+  const damage = getDamage(view, plays, a, d, when, w, shifts)
+  return damage === 0 ? 0 : damage / Math.sqrt(getSpread(view, plays, a, when, w, shifts))
+}
+
+// The threat of `side` on `d`: each one's, added up.
 export function getThreatBy(view: SceneState, members: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
-  return side.reduce((sum, a) => sum + getLayer(view, members, a, d, when, w, shifts), 0)
+  return side.reduce((sum, a) => sum + getThreat(view, members, a, d, when, w, shifts), 0)
 }
 
-// The layer of each of `side` on `d`, in the order of `side`.
-export type Layers = readonly number[]
-
-export function getLayersBy(view: SceneState, members: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Layers {
-  return side.map((a) => getLayer(view, members, a, d, when, w, shifts))
+// The foes' damage on `id`, added up.
+export function getDamageOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+  return getSides(view, members).foes.reduce((sum, a) => sum + getDamage(view, members, a, id, when, w, shifts), 0)
 }
 
-export const sumLayers = (layers: Layers): number => layers.reduce((sum, layer) => sum + layer, 0)
-
-// The foes' layers on `id`.
-export function getLayersOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Layers {
-  return getLayersBy(view, members, getSides(view, members).foes, id, when, w, shifts)
+// spec "Cost": the most damage any one of `side` has on `d`.
+export function getLargestDamageBy(view: SceneState, members: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+  return side.reduce((most, a) => Math.max(most, getDamage(view, members, a, d, when, w, shifts)), 0)
 }
 
-// spec "Cost": the change in the threat of everyone on a character, after
-// less before, over the square root of how many threaten it on either side
-// of the change (the user's ruling, 2026-11-23); both the layers of one side,
-// in one order.
-export function getCostDelta(before: Layers, after: Layers): number {
-  let change = 0
-  let threatening = 0
-  for (let i = 0; i < after.length; i++) {
-    change += after[i] - before[i]
-    if (before[i] > 0 || after[i] > 0) threatening++
-  }
-  return threatening === 0 ? 0 : change / Math.sqrt(threatening)
+// The most damage any one of the foes has on `id`.
+export function getLargestDamageOn(view: SceneState, members: readonly string[], id: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): number {
+  return getLargestDamageBy(view, members, getSides(view, members).foes, id, when, w, shifts)
 }
 
 // The foes' threat on `id`.
@@ -358,10 +386,10 @@ export function getThreatOn(view: SceneState, members: readonly string[], id: st
 
 // Whether an option leaves the character collapsed or dead (spec "Guard"):
 // the IL it stands at, the IL its bleed adds for every STA `spentSTA` spends
-// (combat.tex "Bleed"), and `threat`, the foes' immediate threat on it where
+// (combat.tex "Bleed"), and `damage`, the foes' immediate damage on it where
 // the option leaves it, read as IL at `IL` harm a point, reaching its injury capacity
 // (combat.tex "Injuries and Death").
-export function isRuinous(me: CampaignCharacter, spentSTA: number, threat: number, w: SpecWeights): boolean {
-  const IL = me.injuries.injuryLevel + spentSTA * me.injuries.bleed + threat / w.IL
+export function isRuinous(me: CampaignCharacter, spentSTA: number, damage: number, w: SpecWeights): boolean {
+  const IL = me.injuries.injuryLevel + spentSTA * me.injuries.bleed + damage / w.IL
   return IL >= getInjuryCapacity(me)
 }

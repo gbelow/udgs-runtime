@@ -18,7 +18,7 @@ export type SpecWeights = RestTuning & {
   teamwork: number
   // Tactical: how many times more harm another foe must be open to than the
   // character's target, for it to become the target; and what the
-  // character's potential threat on its target is multiplied by in a cell's
+  // character's potential damage on its target is multiplied by in a cell's
   // Score
   retarget: number
   aggro: number
@@ -39,10 +39,9 @@ export function getSTAHarm(STA: number, bleed: number, w: SpecWeights): number {
 
 // spec "Cost": what an action costs the character making it, an attack, a
 // walk or a defence alike: spending `AP` (any at all pays `baseAPcost`),
-// `delta` (the change in the immediate threat of everyone on it, after less
-// before, over the square root of how many threaten it: threatMap.ts
-// `getCostDelta`), and `STA`. `free` leaves the AP out (spec "Decide take turn":
-// before agreeing to end the round).
+// `delta` (the largest immediate damage any one foe has on it, after less
+// before), and `STA`. `free` leaves the AP out (spec "Decide take turn": before
+// agreeing to end the round).
 export function getCost(AP: number, STA: number, delta: number, bleed: number, w: SpecWeights, free = false): number {
   const spent = free ? 0 : w.AP * ((AP > 0 ? w.baseAPcost : 0) + delta)
   return w.caution * (spent + getSTAHarm(STA, bleed, w))
