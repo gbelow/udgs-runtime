@@ -1,9 +1,10 @@
 import type { Coord, SurgeKind } from '../../types'
-import type { ActionDraft, SceneState } from '../../scene/types'
+import type { ActionDraft, Degree, SceneState } from '../../scene/types'
 import type { SceneCommand } from '../../scene/commands/registry'
 import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA, isReactiveSurge } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
 import { getAction, getOpenAction } from '../../scene/rules/log'
+import { getBlastOf, type BlastShape } from '../../scene/rules/explosion'
 import { getCombinedOf, isCombinedLanding } from '../../scene/rules/combinedMove'
 import { getAvailableActions, getUnfinishedAnswers } from '../../scene/rules/options'
 import { getOpenChoices } from '../../scene/projections/choices'
@@ -18,6 +19,7 @@ import { declare, type Intent, type Pick } from '../declare'
 import { getWorstDrawnAlong, getWorstDrawnAt } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
+import { getBlastHarm, getEscapedBlast, getReflexCost, getReflexOdds, withBlock, withEscape } from '../blast'
 import { getDefenders, getProtections, type Protection } from '../protect'
 import { getAnswer, getEvaded, getHarmAdded, getHarmOf, getMet, getUndefendedHarm } from '../harm'
 import { cellOf, getAttackRoute, getBelievedAP, getMeans, getPaceAt, getStrikeCells, getTeam } from '../threat'
@@ -50,7 +52,9 @@ import type { Notes } from '../memory'
 //   threat on the character's side and the danger it sheds, less its Cost and
 //   the worst opportunity attack it draws (spec "Attacking");
 // - attacked, it defends by the Defense rule (harm.ts `getAnswer`), and defends
-//   an ally more exposed than itself by the same rule (`protect`); drawn an
+//   an ally more exposed than itself by the same rule (`protect`); in an
+//   explosion, it makes its reflex and escapes where the harm, the Cost and the
+//   danger are least, blocks it, or does nothing (spec "Avoid explosion"); drawn an
 //   opportunity attack, it makes it where it scores above nothing as an attack
 //   does;
 // - of the strategies only Attack is played (the user's ruling, 2026-11-24).
@@ -463,6 +467,94 @@ function pickTactical<T extends { score: number }>(ctx: Ctx, steps: readonly Ste
   return bestStep(ctx, steps, (s) => (ctx.later(s.c.cell).danger > limit ? null : score(s.c.cell) - stay + shed(ctx, s)), free, (s, net, told) => settle(s, net, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${told})`))
 }
 
+// spec "Avoid explosion": the walks of an escape, each with the harm the
+// explosion does where it ends, its Cost and the danger it adds, the least
+// first; only those that score less than standing still, which costs nothing
+// and takes the harm where it stands.
+function getEscapes(ctx: Ctx, view: SceneState, blast: BlastShape): { s: Step; harm: number; score: number }[] {
+  const { id, here, w } = ctx
+  const walks = getOpenedWalks(view, id)
+  if (!walks || !here) return []
+  const b = getBudgets(view, id)[0]
+  const danger = ctx.at(here).danger
+  const stay = getBlastHarm(view, blast, id, null, w)
+  return walks.flatMap((walk) => walk.cells.flatMap((c) => {
+    if (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA) return []
+    const harm = getBlastHarm(view, blast, id, c.cell, w)
+    const s: Step = { b, walk, c, ...ctx.at(c.cell) }
+    const score = harm + costAt(ctx, s, ownAP(view, id, b, c.AP, c.AP), c.STA) + s.danger - danger
+    return score < stay ? [{ s, harm, score }] : []
+  })).sort((x, y) => x.score - y.score)
+}
+
+// spec "Avoid explosion": the Score of the answer `draft` to the explosion
+// open in `view`, `paid` AP of it by a surge: the harm expected over its
+// test's degrees (a block's once the shield absorbs; a reflex's the Score of
+// the best escape the degree opens, or standing still where none beats it) and
+// the Cost of the answer itself. Null where the table does not take it.
+function getAnswerScore(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, paid: number, w: SpecWeights): number | null {
+  const declared = trial(view, { kind: 'react', args: [id, draft, null] })
+  const open = getOpenAction(declared)
+  const ctx = getCtx(view, members, id, w, new Set())
+  if (declared === view || open?.kind !== 'explosion' || !ctx) return null
+  const odds = getReflexOdds(declared, open, id)
+  const cost = getReflexCost(declared, open, id)
+  if (!odds || !cost) return null
+  const blast = getBlastOf(declared, open)
+  const stay = getBlastHarm(declared, blast, id, null, w)
+  const left = (degree: Degree): number => {
+    if (draft.kind === 'blockExplosion') return getBlastHarm(withBlock(declared, open, id, degree), blast, id, null, w, open.id)
+    const escape = withEscape(declared, open, id, degree)
+    return (escape ? getEscapes(ctx, escape, blast).find((e) => e.s.walk.clear(e.s.c))?.score : undefined) ?? stay
+  }
+  const harm = (Object.keys(odds) as Degree[]).reduce((sum, degree) => sum + (odds[degree] > 0 ? odds[degree] * left(degree) : 0), 0)
+  return harm + costAt(ctx, ctx.at(ctx.here), Math.max(0, cost.AP - paid), cost.STA)
+}
+
+// spec "Avoid explosion": the answer to an explosion, whichever scores least:
+// its reflex, a block with each shield, or nothing, which takes the harm where
+// it stands. A surge is made first only where what it answers with then scores
+// less, its STA and the recovery it gives up counted: the movement surge for
+// its reflexes (combat.tex "Reflex"), any other only where nothing could be
+// paid for without it.
+function avoid(input: SeatInput, id: string, w: SpecWeights, find: Find, press: Press): Decision | null {
+  const view = input.view()
+  const open = getOpenAction(view)
+  const me = view.characters[id]
+  if (open?.kind !== 'explosion' || !me) return null
+  const stay = getBlastHarm(view, getBlastOf(view, open), id, null, w)
+  if (stay <= 0) return press(find('pass', id), 'lets the explosion come: it would do it no harm')
+  const bestIn = (state: SceneState, paid: number) => {
+    const root = getOpenAction(state)
+    const drafts = getAvailableActions(state, id).flatMap((o) => (root && o.available && o.reactionTo === root.id && o.surge === null && (o.draft.kind === 'avoidExplosion' || o.draft.kind === 'blockExplosion') ? [o.draft] : []))
+    const scored = drafts.flatMap((draft) => {
+      const score = getAnswerScore(state, input.members, id, draft, paid, w)
+      return score === null ? [] : [{ draft, score }]
+    })
+    return scored.reduce<(typeof scored)[number] | null>((b, x) => (!b || x.score < b.score ? x : b), null)
+  }
+  const plain = bestIn(view, getSurgeAPLeft(me))
+  const least = Math.min(stay, plain?.score ?? stay)
+  let surging: { button: SeatInput['buttons'][number]; score: number; why: string } | null = null
+  for (const surge of me.resources.STA > 0 ? input.buttons.filter((b) => b.command.kind === 'surge' && argOf(b.command) === id) : []) {
+    const kind = surge.command.args[1] as SurgeKind
+    if (plain && kind !== 'movement') continue
+    const surged = trial(view, surge.command)
+    const made = surged.characters[id]
+    const best = surged !== view && made?.usedSurge === kind ? bestIn(surged, getSurgeAPLeft(made)) : null
+    if (!best || !made) continue
+    const recovered = getRecoveredSTA(me, me.resources.STA, getSurgeRecovery('recovery')(me)) - me.resources.STA
+    const cost = getSTAHarm(me.resources.STA - made.resources.STA + recovered, me.injuries.bleed, w)
+    const score = best.score + cost
+    if (score >= least || (surging && score >= surging.score)) continue
+    surging = { button: surge, score, why: `makes the ${kind} surge to answer the explosion with ${best.draft.kind} (score ${least.toFixed(1)} to ${score.toFixed(1)}, the surge ${cost.toFixed(1)} of it)` }
+  }
+  const pressed = surging && press(surging.button, surging.why)
+  if (pressed) return pressed
+  if (!plain || plain.score >= stay) return press(find('pass', id), `takes the explosion (harm ${stay.toFixed(1)}${plain ? `, ${plain.draft.kind} scores ${plain.score.toFixed(1)}` : ''})`)
+  return { kind: 'declare', intent: { actorId: id, option: plain.draft, picks: [] }, why: `answers the explosion with ${plain.draft.kind} (harm ${stay.toFixed(1)} where it stands, score ${plain.score.toFixed(1)})` }
+}
+
 // The move a reaction has opened for the character (combat.tex "Evasion": the
 // reflex's AP "is used to move and does not need to be spent again"), made as
 // Tactical moves (the user's ruling, 2026-11-23), at the Cost of what the
@@ -480,6 +572,11 @@ function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | nu
   const open = getOpenAction(view)
   const opener = open?.spawnedBy ? getAction(view, open.spawnedBy) : null
   const guarding = opener && 'recipe' in opener && getCombinedOf(ctx.me, opener)?.recipe.order === 'before'
+  const blast = open?.kind === 'move' ? getEscapedBlast(view, open) : null
+  if (blast) {
+    const escape = getEscapes(ctx, view, blast).find((e) => e.s.walk.clear(e.s.c) && takesOpenedWalk(view, id, moveIntent(id, e.s.walk.movement, e.s.c.cell, e.s.c.elevation), e.s.c.AP, e.s.c.STA))
+    return escape ? { kind: 'declareOpened', picks: moveIntent(id, escape.s.walk.movement, escape.s.c.cell, escape.s.c.elevation).picks, why: `escapes the explosion (${escape.s.walk.movement}, harm ${getBlastHarm(view, blast, id, null, w).toFixed(1)} to ${escape.harm.toFixed(1)}, score ${escape.score.toFixed(1)})` } : null
+  }
   const steps = walks.flatMap((walk) => walk.cells.flatMap((c): Step[] => (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA ? [] : [{ b, walk, c, ...ctx.at(c.cell) }])))
   const intentOf = (s: Step) => moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation)
   if (guarding && open?.kind === 'move') {
@@ -580,6 +677,7 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
   const open = getOpenAction(view)
   const me = view.characters[id]
   if (!open || !me) return press(find('pass', id), 'lets it come')
+  if (open.kind === 'explosion') return avoid(input, id, w, find, press)
   if (open.targetId !== id || (open.kind !== 'strike' && open.kind !== 'shoot')) return protect(input, id, w) ?? opportunity(input, id, w) ?? press(find('pass', id), 'lets it come')
   if (getDefenders(view, open).some((d) => d !== id)) return press(find('pass', id), 'lets it come: defended by an ally')
   const struck = open.kind === 'shoot' ? opportunity(input, id, w) : null
