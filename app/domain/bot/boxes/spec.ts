@@ -25,7 +25,7 @@ import { getAnswer, getEvaded, getHarmAdded, getHarmOf, getMet, getUndefendedHar
 import { cellOf, getAttackRoute, getBelievedAP, getMeans, getPaceAt, getStrikeCells, getTeam } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getSTAHarm, type SpecWeights } from '../cost'
-import { getAPWorth, getCompany, getDanger, getDangerLimit, getExposed, getExposure, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Guard } from '../threatMap'
+import { getAPWorth, getCompany, getEvadedThreat, getExposed, getExposure, getExposureLimit, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Guard } from '../threatMap'
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getBudgets, getCollapsedCare, getKnownAttack, getOpenedWalks, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesOpenedWalk, takesWalk, trial, TRIAL, wonBy, type AttackCell, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
@@ -34,7 +34,7 @@ import type { Notes } from '../memory'
 // The box instructions/bot-spec.md describes, read section by section:
 //
 // - a turn is asked for (or anyone else's contested) for what the character
-//   would do now: an attack, or an escape where the danger on it is too much,
+//   would do now: an attack, or an escape where its exposure is too much,
 //   whichever scores more, above nothing; once the turn is its own it asks
 //   that again after every action, then how to better its position
 //   (Tactical, towards the target its strategy picked for the round; Search
@@ -49,12 +49,12 @@ import type { Notes } from '../memory'
 //   is weighed when it is asked for;
 // - an attack scores the harm it leaves against the defence the target's
 //   Defense rule picks, what that defence costs the target, the target's
-//   threat on the character's side and the danger it sheds, less its Cost and
-//   the worst opportunity attack it draws (spec "Attacking");
+//   threat on the character's side and the exposure it sheds, less the STA it
+//   spends and the worst opportunity attack it draws (spec "Attacking");
 // - attacked, it defends by the Defense rule (harm.ts `getAnswer`), and defends
 //   an ally more exposed than itself by the same rule (`protect`); in an
-//   explosion, it makes its reflex and escapes where the harm, the Cost and the
-//   danger are least, blocks it, or does nothing (spec "Avoid explosion"); drawn an
+//   explosion, it makes its reflex and escapes where the harm, the STA and the
+//   exposure are least, blocks it, or does nothing (spec "Avoid explosion"); drawn an
 //   opportunity attack, it makes it where it scores above nothing as an attack
 //   does;
 // - of the strategies only Attack is played (the user's ruling, 2026-11-24).
@@ -63,7 +63,7 @@ import type { Notes } from '../memory'
 // overflow spent as `getBestSpend` spends it, the round's rest step) it plays
 // as the nearest box does.
 
-export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.3, STA: 3, IL: 2, bleed: 8, caution: 5, courage: 0.75, aggro: 1, aggressivity: 0.5, search: 4, solitude: 10 }
+export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, AP: 1.3, STA: 3, IL: 2, bleed: 8, caution: 5, courage: 0.75, aggro: 1, aggressivity: 0.5, search: 4, solitude: 5 }
 
 // An action decided: its first step, and what is declared after it (`then`).
 type Plan = (
@@ -71,13 +71,10 @@ type Plan = (
   | { kind: 'surge'; surge: SurgeKind; score: number; why: string }
 ) & { then?: readonly Intent[] }
 
-// What an AP is worth to the character at a place (spec "Cost"), the danger on
-// it there (spec "Danger"), and the harm that gets through to it there holding
-// so much AP (`getExposed`), as the fight stands.
-type Place = { worth: number; danger: number; exposed: (AP: number) => number }
-// The same for a fresh round: its share of the foes' potential threat on it
-// there, and the danger of that (spec "Tactical").
-type Later = { threat: number; danger: number }
+// What an AP is worth to the character at a place (spec "Cost"), and the harm
+// that gets through to it there holding so much AP (`getExposed`), as the
+// fight stands.
+type Place = { worth: number; exposed: (AP: number) => number }
 
 // What every plan of the turn reads of the fight as the character holds it.
 type Ctx = {
@@ -94,10 +91,13 @@ type Ctx = {
   // the character's target this round (spec "Strategies", `noteTargets`), null for none
   target: string | null
   left: Guard
+  // the AP of its own it holds, a surge's AP dropped at the turn's end
+  held: number
   budgets: Budget[]
   at: (cell: Coord | null) => Place
-  later: (cell: Coord | null) => Later
-  // the danger too much for it (spec "Escape")
+  // its potential exposure there, at a fresh round's AP (spec "Tactical")
+  later: (cell: Coord | null) => number
+  // the potential exposure too much for it (spec "Escape")
   limit: number
   picks: Map<string, TargetPick>
   rated: Map<string, { worth: number; threat: number }>
@@ -123,20 +123,20 @@ function getCtx(view: SceneState, members: readonly string[], id: string, w: Spe
   const left = { AP: me.resources.AP, STA: me.resources.STA }
   return {
     view, members, id, w, me, here, foes, target, left,
+    held: Math.max(0, left.AP - getSurgeAPLeft(me)),
     targets: foes.filter((f) => !unnoticed.has(f)),
     team: getTeam(view, members).filter((t) => !isDown(view, t)),
     budgets: getBudgets(view, id),
     at: kept((cell) => {
       const on = getExposure(view, members, foes, id, 'immediate', w, [{ id, at: cell }])
-      const company = getCompany(view, id, cell)
-      return { worth: getAPWorth(on, company, left.AP), danger: getDanger(on, company), exposed: (AP) => getExposed(on, company, AP) }
+      const company = getCompany(view, id, cell, w)
+      return { worth: getAPWorth(on, company, left.AP), exposed: (AP) => getExposed(on, company, AP) }
     }),
     later: kept((cell) => {
       const on = getExposure(view, members, foes, id, 'potential', w, [{ id, at: cell }])
-      const company = getCompany(view, id, cell)
-      return { threat: on.threat / company, danger: getDanger(on, company) }
+      return getExposed(on, getCompany(view, id, cell, w), ROUND_AP)
     }),
-    limit: getDangerLimit(me, w),
+    limit: getExposureLimit(me, w),
     picks: new Map(),
     rated: new Map(),
     drawn: new Map(),
@@ -146,6 +146,12 @@ function getCtx(view: SceneState, members: readonly string[], id: string, w: Spe
 
 // spec "Cost": of an action that ends at `place`, spending `AP` of its own.
 const costAt = (ctx: Ctx, place: Place, AP: number, STA: number, free = false): number => (free ? 0 : AP * place.worth) + getSTAHarm(STA, ctx.me.injuries.bleed, ctx.w)
+
+// The AP of its own left to the character by an action paid by `b`, `walkAP` of
+// the `spent` walked, and how much less harm gets through to it at `place`
+// with that than where it stands with the AP it holds.
+const leftAfter = (ctx: Ctx, b: Budget, walkAP: number, spent: number): number => Math.max(0, ctx.held - ownAP(ctx.view, ctx.id, b, walkAP, spent))
+const getShed = (ctx: Ctx, place: Place, left: number): number => ctx.at(ctx.here).exposed(ctx.held) - place.exposed(left)
 
 const meansOf = (ctx: Ctx) => (f: string) => getMeans(ctx.view.characters[f], false, ctx.w)
 const harmOf = (ctx: Ctx) => (attack: PairAttack, gap: number) => getUndefendedHarm(attack, gap, ctx.w)
@@ -201,7 +207,7 @@ function rate(ctx: Ctx, foe: string): { worth: number; threat: number } {
   if (known) return known
   const { view, members, w, team } = ctx
   const c = view.characters[foe]
-  const worth = getAPWorth(getExposure(view, members, team, foe, 'immediate', w), getCompany(view, foe, cellOf(view, foe)), getBelievedAP(c, false, w))
+  const worth = getAPWorth(getExposure(view, members, team, foe, 'immediate', w), getCompany(view, foe, cellOf(view, foe), w), getBelievedAP(c, false, w))
   const hits = team.flatMap((t) => {
     const guard = getMeans(view.characters[t], members.includes(t), w)
     const { attack, gap, times } = getThreat(view, members, foe, t, 'immediate', w)
@@ -246,7 +252,6 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
   const { view, id, w, me, here, budgets } = ctx
   const runBlock = getRunBlock(view, id)
   const focusSTA = getSurgeSTA('focus')(me) + getRecoveredSTA(me, me.resources.STA, getSurgeRecovery('recovery')(me)) - me.resources.STA
-  const danger = ctx.at(here).danger
   const pace = getPaceAt(view, id, 'walk')
   const rank = (b: Budget) => (b.surge === null ? 0 : b.surge === 'movement' ? 1 : 2)
   const order = [...budgets].sort((a, b) => rank(a) - rank(b))
@@ -283,11 +288,11 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
           const threat = w.aggressivity * rate(ctx, foe).threat
           const drew = Math.max(fromHere ? 0 : drawnOn(ctx, spot as WalkCell, runs(walk)), attack.kind === 'shoot' ? firedFrom(ctx, cell) : 0)
           const scored = (end: Coord | null, moreAP: number, moreSTA: number, leaving: number) => {
-            const place = ctx.at(end)
-            const cost = costAt(ctx, place, ownAP(view, id, b, AP + moreAP, spent + moreAP), STAspent + moreSTA + b.surgeSTA + (needsFocus ? focusSTA : 0))
+            const shed = getShed(ctx, ctx.at(end), leftAfter(ctx, b, AP + moreAP, spent + moreAP))
+            const STAharm = getSTAHarm(STAspent + moreSTA + b.surgeSTA + (needsFocus ? focusSTA : 0), me.injuries.bleed, w)
             const most = Math.max(drew, leaving)
-            const score = pick.harm + pick.cost + threat + danger - place.danger - cost - most
-            const why = () => `(${attackName(attack)}: harm ${pick.harm.toFixed(1)} against ${pick.defence} + its cost ${pick.cost.toFixed(1)} + threat from it ${threat.toFixed(1)} + danger shed ${(danger - place.danger).toFixed(1)} - cost ${cost.toFixed(1)} - drawn ${most.toFixed(1)} = ${score.toFixed(1)})`
+            const score = pick.harm + pick.cost + threat + shed - STAharm - most
+            const why = () => `(${attackName(attack)}: harm ${pick.harm.toFixed(1)} against ${pick.defence} + its cost ${pick.cost.toFixed(1)} + threat from it ${threat.toFixed(1)} + exposure shed ${shed.toFixed(1)} - STA ${STAharm.toFixed(1)} - drawn ${most.toFixed(1)} = ${score.toFixed(1)})`
             return { score, why }
           }
           const alone = scored(cell, 0, 0, 0)
@@ -370,14 +375,14 @@ function stepPlan(ctx: Ctx, s: Step, score: number, why: string): Plan | null {
   return takesWalk(ctx.view, ctx.id, intent, s.c.AP, s.c.STA) ? { kind: 'walk', intent, score, why } : null
 }
 
-// Of `steps` by what each gains less its Cost and the worst opportunity attack
+// Of `steps` by what each gains less what it costs and the worst opportunity attack
 // it draws, the best that walks clear and that `settle` takes, above nothing.
 // What a walk draws only takes from its score, so the steps are read best
 // first and no further than the best one found.
-function bestStep<T extends { score: number }>(ctx: Ctx, steps: readonly Step[], gainOf: (s: Step) => number | null, free: boolean, settle: (s: Step, score: number, told: string) => T | null): T | null {
+function bestStep<T extends { score: number }>(ctx: Ctx, steps: readonly Step[], gainOf: (s: Step) => number | null, costOf: (s: Step) => number, settle: (s: Step, score: number, told: string) => T | null): T | null {
   const weighed = steps.flatMap((s) => {
     const gain = gainOf(s)
-    const cost = costAt(ctx, s, ownAP(ctx.view, ctx.id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, free)
+    const cost = costOf(s)
     return gain === null || gain - cost <= 0 ? [] : [{ s, gain, cost, net: gain - cost }]
   })
   let best: T | null = null
@@ -391,19 +396,17 @@ function bestStep<T extends { score: number }>(ctx: Ctx, steps: readonly Step[],
   return best
 }
 
-// How much less harm gets through to the character once it has walked, with
-// the AP the walk leaves it, than where it stands with the AP it holds.
-const shed = (ctx: Ctx, s: Step): number => ctx.at(ctx.here).exposed(ctx.left.AP) - s.exposed(heldAP(s.b, s.c.AP))
-
-// spec "Escape": only from a danger above `limit`, to wherever the harm it
-// sheds (`shed`) less the walk's Cost and what it draws is most. The danger
-// itself never reads the character's AP, so that spending it is no reason to
-// run (the user's ruling, 2026-11-24).
+// spec "Escape": only from a potential exposure above `limit`, to wherever
+// the exposure it sheds less the STA of the walk and what it draws is most.
+// The potential exposure reads a fresh round's AP, so that spending AP is no
+// reason to run (the user's ruling, 2026-11-24).
 function planEscape(ctx: Ctx): Plan | null {
   const { here, limit } = ctx
-  const danger = here ? ctx.at(here).danger : 0
-  if (danger <= limit) return null
-  return bestStep(ctx, stepsOf(ctx), (s) => shed(ctx, s), false, (s, score, told) => stepPlan(ctx, s, score, `escapes (${s.walk.movement}, danger ${danger.toFixed(1)} over ${limit.toFixed(1)}, ${told})`))
+  const exposed = here ? ctx.later(here) : 0
+  if (exposed <= limit) return null
+  const shed = (s: Step) => getShed(ctx, s, leftAfter(ctx, s.b, s.c.AP, s.c.AP))
+  const STAharm = (s: Step) => getSTAHarm(s.c.STA + s.b.surgeSTA, ctx.me.injuries.bleed, ctx.w)
+  return bestStep(ctx, stepsOf(ctx), shed, STAharm, (s, score, told) => stepPlan(ctx, s, score, `escapes (${s.walk.movement}, potential exposure ${exposed.toFixed(1)} over ${limit.toFixed(1)}, ${told})`))
 }
 
 // spec "Strategies", "Attack" (the only one played): each member's target,
@@ -433,12 +436,13 @@ const getTarget = (notes: Notes | undefined, id: string): string | null => {
 }
 
 // spec "Tactical": a cell's Score, `aggro` times the character's potential
-// threat on its target from there, less its share of every foe's on it there.
+// threat on its target from there, as an evasion of it leaves it, whatever
+// that costs (the user's ruling, 2026-11-25), less its potential exposure there.
 // Where it has none on the target from where it stands, the target is read
 // nearer (spec "Strategies", "Attack", `getFarThreat`), along the way to it.
 function getTacticalScore(ctx: Ctx, target: string, here: Coord): (cell: Coord) => number {
   const { view, members, id, w } = ctx
-  const mine = (cell: Coord) => getThreat(view, members, id, target, 'potential', w, [{ id, at: cell }]).threat
+  const mine = (cell: Coord) => getEvadedThreat(getThreat(view, members, id, target, 'potential', w, [{ id, at: cell }]))
   const far = mine(here) > 0 ? null : getFarThreat(view, id, target, w)
   const way = new Map((far ? (getAttackRoute(view, id, target)?.path ?? []) : []).map((cell, i) => [cellNumber(cell), i + 1]))
   const threat = (cell: Coord) => {
@@ -446,14 +450,13 @@ function getTacticalScore(ctx: Ctx, target: string, here: Coord): (cell: Coord) 
     const walked = sameCell(cell, here) ? 0 : way.get(cellNumber(cell))
     return Math.max(mine(cell), walked === undefined ? 0 : far(walked))
   }
-  return (cell) => w.aggro * threat(cell) - ctx.later(cell).threat
+  return (cell) => w.aggro * threat(cell) - ctx.later(cell)
 }
 
 // spec "Tactical": towards the character's target, to the cell whose Score
-// betters the one where it stands, with the harm it sheds there (`shed`), by
-// the most over the walk's Cost and what it draws, if above nothing; never to a cell whose danger, read with the foes'
-// potential threat, is what it would escape. `free` leaves the AP out of the
-// cost (spec "Decide take turn").
+// betters the one where it stands by the most over the walk's Cost and what it
+// draws, if above nothing; never to a cell whose potential exposure is what it
+// would escape. `free` leaves the AP out of the cost (spec "Decide take turn").
 function planTactical(ctx: Ctx, free: boolean): Plan | null {
   return pickTactical(ctx, stepsOf(ctx), free, (s, score, why) => stepPlan(ctx, s, score, why))
 }
@@ -464,35 +467,37 @@ function pickTactical<T extends { score: number }>(ctx: Ctx, steps: readonly Ste
   const score = getTacticalScore(ctx, target, here)
   const stay = score(here)
   const name = view.characters[target]?.name ?? target
-  return bestStep(ctx, steps, (s) => (ctx.later(s.c.cell).danger > limit ? null : score(s.c.cell) - stay + shed(ctx, s)), free, (s, net, told) => settle(s, net, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${told})`))
+  const cost = (s: Step) => costAt(ctx, s, ownAP(view, ctx.id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, free)
+  return bestStep(ctx, steps, (s) => (ctx.later(s.c.cell) > limit ? null : score(s.c.cell) - stay), cost, (s, net, told) => settle(s, net, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${told})`))
 }
 
-// spec "Avoid explosion": the walks of an escape, each with the harm the
-// explosion does where it ends, its Cost and the danger it adds, the least
-// first; only those that score less than standing still, which costs nothing
-// and takes the harm where it stands.
-function getEscapes(ctx: Ctx, view: SceneState, blast: BlastShape): { s: Step; harm: number; score: number }[] {
+// spec "Avoid explosion": the walks of an escape made holding `AP`, each with
+// the harm the explosion does where it ends, the exposure it adds and the STA
+// it costs, the least first; only those that score less than standing still,
+// which takes the harm where it stands.
+function getEscapes(ctx: Ctx, view: SceneState, blast: BlastShape, AP: number): { s: Step; harm: number; score: number }[] {
   const { id, here, w } = ctx
   const walks = getOpenedWalks(view, id)
   if (!walks || !here) return []
   const b = getBudgets(view, id)[0]
-  const danger = ctx.at(here).danger
+  const exposed = ctx.at(here).exposed(AP)
   const stay = getBlastHarm(view, blast, id, null, w)
   return walks.flatMap((walk) => walk.cells.flatMap((c) => {
     if (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA) return []
     const harm = getBlastHarm(view, blast, id, c.cell, w)
     const s: Step = { b, walk, c, ...ctx.at(c.cell) }
-    const score = harm + costAt(ctx, s, ownAP(view, id, b, c.AP, c.AP), c.STA) + s.danger - danger
+    const score = harm + s.exposed(Math.max(0, AP - ownAP(view, id, b, c.AP, c.AP))) - exposed + getSTAHarm(c.STA, ctx.me.injuries.bleed, w)
     return score < stay ? [{ s, harm, score }] : []
   })).sort((x, y) => x.score - y.score)
 }
 
 // spec "Avoid explosion": the Score of the answer `draft` to the explosion
-// open in `view`, `paid` AP of it by a surge: the harm expected over its
-// test's degrees (a block's once the shield absorbs; a reflex's the Score of
-// the best escape the degree opens, or standing still where none beats it) and
-// the Cost of the answer itself. Null where the table does not take it.
-function getAnswerScore(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, paid: number, w: SpecWeights): number | null {
+// open in `view`, made holding `AP` of the character's own and `paid` of its
+// cost paid by a surge: the harm expected over its test's degrees (a block's
+// once the shield absorbs; a reflex's the Score of the best escape the degree
+// opens, or standing still where none beats it), and the exposure the answer
+// itself adds and the STA it costs. Null where the table does not take it.
+function getAnswerScore(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, AP: number, paid: number, w: SpecWeights): number | null {
   const declared = trial(view, { kind: 'react', args: [id, draft, null] })
   const open = getOpenAction(declared)
   const ctx = getCtx(view, members, id, w, new Set())
@@ -500,15 +505,17 @@ function getAnswerScore(view: SceneState, members: readonly string[], id: string
   const odds = getReflexOdds(declared, open, id)
   const cost = getReflexCost(declared, open, id)
   if (!odds || !cost) return null
+  const left = Math.max(0, AP - Math.max(0, cost.AP - paid))
   const blast = getBlastOf(declared, open)
   const stay = getBlastHarm(declared, blast, id, null, w)
-  const left = (degree: Degree): number => {
+  const harmAt = (degree: Degree): number => {
     if (draft.kind === 'blockExplosion') return getBlastHarm(withBlock(declared, open, id, degree), blast, id, null, w, open.id)
     const escape = withEscape(declared, open, id, degree)
-    return (escape ? getEscapes(ctx, escape, blast).find((e) => e.s.walk.clear(e.s.c))?.score : undefined) ?? stay
+    return (escape ? getEscapes(ctx, escape, blast, left).find((e) => e.s.walk.clear(e.s.c))?.score : undefined) ?? stay
   }
-  const harm = (Object.keys(odds) as Degree[]).reduce((sum, degree) => sum + (odds[degree] > 0 ? odds[degree] * left(degree) : 0), 0)
-  return harm + costAt(ctx, ctx.at(ctx.here), Math.max(0, cost.AP - paid), cost.STA)
+  const harm = (Object.keys(odds) as Degree[]).reduce((sum, degree) => sum + (odds[degree] > 0 ? odds[degree] * harmAt(degree) : 0), 0)
+  const place = ctx.at(ctx.here)
+  return harm + place.exposed(left) - place.exposed(AP) + getSTAHarm(cost.STA, ctx.me.injuries.bleed, w)
 }
 
 // spec "Avoid explosion": the answer to an explosion, whichever scores least:
@@ -524,11 +531,12 @@ function avoid(input: SeatInput, id: string, w: SpecWeights, find: Find, press: 
   if (open?.kind !== 'explosion' || !me) return null
   const stay = getBlastHarm(view, getBlastOf(view, open), id, null, w)
   if (stay <= 0) return press(find('pass', id), 'lets the explosion come: it would do it no harm')
+  const held = Math.max(0, me.resources.AP - getSurgeAPLeft(me))
   const bestIn = (state: SceneState, paid: number) => {
     const root = getOpenAction(state)
     const drafts = getAvailableActions(state, id).flatMap((o) => (root && o.available && o.reactionTo === root.id && o.surge === null && (o.draft.kind === 'avoidExplosion' || o.draft.kind === 'blockExplosion') ? [o.draft] : []))
     const scored = drafts.flatMap((draft) => {
-      const score = getAnswerScore(state, input.members, id, draft, paid, w)
+      const score = getAnswerScore(state, input.members, id, draft, held, paid, w)
       return score === null ? [] : [{ draft, score }]
     })
     return scored.reduce<(typeof scored)[number] | null>((b, x) => (!b || x.score < b.score ? x : b), null)
@@ -560,7 +568,7 @@ function avoid(input: SeatInput, id: string, w: SpecWeights, find: Find, press: 
 // Tactical moves (the user's ruling, 2026-11-23), at the Cost of what the
 // reaction has not paid. A surge's AP left is lost whether it moves or not.
 // The move a defence of an ally is made after goes to the cell of the least
-// danger the defence can be made from. Null with no such move open, or none
+// exposure the defence can be made from. Null with no such move open, or none
 // worth making.
 function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | null {
   const view = input.view()
@@ -574,14 +582,14 @@ function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | nu
   const guarding = opener && 'recipe' in opener && getCombinedOf(ctx.me, opener)?.recipe.order === 'before'
   const blast = open?.kind === 'move' ? getEscapedBlast(view, open) : null
   if (blast) {
-    const escape = getEscapes(ctx, view, blast).find((e) => e.s.walk.clear(e.s.c) && takesOpenedWalk(view, id, moveIntent(id, e.s.walk.movement, e.s.c.cell, e.s.c.elevation), e.s.c.AP, e.s.c.STA))
+    const escape = getEscapes(ctx, view, blast, ctx.held).find((e) => e.s.walk.clear(e.s.c) && takesOpenedWalk(view, id, moveIntent(id, e.s.walk.movement, e.s.c.cell, e.s.c.elevation), e.s.c.AP, e.s.c.STA))
     return escape ? { kind: 'declareOpened', picks: moveIntent(id, escape.s.walk.movement, escape.s.c.cell, escape.s.c.elevation).picks, why: `escapes the explosion (${escape.s.walk.movement}, harm ${getBlastHarm(view, blast, id, null, w).toFixed(1)} to ${escape.harm.toFixed(1)}, score ${escape.score.toFixed(1)})` } : null
   }
   const steps = walks.flatMap((walk) => walk.cells.flatMap((c): Step[] => (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA ? [] : [{ b, walk, c, ...ctx.at(c.cell) }])))
   const intentOf = (s: Step) => moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation)
   if (guarding && open?.kind === 'move') {
-    const landing = steps.filter((s) => isCombinedLanding(view, open, s.c.cell) && s.walk.clear(s.c)).sort((x, y) => x.danger - y.danger || x.c.AP - y.c.AP).find((s) => takesOpenedWalk(view, id, intentOf(s), s.c.AP, s.c.STA))
-    return landing ? { kind: 'declareOpened', picks: intentOf(landing).picks, why: `steps in to defend (${landing.walk.movement}, danger ${landing.danger.toFixed(1)})` } : null
+    const landing = steps.filter((s) => isCombinedLanding(view, open, s.c.cell) && s.walk.clear(s.c)).sort((x, y) => x.exposed(ctx.held) - y.exposed(ctx.held) || x.c.AP - y.c.AP).find((s) => takesOpenedWalk(view, id, intentOf(s), s.c.AP, s.c.STA))
+    return landing ? { kind: 'declareOpened', picks: intentOf(landing).picks, why: `steps in to defend (${landing.walk.movement}, exposure ${landing.exposed(ctx.held).toFixed(1)})` } : null
   }
   const picked = pickTactical(ctx, steps, false, (s, score, why) => {
     const intent = intentOf(s)
@@ -755,7 +763,7 @@ function protect(input: SeatInput, id: string, w: SpecWeights): Decision | null 
   if (!ctx) return null
   const { me, foes } = ctx
   const target = view.characters[ally]
-  const exposed = (who: string, AP: number) => getExposed(getExposure(view, members, foes, who, 'immediate', w), getCompany(view, who, cellOf(view, who)), AP)
+  const exposed = (who: string, AP: number) => getExposed(getExposure(view, members, foes, who, 'immediate', w), getCompany(view, who, cellOf(view, who), w), AP)
   const theirs = exposed(ally, getMeans(target, members.includes(ally), w).AP)
   const mine = exposed(id, me.resources.AP)
   if (theirs <= mine) return null
@@ -796,11 +804,11 @@ function opportunity(input: SeatInput, id: string, w: SpecWeights): Decision | n
       if (AP > me.resources.AP || STA > me.resources.STA || getUndefendedHarm(attack, attack.reach, w) <= 0) continue
       const pick = pickOf(ctx, attack, i, attack.reach, target.id)
       const threat = w.aggressivity * rate(ctx, target.id).threat
-      const cost = costAt(ctx, ctx.at(here), AP, STA)
+      const cost = -getShed(ctx, ctx.at(here), Math.max(0, ctx.held - Math.max(0, AP - getSurgeAPLeft(me)))) + getSTAHarm(STA, me.injuries.bleed, w)
       const score = pick.harm + pick.cost + threat - cost
       if (score <= 0 || (best && score <= best.score)) continue
       const picks: Pick[] = [{ part: 'row', value: attack.row }, ...(attack.declaresHeavy ? [{ part: 'modifier' as const, value: { key: `heavy${attack.heavy}`, on: true } }] : [])]
-      best = { draft: o.draft, picks, score, why: `opportunity attack on ${target.name} (${attackName(attack)}: harm ${pick.harm.toFixed(1)} against ${pick.defence} + its cost ${pick.cost.toFixed(1)} + threat from it ${threat.toFixed(1)} - cost ${cost.toFixed(1)} = ${score.toFixed(1)})` }
+      best = { draft: o.draft, picks, score, why: `opportunity attack on ${target.name} (${attackName(attack)}: harm ${pick.harm.toFixed(1)} against ${pick.defence} + its cost ${pick.cost.toFixed(1)} + threat from it ${threat.toFixed(1)} - exposure and STA ${cost.toFixed(1)} = ${score.toFixed(1)})` }
     }
   }
   if (!best) return null
@@ -809,13 +817,14 @@ function opportunity(input: SeatInput, id: string, w: SpecWeights): Decision | n
 }
 
 // What the answer still asks for once declared (where an evasive jump lands),
-// picked: the cell of the least danger, anything else as first offered, after
-// the `start` picks; null when it asks for something nothing offers.
+// picked: the cell of the least exposure once the answer is paid, anything
+// else as first offered, after the `start` picks; null when it asks for something nothing offers.
 function fillAnswer(view: SceneState, members: readonly string[], id: string, draft: ActionDraft, w: SpecWeights, start: readonly Pick[] = []): Pick[] | null {
   const open = getOpenAction(view)
   const ctx = getCtx(view, members, id, w, new Set())
   if (!open || !ctx) return null
-  const danger = (cell: Coord) => ctx.at(cell).danger
+  const price = getAvailableActions(view, id).find((o) => o.reactionTo === open.id && sameDraft(o.draft, draft))?.cost?.AP ?? 0
+  const exposed = (cell: Coord) => ctx.at(cell).exposed(Math.max(0, ctx.held - price))
   const picks: Pick[] = [...start]
   for (let i = 0; i < 4 + start.length; i++) {
     const made = declare(view, { actorId: id, option: draft, picks }, TRIAL)
@@ -823,19 +832,20 @@ function fillAnswer(view: SceneState, members: readonly string[], id: string, dr
     if (!getUnfinishedAnswers(made.ready, open).some((r) => r.actorId === id)) return picks
     const fills = getOpenChoices(made.ready).filter((c) => c.actorId === id && !c.chosen)
     const cells = fills.filter((c) => c.part === 'cell')
-    const pick = cells.length ? cells.reduce((b, c) => (danger(c.value as Coord) < danger(b.value as Coord) ? c : b)) : fills[0]
+    const pick = cells.length ? cells.reduce((b, c) => (exposed(c.value as Coord) < exposed(b.value as Coord) ? c : b)) : fills[0]
     if (!pick) return null
     picks.push({ part: pick.part, value: pick.value })
   }
   return null
 }
 
-// A walk the turn cannot end without (a coward's run): to the cell of the least danger.
+// A walk the turn cannot end without (a coward's run): to the cell of the least exposure.
 function getAway(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>): Decision | null {
   const ctx = getCtx(view, members, id, w, unnoticed)
   if (!ctx) return null
-  const away = [...stepsOf(ctx)].filter((s) => s.b.surge === null).sort((x, y) => x.danger - y.danger).find((s) => s.walk.clear(s.c) && declare(view, moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation), TRIAL).ok)
-  return away ? { kind: 'declare', intent: moveIntent(id, away.walk.movement, away.c.cell, away.c.elevation), why: `gets away (danger ${away.danger.toFixed(1)})` } : null
+  const exposed = (s: Step) => s.exposed(leftAfter(ctx, s.b, s.c.AP, s.c.AP))
+  const away = [...stepsOf(ctx)].filter((s) => s.b.surge === null).sort((x, y) => exposed(x) - exposed(y)).find((s) => s.walk.clear(s.c) && declare(view, moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation), TRIAL).ok)
+  return away ? { kind: 'declare', intent: moveIntent(id, away.walk.movement, away.c.cell, away.c.elevation), why: `gets away (exposure ${exposed(away).toFixed(1)})` } : null
 }
 
 // The limit stress action the character's turn is owed for (the user's

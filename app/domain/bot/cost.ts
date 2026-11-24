@@ -10,8 +10,8 @@ export type SpecWeights = RestTuning & {
   // Defense: the harm an AP has to prevent for a defence to be worth making,
   // where one leaves little harm
   caution: number
-  // Escape: the share of the harm the character can still take at which the
-  // danger on it is too much
+  // Escape: the share of the harm the character can still take at which its
+  // potential exposure is too much
   courage: number
   // Tactical: what the character's potential threat on its target is
   // multiplied by in a cell's Score
@@ -20,7 +20,8 @@ export type SpecWeights = RestTuning & {
   // multiplied by, added to an attack's score
   aggressivity: number
   // Search: the most AP a search walk spends, and the most metres from the
-  // nearest ally one may end at, unless it comes nearer
+  // nearest ally one may end at, unless it comes nearer; Cost, Danger: the
+  // metres within which party members share the foes' attacks
   search: number
   solitude: number
 }

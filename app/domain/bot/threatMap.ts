@@ -13,7 +13,7 @@ import { getEvaded, getUndefendedHarm } from './harm'
 import { cellOf, getBelievedAP, getPace, getCarriedMetres, getPaceAt, getPresence, getOpenStepMap, getStrikeCells } from './threat'
 import type { SpecWeights } from './cost'
 
-// The threat, the price of AP and the danger of instructions/bot-spec.md
+// The threat, the price of AP and the exposure of instructions/bot-spec.md
 // "Threat", "Cost" and "Danger". The threat of one character on another is
 // the harm of its best attack on it, undefended, as many times as the AP it
 // has left once it has walked there pays for, read as a fraction
@@ -42,8 +42,6 @@ export type Guard = { AP: number; STA: number }
 
 // spec "Expected harm": the metres a shot is read from when no distance is given
 export const SHOT_GAP = 20
-// spec "Cost": the party members within this many metres share the foes' attacks
-const COMPANY = 5
 
 // spec "Threat": each character's share kept by itself, as a field over the
 // cells around it. Its step map (threat.ts `getOpenStepMap`) is walked on the
@@ -366,6 +364,9 @@ export function getThreat(view: SceneState, plays: readonly string[], a: string,
   return share === 1 ? most : { ...most, threat: most.threat * share, prevented: most.prevented * share, defenceAP: most.defenceAP * share, times: most.times * share }
 }
 
+// What of a threat gets through an evasion of it, whatever the evasion costs.
+export const getEvadedThreat = (t: Exposure): number => t.threat - t.prevented
+
 // What everyone of `side` has on `d`, added up.
 export function getExposure(view: SceneState, plays: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Exposure {
   const sum = { threat: 0, prevented: 0, defenceAP: 0 }
@@ -378,14 +379,14 @@ export function getExposure(view: SceneState, plays: readonly string[], side: re
   return sum
 }
 
-// spec "Cost", "Danger": how many of its party stand within COMPANY metres of
-// `cell`, `id` among them.
-export function getCompany(view: SceneState, id: string, cell: Coord | null): number {
+// spec "Cost", "Danger": how many of its party stand within `solitude` metres
+// of `cell`, `id` among them, sharing the foes' attacks.
+export function getCompany(view: SceneState, id: string, cell: Coord | null, w: SpecWeights): number {
   if (!cell) return 1
   const party = view.partyOf[id]
   return Object.keys(view.characters).reduce((n, other) => {
     const at = other !== id && view.partyOf[other] === party ? cellOf(view, other) : null
-    return at && distance(at, cell) <= COMPANY && !isDown(view, other) && !view.surrendered.includes(other) ? n + 1 : n
+    return at && distance(at, cell) <= w.solitude && !isDown(view, other) && !view.surrendered.includes(other) ? n + 1 : n
   }, 1)
 }
 
@@ -397,23 +398,20 @@ export function getAPWorth(on: Exposure, company: number, AP: number): number {
   return over > 0 ? on.prevented / over : 0
 }
 
-// spec "Danger": the harm that gets through to it once it evades everything.
-export const getDanger = (on: Exposure, company: number): number => (on.threat - on.prevented) / company
-
-// The harm that gets through to one holding `AP`, which evades its share of
-// the attacks as far as that pays for.
+// spec "Danger", exposure: the harm that gets through to one holding `AP`,
+// which evades its share of the attacks as far as that pays for.
 export function getExposed(on: Exposure, company: number, AP: number): number {
   const covered = on.defenceAP > 0 ? Math.min(1, (AP * company) / on.defenceAP) : 1
   return (on.threat - covered * on.prevented) / company
 }
 
-// spec "Escape": the danger that is too much, a share `courage` of the harm
+// spec "Escape": the exposure that is too much, a share `courage` of the harm
 // the character can still take (combat.tex "Injuries and Death").
-export function getDangerLimit(c: CampaignCharacter, w: SpecWeights): number {
+export function getExposureLimit(c: CampaignCharacter, w: SpecWeights): number {
   return w.courage * w.IL * Math.max(0, getInjuryCapacity(c) - c.injuries.injuryLevel)
 }
 
-// spec "Strategies", "Attack": the potential threat of `a` on one it cannot
+// spec "Strategies", "Attack": the potential threat of `a`, evaded, on one it cannot
 // reach in a round, once it has walked `walked` cells of the way there, the
 // way read as shorter by what puts it out of reach: where it stands now is the
 // edge of its potential threat.
@@ -428,6 +426,6 @@ export function getFarThreat(view: SceneState, a: string, d: string, w: SpecWeig
   const presence = getPresence(view, d, w)
   return (walked) => {
     const walk = (Math.max(0, edge - walked) / pace.metres) * pace.AP
-    return presence * rates.reduce((most, r) => Math.max(most, r.threat * getLeft(ca, 0, walk, r.focus, 'potential')), 0)
+    return presence * rates.reduce((most, r) => Math.max(most, getEvadedThreat(r) * getLeft(ca, 0, walk, r.focus, 'potential')), 0)
   }
 }
