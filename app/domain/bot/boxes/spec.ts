@@ -379,11 +379,11 @@ function stepPlan(ctx: Ctx, s: Step, score: number, why: string): Plan | null {
 // it draws, the best that walks clear and that `settle` takes, above nothing.
 // What a walk draws only takes from its score, so the steps are read best
 // first and no further than the best one found.
-function bestStep<T extends { score: number }>(ctx: Ctx, steps: readonly Step[], gainOf: (s: Step) => number | null, costOf: (s: Step) => number, settle: (s: Step, score: number, told: string) => T | null): T | null {
+function bestStep<T extends { score: number }>(ctx: Ctx, steps: readonly Step[], gainOf: (s: Step) => number, costOf: (s: Step) => number, settle: (s: Step, score: number, told: string) => T | null): T | null {
   const weighed = steps.flatMap((s) => {
     const gain = gainOf(s)
     const cost = costOf(s)
-    return gain === null || gain - cost <= 0 ? [] : [{ s, gain, cost, net: gain - cost }]
+    return gain - cost <= 0 ? [] : [{ s, gain, cost, net: gain - cost }]
   })
   let best: T | null = null
   for (const { s, gain, cost, net } of weighed.sort((x, y) => y.net - x.net)) {
@@ -455,20 +455,20 @@ function getTacticalScore(ctx: Ctx, target: string, here: Coord): (cell: Coord) 
 
 // spec "Tactical": towards the character's target, to the cell whose Score
 // betters the one where it stands by the most over the walk's Cost and what it
-// draws, if above nothing; never to a cell whose potential exposure is what it
-// would escape. `free` leaves the AP out of the cost (spec "Decide take turn").
+// draws, if above nothing. `free` leaves the AP out of the cost (spec "Decide
+// take turn").
 function planTactical(ctx: Ctx, free: boolean): Plan | null {
   return pickTactical(ctx, stepsOf(ctx), free, (s, score, why) => stepPlan(ctx, s, score, why))
 }
 
 function pickTactical<T extends { score: number }>(ctx: Ctx, steps: readonly Step[], free: boolean, settle: (s: Step, score: number, why: string) => T | null): T | null {
-  const { view, here, target, limit } = ctx
+  const { view, here, target } = ctx
   if (!here || !target || !ctx.foes.includes(target)) return null
   const score = getTacticalScore(ctx, target, here)
   const stay = score(here)
   const name = view.characters[target]?.name ?? target
   const cost = (s: Step) => costAt(ctx, s, ownAP(view, ctx.id, s.b, s.c.AP, s.c.AP), s.c.STA + s.b.surgeSTA, free)
-  return bestStep(ctx, steps, (s) => (ctx.later(s.c.cell) > limit ? null : score(s.c.cell) - stay), cost, (s, net, told) => settle(s, net, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${told})`))
+  return bestStep(ctx, steps, (s) => score(s.c.cell) - stay, cost, (s, net, told) => settle(s, net, `repositions${free ? ' before the round ends' : ''} towards ${name} (${s.walk.movement}, score ${told})`))
 }
 
 // spec "Avoid explosion": the walks of an escape made holding `AP`, each with

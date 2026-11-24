@@ -170,7 +170,7 @@ Cost also includes my immediate threat on my target, after its best defense, if 
 
 Move to place where
 Score(cell) = w.aggro × my potential threat on target there − potential exposure(there, 8 AP) + potential exposure(here, 8 AP)
-Pick the cell and movement with the highest Score(there) − Score(here) − Cost − OA drawn, if above 0. Only cells where danger, read with potential threat, is under Escape's trigger.
+Pick the cell and movement with the highest Score(there) − Score(here) − Cost − OA drawn, if above 0.
 
 
 ### Search
@@ -198,7 +198,7 @@ Score(cell) = w.aggro × potential threat(Aggro, me there) − potential exposur
 
 ### Cover
 
-If threat on me is from ranged attacks,  
+If threat on me is from ranged attacks, 
 
 
 
@@ -216,7 +216,7 @@ If threat on me is from ranged attacks,
 
 # Constants
 
-w.STA = 3
+w.STA = 4
 w.caution = 5
 w.aggressivity = 0.5
 w.IL = 2
