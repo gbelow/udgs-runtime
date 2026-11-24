@@ -1,4 +1,4 @@
-import type { CampaignCharacter, MovementKind, SurgeKind } from '../types'
+import type { CampaignCharacter, MovementKind, Skills, SurgeKind } from '../types'
 import { ActionSchema, SceneStateSchema, type ActionDraft, type AttackAction, type SceneState, type StrikeAction } from '../scene/types'
 import type { ActionCost } from '../character/rules/actionCosts'
 import type { Outcome } from '../character/rules/damage'
@@ -149,7 +149,7 @@ function getCarries(state: SceneState, root: AttackAction, attacker: CampaignCha
 // the two by the one writer of actions (`appendActions`), the attack waiting
 // on its answer; the answers are those the table offers the defender
 // (`getAvailableActions`). Nothing is pressed.
-function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): PairAttack[] {
+export function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): PairAttack[] {
   const a = attacker.id
   const d = defender.id
   const ready = fresh(attacker)
@@ -266,14 +266,6 @@ function readPair(attacker: CampaignCharacter, defender: CampaignCharacter): Pai
   return attacks
 }
 
-// A sheet as the pair table reads it: who it is and what changes on every
-// press (AP, STA, the surge made and what it left, the face's thirds, the XP
-// trained, `withoutXP`) left out, and its limit stress action, which only a compulsion in the fight
-// reads, never an attack or a defence; its injury level read as the penalty
-// it gives (combat.tex "Injury level (IL)"), which is all of it an attack or
-// a defence reads, so the table
-// is read again only when something it rests on changes, and two copies of
-// one sheet share it.
 // The items of a sheet by the token the tables know each by: the order it is
 // met in the sheet. A stack split gives the part a fresh id (a weapon drawn
 // off a stack, `duplicateItem`), so two sheets that differ only in such ids,
@@ -298,10 +290,15 @@ function getItemTokens(c: CampaignCharacter): Map<string, string> {
   return tokens
 }
 
-// The sheet as JSON with each of its item ids written as its token.
+// The sheet as JSON with each of its item ids written as its token, and
+// without how many arrows or bolts a stack holds, which nothing the tables
+// hold reads: a spent stack leaves its container.
 function tokenized(c: CampaignCharacter, value: unknown): string {
   const tokens = getItemTokens(c)
-  return JSON.stringify(value, (_, v) => (typeof v === 'string' ? (tokens.get(v) ?? v) : v))
+  return JSON.stringify(value, function (this: { type?: unknown }, key, v) {
+    if (key === 'amount' && this.type === 'ammo') return undefined
+    return typeof v === 'string' ? (tokens.get(v) ?? v) : v
+  })
 }
 
 // The ids a sheet's items have, in token order, as one text.
@@ -320,20 +317,49 @@ function getItemIds(c: CampaignCharacter): string {
 const withoutXP = (trainables: Record<string, { XP: number }>): Record<string, unknown> =>
   Object.fromEntries(Object.entries(trainables).map(([key, t]) => [key, { ...t, XP: 0 }]))
 
-const signatures = new WeakMap<CampaignCharacter, string>()
+// The part a sheet plays in a pair, and the skills read of it there: an
+// attack's test and its DL, the damage and what it meets, the sense either is
+// made through, and the price of a standard action. Grapple is read only of
+// two who hold each other, and the pair's fight holds nobody.
+type Role = 'attacker' | 'defender'
 
-function signature(c: CampaignCharacter): string {
-  let sig = signatures.get(c)
+const SKILLS_READ: Record<Role, ReadonlySet<string>> = {
+  attacker: new Set<keyof Skills>(['strike', 'accuracy', 'force', 'detection', 'prestidigitation']),
+  defender: new Set<keyof Skills>(['defend', 'reflex', 'SD', 'force', 'detection', 'prestidigitation']),
+}
+
+const skillsOf = (trainables: CampaignCharacter['trainables'], role: Role) =>
+  Object.fromEntries(Object.entries(trainables).filter(([key, t]) => (t.type !== 'skill' && t.type !== 'knowledge') || SKILLS_READ[role].has(key)))
+
+// The injuries as the pair table reads them: the injury level as the penalty
+// it gives (combat.tex "Injury level (IL)"), and of the counters only the
+// defender's burning, which the damage that lands counts (character/rules/damage.ts
+// `getOutcome`). Bleed, scorch, a potion and a staunched wound are read
+// by no attack and no defence.
+const injuriesOf = (c: CampaignCharacter, role: Role): CampaignCharacter['injuries'] =>
+  ({ ...c.injuries, injuryLevel: getInjuryPenalty(c), bleed: 0, scorch: 0, staunched: false, potion: 0, burning: role === 'defender' ? c.injuries.burning : 0 })
+
+// A sheet as the pair table reads it in its role: who it is and what changes on every
+// press (AP, STA, the surge made and what it left, the face's thirds, the XP
+// trained, `withoutXP`) left out, and its limit stress action, which only a compulsion in the fight
+// reads, never an attack or a defence; the skills its role does not read; and
+// its injuries as `injuriesOf` gives them, so the table
+// is read again only when something it rests on changes, and two copies of
+// one sheet share it.
+const signatures: Record<Role, WeakMap<CampaignCharacter, string>> = { attacker: new WeakMap(), defender: new WeakMap() }
+
+function signature(c: CampaignCharacter, role: Role): string {
+  let sig = signatures[role].get(c)
   if (sig === undefined) {
-    const { id, resources, usedSurge, surgeFloor, runsFree, shown, injuries, limitStress, ...rest } = c
+    const { id, resources, usedSurge, surgeFloor, runsFree, shown, limitStress, ...rest } = c
     void id
     void limitStress
     void usedSurge
     void surgeFloor
     void runsFree
     void shown
-    sig = tokenized(c, { ...rest, trainables: withoutXP(rest.trainables), resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, injuryLevel: getInjuryPenalty(c) } })
-    signatures.set(c, sig)
+    sig = tokenized(c, { ...rest, trainables: withoutXP(skillsOf(rest.trainables, role)), resources: { ...resources, AP: 0, STA: 0 }, injuries: injuriesOf(c, role) })
+    signatures[role].set(c, sig)
   }
   return sig
 }
@@ -345,13 +371,13 @@ function signature(c: CampaignCharacter): string {
 // rulings). Its injury level stays, read as the penalty it gives, which comes
 // off STR, AGI and STA. So the harm is shared by the sheets of one fighter
 // that differ in those alone, as a fight wears it down and as each seat
-// believes it.
+// believes it. Read alike in either role.
 const harmSignatures = new WeakMap<CampaignCharacter, string>()
 
 function harmSignature(c: CampaignCharacter): string {
   let sig = harmSignatures.get(c)
   if (sig === undefined) {
-    const { id, resources, usedSurge, surgeFloor, runsFree, rallied, steeled, limitStress, shown, injuries, trainables, ...rest } = c
+    const { id, resources, usedSurge, surgeFloor, runsFree, rallied, steeled, limitStress, shown, trainables, ...rest } = c
     void id
     void usedSurge
     void surgeFloor
@@ -361,7 +387,7 @@ function harmSignature(c: CampaignCharacter): string {
     void limitStress
     void shown
     const kept = withoutXP(Object.fromEntries(Object.entries(trainables).filter(([, t]) => t.type !== 'skill' && t.type !== 'knowledge')))
-    sig = tokenized(c, { ...rest, trainables: kept, resources: { ...resources, AP: 0, STA: 0 }, injuries: { ...injuries, bleed: 0, injuryLevel: getInjuryPenalty(c) } })
+    sig = tokenized(c, { ...rest, trainables: kept, resources: { ...resources, AP: 0, STA: 0 }, injuries: injuriesOf(c, 'defender') })
     harmSignatures.set(c, sig)
   }
   return sig
@@ -406,8 +432,8 @@ let kept = 0
 const MOST_KEPT = 4000
 
 export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter, surge: SurgeKind | null = defender.usedSurge): PairAttack[] {
-  const by = signature(attacker)
-  const on = signature(defender)
+  const by = signature(attacker, 'attacker')
+  const on = signature(defender, 'defender')
   const ids = `${getItemIds(attacker)}|${getItemIds(defender)}`
   const buffed = surge !== null && BUFFING_SURGES.includes(surge) ? surge : null
   let against = pairs.get(by)
