@@ -21,11 +21,11 @@ import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
 import { getBlastHarm, getEscapedBlast, getReflexCost, getReflexOdds, withBlock, withEscape } from '../blast'
 import { getDefenders, getProtections, type Protection } from '../protect'
-import { getAnswer, getEvaded, getHarmAdded, getHarmOf, getMet, getUndefendedHarm } from '../harm'
+import { getAnswer, getEvaded, getHarmAdded, getMet, getUndefendedHarm } from '../harm'
 import { cellOf, getAttackRoute, getBelievedAP, getMeans, getPaceAt, getStrikeCells, getTeam } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getSTAHarm, type SpecWeights } from '../cost'
-import { getAPWorth, getCompany, getEvadedThreat, getExposed, getExposure, getExposureLimit, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Guard } from '../threatMap'
+import { getAPWorth, getCompany, getEvadedThreat, getExposed, getExposure, getExposureLimit, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Exposure, type Guard } from '../threatMap'
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getBudgets, getCollapsedCare, getKnownAttack, getOpenedWalks, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesOpenedWalk, takesWalk, trial, TRIAL, wonBy, type AttackCell, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
@@ -442,8 +442,9 @@ const getTarget = (notes: Notes | undefined, id: string): string | null => {
 // nearer (spec "Strategies", "Attack", `getFarThreat`), along the way to it.
 function getTacticalScore(ctx: Ctx, target: string, here: Coord): (cell: Coord) => number {
   const { view, members, id, w } = ctx
-  const mine = (cell: Coord) => getEvadedThreat(getThreat(view, members, id, target, 'potential', w, [{ id, at: cell }]))
-  const far = mine(here) > 0 ? null : getFarThreat(view, id, target, w)
+  const threatFrom = (cell: Coord, by?: (r: Exposure) => number) => getThreat(view, members, id, target, 'potential', w, [{ id, at: cell }], by)
+  const mine = (cell: Coord) => getEvadedThreat(threatFrom(cell, getEvadedThreat))
+  const far = threatFrom(here).threat > 0 ? null : getFarThreat(view, id, target, w)
   const way = new Map((far ? (getAttackRoute(view, id, target)?.path ?? []) : []).map((cell, i) => [cellNumber(cell), i + 1]))
   const threat = (cell: Coord) => {
     if (!far) return mine(cell)
@@ -724,16 +725,6 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
   return { kind: 'declare', intent: { actorId: id, option: draft, picks }, why: `answers with ${draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${best.AP} AP)` }
 }
 
-// spec "Protect": what an ally is worth defending, its potential threat over
-// the character's own, each on the foe it threatens most from where it stands,
-// at most 1; 1 where the character threatens nobody.
-function getAllyValue(ctx: Ctx, ally: string): number {
-  const { view, members, id, w, foes } = ctx
-  const most = (who: string) => (isCollapsed(view, view.characters[who]) ? 0 : foes.reduce((n, f) => Math.max(n, getThreat(view, members, who, f, 'potential', w).threat), 0))
-  const mine = most(id)
-  return mine > 0 ? Math.min(1, most(ally) / mine) : 1
-}
-
 // spec "Protect": what a reaction surge forgoes, no turn being started after
 // it in the round (combat.tex "Action surge"): the character's immediate
 // threat on its target, as the target's Defense rule answers it; nothing in
@@ -748,11 +739,11 @@ function getForgone(ctx: Ctx): number {
 // spec "Protect": an ally attacked is defended where more harm would get
 // through to it than to the character, each where it stands with the AP it
 // holds (`getExposed`), with the block, intercept or guard the Defense rule
-// picks, read for the ally (bot/protect.ts), of those whose prevented harm, as
-// much of it as the ally is worth (`getAllyValue`), is above the Cost, and
-// above what its turns would still do where a reaction surge forgoes them
-// (`getForgone`); never an ally who defends itself or is defended already (the user's ruling: no
-// redundant defence).
+// picks, read for the ally (bot/protect.ts), where the harm it prevents, its
+// bleed counted only over the ally's own (`getHarmAdded`), is above the
+// Cost and what its turns would still do where a reaction surge forgoes them
+// (`getForgone`); never an ally who defends itself or is defended already (the
+// user's ruling: no redundant defence).
 function protect(input: SeatInput, id: string, w: SpecWeights): Decision | null {
   const view = input.view()
   const { members } = input
@@ -769,14 +760,14 @@ function protect(input: SeatInput, id: string, w: SpecWeights): Decision | null 
   if (theirs <= mine) return null
   const met = getProtections(view, id, (draft) => fillAnswer(view, members, id, draft, w))
   if (!met) return null
-  const value = getAllyValue(ctx, ally)
-  const taken = getUndefendedHarm(met.attack, met.gap, w)
   const costOf = (p: Protection) => costAt(ctx, ctx.at(ctx.here), p.AP, p.defence.cost.STA) + (isReactiveSurge(p.surge) ? getForgone(ctx) : 0)
-  const worth = new Map(met.protections.filter((p) => (taken - getHarmOf(met.attack, p.defence, met.gap, w)) * value > costOf(p)).map((p) => [p.defence, p]))
-  const best = getAnswer(met.attack, met.gap, me.resources, w, (d) => worth.has(d))
-  const made = best.defence && worth.get(best.defence)
+  const best = getAnswer(met.attack, met.gap, me.resources, w)
+  const made = met.protections.find((p) => p.defence === best.defence)
   if (!made) return null
-  return { kind: 'declare', intent: { actorId: id, option: made.draft, picks: made.picks }, why: `defends ${target.name} with ${made.draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${made.AP} AP, worth ${value.toFixed(2)}, cost ${costOf(made).toFixed(1)}; exposed ${theirs.toFixed(1)} against its own ${mine.toFixed(1)})` }
+  const added = (d: PairDefence | undefined) => (d ? getHarmAdded(met.attack, d, met.gap, target.injuries.bleed, w) : 0)
+  const prevented = added(met.attack.defences.find((d) => d.draft === null)) - added(made.defence)
+  if (prevented <= costOf(made)) return null
+  return { kind: 'declare', intent: { actorId: id, option: made.draft, picks: made.picks }, why: `defends ${target.name} with ${made.draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${made.AP} AP, prevents ${prevented.toFixed(1)}, cost ${costOf(made).toFixed(1)}; exposed ${theirs.toFixed(1)} against its own ${mine.toFixed(1)})` }
 }
 
 // spec "Immediate actions": an opportunity attack scored as an attack is, made

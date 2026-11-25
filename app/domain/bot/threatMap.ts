@@ -14,7 +14,7 @@ import { cellOf, getBelievedAP, getPace, getCarriedMetres, getPaceAt, getPresenc
 import type { SpecWeights } from './cost'
 
 // The threat, the price of AP and the exposure of instructions/bot-spec.md
-// "Threat", "Cost" and "Danger". The threat of one character on another is
+// "Threat" and "Cost and exposure". The threat of one character on another is
 // the harm of its best attack on it, undefended, as many times as the AP it
 // has left once it has walked there pays for, read as a fraction
 // (`getThreat`): the most, over its attacks, of
@@ -258,16 +258,20 @@ function rateOf(attack: PairAttack, gap: number, w: SpecWeights): Rate[] {
 
 const timesOf = (r: Rate, AP: number): Threat => ({ threat: r.threat * AP, prevented: r.prevented * AP, defenceAP: r.defenceAP * AP, attack: r.attack, gap: r.gap, times: AP / r.AP })
 
+// What of a threat gets through an evasion of it, whatever the evasion costs.
+export const getEvadedThreat = (t: Exposure): number => t.threat - t.prevented
+
 // The best of the rates read at the same spot: of each reach, the metres it
-// brings itself and whether it takes the focus surge, the one of most harm.
+// brings itself and whether it takes the focus surge, the one of most harm,
+// and the one an evasion leaves the most of.
 function bestOf(rates: readonly Rate[]): Rate[] {
-  const best = new Map<string, Rate>()
+  const best = new Map<string, { most: Rate; evaded: Rate }>()
   for (const r of rates) {
     const key = `${r.focus}|${r.attack.reach}|${r.attack.carries?.movement}|${r.attack.carries?.metres}`
     const known = best.get(key)
-    if (!known || r.threat > known.threat) best.set(key, r)
+    best.set(key, { most: known && known.most.threat >= r.threat ? known.most : r, evaded: known && getEvadedThreat(known.evaded) >= getEvadedThreat(r) ? known.evaded : r })
   }
-  return [...best.values()]
+  return [...new Set([...best.values()].flatMap((b) => [b.most, b.evaded]))]
 }
 
 const strikeRates = new WeakMap<SpecWeights, WeakMap<PairAttack[], Rate[]>>()
@@ -345,27 +349,28 @@ const isMoved = (shifts: readonly Shift[], id: string): boolean => shifts.some((
 
 // The threat of `a` on `d` (see above), each where it stands holding what it
 // is believed to, but as `shifts` reads it. Of `plays`, only whether it holds
-// a character counts (its sheet, or its face).
-export function getThreat(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Threat {
-  const by = shifted(view, plays, a, shifts, w)
+// a character counts (its sheet, or its face). `by`: what the attack it is made
+// of is the most of, undefended unless told (`getEvadedThreat`).
+export function getThreat(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = [], by: (r: Exposure) => number = (r) => r.threat): Threat {
+  const from = shifted(view, plays, a, shifts, w)
   const on = shifted(view, plays, d, shifts, w)
   const ca = view.characters[a]
   const cd = view.characters[d]
-  if (!by.at || !on.at || !ca || !cd) return NO_ATTACKS
+  if (!from.at || !on.at || !ca || !cd) return NO_ATTACKS
   let most = NO_ATTACKS
-  for (const { walk, rate } of getProfile(view, a, by.at, d, on.at, when === 'potential' ? null : cd.usedSurge, { a: isMoved(shifts, a), d: isMoved(shifts, d) }, w)) {
-    const AP = getLeft(ca, by.AP, 0, rate.focus, when)
-    if (AP <= 0 || rate.threat * AP <= most.threat) continue
+  let reached = 0
+  for (const { walk, rate } of getProfile(view, a, from.at, d, on.at, when === 'potential' ? null : cd.usedSurge, { a: isMoved(shifts, a), d: isMoved(shifts, d) }, w)) {
+    const AP = getLeft(ca, from.AP, 0, rate.focus, when)
+    if (AP <= 0 || by(rate) * AP <= reached) continue
     const walked = walk(AP)
-    const left = walked === null ? 0 : getLeft(ca, by.AP, walked, rate.focus, when)
-    if (rate.threat * left > most.threat) most = timesOf(rate, left)
+    const left = walked === null ? 0 : getLeft(ca, from.AP, walked, rate.focus, when)
+    if (by(rate) * left <= reached) continue
+    reached = by(rate) * left
+    most = timesOf(rate, left)
   }
   const share = most.threat === 0 ? 1 : getPresence(view, a, w) * getPresence(view, d, w)
   return share === 1 ? most : { ...most, threat: most.threat * share, prevented: most.prevented * share, defenceAP: most.defenceAP * share, times: most.times * share }
 }
-
-// What of a threat gets through an evasion of it, whatever the evasion costs.
-export const getEvadedThreat = (t: Exposure): number => t.threat - t.prevented
 
 // What everyone of `side` has on `d`, added up.
 export function getExposure(view: SceneState, plays: readonly string[], side: readonly string[], d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = []): Exposure {
@@ -379,7 +384,7 @@ export function getExposure(view: SceneState, plays: readonly string[], side: re
   return sum
 }
 
-// spec "Cost", "Danger": how many of its party stand within `solitude` metres
+// spec "Cost and exposure": how many of its party stand within `solitude` metres
 // of `cell`, `id` among them, sharing the foes' attacks.
 export function getCompany(view: SceneState, id: string, cell: Coord | null, w: SpecWeights): number {
   if (!cell) return 1
@@ -390,7 +395,7 @@ export function getCompany(view: SceneState, id: string, cell: Coord | null, w: 
   }, 1)
 }
 
-// spec "Cost": the harm an AP is worth to one holding `AP`, exposed to `on`
+// spec "Cost and exposure", Cost: the harm an AP is worth to one holding `AP`, exposed to `on`
 // with `company` beside it: what defending against its share of the attacks
 // prevents, over the AP that takes, or the AP it holds where that is more.
 export function getAPWorth(on: Exposure, company: number, AP: number): number {
@@ -398,7 +403,7 @@ export function getAPWorth(on: Exposure, company: number, AP: number): number {
   return over > 0 ? on.prevented / over : 0
 }
 
-// spec "Danger", exposure: the harm that gets through to one holding `AP`,
+// spec "Cost and exposure", exposure: the harm that gets through to one holding `AP`,
 // which evades its share of the attacks as far as that pays for.
 export function getExposed(on: Exposure, company: number, AP: number): number {
   const covered = on.defenceAP > 0 ? Math.min(1, (AP * company) / on.defenceAP) : 1

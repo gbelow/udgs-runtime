@@ -94,22 +94,20 @@ Immediate: AP = what it holds now. Potential: AP = 8, with the surge unused.
 
 Threat on a character is the sum over everyone who can attack it.
 
-## Cost
+## Cost and exposure
 This is an estimation of how much harm an AP or STA are worth. Consider that threats are defended by evade or evasion.
 
 STAharm = w.STA x STA + w.IL x STA x bleed
 
-<!-- Cost(action) = action(AP) x average(prevented harm/defense cost)x min(1, num foes/num allies) + STAharm(action(STA)) -->
+T = Σ threat, P = Σ prevented, D = Σ defense cost, n = allies within w.solitude, me included
+num allies is the amount of party members within w.solitude m radius of the location, including self. 
 
-Cost = AP × Σ prevented / max(Σ defense cost, num allies × AP held) + STAharm
+Cost = AP × (P / D) × min(1, D / (n × AP held)) + STAharm
+  average harm an AP prevents × how much of my AP the defending needs
 
-num allies is the amount of party members within w.solitude m radius, including self. 
 
-## Danger
-
-allies = Number of party members within w.solitude m of the departure location.
-
-exposure(cell, AP) = (Σ threat − min(1, AP × allies / Σ defense cost) × Σ prevented) / allies
+exposure(cell, AP) = (T − P × min(1, n × AP / D)) / n
+  my share of the harm I could take − what my AP can prevent of it
 
 # Immediate Actions
 
@@ -158,8 +156,10 @@ An ally is the target of a strike or shot, and nobody is defending it yet (itsel
 The ally's exposure is higher than mine, each with the AP it holds.
 A block, intercept or guard is open to me, with or without a step first. Protection Surge counts, but the plain reaction surge isn't considered.
 The Defense rule picks one of them, against the ally taking the hit undefended.
-value = min(1, ally's potential threat / my potential threat), each on the foe it threatens most
-Protect only if prevented × value > Cost(AP, STA), with Protection Surge costing 4 AP
+
+Protect only if prevented > Cost(AP, STA) + foregone.
+  prevented using best defense. foregone used only during protection surge
+
 Cost also includes my immediate threat on my target, after its best defense, if my turn can still be started this round
 
 # Strategic Actions
@@ -169,7 +169,7 @@ Cost also includes my immediate threat on my target, after its best defense, if 
 ### Tactical
 
 Move to place where
-Score(cell) = w.aggro × my potential threat on target there − potential exposure(there, 8 AP) + potential exposure(here, 8 AP)
+Score(cell) = w.aggro × my potential threat on target there vs evasion − potential exposure(there, 8 AP) + potential exposure(here, 8 AP)
 Pick the cell and movement with the highest Score(there) − Score(here) − Cost − OA drawn, if above 0.
 
 
