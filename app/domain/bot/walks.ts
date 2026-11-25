@@ -67,16 +67,18 @@ const sheetOf = (c: object, walking: boolean): string => {
 
 const walked = perParts<ReachableCell[]>(WALKS)
 
-export function getKeptWalk(state: SceneState, action: MoveAction): ReachableCell[] {
+// `around`: whom the walk goes around.
+export function getKeptWalk(state: SceneState, action: MoveAction, around: readonly string[] = []): ReachableCell[] {
   const board = state.board
-  if (!board) return getWalkableCells(state, action)
+  if (!board) return getWalkableCells(state, action, around)
   const key = [
     fieldsOf(action),
     READ.map((k) => `${k}=${contentOf(state[k])}`).join(','),
     fieldsOf(board, BOARD_PARTS),
     ...Object.entries(state.characters).map(([id, c]) => `${id}:${sheetOf(c, id === action.actorId)}`),
+    around.join(','),
   ].join('|')
-  return walked([board.terrain, board.levels, board.pieces], key, () => getWalkableCells(state, action))
+  return walked([board.terrain, board.levels, board.pieces], key, () => getWalkableCells(state, action, around))
 }
 
 // The same walk for a reader that takes it as an estimate (the bot's step

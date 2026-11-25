@@ -453,8 +453,8 @@ function paintedCell<T extends TerrainCell>(current: T, brush: TerrainBrush): T 
 // Jump") — declaring the jump if it has not been; or edits the way a
 // grapple group is being moved (combat.tex "Push and drag"); or puts a
 // defender a won crash displaces (combat.tex "Crash").
-export function pickCell(cell: Coord, newId: () => string): Updater {
-  return (state) => readPick(state, cell, newId)?.apply(state) ?? state
+export function pickCell(cell: Coord, newId: () => string, height?: number | null): Updater {
+  return (state) => readPick(state, cell, newId, height)?.apply(state) ?? state
 }
 
 const unchanged: Updater = (s) => s

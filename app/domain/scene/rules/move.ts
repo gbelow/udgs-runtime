@@ -12,7 +12,7 @@ import { isCollapsed, isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementBlock, getMovementSpeed, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, cellNumber, coordKey, directionTo, disk, distance, inExtent, line, ring, sameCell, setDistance, sidesBetween, subtract, openWalk } from './board/geometry'
-import { getClimbBack, getClimbBound, getClimbTarget, getBalanceDLAt, getFootprint, getPlacedFootprint, getTerrainAt, placeAt } from './board/board'
+import { getClimbBack, getClimbBound, getClimbTarget, getBalanceDLAt, getBody, getFootprint, getPlacedFootprint, getTerrainAt, isLevelWith, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isTrivialClimb, isUntestedClimb } from './board/cliff'
 import { getRollModes, hasGrant } from '../../character/rules/effects'
@@ -580,6 +580,11 @@ export function getStandingIn(state: SceneState, action: MoveAction, steps: numb
   return mover && end && floor ? getCrowdedBy(placed, mover, getFootprint(mover, end), floor, endsLying(mover, action.movement)) : null
 }
 
+// Whether the move is the mover's own, opened by nothing.
+export function isOwnMove(action: MoveAction): boolean {
+  return action.spawnedBy === null && action.preparedPart === null
+}
+
 // Whether the move may be declared to end on the footprint: where the mover
 // may rest, or, for a move of the mover's own, in the space of anyone standing
 // there (combat.tex "Crash": the trample decides who stands there once it
@@ -587,8 +592,7 @@ export function getStandingIn(state: SceneState, action: MoveAction, steps: numb
 // mover's own, but for the movement a preparation carries, which is reckoned
 // before anything has opened it.
 function canEndAt(state: SceneState, c: Character, action: MoveAction, footprint: Coord[], floor: Floor): boolean {
-  const own = action.spawnedBy === null && action.preparedPart === null
-  return canRest(state, c, footprint, floor, endsLying(c, action.movement)) || (own && footprint.every((cell) => floor.heldFor(cell).length === 0))
+  return canRest(state, c, footprint, floor, endsLying(c, action.movement)) || (isOwnMove(action) && footprint.every((cell) => floor.heldFor(cell).length === 0))
 }
 
 // combat.tex "Movement": crawling "is the only usable movement speed while
@@ -717,8 +721,9 @@ export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path
 // out. A move drawn in segments (`drawsSegments`) walks on from the end of
 // the path drawn so far, and each path found is that path and the walk after
 // it; a run keeps to its turn rate across the join. A jump goes only in a
-// straight line.
-export function getWalkableCells(state: SceneState, action: MoveAction): ReachableCell[] {
+// straight line. A walk drawn in segments goes around whoever is in `around`:
+// it comes into the space of one of them only to end there.
+export function getWalkableCells(state: SceneState, action: MoveAction, around: readonly string[] = []): ReachableCell[] {
   const { actorId, movement: kind } = action
   const c = state.characters[actorId]
   const from = state.board?.placements[actorId]
@@ -744,7 +749,8 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   const startFeet = drawn.length > 0 ? getMovePlacements(state, action).at(-1)?.elevation ?? from.elevation : from.elevation
   const feetOf = (level: number) => (kind === 'jump' ? from.elevation : level)
   const wetAt = (cell: Coord, level: number) => isWet(getFootprint(c, { ...from, cell }), ground.at(feetOf(level)))
-  const walker: Walker = { board: state.board, footprint: c.footprint, from, kind, ceiling: getJumpCeiling(c, from), startFeet }
+  const bodies = drawsSegments(kind) ? getBodies(state, around) : NOBODY
+  const walker: Walker = { board: state.board, footprint: c.footprint, from, kind, ceiling: getJumpCeiling(c, from), startFeet, bodies }
   const steer = getSteer(kind, drawn.length > 0 ? directionTo(stepFrom([]), start) : null)
   // the cells drawn on already, and where the move sets out, take the path
   // back to them when picked (`pickPathCell`), so they are not offered
@@ -767,7 +773,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
       if (own && !rise) return []
       const footprint = getFootprint(c, { ...from, cell })
       const floor = rise ? ground.at(rise.floor) : ground.at(feetOf(level))
-      const ends = (own || !onPath.has(coordKey(cell))) && isCrossable(footprint, floor, kind, wetAt(stepFrom(path), before)) && canEndAt(state, c, action, footprint, floor) && (kind !== 'climb' || (path.length === 1 && [null, back].some((ledge) => isClimbable(state, { ...action, path, ledge }))))
+      const ends = (own || !onPath.has(coordKey(cell))) && isCrossable(footprint, floor, kind, wetAt(stepFrom(path), before)) && (getMet(bodies, footprint, floor) === '' || getMet(bodies, [cell], floor) !== '') && canEndAt(state, c, action, footprint, floor) && (kind !== 'climb' || (path.length === 1 && [null, back].some((ledge) => isClimbable(state, { ...action, path, ledge }))))
       return ends ? [{ cell, path: [...drawn, ...path], elevation: floor.elevation(cell) }] : []
     })
     .map(({ cell, path, elevation }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres, ledge: null }, path.length), path, elevation }))
@@ -776,13 +782,36 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
 
 // What a walk over the ground reads, whoever stands on it and whatever it
 // costs: the board, the body and how it sets out (`startFeet`: how high its
-// feet are there), and for a jump the height it clears (`getJumpCeiling`).
-type Walker = { board: Board | null; footprint: Coord[]; from: Placement; kind: MovementKind; ceiling: number; startFeet: number }
+// feet are there), for a jump the height it clears (`getJumpCeiling`), and
+// who is gone around.
+type Walker = { board: Board | null; footprint: Coord[]; from: Placement; kind: MovementKind; ceiling: number; startFeet: number; bodies: Bodies }
+
+// Who stands in each cell, by `cellNumber`, of those a walk goes around, and
+// how high their feet are.
+type Bodies = ReadonlyMap<number, { id: string; feet: number }[]>
+const NOBODY: Bodies = new Map()
+
+function getBodies(state: SceneState, ids: readonly string[]): Bodies {
+  const bodies = new Map<number, { id: string; feet: number }[]>()
+  for (const id of ids) {
+    const body = getBody(state, id)
+    if (body) for (const cell of body.footprint) bodies.set(cellNumber(cell), [...(bodies.get(cellNumber(cell)) ?? []), { id, feet: body.feet }])
+  }
+  return bodies
+}
+
+// Who of them a footprint on a floor comes into, as one key; '' for nobody.
+function getMet(bodies: Bodies, footprint: Coord[], floor: Floor): string {
+  if (bodies.size === 0) return ''
+  const met = footprint.flatMap((cell) => (bodies.get(cellNumber(cell)) ?? []).filter(({ feet }) => isLevelWith(feet, floor.elevation(cell))).map(({ id }) => id))
+  return [...new Set(met)].sort().join(' ')
+}
 
 // Whether the next step of a walk may be taken, and the level it comes to
 // (`walkOut`'s `enter`). `stepFrom` is the cell a path's last step is taken
 // from; a step is entered the same way whatever heading it is come at from.
-function enterOf({ board, footprint: cells, from, kind, ceiling, startFeet }: Walker, stepFrom: (path: Coord[]) => Coord): (cell: Coord, path: Coord[], level?: number) => number | false {
+// Once in the space of someone gone around, a walk steps only within it.
+function enterOf({ board, footprint: cells, from, kind, ceiling, startFeet, bodies }: Walker, stepFrom: (path: Coord[]) => Coord): (cell: Coord, path: Coord[], level?: number) => number | false {
   const bare = { board: board && { ...board, placements: {} }, characters: {} }
   const ground = readGround(bare, '')
   const footprintAt = (cell: Coord) => getFootprint({ footprint: cells }, { ...from, cell })
@@ -798,7 +827,8 @@ function enterOf({ board, footprint: cells, from, kind, ceiling, startFeet }: Wa
     const floor = bound ? ground.at(bound.floor) : ground.at(feetOf(level))
     const footprint = footprintAt(cell)
     const fromWater = isWet(footprintAt(before), ground.at(feetOf(level)))
-    const ok = (kind !== 'climb' || bound !== null) && isOnBoard(bare, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater, ceiling })
+    const met = getMet(bodies, footprintAt(before), ground.at(feetOf(level)))
+    const ok = (met === '' || met === getMet(bodies, footprint, floor)) && (kind !== 'climb' || bound !== null) && isOnBoard(bare, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater, ceiling })
     const comes = ok ? floor.elevation(cell) : false
     entered.set(key, comes)
     return comes
@@ -812,10 +842,10 @@ const OPEN_WALKS = 100
 const openWalks = perParts<ReturnType<typeof openWalk>>(OPEN_WALKS)
 
 function getOpenWalk(walker: Walker): ReturnType<typeof openWalk> {
-  const { board, footprint, from, kind } = walker
+  const { board, footprint, from, kind, bodies } = walker
   const open = () => openWalk(from.cell, enterOf(walker, (path) => (path.length > 1 ? path[path.length - 2] : from.cell)), getSteer(kind, null), from.elevation)
   if (!board) return open()
-  const key = `${kind}|${coordKey(from.cell)}|${from.orientation}|${from.elevation}|${footprint.map(coordKey).join(' ')}|${coordKey(board.origin)}|${board.extent.q},${board.extent.r},${board.extent.s}`
+  const key = `${kind}|${coordKey(from.cell)}|${from.orientation}|${from.elevation}|${footprint.map(coordKey).join(' ')}|${coordKey(board.origin)}|${board.extent.q},${board.extent.r},${board.extent.s}|${[...bodies].map(([cell, there]) => `${cell}:${there.map(({ id, feet }) => `${id}@${feet}`).join(',')}`).join(' ')}`
   return openWalks([board.terrain, board.levels], key, open)
 }
 

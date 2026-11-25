@@ -35,6 +35,13 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   somewhere to go. A run turns at most one side of a hex a step (combat.tex "Movement": "60
   degrees"), across a turn too, so its reach is walked with a heading; it may set out any way.
   A jump is one straight line (`line`) and a climb one face: a new cell replaces either.
+  A drawn way goes around anyone standing whom the mover's party knows of (`getReachableCells`,
+  `getAvoided`): the mover's own move comes into someone's space only by a click on them (their
+  token or their cell), and a click past them then goes on through. A move something opened
+  goes through people only to spaces it comes to no other way, and a jump goes over them as it
+  did. What the rules permit (`getWalkableCells`, `isPathLegal`) keeps every way.
+  A move comes into someone's space (`comesInto`) on the floor they stand on, never a cliff
+  above or below; in the air of a jump, unless it passes over them by their whole height.
 - **Cliffs and falls.** Ground a metre or more above or below the cell beside it is a cliff
   (`rules/board/cliff.ts`): a walk may not step over it, a jump goes up as far as its vertical reach
   clears and comes down as a fall, and a climb (the way over, always a test) is the only

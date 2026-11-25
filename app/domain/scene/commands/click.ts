@@ -5,8 +5,9 @@ import type { SceneState, Coord, Updater } from '../types'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { getBoardMode, getFloorPicker } from '../rules/board/boardMode'
 import { getOpenAction } from '../rules/log'
+import { getPickOn } from '../rules/board/reach'
 import { setTarget } from './action'
-import { paintTerrain, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
+import { paintTerrain, pickCell, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
 import { pickFloorItem } from './floor'
 import { getClickMenu, type ClickMenu } from './clickMenu'
 
@@ -36,7 +37,8 @@ export type ClickReading = { actor: Actor, apply: Updater } | { select: string }
 // turned as their player likes until the fight starts, then only the first
 // time they are, or anywhere with the repositioning tool, which alone turns
 // a character outside a move once the fight is under way. A token is aimed at while the open action waits
-// for a target and is picked otherwise; an item on the
+// for a target; while the picked character's move is being declared, a click
+// on one takes the move into their space, where it can be; it is picked otherwise; an item on the
 // floor is aimed at when the open strike could hit it, else picked up when
 // the picker could take it. A click that means nothing leaves the state as
 // it was.
@@ -47,6 +49,8 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
     case 'cell': return readCell(state, click.cell, ctx, click.height)
     case 'token': {
       if (getDeclaredTargets(state, open).includes(click.id)) return { actor, apply: setTarget(click.id) }
+      const on = getBoardMode(state) === 'path' && open?.kind === 'move' && open.actorId === ctx.selected ? getPickOn(state, open, click.id) : null
+      if (on) return { actor, apply: pickCell(on.cell, ctx.newId, on.elevation) }
       const menu = getClickMenu(state, { on: 'token', id: click.id }, ctx.selected)
       return menu ? { menu } : { select: click.id }
     }

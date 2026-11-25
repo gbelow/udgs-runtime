@@ -327,6 +327,71 @@ describe('a move past someone whose attacks cannot reach it', () => {
   })
 })
 
+// The table's ruling: a move is taken through someone (combat.tex "Trample")
+// only where they were clicked.
+describe('a move drawn past people standing', () => {
+  // Ann in a corridor, Bob a step down it and Cy beside her way around him
+  const drawing = (walls: [number, number][] = []) => {
+    const h = openHarness()
+    h.bring('Ann', 'Bob', 'Cy')
+    h.createBoard(5)
+    for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.paint('wall', walls)
+    h.select('Ann')
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    return h
+  }
+  const path = (h: Harness) => {
+    const open = getOpenAction(h.state())
+    return open?.kind === 'move' ? open.path.map(coordKey) : []
+  }
+  const taken = ['1,0', '0,1']
+  const CORRIDOR: [number, number][] = [[1, -1], [0, -1], [-1, 0], [-1, 1], [2, -1], [0, 2], [1, 1]]
+
+  it('comes into nobody on the way to any space it offers', () => {
+    for (const movement of ['walk', 'run'] as const) {
+      const h = drawing()
+      h.amend({ movement })
+      const offered = h.view().cells.filter((c) => c.reachable !== null)
+      expect(offered.length).toBeGreaterThan(0)
+      for (const { cell, key } of offered) {
+        h.amend({ movement, path: [], turns: [] })
+        h.cell(cell.q, cell.r)
+        expect(path(h).at(-1)).toBe(key)
+        expect(path(h).slice(0, -1).filter((k) => taken.includes(k)), `to ${key}`).toEqual([])
+      }
+    }
+  })
+
+  it('offers nothing past one who fills the way, until they are clicked', () => {
+    const h = drawing(CORRIDOR)
+    expect(h.view().cells.filter((c) => c.reachable !== null).map((c) => c.key).sort()).toEqual([...taken].sort())
+    h.token('Bob')
+    expect(path(h)).toEqual(['1,0'])
+    h.cell(2, 0)
+    expect(path(h)).toEqual(['1,0', '2,0'])
+  })
+
+  it('takes the move back out of the space of one clicked again', () => {
+    const h = drawing()
+    h.token('Bob')
+    h.token('Bob')
+    expect(path(h)).toEqual([])
+  })
+
+  it("picks a clicked character while someone else's move is being declared", () => {
+    const h = drawing()
+    h.select('Cy')
+    h.token('Bob')
+    expect(h.active()).toBe(h.idOf('Bob'))
+    expect(path(h)).toEqual([])
+  })
+})
+
 // What the board offers an evader and a crash's winner when a move comes
 // into someone's space (combat.tex "Trample", "Crash").
 describe('a move into someone standing', () => {

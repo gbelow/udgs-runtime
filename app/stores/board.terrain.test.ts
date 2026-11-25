@@ -261,3 +261,54 @@ it('offers each floor on the way as one stop, however many storeys lie at its he
   expect(stops).toContain(`${TRUNK.q},${TRUNK.r}@${BRANCHES[0]}`)
   expect(new Set(stops).size).toBe(stops.length)
 })
+
+// Broke as: a move read who it came into by the cell alone, so one walking a
+// bridge, or jumping from ledge to ledge, trampled whoever stood below.
+describe('a move over someone standing far below', () => {
+  const LEDGES: [number, number][] = [[0, 0], [2, 0]]
+  const BELOW = { q: 1, r: 0 }
+
+  // Ann on a ledge HIGH metres up, another two cells off, Bob between them on the ground
+  const HIGH = 4
+  const ledges = (bridged: boolean) => {
+    const h = openHarness()
+    h.bring(strong('Ann'), fighter('Bob'))
+    h.createBoard(4)
+    h.paint('raise', LEDGES, HIGH)
+    h.select('Ann')
+    h.cell(0, 0)
+    h.select('Bob')
+    h.cell(BELOW.q, BELOW.r)
+    if (bridged) {
+      h.press(addLevel(HIGH, HIGH))
+      h.press(paintTerrain(BELOW, 'floor', 0, 0))
+    }
+    h.select('Ann')
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    return h
+  }
+  const over = (h: Harness) => {
+    h.cell(2, 0)
+    expect(pathOf(h)).toEqual(['1,0', '2,0'])
+    h.commit()
+    expect(getActionPanel(h.state()).reactors.map((r) => r.id)).not.toContain(h.idOf('Bob'))
+    for (const kind of ['roll', 'pay', 'resolve', 'skip'] as const) h.send({ kind, args: [] })
+    expect(placement(h, 'Ann')).toMatchObject({ cell: { q: 2, r: 0 }, elevation: HIGH })
+    expect(placement(h, 'Bob')).toMatchObject({ cell: BELOW, elevation: 0 })
+  }
+
+  it('walks a bridge over them', () => over(ledges(true)))
+
+  it('jumps the gap they stand in', () => {
+    const h = ledges(false)
+    h.amend({ movement: 'jump' })
+    over(h)
+  })
+
+  it('does not take a click on them for a place on the bridge', () => {
+    const h = ledges(true)
+    h.token('Bob')
+    expect(pathOf(h)).toEqual([])
+  })
+})
