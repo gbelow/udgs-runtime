@@ -10,10 +10,6 @@ import { useBoardLook } from '../../hooks/useBoardLook'
 import { useBots, useBotsPaused } from '../../hooks/useBots'
 import { useContestClock } from '../../hooks/useContest'
 import { useSights } from '../../hooks/useSights'
-import { BotsPause } from '../BotsPause'
-import { EndRound } from '../EndRound'
-import { EndTurn } from '../EndTurn'
-import { ContestBar } from '../ContestBar'
 import { TurnBanner } from '../TurnBanner'
 import { useDemo, useDemoKept, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
@@ -25,13 +21,12 @@ import { BoardCanvas } from '../BoardCanvas'
 import { ZoomButtons } from '../BoardPanel'
 import { ClickMenuHost } from '../ClickMenu'
 import { RoundChangePanel } from '../RoundChangePanel'
-import { CharacterList, SceneActions, SurgeTile } from '../ScenePanel'
+import { CharacterList, FightActions, FightButtons, SurgeTile } from '../ScenePanel'
 import { AutoThrow, Status } from '../RunScreen'
 import { ActionLog } from '../ActionPanel'
 import { SimpleResource } from '../CharacterSheet'
 import { Button, IconButton, SectionLabel, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
-import { useFollowOwing } from '../../hooks/useFollowOwing'
 import { Basics, HelpButton, HintLine, Objective } from './DemoHelp'
 
 const DiceTray = dynamic(() => import('../DiceTray'), { ssr: false })
@@ -110,7 +105,6 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
 function DemoTable() {
   const { started, scene, back } = useDemoStage()
   const { view, seeHint } = useDemo()
-  const { waiting, pick } = useFollowOwing()
   useBots({ auto: true, holdStart: !started })
   useContestClock()
   useSights()
@@ -138,14 +132,9 @@ function DemoTable() {
           {face ? <ActiveFace /> : hasActive ? <Status resource={<SimpleResource rssName={'AP'} />} resourceEnd={<SurgeTile />} needs={false} /> : <span className='text-xs text-muted'>pick a character</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><EndTurn /><BotsPause /><EndRound /><ContestBar /></div> : null}
+          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><FightButtons /></div> : null}
           {view.hint ? <HintLine hint={view.hint} onClose={() => { if (view.hint) seeHint(view.hint) }} /> : null}
-          {!started ? <Placing /> : !face && hasActive ? <SceneActions /> : (
-            <>
-              <span className='text-xs text-muted'>{face ? `${face.name} is not yours to play` : 'pick a character'}</span>
-              {waiting ? <Button tone='accent' className='self-start' onClick={pick}>the fight waits on {waiting.name}</Button> : null}
-            </>
-          )}
+          {started ? <FightActions /> : <Placing />}
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
           {throwing ? <DiceTray /> : !started ? <Basics /> : <>

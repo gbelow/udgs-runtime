@@ -13,7 +13,7 @@ import { useEndScene, usePartyCommands, useTableParties } from '../hooks/usePart
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useBreakage, useCombatRoster, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
+import { useActiveFace, useBreakage, useCombatRoster, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useContestSeconds } from '../hooks/useContest';
 import { useGmFloorTools } from '../hooks/useBoard';
@@ -23,9 +23,14 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useSustainedPanel } from '../hooks/useSustainedPanel';
 import type { SurgeView } from '../domain/scene/projections/turn';
-import { useBindingSurge } from '../hooks/useCharacterData';
+import { useBindingSurge, useHasActiveCharacter } from '../hooks/useCharacterData';
 import { useSceneAnswer, useSceneCalls, useSceneDiceBar } from '../hooks/useSceneDice';
 import { DieCalls, RollButtons } from './DieCalls';
+import { useFollowOwing } from '../hooks/useFollowOwing';
+import { BotsPause } from './BotsPause';
+import { ContestBar } from './ContestBar';
+import { EndRound } from './EndRound';
+import { EndTurn } from './EndTurn';
 
 // The scene's pieces of the run screen.
 
@@ -192,6 +197,29 @@ export function KillButton(){
   const { isCharacterDead } = useInjuryLens()
   const { hasOpenAction } = useCombatState()
   return <Button tone='bad' icon={Skull} active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
+}
+
+// What a player presses on the turn, the round and the bots, whoever is picked.
+export function FightButtons(){
+  return <><EndTurn /><BotsPause /><EndRound /><ContestBar /></>
+}
+
+// What the character picked can do in the fight, the screen picking whoever
+// the fight waits on as it comes up. With nobody picked, or someone the screen
+// is shown only as a token, the dice called for and the way back to whoever it
+// waits on.
+export function FightActions(){
+  const { waiting, pick } = useFollowOwing()
+  const hasActive = useHasActiveCharacter()
+  const face = useActiveFace()
+  if (hasActive && !face) return <SceneActions />
+  return(
+    <>
+      <SceneCalls />
+      <span className='text-xs text-muted'>{face ? `${face.name} is not yours to play` : 'pick a character'}</span>
+      {waiting ? <Button tone='accent' className='self-start' onClick={pick}>the fight waits on {waiting.name}</Button> : null}
+    </>
+  )
 }
 
 // The turn, the surges and the actions; the tests held for the round wait

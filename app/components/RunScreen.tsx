@@ -16,7 +16,7 @@ import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, Inj
 import { TableParties } from './TableParties';
 import { TableLink, TableWait, ViewAs } from './RunParts';
 import { useTableWaiting } from '../hooks/useTable';
-import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SurgeTile, SustainedPanel } from './ScenePanel';
+import { FightActions, FightButtons, GmSceneTools, KillButton, SceneSpace, SceneStrip, SurgeTile, SustainedPanel } from './ScenePanel';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { RecentJournal } from './Journal';
@@ -26,10 +26,6 @@ import { ControlLocked, GearLocked, GmLocked } from './Locks';
 import { useGameTab } from '../hooks/useGameTab';
 import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
-import { BotsPause } from './BotsPause'
-import { EndRound } from './EndRound'
-import { EndTurn } from './EndTurn'
-import { ContestBar } from './ContestBar'
 import { ActiveFace } from './ActiveFace'
 import { useActiveFace } from '../hooks/useCombatState'
 import { useRole } from '../hooks/useRole';
@@ -56,6 +52,9 @@ type Mode = {
   // whether exhaustion, hunger and thirst show among the tiles
   needs: boolean
   injuryAction?: ReactNode
+  // what is pressed for no one character, beside who acts
+  buttons?: ReactNode
+  // what the active character can do, which says so itself where nobody is picked
   actions: ReactNode
   // what the GM does to the mode that no character does
   gmTools?: ReactNode
@@ -71,7 +70,8 @@ const MODES: Record<RunTab, Mode> = {
     resourceEnd: <SurgeTile />,
     needs: false,
     injuryAction: <KillButton />,
-    actions: <SceneActions />,
+    buttons: <FightButtons />,
+    actions: <FightActions />,
     gmTools: <GmSceneTools />,
     log: { label: 'Log', node: <ActionLog />, action: <SaveLogButton /> },
   },
@@ -80,7 +80,7 @@ const MODES: Record<RunTab, Mode> = {
     parties: <TableParties sequence='exploration' />,
     space: <PartyCards />,
     needs: true,
-    actions: <ControlLocked><ExplorationSection /></ControlLocked>,
+    actions: <Picked><ControlLocked><ExplorationSection /></ControlLocked></Picked>,
     log: { label: 'Last ET', node: <div className='flex flex-col gap-2'><LastEtLog /><RecentJournal /></div> },
   },
   downtime: {
@@ -88,7 +88,7 @@ const MODES: Record<RunTab, Mode> = {
     parties: <TableParties sequence='downtime' />,
     space: <DowntimeRoster />,
     needs: true,
-    actions: <ControlLocked><DowntimeActions /></ControlLocked>,
+    actions: <Picked><ControlLocked><DowntimeActions /></ControlLocked></Picked>,
     log: { label: 'Last days', node: <div className='flex flex-col gap-2'><LastDaysLog /><RecentJournal /></div> },
   },
 }
@@ -105,6 +105,10 @@ const isCatalog = (v: OverlayView): v is CatalogView => v in CATALOGS
 
 const PICK = <span className='text-xs text-muted'>pick a character</span>
 
+function Picked({ children }: { children: ReactNode }){
+  return useHasActiveCharacter() ? children : PICK
+}
+
 const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
 
 // The run screen, in one of its modes, one per sequence that moves time: the
@@ -118,7 +122,7 @@ const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
 // mode's.
 export function RunScreen(){
   const { tab } = useGameTab()
-  const { strip, parties, space, resource, resourceEnd, needs, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
+  const { strip, parties, space, resource, resourceEnd, needs, injuryAction, buttons, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const { gmTools: hasGmTools } = useRole()
   const hasActiveCharacter = useHasActiveCharacter()
   const face = useActiveFace()
@@ -162,7 +166,7 @@ export function RunScreen(){
           {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          <ActionColumn gmTools={gmTools} scene={tab === 'scene' ? <><EndTurn /><BotsPause /><EndRound /><ContestBar /></> : null}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
+          <ActionColumn gmTools={gmTools} buttons={buttons}>{actions}</ActionColumn>
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
           {throwing ? <DiceTray /> : <>
@@ -276,7 +280,7 @@ export function Status({ resource, resourceEnd, needs, injuryAction }: { resourc
 // Who acts from the bar: the active character, or — for the GM and the
 // developer — the GM, who opens the catalogs and does to the mode what no
 // character does. Each mode locks what is not the screen's to press.
-function ActionColumn({ gmTools, scene, children }: { gmTools: ReactNode, scene: ReactNode, children: ReactNode }){
+function ActionColumn({ gmTools, buttons, children }: { gmTools: ReactNode, buttons: ReactNode, children: ReactNode }){
   const { gmTools: hasGmTools, gm, setGmMode } = useRole()
 
   return(
@@ -288,7 +292,7 @@ function ActionColumn({ gmTools, scene, children }: { gmTools: ReactNode, scene:
             <Segment aria-label='act as GM' selected={gm} onClick={() => setGmMode(true)}>GM</Segment>
           </Segmented>
         ) : null}
-        {scene}
+        {buttons}
       </div>
       {gm ? (
         <div className='flex flex-col gap-1'>

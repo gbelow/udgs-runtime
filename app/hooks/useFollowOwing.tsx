@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
 import { getOwing, getOwingPick } from "../domain/scene/projections/turn";
 import { getFightName } from "../domain/scene/rules/fighters";
+import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { readFight, useFight } from "../stores/useKeptFight";
+import { useTableStore } from "../stores/useTableStore";
 import { useRollerCheck } from "./useControl";
 
 // Whenever what the action being played out waits on one of the screen's own
@@ -11,6 +13,8 @@ import { useRollerCheck } from "./useControl";
 // Which of theirs it waits on now, and picking them.
 export function useFollowOwing(): { waiting: { id: string; name: string } | null; pick: () => void } {
   const rolls = useRollerCheck();
+  useCampaignStore((s) => s.owners);
+  useTableStore((s) => s.guests);
   const owing = useFight((s) => getOwing(s).filter((id) => rolls(id).own).join());
   const moved = useRef<{ from: string | null; to: string } | null>(null);
   useEffect(() => {
