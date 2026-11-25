@@ -4,7 +4,7 @@
 
 // Fields that hold a pair of characters together: a row or object that
 // names an unseen one in them goes whole, rather than losing one of the two.
-const TOGETHER = new Set(['members', 'pair'])
+export const TOGETHER: ReadonlySet<string> = new Set(['members', 'pair'])
 
 export type Hidden = ReadonlySet<string>
 

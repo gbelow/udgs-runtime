@@ -15,7 +15,7 @@ import { canStillRest, getRestAwaited } from '../rules/resting'
 import { getFightName, getMembers, getPartyName } from '../rules/fighters'
 import { isParkedParty } from '../rules/parked'
 import { getAvailableActions } from '../rules/options'
-import { getActionDef } from '../rules/actionCatalog'
+import { getActionDef, restsWith } from '../rules/actionCatalog'
 import { getActionName } from './labels'
 import { getRecoveredSTA, getSTARegen } from '../../character/rules/characteristics'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -150,7 +150,7 @@ function getRestRows(state: SceneState, id: string): RestRow[] {
     .filter((o) => getActionDef(o.draft.kind).rest)
     .map((o): RestRow => ({
       label: getActionName(o.draft), draft: o.draft, cost: o.cost, commit: o.draft.kind === 'rest', bar: o.available ? null : o.reason ?? 'closed',
-      gains: o.draft.kind === 'rest' ? `+${getRecoveredSTA(c, c.resources.STA, getSTARegen(c)) - c.resources.STA} STA` : '',
+      gains: restsWith(o.draft) ? `+${getRecoveredSTA(c, c.resources.STA, getSTARegen(c)) - c.resources.STA} STA` : '',
     }))
     .sort((a, b) => Number(b.commit) - Number(a.commit))
 }

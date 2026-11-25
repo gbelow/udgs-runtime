@@ -94,6 +94,8 @@ export function getFightBusy(state: SceneState): string | null {
 // Why the turn cannot be contested now, by anyone: someone must hold it,
 // have declared nothing in it yet, and it must not have been contested.
 export function getContestClosed(state: SceneState): string | null {
+  const dice = getDiceBar(state.calls)
+  if (dice) return dice
   if (!getTurnHolder(state) && !isUnseenTurn(state)) return 'nobody is in turn'
   if (state.fleeing) return 'the turn is a flee'
   if (state.forcedSurge !== '') return 'the turn was forced by a feint'

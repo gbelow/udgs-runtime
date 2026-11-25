@@ -654,7 +654,7 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
 // What a reactor may answer with, each answer once, and, where more than one
 // surge would open them, the surge they are made on.
 function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (option: ActionOptionView) => void }){
-  const [surge, setSurge] = useState<SurgeKind | null>(null)
+  const [surge, setSurge] = useState<SurgeKind | null | undefined>(undefined)
   const { surges } = reactor
   const shown = surges.find((s) => s.surge === surge) ?? surges.find((s) => s.chosen) ?? surges[0]
   return (
@@ -662,7 +662,7 @@ function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (opti
       {shown ? (
         <span className='basis-full flex flex-row flex-wrap gap-x-2 gap-y-0.5 items-center'>
           <Segmented label={`surge ${reactor.name} answers with`}>
-            {surges.map((s) => <Segment key={s.surge} selected={s === shown} title={s.rules} onClick={() => setSurge(s.surge)}>{s.surge} surge <span className='font-mono text-muted'>{s.gives}</span></Segment>)}
+            {surges.map((s) => <Segment key={s.surge ?? 'none'} selected={s === shown} title={s.rules} onClick={() => setSurge(s.surge)}>{s.surge ? `${s.surge} surge` : 'no surge'} <span className='font-mono text-muted'>{s.gives}</span></Segment>)}
           </Segmented>
           <span className='text-[10px] text-muted'>{shown.rules}</span>
         </span>

@@ -1,11 +1,11 @@
-import type { CampaignCharacter, SurgeKind } from '../../types'
+import type { BuffTarget, CampaignCharacter, SurgeKind } from '../../types'
 import { isUnpaidMove } from '../../item/rules/moves'
 import type { Action, ActionDraft, ActionKind, SceneState } from '../types'
 import { SURGES, type SurgeAllowance } from '../../tables'
 import { surgeKinds } from '../../lists'
 import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurged, getUnsurged, isLearnedSurge } from '../../character/rules/surge'
 import { ACTIONS, isReaction } from './actionCatalog'
-import { getSurgeAllows } from '../../character/rules/effects'
+import { getBuffBonus, getSurgeAllows } from '../../character/rules/effects'
 import { getReactionsTo, getSpawned } from './log'
 import { isInGrapple } from './partners'
 import { getSurgeTurnBar, isInTurn } from './turn'
@@ -42,6 +42,16 @@ const ALLOWANCE_KINDS: Record<Exclude<SurgeAllowance, 'grapple' | 'escape' | 'in
   attacks: ['strike', 'opportunityAttack', 'counterattack'],
   defenses: ['evade', 'evasiveJump', 'block', 'intercept', 'brace'],
   reflexes: ['evasion', 'guard', 'avoidExplosion', 'blockExplosion'],
+}
+
+// The answers made with a skill a surge may better (`bettersAnswer`).
+const MADE_WITH = { 'skill:reflex': 'reflexes', 'skill:defend': 'defenses' } as const satisfies Partial<Record<BuffTarget, SurgeAllowance>>
+
+// Whether the character makes the answer better with the surge than without
+// it, beyond what its AP pay for.
+export function bettersAnswer(c: CampaignCharacter, surged: CampaignCharacter, kind: ActionKind): boolean {
+  return (Object.keys(MADE_WITH) as (keyof typeof MADE_WITH)[]).some((target) =>
+    ALLOWANCE_KINDS[MADE_WITH[target]].includes(kind) && getBuffBonus(surged, target) > getBuffBonus(c, target))
 }
 
 function inAllowance(state: SceneState, c: CampaignCharacter, a: SurgeAllowance, kind: ActionKind, variant?: string): boolean {

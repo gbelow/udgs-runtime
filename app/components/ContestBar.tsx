@@ -13,7 +13,7 @@ export function ContestBar(){
   const { own, thinking, decided, others, contenders } = view
   const chosen = own.some((c) => c.contesting)
   return (
-    <div role='group' aria-label='contest the turn' className='shrink-0 flex flex-row flex-wrap items-center gap-2 rounded border border-accent/60 bg-accent/5 px-3 py-1 mb-1 text-xs'>
+    <div role='group' aria-label='contest the turn' className='basis-full shrink-0 flex flex-row flex-wrap items-center gap-2 rounded border border-accent/60 bg-accent/5 px-2 py-1.5 text-xs'>
       {thinking || others
         ? <span className='text-accent'>{thinking ? 'who contests?' : `waiting on ${others}`}</span>
         : <span>may be contested</span>}

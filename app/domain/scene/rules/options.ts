@@ -44,7 +44,7 @@ import { getReloadCost } from '../../character/rules/gear'
 import { getSpellOptions } from './cast'
 import { isSpellKey } from '../../spells'
 import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain'
-import { getFleeBarFor, getSurgeBarFor, getSurgeProbes, getSurgeVariant, withoutAnswerSurge } from './surge'
+import { bettersAnswer, getFleeBarFor, getSurgeBarFor, getSurgeProbes, getSurgeVariant, withoutAnswerSurge } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
 import { findPrepared, getPreparedBar } from './prepared'
@@ -140,7 +140,9 @@ export function getGoBar(state: SceneState, root: Action): string | null {
   const reactions = getReactionsTo(state, root.id)
   const unfinished = getUnfinishedAnswers(state, root)[0]
   if (unfinished) return `${getFightName(state, unfinished.actorId)}'s ${getActionDef(unfinished.kind).label} is not finished${unfinished.kind === 'opportunityAttack' ? `: ${getOpportunityBar(state, state.characters[unfinished.actorId], unfinished)}` : ''}`
-  const broke = [root, ...reactions].find((a) => getPayableCost(state, a) === null)
+  // whoever is shown only as a token has no AP to read: whether they can pay is
+  // the table's to say
+  const broke = [root, ...reactions].find((a) => !state.characters[a.actorId]?.shown && getPayableCost(state, a) === null)
   return broke ? `${getFightName(state, broke.actorId)} cannot pay for the ${getActionDef(broke.kind).label}` : null
 }
 
@@ -207,17 +209,19 @@ function listAvailableActions(state: SceneState, characterId: string): ActionOpt
     .map((o) => (o.chosen && before !== state && o.surge !== made ? { ...o, chosen: false } : o))
 }
 
-// The answers as they are picked from: with two surges or more to make them
-// on, once for each surge, every answer in it, made on that surge where it
-// opens the answer and on whatever does where it does not; with one surge or
-// none, no choice of surge (empty). A surge only an ability gives comes with
-// the answer it is made with, and is no choice of its own.
-export function getAnswersBySurge(options: readonly ActionOption[]): { surge: SurgeKind; options: ActionOption[] }[] {
-  const surges = [...new Set(options.flatMap((o) => (o.available && o.surge !== null && !isLearnedSurge(o.surge) ? [o.surge] : [])))]
-  if (surges.length < 2) return []
-  return surges.map((surge) => ({
+// The answers as they are picked from: with two ways or more to make some of
+// them, with no surge (null) or on one, once for each way, every answer in it
+// made that way where it can be and the first way it can where not; empty with
+// no such choice. A surge only an ability gives comes with the answer it is
+// made with, and is no choice of its own.
+export function getAnswersBySurge(options: readonly ActionOption[]): { surge: SurgeKind | null; options: ActionOption[] }[] {
+  const surged = options.filter((o) => o.available && o.surge !== null && !isLearnedSurge(o.surge))
+  const free = options.some((o) => o.available && o.surge === null && surged.some((x) => sameDraft(x.draft, o.draft)))
+  const ways: (SurgeKind | null)[] = [...(free ? [null] : []), ...new Set(surged.map((o) => o.surge))]
+  if (ways.length < 2) return []
+  return ways.map((surge) => ({
     surge,
-    options: options.filter((o, i) => o.surge === null || o.surge === surge
+    options: options.filter((o, i) => o.surge === surge
       || (!options.some((x) => x.surge === surge && sameDraft(x.draft, o.draft)) && options.findIndex((x) => sameDraft(x.draft, o.draft)) === i)),
   }))
 }
@@ -292,25 +296,32 @@ const LIFTED_BY_A_SURGE: ReadonlySet<string | null> = new Set([CANNOT_AFFORD, NO
 // An answer is listed once for each surge that would open it (a movement
 // surge and a reaction surge both may), the surge it is pressed with, the
 // reaction surge's first and the movement surge's last; an action of their own
-// is marked with the first.
+// is marked with the first. An answer that is open without one is listed on
+// each surge that betters it too, after itself (`bettersAnswer`).
 function withSurges(state: SceneState, c: CampaignCharacter, payer: CampaignCharacter, now: ActionOption[], list: ListFor, opens: boolean): ActionOption[] {
   const probed = getSurgeProbes(state, c, opens)
   const rank = (p: { kind: SurgeKind }) => (p.kind === 'reaction' ? 0 : p.kind === 'movement' ? 2 : 1)
   const surges = opens ? [...probed].sort((a, b) => rank(a) - rank(b)) : probed
   const giving = opens && surges.some((p) => isLearnedSurge(p.kind))
-  if (now.every((o) => o.available) && !giving) return now
+  const bettered = opens ? surges.filter((p) => !isLearnedSurge(p.kind)).flatMap((p): ActionOption[] => {
+    const surged = p.state.characters[c.id]
+    const kinds = new Set(now.filter((o) => o.available && bettersAnswer(c, surged, o.draft.kind)).map((o) => o.draft.kind))
+    return kinds.size === 0 ? [] : list(state, surged, kinds).filter((a) => a.available && now.some((o) => o.available && sameDraft(o.draft, a.draft))).map((a) => ({ ...a, surge: p.kind }))
+  }) : []
+  const withBettered = (o: ActionOption): ActionOption[] => (o.available ? [o, ...bettered.filter((b) => sameDraft(b.draft, o.draft))] : [o])
+  if (now.every((o) => o.available) && !giving) return now.flatMap(withBettered)
   const fixed = new Set([NOT_YOUR_TURN, IMMOBILE, COLLAPSED, UNCONSCIOUS, getDiceBar(state.calls), getRoundChangeActBar(state)])
   const charged = isCombatStarted(state)
   const liftable = (o: ActionOption) => !o.available && !fixed.has(o.reason) && (o.cost === null || !canAfford(payer, o.cost, charged) || LIFTED_BY_A_SURGE.has(o.reason))
   const closed = new Set(now.filter(liftable).map((o) => o.draft.kind))
-  if (closed.size === 0 && !giving) return now
+  if (closed.size === 0 && !giving) return now.flatMap(withBettered)
   const probes = surges.map((p) => {
     const surged = p.state.characters[c.id]
     const listed = opens && isLearnedSurge(p.kind) ? list(p.state, surged) : list(state, surged, closed)
     return { kind: p.kind, options: listed.filter((a) => a.available && isSurgeFor(c, p.kind, a.draft)) }
   })
   const opened = now.flatMap((o): ActionOption[] => {
-    if (o.available) return [o]
+    if (o.available) return withBettered(o)
     const via = probes.flatMap(({ kind, options }) => options.filter((a) => sameDraft(a.draft, o.draft)).slice(0, 1).map((a) => ({ ...a, surge: kind })))
     if (via.length === 0) return [o]
     return opens ? via : [{ ...o, surge: via[0].surge, reason: 'needs a surge' }]

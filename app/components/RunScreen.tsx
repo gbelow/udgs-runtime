@@ -28,6 +28,8 @@ import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
 import { BotsPause } from './BotsPause'
 import { EndRound } from './EndRound'
+import { EndTurn } from './EndTurn'
+import { ContestBar } from './ContestBar'
 import { ActiveFace } from './ActiveFace'
 import { useActiveFace } from '../hooks/useCombatState'
 import { useRole } from '../hooks/useRole';
@@ -160,7 +162,7 @@ export function RunScreen(){
           {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          <ActionColumn gmTools={gmTools} scene={tab === 'scene' ? <><BotsPause /><EndRound /></> : null}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
+          <ActionColumn gmTools={gmTools} scene={tab === 'scene' ? <><EndTurn /><BotsPause /><EndRound /><ContestBar /></> : null}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
           {throwing ? <DiceTray /> : <>

@@ -7,7 +7,8 @@ import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, g
 import { getBreakFreeView, getMockeryView, type MockeryView } from "../domain/scene/projections/domination";
 import { getLeadershipView, type LeadershipView } from "../domain/scene/projections/providence";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
-import { getGearBar } from "../domain/scene/rules/turn";
+import { getEndTurnBar, getGearBar, getTurnHolder } from "../domain/scene/rules/turn";
+import { getFightName } from "../domain/scene/rules/fighters";
 import { FollowControls, getSurgeViews, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getContestModeOptions, getTurnControls, TurnControls, type SurgeView } from "../domain/scene/projections/turn";
 import type { RollMode } from "../domain/play/dice";
 import { getReturnBar } from "../domain/scene/rules/fight";
@@ -19,7 +20,7 @@ import { useSceneDispatch } from "./useSceneDispatch";
 import { useFollowPick } from "./useFollowPick";
 import { useSightStore } from "../stores/useSightStore";
 import { useKnows } from "./useSights";
-import { useIsToken } from "./useControl";
+import { useControlBar, useIsToken } from "./useControl";
 import { getKnownRoster } from "../domain/scene/projections/sights";
 
 const NONE: string[] = [];
@@ -90,6 +91,16 @@ export function useSceneCards(): {
   const parties = getSceneCards(useCombatStore.getState()).map((p) => ({ ...p, cards: p.cards.filter((c) => knows(c.id)) }));
   const { pick, picked } = useCombatRoster();
   return { parties, pick, picked };
+}
+
+// The turn held by someone the screen plays, and why it cannot be ended now;
+// null when it is nobody's of theirs.
+export function useEndTurn(): { name: string; bar: string | null } | null {
+  const holder = useCombatStore(getTurnHolder);
+  const own = useControlBar(holder) === null;
+  const name = useCombatStore((s) => (holder ? getFightName(s, holder) : ''));
+  const bar = useCombatStore(getEndTurnBar);
+  return holder && own ? { name, bar } : null;
 }
 
 // The card of the character picked, when the screen is shown only their

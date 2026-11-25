@@ -1,6 +1,7 @@
 import type { Action, SceneState } from '../types'
 import { getStealthTurn, notices } from './stealth'
 import { getSenseReaches } from './detection'
+import { TOGETHER } from '../../prune'
 
 // What a viewer who controls some of the fight's characters is shown of it
 // (multiplayer-plan.md "Hidden information"): the characters they see, and
@@ -11,8 +12,39 @@ import { getSenseReaches } from './detection'
 // everyone in it.
 const MANY = 3
 
-// A root action and everything it opened or answered, with whoever took part.
-export type Exchange = { ids: string[]; participants: Set<string>; actor: string }
+// A root action and everything it opened or answered, with whoever took part
+// (`getInvolved`).
+// `held`, those of them it holds together in a pair, whom it cannot be told
+// without.
+export type Exchange = { ids: string[]; participants: Set<string>; held: Set<string>; actor: string }
+
+// What an action writes down of who only watched it, or let it go by.
+const WATCHING: ReadonlySet<string> = new Set(['participants', 'detections', 'hiddenFrom', 'passed', 'unprotectedBy'])
+
+// Who took part in an action: those it lists, but for whoever only watched it or
+// let it go by, who is seen no better for it.
+function getInvolved(action: Action): Involved {
+  const known = involved.get(action)
+  if (known) return known
+  const named = new Set<string>()
+  const together = new Set<string>()
+  const walk = (value: unknown, pair: boolean): void => {
+    if (typeof value === 'string') { named.add(value); if (pair) together.add(value) }
+    else if (Array.isArray(value)) value.forEach((v) => walk(v, pair))
+    else if (value && typeof value === 'object') {
+      for (const [key, inner] of Object.entries(value)) if (!WATCHING.has(key)) { named.add(key); walk(inner, TOGETHER.has(key)) }
+    }
+  }
+  walk(action, false)
+  const taking = action.participants.filter((id) => named.has(id))
+  const made = { taking, held: taking.filter((id) => together.has(id)) }
+  involved.set(action, made)
+  return made
+}
+
+// An action is replaced, never changed.
+type Involved = { taking: string[]; held: string[] }
+const involved = new WeakMap<Action, Involved>()
 
 // The fight's logged actions, landed, in play or withdrawn, grouped by the
 // root they come of.
@@ -27,9 +59,11 @@ export function getExchanges(state: SceneState): Map<string, Exchange> {
   const exchanges = new Map<string, Exchange>()
   for (const a of all.values()) {
     const root = rootOf(a)
-    const exchange = exchanges.get(root.id) ?? { ids: [], participants: new Set<string>(), actor: root.actorId }
+    const exchange = exchanges.get(root.id) ?? { ids: [], participants: new Set<string>(), held: new Set<string>(), actor: root.actorId }
     exchange.ids.push(a.id)
-    for (const id of a.participants) exchange.participants.add(id)
+    const { taking, held } = getInvolved(a)
+    for (const id of taking) exchange.participants.add(id)
+    for (const id of held) exchange.held.add(id)
     exchanges.set(root.id, exchange)
   }
   return exchanges
@@ -75,11 +109,11 @@ export function getSeenBy(state: SceneState, controlled: ReadonlySet<string>): S
 // of, those they see everyone of, and, of a crowd, those whose actor they see.
 export function getVisibleActions(state: SceneState, controlled: ReadonlySet<string>, seen: ReadonlySet<string>): Set<string> {
   const visible = new Set<string>()
-  for (const { ids, participants, actor } of getExchanges(state).values()) {
+  for (const { ids, participants, held, actor } of getExchanges(state).values()) {
     const people = [...participants]
     const shown = people.some((id) => controlled.has(id))
       || (people.length > MANY ? seen.has(actor) : people.every((id) => seen.has(id) || !state.characters[id]))
-    if (shown) ids.forEach((id) => visible.add(id))
+    if (shown && [...held].every((id) => seen.has(id) || !state.characters[id])) ids.forEach((id) => visible.add(id))
   }
   return visible
 }

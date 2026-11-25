@@ -37,6 +37,14 @@ function Left({ value }: { value: SceneCard['AP'] }){
   return <span title={`${third.label} (a third)`} aria-label={third.label} className={`inline-block w-2 h-2 rounded-full ${third.className}`} />
 }
 
+const HURT = ['bg-good', 'bg-injury-1', 'bg-injury-2', 'bg-injury-3', 'bg-injury-4', 'bg-injury-5'] as const
+
+// How hurt: the number, or on a token a colour for every ten.
+function Hurt({ value }: { value: SceneCard['IL'] }){
+  if (typeof value === 'number') return <span className='font-mono text-fg'>{value}</span>
+  return <span title={`injury level ${value.tens}0 or more`} aria-label={`injury level ${value.tens}0 or more`} className={`inline-block w-2 h-2 rounded-full ${HURT[value.tens]}`} />
+}
+
 // One character's card; a click picks them, and what is passed in sits under
 // it.
 export function Card({ card, picked = false, onClick, children }: { card: SceneCard, picked?: boolean, onClick: () => void, children?: ReactNode }){
@@ -59,7 +67,7 @@ export function Card({ card, picked = false, onClick, children }: { card: SceneC
         <div className='flex flex-row flex-wrap gap-x-2.5 text-xs text-muted'>
           <span>AP <Left value={card.AP} /></span>
           <span>STA <Left value={card.STA} /></span>
-          <span>IL <span className='font-mono text-fg'>{card.IL}</span></span>
+          <span>IL <Hurt value={card.IL} /></span>
           {card.bleed ? <span className='text-bad'>bleed <span className='font-mono'>{card.bleed}</span></span> : null}
           {card.burning ? <span className='text-bad'>burning <span className='font-mono'>{card.burning}</span></span> : null}
         </div>

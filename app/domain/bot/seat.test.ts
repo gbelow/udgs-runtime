@@ -4,7 +4,9 @@ import type { Viewer } from '../profiles'
 import { applySceneCommand, type CommandContext } from '../scene/commands/registry'
 import { archer, board, meleeTrained, spearman, towerWarden } from '../scene/fixtures'
 import { addAffliction } from '../character/commands/addAffliction'
-import { getAvailableActions } from '../scene/rules/options'
+import { getAvailableActions, getGoBar } from '../scene/rules/options'
+import { getOpenAction } from '../scene/rules/log'
+import { getSceneSeenBy } from '../scene/projections/seen'
 import { getFreeAttackOptions } from '../scene/rules/attack'
 import { getOpenChoices } from '../scene/projections/choices'
 import { seededRng, rollD10 } from '../play/dice'
@@ -40,6 +42,21 @@ describe('a strike answered with an evasive jump from the ground', () => {
   it('offers the landing it was clicked to as chosen, and no other', () => {
     const offered = getOpenChoices(jumped).filter((c) => c.actorId === 'd' && c.part === 'cell')
     expect(offered.filter((c) => c.chosen).map((c) => c.value)).toEqual([landing.value])
+  })
+
+  // Against a person's strike, whose roll the bot cannot press, it picked its
+  // landing again and again, undoing the last.
+  it('is not picked again while the attacker is a person', () => {
+    const opts: MoveOptions = { ctx, botDice: () => 5, rngOf: () => rng, autoTable: false }
+    for (const box of Object.values(BOT_BOXES)) expect(getNextMove(jumped, [{ id: 'd', members: ['d'], box }], opts).move).toBeNull()
+  })
+
+  // The panel of whoever is shown only the defender's token read it as unable
+  // to pay for its answer, and kept the attacker from rolling.
+  it('leaves the attacker shown only a token to roll', () => {
+    const seen = getSceneSeenBy(jumped, new Set(['a']))
+    const open = getOpenAction(seen)
+    expect(open && getGoBar(seen, open)).toBe(getGoBar(jumped, getOpenAction(jumped)!))
   })
 
   it("comes to the attacker's roll with bots on both seats", () => {

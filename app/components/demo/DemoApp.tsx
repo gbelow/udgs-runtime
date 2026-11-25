@@ -12,6 +12,8 @@ import { useContestClock } from '../../hooks/useContest'
 import { useSights } from '../../hooks/useSights'
 import { BotsPause } from '../BotsPause'
 import { EndRound } from '../EndRound'
+import { EndTurn } from '../EndTurn'
+import { ContestBar } from '../ContestBar'
 import { TurnBanner } from '../TurnBanner'
 import { useDemo, useDemoEnd, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
@@ -130,7 +132,7 @@ function DemoTable() {
           {face ? <ActiveFace /> : hasActive ? <Status resource={<SimpleResource rssName={'AP'} />} resourceEnd={<SurgeTile />} needs={false} /> : <span className='text-xs text-muted'>pick a character</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><BotsPause /><EndRound /></div> : null}
+          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><EndTurn /><BotsPause /><EndRound /><ContestBar /></div> : null}
           {started ? (face ? <span className='text-xs text-muted'>{face.name} is not yours to play</span> : hasActive ? <SceneActions /> : <span className='text-xs text-muted'>pick a character</span>) : <Placing />}
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>

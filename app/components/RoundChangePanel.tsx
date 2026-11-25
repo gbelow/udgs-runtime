@@ -14,7 +14,7 @@ import { RollButtons } from './DieCalls'
 import type { OrdersRow, RoundCard, RoundChangeView, RoundStepView } from '../domain/scene/projections/roundChange'
 
 const HINTS: Partial<Record<RoundChangeView['phase'], string>> = {
-  rest: 'rest or speak with the buttons on your characters, paid with what is left of both rounds',
+  rest: 'rest or speak with the buttons on your characters, paid with what is left of both rounds; speaking counts as a rest too',
   concentration: 'whoever keeps something going pays for it again, or lets it go and finishes what they held',
   join: 'characters can join the fight now, from the Character panel or the Party tab',
   stress: 'the limit stress actions are taken as turns, the worst test first',
@@ -165,7 +165,7 @@ function Resting({ card }: { card: RoundCard }){
     <div className='flex flex-col gap-1 border-t border-line pt-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         {card.resting.filter((r) => r.commit).map(key)}
-        <Button size='xs' selected={speaking} aria-label={`speak ${card.name}`} onClick={() => setSpeaking(!speaking)}>speak</Button>
+        <Button size='xs' selected={speaking} aria-label={`speak ${card.name}`} title='a social action counts as a rest and gives what it does' onClick={() => setSpeaking(!speaking)}>speak <span className='text-muted'>also rests</span></Button>
       </div>
       {speaking ? <div className='flex flex-row flex-wrap gap-1'>{card.resting.filter((r) => !r.commit).map(key)}</div> : null}
     </div>

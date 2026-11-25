@@ -225,3 +225,9 @@ export function reactsTo(kind: ActionKind, root: ActionKind): boolean {
 export function isDefense(kind: ActionKind): kind is (typeof DEFENSES)[number] {
   return ((DEFENSES satisfies readonly ReactionKind[]) as readonly ActionKind[]).includes(kind)
 }
+
+// combat.tex "Social actions": "Every social action ... counts as a Rest
+// action"; taking back a surrender is said for nothing.
+export function restsWith(action: ActionDraft): boolean {
+  return getActionDef(action.kind).rest === true && !(action.kind === 'social' && action.say === 'unsurrender')
+}

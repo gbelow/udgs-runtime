@@ -24,7 +24,7 @@ import { isVoided } from '../rules/opportunity'
 import { isStoppedByGuard } from '../rules/attack'
 import { getMoveDestination } from '../rules/board/waypoint'
 import { getActionHeading } from '../rules/detection'
-import { isAttackAction } from '../rules/actionCatalog'
+import { isAttackAction, restsWith } from '../rules/actionCatalog'
 import { getPerfectPreparationAP } from '../rules/cunning'
 import { meetAttitudes } from '../../character/commands/attitudes'
 import { getBreaks, getBrokenItems } from '../rules/breakage'
@@ -172,7 +172,7 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
         // combat.tex "Social actions": each "counts as a Rest action";
         // unflagging a surrender is free and no rest
-        if ((action.kind === 'social' && action.say !== 'unsurrender') || action.kind === 'taunt') return c.id === action.actorId ? restCharacter(c) : c
+        if ((action.kind === 'social' || action.kind === 'taunt') && restsWith(action)) return c.id === action.actorId ? restCharacter(c) : c
         // gear.tex "Potions and Medicine": a dose taken out of what is held
         if (action.kind === 'drink') return c.id === action.actorId && action.drunk ? takeDose(action.itemId)(c) : c
         // abilities.tex "Medicine": what the treatment did to whoever it was

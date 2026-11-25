@@ -1,3 +1,4 @@
+import type { OpenChoice } from '../../scene/projections/choices'
 import type { CampaignCharacter, Coord, MovementKind } from '../../types'
 import type { MoveAction, SceneState } from '../../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../../scene/commands/registry'
@@ -145,7 +146,10 @@ export function carryOn(input: SeatInput, find: Find): Decision {
   const held = buttons.find((b) => b.command.kind === 'rollHeld' && members.includes(argOf(b.command) as string))
   const forward = held ?? find('roll') ?? find('pay') ?? find('resolve')
   if (forward) return { kind: 'press', pick: forward, why: forward.label }
-  const fill = choices.find((c) => !c.chosen)
+  // what has been picked once is not picked again: where a jump lands, picked
+  // over and over, kept the table from ever being done
+  const picked = (c: OpenChoice) => choices.some((x) => x.chosen && x.actorId === c.actorId && x.part === c.part)
+  const fill = choices.find((c) => !c.chosen && !picked(c))
   return fill ? { kind: 'press', pick: fill, why: fill.label } : { kind: 'wait', why: 'nothing to do' }
 }
 

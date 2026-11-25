@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { spearman, swordsman } from '../domain/scene/fixtures'
+import { archer, spearman, swordsman } from '../domain/scene/fixtures'
 import { getAvailableActions } from '../domain/scene/rules/options'
+import { getActionOffers } from '../domain/scene/projections/actionPanel'
 import { getBoardView } from '../domain/scene/projections/boardView'
 
 // Answers made on a surge, over the real combat store.
@@ -78,5 +79,30 @@ describe('an answer made on a surge', () => {
     const landing = getBoardView(h.state()).cells.find((c) => c.jump)!
     h.cell(landing.cell.q, landing.cell.r)
     expect(h.state().characters[id].usedSurge).toBe('reaction')
+  })
+
+  // A reflex is better with the movement surge (combat.tex "Reflex"), which was
+  // only offered to one who could not pay for it without.
+  it('is offered on a surge that betters it to one who can pay without', () => {
+    const h = openHarness()
+    h.bring(swordsman('Bob'), archer('Cy'))
+    h.createBoard(8)
+    h.select('Bob')
+    h.cell(6, 0)
+    h.select('Cy')
+    h.cell(0, 0)
+    h.send({ kind: 'nextRound', args: [] })
+    for (let i = 0; i < 8 && h.state().roundStep !== null; i++) h.send({ kind: 'continueRound', args: [] })
+    h.startTurn()
+    const id = h.idOf('Bob')
+    h.send({ kind: 'surge', args: [h.idOf('Cy'), 'focus'] })
+    h.pressMenu(h.menu({ on: 'token', id })!.entries.find((e) => e.category === 'attack' && e.bar === null && e.press.kind === 'declare' && e.press.aim !== null)!)
+    const ammo = getActionOffers(h.state()).ammo[0]
+    if (ammo) h.amend({ ammoId: ammo.itemId })
+    h.commit()
+    const evasions = getAvailableActions(h.state(), id).filter((o) => o.draft.kind === 'evasion' && o.available)
+    expect(evasions.map((o) => o.surge)).toEqual([null, 'movement'])
+    h.send({ kind: 'react', args: [id, evasions[1].draft, evasions[1].surge] })
+    expect(h.state().characters[id].usedSurge).toBe('movement')
   })
 })

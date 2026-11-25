@@ -6,7 +6,7 @@ import { TurnBanner } from './TurnBanner';
 import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
-import { Check, Dices, Play, Settings, SkipForward, Skull } from 'lucide-react'
+import { Check, Dices, Play, Settings, Skull } from 'lucide-react'
 import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Segment, Segmented, Tooltip, selectClass } from './ui';
 import { useBotsPauseSetting } from '../hooks/useBots';
 import { useEndScene, usePartyCommands, useTableParties } from '../hooks/useParty';
@@ -416,18 +416,15 @@ export function SustainedPanel(){
 // contested before its holder declares anything — by as many as ask, all
 // rolling cunning at once.
 function TurnControl(){
-  const { startTurn, toggleContest, contestMode, rollContest, endTurn } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, timed, stealth, duty } = useTurnControls()
+  const { startTurn, toggleContest, contestMode, rollContest } = useCombatCommands()
+  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, result, timed, stealth, duty } = useTurnControls()
   const modes = useContestModes()
 
   return(
     <div className='flex flex-col gap-0.5'>
       <div className='flex gap-1 items-center'>
         {
-          inTurn ?
-          <Tooltip text={end ?? 'end the turn; movement and combat surge AP left is lost'}>
-            <ActionKey look='go' icon={SkipForward} aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</ActionKey>
-          </Tooltip> :
+          inTurn ? null :
           <Tooltip text={start ?? 'start this turn for the active character'}>
             <ActionKey look='go' icon={Play} aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</ActionKey>
           </Tooltip>

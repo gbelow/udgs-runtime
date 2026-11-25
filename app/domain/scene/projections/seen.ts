@@ -95,7 +95,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   edits: (edits, c) => edits.map((e) => { const changes = unseen(e.changes, c); return changes === e.changes ? e : { ...e, changes } }).filter((e) => e.changes.length > 0),
   board: (board, c) => (board ? { ...board, placements: unseen(board.placements, c) } : board),
   binds: unseen,
-  floor: keep,
+  floor: unseen,
   opened: keep,
 }
 

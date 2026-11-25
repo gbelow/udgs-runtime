@@ -14,6 +14,7 @@ import { getSeenBy } from '../domain/scene/rules/seen'
 import { getBoardViewFrom } from '../domain/scene/projections/boardView'
 import { getStoreyChoices, getStoreyView, getViewEye } from '../domain/scene/projections/storeyView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
+import { SHOWN_IL_STEP } from '../domain/character/lenses/face'
 import { coordKey, distance, ring, sameCell } from '../domain/scene/rules/board/geometry'
 import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renameBoardMap, setLevelBoardMap } from '../domain/scene/commands/boardMapEdit'
 import { newStructureMap, structureOfMap } from '../domain/scene/factories'
@@ -438,7 +439,7 @@ function assertSeen(s: SceneState) {
       if (controlled.includes(id) || !view.characters[id]) continue
       const { trainables, containers, injuries, resources, abilities, spells, notes } = view.characters[id]
       expect({ trainables, containers, injuries, resources, abilities, spells, notes }, `${controlled.join('+')} is shown the sheet of ${id}, whom they do not play`)
-        .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: { ...blank.injuries, injuryLevel: s.characters[id].injuries.injuryLevel, bleed: s.characters[id].injuries.bleed }, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, notes: blank.notes })
+        .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: { ...blank.injuries, injuryLevel: Math.floor(s.characters[id].injuries.injuryLevel / SHOWN_IL_STEP) * SHOWN_IL_STEP, bleed: s.characters[id].injuries.bleed }, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, notes: blank.notes })
     }
     const known = new Set([...Object.keys(view.actions), ...view.journal.map((e) => e.action.id)])
     for (const a of Object.values(view.actions)) {
