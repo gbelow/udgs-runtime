@@ -16,7 +16,10 @@ import { getOpenAction } from '../scene/rules/log'
 // it is not open to the seat; the presses are then sent to the table as the
 // seat, which refuses again what the seat may not do.
 
-export type Decision = { why: string } & (
+// `noted`: what the box notes for itself once the decision is played, and
+// only then, over its notes of the same keys. A decision may be asked for and
+// never played, and is then asked for again.
+export type Decision = { why: string; noted?: Notes } & (
   // one of the buttons or choices in the input, pressed as it is offered
   | { kind: 'press'; pick: OpenButton | OpenChoice }
   // an option declared and committed, or an answer given, spelled out whole
@@ -52,7 +55,8 @@ export type SeatInput = {
   // turn asked for or contested for it), 'any' anything, a turn asked for to
   // better its position among it
   pass: Pass
-  // what the seat's box noted for itself at the last look at the fight (`Box`'s `notes`)
+  // what the seat's box noted for itself at the last look at the fight (`Box`'s `notes`),
+  // and with the moves it has played (`Decision`'s `noted`)
   notes: Notes
 }
 
@@ -62,6 +66,7 @@ export type Pass = 'immediate' | 'any'
 // foes its seat remembers too, where they were last noticed (bot/memory.ts).
 // One with `notes` notes something for itself at every look at the fight,
 // from what it noted last and the fight as the seat sees it, and is shown it.
+// What it remembers of its decisions it notes with them (`noted`), and keeps nowhere else.
 export type Box = ((input: SeatInput) => Decision) & {
   remembers?: boolean
   notes?: (previous: Notes | undefined, view: SceneState, members: readonly string[]) => Notes

@@ -9,7 +9,7 @@ import { getBelief } from './belief'
 import { getMyButtons, getMyChoices, getWaits, type Wait } from './table'
 import { toCommands, type Box, type Decision, type Pass, type SeatInput } from './decision'
 import { getTablePress } from './autoTable'
-import { remember, withRemembered, type SeatMemories, type SeatMemory } from './memory'
+import { remember, withRemembered, type Notes, type SeatMemories, type SeatMemory } from './memory'
 
 // Bots at the table. A seat is a bot that owns the characters it plays, as a
 // player owns theirs: it presses as a player viewer whose profile is the
@@ -70,7 +70,7 @@ export type MoveOptions = {
   holdStart?: boolean
   // whom a seat presses as: its own player viewer when not given
   viewerOf?: (seat: Seat) => Viewer
-  // what each seat remembers of the foes it noticed, and its box's notes, by seat id (`noteSeats`)
+  // what each seat remembers of the foes it noticed, and its box's notes, by seat id (`noteSeats`, `withNoted`)
   memories?: SeatMemories
 }
 
@@ -89,6 +89,14 @@ export function noteSeats(memories: SeatMemories, state: SceneState, seats: read
   }))
 }
 
+// What the seats remember once a move has been played: its seat's notes with
+// those its box made of it (decision.ts `noted`), for whoever plays it to keep.
+export function withNoted(memories: SeatMemories, move: Pick<Move, 'by' | 'noted'>): SeatMemories {
+  if (!move.noted) return memories
+  const was = memories[move.by]
+  return { ...memories, [move.by]: { foes: was?.foes ?? {}, notes: { ...was?.notes, ...move.noted } } }
+}
+
 export type StepOptions = MoveOptions & {
   // what was drawn while a command ran, emptied before each
   drawn: () => number[]
@@ -96,8 +104,8 @@ export type StepOptions = MoveOptions & {
 
 // What a seat, or the table, would press, as whom, and for which of its
 // characters (`who`, none for the table's); or a decision of a seat that came
-// to no presses it may make.
-export type Move = { by: string; who: string | null; why: string; viewer: Viewer; commands: readonly SceneCommand[] }
+// to no presses it may make. `noted`: what its box notes once it is played (`withNoted`).
+export type Move = { by: string; who: string | null; why: string; viewer: Viewer; commands: readonly SceneCommand[]; noted?: Notes }
 type Candidate = Move | { by: string; who: string | null; why: string; refused: string }
 
 // The character a decision is for: the one it declares or answers with, the
@@ -119,7 +127,7 @@ function whoDecided(state: SceneState, members: readonly string[], decision: Dec
   }
 }
 
-type Stepped = { state: SceneState; entries: Entry[] }
+type Stepped = { state: SceneState; entries: Entry[]; memories: SeatMemories }
 
 function send(state: SceneState, commands: readonly SceneCommand[], viewer: Viewer, opts: StepOptions): { state: SceneState; sent: Entry['sent']; refused: string | null } {
   let s = state
@@ -230,13 +238,14 @@ function* askSeats(state: SceneState, asked: { seat: Seat; members: string[]; wa
     const commands = toCommands(state, input, decision, opts.ctx)
     const who = whoDecided(state, members, decision)
     yield commands.ok
-      ? { by: seat.id, who, why: decision.why, viewer: viewerOf(seat), commands: commands.commands }
+      ? { by: seat.id, who, why: decision.why, viewer: viewerOf(seat), commands: commands.commands, noted: decision.noted }
       : { by: seat.id, who, why: decision.why, refused: commands.refused }
   }
 }
 
 export function step(state: SceneState, seats: readonly Seat[], opts: StepOptions, from = 0): Stepped {
   const entries: Entry[] = []
+  const memories = opts.memories ?? {}
   for (const move of getMoves(state, seats, opts, from)) {
     if ('refused' in move) {
       entries.push({ by: move.by, why: move.why, sent: [], refused: move.refused })
@@ -244,9 +253,9 @@ export function step(state: SceneState, seats: readonly Seat[], opts: StepOption
     }
     const made = send(state, move.commands, move.viewer, opts)
     entries.push({ by: move.by, why: move.why, sent: made.sent, refused: made.refused })
-    if (made.state !== state) return { state: made.state, entries }
+    if (made.state !== state) return { state: made.state, entries, memories: withNoted(memories, move) }
   }
-  return { state, entries }
+  return { state, entries, memories }
 }
 
 // The move `step` would make, found on a trial of the fight instead of made,
@@ -342,6 +351,7 @@ export function run(start: SceneState, seats: readonly Seat[], { seed, autoTable
     if (state.round > maxRounds) return finish('cap')
     opts.memories = noteSeats(opts.memories ?? {}, state, seats)
     const moved = step(state, seats, opts, from)
+    opts.memories = moved.memories
     log.push(...moved.entries)
     const mover = seats.findIndex((s) => s.id === moved.entries.findLast((e) => e.refused === null && e.sent.length > 0)?.by)
     if (mover >= 0) from = mover + 1

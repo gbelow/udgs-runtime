@@ -19,9 +19,10 @@ export const FORGET_AFTER = 2
 export type Sighting = { sheet: CampaignCharacter; placement: Placement; party: string | undefined; round: number }
 export type SeatMemory = Readonly<Record<string, Sighting>>
 
-// What a box notes for itself from one look at the fight to the next, by
-// member (decision.ts `Box`'s `notes`): the spec box's target for each.
-export type Notes = Readonly<Record<string, string>>
+// What a box notes for itself, from one look at the fight to the next
+// (decision.ts `Box`'s `notes`) and with a move it makes (`Decision`'s
+// `noted`), under keys of its own: plain data only the box reads.
+export type Notes = Readonly<Record<string, unknown>>
 
 // Each seat's, by seat id: the foes it remembers and its box's notes.
 export type SeatMemories = Readonly<Record<string, { foes: SeatMemory; notes: Notes }>>

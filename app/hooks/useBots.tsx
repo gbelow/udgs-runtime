@@ -6,7 +6,7 @@ import { sendToHost } from "../net/session";
 import { BOTS, getOwner } from "../domain/profiles";
 import { getBotSeats } from "../domain/bot/bots";
 import { getLiveStep, NEW_LIVE, type Live } from "../domain/bot/live";
-import { noteSeats, type MoveOptions } from "../domain/bot/seat";
+import { noteSeats, withNoted, type MoveOptions } from "../domain/bot/seat";
 import type { SeatMemories } from "../domain/bot/memory";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -129,6 +129,7 @@ export function useBots(table: BotTable = WITH_GM) {
         }
         if (command === move.commands[0]) useBotLogStore.getState().add({ ...entry, refused: null });
         playOf('scene', command, thrower);
+        if (command === move.commands[0]) memories = withNoted(memories, move);
         if (Object.values(useCombatStore.getState().calls).some((c) => c.die === null)) return;
       }
     };

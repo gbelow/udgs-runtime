@@ -12,7 +12,9 @@ import { declare } from './declare'
 import { attackIntent } from './moves'
 import { getPair } from './pairs'
 import { THREAT_WEIGHTS, threatBox } from './boxes/threat'
-import { getNextMove, type MoveOptions, type Seat } from './seat'
+import { BOT_BOXES } from './bots'
+import type { SeatMemories } from './memory'
+import { getNextMove, noteSeats, withNoted, type MoveOptions, type Seat } from './seat'
 
 const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
 
@@ -76,5 +78,30 @@ describe('a shot at someone with a body shield', () => {
   it('is answered with each guard offered, named as it is offered', () => {
     expect(guards.length).toBeGreaterThan(1)
     for (const { draft } of guards) expect(declare(s, { actorId: 'd', option: draft, picks: [] }, ctx)).toMatchObject({ ok: true })
+  })
+})
+
+// The spec box crossed the step of a block off as it decided it. A move decided
+// while the turn could still be contested is not made but asked for again, and
+// by then the step was gone: the surge was skipped and the walk made without it.
+describe('a move asked for again before it is made', () => {
+  it.each(Object.entries(BOT_BOXES))('is the same move: %s', (_, box) => {
+    const rng = seededRng(1)
+    const ctx: CommandContext = { thrower: (e) => rollD10(e, rng), newId: (() => { let n = 0; return () => `t${++n}` })() }
+    const seats: Seat[] = [{ id: 'red', members: ['a'], box }, { id: 'blue', members: ['b'], box }]
+    let s: SceneState = board({ a: [0, 0], b: [7, 0] }, spearman('a'), spearman('b'))
+    let memories: SeatMemories = {}
+    let from = 0
+    for (let i = 0; i < 10; i++) {
+      memories = noteSeats(memories, s, seats)
+      const opts: MoveOptions = { ctx: { ...ctx, newId: () => 'x' }, botDice: () => 5, rngOf: () => rng, autoTable: true, memories }
+      const { move, next } = getNextMove(s, seats, opts, from)
+      const again = getNextMove(s, seats, opts, from).move
+      expect(again?.commands, `${i}: ${move?.why}`).toEqual(move?.commands)
+      if (!move) break
+      memories = withNoted(memories, move)
+      s = move.commands.reduce((at, c) => applySceneCommand(at, c, move.viewer, ctx), s)
+      from = next
+    }
   })
 })

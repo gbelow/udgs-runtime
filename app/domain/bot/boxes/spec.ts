@@ -409,31 +409,37 @@ function planEscape(ctx: Ctx): Plan | null {
   return bestStep(ctx, stepsOf(ctx), shed, STAharm, (s, score, told) => stepPlan(ctx, s, score, `escapes (${s.walk.movement}, potential exposure ${exposed.toFixed(1)} over ${limit.toFixed(1)}, ${told})`))
 }
 
+// What the box notes for each member: its target with the round it was picked
+// in (`noteTargets`), and the block it is playing through, null for none.
+type Targeted = { round: number; target: string }
+type Note = Targeted | Block | null
+const targetKey = (id: string) => `target|${id}`
+const blockKey = (id: string) => `block|${id}`
+
 // spec "Strategies", "Attack" (the only one played): each member's target,
 // picked once a round and again once it is down or the side no longer knows
 // where it stands: the foe its immediate threat is most on, and with none, the
 // one it would harm most answering with an evasion, where they stand playing no
-// part. Noted with the round it was picked in.
+// part. Its block is kept with it through the round it was decided in.
 function noteTargets(previous: Notes | undefined, view: SceneState, members: readonly string[], w: SpecWeights): Notes {
   const foes = getSides(view, members).foes.filter((f) => cellOf(view, f) !== null && !isCollapsed(view, view.characters[f]))
-  const notes: Record<string, string> = {}
+  const notes: Record<string, Note> = {}
   for (const id of members) {
+    const block = getBlock(previous, view, id)
+    if (block) notes[blockKey(id)] = block
     const me = view.characters[id]
     if (!me || !foes.length) continue
-    const noted = previous?.[id]
-    const kept = noted && noted.startsWith(`${view.round}|`) ? getTarget(previous, id) : null
+    const noted = previous?.[targetKey(id)] as Targeted | undefined
+    const kept = noted?.round === view.round ? noted.target : null
     const most = (read: (f: string) => number) => foes.map((f) => ({ f, n: read(f) })).reduce((b, x) => (x.n > b.n ? x : b))
     const threatened = kept && foes.includes(kept) ? null : most((f) => getThreat(view, members, id, f, 'immediate', w).threat)
     const target = !threatened ? kept : threatened.n > 0 ? threatened.f : most((f) => getPair(me, view.characters[f]).reduce((n, a) => (a.opens.action ? Math.max(n, getEvaded(a, a.kind === 'shoot' ? SHOT_GAP : a.reach, w).harm) : n), 0)).f
-    notes[id] = `${view.round}|${target}`
+    if (target !== null) notes[targetKey(id)] = { round: view.round, target }
   }
   return notes
 }
 
-const getTarget = (notes: Notes | undefined, id: string): string | null => {
-  const noted = notes?.[id]
-  return noted === undefined ? null : noted.slice(noted.indexOf('|') + 1)
-}
+const getTarget = (notes: Notes, id: string): string | null => (notes[targetKey(id)] as Targeted | undefined)?.target ?? null
 
 // spec "Tactical": a cell's Score, `aggro` times the character's potential
 // threat on its target from there, as an evasion of it leaves it, whatever
@@ -876,9 +882,9 @@ function takeStressTurn(input: SeatInput, id: string, w: SpecWeights, find: Find
 type BlockStep = { surge: SurgeKind } | { intent: Intent }
 // `at`: where each target of the block's attacks stood when it was decided;
 // one no longer there, or that the character no longer notices, drops the
-// block (the user's ruling, 2026-11-23).
-type Block = { round: number; plan: Plan; steps: BlockStep[]; started: boolean; at: Record<string, Coord | null> }
-type Blocks = Map<string, Block>
+// block (the user's ruling, 2026-11-23). A step is crossed off with the notes
+// of the decision that plays it (decision.ts `noted`).
+type Block = { round: number; plan: Plan; steps: readonly BlockStep[]; started: boolean; at: Record<string, Coord | null> }
 
 const targetOf = (intent: Intent): string | null => (intent.picks.find((p) => p.part === 'target')?.value as string | undefined) ?? null
 
@@ -889,12 +895,12 @@ function blockOf(view: SceneState, plan: Plan): Block {
 }
 
 // The character's block, where it was decided this round.
-function heldBlock(blocks: Blocks, view: SceneState, id: string): Block | null {
-  const block = blocks.get(id)
-  if (block && block.round === view.round) return block
-  blocks.delete(id)
-  return null
+function getBlock(notes: Notes | undefined, view: SceneState, id: string): Block | null {
+  const block = notes?.[blockKey(id)] as Block | null | undefined
+  return block && block.round === view.round ? block : null
 }
+
+const noting = (id: string, block: Block | null, decision: Decision): Decision => ({ ...decision, noted: { [blockKey(id)]: block } })
 
 // The cell a walk declared by `intent` ends on.
 function walkEnd(intent: Intent): Coord | null {
@@ -903,73 +909,55 @@ function walkEnd(intent: Intent): Coord | null {
   return cell ?? null
 }
 
-// The next step of the character's block: each step done already passed
-// over, null (and the block dropped) once none is left or the next can no
+// The next step of the character's block, with the steps after it noted: each
+// step done already passed over, null once none is left or the next can no
 // longer be done.
-function carryBlock(input: SeatInput, id: string, blocks: Blocks, press: Press): Decision | null {
+function carryBlock(input: SeatInput, id: string, block: Block, press: Press): Decision | null {
   const view = input.view()
-  const block = heldBlock(blocks, view, id)
   const me = view.characters[id]
-  if (!block || !me) return null
-  while (block.steps.length) {
-    const step = block.steps[0]
+  if (!me) return null
+  const from = (n: number): Block => ({ ...block, steps: block.steps.slice(n), started: true })
+  for (const [n, step] of block.steps.entries()) {
     const why = block.started ? `carries on: ${block.plan.why}` : block.plan.why
     if ('surge' in step) {
-      if (me.usedSurge === step.surge) {
-        block.steps.shift()
-        continue
-      }
+      if (me.usedSurge === step.surge) continue
       const button = input.buttons.find((b) => b.command.kind === 'surge' && argOf(b.command) === id && b.command.args[1] === step.surge)
       const made = press(button, why)
-      if (!made) break
-      block.steps.shift()
-      block.started = true
-      return made
+      return made && noting(id, from(n + 1), made)
     }
     const end = walkEnd(step.intent)
     const here = cellOf(view, id)
-    if (end && here && sameCell(end, here)) {
-      block.steps.shift()
-      continue
-    }
+    if (end && here && sameCell(end, here)) continue
     const target = targetOf(step.intent)
     const stood = target ? block.at[target] : null
     const standing = target ? cellOf(view, target) : null
-    if (target && stood && (!standing || !sameCell(stood, standing))) break
-    if (target && input.unnoticed(id).has(target)) break
+    if (target && stood && (!standing || !sameCell(stood, standing))) return null
+    if (target && input.unnoticed(id).has(target)) return null
     const opens = end ? (declare(view, step.intent, TRIAL).ok ? 'open' : null) : opensAfter(view, id, step.intent)
     if (opens === 'givingUp') {
       const give = input.buttons.find((b) => b.command.kind === 'edit' && argOf(b.command) === id && (b.command.args[1] as { kind: string }).kind === 'endSurge')
       const made = press(give, `gives up the surge AP left to attack: ${why}`)
-      if (made) {
-        block.started = true
-        return made
-      }
+      if (made) return noting(id, from(n), made)
     }
-    if (opens !== 'open') break
-    block.steps.shift()
-    block.started = true
-    return { kind: 'declare', intent: step.intent, why }
+    return opens === 'open' ? noting(id, from(n + 1), { kind: 'declare', intent: step.intent, why }) : null
   }
-  blocks.delete(id)
   return null
 }
 
 // The turn the character holds, one action at a time: the block it decided
 // played through, then the next action decided.
-function takeTurn(input: SeatInput, id: string, w: SpecWeights, blocks: Blocks, find: Find, press: Press): Decision | null {
+function takeTurn(input: SeatInput, id: string, w: SpecWeights, find: Find, press: Press): Decision | null {
   const stress = takeStressTurn(input, id, w, find, press)
   if (stress !== 'none') return stress
-  const carried = carryBlock(input, id, blocks, press)
-  if (carried) return carried
   const view = input.view()
+  const block = getBlock(input.notes, view, id)
+  const carried = block && carryBlock(input, id, block, press)
+  if (carried) return carried
   const plan = planTurn(view, input.members, id, w, input.unnoticed(id), 'any', getTarget(input.notes, id))
-  if (plan) {
-    blocks.set(id, blockOf(view, plan))
-    const made = carryBlock(input, id, blocks, press)
-    if (made) return made
-  }
-  return endTurn(input, id, find, press) ?? getAway(view, input.members, id, w, input.unnoticed(id))
+  const made = plan && carryBlock(input, id, blockOf(view, plan), press)
+  if (made) return made
+  const last = endTurn(input, id, find, press) ?? getAway(view, input.members, id, w, input.unnoticed(id))
+  return last && noting(id, null, last)
 }
 
 // spec "Decide take turn": outside a turn of its own, the seat asks for one
@@ -979,13 +967,12 @@ function takeTurn(input: SeatInput, id: string, w: SpecWeights, blocks: Blocks, 
 // for what it would do now, or on the pass that asks for anything, for what
 // would better its position once no member has anything to do now.
 export function specBox(w: SpecWeights): Box {
-  const blocks: Blocks = new Map()
   const box: Box = (input) => {
     const { members, waits, buttons } = input
     const { find, press } = finding(buttons)
     for (const wait of waits) {
       const made = wait.for === 'answer' ? answer(input, wait.id, w, find, press)
-        : wait.for === 'turn' ? takeTurn(input, wait.id, w, blocks, find, press)
+        : wait.for === 'turn' ? takeTurn(input, wait.id, w, find, press)
         : (wait.for === 'action' ? stepOpened(input, wait.id, w) : null) ?? settleWait(input, wait, find, press, w)
       if (made) return made
     }
@@ -993,20 +980,17 @@ export function specBox(w: SpecWeights): Box {
     const planned = plansOf(w, view)
     const holder = getTurnHolder(view)
     if (holder && !members.includes(holder) && !members.some((id) => view.contenders.includes(id))) {
-      let contest: { id: string; plan: Plan; kept: boolean } | null = null
+      let contest: { id: string; plan: Plan; block: Block } | null = null
       for (const id of members) {
         if (!find('toggleContest', id)) continue
-        const kept = heldBlock(blocks, view, id)
+        const kept = getBlock(input.notes, view, id)
         const plan = kept ? kept.plan : planned(`${id}|contest`, () => planNow(wonBy(view, id), members, id, w, input.unnoticed(id)))
-        if (plan && (!contest || plan.score > contest.plan.score)) contest = { id, plan, kept: kept !== null }
+        if (plan && (!contest || plan.score > contest.plan.score)) contest = { id, plan, block: kept ?? blockOf(view, plan) }
       }
       const made = contest && press(find('toggleContest', contest.id), `contests the turn: ${contest.plan.why}`)
-      if (made && contest) {
-        if (!contest.kept) blocks.set(contest.id, blockOf(view, contest.plan))
-        return made
-      }
+      if (made && contest) return noting(contest.id, contest.block, made)
     }
-    let best: { id: string; begun: SceneState; plan: Plan; kept: boolean } | null = null
+    let best: { id: string; plan: Plan; block: Block } | null = null
     for (const pass of input.pass === 'any' ? (['immediate', 'any'] as const) : (['immediate'] as const)) {
       for (const id of members) {
         const start = find('startTurn', id)
@@ -1014,17 +998,14 @@ export function specBox(w: SpecWeights): Box {
         const begun = begunBy(view, id, start.command)
         const unnoticed = input.unnoticed(id)
         const target = getTarget(input.notes, id)
-        const kept = heldBlock(blocks, view, id)
+        const kept = getBlock(input.notes, view, id)
         const plan = kept ? kept.plan : planned(`${id}|${pass}|${target}`, () => (pass === 'immediate' ? planNow(begun, members, id, w, unnoticed) : planLater(begun, members, id, w, unnoticed, target)))
-        if (plan && (!best || plan.score > best.plan.score)) best = { id, begun, plan, kept: kept !== null }
+        if (plan && (!best || plan.score > best.plan.score)) best = { id, plan, block: kept ?? blockOf(begun, plan) }
       }
       if (best) break
     }
     const start = best && find('startTurn', best.id)
-    if (best && start) {
-      if (!best.kept) blocks.set(best.id, blockOf(best.begun, best.plan))
-      return { kind: 'press', pick: start, why: `has something worth doing: ${best.plan.why}` }
-    }
+    if (best && start) return noting(best.id, best.block, { kind: 'press', pick: start, why: `has something worth doing: ${best.plan.why}` })
     return input.pass === 'any' ? carryOn(input, find) : { kind: 'wait', why: 'nothing to do now' }
   }
   box.remembers = true
