@@ -1,7 +1,7 @@
 import type { Board, Coord, SceneState, MoveAction } from '../../types'
 import { coordKey, sameCell, setDistance } from './geometry'
 import { getBody, getBodyAt, getFootprint, getTerrainAt, isLevelWith, sharesSpace } from './board'
-import { drawsSegments, getWalkableCells, isOwnMove, type ReachableCell } from '../move'
+import { canPaySteps, drawsSegments, getWalkableCells, isOwnMove, type ReachableCell } from '../move'
 import { getUsableCells } from '../prepared'
 import { isCompelledAway } from '../stress'
 import { getSidestepCells } from '../sidestep'
@@ -40,32 +40,32 @@ export function getReachableCells(state: SceneState, action: MoveAction, walk: W
 }
 
 function walkAround(state: SceneState, action: MoveAction, walk: Walk): ReachableCell[] {
-  const straight = walk(state, action)
-  const avoided = getAvoided(state, action, straight)
-  if (avoided.length === 0) return straight
+  const avoided = getAvoided(state, action)
+  if (avoided.length === 0) return walk(state, action)
   const around = walk(state, action, avoided)
   if (isOwnMove(action)) return around
+  const straight = walk(state, action)
   const clear = new Set(around.map((r) => `${coordKey(r.cell)}@${r.elevation}`))
   return [...around, ...straight.filter((r) => !clear.has(`${coordKey(r.cell)}@${r.elevation}`))]
 }
 
 // The table's ruling: the way a move is taken to a space tramples nobody
 // (combat.tex "Trample") who was not picked. Whom a walk goes around:
-// whoever is within the furthest found and could be trampled, but for one the
+// whoever is no further than it can pay for and could be trampled, but for one the
 // path drawn so far came into already, one whose space the mover sets out
 // from, and one nobody of the mover's party knows of, whom the way around
 // would give away.
-function getAvoided(state: SceneState, action: MoveAction, found: readonly ReachableCell[]): string[] {
+function getAvoided(state: SceneState, action: MoveAction): string[] {
   const mover = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
   if (!mover || !from || !state.board || !drawsSegments(action.movement)) return []
-  const furthest = Math.max(0, ...found.map(({ steps }) => steps)) - action.path.length
+  const payable = canPaySteps(state, mover, action)
   const board = state.board
   const standing = getBodyAt(mover, from)
   const setsOut = getFootprint(mover, { ...from, cell: action.path.at(-1) ?? from.cell })
   return Object.keys(state.characters).filter((id) => {
     const theirs = id !== mover.id && isTrampleable(state, id) ? getBody(state, id) : null
-    return !!theirs && setDistance(theirs.footprint, setsOut) <= furthest
+    return !!theirs && payable(setDistance(theirs.footprint, setsOut))
       && !sharesSpace(board, standing, theirs) && getEnteringStep(state, action, id) === null
       && isKnownOf(state, mover.id, id)
   })

@@ -711,6 +711,23 @@ export function hasJumpSpace(state: SceneState, defenderId: string, attackerId: 
 // `elevation`: how high the feet are where the path ends, the floor it comes to.
 export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path: Coord[]; elevation: number }
 
+// Whether the mover can pay for so many steps more than the path drawn so far
+// as they stand, even at the best swum path, within the move's cap. Before the
+// combat has started the move is free, but goes no further than a round's AP
+// would carry it.
+export function canPaySteps(state: SceneState, c: CampaignCharacter, action: MoveAction): (steps: number) => boolean {
+  const { movement: kind } = action
+  const best = { ...action, dive: 0, path: [] }
+  const drawn = drawsSegments(kind) ? action.path.length : 0
+  return (steps) => {
+    const total = drawn + steps
+    if (kind === 'jump' && total > getJumpSpeed(c, action)) return false
+    return isPayable(state, c, getMovePrice(state, c, best, total)) && withinBudget(getMoveCost(c, kind, total), getMoveBudget(c, action))
+  }
+}
+
+const isPayable = (state: SceneState, c: CampaignCharacter, cost: ActionCost): boolean => (isCombatStarted(state) ? canAfford(c, cost, true) : cost.AP <= ROUND_AP)
+
 // Every anchor the character can walk to at the move's kind of movement
 // and pay for as they stand, with the shortest path there: a breadth-first
 // walk over cells its footprint (as oriented now) may cross, stopping where
@@ -732,16 +749,9 @@ export function getWalkableCells(state: SceneState, action: MoveAction, around: 
   if (!getMovementOptions(state, c, action).find((o) => o.kind === kind)?.available) return []
 
   // the walk stops where even the best swum path outruns the price; the path
-  // found is then priced as it is swum. Before the combat has started the
-  // move is free, but goes no further than a round's AP would carry it.
-  const best = { ...action, dive: 0, path: [] }
-  const payable = (cost: ActionCost) => (isCombatStarted(state) ? canAfford(c, cost, true) : cost.AP <= ROUND_AP)
+  // found is then priced as it is swum
+  const affordable = canPaySteps(state, c, action)
   const drawn = drawsSegments(kind) ? action.path : []
-  const affordable = (steps: number) => {
-    const total = drawn.length + steps
-    if (kind === 'jump' && total > getJumpSpeed(c, action)) return false
-    return payable(getMovePrice(state, c, best, total)) && withinBudget(getMoveCost(c, kind, total), getMoveBudget(c, action))
-  }
   const start = drawn.at(-1) ?? from.cell
   const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : path.length === 1 ? start : (drawn.at(-2) ?? from.cell))
   // how high the feet are where the walk sets out; each step carries its own
@@ -777,7 +787,7 @@ export function getWalkableCells(state: SceneState, action: MoveAction, around: 
       return ends ? [{ cell, path: [...drawn, ...path], elevation: floor.elevation(cell) }] : []
     })
     .map(({ cell, path, elevation }) => ({ cell, steps: path.length, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres, ledge: null }, path.length), path, elevation }))
-    .filter(({ cost }) => payable(cost))
+    .filter(({ cost }) => isPayable(state, c, cost))
 }
 
 // What a walk over the ground reads, whoever stands on it and whatever it
@@ -802,36 +812,69 @@ function getBodies(state: SceneState, ids: readonly string[]): Bodies {
 
 // Who of them a footprint on a floor comes into, as one key; '' for nobody.
 function getMet(bodies: Bodies, footprint: Coord[], floor: Floor): string {
-  if (bodies.size === 0) return ''
+  if (bodies.size === 0 || !footprint.some((cell) => bodies.has(cellNumber(cell)))) return ''
   const met = footprint.flatMap((cell) => (bodies.get(cellNumber(cell)) ?? []).filter(({ feet }) => isLevelWith(feet, floor.elevation(cell))).map(({ id }) => id))
   return [...new Set(met)].sort().join(' ')
 }
+
+// Whether a step over the ground may be taken, and the level it comes to,
+// whoever stands there, each step read once. `level`: how high the feet are
+// where it is taken from.
+type Step = (before: Coord, cell: Coord, level: number) => number | false
+
+function readSteps({ board, footprint: cells, from, kind, ceiling }: Walker): Step {
+  const bare = { board: board && { ...board, placements: {} }, characters: {} }
+  const ground = readGround(bare, '')
+  const footprintAt = (cell: Coord) => getFootprint({ footprint: cells }, { ...from, cell })
+  const taken = new Map<string, number | false>()
+  return (before, cell, level) => {
+    if (!ground) return false
+    const key = `${cellNumber(before)}@${level}>${cellNumber(cell)}`
+    const known = taken.get(key)
+    if (known !== undefined) return known
+    const bound = kind === 'climb' && board ? getClimbTarget(board, from, cell) : null
+    const floor = bound ? ground.at(bound.floor) : ground.at(level)
+    const footprint = footprintAt(cell)
+    const fromWater = isWet(footprintAt(before), ground.at(level))
+    const ok = (kind !== 'climb' || bound !== null) && isOnBoard(bare, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater, ceiling })
+    const comes = ok ? floor.elevation(cell) : false
+    taken.set(key, comes)
+    return comes
+  }
+}
+
+// The steps of a movement drawn in segments, kept by the ground and the body:
+// they are the same wherever the walk sets out from. A jump's and a climb's
+// are read from where it does.
+const STEPS = 30
+const stepsKept = perParts<Step>(STEPS)
+
+function getSteps(walker: Walker): Step {
+  const { board, footprint, from, kind } = walker
+  if (!board || !drawsSegments(kind)) return readSteps(walker)
+  return stepsKept([board.terrain, board.levels], `${kind}|${from.orientation}|${footprint.map(coordKey).join(' ')}|${boardKey(board)}`, () => readSteps(walker))
+}
+
+const boardKey = ({ origin, extent }: Board): string => `${coordKey(origin)}|${extent.q},${extent.r},${extent.s}`
 
 // Whether the next step of a walk may be taken, and the level it comes to
 // (`walkOut`'s `enter`). `stepFrom` is the cell a path's last step is taken
 // from; a step is entered the same way whatever heading it is come at from.
 // Once in the space of someone gone around, a walk steps only within it.
-function enterOf({ board, footprint: cells, from, kind, ceiling, startFeet, bodies }: Walker, stepFrom: (path: Coord[]) => Coord): (cell: Coord, path: Coord[], level?: number) => number | false {
-  const bare = { board: board && { ...board, placements: {} }, characters: {} }
-  const ground = readGround(bare, '')
-  const footprintAt = (cell: Coord) => getFootprint({ footprint: cells }, { ...from, cell })
+function enterOf(walker: Walker, stepFrom: (path: Coord[]) => Coord): (cell: Coord, path: Coord[], level?: number) => number | false {
+  const { board, footprint: cells, from, kind, startFeet, bodies } = walker
+  const step = getSteps(walker)
   const feetOf = (level: number) => (kind === 'jump' ? from.elevation : level)
-  const entered = new Map<string, number | false>()
+  const ground = bodies.size > 0 ? readGround({ board: board && { ...board, placements: {} }, characters: {} }, '') : null
+  const footprintAt = (cell: Coord) => getFootprint({ footprint: cells }, { ...from, cell })
   return (cell, path, level = startFeet) => {
-    if (!ground) return false
     const before = stepFrom(path)
-    const key = `${cellNumber(before)}@${feetOf(level)}>${cellNumber(cell)}`
-    const known = entered.get(key)
-    if (known !== undefined) return known
-    const bound = kind === 'climb' && board ? getClimbTarget(board, from, cell) : null
-    const floor = bound ? ground.at(bound.floor) : ground.at(feetOf(level))
-    const footprint = footprintAt(cell)
-    const fromWater = isWet(footprintAt(before), ground.at(feetOf(level)))
-    const met = getMet(bodies, footprintAt(before), ground.at(feetOf(level)))
-    const ok = (met === '' || met === getMet(bodies, footprint, floor)) && (kind !== 'climb' || bound !== null) && isOnBoard(bare, footprint) && mayStep(footprint, floor, before, cell, { movement: kind, lands: false, fromWater, ceiling })
-    const comes = ok ? floor.elevation(cell) : false
-    entered.set(key, comes)
-    return comes
+    const feet = feetOf(level)
+    if (ground) {
+      const met = getMet(bodies, footprintAt(before), ground.at(feet))
+      if (met !== '' && met !== getMet(bodies, footprintAt(cell), ground.at(feet))) return false
+    }
+    return step(before, cell, feet)
   }
 }
 
@@ -840,13 +883,16 @@ function enterOf({ board, footprint: cells, from, kind, ceiling, startFeet, bodi
 // suffers, and only its price and where it may end are read anew.
 const OPEN_WALKS = 100
 const openWalks = perParts<ReturnType<typeof openWalk>>(OPEN_WALKS)
-export const forgetOpenWalks = (): void => openWalks.clear()
+export function forgetOpenWalks(): void {
+  openWalks.clear()
+  stepsKept.clear()
+}
 
 function getOpenWalk(walker: Walker): ReturnType<typeof openWalk> {
   const { board, footprint, from, kind, bodies } = walker
   const open = () => openWalk(from.cell, enterOf(walker, (path) => (path.length > 1 ? path[path.length - 2] : from.cell)), getSteer(kind, null), from.elevation)
   if (!board) return open()
-  const key = `${kind}|${coordKey(from.cell)}|${from.orientation}|${from.elevation}|${footprint.map(coordKey).join(' ')}|${coordKey(board.origin)}|${board.extent.q},${board.extent.r},${board.extent.s}|${[...bodies].map(([cell, there]) => `${cell}:${there.map(({ id, feet }) => `${id}@${feet}`).join(',')}`).join(' ')}`
+  const key = `${kind}|${coordKey(from.cell)}|${from.orientation}|${from.elevation}|${footprint.map(coordKey).join(' ')}|${boardKey(board)}|${[...bodies].map(([cell, there]) => `${cell}:${there.map(({ id, feet }) => `${id}@${feet}`).join(',')}`).join(' ')}`
   return openWalks([board.terrain, board.levels], key, open)
 }
 
