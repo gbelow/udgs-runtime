@@ -170,10 +170,22 @@ export function getGoBar(state: SceneState, root: Action): string | null {
 }
 
 // The answers to the root declared and not finished: who gave them still owes
-// the table the rest.
+// the table the rest. Whoever is shown only as a token has no sheet to judge
+// theirs by, and one they said they are done with was finished on the table's.
 export function getUnfinishedAnswers(state: SceneState, root: Action): Action[] {
-  return getReactionsTo(state, root.id).filter((r) => !isDeclarationComplete(state, state.characters[r.actorId], r))
+  return getReactionsTo(state, root.id).filter((r) => {
+    const c = state.characters[r.actorId]
+    return !(c?.shown && r.confirmed) && !isDeclarationComplete(state, c, r)
+  })
 }
+
+// Whose answer holds the action at `react`: not given yet, or given and not
+// finished.
+export const getAnswersOwed = perState((state: SceneState): string[] => {
+  const open = getOpenAction(state)
+  if (open?.step !== 'react') return []
+  return [...new Set([...getAwaited(state), ...getUnfinishedAnswers(state, open).map((r) => r.actorId)])]
+})
 
 // Everything the character may declare right now: their own actions while no
 // action is open and it is their turn, and their reactions while a committed

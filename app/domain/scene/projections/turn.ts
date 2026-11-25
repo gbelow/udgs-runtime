@@ -6,7 +6,7 @@ import { getContestBar, getContestable, getContenders, getContestMode, getContes
 import { getOpenAction } from '../rules/log'
 import { getEndCombatBar } from '../rules/fight'
 import { perState } from '../../perState'
-import { getAwaited } from '../rules/options'
+import { getAnswersOwed, getAwaited } from '../rules/options'
 import { getActionNoun } from './labels'
 import { getFightName } from '../rules/fighters'
 import { getCompelledSurge, getStressDuty } from '../rules/stress'
@@ -75,6 +75,23 @@ export function getMustStart(state: SceneState, id: string): string {
   const bar = getStartTurnBar(state, id)
   const name = getFightName(state, id)
   return bar ? `${name} cannot act now: ${bar}` : `start ${name}'s turn to act`
+}
+
+// Who the action being played out waits on: those who owe it an answer, or,
+// with everyone's given, its actor, to take it on.
+export function getOwing(state: SceneState): string[] {
+  const open = getOpenAction(state)
+  if (!open) return []
+  const owed = getAnswersOwed(state)
+  return owed.length > 0 ? owed : [open.actorId]
+}
+
+// Whom a player's screen picks while `picked` is picked, so that what the
+// action waits on one of theirs for (`own`) is before them: the first it waits
+// on, unless one it waits on is picked; as it is when it waits on none.
+export function getOwingPick(state: SceneState, own: readonly string[], picked: string | null): string | null {
+  const owing = getOwing(state).filter((id) => own.includes(id))
+  return owing.length === 0 || (picked !== null && owing.includes(picked)) ? picked : owing[0]
 }
 
 // The time to contest the turn as whoever answers for `own` sees it: their

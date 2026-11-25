@@ -50,6 +50,16 @@ describe('an opportunity attack a person is still choosing', () => {
       expect(move(changed, box)).toBeNull()
     }
   })
+
+  // Whoever was shown only the reactor's token was told they could not pay for
+  // it, and could never go on.
+  it('leaves the actor shown only their token to go on', () => {
+    if (!drawn) throw new Error('nothing drew an opportunity attack')
+    const done = send(drawn, { kind: 'react', args: ['d', opportunity(drawn)!.draft] }, { kind: 'amendReaction', args: ['d', { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] }, { kind: 'confirmReaction', args: ['d'] })
+    const seen = getSceneSeenBy(done, new Set(['a']))
+    expect(seen.characters.d.shown).toBeTruthy()
+    expect(getGoBar(seen, getOpenAction(seen)!)).toBeNull()
+  })
 })
 
 // A prone defender who had learned Technical Lift answered a strike with an
