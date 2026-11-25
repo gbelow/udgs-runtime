@@ -1,7 +1,7 @@
 import type { SceneState } from '../scene/types'
 import { isDown } from '../scene/rules/fight'
 import { getOpenAction } from '../scene/rules/log'
-import { getAwaited, getUnfinishedAnswers } from '../scene/rules/options'
+import { getAnswersOwed } from '../scene/rules/options'
 import { getRestAwaited } from '../scene/rules/resting'
 import { getTurnHolder } from '../scene/rules/turn'
 import { getConcentrationOwed } from '../scene/rules/roundChange'
@@ -65,8 +65,8 @@ export function getMyChoices(state: SceneState, members: readonly string[]): Ope
 }
 
 // What the table waits on a member for, so the bot is pinged: an answer to the
-// action at `react` (`getAwaited`), or the rest of one given and not finished,
-// a die it is called to throw, its own
+// action at `react`, or the rest of one given and not finished
+// (`getAnswersOwed`), a die it is called to throw, its own
 // action still to be taken on (declared, or rolled and not landed), the turn it
 // holds with nothing open, and at the round change, its concentration and a
 // morale test it must make or settle. At the round's rest step, a rest or a
@@ -76,7 +76,7 @@ export type Wait = { id: string; for: 'answer' | 'die' | 'action' | 'turn' | 'co
 
 export function getWaits(state: SceneState, members: readonly string[]): Wait[] {
   const open = getOpenAction(state)
-  const awaited = open?.step === 'react' ? [...getAwaited(state), ...getUnfinishedAnswers(state, open).map((r) => r.actorId)] : []
+  const awaited = getAnswersOwed(state)
   const owed = getConcentrationOwed(state)
   const holder = getTurnHolder(state)
   const resting = getRestAwaited(state)

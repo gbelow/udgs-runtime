@@ -72,11 +72,12 @@ export function useDemo() {
   const party = useDemoStore((s) => s.party);
   const started = useDemoStore((s) => s.started);
   const picks = useDemoStore((s) => s.picks);
+  const seen = useDemoStore((s) => s.seen);
   const fight = useFight((s) => s);
   const characters = useAppStore((s) => s.baseCharacterList);
   const boardMaps = useAppStore((s) => s.boardMaps);
   const activeId = useCombatStore((s) => s.activeCharacterId);
-  const view = useMemo(() => getDemoView(fight, party, started), [fight, party, started]);
+  const view = useMemo(() => getDemoView(fight, party, started, seen), [fight, party, started, seen]);
   const join = useJoin();
   return {
     view,
@@ -85,6 +86,7 @@ export function useDemo() {
     start: () => { if (view.startBar === null) useDemoStore.getState().start(); },
     again: () => join(picks, characters, boardMaps),
     back: () => useDemoStore.getState().back(),
+    seeHint: useDemoStore.getState().seeHint,
   };
 }
 

@@ -31,6 +31,8 @@ import { ActionLog } from '../ActionPanel'
 import { SimpleResource } from '../CharacterSheet'
 import { Button, IconButton, SectionLabel, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
+import { useFollowOwing } from '../../hooks/useFollowOwing'
+import { Basics, HelpButton, HintLine, Objective } from './DemoHelp'
 
 const DiceTray = dynamic(() => import('../DiceTray'), { ssr: false })
 
@@ -59,6 +61,7 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
         <span className='text-muted'>demo</span>
         {view.scene ? <span className='text-muted'>· {view.scene}</span> : null}
       </div>
+      <Objective />
       <section className='flex flex-col gap-3 rounded border border-line bg-surface p-4'>
         <div className='flex flex-row flex-wrap items-center gap-2'>
           <h2 className='text-lg font-medium grow'>Your party</h2>
@@ -106,6 +109,8 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
 // what they can do (or, before the fight, placing the party) and the log.
 function DemoTable() {
   const { started, scene, back } = useDemoStage()
+  const { view, seeHint } = useDemo()
+  const { waiting, pick } = useFollowOwing()
   useBots({ auto: true, holdStart: !started })
   useContestClock()
   useSights()
@@ -121,6 +126,7 @@ function DemoTable() {
         {started ? <Round /> : null}
         <CharacterList />
         <span className='grow' />
+        <HelpButton />
         <Button size='xs' weight='ghost' title='back to picking the party' onClick={back}>restart game</Button>
       </header>
       <div className='relative flex-1 min-h-0 flex flex-col p-2'>
@@ -133,10 +139,16 @@ function DemoTable() {
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><EndTurn /><BotsPause /><EndRound /><ContestBar /></div> : null}
-          {started ? (face ? <span className='text-xs text-muted'>{face.name} is not yours to play</span> : hasActive ? <SceneActions /> : <span className='text-xs text-muted'>pick a character</span>) : <Placing />}
+          {view.hint ? <HintLine hint={view.hint} onClose={() => { if (view.hint) seeHint(view.hint) }} /> : null}
+          {!started ? <Placing /> : !face && hasActive ? <SceneActions /> : (
+            <>
+              <span className='text-xs text-muted'>{face ? `${face.name} is not yours to play` : 'pick a character'}</span>
+              {waiting ? <Button tone='accent' className='self-start' onClick={pick}>the fight waits on {waiting.name}</Button> : null}
+            </>
+          )}
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
-          {throwing ? <DiceTray /> : <>
+          {throwing ? <DiceTray /> : !started ? <Basics /> : <>
             <SectionLabel>Log</SectionLabel>
             <div className='flex-1 min-h-0 overflow-y-auto'><ActionLog /></div>
           </>}

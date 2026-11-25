@@ -3,7 +3,12 @@ import type { ScenePreset } from '../../campaign/types'
 import type { SceneState } from '../types'
 import { isDead } from '../../character/rules/afflictions'
 import { getStandingParties, isDown } from '../rules/fight'
-import { getNextRoundBar } from '../rules/turn'
+import { getFightBusy, getNextRoundBar, hasAgreedToEnd } from '../rules/turn'
+import { getRoundChangeBar } from '../rules/roundChange'
+import { isCombatStarted } from '../rules/started'
+import { getOpenAction } from '../rules/log'
+import { getAnswersOwed } from '../rules/options'
+import type { DemoHint } from '../../demo'
 import { getSpawnParties } from '../rules/board/spawn'
 import { getFightName } from '../rules/fighters'
 
@@ -56,13 +61,15 @@ export type DemoView = {
   members: { id: string; name: string; placed: boolean }[]
   // why the first round cannot start yet
   startBar: string | null
+  // what they are told now, once the fight has begun
+  hint: DemoHint | null
   // once the fight is decided: who won, and how everyone came out of it
   result: { outcome: DemoOutcome; rows: { id: string; name: string; yours: boolean; fate: DemoFate }[] } | null
 }
 
 // `party`: the visitor's fight party; `started`: whether they said the
-// fight may begin.
-export function getDemoView(state: SceneState, party: string, started: boolean): DemoView {
+// fight may begin; `seen`: the hints they have put away.
+export function getDemoView(state: SceneState, party: string, started: boolean, seen: readonly DemoHint[]): DemoView {
   const ids = Object.keys(state.characters)
   const mine = ids.filter((id) => state.partyOf[id] === party)
   const unplaced = mine.filter((id) => !state.board?.placements[id])
@@ -78,9 +85,28 @@ export function getDemoView(state: SceneState, party: string, started: boolean):
     startBar: started ? 'the fight has begun'
       : unplaced.length > 0 ? `place ${unplaced.map((id) => getFightName(state, id)).join(', ')} first`
       : getNextRoundBar(state),
+    hint: started && !decided ? getDemoHint(state, mine, seen) : null,
     result: decided ? {
       outcome: standing.length === 0 ? 'draw' : standing[0] === party ? 'won' : 'lost',
       rows: ids.map((id) => ({ id, name: getFightName(state, id), yours: mine.includes(id), fate: fate(id) })),
     } : null,
   }
+}
+
+// The hint for where the fight stands for the visitor's characters (`mine`),
+// unless they have put it away.
+function getDemoHint(state: SceneState, mine: readonly string[], seen: readonly DemoHint[]): DemoHint | null {
+  const open = getOpenAction(state)
+  const hint: DemoHint | null = getAnswersOwed(state).some((id) => mine.includes(id)) ? 'answer'
+    : open?.step === 'define' && mine.includes(open.actorId) ? 'action'
+    : isRoundOnly(state, mine) ? 'round'
+    : null
+  return hint !== null && !seen.includes(hint) ? hint : null
+}
+
+// Whether the round's end waits on nobody but some of `ids`.
+function isRoundOnly(state: SceneState, ids: readonly string[]): boolean {
+  if (!isCombatStarted(state) || getFightBusy(state) !== null || getRoundChangeBar(state) !== null) return false
+  const waiting = Object.keys(state.characters).filter((id) => !hasAgreedToEnd(state, id))
+  return waiting.length > 0 && waiting.every((id) => ids.includes(id))
 }
