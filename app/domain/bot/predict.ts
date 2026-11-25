@@ -6,6 +6,7 @@ import { getOpenAction } from '../scene/rules/log'
 import { isAttackAction, isRootAction } from '../scene/rules/actionCatalog'
 import { needsDie } from '../scene/rules/action'
 import { getSettled } from '../scene/rules/settle'
+import { isObjectAttack } from '../scene/rules/equipment'
 import { getAttackFacts, getHitHOP, getHOPOptions, outcomeOf } from '../scene/rules/damage'
 import { getOutcomes } from '../scene/projections/outcomes'
 import type { Outcome } from '../character/rules/damage'
@@ -90,7 +91,8 @@ export function getBestSpend(state: SceneState, root: AttackAction, known?: Map<
     const rest = getBestSpend(state, { ...root, spent: { ...root.spent, assassinate: (root.spent.assassinate ?? 0) + 1 } }, known)
     return { purchases: { assassinate: 1, ...rest.purchases }, outcome: rest.outcome }
   }
-  const target = root.targetId ? state.characters[root.targetId] : undefined
+  // one aimed at an object injures nobody, whoever holds it
+  const target = root.targetId && !isObjectAttack(root) ? state.characters[root.targetId] : undefined
   const spentWith = (purchases: Purchases) => {
     const spent = { ...root.spent }
     for (const [p, n] of Object.entries(purchases) as [HOPPurchase, number][]) spent[p] = (spent[p] ?? 0) + n
