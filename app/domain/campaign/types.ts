@@ -270,10 +270,11 @@ export type CatalogKind = z.infer<typeof CatalogKindSchema>
 
 // A list a GM curates of one catalog's entries, each by the key the catalog
 // files it under. It is its owner's, and read by whoever it is shared with:
-// profiles by id, and every member of a campaign by the campaign's id.
+// profiles by id, and every member of a campaign by the campaign's id. One with
+// no owner is for everyone.
 export const CollectionSchema = z.object({
   id: z.string(),
-  owner: z.string(),
+  owner: z.string().nullable(),
   kind: CatalogKindSchema,
   name: z.string().default(''),
   keys: z.array(z.string()).default([]),

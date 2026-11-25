@@ -29,7 +29,7 @@ export function CollectionsEditor() {
           beside={<Button size='xs' weight='subtle' tone='good' onClick={() => setPicked(create(kind))}>+ new</Button>}
           render={(c) => (
             <ListButton key={c.id} selected={c.id === picked} onClick={() => setPicked(c.id)}>
-              {c.name || '—'} <span className='text-muted'>· {c.keys.length}{c.curated ? (editable(c.id) ? '' : ` · ${ownerName(c.owner)}'s`) : ' · catalog'}</span>
+              {c.name || '—'} <span className='text-muted'>· {c.keys.length}{c.curated ? (c.owner === null ? ' · everyone' : editable(c.id) ? '' : ` · ${ownerName(c.owner)}'s`) : ' · catalog'}</span>
             </ListButton>
           )} />
       </div>
@@ -59,7 +59,7 @@ function Collection({ collection, groups, close }: { collection: CollectionView,
             <ConfirmDelete remove={() => { remove(collection.id); close() }} />
           </>
         ) : (
-          <span className='text-sm'>{collection.name} <span className='text-xs text-muted'>· {collection.curated ? `${ownerName(collection.owner)}'s, shared with you` : 'read off the catalog'}</span></span>
+          <span className='text-sm'>{collection.name} <span className='text-xs text-muted'>· {!collection.curated ? 'read off the catalog' : collection.owner === null ? 'for everyone' : `${ownerName(collection.owner)}'s, shared with you`}</span></span>
         )}
       </div>
       {mine ? <Sharing collection={collection} /> : null}
@@ -72,18 +72,25 @@ function Collection({ collection, groups, close }: { collection: CollectionView,
   )
 }
 
-// Whom one of the profile's collections is shared with: other profiles by
-// name, and every member of a campaign the profile plays.
+// Whom one of the profile's collections is shared with: everyone, or
+// other profiles by name, and every member of a campaign the profile plays.
 function Sharing({ collection }: { collection: CollectionView }) {
-  const { share, others, sharedWith } = useCollectionCommands()
+  const { share, others, sharedWith, give, canGive, everyones } = useCollectionCommands()
   const { campaigns } = useCampaignList()
   const shared = sharedWith(collection.id)
+  const all = everyones(collection.id)
   const toggle = (to: 'profiles' | 'campaigns', id: string, on: boolean, name: string) => (
     <Button key={id} size='xs' selected={on} aria-pressed={on} onClick={() => share(collection.id, to, id, !on)}>{name || '—'}</Button>
   )
   return (
     <div className='flex flex-col gap-1 text-xs'>
       <SectionLabel>shared with</SectionLabel>
+      {canGive ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <Button size='xs' selected={all} aria-pressed={all} title={all ? 'take it back as your own' : 'everyone reads it: kept as a file of the app, changed on the dev server'} onClick={() => give(collection.id, !all)}>everyone</Button>
+        </div>
+      ) : null}
+      {all ? null : <>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <span className='text-muted w-20'>profiles</span>
         {others.length ? others.map((p) => toggle('profiles', p.id, shared.profiles.includes(p.id), p.name)) : <span className='text-muted'>no other profiles</span>}
@@ -92,6 +99,7 @@ function Sharing({ collection }: { collection: CollectionView }) {
         <Tooltip text='every member of the campaign reads it'><span className='text-muted w-20'>campaigns</span></Tooltip>
         {campaigns.length ? campaigns.map((c) => toggle('campaigns', c.id, shared.campaigns.includes(c.id), c.name)) : <span className='text-muted'>no saved campaigns</span>}
       </div>
+      </>}
     </div>
   )
 }

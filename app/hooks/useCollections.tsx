@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { CATALOGS, getCatalogRows, getKindLabel, isCatalogName } from "../forms/catalogs";
 import { ALL_ENTRIES, getCatalogGroups, getCollections, type CatalogRow, type CatalogRows, type CollectionView } from "../domain/campaign/projections/collections";
-import { newCollection, renameCollection, setInCollection, shareCollection, type CollectionUpdater } from "../domain/campaign/commands/collections";
+import { giveCollection, newCollection, renameCollection, setInCollection, shareCollection, type CollectionUpdater } from "../domain/campaign/commands/collections";
 import { deleteCollection, saveCollection } from "../actions";
 import { canReadCollection, isOwnerOrDev } from "../domain/profiles";
 import { useProfileId } from "./useProfile";
@@ -77,6 +77,8 @@ export function useCollectionFilter(...kinds: CatalogKind[]): CollectionFilter {
 
 // A GM's own collections, made, named, filled, shared and thrown away; each
 // is saved as it changes, and only its owner changes it.
+// The dev server changes those for everyone, and gives one to everyone or
+// takes it back.
 export function useCollectionCommands() {
   const collections = useAppStore((s) => s.collections);
   const profile = useProfileId();
@@ -100,6 +102,8 @@ export function useCollectionCommands() {
     editable: (id: string) => { const c = collections[id]; return !!c && isOwnerOrDev(c.owner, profile, devServer); },
     sharedWith: (id: string) => collections[id]?.shared ?? { profiles: [], campaigns: [] },
     ownerName: (owner: string | null) => profiles.find((p) => p.id === owner)?.name ?? '',
+    everyones: (id: string) => collections[id]?.owner === null,
+    canGive: devServer && profile !== null,
     others: profiles.filter((p) => p.id !== profile),
     create: (kind: CatalogKind) => {
       if (!profile) return null;
@@ -109,6 +113,7 @@ export function useCollectionCommands() {
     },
     rename: (id: string, name: string) => change(id, renameCollection(name)),
     set: (id: string, key: string, on: boolean) => change(id, setInCollection(key, on)),
+    give: (id: string, everyone: boolean) => change(id, giveCollection(everyone ? null : profile)),
     share: (id: string, to: 'profiles' | 'campaigns', target: string, on: boolean) => change(id, shareCollection(to, target, on)),
     remove: async (id: string) => {
       drop(id);

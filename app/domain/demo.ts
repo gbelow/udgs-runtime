@@ -4,7 +4,7 @@ import type { BotId } from './profiles'
 
 // The demo on the home page: a prepared scene of the catalog (`scene`, by
 // key), whose party marked for the visitor they fill from a collection of
-// catalog characters (`collection`, by id; none offers the whole character
+// catalog characters (`collection`, the id of one for everyone; none offers the whole character
 // catalog) and play against the bots, who play every other party.
 export const DemoConfigSchema = z.object({
   scene: z.string().catch(''),

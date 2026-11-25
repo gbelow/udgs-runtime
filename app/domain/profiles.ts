@@ -152,10 +152,10 @@ export function getRequestRows(rows: readonly CampaignRow[], campaign: string, p
   return row.requests.map((q) => ({ ...q, profileName: profiles.find((p) => p.id === q.profile)?.name || 'a profile' }))
 }
 
-// Whether `profile` reads a collection: it is theirs, shared with them, or
+// Whether `profile` reads a collection: it is for everyone, theirs, shared with them, or
 // shared with a campaign `inCampaign` says they read it through.
 export function canReadCollection(c: Collection, profile: string | null, inCampaign: (campaign: string) => boolean): boolean {
-  return profile !== null && (c.owner === profile || c.shared.profiles.includes(profile) || c.shared.campaigns.some(inCampaign))
+  return c.owner === null || (profile !== null && (c.owner === profile || c.shared.profiles.includes(profile) || c.shared.campaigns.some(inCampaign)))
 }
 
 // Whether `profile` changes what `owner` owns: only its owner, or the

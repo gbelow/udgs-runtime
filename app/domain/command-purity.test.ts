@@ -595,6 +595,7 @@ function mapSubject(): CrawlMap {
 const collectionCases: Record<string, (c: Collection) => unknown> = {
   renameCollection: (c) => collectionsModule.renameCollection('D')(c),
   setInCollection: (c) => collectionsModule.setInCollection('Wolf', false)(c),
+  giveCollection: (c) => collectionsModule.giveCollection(null)(c),
   shareCollection: (c) => collectionsModule.shareCollection('campaigns', 'k', true)(c),
 }
 

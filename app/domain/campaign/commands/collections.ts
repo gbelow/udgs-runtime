@@ -18,6 +18,11 @@ export function setInCollection(key: string, on: boolean): CollectionUpdater {
   return (c) => (c.keys.includes(key) === on ? c : { ...c, keys: [...toggled(c.keys, key, on)] })
 }
 
+// Makes the list everyone's, or `owner`'s again, shared with nobody else.
+export function giveCollection(owner: string | null): CollectionUpdater {
+  return (c) => (c.owner === owner ? c : { ...c, owner, shared: { profiles: [], campaigns: [] } })
+}
+
 // Shares the list with a profile or with every member of a campaign, or
 // stops sharing it.
 export function shareCollection(to: 'profiles' | 'campaigns', id: string, on: boolean): CollectionUpdater {

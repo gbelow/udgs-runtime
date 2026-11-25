@@ -745,22 +745,33 @@ export async function deleteCampaign(id: string): Promise<ActionResult> {
 
 
 // ── collections ─────────────────────────────────────────────────────────
-// Every collection is a field of one Redis hash, id -> the collection, which
-// carries its owner and whom it is shared with.
+// The collections for everyone are files named by their id, saved on the dev
+// server; every other is a field of one Redis hash, id -> the collection,
+// which carries its owner and whom it is shared with.
 const COLLECTIONS_KEY = 'collections';
+const COLLECTION_DIR = path.join(process.cwd(), "app/assets/collections");
+
+async function readSharedCollections(): Promise<Record<string, Collection>> {
+  const files = await loadJsonFromFolder(COLLECTION_DIR);
+  return Object.fromEntries(Object.entries(files).flatMap(([id, raw]) => {
+    const parsed = CollectionSchema.safeParse({ ...(raw as object), id, owner: null });
+    return parsed.success ? [[id, parsed.data]] : [];
+  }));
+}
 
 async function readCollection(id: string): Promise<Collection | null> {
+  const shared = (await readSharedCollections())[id];
+  if (shared) return shared;
   const parsed = CollectionSchema.safeParse(await redis.hget(COLLECTIONS_KEY, id));
   return parsed.success ? parsed.data : null;
 }
 
-// The keys of the collection the demo offers its visitor (`DEMO`), read
-// for anyone, profile or none, since the demo names it; null when the demo
-// names none, or it is gone or not of characters.
+// The keys of the collection the demo offers its visitor (`DEMO`), one for
+// everyone; null when the demo names none, or it is gone or not of characters.
 export async function getDemoCollection(): Promise<ActionResult<string[] | null>> {
   if (!DEMO.collection) return { ok: true, data: null };
   try {
-    const collection = await readCollection(DEMO.collection);
+    const collection = (await readSharedCollections())[DEMO.collection];
     return { ok: true, data: collection && collection.kind === 'characters' ? collection.keys : null };
   } catch (err) {
     console.error('Error reading the demo collection:', err);
@@ -768,15 +779,16 @@ export async function getDemoCollection(): Promise<ActionResult<string[] | null>
   }
 }
 
-// The collections the profile at the screen sees: their own, those shared
-// with them, and those shared with a campaign they play.
+// The collections the profile at the screen sees: those for everyone, their
+// own, those shared with them, and those shared with a campaign they play.
 export async function getCollectionList(): Promise<ActionResult<Record<string, Collection>>> {
   try {
     const profile = await getProfileId();
-    if (!profile) return { ok: true, data: {} };
+    const shared = await readSharedCollections();
+    if (!profile) return { ok: true, data: shared };
     const [all, campaigns] = await Promise.all([readIndex(COLLECTIONS_KEY, CollectionSchema), readCampaignIndex()]);
     const plays = (campaign: string) => profile in (campaigns[campaign]?.members ?? {});
-    return { ok: true, data: Object.fromEntries(Object.entries(all).filter(([, c]) => canReadCollection(c, profile, plays))) };
+    return { ok: true, data: { ...Object.fromEntries(Object.entries(all).filter(([, c]) => canReadCollection(c, profile, plays))), ...shared } };
   } catch (err) {
     console.error('Error listing collections:', err);
     return { ok: false, error: 'Failed to list collections.' };
@@ -784,6 +796,8 @@ export async function getCollectionList(): Promise<ActionResult<Record<string, C
 }
 
 // Only its owner saves a collection; a new one belongs to whoever saves it.
+// The dev server makes one everyone's, or takes one back from everyone to the
+// profile at the screen, moving it between the files and Redis.
 export async function saveCollection(raw: Collection): Promise<ActionResult<Collection>> {
   const parsed = CollectionSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: 'Not a collection.' };
@@ -792,8 +806,18 @@ export async function saveCollection(raw: Collection): Promise<ActionResult<Coll
     if (!profile) return { ok: false, error: 'Pick a profile first.' };
     const before = await readCollection(parsed.data.id);
     if (before && !isOwnerOrDev(before.owner, profile, dev)) return { ok: false, error: 'Only its owner changes this collection.' };
+    const { id, kind, name, keys } = parsed.data;
+    const filePath = resolveNamedFile(COLLECTION_DIR, id);
+    if (parsed.data.owner === null) {
+      if (!dev) return DEV_ONLY;
+      if (!filePath) return { ok: false, error: 'The collection cannot be kept as a file.' };
+      await fs.writeFile(filePath, JSON.stringify({ kind, name, keys }, null, 2) + "\n", "utf-8");
+      if (before && before.owner !== null) await redis.hdel(COLLECTIONS_KEY, id);
+      return { ok: true, data: parsed.data };
+    }
     const collection = { ...parsed.data, owner: before?.owner ?? profile };
     await redis.hset(COLLECTIONS_KEY, { [collection.id]: collection });
+    if (before && before.owner === null && filePath) await fs.unlink(filePath);
     return { ok: true, data: collection };
   } catch (err) {
     console.error('Error saving collection:', err);
@@ -807,7 +831,9 @@ export async function deleteCollection(id: string): Promise<ActionResult> {
     const before = await readCollection(id);
     if (!before) return { ok: false, error: 'Collection not found.' };
     if (!isOwnerOrDev(before.owner, profile, dev)) return { ok: false, error: 'Only its owner deletes this collection.' };
-    await redis.hdel(COLLECTIONS_KEY, id);
+    const filePath = resolveNamedFile(COLLECTION_DIR, id);
+    if (before.owner !== null) await redis.hdel(COLLECTIONS_KEY, id);
+    else if (filePath) await fs.unlink(filePath);
     return { ok: true, data: undefined };
   } catch (err) {
     console.error('Error deleting collection:', err);

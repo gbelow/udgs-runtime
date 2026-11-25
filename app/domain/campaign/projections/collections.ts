@@ -8,7 +8,7 @@ export type CatalogRow = { key: string; name: string; group: string }
 // A catalog's entries, and what the catalog is called.
 export type CatalogRows = { kind: CatalogKind; label: string; rows: CatalogRow[] }
 
-// A collection a picker offers. One a GM made is `curated`, with its owner;
+// A collection a picker offers. One a GM made is `curated`, with its owner (none for everyone's);
 // the others are read off the catalogs themselves: all of them, each one
 // whole, and each of their categories.
 export type CollectionView = { id: string; name: string; keys: string[]; curated: boolean; owner: string | null }
