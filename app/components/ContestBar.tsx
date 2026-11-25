@@ -10,13 +10,16 @@ export function ContestBar(){
   const { view, left, share, think, pick, mode, settle, close } = useContest()
   const gmBar = useGmBar()
   if (!view) return null
-  const { own, thinking, decided, others, contenders } = view
+  const { holder, holderOwn, own, thinking, decided, others, contenders } = view
   const chosen = own.some((c) => c.contesting)
   return (
     <div role='group' aria-label='contest the turn' className='basis-full shrink-0 flex flex-row flex-wrap items-center gap-2 rounded border border-accent/60 bg-accent/5 px-2 py-1.5 text-xs'>
-      {thinking || others
-        ? <span className='text-accent'>{thinking ? 'who contests?' : `waiting on ${others}`}</span>
-        : <span>may be contested</span>}
+      <span className='basis-full text-sm font-semibold text-fg'>
+        {thinking ? 'Who contests ' : own.length > 0 && !decided ? 'Contest ' : ''}
+        <span className={holderOwn ? 'text-accent' : 'text-bad'}>{holder}</span>
+        {thinking || (own.length > 0 && !decided) ? <>&apos;s turn?</> : <>&apos;s turn may be contested</>}
+      </span>
+      {others && !thinking ? <span className='text-accent'>waiting on {others}</span> : null}
       {left === null ? null : (
         <span className='flex flex-row items-center gap-1.5'>
           <span className='font-mono w-10'>{left.toFixed(1)}s</span>
@@ -25,7 +28,7 @@ export function ContestBar(){
       )}
       {own.length > 0 && !thinking && !decided ? (
         <>
-          <ActionKey look='go' aria-label='contest' onClick={think}>contest</ActionKey>
+          <ActionKey look='go' aria-label={`contest ${holder}'s turn`} onClick={think}>contest</ActionKey>
           <ActionKey aria-label='let it go' onClick={() => settle(false)}>let it go</ActionKey>
         </>
       ) : null}

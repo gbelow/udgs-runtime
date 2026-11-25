@@ -99,6 +99,9 @@ export function getOwingPick(state: SceneState, own: readonly string[], picked: 
 // thinking about it or have decided, and whom else the table waits on; null
 // while nothing may be contested so.
 export type ContestView = {
+  // whose turn it is that may be contested, and whether they are one of `own`
+  holder: string
+  holderOwn: boolean
   seconds: number
   // how long whoever thinks about it is given, 0 for no limit; whether anyone is
   decideSeconds: number
@@ -115,6 +118,8 @@ export function getContestView(state: SceneState, own: readonly string[]): Conte
   const holder = getTurnHolder(state)
   const may = holder && own.includes(holder) ? [] : getContestable(state).filter((id) => own.includes(id))
   return {
+    holder: !holder ? UNSEEN_NAME : getFightName(state, holder),
+    holderOwn: holder !== null && own.includes(holder),
     seconds: state.contestSeconds,
     decideSeconds: state.contestDecideSeconds,
     held: state.thinking.length > 0,
@@ -157,11 +162,31 @@ function getStealthLine(state: SceneState): string {
 // The contest rolled for this turn, as one line: each roll, then who took
 // the turn; '' before one is rolled.
 export function getContestResult(state: SceneState): string {
-  const contest = state.lastContest
-  if (!contest) return ''
-  const rolls = contest.rolls.map((r) => `${getFightName(state, r.id)} ${r.score} (${describeThrow(r.die, r.skill, r.skillTerms, 'cunning', r.score)}${r.mode === 'normal' ? '' : `, ${r.mode}`})`).join(' · ')
-  return `cunning contest: ${rolls} → ${getFightName(state, contest.winner)} takes the turn`
+  const outcome = getContestOutcome(state)
+  if (!outcome) return ''
+  return `${outcome.title}: ${outcome.rolls.map((r) => `${r.name} ${r.score} (${r.detail})`).join(' · ')}`
 }
+
+// The contest rolled for this turn: who won it, and what each rolled,
+// the winner first.
+export type ContestOutcome = {
+  turn: number
+  winner: string
+  title: string
+  rolls: { id: string; name: string; score: number; detail: string; won: boolean }[]
+}
+
+export const getContestOutcome = perState((state: SceneState): ContestOutcome | null => {
+  const contest = state.lastContest
+  if (!contest || contest.rolls.length === 0) return null
+  const nameOf = (id: string) => getFightName(state, id) || UNSEEN_NAME
+  const rolls = contest.rolls.map((r) => ({
+    id: r.id, name: nameOf(r.id), score: r.score, won: r.id === contest.winner,
+    detail: `${describeThrow(r.die, r.skill, r.skillTerms, 'cunning', r.score)}${r.mode === 'normal' ? '' : `, ${r.mode}`}`,
+  })).sort((a, b) => Number(b.won) - Number(a.won) || b.score - a.score)
+  const title = `${nameOf(contest.winner)} wins the contest and has the turn`
+  return { turn: state.turnsBegun, winner: contest.winner, title, rolls }
+})
 
 // combat.tex "Action surge" — the surge buttons in the fight: the
 // character's own, with a movement or combat surge closed outside their
