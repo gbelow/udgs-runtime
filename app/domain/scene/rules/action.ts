@@ -44,6 +44,7 @@ import { canPickUp } from './floor'
 import { findLoot, findOpenable, getLootCost } from './loot'
 import { findStealable, getStealTargets, isTheftChoiceOffered } from './steal'
 import { getCellTargets, getFloorTargets } from './floorAttack'
+import { getFollowUpTarget } from './recipes'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
 import { getAttackVariant, getFreeAttackOptions, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
@@ -851,7 +852,8 @@ export function needsTarget(state: SceneState, action: Action): boolean {
 // be aimed at again. A sweep meets nobody fallen, and nobody twice
 // (combat.tex "Sweeping Attack"). Nobody can be aimed at whom the actor has
 // not detected (combat.tex "Stealth in combat"). One compelled to attack
-// a caster aims at nobody else (rules/stress.ts).
+// a caster aims at nobody else (rules/stress.ts), and a follow-up at nobody
+// but whoever it was opened at (rules/recipes.ts).
 export function getTargetIds(state: SceneState, root: RootAction): string[] {
   const jumping = root.kind === 'strike' || root.kind === 'shoot' ? getJumpTargets(state, root) : null
   if (jumping) return jumping
@@ -865,7 +867,8 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
   switch (root.kind) {
     case 'strike': {
       const swept = isSweep(root) ? root.swept : null
-      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id)
+      const only = getFollowUpTarget(state, root)
+      return others.filter((id) => (only === null || id === only) && isInReach(state, root, id) && isGrappleReach(state, root, id) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id)
         && (swept === null || canBeSwept(state, swept, id)))
     }
     case 'shoot':

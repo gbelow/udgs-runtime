@@ -9,6 +9,7 @@ import { findFloorItem } from './floor'
 import { getBurnOf } from './ignition'
 import { hasUnlitFuel } from './board/hazard'
 import { isSweep } from './sweep'
+import { getFollowUpTarget } from './recipes'
 
 // A strike or a shot aimed at the ground: an item lying on the floor, named
 // by `object`, or a space, named by `cell`; the attack has no target
@@ -65,14 +66,14 @@ function isInFloorReach(state: SceneState, attack: AttackAction, found: FloorIte
 }
 
 // A plain strike, never an opportunity attack or a sweep (the table's ruling:
-// a sweep does not include the floor), or a shot.
-function mayAimAtGround(attack: AttackAction): boolean {
-  return attack.kind === 'shoot' || !(attack.opportunity || attack.sweepOf !== null || isSweep(attack))
+// a sweep does not include the floor) or a follow-up, or a shot.
+function mayAimAtGround(state: SceneState, attack: AttackAction): boolean {
+  return attack.kind === 'shoot' || !(attack.opportunity || attack.sweepOf !== null || isSweep(attack) || getFollowUpTarget(state, attack) !== null)
 }
 
 // The items on the floor an attack as declared can be aimed at.
 export function getFloorTargets(state: SceneState, attack: AttackAction): FloorItem[] {
-  if (!mayAimAtGround(attack)) return []
+  if (!mayAimAtGround(state, attack)) return []
   return state.floor.filter((f) => isInFloorReach(state, attack, f) && isWorthHitting(state, attack, f))
 }
 
@@ -80,7 +81,7 @@ export function getFloorTargets(state: SceneState, attack: AttackAction): FloorI
 // that hold fuel not yet alight, on the attacker's floor, are worth aiming a
 // burning attack at.
 export function getCellTargets(state: SceneState, attack: AttackAction): Coord[] {
-  if (!mayAimAtGround(attack) || getBurnOf(state, attack) <= 0) return []
+  if (!mayAimAtGround(state, attack) || getBurnOf(state, attack) <= 0) return []
   const reach = attack.kind === 'shoot' ? getShotReachOf(state, attack) : getStrikeReach(state, attack)
   return reach === null ? [] : getAimableCells(state, attack.actorId, reach, firesAcross).filter((cell) => hasUnlitFuel(state, cell, state.board?.placements[attack.actorId]?.elevation))
 }

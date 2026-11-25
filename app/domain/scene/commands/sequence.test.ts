@@ -9,7 +9,7 @@ import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
 import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDLTerms, getDefendingReaction, getOpportunityAction } from '../rules/attack'
-import { getOwnCost, isDeclarationComplete, needsDie } from '../rules/action'
+import { getDeclaredTargets, getOwnCost, isDeclarationComplete, needsDie } from '../rules/action'
 import { getEvasiveJumpPlacements } from '../rules/move'
 import { getChargeOptions } from '../rules/explosion'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
@@ -616,6 +616,20 @@ describe('a riposte', () => {
     expect(kinds(own)).toContain('opportunityAttack')
     expect(kinds(s)).not.toContain('opportunityAttack')
     expect(kinds(s)).toContain('evade')
+  })
+
+  // Regression: the riposte could be aimed at anyone else in reach.
+  it('is aimed at nobody but the attacker it defended against', () => {
+    const punch = { weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' } as const
+    const start = onBoard({ atk: [0, 0], def: [1, 0], f: [2, 0] }, spearman('atk'), fighter('def', ['riposte']), fighter('f'))
+    const [row] = getAttackOptions(start.characters.atk, 'strike', true)
+    let s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(start)
+    s = declareReaction('def', { kind: 'evade' }, newId)(commitAction(() => 5, newId)(setTarget('def')(s)))
+    s = amendAction(punch)(resolveAction(newId, () => 5)(rollAction(() => MISS, newId)(s)))
+    const own = declareAction('def', { kind: 'strike', ...punch }, newId)(start)
+    expect(getDeclaredTargets(own, getOpenAction(own))).toContain('f')
+    expect(getDeclaredTargets(s, getOpenAction(s))).toEqual(['atk'])
+    expect(setTarget('f')(s)).toBe(s)
   })
 
   // Regression: the riposte's target, who knows Counterattack, was offered a

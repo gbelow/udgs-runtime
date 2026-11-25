@@ -259,6 +259,16 @@ function getRecipeContext(state: SceneState, action: Action): RecipeContext | nu
   return opener && root?.kind === 'strike' ? { state, root, opener, opened: action } : null
 }
 
+// The only one a follow-up may be aimed at: whoever its recipe opened it at,
+// the attacker a defense answered or the target of the strike it follows
+// (abilities.tex "Riposte", the table's ruling). Null for any other action,
+// and for the later strikes of a follow-up's sweep.
+export function getFollowUpTarget(state: SceneState, action: Action): string | null {
+  if (!getFollowUpRecipe(state, action) || (action.kind === 'strike' && action.sweepOf !== null)) return null
+  const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  return opener ? getRootOf(state, opener)?.actorId ?? opener.targetId : null
+}
+
 // What the recipe adds to the attack.
 export function getRecipeHitTerms(state: SceneState, attack: AttackAction): Term[] {
   const entry = getRecipeOf(state, attack)
