@@ -1,7 +1,8 @@
 import type { SceneState } from '../types'
 import type { RollMode } from '../../play/dice'
 import { describeThrow } from '../../character/rules/terms'
-import { getContestBar, getContenders, getContestMode, getContestModes, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
+import { isContestPending } from '../rules/contest'
+import { getContestBar, getContestable, getContenders, getContestMode, getContestModes, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getOpenAction } from '../rules/log'
 import { getEndCombatBar } from '../rules/fight'
 import { perState } from '../../perState'
@@ -35,6 +36,8 @@ export type TurnControls = {
   roll: string | null
   end: string | null
   result: string
+  // whether the turn has a time to be contested in, asked for over the scene
+  timed: boolean
   // said to whoever would act outside their turn: that they must start one, and
   // why they cannot now; '' when nothing asks it of them
   mustStart: string
@@ -59,6 +62,7 @@ export function getTurnControls(state: SceneState, id: string): TurnControls {
     roll: getRollContestBar(state),
     end: getEndTurnBar(state),
     result: getContestResult(state),
+    timed: state.contestWindow !== 'none',
     mustStart: getMustStart(state, id),
     stealth: getStealthLine(state),
     duty: getStressDuty(state),
@@ -71,6 +75,38 @@ export function getMustStart(state: SceneState, id: string): string {
   const bar = getStartTurnBar(state, id)
   const name = getFightName(state, id)
   return bar ? `${name} cannot act now: ${bar}` : `start ${name}'s turn to act`
+}
+
+// The time to contest the turn as whoever answers for `own` sees it: their
+// characters who may contest, each with whether they do, whether they are
+// thinking about it or have decided, and whom else the table waits on; null
+// while nothing may be contested so.
+export type ContestView = {
+  seconds: number
+  // how long whoever thinks about it is given, 0 for no limit; whether anyone is
+  decideSeconds: number
+  held: boolean
+  own: { id: string; name: string; contesting: boolean; modes: RollMode[]; mode: RollMode }[]
+  thinking: boolean
+  decided: boolean
+  others: string
+  contenders: string
+}
+
+export function getContestView(state: SceneState, own: readonly string[]): ContestView | null {
+  if (!isContestPending(state)) return null
+  const holder = getTurnHolder(state)
+  const may = holder && own.includes(holder) ? [] : getContestable(state).filter((id) => own.includes(id))
+  return {
+    seconds: state.contestSeconds,
+    decideSeconds: state.contestDecideSeconds,
+    held: state.thinking.length > 0,
+    own: may.map((id) => ({ id, name: getFightName(state, id), contesting: state.contenders.includes(id), modes: getContestModes(state, id), mode: getContestMode(state, id) })),
+    thinking: may.some((id) => state.thinking.includes(id)),
+    decided: may.length > 0 && may.every((id) => state.letGo.includes(id)),
+    others: state.thinking.filter((id) => !may.includes(id)).map((id) => getFightName(state, id)).join(', '),
+    contenders: getContenders(state).map((id) => getFightName(state, id)).join(', '),
+  }
 }
 
 // Whose turn it is, for all to see: nobody's while the next is still to be
@@ -102,7 +138,7 @@ function getStealthLine(state: SceneState): string {
 
 // The contest rolled for this turn, as one line: each roll, then who took
 // the turn; '' before one is rolled.
-function getContestResult(state: SceneState): string {
+export function getContestResult(state: SceneState): string {
   const contest = state.lastContest
   if (!contest) return ''
   const rolls = contest.rolls.map((r) => `${getFightName(state, r.id)} ${r.score} (${describeThrow(r.die, r.skill, r.skillTerms, 'cunning', r.score)}${r.mode === 'normal' ? '' : `, ${r.mode}`})`).join(' · ')

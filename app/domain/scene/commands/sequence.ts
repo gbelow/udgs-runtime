@@ -1,3 +1,4 @@
+import { NO_CONTEST } from '../rules/contest'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { Action, AttackAction, CastAction, SceneState, ExplosionAction, FeintAction, FireAgainAction, QueuedTurn, RootAction, ThrowAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
@@ -189,7 +190,7 @@ export function beginTurn(state: SceneState, id: string, { fleeing = false, turn
   const begun = turn === null ? state.turnsBegun + 1 : state.turnsBegun
   const firstTurn = state.firstTurn ?? (!fleeing && owesStressTurn(state, id) ? null : { turn: turn ?? begun, id })
   const first = state.firstTurn === null && firstTurn !== null ? passFirstMoverAP(state, null, id) : state
-  return noteHiddenFrom({ ...first, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], contestModes: {}, lastContest: null, firstTurn }, id)
+  return noteHiddenFrom({ ...first, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, ...NO_CONTEST, lastContest: null, firstTurn }, id)
 }
 
 // combat.tex "Actions in stealth": whom the holder begins the turn
@@ -210,7 +211,7 @@ export function handOverToFleers(state: SceneState): SceneState {
   const fleers = [...new Set(state.fleers)].map((id): QueuedTurn => ({ id, fleeing: true, turn: null }))
   const holder = getTurnHolder(state)
   const resumed: QueuedTurn[] = holder ? [{ id: holder, fleeing: state.fleeing, turn: state.turn }] : []
-  return takeQueuedTurn({ ...state, fleers: [], inTurnCharacter: '', fleeing: false, contenders: [], contestModes: {}, turnQueue: [...fleers, ...resumed, ...state.turnQueue] })
+  return takeQueuedTurn({ ...state, fleers: [], inTurnCharacter: '', fleeing: false, ...NO_CONTEST, turnQueue: [...fleers, ...resumed, ...state.turnQueue] })
 }
 
 // The next turn waiting in the queue is taken, passing over anyone no longer

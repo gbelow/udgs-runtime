@@ -247,7 +247,7 @@ export function canChangeEntry(author: string | null, profile: string | null, ro
 // parties, the clock, what the table enters, the scene's grid, brush and
 // repositioning tool), or nobody for one that only picks whom to look at or
 // does nothing.
-export type Actor = { id: string } | { anyOf: readonly string[] } | { author: string | null } | 'gm' | null
+export type Actor = { id: string } | { anyOf: readonly string[] } | { allOf: readonly string[] } | { author: string | null } | 'gm' | null
 
 // Who is at the screen, as far as whom they may act for goes: their profile
 // and role, whether the action bar is switched to GM, the profiles there are,
@@ -259,6 +259,7 @@ export function getActorBar(actor: Actor, v: Viewer): string | null {
   if (actor === null) return null
   if (actor === 'gm') return hasGmTools(v.role) ? null : "the GM's to do"
   if ('author' in actor) return canChangeEntry(actor.author, v.profile, v.role) ? null : "someone else's to change"
+  if ('allOf' in actor) return actor.allOf.every((id) => canControl(v.ownerOf(id), v.profile, v.role)) ? null : 'not all of them are yours to play'
   if ('anyOf' in actor) return actor.anyOf.some((id) => canControl(v.ownerOf(id), v.profile, v.role)) ? null : 'nobody you play is in it'
   return getControlBar(v.ownerOf(actor.id), v.profile, v.role, v.profiles)
 }

@@ -497,6 +497,10 @@ export const SURGE_USES = {
 } as const
 export type SurgeUse = keyof typeof SURGE_USES
 
+// The table's ruling: how many rounds where a foe was last noticed is
+// remembered, by a player and by a bot; its face is not forgotten.
+export const FORGET_AFTER = 2
+
 // combat.tex "Action surge" — one surge per round. Each kind prices its AP
 // in STA; the movement surge alone scales its yield with AGI, so the yield
 // column is a function of AGI rather than a number. An `earmarked` surge's AP

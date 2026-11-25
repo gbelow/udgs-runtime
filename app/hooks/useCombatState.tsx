@@ -17,8 +17,12 @@ import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 import { useSceneDispatch } from "./useSceneDispatch";
 import { useFollowPick } from "./useFollowPick";
+import { useSightStore } from "../stores/useSightStore";
+import { useKnows } from "./useSights";
+import { getKnownRoster } from "../domain/scene/projections/sights";
 
 const NONE: string[] = [];
+const NO_ONE_AWAY: { id: string; name: string }[] = [];
 
 // Fight-level primitives. Both go through the store selector, so a change to a
 // combatant's sheet does not re-render the round counter.
@@ -42,13 +46,19 @@ export function useFighterCount(): number {
 
 export function useCombatRoster(): {
   parties: RosterParty[];
+  away: { id: string; name: string }[];
   pick: (entry: CombatRosterEntry) => void;
   picked: string[];
 } {
   // Gate on a digest of the roster, then build it — the entries are freshly
   // allocated, so they cannot gate themselves by identity.
   useCombatStore(getCombatRosterDigest);
-  const parties = getRosterParties(useCombatStore.getState());
+  const player = useSightStore((s) => s.player);
+  const known = useSightStore((s) => s.known);
+  const memory = useSightStore((s) => s.memory);
+  const fight = useCombatStore.getState();
+  const roster = getRosterParties(fight);
+  const { parties, away } = player ? getKnownRoster(roster, known, memory, fight.characters) : { parties: roster, away: NO_ONE_AWAY };
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
   const picked = useGmPickStore((s) => (s.picking ? s.picked : NONE));
@@ -64,7 +74,7 @@ export function useCombatRoster(): {
     else setActiveCharacter(entry.id);
   };
 
-  return { parties, pick, picked };
+  return { parties, away, pick, picked };
 }
 
 // The fight with no board, one card per character by party; a click does what
@@ -75,7 +85,8 @@ export function useSceneCards(): {
   picked: string[];
 } {
   useCombatStore(getSceneCardsDigest);
-  const parties = getSceneCards(useCombatStore.getState());
+  const knows = useKnows();
+  const parties = getSceneCards(useCombatStore.getState()).map((p) => ({ ...p, cards: p.cards.filter((c) => knows(c.id)) }));
   const { pick, picked } = useCombatRoster();
   return { parties, pick, picked };
 }
@@ -84,7 +95,9 @@ export function useSceneCards(): {
 // played in turns; gated on a digest since the view is freshly allocated.
 export function useRoundChange(): { view: RoundChangeView | null; pick: (entry: CombatRosterEntry) => void } {
   useCombatStore(getRoundChangeDigest);
-  const view = getRoundChange(useCombatStore.getState());
+  const knows = useKnows();
+  const change = getRoundChange(useCombatStore.getState());
+  const view = change && { ...change, parties: change.parties.map((p) => ({ ...p, cards: p.cards.filter((c) => knows(c.id)) })).filter((p) => p.cards.length > 0) };
   const { pick } = useCombatRoster();
   return { view, pick };
 }
@@ -109,7 +122,7 @@ export function useBreakage(): boolean {
 }
 
 const NO_ONE = 'no active character'
-const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', contestMode: 'normal', roll: NO_ONE, end: NO_ONE, result: '', mustStart: '', stealth: '', duty: '' }
+const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', contestMode: 'normal', roll: NO_ONE, end: NO_ONE, result: '', timed: false, mustStart: '', stealth: '', duty: '' }
 
 // play.tex "Combat" — the turn buttons for the active character, flat
 // primitives gated shallowly.

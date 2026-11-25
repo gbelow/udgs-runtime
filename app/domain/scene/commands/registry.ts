@@ -32,7 +32,7 @@ import { defaultToCoward } from './social'
 import { breakFree, giveOrder, mock } from './domination'
 import { leadershipRally } from './inspiringDeed'
 import type { Order } from '../rules/domination'
-import { agreeAllToEnd, endTurn, rollContest, setContestMode, startTurn, surge, toggleAgreeToEnd, toggleContest } from './turn'
+import { agreeAllToEnd, closeContest, endTurn, rollContest, setContestDecideSeconds, setContestMode, setContestSeconds, settleContest, startTurn, surge, thinkContest, toggleAgreeToEnd, toggleContest } from './turn'
 import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
   passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setSpellTestMode, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
@@ -153,6 +153,11 @@ export const sceneCommands = {
   follow: command((_, id: string, targetId: string | null) => follow(id, targetId)).by(own),
   endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),
   rollContest: command((ctx) => rollContest(ctx.thrower)).by(gm),
+  thinkContest: command((_, ids: string[]) => thinkContest(ids)).by((_, ids) => ({ allOf: ids })),
+  settleContest: command((_, ids: string[], contest: boolean) => settleContest(ids, contest)).by((_, ids) => ({ allOf: ids })),
+  closeContest: command((ctx) => closeContest(ctx.thrower)).by(gm),
+  setContestSeconds: command((_, seconds: number) => setContestSeconds(seconds)).by(gm),
+  setContestDecideSeconds: command((_, seconds: number) => setContestDecideSeconds(seconds)).by(gm),
   nextRound: command((ctx) => nextRound(ctx.thrower)).by(gm),
   doneResting: command((_, ids: string[]) => doneResting(ids)).by((_, ids) => ({ anyOf: ids })),
   continueRound: command((ctx) => continueRound(ctx.thrower)).by(gm),

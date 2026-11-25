@@ -4,7 +4,7 @@ import { coordKey, ring } from './board/geometry'
 import { getFootprint, placeAt, withPlacements } from './board/board'
 import { isWet, mayRestOn, readGround } from './board/ground'
 import { CARRIED, mayStep } from './board/step'
-import { getMoveDestination, getMoveOrigin, getMoveSweep } from './board/waypoint'
+import { comesInto, getMoveDestination, getMoveOrigin, getMoveSweep } from './board/waypoint'
 import { getSpawned } from './log'
 import { getWalkedPath } from './move'
 import { isImmobile } from './situational'
@@ -30,15 +30,7 @@ function getStoodAt(state: SceneState, move: MoveAction, id: string): Placement 
 // Whoever the move, walked the whole way it was declared, comes to rest on and
 // passed in a crash.
 export function getCrashedAtEnd(state: SceneState, move: MoveAction): string[] {
-  const mover = state.characters[move.actorId]
-  const end = getMoveDestination(state, move, move.path)
-  if (!mover || !end || move.path.length === 0) return []
-  const footprint = getFootprint(mover, end).map(coordKey)
-  const there = Object.keys(state.characters).filter((id) => {
-    const other = state.characters[id]
-    const at = id === move.actorId ? undefined : getStoodAt(state, move, id)
-    return other && at && getFootprint(other, at).some((cell) => footprint.includes(coordKey(cell)))
-  })
+  const there = Object.keys(state.characters).filter((id) => id !== move.actorId && comesInto(state, move, move.path.length, id, getStoodAt(state, move, id)))
   if (there.length === 0) return []
   const walked = getWalkedPath(state, move)
   if (walked.stop !== 'end' || walked.path.length !== move.path.length) return []

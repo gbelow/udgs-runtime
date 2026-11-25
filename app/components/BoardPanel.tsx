@@ -14,6 +14,7 @@ import type { TerrainBrush } from '../domain/types'
 import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES, SURFACE_TARGETS } from '../domain/lists'
 import { useBoardLook } from '../hooks/useBoardLook'
 import { useBotsPaused } from '../hooks/useBots'
+import { useEyes } from '../hooks/useSights'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
@@ -87,10 +88,10 @@ const toSvgPoints = (points: { x: number; y: number }[]) => points.map((p) => `$
 // is walked on, zoomed with the wheel and panned by dragging. Everything drawn is a field of the board view; the panel
 // only translates it into shapes.
 export function BoardPanel(){
-  const [fromActive, setFromActive] = useState(false)
+  const eyes = useEyes()
   const look = useBoardLook()
   const [storey, setStorey] = useState<number | null | 'auto'>('auto')
-  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning, brushIcons } = useBoard(fromActive, look, storey)
+  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning, brushIcons } = useBoard(look, storey)
   const veil = useBoardVeil(view)
   const { setLit } = useLitCell(view, veil.setOver)
   const cellAt = useCellAt()
@@ -139,7 +140,7 @@ export function BoardPanel(){
             {storeys.map((s) => <Segment key={s.label} selected={storey !== 'auto' && s.height === height} onClick={() => setStorey(s.height)}>{s.label}</Segment>)}
           </Segmented>
           : null}
-        <Button size='xs' selected={fromActive} aria-label='see as the active character' title='draw only what the active character can see' onClick={() => setFromActive(!fromActive)}>their eyes</Button>
+        <Button size='xs' selected={eyes.on} aria-label='see as the active character' disabled={eyes.player} title={eyes.player ? 'you see what the last character of yours you picked senses' : 'draw only what the active character can see'} onClick={eyes.toggle}>their eyes</Button>
         {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setFloorTool(null) }}>GM board tools</Button> : null}
         <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
         <Button size='xs' weight='subtle' tone='bad' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>

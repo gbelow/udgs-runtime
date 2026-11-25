@@ -1,6 +1,7 @@
 import type { CampaignCharacter } from '../types'
 import type { Placement, SceneState } from '../scene/types'
 import { getEyesToward, seesAcross } from '../scene/rules/board/board'
+import { FORGET_AFTER } from '../tables'
 import { getBelief } from './belief'
 import { getSides } from './table'
 
@@ -14,8 +15,6 @@ import { getSides } from './table'
 // forgotten once `FORGET_AFTER` rounds have passed since it was noticed (the
 // user's ruling), once a member sees the cell it stood on and it is not there,
 // once someone the seat notices stands there, and once it has left the fight.
-export const FORGET_AFTER = 2
-
 export type Sighting = { sheet: CampaignCharacter; placement: Placement; party: string | undefined; round: number }
 export type SeatMemory = Readonly<Record<string, Sighting>>
 

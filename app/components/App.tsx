@@ -1,4 +1,6 @@
 'use client'
+import { useContestClock } from '../hooks/useContest'
+import { useSights } from '../hooks/useSights'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useGameTab } from '../hooks/useGameTab';
@@ -32,6 +34,8 @@ export function App(){
 
   useTableSession()
   useBots()
+  useContestClock()
+  useSights()
   useAutosave()
 
   if (!useProfileId()) return <ProfileLanding />

@@ -1,3 +1,4 @@
+import { NO_CONTEST } from '../rules/contest'
 import type { SceneState, Updater } from '../types'
 import type { Caller, Throw } from '../../play/calls'
 import { calling } from './calling'
@@ -53,7 +54,7 @@ export function endScene(scene: SceneState, caller: Caller): SceneState {
     fleeing: false,
     turnQueue: [],
     fleers: [],
-    contenders: [], contestModes: {},
+    ...NO_CONTEST,
     lastContest: null,
     agreedToEnd: [],
     concentration: [],

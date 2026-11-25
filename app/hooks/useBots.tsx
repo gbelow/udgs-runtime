@@ -107,11 +107,10 @@ export function useBots(table: BotTable = WITH_GM) {
         viewerOf: (seat) => viewerOf(seat.profile ?? seat.id, false),
         memories,
       };
-      const { step, live: next, refused } = getLiveStep(kept, state, seats, opts, Date.now());
+      const { step, live: next, refused } = getLiveStep(kept, state, seats, opts);
       kept = next;
       if (refused.length) console.warn('[bots]', refused);
       if (step.do === 'nothing') return;
-      if (step.do === 'wait') { timer = setTimeout(play, step.ms); return; }
       const { move } = step;
       if (step.do === 'stop') {
         if (step.first) {
@@ -143,7 +142,7 @@ export function useBots(table: BotTable = WITH_GM) {
     soon();
     const offCombat = useCombatStore.subscribe(() => { note(); soon(); });
     const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) soon(); });
-    const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) { kept = { ...kept, held: null }; soon(); } });
+    const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) soon(); });
     return () => { offCombat(); offOwners(); offPaused(); if (timer) clearTimeout(timer); };
   }, [mode, auto, holdStart]);
 }

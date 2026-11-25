@@ -1,3 +1,5 @@
+import { getDiceBar } from '../../play/calls'
+import { getContestWait, isContestPending } from '../rules/contest'
 import { getRestAwaited } from '../rules/resting'
 import type { SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
@@ -66,6 +68,7 @@ export function getButtonsOf(state: SceneState, id: string): OpenButton[] {
 export const getSharedButtons = perState((state: SceneState): OpenButton[] => [
   ...button(getEndTurnBar(state) === null, { kind: 'endTurn', args: [] }, 'end the turn'),
   ...button(getRollContestBar(state) === null, { kind: 'rollContest', args: [] }, 'roll the contest for the turn'),
+  ...button(isContestPending(state) && getDiceBar(state.calls) === null, { kind: 'closeContest', args: [] }, 'the time to contest the turn is over'),
   ...openActionButtons(state),
   ...button(!!getRoundPhase(state) && getContinueBar(state) === null, { kind: 'continueRound', args: [] }, 'on with the round change'),
   ...button(getNextRoundBar(state) === null, { kind: 'nextRound', args: [] }, 'next round'),
@@ -117,7 +120,7 @@ function openActionButtons(state: SceneState): OpenButton[] {
     ...button(go && die, { kind: 'roll', args: [] }, 'roll'),
     ...button(go && !die, { kind: 'pay', args: [] }, 'pay'),
     ...button(reacting && open.kind === 'spellTest' && canAcceptSpellTest(open), { kind: 'accept', args: [] }, 'accept the spell'),
-    ...button(step === 'commit' && (getPayableCost(state, open) !== null || getHoldCost(state, open) !== null), { kind: 'commit', args: [] }, 'commit'),
+    ...button(step === 'commit' && getContestWait(state) === null && (getPayableCost(state, open) !== null || getHoldCost(state, open) !== null), { kind: 'commit', args: [] }, 'commit'),
     ...button(open.step === 'define' && !open.spawnedBy, { kind: 'cancel', args: [] }, 'cancel'),
     ...button(open.step === 'define' && !!open.spawnedBy && !isPreparedRequired(state, open), { kind: 'skip', args: [] }, 'pass it up'),
     ...button(open.step === 'post' && (step === 'confirm' || step === 'spend'), { kind: 'resolve', args: [] }, 'land it'),

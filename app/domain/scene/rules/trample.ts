@@ -2,9 +2,7 @@ import type { Character } from '../../types'
 import type { SceneState, Coord, MoveAction, StrikeAction, Trample } from '../types'
 import { getForce } from '../../character/rules/skills'
 import { getMovementSpeed } from '../../character/rules/movement'
-import { sameCell } from './board/geometry'
-import { getFootprint } from './board/board'
-import { getMoveOrigin, getMoveSweep } from './board/waypoint'
+import { comesInto, getMoveOrigin } from './board/waypoint'
 import { getDrawnOpportunityAttacks, getReactionsTo } from './log'
 import { getMoveBlockCells, getStandingIn } from './move'
 import { isProne } from './board/ground'
@@ -46,7 +44,7 @@ function crash(moverId: string, targetId: string, at: number, mover: number, tar
 }
 
 // The move's path as walked against everyone standing in it, step by step:
-// the first step whose footprint comes into one is their crash, at the
+// the first step that comes into the space of one is their crash, at the
 // mover's Force against theirs. Passed, the mover goes on through them;
 // blocked, the mover stops a space short of them, or short of the last space
 // no one stands in — one passed or evaded on the way does not make room —
@@ -67,12 +65,11 @@ export function getMoveTramples(state: SceneState, action: MoveAction, path: Coo
 
   const met = new Set<string>()
   const trampled: Trample[] = []
-  for (const [i, footprint] of getMoveSweep(state, action).slice(0, path.length).entries()) {
+  for (let i = 0; i < path.length; i++) {
     for (const id of standing) {
       const other = state.characters[id]
       if (!other || met.has(id)) continue
-      const theirs = getFootprint(other, placements[id])
-      if (!footprint.some((f) => theirs.some((t) => sameCell(f, t)))) continue
+      if (!comesInto(state, action, i + 1, id, placements[id])) continue
       met.add(id)
       const result = crash(mover.id, id, i + 1, getMoverForce(mover, action, i + 1), getForce(other) + (braced.has(id) ? BRACED : 0))
       trampled.push(result)

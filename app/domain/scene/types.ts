@@ -2005,6 +2005,19 @@ export const SceneStateSchema = z.object({
   // throws their cunning, where they picked other than normal
   contestModes: z.record(z.string(), z.enum(ROLL_MODES)).default({}),
   lastContest: ContestSchema.nullable().default(null),
+  // the time to contest a turn just taken (the table's ruling): while it is
+  // open nothing is committed in the turn, and it closes when `contestSeconds`
+  // are up or everyone has decided. Someone thinking about it holds it open past
+  // its end, up to `contestDecideSeconds` after the first of them asked (with
+  // none, for as long as they think). `thinking` is every character of a player who has said they want to
+  // contest and has not yet said with whom, `letGo` every one of a player who
+  // has decided. With no seconds a turn has none, and may be contested until
+  // something is committed in it.
+  contestWindow: z.enum(['none', 'open', 'over']).default('none'),
+  contestSeconds: z.number().default(5),
+  contestDecideSeconds: z.number().default(30),
+  thinking: z.array(z.string()).default([]),
+  letGo: z.array(z.string()).default([]),
   // combat.tex "End of the round": who has said they agree to end it; who
   // has nothing left to spend agrees without saying so
   agreedToEnd: z.array(z.string()).default([]),

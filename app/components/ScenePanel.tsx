@@ -15,6 +15,7 @@ import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
 import { useBreakage, useCombatRoster, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
+import { useContestSeconds } from '../hooks/useContest';
 import { useGmFloorTools } from '../hooks/useBoard';
 import { ExplosionFields } from './ExplosionFields';
 import { useInjuryLens } from '../hooks/useinjuryLens';
@@ -130,6 +131,7 @@ function EndSceneMenu(){
 function FightSettings(){
   const { toggleBreakage } = useCombatCommands()
   const breakage = useBreakage()
+  const contest = useContestSeconds()
 
   return(
     <div className='flex flex-col gap-1'>
@@ -139,6 +141,14 @@ function FightSettings(){
           equipment breakage: {breakage ? 'on' : 'off'}
         </Button>
       </Tooltip>
+      <label className='flex flex-row items-center gap-2 text-xs' title='how long a turn just taken may be contested before anything is committed in it; 0 for no time: it may be contested until something is, and the GM rolls it'>
+        seconds to contest a turn
+        <NumberInput className='w-12' min={0} aria-label='seconds to contest' value={contest.seconds} onChange={(e) => contest.set(parseInt(e.target.value) || 0)} />
+      </label>
+      <label className='flex flex-row items-center gap-2 text-xs' title='how long after the first player asks to contest everyone has to say with whom; what is picked by then stands; 0 for no limit'>
+        seconds to decide who contests
+        <NumberInput className='w-12' min={0} aria-label='seconds to decide who contests' value={contest.decide} onChange={(e) => contest.setDecide(parseInt(e.target.value) || 0)} />
+      </label>
     </div>
   )
 }
@@ -407,7 +417,7 @@ export function SustainedPanel(){
 // rolling cunning at once.
 function TurnControl(){
   const { startTurn, toggleContest, contestMode, rollContest, endTurn } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, stealth, duty } = useTurnControls()
+  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, timed, stealth, duty } = useTurnControls()
   const modes = useContestModes()
 
   return(
@@ -423,19 +433,19 @@ function TurnControl(){
           </Tooltip>
         }
         {
-          holder && !inTurn ?
+          holder && !inTurn && !timed ?
           <Tooltip text={contesting ? 'stop contesting the turn' : contest ?? `contest ${holder}'s turn`}>
             <ActionKey look={contesting ? 'picked' : 'plain'} aria-label='contestTurn' aria-pressed={contesting} disabled={!contesting && contest !== null} onClick={toggleContest}>contest</ActionKey>
           </Tooltip> : null
         }
         {
-          modes.length > 1 ?
+          modes.length > 1 && (!timed || inTurn) ?
           <Segmented label='cunning mode for the contest'>
             {modes.map((m) => <Segment key={m} selected={m === mode} onClick={() => contestMode(m)}>{`cunning ${m}`}</Segment>)}
           </Segmented> : null
         }
         {
-          contenders ?
+          contenders && !timed ?
           <Tooltip text={roll ?? 'everyone contesting and the holder roll cunning; the highest takes the turn'}>
             <ActionKey icon={Dices} aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</ActionKey>
           </Tooltip> : null
@@ -507,7 +517,7 @@ export function SurgeTile(){
 // Everyone in the fight as a strip of chips by party: a click picks the
 // active character, or aims the open action at a target.
 export function CharacterList(){
-  const { parties, pick, picked } = useCombatRoster()
+  const { parties, away, pick, picked } = useCombatRoster()
 
   return(
     <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
@@ -532,6 +542,7 @@ export function CharacterList(){
           </div>
         )
       }
+      {away.map((f) => <Button key={f.id} size='xs' weight='ghost' disabled title='none of your characters senses them now'>{f.name}</Button>)}
     </div>
   )
 }

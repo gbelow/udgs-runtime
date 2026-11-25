@@ -321,6 +321,17 @@ export function getPlacedFootprint(state: SceneState, id: string): Coord[] | nul
   return placement && c ? getFootprint(c, placement) : null
 }
 
+// Whether feet at a height stand on a floor: no cliff between them.
+export function isLevelWith(feet: number, floor: number): boolean {
+  return Math.abs(feet - floor) < FALL.minHeight
+}
+
+// Whether two bodies are in one space: a cell of both, and on it the floor the
+// first one's feet reach is the one the second one's are on.
+export function sharesSpace(board: Board, a: Body, b: Body): boolean {
+  return a.footprint.some((cell) => b.footprint.some((c) => sameCell(c, cell)) && isLevelWith(b.feet, getTerrainAt(board, cell, a.feet).floor))
+}
+
 // Cells between two characters, edge to edge: 0 when they share a cell, 1
 // when adjacent — or the metres a chase puts between them (a cell is a
 // metre).

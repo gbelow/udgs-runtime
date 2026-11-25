@@ -1,7 +1,8 @@
 import type { SceneState } from '../scene/types'
 import { applySceneCommand, type CommandContext, type SceneCommand } from '../scene/commands/registry'
-import { getContenders, getContestClosed, getRollContestBar, getTurnHolder } from '../scene/rules/turn'
+import { getContestClosed, getRollContestBar, getTurnHolder } from '../scene/rules/turn'
 import { getOpenAction } from '../scene/rules/log'
+import { isContestPending } from '../scene/rules/contest'
 import { notices } from '../scene/rules/stealth'
 import type { Viewer } from '../profiles'
 import { rollD10, rollModed, seededRng, type Dice } from '../play/dice'
@@ -176,7 +177,9 @@ function inputOf(state: SceneState, seat: Seat, members: string[], waits: Wait[]
   if (waits.length === 0 && buttons.length === 0 && choices.length === 0) return null
   const memory = seat.box.remembers ? opts.memories?.[seat.id]?.foes : undefined
   const seen = seenBy(state, members, memory)
-  const read = () => (seen.view ??= withRemembered(getBelief(state, members, members[0]), memory))
+  // a turn is weighed as it is once nobody contests it: what a seat tries on
+  // its view is never held up by the time to
+  const read = () => (seen.view ??= { ...withRemembered(getBelief(state, members, members[0]), memory), contestSeconds: 0 })
   const unnoticed = seen.unnoticed
   return {
     members,
@@ -212,15 +215,21 @@ function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions,
     return { seat, members, waits: getWaits(state, members) }
   })
   const holder = getTurnHolder(state)
+  const players = Object.keys(state.characters).filter((id) => !seats.some((s) => s.members.includes(id)))
   if (holder && getContestClosed(state) === null) {
     if (!opts.paused) yield* askSeats(state, asked.filter((a) => !a.members.includes(holder)), 'immediate', opts)
-    if (opts.autoTable && getRollContestBar(state) === null) yield { by: 'table', who: null, why: 'rollContest', viewer: GM, commands: [{ kind: 'rollContest', args: [] }] }
+    if (opts.autoTable && !isContestPending(state) && getRollContestBar(state) === null) yield { by: 'table', who: null, why: 'rollContest', viewer: GM, commands: [{ kind: 'rollContest', args: [] }] }
+  }
+  // the time to contest is closed by whoever keeps the table's clock, unless
+  // only bots are at it, who have all been asked
+  if (isContestPending(state)) {
+    if (opts.autoTable && players.length === 0) yield { by: 'table', who: null, why: 'closeContest', viewer: GM, commands: [{ kind: 'closeContest', args: [] }] }
+    return
   }
   const owing = asked.filter((a) => a.waits.length > 0)
   if (opts.paused && owing.length > 0) return
   yield* askSeats(state, owing, 'any', opts)
 
-  const players = Object.keys(state.characters).filter((id) => !seats.some((s) => s.members.includes(id)))
   const press = opts.autoTable ? getTablePress(state, players, opts.holdStart) : null
   if (press) yield { by: 'table', who: null, why: press.kind, viewer: GM, commands: [press] }
 
@@ -290,23 +299,6 @@ export function getNextMove(state: SceneState, seats: readonly Seat[], opts: Mov
     refused.push(`${move.by}: ${move.why}: refused by the table`)
   }
   return { move: null, next: from, refused }
-}
-
-// How soon the holder's seat may play the turn it has taken. Anything it does
-// in the turn closes the contest for it (play.tex "Combat"), so while the
-// contest is open it waits: `CONTEST_WINDOW_MS` while nobody has asked
-// (`contestable`), and for the contest's roll once someone has (`contested`).
-// A die is thrown at once, and every other move is made at once.
-export type Pace = 'now' | 'contestable' | 'contested'
-
-export const CONTEST_WINDOW_MS = 5_000
-
-export function getPace(state: SceneState, seats: readonly Seat[], move: Move): Pace {
-  const holder = getTurnHolder(state)
-  if (!holder || getContestClosed(state) !== null) return 'now'
-  if (!seats.find((s) => s.id === move.by)?.members.includes(holder)) return 'now'
-  if (move.commands.every((c) => c.kind === 'answer')) return 'now'
-  return getContenders(state).length > 0 ? 'contested' : 'contestable'
 }
 
 export type RunOptions = { seed: number; autoTable?: boolean; maxSteps?: number; maxRounds?: number }

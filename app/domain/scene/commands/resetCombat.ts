@@ -1,3 +1,4 @@
+import { NO_CONTEST } from '../rules/contest'
 import type { SceneState } from '../types'
 
 // Empties the fight: nobody in it, nothing on the floor or in the action log,
@@ -13,7 +14,7 @@ export function resetCombat(state: SceneState): SceneState {
     forcedBy: '',
     turn: 0,
     turnsBegun: 0,
-    contenders: [], contestModes: {},
+    ...NO_CONTEST,
     lastContest: null,
     agreedToEnd: [],
     doneResting: [],

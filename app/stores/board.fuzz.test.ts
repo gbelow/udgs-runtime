@@ -20,6 +20,8 @@ import { newStructureMap, structureOfMap } from '../domain/scene/factories'
 import type { BoardMap, Coord } from '../domain/scene/types'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
 import { getRoundChange } from '../domain/scene/projections/roundChange'
+import { getContestable } from '../domain/scene/rules/turn'
+import { isContestPending } from '../domain/scene/rules/contest'
 import { isAimed, type MenuAim } from '../domain/scene/commands/clickMenu'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, type RoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES } from '../domain/play/dice'
@@ -259,6 +261,24 @@ function plays(): Play[] {
         if (entry.press.kind === 'declare' && entry.press.aim) expect(isAimed(h.state(), aim), 'an entry the menu offers declares an action aimed at what was clicked').toBe(true)
       },
     },
+    {
+      name: 'press a button of the time to contest a turn',
+      weight: 2,
+      run: (h, pick) => {
+        const s = h.state()
+        const may = getContestable(s)
+        if (!isContestPending(s) || may.length === 0) return
+        const id = pick(may)
+        pick([
+          () => h.send({ kind: 'thinkContest', args: [[id]] }),
+          () => h.send({ kind: 'toggleContest', args: [id] }),
+          () => h.send({ kind: 'settleContest', args: [[id], true] }),
+          () => h.send({ kind: 'settleContest', args: [[id], false] }),
+          () => h.send({ kind: 'closeContest', args: [] }),
+        ])()
+      },
+    },
+    { name: 'set the seconds to contest a turn', run: (h, pick) => h.send({ kind: 'setContestSeconds', args: [pick([0, 5])] }) },
     {
       name: 'press a rest or a social action on a card of the round change',
       run: (h, pick) => {

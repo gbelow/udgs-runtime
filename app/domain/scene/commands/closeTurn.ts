@@ -1,3 +1,4 @@
+import { NO_CONTEST } from '../rules/contest'
 import type { SceneState } from '../types'
 import { endSurge } from '../../character/commands/actionSurge'
 import { burnScorch, touchFire } from '../../character/commands/deliver'
@@ -18,7 +19,7 @@ import { isUnpreparedTurn } from '../rules/stoicism'
 export function closeTurn(state: SceneState, holder: string): SceneState {
   const fire = getHazardOf(state, holder).fire
   const met = isUnpreparedTurn(state, holder) ? updateCharacter(holder, meetAttitudes({ event: 'unpreparedTurn' }), 'conviction attitude')(state) : state
-  const ended = { ...met, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', contenders: [], contestModes: {} }
+  const ended = { ...met, inTurnCharacter: '', fleeing: false, forcedSurge: '', forcedBy: '', ...NO_CONTEST }
   const closed = updateCharacter(holder, (c) => ({ ...endSurge(c), runsFree: false }), 'turn ends')(ended)
   const burnt = updateCharacter(holder, (c) => burnScorch(touchFire(fire)(c)), 'fire touched in its turn burns')(closed)
   return sinkInArmor(holder)(burnt)

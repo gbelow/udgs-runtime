@@ -1,9 +1,9 @@
 import type { ActionOf, Coord, MoveAction, Placement, RootAction, SceneState } from '../types'
 import { makeAction } from '../factories'
 import { directionTo } from './board/geometry'
-import { getFootprint, getPlacedFootprint, withoutPlacements } from './board/board'
+import { getFootprint, withoutPlacements } from './board/board'
 import { isWet, readGround } from './board/ground'
-import { getEnteringStep, getMoveDestination, getStepPlacements } from './board/waypoint'
+import { comesInto, getEnteringStep, getStepPlacements } from './board/waypoint'
 import { getAction, getPassedUp, getReactionsTo, getRootOf, getSpawned } from './log'
 import { getMoveFacts, getMovementOptions, getWalkableCells } from './move'
 import { getSidestepMove } from './reactionMoves'
@@ -31,11 +31,7 @@ export function getSidestepOf(state: SceneState, move: MoveAction): { evade: Act
 
 // Whether the move, as declared, comes to rest in the character's space.
 export function isEndingOn(state: SceneState, root: MoveAction, id: string): boolean {
-  const mover = state.characters[root.actorId]
-  const end = getMoveDestination(state, root, root.path)
-  const theirs = getPlacedFootprint(state, id)
-  if (!mover || !end || !theirs || root.path.length === 0) return false
-  return getFootprint(mover, end).some((f) => theirs.some((t) => f.q === t.q && f.r === t.r))
+  return comesInto(state, root, root.path.length, id)
 }
 
 // The fight as the evader steps: the mover off the board, passing through.

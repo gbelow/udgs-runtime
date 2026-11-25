@@ -16,6 +16,7 @@ import { getRollModes } from '../../character/rules/effects'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
 import { getParkedReason, isParked } from './parked'
+import { getContestWait, isContestPending } from './contest'
 import { getPartners } from './partners'
 import { isImmobile } from './situational'
 import { sumTerms } from '../../character/rules/terms'
@@ -97,7 +98,9 @@ export function getContestClosed(state: SceneState): string | null {
   if (state.forcedSurge !== '') return 'the turn was forced by a feint'
   if (getStressTurn(state)) return 'the turn is a limit stress action'
   if (state.lastContest) return 'the turn was contested'
-  if (state.turnsTaken.some((t) => t.turn === state.turn) || getLiveActions(state).some((a) => a.turn === state.turn)) return 'the turn is under way'
+  if (state.contestWindow === 'over') return 'the time to contest it is over'
+  // while there is a time to contest it, what is only being declared is not yet done
+  if (state.turnsTaken.some((t) => t.turn === state.turn) || getLiveActions(state).some((a) => a.turn === state.turn && !(isContestPending(state) && a.step === 'define'))) return 'the turn is under way'
   return null
 }
 
@@ -105,6 +108,29 @@ export function getContestClosed(state: SceneState): string | null {
 export function getContestBar(state: SceneState, id: string): string | null {
   if (getTurnHolder(state) === id) return 'your own turn'
   return getContestClosed(state) ?? getTurnlessReason(state, id)
+}
+
+// Everyone who may contest the turn.
+export function getContestable(state: SceneState): string[] {
+  return getContestClosed(state) === null ? Object.keys(state.characters).filter((id) => getContestBar(state, id) === null) : []
+}
+
+// Whom the time to contest still waits on, among those someone at the table
+// answers for: nobody once each has decided.
+export function getContestAwaited(state: SceneState, people: readonly string[]): string[] {
+  if (!isContestPending(state)) return []
+  const may = new Set(getContestable(state))
+  return people.filter((id) => may.has(id) && !state.letGo.includes(id))
+}
+
+// Whether the time to contest closes now, `run` seconds after it opened and
+// `thought` after someone first asked for time to decide (null while nobody
+// has): it is up or waits on nobody, and nobody is still thinking about it but
+// for longer than the table gives them. While a die called for it waits, no.
+export function isContestDue(state: SceneState, people: readonly string[], run: number, thought: number | null): boolean {
+  if (!isContestPending(state) || getDiceBar(state.calls)) return false
+  if (state.contestDecideSeconds > 0 && thought !== null && thought >= state.contestDecideSeconds) return true
+  return state.thinking.length === 0 && (run >= state.contestSeconds || getContestAwaited(state, people).length === 0)
 }
 
 // Why the contest cannot be rolled now, or null: somebody has to have asked.
@@ -166,6 +192,7 @@ export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind, 
   const { window }: Surge = SURGES[kind]
   if (window === 'defense' && !answering) return 'made only with a defense that repositions for an ally'
   if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
+  if (isContestPending(state) && isInTurn(state, id)) return getContestWait(state)
   if (state.forcedSurge === id && !isFeintSurge(kind)) return 'a feint forces a surge other than focus or recovery'
   if (window === 'any' || window === 'defense' || isInTurn(state, id)) return null
   if (window === 'turn') return 'only in your own turn'
@@ -209,5 +236,5 @@ function getForcedSurgeBar(state: SceneState, holder: string): string | null {
 export function getEndTurnBar(state: SceneState): string | null {
   const holder = getTurnHolder(state)
   if (!holder) return 'nobody is in turn'
-  return getOpenAction(state) ? 'an action is being played out' : getForcedSurgeBar(state, holder) ?? getStressEndBar(state)
+  return getOpenAction(state) ? 'an action is being played out' : getContestWait(state) ?? getForcedSurgeBar(state, holder) ?? getStressEndBar(state)
 }

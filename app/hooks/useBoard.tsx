@@ -13,6 +13,8 @@ import { useClickMenuStore } from "../stores/useClickMenuStore";
 import { useGmPickStore } from "../stores/useGmPickStore";
 import { useSceneDispatch } from "./useSceneDispatch";
 import { useFollowPick } from "./useFollowPick";
+import { useSightStore } from "../stores/useSightStore";
+import { getEyesBoard, lookingFrom } from "../domain/scene/projections/sights";
 import { usePendingItem } from "./useItemLens";
 import { useState } from "react";
 
@@ -24,12 +26,20 @@ import { useState } from "react";
 const NONE: string[] = [];
 
 // `storey` is the height the board is looked at from, or 'auto' for the floor
-// the active character stands on.
-export function useBoard(fromActive = false, look: Pick<BoardLook, "front" | "lift"> = { front: false, lift: 0 }, storey: number | null | "auto" = "auto") {
-  useCombatStore(fromActive ? getBoardViewFromDigest : getBoardViewDigest);
-  const state = useCombatStore.getState();
+// whoever looks stands on. A player looks through the eyes of one of theirs
+// (`useEyes`), a GM through those of whoever is picked, or at all of it.
+export function useBoard(look: Pick<BoardLook, "front" | "lift"> = { front: false, lift: 0 }, storey: number | null | "auto" = "auto") {
+  const player = useSightStore((s) => s.player);
+  const eyes = useSightStore((s) => s.eyes);
+  const last = useSightStore((s) => s.last);
+  const memory = useSightStore((s) => s.memory);
+  const own = useSightStore((s) => s.own);
+  useCombatStore((s) => (player ? getBoardViewFromDigest(lookingFrom(s, last)) : eyes ? getBoardViewFromDigest(s) : getBoardViewDigest(s)));
+  const fight = useCombatStore.getState();
+  const state = player ? lookingFrom(fight, last) : fight;
   const height = getViewHeight(state, storey);
-  const flat: BoardView = getStoreyView(state, (fromActive ? getBoardViewFrom : getBoardView)(state), height, getViewEye(state, storey));
+  const seen = player ? getEyesBoard(state, own, memory) : eyes ? getBoardViewFrom(state) : getBoardView(state);
+  const flat: BoardView = getStoreyView(state, seen, height, getViewEye(state, storey));
   const view = look.front ? getFrontView(flat, look.lift) : flat;
   const storeys = getStoreyChoices(state.board);
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);

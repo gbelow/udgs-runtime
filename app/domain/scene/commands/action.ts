@@ -31,6 +31,7 @@ import { giveUpHeld, giveUpSustained } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { endsSurge } from '../rules/surge'
+import { getContestWait } from '../rules/contest'
 import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
 import { getJumpingState, isJumpAttack, openAttackJump } from '../rules/attackJump'
 import { getPreparedCrit } from '../rules/cunning'
@@ -107,7 +108,7 @@ export function aimAtCell(cell: Coord): Updater {
 export function commitAction(thrown: Throw, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
-    if (!open) return state
+    if (!open || getContestWait(state)) return state
     if (open.kind === 'fleeFollowUp' && !open.flee) return withdrawSpawnedAction(thrown, newId)(state)
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state

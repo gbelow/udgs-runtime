@@ -2,8 +2,7 @@ import type { Character } from '../../../types'
 import type { SceneState, Coord, MoveAction, Placement, TerrainCell } from '../../types'
 import { hasAffliction } from '../../../character/rules/afflictions'
 import { coordKey, distance, subtract } from './geometry'
-import { FALL } from '../../../tables'
-import { getFootprint, getOccupancy, getTerrainAt, getTerrainReader, isStepWalled } from './board'
+import { getFootprint, getOccupancy, getTerrainAt, getTerrainReader, isLevelWith, isStepWalled } from './board'
 
 // The table's ruling on creating.tex "Size and Space Occupation": a footprint
 // may be walked through anyone's cells, but two characters rest on one cell
@@ -42,7 +41,7 @@ export function readGround(state: Pick<SceneState, 'board' | 'characters'>, move
   const held = getOccupancy({ ...board, placements: feet }, state.characters)
   const floorAt = (height: number): Floor => {
     const footing = getTerrainReader(board, height)
-    const near = (cell: Coord) => (id: string) => id !== mover && Math.abs(feetOf(id) - footing(cell).floor) < FALL.minHeight
+    const near = (cell: Coord) => (id: string) => id !== mover && isLevelWith(feetOf(id), footing(cell).floor)
     return {
       blocked: (cell) => !!footing(cell).terrain?.blocking,
       terrain: (cell) => footing(cell).terrain,

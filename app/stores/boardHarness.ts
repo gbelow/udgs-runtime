@@ -125,7 +125,8 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     },
 
     // the action panel and turn controls, which act for the active character
-    startTurn: () => send({ kind: 'startTurn', args: [active()!] }),
+    // the turn taken, and the time to contest it let go by
+    startTurn: () => { send({ kind: 'startTurn', args: [active()!] }); send({ kind: 'closeContest', args: [] }) },
     declare: (draft: ActionDraft) => send({ kind: 'declare', args: [active()!, draft] }),
     amend: (fields: Partial<ActionDraft>) => send({ kind: 'amend', args: [fields] }),
     commit: () => send({ kind: 'commit', args: [] }),

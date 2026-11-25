@@ -6,6 +6,7 @@ import { useGmBar, useIsToken } from '../hooks/useControl'
 import { usePartyCommands, useSaveLogBar } from '../hooks/useParty'
 import { useBotLog } from '../hooks/useBots'
 import { useTurnControls } from '../hooks/useCombatState'
+import { useKnows } from '../hooks/useSights'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
 import type { MovementOption } from '../domain/scene/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/scene/projections/actionPanel'
@@ -40,6 +41,7 @@ const STEP_LABEL = {
 export function ActionPanel(){
   const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { mustStart } = useTurnControls()
+  const knows = useKnows()
   const { step, open } = view
 
   if (!open) {
@@ -267,7 +269,7 @@ export function ActionPanel(){
           <SectionLabel>target</SectionLabel>
           {view.targets.map((t) =>
             <Button key={t.id} size='xs' selected={t.selected} onClick={() => target(t.id)}>{t.name}</Button>)}
-          {view.hidden.map((t) =>
+          {view.hidden.filter((t) => knows(t.id)).map((t) =>
             <Button key={t.id} size='xs' disabled title='not detected'>{t.name}</Button>)}
           {view.noTargets ? <span className='text-xs text-muted'>{view.noTargets}</span> : null}
         </div>
@@ -299,7 +301,7 @@ export function ActionPanel(){
 
       {declared ? (
         <div className='flex flex-row flex-wrap gap-1'>
-          <ActionKey look='go' icon={view.holds ? Hourglass : Check} aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</ActionKey>
+          <ActionKey look='go' icon={view.holds ? Hourglass : Check} aria-label='commit action' disabled={!view.canCommit} title={view.commitBar ?? (view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined)} onClick={commit}>{view.holds ? 'hold' : 'commit'}</ActionKey>
           {open.spawned && open.flee === null && !open.required ? (
             <ActionKey aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</ActionKey>
           ) : null}

@@ -8,6 +8,7 @@ import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAnswersBySurge, getAvailableActions, getAwaited, getGoBar } from '../rules/options'
 import { withoutAnswerSurge } from '../rules/surge'
+import { getContestWait } from '../rules/contest'
 import { getGivesLine, getRulesLine, getSurgeFacts } from '../../character/lenses/surge'
 import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, getTargetIds, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
@@ -409,6 +410,8 @@ export type ActionPanelView = {
   unnoticed: string[]
   // at `commit`: whether the declaration can be locked
   canCommit: boolean
+  // why nothing can be committed now, whatever is declared, or null
+  commitBar: string | null
   // at `commit`: whether locking it holds it over to the next round for want
   // of the AP (combat.tex "Concentration")
   holds: boolean
@@ -458,7 +461,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, categories: [], follow: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, categories: [], follow: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, commitBar: null, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -674,7 +677,8 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     noTargets: step === 'target' && offers.targets.length === 0 && hiddenTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
-    canCommit: step === 'commit' && (payable || holds),
+    canCommit: step === 'commit' && (payable || holds) && getContestWait(state) === null,
+    commitBar: getContestWait(state),
     holds,
     die,
     compare: drag !== null,

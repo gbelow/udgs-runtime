@@ -28,7 +28,7 @@ describe('a strike answered with an evasive jump from the ground', () => {
   const send = (s: SceneState, ...commands: Parameters<typeof applySceneCommand>[1][]) => commands.reduce((at, c) => applySceneCommand(at, c, GM, ctx), s)
 
   let s: SceneState = board({ a: [0, 0], d: [1, 0] }, spearman('a'), addAffliction('prone')(meleeTrained(spearman('d'))))
-  s = send(s, { kind: 'startTurn', args: ['a'] })
+  s = send(s, { kind: 'startTurn', args: ['a'] }, { kind: 'closeContest', args: [] })
   const row = getFreeAttackOptions(s, s.characters.a, 'strike')[0]
   const strike = declare(s, { actorId: 'a', option: { kind: 'strike' }, picks: [{ part: 'row', value: { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant } }, { part: 'target', value: 'd' }] }, ctx)
   if (!strike.ok) throw new Error(strike.refused)
@@ -67,7 +67,7 @@ describe('a shot at someone with a body shield', () => {
   const send = (s: SceneState, ...commands: Parameters<typeof applySceneCommand>[1][]) => commands.reduce((at, c) => applySceneCommand(at, c, GM, ctx), s)
 
   let s: SceneState = board({ a: [0, 0], d: [5, 0] }, archer('a'), towerWarden('d'))
-  s = send(s, { kind: 'startTurn', args: ['a'] }, { kind: 'surge', args: ['a', 'focus'] })
+  s = send(s, { kind: 'startTurn', args: ['a'] }, { kind: 'closeContest', args: [] }, { kind: 'surge', args: ['a', 'focus'] })
   const attack = getPair(s.characters.a, s.characters.d).find((a) => a.kind === 'shoot')
   if (!attack) throw new Error('no shot to make')
   const shot = declare(s, attackIntent('a', attack, 'd'), ctx)

@@ -39,7 +39,7 @@ function table(box: Box, paused = false) {
     send,
     // what the bots and the table do next, sent
     step: (): LiveStep => {
-      const asked = getLiveStep(live, state, seats, opts, 0)
+      const asked = getLiveStep(live, state, seats, opts)
       live = asked.live
       if (asked.step.do === 'press') for (const command of asked.step.move.commands) send(command, asked.step.move.viewer)
       return asked.step
@@ -104,7 +104,7 @@ describe('a bot that presses the same thing back and forth', () => {
 describe('paused bots', () => {
   // Pausing stopped the table's own presses with the bots, so a contest asked
   // for while they were paused was never rolled.
-  it('leave the table to roll a contest, and press nothing themselves', () => {
+  it('press nothing while a turn may be contested, and leave the contest to be rolled', () => {
     const t = table(nearestBox, true)
     t.send({ kind: 'nextRound', args: [] })
     for (let i = 0; i < 8 && t.state().roundStep !== null; i++) t.send({ kind: 'continueRound', args: [] })
@@ -112,7 +112,8 @@ describe('paused bots', () => {
     expect(t.step().do).toBe('nothing')
     t.send({ kind: 'toggleContest', args: ['p'] })
     expect(getContenders(t.state())).toEqual(['p'])
-    expect(t.step()).toMatchObject({ do: 'press', move: { by: 'table' } })
+    expect(t.step().do).toBe('nothing')
+    t.send({ kind: 'closeContest', args: [] })
     expect(t.state().lastContest).not.toBeNull()
     expect(getTurnHolder(t.state())).not.toBeNull()
     expect(t.step().do).toBe('nothing')

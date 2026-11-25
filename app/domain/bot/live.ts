@@ -1,20 +1,18 @@
 import type { SceneState } from '../scene/types'
-import { CONTEST_WINDOW_MS, getNextMove, getPace, type Move, type MoveOptions, type Seat } from './seat'
+import { getNextMove, type Move, type MoveOptions, type Seat } from './seat'
 
 // The bots at a table that people play at too: what is done next, and when,
 // for whoever sends it. It is asked again after every change to the fight.
 
-// What is kept between one move and the next: the seat asked first, when the
-// turn a bot's character holds was first seen held, the moves pressed lately
+// What is kept between one move and the next: the seat asked first, the moves pressed lately
 // (`keyOf`), and the one the bots stopped at, if they have.
-export type Live = { from: number; held: { turn: number; at: number } | null; pressed: readonly string[]; stoppedAt: string | null }
+export type Live = { from: number; pressed: readonly string[]; stoppedAt: string | null }
 
-export const NEW_LIVE: Live = { from: 0, held: null, pressed: [], stoppedAt: null }
+export const NEW_LIVE: Live = { from: 0, pressed: [], stoppedAt: null }
 
-// Nothing to do until the fight changes; asked again in `ms`; a move to
-// press; or the same move pressed too often in the same fight, which stops
+// Nothing to do until the fight changes; a move to press; or the same move pressed too often in the same fight, which stops
 // the bots until it changes (`first`, when they have only now).
-export type LiveStep = { do: 'nothing' } | { do: 'wait'; ms: number } | { do: 'press'; move: Move } | { do: 'stop'; move: Move; first: boolean }
+export type LiveStep = { do: 'nothing' } | { do: 'press'; move: Move } | { do: 'stop'; move: Move; first: boolean }
 
 // How many times a move may be pressed in the same fight, and how many of the
 // last moves that is counted over, so that a bot pressing something that
@@ -45,17 +43,10 @@ function shorten(text: string): string {
   return (4294967296 * (2097151 & b) + (a >>> 0)).toString(36)
 }
 
-export function getLiveStep(live: Live, state: SceneState, seats: readonly Seat[], opts: MoveOptions, now: number): { step: LiveStep; live: Live; refused: string[] } {
+export function getLiveStep(live: Live, state: SceneState, seats: readonly Seat[], opts: MoveOptions): { step: LiveStep; live: Live; refused: string[] } {
   const { move, next, refused } = getNextMove(state, seats, opts, live.from)
   if (!move) return { step: { do: 'nothing' }, live, refused }
   const asked = { ...live, from: next }
-  const pace = getPace(state, seats, move)
-  if (pace === 'contested') return { step: { do: 'nothing' }, live: asked, refused }
-  if (pace === 'contestable') {
-    const held = live.held?.turn === state.turn ? live.held : { turn: state.turn, at: now }
-    const ms = held.at + CONTEST_WINDOW_MS - now
-    if (ms > 0) return { step: { do: 'wait', ms }, live: { ...asked, held }, refused }
-  }
   const key = keyOf(state, move)
   if (live.pressed.filter((k) => k === key).length >= REPEATS) {
     return { step: { do: 'stop', move, first: live.stoppedAt !== key }, live: { ...asked, stoppedAt: key }, refused }

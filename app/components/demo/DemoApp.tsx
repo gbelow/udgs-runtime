@@ -8,6 +8,8 @@ import { useBoardVeil, useLitCell } from '../../hooks/useBoardVeil'
 import { useBoardCamera, useCellAt } from '../../hooks/useBoardCanvas'
 import { useBoardLook } from '../../hooks/useBoardLook'
 import { useBots, useBotsPaused } from '../../hooks/useBots'
+import { useContestClock } from '../../hooks/useContest'
+import { useSights } from '../../hooks/useSights'
 import { BotsPause } from '../BotsPause'
 import { EndRound } from '../EndRound'
 import { TurnBanner } from '../TurnBanner'
@@ -101,6 +103,8 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
 function DemoTable() {
   const { started, scene, back } = useDemoStage()
   useBots({ auto: true, holdStart: !started })
+  useContestClock()
+  useSights()
   const hasActive = useHasActiveCharacter()
   const throwing = useTray().request !== null
   return (
@@ -202,7 +206,7 @@ const MODE_TEXT = {
 function DemoBoard() {
   const look = useBoardLook()
   const { started } = useDemoStage()
-  const { view, clickCell, clickToken, clickFloorItem, picked, turn } = useBoard(false, look, 'auto')
+  const { view, clickCell, clickToken, clickFloorItem, picked, turn } = useBoard(look, 'auto')
   const veil = useBoardVeil(view)
   const { setLit } = useLitCell(view, veil.setOver)
   const cellAt = useCellAt()

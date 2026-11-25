@@ -1,7 +1,7 @@
 import type { MoveKind } from '../../../types'
 import type { SceneState, Coord, MoveAction, Placement } from '../../types'
-import { sameCell, setDistance } from './geometry'
-import { getClimbTarget, getFootprint, getPlacedFootprint, placeAt } from './board'
+import { setDistance } from './geometry'
+import { getBodyAt, getClimbTarget, getFootprint, getPlacedFootprint, isLevelWith, placeAt, sharesSpace } from './board'
 import { perPair } from '../../../perState'
 
 // Where the mover stands along a move: where it sets out from, each step of
@@ -82,12 +82,27 @@ export function getMoveSweep(state: SceneState, action: MoveAction): Coord[][] {
   return getMovePlacements(state, action).slice(1).map((p) => getFootprint(c, p))
 }
 
+// Whether the `at`th cell of the move brings the mover into the character's
+// space, where they stand or at `placed`: on the floor they stand on, or, in
+// the air of a jump, unless it passes over them by their whole height (the
+// table's ruling: a jump clears nobody standing level with where it sets out).
+export function comesInto(state: SceneState, action: MoveAction, at: number, id: string, placed = state.board?.placements[id]): boolean {
+  const mover = state.characters[action.actorId]
+  const other = state.characters[id]
+  const from = getMoveOrigin(state, action)
+  const there = getMoveWaypoint(state, action, at)
+  if (!state.board || !mover || !other || !placed || !from || !there) return false
+  const body = getBodyAt(mover, there)
+  const theirs = getBodyAt(other, placed)
+  if (touchesGround(action.movement, at === action.path.length)) return sharesSpace(state.board, body, theirs)
+  const up = Math.max(from.elevation, body.feet)
+  return setDistance(body.footprint, theirs.footprint) === 0 && up - theirs.feet < theirs.height && (theirs.feet <= up || isLevelWith(theirs.feet, up))
+}
+
 // The step of the move's path (counted from 1) that first comes into the
 // character's space, null for one it never does.
 export function getEnteringStep(state: SceneState, root: MoveAction, id: string): number | null {
-  const other = getPlacedFootprint(state, id)
-  if (!other) return null
-  const step = getMoveSweep(state, root).findIndex((footprint) => footprint.some((f) => other.some((o) => sameCell(f, o))))
+  const step = root.path.findIndex((_, i) => comesInto(state, root, i + 1, id))
   return step === -1 ? null : step + 1
 }
 

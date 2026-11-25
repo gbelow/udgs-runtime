@@ -1,11 +1,15 @@
+import { NO_CONTEST } from '../rules/contest'
 import type { SurgeKind } from '../../types'
 import type { RollMode } from '../../play/dice'
 import type { SceneState, Updater } from '../types'
 import type { Throw } from '../../play/calls'
 import { calling, WAITING } from './calling'
 import { actionSurge } from '../../character/commands/actionSurge'
-import { getContestBar, getContenders, getContestMode, getContestModes, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, rollCunning } from '../rules/turn'
+import { getContestBar, getContestable, getContenders, getContestMode, getContestModes, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, rollCunning } from '../rules/turn'
 import { updateCharacter } from './characters'
+import { discardDraft, getOpenAt } from './log'
+import { getDiceBar } from '../../play/calls'
+import { isContestPending } from '../rules/contest'
 import { beginTurn, takeQueuedTurn } from './sequence'
 import { markStress, takeStressTurn } from './stress'
 import { getCompelledSurge, getStressTurn } from '../rules/stress'
@@ -13,12 +17,62 @@ import { closeTurn } from './closeTurn'
 import { passFirstMoverAP } from './stoicism'
 
 // The character's turn begins, if nobody else holds one. Nobody has asked
-// to contest it yet.
+// to contest it yet, and the time to opens where anybody may.
 export function startTurn(id: string): Updater {
   return (state) => {
     if (getStartTurnBar(state, id)) return state
-    return beginTurn(state, id)
+    const begun = beginTurn(state, id)
+    return state.contestSeconds > 0 && getContestable(begun).length > 0 ? { ...begun, contestWindow: 'open' } : begun
   }
+}
+
+// A player says they want to contest the turn, for all of their characters
+// who may: the time to contest is held open until they say with whom, or
+// drop it.
+export function thinkContest(ids: string[]): Updater {
+  return (state) => {
+    const may = getContestable(state).filter((id) => ids.includes(id) && !state.thinking.includes(id))
+    if (!isContestPending(state) || may.length === 0) return state
+    return { ...state, thinking: [...state.thinking, ...may], letGo: state.letGo.filter((id) => !ids.includes(id)) }
+  }
+}
+
+// A player has decided: with whom they have picked, or, letting the turn go,
+// with nobody.
+export function settleContest(ids: string[], contest: boolean): Updater {
+  return (state) => {
+    const may = getContestable(state).filter((id) => ids.includes(id))
+    if (!isContestPending(state) || may.length === 0) return state
+    if (may.every((id) => state.letGo.includes(id)) && (contest || !may.some((id) => state.contenders.includes(id)))) return state
+    const dropped = contest ? [] : ids
+    return {
+      ...state,
+      thinking: state.thinking.filter((id) => !ids.includes(id)),
+      letGo: [...new Set([...state.letGo, ...may])],
+      contenders: state.contenders.filter((id) => !dropped.includes(id)),
+      contestModes: Object.fromEntries(Object.entries(state.contestModes).filter(([id]) => !dropped.includes(id))),
+    }
+  }
+}
+
+// The time to contest the turn is over: the contest is rolled if anyone asked
+// for it, and the turn goes on with whoever holds it.
+export function closeContest(thrown: Throw): Updater {
+  return (state) => {
+    if (!isContestPending(state) || getDiceBar(state.calls)) return state
+    return getContenders(state).length > 0 ? rollContest(thrown)(state) : { ...state, ...NO_CONTEST, contestWindow: 'over' }
+  }
+}
+
+// How long the time to contest a turn is, none at 0.
+export function setContestSeconds(seconds: number): Updater {
+  return (state) => ({ ...state, contestSeconds: Math.max(0, Math.round(seconds)) })
+}
+
+// How long whoever asks for time to decide is given, no limit at 0. What they
+// have picked by then stands.
+export function setContestDecideSeconds(seconds: number): Updater {
+  return (state) => ({ ...state, contestDecideSeconds: Math.max(0, Math.round(seconds)) })
 }
 
 // The character asks to contest the turn, or takes the asking back.
@@ -72,8 +126,11 @@ export function rollContest(thrown: Throw): Updater {
     const rolls = [holder, ...getContenders(state)].map(roll)
     const winner = getContestWinner(rolls) ?? holder
     const won = state.firstTurn?.turn === state.turn ? state.firstTurn : null
-    const passed = won ? passFirstMoverAP(state, won.id, winner) : state
-    return { ...passed, inTurnCharacter: winner, contenders: [], contestModes: {}, lastContest: { rolls, winner }, firstTurn: won ? { ...won, id: winner } : state.firstTurn }
+    // what the holder had begun to declare goes with the turn
+    const drafted = getOpenAt(state, 'define')
+    const cleared = winner !== holder && drafted?.actorId === holder ? discardDraft(state, drafted.id) : state
+    const passed = won ? passFirstMoverAP(cleared, won.id, winner) : cleared
+    return { ...passed, inTurnCharacter: winner, ...NO_CONTEST, contestWindow: 'over', lastContest: { rolls, winner }, firstTurn: won ? { ...won, id: winner } : state.firstTurn }
   })
 }
 
