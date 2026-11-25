@@ -121,7 +121,7 @@ const KEY_LOOK = {
 // set apart from the controls that edit and arrange. `cost` sits inside it in
 // a chip; `go` is the press that moves play on, at most one to a panel, and
 // `warn` the same press when it takes a chance away from someone. A closed key
-// lies flat and dashed. An `icon` leads the label.
+// lies flat and dashed, and one picked stays lit. An `icon` leads the label.
 export function ActionKey({ cost, look = 'plain', icon: Icon, className = '', children, title, ...rest }:
   ButtonHTMLAttributes<HTMLButtonElement> & { cost?: ReactNode, look?: keyof typeof KEY_LOOK, icon?: LucideIcon }
 ){
@@ -130,7 +130,7 @@ export function ActionKey({ cost, look = 'plain', icon: Icon, className = '', ch
       <button type='button'
         className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border bg-linear-to-b px-2.5 py-1 text-xs font-medium cursor-pointer
           shadow-[0_2px_0_0_rgb(0_0_0/0.45),inset_0_1px_0_0_rgb(255_255_255/0.06)] transition-[transform,box-shadow,border-color] active:translate-y-[2px] active:shadow-none ${FOCUS}
-          disabled:pointer-events-none disabled:bg-none disabled:border-dashed disabled:border-line disabled:shadow-none disabled:text-muted disabled:font-normal
+          disabled:pointer-events-none disabled:shadow-none ${look === 'picked' ? '' : 'disabled:bg-none disabled:border-dashed disabled:border-line disabled:text-muted disabled:font-normal'}
           ${KEY_LOOK[look]} ${className}`}
         {...rest}>
         {Icon ? <Icon size={13} aria-hidden /> : null}

@@ -14,7 +14,7 @@ import { getAvailableActions, getDefaultAnswers, type ActionOption } from '../ru
 import { getFightName } from '../rules/fighters'
 import { getStartTurnBar } from '../rules/turn'
 import { getMustStart } from '../projections/turn'
-import { getDraftLabel } from '../projections/labels'
+import { getDraftLabel, getPassLabel } from '../projections/labels'
 import { amendAction, commitAction, declareAction, declareReaction, passReaction, setTarget } from './action'
 import { readPick } from './board'
 import { surge } from './turn'
@@ -168,11 +168,12 @@ function aimed(state: SceneState, entry: MenuEntry): MenuEntry {
 }
 
 function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
-  const answers = getDefaultAnswers(getAvailableActions(state, id)).filter((o) => o.available && o.reactionTo !== null)
+  const options = getAvailableActions(state, id)
+  const answers = getDefaultAnswers(options).filter((o) => o.available && o.reactionTo !== null)
   if (answers.length === 0) return null
   const entries: MenuEntry[] = [
     ...answers.map((o): MenuEntry => ({ label: getDraftLabel(state, id, o), category: 'answer', cost: o.cost, surge: o.surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge } })),
-    { label: 'nothing', category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
+    { label: getPassLabel(state, id, options).label, category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
   ]
   return { title: `${getFightName(state, id)} answers`, select: id, actor: id, turn: null, entries }
 }

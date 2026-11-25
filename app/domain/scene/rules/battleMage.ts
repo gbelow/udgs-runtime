@@ -1,6 +1,6 @@
 import type { ActionKind, SceneState } from '../types'
 import { hasGrant } from '../../character/rules/effects'
-import { isDefense } from './actionCatalog'
+import { isActiveDefense } from './actionCatalog'
 
 // abilities.tex "Battle Mage": a caster who keeps a spell going through what
 // would otherwise end it. Concentrating is a cast that needs it (combat.tex
@@ -15,5 +15,5 @@ import { isDefense } from './actionCatalog'
 // nothing back from it. Anything else gives them up as it would anyone's.
 export function keepsConcentrationOn(state: SceneState, reactorId: string, kind: ActionKind | undefined): boolean {
   const c = state.characters[reactorId]
-  return kind !== undefined && (isDefense(kind) || kind === 'evasion' || kind === 'guard') && !!c && hasGrant(c, 'concentratedDefense')
+  return kind !== undefined && isActiveDefense(kind) && !!c && hasGrant(c, 'concentratedDefense')
 }

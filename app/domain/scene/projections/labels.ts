@@ -1,5 +1,5 @@
 import type { Action, ActionDraft, ActionKind, SceneState, HOPPurchase } from '../types'
-import { ACTIONS, getActionDef } from '../rules/actionCatalog'
+import { ACTIONS, getActionDef, isActiveDefense } from '../rules/actionCatalog'
 import type { ActionOption } from '../rules/options'
 import { getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
@@ -152,6 +152,16 @@ function getOpportunityLabel(state: SceneState, actorId: string, at: number | nu
 export function getCancellableLabel(state: SceneState, root: Action, defenderId: string, kind?: ActionKind): string | null {
   const own = getCancellableRoot(state, root, defenderId, kind) ?? (isGivingUpHeld(state, defenderId, root.id, kind) ? getHeldOf(state, defenderId) : null)
   return own ? getActionNoun(own) : null
+}
+
+// Answering with nothing: for whoever is attacked and could defend, that the
+// attack is made against their SD (creating.tex "Standard Deflection").
+export function getPassLabel(state: SceneState, id: string, options: readonly ActionOption[]): { label: string, hint: string } {
+  const open = getOpenAction(state)
+  const attacked = open !== null && 'targetId' in open && open.targetId === id
+  return attacked && options.some((o) => o.available && isActiveDefense(o.draft.kind))
+    ? { label: 'no defense', hint: 'the attack is made against the standard deflection (SD)' }
+    : { label: 'nothing', hint: 'answer with nothing' }
 }
 
 export const HOP_LABELS: Record<HOPPurchase, string> = {

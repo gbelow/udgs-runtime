@@ -2,7 +2,7 @@ import { isCombatStarted } from '../rules/started'
 import type { Action, ActionDraft, LootSource, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, MoveAction, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
-import type { Area, Character, Item, MoveKind, Skills, SurgeKind } from '../../types'
+import type { Area, CampaignCharacter, Character, Item, MoveKind, Skills, SurgeKind } from '../../types'
 import { ACTION_CATEGORIES, getActionDef, isAttackAction, isReactionAction, type ActionCategory } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -55,7 +55,7 @@ import { canThrowItem, getThrowables } from '../rules/throw'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { GRAPPLING_EFFECTS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from '../../perState'
-import { HOP_LABELS, getActionName, getCancellableLabel, getDraftLabel } from './labels'
+import { HOP_LABELS, getActionName, getCancellableLabel, getDraftLabel, getPassLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
 import { isVariantOpen } from '../rules/strikeDeclaration'
 import { getModifierViews, type ModifierView } from './modifiers'
@@ -158,6 +158,8 @@ export type ReactorOptions = {
   // with nothing
   awaited: boolean
   passed: boolean
+  // answering with nothing, as it is called for them
+  pass: { label: string; hint: string }
   // whether they have said they are done with the answer they gave, may say
   // so, or have yet to finish it; null where it leaves nothing to choose, or
   // none is given
@@ -176,6 +178,14 @@ function getOpportunityModes(state: SceneState, c: Character, targetId: string):
 // The options as their buttons name them, the surge of each said beside it.
 function labelled(state: SceneState, id: string, options: readonly ActionOption[]): ActionOptionView[] {
   return options.map((o) => ({ ...o, label: getDraftLabel(state, id, o) }))
+}
+
+// What a character shown only by their token answers with, marked among their
+// answers, or listed with them where what it is made with is not shown (an
+// ability, a surge).
+function withShownAnswer(c: CampaignCharacter, options: ActionOption[], declared: Action | undefined): ActionOption[] {
+  if (!c.shown || !declared || options.some((o) => o.chosen)) return options
+  return [...options, { draft: declared, cost: null, available: false, reason: null, reactionTo: declared.reactionTo, chosen: true, surge: declared.surged?.kind ?? null }]
 }
 
 function getReactors(state: SceneState, open: Action): ReactorOptions[] {
@@ -214,10 +224,10 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             sweepDirection: declared.kind !== 'joinShot' && declared.modifiers.sweep ? declared.sweepDirection : null,
           }
         : null
-      const options = getAvailableActions(state, c.id)
+      const options = withShownAnswer(c, getAvailableActions(state, c.id), declared)
       const before = withoutAnswerSurge(state, open.id, c.id).characters[c.id]
-      const surges = getAnswersBySurge(options).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: g.surge ? getGivesLine(getSurgeFacts(before, g.surge)) : '', rules: g.surge ? getRuleLines(getSurgeFacts(before, g.surge)) : [], options: labelled(state, c.id, g.options) }))
-      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, done: doneWith(declared) }
+      const surges = (c.shown ? [] : getAnswersBySurge(options)).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: g.surge ? getGivesLine(getSurgeFacts(before, g.surge)) : '', rules: g.surge ? getRuleLines(getSurgeFacts(before, g.surge)) : [], options: labelled(state, c.id, g.options) }))
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, pass: getPassLabel(state, c.id, options), done: doneWith(declared) }
     })
     .filter((r) => r.options.length > 0)
 }

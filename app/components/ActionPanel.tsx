@@ -320,7 +320,7 @@ export function ActionPanel(){
               <LockedFor key={r.id} id={r.id}>
                 <div className='flex flex-row flex-wrap gap-1 items-center'>
                   <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
-                  <ActionKey look={r.passed ? 'picked' : 'plain'} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</ActionKey>
+                  <ActionKey look={r.passed ? 'picked' : 'plain'} title={r.pass.hint} onClick={() => pass(r.id)}>{r.pass.label}</ActionKey>
                   <Answers reactor={r} onReact={(o) => react(r.id, o.draft, o.surge)} />
                   <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
                   <AnswerDone done={r.done} onDone={() => confirmReacted(r.id)} />
@@ -686,7 +686,7 @@ function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (opti
 
 function OptionButton({ option, active = false, onClick }: { option: ActionOptionView, active?: boolean, onClick: () => void }){
   return (
-    <Closed reason={option.available ? null : option.reason}>
+    <Closed reason={option.available || active ? null : option.reason}>
       <ActionKey look={active ? 'picked' : 'plain'} icon={ACTION_ICONS[option.draft.kind]} cost={costLabel(option.cost)}
         disabled={!option.available} onClick={onClick}>
         {option.label}
