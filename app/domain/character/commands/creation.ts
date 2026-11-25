@@ -33,10 +33,6 @@ export function setCreationDescription(description: string): (d: CreationDraft) 
   return (d: CreationDraft) => ({ ...d, character: { ...d.character, description } })
 }
 
-export function setCreationNotes(notes: string): (d: CreationDraft) => CreationDraft {
-  return (d: CreationDraft) => ({ ...d, character: { ...d.character, notes } })
-}
-
 // Step 2: a focus given a priority; the focus that held it takes the one given
 // up, so every priority stays given once.
 export function setCreationPriority(focus: Focus, priority: Priority): (d: CreationDraft) => CreationDraft {

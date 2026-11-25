@@ -95,7 +95,7 @@ function Gear() {
 // budget and the gold, and what still keeps the character from being created.
 // The last step: the character is named, may be described, and is made.
 function Finish() {
-  const { view, rename, describe, annotate, finish } = useCreation()
+  const { view, rename, describe, finish } = useCreation()
   return (
     <div className='md:col-span-12 flex flex-col gap-3 max-w-xl'>
       <label className='flex flex-col gap-1'>
@@ -104,11 +104,7 @@ function Finish() {
       </label>
       <label className='flex flex-col gap-1'>
         <SectionLabel>Description</SectionLabel>
-        <textarea aria-label='description' className={`${inputClass} bg-surface p-1 min-h-20 text-sm`} placeholder='who they are and what they do, in a few sentences' value={view.description} onChange={(e) => describe(e.target.value)} />
-      </label>
-      <label className='flex flex-col gap-1'>
-        <SectionLabel>Notes</SectionLabel>
-        <textarea aria-label='notes' className={`${inputClass} bg-surface p-1 min-h-32 text-sm`} placeholder='appearance, background, anything worth remembering' value={view.notes} onChange={(e) => annotate(e.target.value)} />
+        <textarea aria-label='description' className={`${inputClass} bg-surface p-1 min-h-32 text-sm`} placeholder='appearance, background, who they are and what they do' value={view.description} onChange={(e) => describe(e.target.value)} />
       </label>
       {view.problems.length ? (
         <div className='flex flex-col gap-0.5 text-xs text-bad'>

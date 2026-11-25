@@ -1695,6 +1695,8 @@ export const ThirdSchema = z.union([z.literal(0), z.literal(1), z.literal(2)])
 export type Third = z.infer<typeof ThirdSchema>
 
 const CampaignValues = {
+  // what their player writes down during play, for the time being
+  notes: z.string().default(''),
   // what a viewer who does not play the character is shown of its AP and
   // STA, in place of the numbers; null on the character's own sheet
   shown: z.object({ AP: ThirdSchema, STA: ThirdSchema }).strip().nullable().default(null),
@@ -1838,9 +1840,8 @@ const CharacterValues = {
   // stress action"; a coward until another is chosen
   limitStress: z.enum(LIMIT_STRESS_ACTIONS).catch('coward').default('coward'),
 
-  // who they are, for whoever may pick them; `notes` are their player's own
+  // who they are, for whoever may pick them
   description: z.string().default(''),
-  notes: z.string().default(''),
 }
 
 

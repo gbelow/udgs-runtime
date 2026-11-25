@@ -173,7 +173,6 @@ function BodyTab(){
   return(
     <div className='grid grid-cols-12 gap-4'>
       <TextItem keyName='description' mode='large'/>
-      <TextItem keyName='notes' mode='large'/>
       <div className='col-span-5 flex flex-col gap-3'>
         <Creature />
         <div className='flex flex-row flex-wrap items-start gap-4'>
@@ -407,11 +406,11 @@ function TagItem({ level }: { level: TagLevel }){
   return <TextInput className='w-40' aria-label={level} placeholder={level} value={value} onChange={(e) => setValue(e.target.value)} />
 }
 
-const TextItem = ({keyName, mode}:{keyName: 'name' | 'description' | 'notes' | 'token', mode: 'normal' | 'large'}) => {
+const TextItem = ({keyName, mode}:{keyName: 'name' | 'description' | 'token', mode: 'normal' | 'large'}) => {
   const [value, setValue] = useTextLens(keyName)
 
   return mode == 'large' ?
-    <label className='col-span-6 flex flex-col gap-1'>
+    <label className='col-span-12 flex flex-col gap-1'>
       <SectionLabel>{keyName}</SectionLabel>
       <textarea aria-label={keyName} className={`${inputClass} p-1 min-h-20 w-full text-sm bg-surface`} value={value+''} onChange={(e) => setValue(e.target.value)} />
     </label> :

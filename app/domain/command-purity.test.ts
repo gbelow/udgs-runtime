@@ -235,7 +235,6 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   setCreationName: creationCommands.setCreationName('Ann'),
   setCreationPriority: creationCommands.setCreationPriority('DEX', 'A'),
   setCreationDescription: creationCommands.setCreationDescription('tall'),
-  setCreationNotes: creationCommands.setCreationNotes('a scar'),
   setCreationLimitStress: creationCommands.setCreationLimitStress('coward'),
   setCreationConviction: creationCommands.setCreationConviction('conviction1', 'Fatalism'),
   buyCreationLevel: creationCommands.buyCreationLevel('strike', 1),

@@ -3,7 +3,7 @@ import { getSurgeAvailability } from "../domain/character/lenses/surge";
 import { getBindingSurge, getUsedSurge } from "../domain/character/rules/surge";
 import { Character, SurgeKind } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
-import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
+import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 import { TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -12,7 +12,7 @@ import { getRosterName } from "../domain/campaign/rules/roster";
 
 export function useActiveCharacterData() {
   // The name the character goes by at the table is kept by whoever holds
-  // them, the fight or the campaign; description and notes are shared. Each is a primitive
+  // them, the fight or the campaign; the description is on every character, the notes only on one in play. Each is a primitive
   // selected inside the store selector, so re-renders are gated on the actual
   // field value, not the whole-character reference.
   const owner = TAB_OWNER[useAppStore((s) => s.selectedGameTab)];
@@ -20,12 +20,15 @@ export function useActiveCharacterData() {
   const fightName = useActiveCharacterSelector((c: Character, fight) => (fight ? getFightName(fight, c.id) : "")) ?? "";
   const tableName = owner === "campaign" ? rosterName : fightName;
   const description = useActiveCharacterSelector((c: Character) => c.description) ?? '';
-  const notes = useActiveCharacterSelector((c: Character) => c.notes) ?? '';
+  const notes = useActiveCharacterSelector((c: Character) => (isCampaignCharacter(c) ? c.notes : '')) ?? '';
   const name = useActiveCharacterSelector((c: Character) => c.name) ?? '';
+
+  const update = useActiveCharacterUpdate();
+  const setNotes = (text: string) => { if (text !== notes) update({ kind: 'setNotes', args: [text] }); };
 
   const limitStress = useActiveCharacterSelector((c: Character) => c.limitStress);
 
-  return { tableName, description, notes, name, limitStress };
+  return { tableName, description, notes, setNotes, name, limitStress };
 }
 
 // Whether the tab has an active character, in whichever store owns it.

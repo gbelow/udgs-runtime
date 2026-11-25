@@ -23,7 +23,7 @@ export type DemoPicker = {
   offered: { key: string; name: string; tags: string[]; description: string }[]
   lineup: string[]
   slots: number
-  picks: { key: string; name: string; description: string }[]
+  picks: { key: string; name: string }[]
   full: boolean
   joinBar: string | null
 }
@@ -45,7 +45,7 @@ export function getDemoPicker(preset: ScenePreset, characters: readonly BaseChar
     offered: rows,
     lineup: lineup.filter((key) => byKey.has(key)),
     slots,
-    picks: kept.map((key) => ({ key, name: byKey.get(key)?.name ?? key, description: byKey.get(key)?.description.trim() ?? '' })),
+    picks: kept.map((key) => ({ key, name: byKey.get(key)?.name ?? key })),
     full: kept.length >= slots,
     joinBar: !party ? 'the demo scene has no party for the visitor' : kept.length === 0 ? 'pick at least one character' : null,
   }

@@ -305,7 +305,6 @@ const CharacterIngestValues = {
 
   limitStress: z.enum(LIMIT_STRESS_ACTIONS).optional().catch(undefined),
   description: z.string().optional(),
-  notes: z.string().optional(),
 }
 
 export const CharacterIngestSchema = z.object({
@@ -315,6 +314,7 @@ export const CharacterIngestSchema = z.object({
 }).strip()
 
 export const ResourceIngestValues = {
+  notes: z.string().optional(),
   injuries: z.any().optional(),
   afflictions: z.array(z.any()).optional(),
   resources: z.any().optional(),

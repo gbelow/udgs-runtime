@@ -204,11 +204,14 @@ export function SkillTiles(){
 
 export function NotesAndSave(){
   const { copyToMyCharacters } = useGameCommands()
-  const { description, notes } = useActiveCharacterData()
+  const { tableName, description, notes, setNotes } = useActiveCharacterData()
   return(
     <>
       {description ? <p className='text-sm'>{description}</p> : null}
-      <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
+      <label className='flex flex-col gap-1'>
+        <SectionLabel>notes</SectionLabel>
+        <textarea key={`${tableName}:${notes}`} aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' placeholder='kept while they are in play' defaultValue={notes} onBlur={(e) => setNotes(e.target.value)} />
+      </label>
       <div><Button weight='solid' tone='accent' onClick={copyToMyCharacters}>copy to my characters</Button></div>
     </>
   )

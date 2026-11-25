@@ -54,7 +54,8 @@ export const characterCommands = {
   setMisc: edit((_, key: keyof typeof miscLenses, value: number) => (c) => miscLenses[key].set(c, value)),
   setTrainableName: edit((_, key: keyof Trainables, name: string) => (c) => makeTrainableNameLens<Character>(key).set(c, name)),
   setTag: edit((_, level: TagLevel, tag: string) => (c) => tagLenses[level].set(c, tag)),
-  setText: edit((_, key: 'name' | 'description' | 'notes' | 'token', text: string) => (c) => makePropLens<Character, 'name' | 'description' | 'notes' | 'token'>(key).set(c, text)),
+  setText: edit((_, key: 'name' | 'description' | 'token', text: string) => (c) => makePropLens<Character, 'name' | 'description' | 'token'>(key).set(c, text)),
+  setNotes: edit((_, notes: string) => campaign((c) => (c.notes === notes ? c : { ...c, notes }))),
   setInjury: edit((_, key: keyof Injuries, value: number) => campaign((c) => composeLens(injuries, makePropLens<Injuries, keyof Injuries>(key)).set(c, value))),
   setResource: edit((_, key: keyof Resources, value: number) => campaign((c) => makeResourceLens(key).set(c, value))),
 

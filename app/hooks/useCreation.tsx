@@ -1,4 +1,4 @@
-import { getFinishedCharacter, buyCreationLevel, setCreationProgress, setCreationAbilityProgress, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationDescription, setCreationNotes, setCreationPriority, setCreationRace, toggleCreationRaceTalent, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
+import { getFinishedCharacter, buyCreationLevel, setCreationProgress, setCreationAbilityProgress, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationDescription, setCreationPriority, setCreationRace, toggleCreationRaceTalent, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
 import { getCreationPanel, type CreationPanelView } from "../domain/character/lenses/creation";
 import { makeRace } from "../domain/factories";
 import type { FamilyKey } from "../domain/abilities";
@@ -39,7 +39,6 @@ export function useCreation() {
   const toggleRaceTalent = (key: TalentKey) => update(toggleCreationRaceTalent(key));
   const rename = (name: string) => update(setCreationName(name));
   const describe = (description: string) => update(setCreationDescription(description));
-  const annotate = (notes: string) => update(setCreationNotes(notes));
   const setPriority = (focus: Focus, priority: Priority) => update(setCreationPriority(focus, priority));
   const chooseLimitStress = (action: LimitStressAction) => update(setCreationLimitStress(action));
   const chooseConviction = (slot: 'conviction1' | 'conviction2', name: string) => update(setCreationConviction(slot, name));
@@ -57,5 +56,5 @@ export function useCreation() {
     setTab('edit');
   };
 
-  return { view, races, rename, describe, annotate, chooseRace, toggleRaceTalent, chooseLimitStress, chooseConviction, setPriority, buyLevel, setProgress, buyStage, setAbilityProgress, chooseSpell, claimSpell, finish, restart: newDraft } as const;
+  return { view, races, rename, describe, chooseRace, toggleRaceTalent, chooseLimitStress, chooseConviction, setPriority, buyLevel, setProgress, buyStage, setAbilityProgress, chooseSpell, claimSpell, finish, restart: newDraft } as const;
 }
