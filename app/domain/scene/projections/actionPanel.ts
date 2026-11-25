@@ -2,19 +2,19 @@ import { isCombatStarted } from '../rules/started'
 import type { Action, ActionDraft, LootSource, ActionOf, ActionRoll, SceneState, SeenScene, StrikeAction, Coord, MoveAction, Deliveries, DragAction, GrappleAction, GrappleManeuver, GrapplingEffect, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
-import type { Area, CampaignCharacter, Character, Item, MoveKind, Skills, SurgeKind } from '../../types'
+import type { Area, Character, Item, MoveKind, Skills, SurgeKind } from '../../types'
 import { ACTION_CATEGORIES, getActionDef, isAttackAction, isReactionAction, type ActionCategory } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAnswersBySurge, getAvailableActions, getAwaited, getGoBar } from '../rules/options'
 import { withoutAnswerSurge } from '../rules/surge'
-import { getSurgeAP, getSurgeSTA } from '../../character/rules/surge'
+import { getGivesLine, getRulesLine, getSurgeFacts } from '../../character/lenses/surge'
 import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, getTargetIds, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { getCounterShot } from '../rules/counter'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions, getSpellTestModes } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
-import { PART_PRESETS, SHOTS, SURGES } from '../../tables'
+import { PART_PRESETS, SHOTS } from '../../tables'
 import { getExtendDL, getSpellTestRoll } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -54,7 +54,7 @@ import { canThrowItem, getThrowables } from '../rules/throw'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { GRAPPLING_EFFECTS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from '../../perState'
-import { HOP_LABELS, getActionName, getCancellableLabel, getDraftLabel, getOptionLabel } from './labels'
+import { HOP_LABELS, getActionName, getCancellableLabel, getDraftLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
 import { isVariantOpen } from '../rules/strikeDeclaration'
 import { getModifierViews, type ModifierView } from './modifiers'
@@ -110,10 +110,6 @@ export type HOPOptionView = HOPOption & { label: string }
 export type SpellOptionView = SpellOption & { name: string }
 export type ChargeView = ChargeOption & { name: string; item: string; holder: string }
 
-function labelled(state: SceneState, actorId: string, options: ActionOption[]): ActionOptionView[] {
-  return options.map((o) => ({ ...o, label: getOptionLabel(state, actorId, o) }))
-}
-
 export type ReactorOptions = {
   id: string
   name: string
@@ -121,7 +117,7 @@ export type ReactorOptions = {
   // the answers by the surge they are made on, where there is one to choose
   // (`getAnswersBySurge`), each with what it costs and gives; `chosen`, the
   // surge of the answer given
-  surges: { surge: SurgeKind; chosen: boolean; note: string; options: ActionOptionView[] }[]
+  surges: { surge: SurgeKind; chosen: boolean; gives: string; rules: string; options: ActionOptionView[] }[]
   strike: {
     options: AttackOption[]
     locations: LocationOption[]
@@ -172,13 +168,9 @@ function getOpportunityModes(state: SceneState, c: Character, targetId: string):
   return ['strike', ...(partner ? ['grapple' as const] : [])]
 }
 
-// The answers as their buttons name them, the surge of each said beside it.
-function answersOf(state: SceneState, id: string, options: readonly ActionOption[]): ActionOptionView[] {
+// The options as their buttons name them, the surge of each said beside it.
+function labelled(state: SceneState, id: string, options: readonly ActionOption[]): ActionOptionView[] {
   return options.map((o) => ({ ...o, label: getDraftLabel(state, id, o) }))
-}
-
-function getSurgeNote(c: CampaignCharacter, kind: SurgeKind): string {
-  return `+${getSurgeAP(kind)(c)} AP for ${getSurgeSTA(kind)(c)} STA. ${SURGES[kind].restriction}`
 }
 
 function getReactors(state: SceneState, open: Action): ReactorOptions[] {
@@ -215,8 +207,8 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
         : null
       const options = getAvailableActions(state, c.id)
       const before = withoutAnswerSurge(state, open.id, c.id).characters[c.id]
-      const surges = getAnswersBySurge(options).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), note: getSurgeNote(before, g.surge), options: answersOf(state, c.id, g.options) }))
-      return { id: c.id, name: getFightName(state, c.id), options: answersOf(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
+      const surges = getAnswersBySurge(options).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: getGivesLine(getSurgeFacts(before, g.surge)), rules: getRulesLine(getSurgeFacts(before, g.surge)), options: labelled(state, c.id, g.options) }))
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
     })
     .filter((r) => r.options.length > 0)
 }

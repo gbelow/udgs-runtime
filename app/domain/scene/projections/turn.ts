@@ -9,7 +9,7 @@ import { getAwaited } from '../rules/options'
 import { getActionNoun } from './labels'
 import { getFightName } from '../rules/fighters'
 import { getCompelledSurge, getStressDuty } from '../rules/stress'
-import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
+import { getGivesLine, getRulesLine, getSurgeFacts, getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 import { getFollowOptions } from '../rules/follow'
 import { getStealthScore, getStealthTurn } from '../rules/stealth'
 import { canSurge, getSurgeAP, hasAPLeft } from '../../character/rules/surge'
@@ -35,6 +35,9 @@ export type TurnControls = {
   roll: string | null
   end: string | null
   result: string
+  // said to whoever would act outside their turn: that they must start one, and
+  // why they cannot now; '' when nothing asks it of them
+  mustStart: string
   // combat.tex "Actions in stealth": whom the holder began the turn hidden
   // from, and their stealth as the turn has left it; '' when hidden from nobody
   stealth: string
@@ -56,10 +59,29 @@ export function getTurnControls(state: SceneState, id: string): TurnControls {
     roll: getRollContestBar(state),
     end: getEndTurnBar(state),
     result: getContestResult(state),
+    mustStart: getMustStart(state, id),
     stealth: getStealthLine(state),
     duty: getStressDuty(state),
   }
 }
+
+// What is said to whoever would act outside their turn; '' when nothing is.
+export function getMustStart(state: SceneState, id: string): string {
+  if (!isCombatStarted(state) || !state.characters[id] || isInTurn(state, id) || getOpenAction(state) || getRoundChangeBar(state)) return ''
+  const bar = getStartTurnBar(state, id)
+  const name = getFightName(state, id)
+  return bar ? `${name} cannot act now: ${bar}` : `start ${name}'s turn to act`
+}
+
+// Whose turn it is, for all to see: nobody's while the next is still to be
+// asked for; null outside a fight and while the round changes.
+export type TurnBanner = { turn: number; holder: { id: string; name: string; flees: boolean } | null }
+
+export const getTurnBanner = perState((state: SceneState): TurnBanner | null => {
+  const holder = getTurnHolder(state)
+  if (!isCombatStarted(state) || (!holder && getRoundChangeBar(state))) return null
+  return { turn: state.turnsBegun, holder: holder ? { id: holder, name: getFightName(state, holder), flees: state.fleeing } : null }
+})
 
 // The ways the character may throw their cunning in the contest for the turn,
 // a single one where there is no choice.
@@ -94,6 +116,19 @@ export function getCombatSurgeOptions(state: SceneState, id: string): SurgeOptio
   const c = state.characters[id]
   if (!c) return []
   return getSurgeOptions(c, getCompelledSurge(state, id)).map((o) => (getSurgeTurnBar(state, id, o.kind) ? { ...o, available: false } : o))
+}
+
+// The surge buttons with what each gives the character and what it bars
+// (`getSurgeFacts`), and why one is closed by when it may be made.
+export type SurgeView = SurgeOption & { gives: string; rules: string; bar: string | null }
+
+export function getSurgeViews(state: SceneState, id: string): SurgeView[] {
+  const c = state.characters[id]
+  if (!c) return []
+  return getCombatSurgeOptions(state, id).map((o) => {
+    const read = getSurgeFacts(c, o.kind)
+    return { ...o, gives: getGivesLine(read), rules: getRulesLine(read), bar: getSurgeTurnBar(state, id, o.kind) }
+  })
 }
 
 // combat.tex "Follow" — whom the character follows this round, and each one

@@ -411,7 +411,7 @@ function tokenOutline(t: BoardTokenView, hex: Point[]): [Point, Point][] {
 export function drawToken(kit: Kit, t: BoardTokenView, hex: Point[], picked: boolean): Container {
   const out = new Container()
   out.alpha = t.elsewhere || t.heard ? 0.35 : t.hidden ? 0.6 : 1
-  const ring: Token = picked ? 'accent' : t.targetable ? 'bad' : t.isActive ? 'accent' : t.isInTurn ? 'good' : 'muted'
+  const ring: Token = picked ? 'accent' : t.targetable ? 'bad' : t.isActive ? 'accent' : 'muted'
   const width = picked || t.isActive || t.targetable ? 0.12 : 0.06
   const many = t.cells.length > 1
   const under = new Graphics()
@@ -437,6 +437,7 @@ export function drawToken(kit: Kit, t: BoardTokenView, hex: Point[], picked: boo
   if (picture) g.circle(0, 0, radius).fill({ texture: picture, textureSpace: 'local' })
   if (t.targetable || t.hidden) { dashed(g, circlePoints(radius), true, [0.2, 0.12]); g.stroke({ width, ...colorOf(kit, { color: ring }) }) }
   else g.circle(0, 0, radius).stroke({ width, ...colorOf(kit, { color: ring }) })
+  if (t.isInTurn) g.circle(0, 0, radius + 0.13).stroke({ width: 0.1, ...colorOf(kit, { color: 'good' }) })
   if (t.shieldAngle !== null) {
     const shield = new Graphics().roundRect(0.72 * scale, -0.45 * scale, 0.16, 0.9 * scale, 0.05).fill(colorOf(kit, { color: 'accent' }))
     shield.rotation = (t.shieldAngle * Math.PI) / 180

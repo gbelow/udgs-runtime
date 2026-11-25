@@ -1,24 +1,28 @@
 import type { ActionDraft, Coord, SceneState, Updater } from '../types'
-import type { SurgeKind } from '../../types'
+import type { CampaignCharacter, SurgeKind } from '../../types'
+import type { Throw } from '../../play/calls'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { SPELLS } from '../../spells'
-import { ACTION_CATEGORIES, getActionDef, type ActionCategory } from '../rules/actionCatalog'
+import { getActionDef, type ActionCategory } from '../rules/actionCatalog'
 import { getMovementOptions } from '../rules/move'
 import { getFreeAttackOptions } from '../rules/attack'
 import { getSpellOptions } from '../rules/cast'
 import { sameCell } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
-import { getAvailableActions, getDefaultAnswers } from '../rules/options'
+import { getDeclaredHiddenTargets, needsTarget } from '../rules/action'
+import { getAvailableActions, getDefaultAnswers, type ActionOption } from '../rules/options'
 import { getFightName } from '../rules/fighters'
-import { getActionName, getOptionLabel } from '../projections/labels'
-import { amendAction, declareAction, declareReaction, passReaction, setTarget } from './action'
+import { getStartTurnBar } from '../rules/turn'
+import { getMustStart } from '../projections/turn'
+import { getDraftLabel } from '../projections/labels'
+import { amendAction, commitAction, declareAction, declareReaction, passReaction, setTarget } from './action'
 import { readPick } from './board'
+import { surge } from './turn'
 
-// What a click on the board offers: the actions the selected character could
-// declare against what was clicked, or the answers a clicked character has to
-// the action in play. An entry is offered only if pressing it leaves the
-// action aimed at what was clicked, so the menu cannot offer what the panel
-// would refuse.
+// What a click on the board offers: everything the selected character could
+// declare, aimed at what was clicked where it can be, or the answers a clicked
+// character has to the action in play. What the panel shows closed is shown
+// closed here, with why; an entry that is open is one the panel would take.
 
 export type MenuAim =
   | { on: 'token', id: string }
@@ -26,27 +30,34 @@ export type MenuAim =
   | { on: 'cell', cell: Coord, height?: number | null }
 
 // What pressing an entry does: declare an action with the fields the panel
-// would fill in, aimed where the click was, or answer the action in play.
+// would fill in, aimed where the click was if it can be, on a surge made first
+// where it needs one, and committed at once where nothing is left to say
+// (`commit`); or answer the action in play.
 export type MenuPress =
-  | { kind: 'declare', actorId: string, draft: ActionDraft, fields: Partial<ActionDraft>, aim: MenuAim }
+  | { kind: 'declare', actorId: string, draft: ActionDraft, fields: Partial<ActionDraft>, aim: MenuAim | null, surge?: SurgeKind | null, commit?: boolean }
   | { kind: 'answer', reactorId: string, draft: ActionDraft, surge: SurgeKind | null }
   | { kind: 'pass', reactorId: string }
 
-export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, press: MenuPress }
+// `bar`, why it cannot be pressed now; `surge`, the surge it is made on.
+export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress }
 
-// `select` is the clicked character, whom the screen may pick instead.
-export type ClickMenu = { title: string, select: string | null, entries: MenuEntry[] }
+// `select` is the clicked character, whom the screen may pick instead;
+// `actor`, whose entries they are; `turn`, said when they must start a turn
+// before they act, and why they cannot now.
+export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[] }
 
-export function pressMenu(press: MenuPress, newId: () => string): Updater {
+export function pressMenu(press: MenuPress, newId: () => string, thrown: Throw): Updater {
   return (state) => {
     switch (press.kind) {
       case 'answer': return declareReaction(press.reactorId, press.draft, newId, press.surge)(state)
       case 'pass': return passReaction(press.reactorId)(state)
       case 'declare': {
-        const declared = declareAction(press.actorId, press.draft, newId)(state)
-        if (declared === state) return state
+        const ready = press.surge ? surge(press.actorId, press.surge)(state) : state
+        const declared = declareAction(press.actorId, press.draft, newId)(ready)
+        if (declared === ready) return state
         const filled = Object.keys(press.fields).length > 0 ? amendAction(press.fields)(declared) : declared
-        return aim(press.aim, newId)(filled)
+        const aimed = press.aim ? aim(press.aim, newId)(filled) : filled
+        return press.commit ? commitAction(thrown, newId)(aimed) : aimed
       }
     }
   }
@@ -70,10 +81,11 @@ export function isAimed(state: SceneState, at: MenuAim): boolean {
   }
 }
 
-// What the selected character may declare against a click, one entry for each
-// way of declaring it (each weapon row, each spell), or what the clicked
-// character may answer the open action with, each answer once: another surge
-// to make it on is picked in the panel. Null when nothing is offered.
+// What the selected character may declare, one entry for each way of declaring
+// it (each weapon row, each spell, each way of moving), aimed at the click, or
+// what the clicked character may answer the open action with, each answer once:
+// another surge to make it on is picked in the panel. Null when the click is
+// not theirs to act on: nobody placed is selected, or someone answers nothing.
 export function getClickMenu(state: SceneState, at: MenuAim, selected: string | null): ClickMenu | null {
   const open = getOpenAction(state)
   if (!open) return selected ? getOwnMenu(state, at, selected) : null
@@ -82,41 +94,85 @@ export function getClickMenu(state: SceneState, at: MenuAim, selected: string | 
 
 function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu | null {
   const c = state.characters[selected]
-  if (!c) return null
-  const entries = getAvailableActions(state, selected)
-    .filter((o) => o.available && o.reactionTo === null && (at.on === 'cell') === (o.draft.kind === 'move'))
-    .flatMap((o): MenuEntry[] => {
-      const category = getActionDef(o.draft.kind).category ?? 'tactical'
-      const entry = (label: string, cost: ActionCost | null, fields: Partial<ActionDraft> = {}): MenuEntry => ({ label, category, cost, press: { kind: 'declare', actorId: selected, draft: o.draft, fields, aim: at } })
-      if (o.draft.kind === 'strike' || o.draft.kind === 'shoot') {
-        return getFreeAttackOptions(state, c, o.draft.kind).map((row) => entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
-      }
-      if (o.draft.kind === 'cast') {
-        return getSpellOptions(state, c).filter((s) => s.targeted && (s.castable || s.quickenable))
-          .map((s) => entry(SPELLS[s.key].name, s.cost, { key: s.key, quicken: !s.castable }))
-      }
-      // a move is offered once for each way of moving that reaches the cell: which one is the player's to say
-      if (o.draft.kind === 'move') {
-        return getMovementOptions(state, c).filter((m) => m.available)
-          .map((m) => entry(`${m.kind} here`, m.block, { movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, recipe: null, metres: null, ledge: null }))
-      }
-      return [entry(getActionName(o.draft), o.cost)]
-    })
-    .filter((e) => e.press.kind === 'declare' && isAimed(pressMenu(e.press, () => 'probe')(state), at))
-    .sort((a, b) => categoryOrder(a.category) - categoryOrder(b.category))
-  // a character is always offered for picking, even with nothing to do against them
-  if (entries.length === 0 && at.on !== 'token') return null
-  return { title: at.on === 'token' ? getFightName(state, at.id) : at.on === 'cell' ? 'here' : 'item', select: at.on === 'token' ? at.id : null, entries }
+  if (!c || (at.on !== 'token' && !state.board?.placements[selected])) return null
+  const note = getMustStart(state, selected)
+  const entries = getAvailableActions(state, selected).filter((o) => o.reactionTo === null).flatMap((o) => getEntries(state, at, c, o))
+  return {
+    title: at.on === 'token' ? getFightName(state, at.id) : at.on === 'cell' ? 'here' : 'item',
+    select: at.on === 'token' ? at.id : null,
+    actor: selected,
+    turn: note ? { note, bar: getStartTurnBar(state, selected) } : null,
+    entries,
+  }
 }
 
-const categoryOrder = (category: MenuEntry['category']): number => category === 'answer' ? ACTION_CATEGORIES.length : ACTION_CATEGORIES.indexOf(category)
+// The entries of one of the character's own options: one for each thing it can
+// be declared with, read on the fight with its surge made where it needs one,
+// or the option itself, closed, where there is none.
+function getEntries(state: SceneState, at: MenuAim, c: CampaignCharacter, o: ActionOption): MenuEntry[] {
+  const { draft } = o
+  const category = getActionDef(draft.kind).category ?? 'tactical'
+  const needs = o.available ? null : o.surge
+  const ready = needs ? surge(c.id, needs)(state) : state
+  const own = ready.characters[c.id]
+  const bar = o.available || (needs && ready !== state) ? null : o.reason ?? 'closed'
+  const entry = (label: string, cost: ActionCost | null, fields: Partial<ActionDraft> = {}, closed: string | null = null, made: SurgeKind | null = needs): MenuEntry =>
+    aimed(state, { label, category, cost, surge: made, bar: bar ?? closed, press: { kind: 'declare', actorId: c.id, draft, fields, aim: at, surge: made } })
+  switch (draft.kind) {
+    case 'strike':
+    case 'shoot': {
+      const rows = getFreeAttackOptions(ready, own, draft.kind).map((row) => entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+      return rows.length > 0 ? rows : [entry(getDraftLabel(state, c.id, o), null)]
+    }
+    case 'cast': {
+      const focused = surge(c.id, 'focus')(state)
+      const withFocus = focused === state ? [] : getSpellOptions(focused, focused.characters[c.id])
+      const spells = getSpellOptions(state, c).flatMap((s): MenuEntry[] => {
+        const { name } = SPELLS[s.key]
+        const cast = (label: string, quicken: boolean, closed: string | null, made: SurgeKind | null) => entry(label, s.cost, { key: s.key, quicken }, closed, made)
+        const onFocus = withFocus.find((f) => f.key === s.key)?.castable ?? false
+        return [
+          ...(s.castable ? [cast(name, false, null, null)] : onFocus ? [cast(name, false, null, 'focus')] : []),
+          ...(s.quickenable ? [cast(`${name}, quickened`, true, null, null)] : []),
+          ...(!s.castable && !onFocus && !s.quickenable ? [cast(name, false, s.reason, null)] : []),
+        ]
+      })
+      return spells.length > 0 ? spells : [entry(getDraftLabel(state, c.id, o), null)]
+    }
+    // a move is offered once for each way of moving: which one is the player's to say
+    case 'move': {
+      const ways = getMovementOptions(ready, own).map((m) => entry(at.on === 'cell' ? `${m.kind} here` : m.kind, m.block, { movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, recipe: null, metres: null, ledge: null }, m.available ? null : m.reason ?? 'closed'))
+      return ways.length > 0 ? ways : [entry(getDraftLabel(state, c.id, o), null)]
+    }
+    default:
+      return [entry(getDraftLabel(state, c.id, o), o.cost)]
+  }
+}
+
+// What the click would aim: an action that needs a target is closed, with
+// why, where the clicked one cannot be it, as is a move that does not reach the
+// cell; one aimed at something else, or at nothing, is declared as the panel
+// declares it.
+function aimed(state: SceneState, entry: MenuEntry): MenuEntry {
+  const { press } = entry
+  if (entry.bar !== null || press.kind !== 'declare' || !press.aim) return entry
+  const probe = (p: MenuPress) => pressMenu(p, () => 'probe', () => 5)(state)
+  if (isAimed(probe(press), press.aim)) return entry
+  if (press.draft.kind === 'move' && press.aim.on === 'cell') return { ...entry, bar: 'out of reach' }
+  const unaimed = { ...press, aim: null }
+  const declared = probe(unaimed)
+  const open = getOpenAction(declared)
+  if (declared === state || !open) return { ...entry, bar: 'cannot be declared now' }
+  if (press.aim.on === 'token' && needsTarget(declared, open)) return { ...entry, bar: getDeclaredHiddenTargets(declared, open).includes(press.aim.id) ? 'not detected' : 'cannot be aimed at them' }
+  return { ...entry, press: unaimed }
+}
 
 function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
   const answers = getDefaultAnswers(getAvailableActions(state, id)).filter((o) => o.available && o.reactionTo !== null)
   if (answers.length === 0) return null
   const entries: MenuEntry[] = [
-    ...answers.map((o): MenuEntry => ({ label: getOptionLabel(state, id, o), category: 'answer', cost: o.cost, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge } })),
-    { label: 'nothing', category: 'answer', cost: null, press: { kind: 'pass', reactorId: id } },
+    ...answers.map((o): MenuEntry => ({ label: getDraftLabel(state, id, o), category: 'answer', cost: o.cost, surge: o.surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge } })),
+    { label: 'nothing', category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
   ]
-  return { title: `${getFightName(state, id)} answers`, select: id, entries }
+  return { title: `${getFightName(state, id)} answers`, select: id, actor: id, turn: null, entries }
 }

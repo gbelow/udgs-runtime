@@ -12,6 +12,7 @@ import { getActionCost, type ActionCost } from './actionCosts'
 import { getCarriedItems, getItemScale, hasAmmo, hasTag, isMetalWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { isCampaignCharacter } from '../../utils'
+import { isReadied } from './readied'
 import { ABILITIES, hasAbility, isAbilityKey } from '../../abilities'
 import { mayCastWhileConcentrating } from './concentration'
 import { getBuffBonus, hasGrant, isAbilityActive, isSpellActive } from './effects'
@@ -358,7 +359,7 @@ export function canCastSpell(c: Character, key: SpellKey, quicken: boolean, char
   if (!isCastPossible(c, key)) return false
   const spell = SPELLS[key]
   if (!isCampaignCharacter(c) || !(quicken ? canAfford(c, spell.cost, charged) : canAffordOrHold(c, spell.cost, charged))) return false
-  return !charged || quicken || c.usedSurge === 'focus'
+  return !charged || quicken || isReadied(c, 'spells')
 }
 
 // What the spell needs of the caster and the gear besides what it costs and

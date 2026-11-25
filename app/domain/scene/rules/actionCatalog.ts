@@ -1,3 +1,4 @@
+import { ACTION_CATEGORIES } from '../../lists'
 import type { ActionKind as PricedAction } from '../../tables'
 import { DEFENSES } from '../../lists'
 import type { Action, ActionDraft, ActionKind, AttackAction, ReactionAction, ReactionKind, RootAction } from '../types'
@@ -9,7 +10,7 @@ import type { Action, ActionDraft, ActionKind, AttackAction, ReactionAction, Rea
 // costs what its weapon row and variation cost).
 // The headings the panel lists what a character can declare under, in the
 // order it lists them.
-export const ACTION_CATEGORIES = ['attack', 'move', 'spell', 'grapple', 'gear', 'care', 'social', 'tactical'] as const
+export { ACTION_CATEGORIES }
 export type ActionCategory = (typeof ACTION_CATEGORIES)[number]
 
 export type ActionDef<K extends ActionKind = ActionKind> = {

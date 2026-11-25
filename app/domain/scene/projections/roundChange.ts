@@ -1,4 +1,4 @@
-import type { SceneState, SeenScene } from '../types'
+import type { ActionDraft, SceneState, SeenScene } from '../types'
 import { perState } from '../../perState'
 import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getSustainedAbilities } from '../../character/rules/concentration'
@@ -14,6 +14,11 @@ import { isDead } from '../../character/rules/afflictions'
 import { canStillRest, getRestAwaited } from '../rules/resting'
 import { getFightName, getMembers, getPartyName } from '../rules/fighters'
 import { isParkedParty } from '../rules/parked'
+import { getAvailableActions } from '../rules/options'
+import { getActionDef } from '../rules/actionCatalog'
+import { getActionName } from './labels'
+import { getRecoveredSTA, getSTARegen } from '../../character/rules/characteristics'
+import type { ActionCost } from '../../character/rules/actionCosts'
 
 const PHASE_LABELS: Record<RoundPhase, string> = {
   rest: 'rest and speak',
@@ -57,9 +62,15 @@ export type RoundCard = SceneCard & {
   // abilities.tex "Overrule", "Subjugate": who could give orders in place of
   // the limit stress action the character owes, and what each could order
   orders: OrdersRow[]
+  // what they may do of their own in the rest step, resting first
+  resting: RestRow[]
   // combat.tex "Dominated": whom the character is dominated by
   dominated: string | null
 }
+
+// `gains`, what it gives back; `commit`, whether a press is all it takes, the
+// rest of it, whom it is said to, still to be declared otherwise; `bar`, why not.
+export type RestRow = { label: string; draft: ActionDraft; cost: ActionCost | null; gains: string; commit: boolean; bar: string | null }
 
 export type OrdersRow = { by: string; name: string; options: OrderOption[] }
 
@@ -132,6 +143,18 @@ function getChaseStepLabel(state: SceneState): string {
   return getMoraleCalled(state).length > 0 ? 'on to the morale tests' : 'start the round'
 }
 
+function getRestRows(state: SceneState, id: string): RestRow[] {
+  const c = state.characters[id]
+  if (getRoundPhase(state) !== 'rest' || isDead(c)) return []
+  return getAvailableActions(state, id)
+    .filter((o) => getActionDef(o.draft.kind).rest)
+    .map((o): RestRow => ({
+      label: getActionName(o.draft), draft: o.draft, cost: o.cost, commit: o.draft.kind === 'rest', bar: o.available ? null : o.reason ?? 'closed',
+      gains: o.draft.kind === 'rest' ? `+${getRecoveredSTA(c, c.resources.STA, getSTARegen(c)) - c.resources.STA} STA` : '',
+    }))
+    .sort((a, b) => Number(b.commit) - Number(a.commit))
+}
+
 // Who could overrule or subjugate the character in the limit stress action
 // they owe, each with the orders they could give.
 function getOrdersRows(state: SceneState, targetId: string): OrdersRow[] {
@@ -168,6 +191,7 @@ function buildRoundChange(state: SeenScene): RoundChangeView | null {
         morale: morale.find((r) => r.id === card.id) ?? null,
         stress: getStressOwed(state, card.id),
         orders: getOrdersRows(state, card.id),
+        resting: getRestRows(state, card.id),
         dominated: getDominationLine(state, card.id),
       })),
     })),

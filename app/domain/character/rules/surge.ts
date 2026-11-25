@@ -1,5 +1,5 @@
-import { CampaignCharacter, Character, Grant, SurgeKind } from "../../types"
-import { RECOVERY_SURGE_SHORT, SURGES } from "../../tables"
+import { CampaignCharacter, Character, SurgeKind } from "../../types"
+import { SURGES, type Surge } from "../../tables"
 import { getAGI, getRecoveredSTA, getSTARegen } from "./characteristics"
 import { getBuffBonus, getGrantingAbility, hasGrant } from "./effects"
 import { ABILITIES } from "../../abilities"
@@ -41,13 +41,13 @@ function isReactiveFighting(kind: SurgeKind, c: CampaignCharacter): boolean {
 // reaction surge").
 export function isReactiveSurge(kind: SurgeKind | null): boolean {
   if (kind === null) return false
-  const surge: { STA: number; reactive?: boolean } = SURGES[kind]
+  const surge: Surge = SURGES[kind]
   return surge.reactive === true
 }
 
 // Whether only an ability gives the surge.
 export function isLearnedSurge(kind: SurgeKind): boolean {
-  const surge: { STA: number; learned?: Grant } = SURGES[kind]
+  const surge: Surge = SURGES[kind]
   return surge.learned !== undefined
 }
 
@@ -55,7 +55,7 @@ export function isLearnedSurge(kind: SurgeKind): boolean {
 // gives is made only by who has learned it.
 export function knowsSurge(kind: SurgeKind): (c: Character) => boolean {
   return (c) => {
-    const surge: { STA: number; learned?: Grant } = SURGES[kind]
+    const surge: Surge = SURGES[kind]
     return !surge.learned || hasGrant(c, surge.learned)
   }
 }
@@ -89,9 +89,10 @@ export function getSurgeAPLeft(c: CampaignCharacter): number {
 }
 
 // combat.tex "Action surge": the STA the recovery surge gives back, a rest's
-// less RECOVERY_SURGE_SHORT; none from any other.
+// less the surge's `restsLess`; none from any other.
 export function getSurgeRecovery(kind: SurgeKind): (c: CampaignCharacter) => number {
-  return (c: CampaignCharacter) => (kind === 'recovery' ? Math.max(0, getSTARegen(c) - RECOVERY_SURGE_SHORT) : 0)
+  const { restsLess }: Surge = SURGES[kind]
+  return (c: CampaignCharacter) => (restsLess === undefined ? 0 : Math.max(0, getSTARegen(c) - restsLess))
 }
 
 // combat.tex "Action surge": a row a focus surge readies, closed until it is made
@@ -103,13 +104,13 @@ export const NEEDS_FOCUS = 'needs a focus surge'
 // recovery surge gives back.
 export function getSurged(kind: SurgeKind): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    const { earmarked } = SURGES[kind]
+    const { earmarked, runsFree }: Surge = SURGES[kind]
     const STA = getSurgeSTA(kind)(c)
     const char = getBled(STA)(c)
     return {
       ...char,
       usedSurge: kind,
-      runsFree: kind === 'movement',
+      runsFree: runsFree === true,
       surgeFloor: earmarked ? char.resources.AP : char.surgeFloor,
       resources: {
         ...char.resources,
@@ -131,6 +132,9 @@ export function getUnsurged(kind: SurgeKind, moved: { STA: number; AP: number })
     return { ...char, usedSurge: null, runsFree: false, surgeFloor: null, resources: { ...char.resources, AP, STA: char.resources.STA + moved.STA } }
   }
 }
+
+// The surge a round in which none was made ends with, if any.
+export const AUTOMATIC_SURGE = surgeKinds.find((kind) => (SURGES[kind] as Surge).automatic) ?? null
 
 // Whether some surge is still open to the character, whichever kind.
 export function canSurgeAtAll(c: CampaignCharacter): boolean {

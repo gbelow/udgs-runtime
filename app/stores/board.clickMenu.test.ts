@@ -25,11 +25,11 @@ function scene(): Harness {
 }
 
 describe('the menu a click on the board opens', () => {
-  it('declares, for every entry a token offers, an action aimed at that token', () => {
+  it('declares, for every open entry a token offers to aim at it, an action aimed at that token', () => {
     for (const name of ['Bob', 'Cy']) {
       const h = scene()
       const at = { on: 'token', id: h.idOf(name) } as const
-      const entries = h.menu(at)?.entries ?? []
+      const entries = (h.menu(at)?.entries ?? []).filter((e) => e.bar === null && e.press.kind === 'declare' && e.press.aim)
       for (const entry of entries) {
         const played = scene()
         played.pressMenu(entry)
@@ -48,7 +48,7 @@ describe('the menu a click on the board opens', () => {
   it('draws a move to the clicked cell and leaves it to be committed', () => {
     const h = scene()
     const cell = { q: -2, r: 1 }
-    const entry = h.menu({ on: 'cell', cell })?.entries[0]
+    const entry = h.menu({ on: 'cell', cell })?.entries.find((e) => e.category === 'move' && e.bar === null)
     expect(entry).toBeDefined()
     h.pressMenu(entry!)
     const open = getOpenAction(h.state())

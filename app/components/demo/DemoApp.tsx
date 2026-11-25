@@ -10,6 +10,7 @@ import { useBoardLook } from '../../hooks/useBoardLook'
 import { useBots, useBotsPaused } from '../../hooks/useBots'
 import { BotsPause } from '../BotsPause'
 import { EndRound } from '../EndRound'
+import { TurnBanner } from '../TurnBanner'
 import { useDemo, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
 import { useCombatState, useRoundChange } from '../../hooks/useCombatState'
@@ -175,11 +176,12 @@ function Placing() {
 function DemoSpace() {
   const { view } = useRoundChange()
   const [mapOf, setMapOf] = useState<number | null>(null)
-  if (!view) return <DemoBoard />
+  if (!view) return <><TurnBanner /><DemoBoard /></>
   if (view.stressTurn !== null && view.stressTurn.turn === mapOf) {
     return (
       <>
         <div><Button size='xs' onClick={() => setMapOf(null)}>back to the round change</Button></div>
+        <TurnBanner />
         <DemoBoard />
       </>
     )

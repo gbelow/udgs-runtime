@@ -9,7 +9,6 @@ import { CombatRosterEntry, getRosterParties } from './roster'
 // are to the open action, what they have left to spend, how hurt they are
 // and what afflicts them now.
 export type SceneCard = CombatRosterEntry & {
-  isInTurn: boolean
   dead: boolean
   // a number on a sheet the viewer plays, a third left on a face
   AP: number | { third: Third }
@@ -30,7 +29,6 @@ function buildSceneCards(state: SeenScene): SceneCardParty[] {
       const c = state.characters[entry.id]
       return {
         ...entry,
-        isInTurn: entry.id === state.inTurnCharacter,
         dead: isDead(c),
         AP: c.shown ? { third: c.shown.AP } : c.resources.AP,
         STA: c.shown ? { third: c.shown.STA } : c.resources.STA,

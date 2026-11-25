@@ -487,6 +487,16 @@ export const SURGE_ALLOWANCES = {
 } as const
 export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 
+// combat.tex "Focus surge": what is only done in a round the surge that readies
+// it was made in, named for whoever makes it (`isReadied`).
+export const SURGE_USES = {
+  ranged: 'shooting and throwing weapons',
+  spells: 'casting spells that are not quickened',
+  medicine: 'first aid, tending wounds and cauterizing',
+  holding: 'holding an action over to the next round',
+} as const
+export type SurgeUse = keyof typeof SURGE_USES
+
 // combat.tex "Action surge" — one surge per round. Each kind prices its AP
 // in STA; the movement surge alone scales its yield with AGI, so the yield
 // column is a function of AGI rather than a number. An `earmarked` surge's AP
@@ -496,8 +506,9 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // "movement and reactions", a push or a drag not among them (the table's
 // ruling); the combat surge "attacks, movement, or any action within a
 // grapple", and — the table's ruling — defenses and reflexes. The reaction
-// surge's AP is free, but no turn can be started after it. What else
-// restricts a surge is recorded as prose for the UI. `forbiddenBy` is the
+// surge's AP is free, but no turn can be started after it. What a screen says
+// of a surge is read off these fields and off the character it is made by
+// (character/lenses/surge.ts), never written here. `forbiddenBy` is the
 // affliction under which the surge cannot be made voluntarily (combat.tex
 // "Afflictions": afraid bars the combat surge, enraged the reaction surge).
 // The recovery surge gives back STA instead of AP: "STA equal to resting -1
@@ -506,17 +517,39 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // repositioning immediately to assist the ally", made only by one who has
 // learned it (`learned`), with the defense whose move it is (the table's
 // ruling: the move is what makes it one; its AP pay for anything after).
-export const RECOVERY_SURGE_SHORT = 1
+export type SurgeWindow = 'any' | 'turn' | 'turnOrAnswer' | 'defense'
+export type Surge = {
+  STA: number
+  AP: (AGI: number) => number
+  earmarked: boolean
+  // when it may be made: at any time, in the character's own turn, there or
+  // with a reaction, or only with a defense that repositions
+  window: SurgeWindow
+  reactive?: boolean
+  learned?: Grant
+  allows?: readonly SurgeAllowance[]
+  buffs?: readonly Buff[]
+  // running costs no STA until the turn or the reaction it was made in ends
+  runsFree?: true
+  // what only it readies the character for, the rest of the round
+  readies?: readonly SurgeUse[]
+  // the STA it gives back: a rest's, less this
+  restsLess?: number
+  // made by itself at the end of a round in which no surge was
+  automatic?: true
+  forbiddenBy?: keyof typeof AFFLICTIONS
+}
 export const SURGES = {
   // combat.tex "Reflex": "Using a movement surge gives a +AGI/3 bonus to
   // reflexes for that round"
-  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'escape', 'reactions'], buffs: [{ target: 'skill:reflex', operation: '+', value: 1, when: null, per: { attribute: 'AGI', every: 3 } }], restriction: 'In your own turn, or with a reaction; what is left of its AP is lost when the turn or the reaction ends. A push or a drag is not movement here, escaping a grapple is. Running costs no STA for the rest of the turn. +AGI/3 to reflexes for the round.' },
-  combat:   { STA: 2, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
-  reaction: { STA: 2, AP: () => 4, earmarked: false, reactive: true, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
-  protection: { STA: 2, AP: () => 4, earmarked: false, reactive: true, learned: 'protectionSurge', restriction: 'Made with a block, intercept or guard that repositions to defend an ally attacked within 10 m. No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
-  focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
-  recovery: { STA: 0, AP: () => 0, earmarked: false, restriction: 'Recovers a rest\'s STA less 1. Made by itself at the end of a round in which no surge was.' },
-} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; reactive?: boolean; learned?: Grant; allows?: readonly SurgeAllowance[]; buffs?: readonly Buff[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
+  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, window: 'turnOrAnswer', allows: ['movement', 'escape', 'reactions'], buffs: [{ target: 'skill:reflex', operation: '+', value: 1, when: null, per: { attribute: 'AGI', every: 3 } }], runsFree: true },
+  combat:   { STA: 2, AP: () => 4, earmarked: true, window: 'turn', allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], forbiddenBy: 'afraid' },
+  reaction: { STA: 2, AP: () => 4, earmarked: false, window: 'any', reactive: true, forbiddenBy: 'enraged' },
+  protection: { STA: 2, AP: () => 4, earmarked: false, window: 'defense', reactive: true, learned: 'protectionSurge', forbiddenBy: 'enraged' },
+  // "required to use actions that require concentration"
+  focus:    { STA: 0, AP: () => 0, earmarked: false, window: 'any', readies: ['ranged', 'spells', 'medicine', 'holding'] },
+  recovery: { STA: 0, AP: () => 0, earmarked: false, window: 'any', restsLess: 1, automatic: true },
+} as const satisfies Record<string, Surge>
 
 // abilities.tex "Protection Surge": "an ally within 10m has been attacked";
 // "Guardian": the prohibited attitude, "an ally takes tier 2 damage or

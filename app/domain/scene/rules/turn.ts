@@ -3,7 +3,7 @@ import { isCombatStarted } from './started'
 import { getFightCunningTerms } from './centralIntelligence'
 import type { SurgeKind } from '../../types'
 import type { SceneState, ContestRoll } from '../types'
-import { SURGES } from '../../tables'
+import { SURGES, type Surge } from '../../tables'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { canMakeFeintSurge, hasAPLeft, isFeintSurge, isReactiveSurge } from '../../character/rules/surge'
 import { getLiveActions, getOpenAction, getPlayingOutBar } from './log'
@@ -163,11 +163,13 @@ export function getContestMode(state: SceneState, id: string): RollMode {
 // on its own.
 export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind, answering = false): string | null {
   if (!isCombatStarted(state)) return 'combat has not started'
-  if (kind === 'protection' && !answering) return 'made only with a defense that repositions for an ally'
+  const { window }: Surge = SURGES[kind]
+  if (window === 'defense' && !answering) return 'made only with a defense that repositions for an ally'
   if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
   if (state.forcedSurge === id && !isFeintSurge(kind)) return 'a feint forces a surge other than focus or recovery'
-  if (!SURGES[kind].earmarked || isInTurn(state, id)) return null
-  return kind === 'movement' && getOpenAction(state) ? null : kind === 'movement' ? 'in your own turn or with a reaction' : 'only in your own turn'
+  if (window === 'any' || window === 'defense' || isInTurn(state, id)) return null
+  if (window === 'turn') return 'only in your own turn'
+  return getOpenAction(state) ? null : 'in your own turn or with a reaction'
 }
 
 // combat.tex "End of the round": "A round ends when no one has AP left and

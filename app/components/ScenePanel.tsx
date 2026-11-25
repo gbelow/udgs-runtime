@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
+import { TurnBanner } from './TurnBanner';
 import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
@@ -12,7 +13,7 @@ import { useEndScene, usePartyCommands, useTableParties } from '../hooks/usePart
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useBreakage, useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
+import { useBreakage, useCombatRoster, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useGmFloorTools } from '../hooks/useBoard';
 import { ExplosionFields } from './ExplosionFields';
@@ -159,12 +160,14 @@ export function SceneSpace(){
         <div className='flex flex-row items-center gap-2 px-2 py-1'>
           <Button size='xs' onClick={() => setMapOf(null)}>back to the round change</Button>
         </div>
+        <TurnBanner />
         <BoardPanel />
       </>
     ) : <RoundChangePanel openMap={chase.boardInPlay ? setMapOf : null} />
   }
   return(
     <>
+      <TurnBanner />
       <FollowPanel />
       {chase.saved ? <><ChaseSaved /><ChaseTrack /></> : chase.chasing ? <><ChaseTrack /><ChasePanel /></> : null}
       {chase.boardInPlay ? <BoardPanel /> : null}
@@ -477,19 +480,23 @@ function HeldTestsPanel(){
 export function SurgeTile(){
   const { endSurge } = useCharacterCommands()
   const { actionSurge } = useCombatCommands()
-  const options = useCombatSurgeOptions()
+  const options = useSurgeViews()
   const binding = useBindingSurge()
 
   return(
-    <div role='group' aria-label='action surges' className='flex flex-col items-start rounded border border-line bg-surface px-1.5 py-1 max-w-80'>
+    <div role='group' aria-label='action surges' className='flex flex-col items-stretch rounded border border-line bg-surface px-1.5 py-1 min-w-64 flex-1'>
       <span className='text-[10px] text-muted'>surge</span>
-      <div className='flex flex-row flex-wrap gap-1'>
+      <div className='flex flex-col gap-0.5'>
         {options.map((option) =>
           // The surge spent this round stays lit until nextRound clears it; the
           // others close (combat.tex "Action surge": one per round).
-          option.used
-            ? <Button key={option.kind} size='xs' selected icon={Check} aria-label={option.kind + ' surge'} aria-pressed title={`${option.kind} surge used this round`} className='pointer-events-none'>{option.kind}</Button>
-            : <Button key={option.kind} size='xs' aria-label={option.kind + ' surge'} disabled={!option.available} title={option.title} onClick={() => actionSurge(option.kind)}>{option.kind}</Button>
+          <div key={option.kind} className='flex flex-row gap-1.5 items-center min-w-0'>
+            {option.used
+              ? <Button size='xs' selected icon={Check} aria-label={option.kind + ' surge'} aria-pressed title={`${option.kind} surge used this round`} className='pointer-events-none shrink-0'>{option.kind}</Button>
+              : <Button size='xs' aria-label={option.kind + ' surge'} disabled={!option.available} title={option.bar ?? option.rules} className='shrink-0' onClick={() => actionSurge(option.kind)}>{option.kind}</Button>}
+            {option.gives ? <span className='text-[11px] font-mono whitespace-nowrap'>{option.gives}</span> : null}
+            <span className='text-[10px] text-muted truncate' title={option.rules}>{option.rules}</span>
+          </div>
         )}
         {binding ? <Button size='xs' weight='subtle' aria-label='endSurge' title={`give up the ${binding} surge AP left, to do something it does not allow`} onClick={endSurge}>end surge</Button> : null}
       </div>
@@ -512,8 +519,10 @@ export function CharacterList(){
               <Button key={entry.id} size='xs' aria-label={entry.name}
                 tone={entry.targetable ? 'bad' : 'neutral'} selected={picked.includes(entry.id) || (!entry.targetable && entry.isActive && picked.length === 0)}
                 className={entry.targetable ? 'animate-pulse' : ''}
+                icon={entry.isInTurn ? Play : undefined}
                 onClick={() => pick(entry)}>
                 {entry.name}
+                {entry.isInTurn ? <span className='ml-1.5 text-[10px] text-good'>in turn</span> : null}
                 {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
                 {entry.surrendered ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>surrendered</span> : null}
                 {entry.holding ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>holding {entry.holding.label} ({entry.holding.AP} AP)</span> : null}

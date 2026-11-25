@@ -4,16 +4,17 @@ import { Card } from './SceneCards'
 import { BackToChase, ChaseSetup, JoinChaseFight } from './ChasePanel'
 import { ChaseTrack } from './ChaseTrack'
 import { Check, ChevronRight } from 'lucide-react'
-import { ActionKey, Menu, MenuItem, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
+import { ActionKey, Button, Closed, Menu, MenuItem, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
 import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../hooks/useCombatState'
 import { GmLocked, LockedFor } from './Locks'
 import { useCombatCommands } from '../hooks/useCombatCommands'
-import { useActorBar } from '../hooks/useControl'
+import { useActorBar, useControlBar } from '../hooks/useControl'
+import { ACTION_ICONS } from './actionIcons'
 import { RollButtons } from './DieCalls'
 import type { OrdersRow, RoundCard, RoundChangeView, RoundStepView } from '../domain/scene/projections/roundChange'
 
 const HINTS: Partial<Record<RoundChangeView['phase'], string>> = {
-  rest: 'pick a character to rest or speak from the bar below, with what is left of both rounds',
+  rest: 'rest or speak with the buttons on your characters, paid with what is left of both rounds',
   concentration: 'whoever keeps something going pays for it again, or lets it go and finishes what they held',
   join: 'characters can join the fight now, from the Character panel or the Party tab',
   stress: 'the limit stress actions are taken as turns, the worst test first',
@@ -114,10 +115,11 @@ function DoneResting({ view }: { view: RoundChangeView }){
 function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | null }){
   const { holdOn, letGo } = useCombatCommands()
   const held = card.concentration
-  if (card.happened.length === 0 && !held && !card.morale && !card.stress && card.orders.length === 0 && !card.dominated) return null
+  if (card.resting.length === 0 && card.happened.length === 0 && !held && !card.morale && !card.stress && card.orders.length === 0 && !card.dominated) return null
 
   return (
     <>
+      <Resting card={card} />
       {card.happened.map((line, i) => <span key={i} className='text-muted'>{line}</span>)}
       {held ? (
         <div className='flex flex-col gap-1 border-t border-line pt-1'>
@@ -140,6 +142,33 @@ function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | nu
       {card.orders.map((row) => <Orders key={row.by} row={row} targetId={card.id} />)}
       {onMap ? <ActionKey aria-label={`take the turn ${card.name}`} look='warn' onClick={onMap}>take the limit stress action on the map</ActionKey> : null}
     </>
+  )
+}
+
+// What the character may do of their own in the rest step, to whoever plays
+// them: the rest, made at once, and what they could say, declared and aimed
+// like any action.
+function Resting({ card }: { card: RoundCard }){
+  const { restWith } = useCombatCommands()
+  const bar = useControlBar(card.id)
+  const [speaking, setSpeaking] = useState(false)
+  if (bar !== null || card.resting.length === 0) return null
+  const key = (row: RoundCard['resting'][number]) => (
+    <Closed key={row.label} reason={row.bar}>
+      <ActionKey aria-label={`${row.label} ${card.name}`} icon={ACTION_ICONS[row.draft.kind]} disabled={row.bar !== null}
+        cost={row.cost ? `${row.cost.AP} AP${row.cost.STA ? ` · ${row.cost.STA} STA` : ''}` : null} onClick={() => restWith(card.id, row)}>
+        {row.label}{row.gains ? <span className='font-mono'> {row.gains}</span> : null}
+      </ActionKey>
+    </Closed>
+  )
+  return (
+    <div className='flex flex-col gap-1 border-t border-line pt-1'>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        {card.resting.filter((r) => r.commit).map(key)}
+        <Button size='xs' selected={speaking} aria-label={`speak ${card.name}`} onClick={() => setSpeaking(!speaking)}>speak</Button>
+      </div>
+      {speaking ? <div className='flex flex-row flex-wrap gap-1'>{card.resting.filter((r) => !r.commit).map(key)}</div> : null}
+    </div>
   )
 }
 

@@ -4,7 +4,7 @@ import { ABILITIES, AbilityKey, getLearnedAbilityKeys, hasAbility, isAbilityKey 
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
 import { getLastingEffects } from '../../item/rules/consumables'
-import { SURGES } from '../../tables'
+import { SURGES, type Surge } from '../../tables'
 
 function isBuff(effect: Effect): effect is Extract<Effect, { type: 'buff' }> {
   return effect.type === 'buff'
@@ -143,7 +143,7 @@ function getPotionEffects(character: Character): Effect[] {
 function getSurgeEffects(character: Character): Effect[] {
   if (!isCampaignCharacter(character) || character.usedSurge === null) return []
   const kind = character.usedSurge
-  const surge: { STA: number; buffs?: readonly Buff[] } = SURGES[kind]
+  const surge: Surge = SURGES[kind]
   return (surge.buffs ?? []).map((effect): Effect => ({ name: `${kind} surge`, trigger: 'instant', type: 'buff', effect }))
 }
 

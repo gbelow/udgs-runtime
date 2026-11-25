@@ -8,9 +8,8 @@ import { getBreakFreeView, getMockeryView, type MockeryView } from "../domain/sc
 import { getLeadershipView, type LeadershipView } from "../domain/scene/projections/providence";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getGearBar } from "../domain/scene/rules/turn";
-import { FollowControls, getCombatSurgeOptions, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getContestModeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
+import { FollowControls, getSurgeViews, getEndCombatNote, getFollowControls, getNextRoundClosing, getNextRoundNote, getContestModeOptions, getTurnControls, TurnControls, type SurgeView } from "../domain/scene/projections/turn";
 import type { RollMode } from "../domain/play/dice";
-import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useGmPickStore } from "../stores/useGmPickStore";
@@ -110,7 +109,7 @@ export function useBreakage(): boolean {
 }
 
 const NO_ONE = 'no active character'
-const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', contestMode: 'normal', roll: NO_ONE, end: NO_ONE, result: '', stealth: '', duty: '' }
+const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', contestMode: 'normal', roll: NO_ONE, end: NO_ONE, result: '', mustStart: '', stealth: '', duty: '' }
 
 // play.tex "Combat" — the turn buttons for the active character, flat
 // primitives gated shallowly.
@@ -128,10 +127,10 @@ export function useTurnControls(): TurnControls {
 
 // combat.tex "Action surge" — one row per surge for the active character,
 // gated on a digest since the rows are freshly allocated.
-export function useCombatSurgeOptions(): SurgeOption[] {
-  useCombatStore((s) => (s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId).map((o) => `${o.kind}:${o.title}:${o.available ? 1 : 0}:${o.used ? 1 : 0}`).join('|') : ''));
+export function useSurgeViews(): SurgeView[] {
+  useCombatStore((s) => (s.activeCharacterId ? JSON.stringify(getSurgeViews(s, s.activeCharacterId)) : ''));
   const s = useCombatStore.getState();
-  return s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId) : [];
+  return s.activeCharacterId ? getSurgeViews(s, s.activeCharacterId) : [];
 }
 
 // combat.tex "Follow" — whom the active character follows and whom they may

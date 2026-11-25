@@ -32,6 +32,7 @@ import { updateCharacter } from './characters'
 import { isParked } from '../rules/parked'
 import { getMembers } from '../rules/fighters'
 import { getHoldOnDiscount } from '../rules/stoicism'
+import { AUTOMATIC_SURGE } from '../../character/rules/surge'
 import { endRoundOfMercy } from './providence'
 import { meetAttitudes } from '../../character/commands/attitudes'
 
@@ -45,7 +46,7 @@ import { meetAttitudes } from '../../character/commands/attitudes'
 // out of both rounds. combat.tex "Action surge": the recovery surge "plays
 // automatically if no surge was picked that round".
 function receiveAP(c: CampaignCharacter): CampaignCharacter {
-  const { resources } = endSurge(c.usedSurge === null ? actionSurge('recovery')(c) : c)
+  const { resources } = endSurge(c.usedSurge === null && AUTOMATIC_SURGE ? actionSurge(AUTOMATIC_SURGE)(c) : c)
   return { ...c, usedSurge: null, resources: { ...resources, AP: resources.AP + ROUND_AP } }
 }
 

@@ -20,7 +20,7 @@ function struck(): Harness {
   const id = h.idOf('Bob')
   h.press((s) => ({ ...s, characters: { ...s.characters, [id]: { ...s.characters[id], resources: { ...s.characters[id].resources, AP: 0 } } } }))
   h.startTurn()
-  h.pressMenu(h.menu({ on: 'token', id })!.entries.find((e) => e.category === 'attack')!)
+  h.pressMenu(h.menu({ on: 'token', id })!.entries.find((e) => e.category === 'attack' && e.bar === null)!)
   h.commit()
   return h
 }

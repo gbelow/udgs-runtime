@@ -19,6 +19,7 @@ import { addLevelBoardMap, newBoardMap, paintBoardMap, placePieceBoardMap, renam
 import { newStructureMap, structureOfMap } from '../domain/scene/factories'
 import type { BoardMap, Coord } from '../domain/scene/types'
 import { declareAction, declareReaction, payAnswered, rollAnswered } from '../domain/scene/commands/action'
+import { getRoundChange } from '../domain/scene/projections/roundChange'
 import { isAimed, type MenuAim } from '../domain/scene/commands/clickMenu'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, type RoundPhase } from '../domain/scene/rules/roundChange'
 import { DIE_SOURCES } from '../domain/play/dice'
@@ -249,10 +250,24 @@ function plays(): Play[] {
         if (!aims.length) return
         const aim = pick(aims)
         const menu = h.menu(aim)
-        if (!menu || menu.entries.length === 0) return
-        const entry = pick(menu.entries)
+        const open = menu?.entries.filter((e) => e.bar === null) ?? []
+        if (open.length === 0) return
+        const entry = pick(open)
+        const before = h.state()
         h.pressMenu(entry)
-        if (entry.press.kind === 'declare') expect(isAimed(h.state(), aim), 'an entry the menu offers declares an action aimed at what was clicked').toBe(true)
+        if (entry.press.kind === 'declare') expect(h.state(), 'an entry the menu shows open does something').not.toBe(before)
+        if (entry.press.kind === 'declare' && entry.press.aim) expect(isAimed(h.state(), aim), 'an entry the menu offers declares an action aimed at what was clicked').toBe(true)
+      },
+    },
+    {
+      name: 'press a rest or a social action on a card of the round change',
+      run: (h, pick) => {
+        const rows = (getRoundChange(h.state())?.parties ?? []).flatMap((p) => p.cards).flatMap((c) => c.resting.filter((r) => r.bar === null).map((r) => ({ id: c.id, r })))
+        if (!rows.length) return
+        const { id, r } = pick(rows)
+        const before = h.state()
+        h.send({ kind: 'menu', args: [{ kind: 'declare', actorId: id, draft: r.draft, fields: {}, aim: null, commit: r.commit }] })
+        expect(h.state(), 'a button of the rest step does something').not.toBe(before)
       },
     },
     { name: 'paint a cell', run: (h, pick) => { const cells = h.view().cells; if (!cells.length) return; h.holdBrush(pick(TERRAIN_BRUSHES)); h.click({ on: 'cell', cell: pick(cells).cell }); h.holdBrush(null) } },

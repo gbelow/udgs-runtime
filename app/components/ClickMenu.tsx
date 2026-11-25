@@ -1,9 +1,12 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Play } from 'lucide-react'
 import { useClickMenu } from '../hooks/useClickMenu'
-import { ActionKey, Button, Floating, SectionLabel } from './ui'
+import { ActionKey, Button, Closed, Floating, SectionLabel } from './ui'
+import { Locked } from './Locks'
+import { useControlBar } from '../hooks/useControl'
+import { ACTION_CATEGORIES } from '../domain/lists'
 import { ACTION_ICONS } from './actionIcons'
-import type { MenuEntry } from '../domain/scene/commands/clickMenu'
 
 // Where the last press landed, which is where a click on the board opens its menu.
 const pointer = { x: 0, y: 0 }
@@ -11,9 +14,11 @@ const SIDE_GAP = 16
 const MENU_ROOM = 260
 
 // The menu a click on the board opens beside the click: pick the clicked
-// character, or any action against what was clicked, grouped by its category.
+// character, or any action the selected one could declare, under the heading
+// of its category, all of them always shown.
 export function ClickMenuHost(){
-  const { menu, press, close, escape } = useClickMenu()
+  const { menu, press, start, close, escape } = useClickMenu()
+  const bar = useControlBar(menu?.actor ?? null)
   const [shown, setShown] = useState<string | null>(null)
   const anchor = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -57,30 +62,40 @@ export function ClickMenuHost(){
   if (!menu) return null
   // beside the click, not under it, so that a second click on the same spot still reaches the board
   const toRight = at.x + SIDE_GAP + MENU_ROOM <= window.innerWidth
-  const groups = menu.entries.reduce<Map<string, MenuEntry[]>>((by, e) => by.set(e.category, [...(by.get(e.category) ?? []), e]), new Map())
+  const answering = menu.entries.some((e) => e.category === 'answer')
+  const groups = (answering ? ['answer' as const] : ACTION_CATEGORIES).map((category) => ({ category, entries: menu.entries.filter((e) => e.category === category) }))
 
   return (
     <>
       <div ref={anchor} aria-hidden style={{ position: 'fixed', left: toRight ? at.x + SIDE_GAP : at.x - SIDE_GAP, top: at.y, width: 1, height: 1 }} />
       <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role='menu' aria-label={`actions on ${menu.title}`} className='min-w-60 flex flex-col gap-1.5 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
         <SectionLabel>{menu.title}</SectionLabel>
-        {menu.entries.length === 0 ? <span className='text-muted'>nothing to do against them now</span> : null}
-        {[...groups].map(([category, entries]) => {
-          const expanded = groups.size === 1 || shown === category
-          return (
-            <div key={category} className='flex flex-col items-stretch gap-1'>
-              <Button size='xs' selected={expanded} aria-expanded={expanded} aria-label={`${category} actions`} onClick={() => setShown(expanded && groups.size > 1 ? null : category)}>
-                {category} <span className='font-mono text-muted'>{entries.length}</span>
-              </Button>
-              {expanded ? entries.map((e) => (
-                <ActionKey key={`${e.category}:${e.label}`} icon={e.press.kind === 'declare' ? ACTION_ICONS[e.press.draft.kind] : undefined}
-                  cost={e.cost ? `${e.cost.AP} AP${e.cost.STA ? ` · ${e.cost.STA} STA` : ''}` : null} onClick={() => press(e)}>
-                  {e.label}
-                </ActionKey>
-              )) : null}
+        <Locked bar={bar} className='flex flex-col gap-1.5'>
+          {menu.turn ? (
+            <div className='flex flex-col gap-1 rounded border border-accent/60 bg-accent/10 p-1.5'>
+              <span>{menu.turn.note}</span>
+              <ActionKey look='go' icon={Play} aria-label='start turn here' disabled={menu.turn.bar !== null} onClick={start}>start turn</ActionKey>
             </div>
-          )
-        })}
+          ) : null}
+          {groups.map(({ category, entries }) => {
+            const expanded = groups.length === 1 || shown === category
+            return (
+              <div key={category} className='flex flex-col items-stretch gap-1'>
+                <Button size='xs' selected={expanded} aria-expanded={expanded} aria-label={`${category} actions`} disabled={entries.length === 0} onClick={() => setShown(expanded && groups.length > 1 ? null : category)}>
+                  {category} <span className='font-mono text-muted'>{entries.filter((e) => e.bar === null).length}/{entries.length}</span>
+                </Button>
+                {expanded ? entries.map((e, i) => (
+                  <Closed key={`${e.label}:${i}`} reason={e.bar}>
+                    <ActionKey icon={e.press.kind === 'declare' ? ACTION_ICONS[e.press.draft.kind] : undefined} disabled={e.bar !== null}
+                      cost={e.cost ? `${e.cost.AP} AP${e.cost.STA ? ` · ${e.cost.STA} STA` : ''}` : null} onClick={() => press(e)}>
+                      {e.label}{e.surge ? <span className='text-accent'> {e.surge} surge</span> : null}
+                    </ActionKey>
+                  </Closed>
+                )) : null}
+              </div>
+            )
+          })}
+        </Locked>
       </Floating>
     </>
   )

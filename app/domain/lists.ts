@@ -43,6 +43,7 @@ export const WORLDVIEW_CONVICTIONS = {
   providentialism: { id: 'providentialism', name: 'Providentialism' },
 }
 
+export const ACTION_CATEGORIES = ['attack', 'move', 'spell', 'grapple', 'gear', 'care', 'social', 'tactical'] as const
 export const surgeKinds = ['movement', 'combat', 'reaction', 'protection', 'focus', 'recovery'] as const
 
 // gear.tex "Containers and Burden" — the named bulks, indexed by the stored

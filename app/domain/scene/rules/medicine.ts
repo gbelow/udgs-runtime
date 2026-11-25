@@ -1,4 +1,5 @@
 import { NEEDS_FOCUS } from '../../character/rules/surge'
+import { isReadied } from '../../character/rules/readied'
 import { isCombatStarted } from './started'
 import { DamageSchema, type CampaignCharacter, type Degree } from '../../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -51,7 +52,7 @@ export function getMedicineCost(kind: MedicineKind): ActionCost {
 // focus surge, and held over for want of the AP.
 export function getMedicineBar(state: SceneState, c: CampaignCharacter, kind: MedicineKind): string | null {
   if (kind !== 'tendWounds' && !hasAbility(c, ABILITY[kind])) return `${ABILITIES[ABILITY[kind]].name} not learned`
-  if (isCombatStarted(state) && c.usedSurge !== 'focus') return NEEDS_FOCUS
+  if (isCombatStarted(state) && !isReadied(c, 'medicine')) return NEEDS_FOCUS
   if (kind === 'tendWounds' && c.injuries.bleed === 0) return 'not bleeding'
   if (kind !== 'tendWounds' && getMedicineTargets(state, c.id).length === 0) return 'nobody bleeding within reach'
   const cost = getMedicineCost(kind)

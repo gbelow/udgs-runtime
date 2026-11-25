@@ -5,6 +5,7 @@ import { FollowOption, FollowPicking } from './FollowButton'
 import { useGmBar, useIsToken } from '../hooks/useControl'
 import { usePartyCommands, useSaveLogBar } from '../hooks/useParty'
 import { useBotLog } from '../hooks/useBots'
+import { useTurnControls } from '../hooks/useCombatState'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
 import type { MovementOption } from '../domain/scene/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/scene/projections/actionPanel'
@@ -38,6 +39,7 @@ const STEP_LABEL = {
 // is resolved.
 export function ActionPanel(){
   const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { mustStart } = useTurnControls()
   const { step, open } = view
 
   if (!open) {
@@ -45,6 +47,7 @@ export function ActionPanel(){
       <Panel title='Actions'>
         <ControlLocked>
           {view.categories.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
+          {mustStart ? <span role='note' className='text-xs text-accent'>{mustStart}</span> : null}
           <FollowPicking />
           <div className='flex flex-row flex-wrap gap-1 items-center'>
             {view.categories.map((c) => c.options.length === 1 && c.extras.length === 0
@@ -654,9 +657,12 @@ function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (opti
   return (
     <>
       {shown ? (
-        <Segmented label={`surge ${reactor.name} answers with`}>
-          {surges.map((s) => <Segment key={s.surge} selected={s === shown} title={s.note} onClick={() => setSurge(s.surge)}>{s.surge} surge</Segment>)}
-        </Segmented>
+        <span className='basis-full flex flex-row flex-wrap gap-x-2 gap-y-0.5 items-center'>
+          <Segmented label={`surge ${reactor.name} answers with`}>
+            {surges.map((s) => <Segment key={s.surge} selected={s === shown} title={s.rules} onClick={() => setSurge(s.surge)}>{s.surge} surge <span className='font-mono text-muted'>{s.gives}</span></Segment>)}
+          </Segmented>
+          <span className='text-[10px] text-muted'>{shown.rules}</span>
+        </span>
       ) : null}
       {(shown ? shown.options : reactor.options).map((o) =>
         <OptionButton key={`${o.label}:${o.surge ?? ''}`} option={o} active={o.chosen} onClick={() => onReact(o)} />)}

@@ -7,6 +7,7 @@ import { getAttackKind, getAttackType, getRangeMetres, hasProperty, canSharpen, 
 import { getBuffBonus } from "./effects";
 import { hasGrant } from "./effects"
 import { isCampaignCharacter } from "../../utils";
+import { isReadied } from "./readied";
 
 // gear.tex "Size Scaling": "Wielding a weapon that is larger than appropriate
 // increases the cost of AP for all attacks by +1, and uses STR-5 in the
@@ -138,7 +139,7 @@ export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character,
 // a shot or a throw. Only in a combat that has started (`charged`) is there a
 // surge to have made; anywhere else nothing is withheld.
 export function needsFocus(atk: WeaponAttack, c: Character, charged: boolean): boolean {
-  return charged && getAttackKind(atk.range) !== 'melee' && isCampaignCharacter(c) && c.usedSurge !== 'focus'
+  return charged && getAttackKind(atk.range) !== 'melee' && isCampaignCharacter(c) && !isReadied(c, 'ranged')
 }
 
 // gear.tex "Reload": "The weapon requires reloading to attack again" — a

@@ -1,3 +1,4 @@
+import { isReadied } from '../../character/rules/readied'
 import { isCombatStarted } from './started'
 import { notices } from './stealth'
 import { getMedicineAbility, getMedicineCost, getMedicineTargets } from './medicine'
@@ -515,7 +516,7 @@ export function getFinishBar(state: SceneState, held: RootAction): string | null
 // actor holds nothing else. Null where it is simply paid for or cannot be held.
 export function getHoldCost(state: SceneState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
-  if (!c || !requiresConcentration(action) || c.usedSurge !== 'focus') return null
+  if (!c || !requiresConcentration(action) || !isReadied(c, 'holding')) return null
   const cost = getOwnCost(state, action)
   if (!cost || canAfford(c, cost, isCombatStarted(state)) || !canHold(c, cost) || getHeldOf(state, c.id)) return null
   return { AP: Math.max(0, c.resources.AP), STA: cost.STA }

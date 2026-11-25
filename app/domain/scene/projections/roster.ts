@@ -26,6 +26,7 @@ export type CombatRosterEntry = {
   id: string
   name: string
   isActive: boolean
+  isInTurn: boolean
   hasSurged: boolean
   usedSurge: SurgeKind | null
   surrendered: boolean
@@ -53,6 +54,7 @@ function buildCombatRoster(state: SeenScene): CombatRosterEntry[] {
     id,
     name: getFightName(state, id),
     isActive: id === state.activeCharacterId,
+    isInTurn: id === state.inTurnCharacter,
     hasSurged: c.usedSurge !== null,
     usedSurge: c.usedSurge,
     surrendered: state.surrendered.includes(id),
