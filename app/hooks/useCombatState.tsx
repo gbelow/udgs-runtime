@@ -110,7 +110,7 @@ export function useBreakage(): boolean {
 }
 
 const NO_ONE = 'no active character'
-const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', contestMode: 'normal', roll: NO_ONE, end: NO_ONE, result: '', agreed: false, stealth: '', duty: '' }
+const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', contestMode: 'normal', roll: NO_ONE, end: NO_ONE, result: '', stealth: '', duty: '' }
 
 // play.tex "Combat" — the turn buttons for the active character, flat
 // primitives gated shallowly.

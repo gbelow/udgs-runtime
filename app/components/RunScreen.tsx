@@ -27,6 +27,7 @@ import { useGameTab } from '../hooks/useGameTab';
 import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
 import { BotsPause } from './BotsPause'
+import { EndRound } from './EndRound'
 import { useRole } from '../hooks/useRole';
 import { useActiveControlBar } from '../hooks/useControl';
 import { useTray } from '../hooks/useTray';
@@ -156,7 +157,7 @@ export function RunScreen(){
           {hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          <ActionColumn gmTools={gmTools} pause={tab === 'scene' ? <BotsPause /> : null}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
+          <ActionColumn gmTools={gmTools} scene={tab === 'scene' ? <><BotsPause /><EndRound /></> : null}>{hasActiveCharacter ? actions : PICK}</ActionColumn>
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
           {throwing ? <DiceTray /> : <>
@@ -270,7 +271,7 @@ export function Status({ resource, resourceEnd, needs, injuryAction }: { resourc
 // Who acts from the bar: the active character, or — for the GM and the
 // developer — the GM, who opens the catalogs and does to the mode what no
 // character does. Each mode locks what is not the screen's to press.
-function ActionColumn({ gmTools, pause, children }: { gmTools: ReactNode, pause: ReactNode, children: ReactNode }){
+function ActionColumn({ gmTools, scene, children }: { gmTools: ReactNode, scene: ReactNode, children: ReactNode }){
   const { gmTools: hasGmTools, gm, setGmMode } = useRole()
 
   return(
@@ -282,7 +283,7 @@ function ActionColumn({ gmTools, pause, children }: { gmTools: ReactNode, pause:
             <Segment aria-label='act as GM' selected={gm} onClick={() => setGmMode(true)}>GM</Segment>
           </Segmented>
         ) : null}
-        {pause}
+        {scene}
       </div>
       {gm ? (
         <div className='flex flex-col gap-1'>

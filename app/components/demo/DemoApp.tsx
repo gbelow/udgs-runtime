@@ -9,6 +9,7 @@ import { useBoardCamera, useCellAt } from '../../hooks/useBoardCanvas'
 import { useBoardLook } from '../../hooks/useBoardLook'
 import { useBots, useBotsPaused } from '../../hooks/useBots'
 import { BotsPause } from '../BotsPause'
+import { EndRound } from '../EndRound'
 import { useDemo, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
 import { useCombatState, useRoundChange } from '../../hooks/useCombatState'
@@ -121,7 +122,7 @@ function DemoTable() {
           {hasActive ? <Status resource={<SimpleResource rssName={'AP'} />} resourceEnd={<SurgeTile />} needs={false} /> : <span className='text-xs text-muted'>pick a character</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {started ? <div className='self-start'><BotsPause /></div> : null}
+          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><BotsPause /><EndRound /></div> : null}
           {started ? (hasActive ? <SceneActions /> : <span className='text-xs text-muted'>pick a character</span>) : <Placing />}
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>

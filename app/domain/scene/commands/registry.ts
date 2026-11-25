@@ -148,7 +148,7 @@ export const sceneCommands = {
   toggleContest: command((_, id: string) => toggleContest(id)).by(own),
   contestMode: command((_, id: string, mode: RollMode) => setContestMode(id, mode)).by(own),
   toggleAgreeToEnd: command((_, id: string) => toggleAgreeToEnd(id)).by(own),
-  agreeAllToEnd: command((_, ids: string[]) => agreeAllToEnd(ids)).by((_, ids) => ({ anyOf: ids })),
+  agreeAllToEnd: command((_, ids: string[], agree?: boolean) => agreeAllToEnd(ids, agree)).by((_, ids) => ({ anyOf: ids })),
   surge: command((_, id: string, kind: SurgeKind) => surge(id, kind)).by(own),
   follow: command((_, id: string, targetId: string | null) => follow(id, targetId)).by(own),
   endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),

@@ -48,9 +48,10 @@ export function toggleAgreeToEnd(id: string): Updater {
   }
 }
 
-// Each of the characters says they agree to end the round.
-export function agreeAllToEnd(ids: string[]): Updater {
+// Each of the characters says they agree to end the round, or takes it back.
+export function agreeAllToEnd(ids: string[], agree = true): Updater {
   return (state) => {
+    if (!agree) return state.agreedToEnd.some((id) => ids.includes(id)) ? { ...state, agreedToEnd: state.agreedToEnd.filter((id) => !ids.includes(id)) } : state
     const agreeing = ids.filter((id) => state.characters[id] && !state.agreedToEnd.includes(id))
     return agreeing.length === 0 ? state : { ...state, agreedToEnd: [...state.agreedToEnd, ...agreeing] }
   }

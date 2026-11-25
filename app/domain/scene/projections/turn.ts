@@ -12,7 +12,10 @@ import { getCompelledSurge, getStressDuty } from '../rules/stress'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 import { getFollowOptions } from '../rules/follow'
 import { getStealthScore, getStealthTurn } from '../rules/stealth'
-import { hasAPLeft } from '../../character/rules/surge'
+import { canSurge, getSurgeAP, hasAPLeft } from '../../character/rules/surge'
+import { isCombatStarted } from '../rules/started'
+import { getRoundChangeBar } from '../rules/roundChange'
+import { surgeKinds } from '../../lists'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getPreparedRows } from './prepare'
 
@@ -32,7 +35,6 @@ export type TurnControls = {
   roll: string | null
   end: string | null
   result: string
-  agreed: boolean
   // combat.tex "Actions in stealth": whom the holder began the turn hidden
   // from, and their stealth as the turn has left it; '' when hidden from nobody
   stealth: string
@@ -54,7 +56,6 @@ export function getTurnControls(state: SceneState, id: string): TurnControls {
     roll: getRollContestBar(state),
     end: getEndTurnBar(state),
     result: getContestResult(state),
-    agreed: hasAgreedToEnd(state, id),
     stealth: getStealthLine(state),
     duty: getStressDuty(state),
   }
@@ -118,6 +119,27 @@ export function getFollowOffer(state: SceneState, id: string): FollowOffer | nul
 // Why the round cannot pass, as the button says it: an action under way is
 // named with whoever it still waits on to react or pass.
 export const getNextRoundNote = perState((state: SceneState): string | null => getOpenNote(state) ?? getNextRoundBar(state))
+
+// combat.tex "End of the round": agreeing to end it for all of the characters
+// at once: whether all have agreed, whether that can be taken back, why
+// neither can be pressed now, and the AP each would leave unspent (what a
+// surge they have not made would give them with it, where one gives any).
+export type EndRoundView = { bar: string | null; agreed: boolean; canTakeBack: boolean; lost: { id: string; name: string; AP: number; surge: boolean }[] }
+
+export function getEndRoundView(state: SceneState, ids: readonly string[]): EndRoundView {
+  const own = ids.filter((id) => state.characters[id])
+  const waiting = own.filter((id) => !hasAgreedToEnd(state, id))
+  const agreed = waiting.length === 0
+  const canTakeBack = agreed && own.some((id) => state.agreedToEnd.includes(id))
+  const bar = !isCombatStarted(state) ? 'combat has not started' : own.length === 0 ? 'none of your characters is in the fight' : getRoundChangeBar(state) ?? (agreed && !canTakeBack ? 'none of your characters has anything left this round' : null)
+  return {
+    bar, agreed, canTakeBack,
+    lost: waiting.map((id) => {
+      const c = state.characters[id]
+      return { id, name: getFightName(state, id), AP: Math.max(0, c.resources.AP), surge: surgeKinds.some((kind) => canSurge(kind)(c) && getSurgeAP(kind)(c) > 0) }
+    }),
+  }
+}
 
 // What passing the round leaves nobody able to do, a line each, so that
 // nobody misses a chance by it: turns, for whoever agreed to end the round

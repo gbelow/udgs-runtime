@@ -35,11 +35,6 @@ export function useCombatCommands() {
   const startTurn = asPicked((id) => dispatch({ kind: "startTurn", args: [id] }))
   const toggleContest = asPicked((id) => dispatch({ kind: "toggleContest", args: [id] }))
   const contestMode = (mode: RollMode) => asPicked((id) => dispatch({ kind: "contestMode", args: [id, mode] }))()
-  const toggleAgreeToEnd = asPicked((id) => dispatch({ kind: "toggleAgreeToEnd", args: [id] }))
-  const agreeAllToEnd = () => {
-    const ids = getControlledIds(Object.keys(useCombatStore.getState().characters), viewer())
-    if (ids.length > 0) dispatch({ kind: "agreeAllToEnd", args: [ids] })
-  }
   const actionSurge = (kind: SurgeKind) => asPicked((id) => dispatch({ kind: "surge", args: [id, kind] }))()
   const follow = (targetId: string | null) => asPicked((id) => dispatch({ kind: "follow", args: [id, targetId] }))()
   const defaultToCoward =asPicked((id) => dispatch({ kind: "defaultToCoward", args: [id] }))
@@ -74,5 +69,5 @@ export function useCombatCommands() {
   const renameParty = (partyId: string, name: string) => dispatch({ kind: "renameParty", args: [partyId, name] })
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
 
-  return { killCharacter, startTurn, toggleContest, contestMode, toggleAgreeToEnd, agreeAllToEnd, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, doneResting, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, leadershipRally, breakFree, giveOrder, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, rollContest, endTurn, actionSurge, follow, nextRound, endCombat, continueRound, doneResting, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, leadershipRally, breakFree, giveOrder, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
 }

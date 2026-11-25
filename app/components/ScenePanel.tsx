@@ -43,7 +43,7 @@ export function SceneStrip(){
 }
 
 function FightControls(){
-  const { nextRound, agreeAllToEnd } = useCombatCommands()
+  const { nextRound } = useCombatCommands()
   const { round, nextRoundBar, nextRoundClosing } = useCombatState()
   const forfeits = nextRoundBar === null && nextRoundClosing.length > 0
 
@@ -53,11 +53,6 @@ function FightControls(){
       <Tooltip text={nextRoundBar ?? (round === 0 ? 'start the first round' : 'on to the next round')}>
         <Button aria-label='nextRound' tone={forfeits ? 'bad' : 'neutral'} disabled={nextRoundBar !== null} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
       </Tooltip>
-      {round > 0 ? (
-        <Tooltip text='agree to end the round for every character you play'>
-          <Button aria-label='agreeAllToEnd' onClick={agreeAllToEnd}>all ok</Button>
-        </Tooltip>
-      ) : null}
       {nextRoundBar ? <span className='text-xs text-muted'>{nextRoundBar}</span> : null}
       {forfeits ? <Forfeits lines={nextRoundClosing} inline /> : null}
     </div>
@@ -408,8 +403,8 @@ export function SustainedPanel(){
 // contested before its holder declares anything — by as many as ask, all
 // rolling cunning at once.
 function TurnControl(){
-  const { startTurn, toggleContest, contestMode, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, agreed, stealth, duty } = useTurnControls()
+  const { startTurn, toggleContest, contestMode, rollContest, endTurn } = useCombatCommands()
+  const { holder, inTurn, start, contesting, contest, contenders, contestMode: mode, roll, end, result, stealth, duty } = useTurnControls()
   const modes = useContestModes()
 
   return(
@@ -442,9 +437,6 @@ function TurnControl(){
             <ActionKey icon={Dices} aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</ActionKey>
           </Tooltip> : null
         }
-        <Tooltip text={agreed ? 'agreed to end the round' : 'agree to end the round'}>
-          <ActionKey look={agreed ? 'picked' : 'plain'} icon={agreed ? Check : undefined} aria-label='agreeToEnd' aria-pressed={agreed} onClick={toggleAgreeToEnd}>end round ok</ActionKey>
-        </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
       {duty ? <span className='text-sm text-bad font-medium'>{duty}</span> : null}
