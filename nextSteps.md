@@ -6,7 +6,6 @@ Complete combat features
 
 Map features
 Test stealth combat
-Implements abilities that are not pure text
 Improve Chase UI/ playability
 
 
@@ -133,14 +132,8 @@ allow dealing damage to own character. click deal 10 damage blunt.
 
 think about scene win conditions
 
-make the demo
-
 add a llm questions chat
 
 think about keeping docs and app in sync
 
 think about absorption rules for each kind of damage, especially piercing and cutting. 
-
-
-What the trace shows about the spec itself. Your threat formula is a step function of the AP the defender holds. For one Defender it reads 14 harm at 8 AP and still 14 at 4 AP, then 52 at 2 AP and 249 at 0 AP. So the Δ terms in both costs and the attack score are 0 for most spends, then jump once the last defence can no longer be paid for. That's the marginal pricing you chose to retry. Its effect: costs are mostly just the base AP cost and STA, and "threat on it" is almost always 0 in the attack scores. I haven't changed anything there; it's your call.
-

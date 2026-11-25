@@ -121,7 +121,7 @@ function DemoTable() {
         {started ? <Round /> : null}
         <CharacterList />
         <span className='grow' />
-        <Button size='xs' weight='ghost' onClick={back}>change party</Button>
+        <Button size='xs' weight='ghost' title='back to picking the party' onClick={back}>restart game</Button>
       </header>
       <div className='relative flex-1 min-h-0 flex flex-col p-2'>
         <DemoSpace />
@@ -154,7 +154,7 @@ function Round() {
 // Before the fight: where the party goes, each member to pick and place, and
 // the start, closed until everyone stands.
 function Placing() {
-  const { view, start, pick } = useDemo()
+  const { view, activeId, start, pick } = useDemo()
   const swatch = view.area === null ? null : SPAWN_SWATCH[view.area] ?? SPAWN_SWATCH[1]
   return (
     <div className='flex flex-col gap-3'>
@@ -168,7 +168,7 @@ function Placing() {
       <span className='text-xs text-muted'>Pick a character, then click a cell. Until the fight starts you may place them again.</span>
       <div className='flex flex-row flex-wrap gap-2'>
         {view.members.map((m) => (
-          <Button key={m.id} icon={m.placed ? Check : undefined} tone={m.placed ? 'good' : 'neutral'} onClick={() => pick(m.id)}>{m.name}</Button>
+          <Button key={m.id} selected={m.id === activeId} aria-pressed={m.id === activeId} icon={m.placed ? Check : undefined} tone={m.placed ? 'good' : 'neutral'} onClick={() => pick(m.id)}>{m.name}</Button>
         ))}
       </div>
       <Tooltip text={view.startBar ?? 'the first round begins'} className='self-start'>
@@ -266,7 +266,7 @@ function Result() {
         </div>
         <div className='flex flex-row flex-wrap gap-2 justify-center'>
           <Button weight='solid' tone='accent' onClick={() => { setHidden(false); again() }}>play again</Button>
-          <Button onClick={back}>change party</Button>
+          <Button title='back to picking the party' onClick={back}>restart game</Button>
           <Button weight='ghost' onClick={() => setHidden(true)}>look at the board</Button>
         </div>
       </div>

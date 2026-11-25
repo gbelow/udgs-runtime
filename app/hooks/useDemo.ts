@@ -73,10 +73,12 @@ export function useDemo() {
   const fight = useFight((s) => s);
   const characters = useAppStore((s) => s.baseCharacterList);
   const boardMaps = useAppStore((s) => s.boardMaps);
+  const activeId = useCombatStore((s) => s.activeCharacterId);
   const view = useMemo(() => getDemoView(fight, party, started), [fight, party, started]);
   const join = useJoin();
   return {
     view,
+    activeId,
     pick: (id: string) => useCombatStore.getState().setActiveCharacter(id),
     start: () => { if (view.startBar === null) useDemoStore.getState().start(); },
     again: () => join(picks, characters, boardMaps),
