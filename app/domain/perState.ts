@@ -32,16 +32,17 @@ export function perPair<T, A extends object, B extends object>(project: (pair: {
 // every write replaces rather than changes (a board's terrain, its storeys), so
 // the same parts and key give the same result however much of the state around
 // them was written since. With a `limit`, each set of parts keeps only that
-// many keys, those least lately asked for dropped first.
-export function perParts<T>(limit = Infinity): (parts: readonly object[], key: string, project: () => T) => T {
+// many keys, those least lately asked for dropped first. `clear` forgets them all.
+export function perParts<T>(limit = Infinity): ((parts: readonly object[], key: string, project: () => T) => T) & { clear: () => void } {
   type Node = { next: WeakMap<object, Node>; done: Map<string, T> }
-  const root: Node = { next: new WeakMap(), done: new Map() }
-  return (parts, key, project) => {
+  const made = (): Node => ({ next: new WeakMap(), done: new Map() })
+  let root = made()
+  const read = (parts: readonly object[], key: string, project: () => T): T => {
     let node = root
     for (const part of parts) {
       let next = node.next.get(part)
       if (!next) {
-        next = { next: new WeakMap(), done: new Map() }
+        next = made()
         node.next.set(part, next)
       }
       node = next
@@ -59,4 +60,5 @@ export function perParts<T>(limit = Infinity): (parts: readonly object[], key: s
     node.done.set(key, result)
     return result
   }
+  return Object.assign(read, { clear: () => { root = made() } })
 }

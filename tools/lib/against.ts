@@ -29,6 +29,15 @@ export function getVersion(of: string): Version {
   return { name, root }
 }
 
+// What that version keeps of the fights it has read, forgotten (bot/forget.ts),
+// where it has that.
+export async function loadForget({ root }: Version): Promise<() => void> {
+  const file = path.join(root, 'app', 'domain', 'bot', 'forget.ts')
+  if (!existsSync(file)) return () => {}
+  const loaded = await import(pathToFileURL(file).href)
+  return (loaded.forgetFight ? loaded : loaded.default).forgetFight
+}
+
 // `boxes/<name>.ts` of that version, on its own weights with `set` over them.
 export async function loadBox({ root }: Version, name: string, set: Partial<Record<string, number>>): Promise<() => Box> {
   const loaded = await import(pathToFileURL(path.join(root, 'app', 'domain', 'bot', 'boxes', `${name}.ts`)).href)

@@ -24,7 +24,7 @@ const BOARD_PARTS: ReadonlySet<string> = new Set(['terrain', 'levels', 'pieces']
 
 // How many walks are kept on one board, and how many contents are told apart
 // before they are numbered anew (a content numbered anew is only walked again).
-const WALKS = 3000
+const WALKS = 300
 const CONTENTS = 50000
 
 const numbered = new WeakMap<object, number>()
@@ -130,4 +130,10 @@ export function getKeptBodyWalk(state: SceneState, action: MoveAction, walking: 
   ].join('|')
   const walkedOn = alone ? withoutPlacements(state, Object.keys(board.placements).filter((other) => other !== id)) : state
   return bodyWalked([board.terrain, board.levels, board.pieces], key, () => getWalkableCells(walkedOn, action))
+}
+
+export function forgetWalks(): void {
+  walked.clear()
+  bodyWalked.clear()
+  contents.clear()
 }

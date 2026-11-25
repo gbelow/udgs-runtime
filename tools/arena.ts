@@ -5,11 +5,12 @@ import { performance } from 'node:perf_hooks'
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads'
 import { playFight, tally, type Fight } from '../app/domain/bot/arena'
 import type { Box } from '../app/domain/bot/decision'
+import { forgetFight } from '../app/domain/bot/forget'
 import type { SceneState } from '../app/domain/scene/types'
 import { nearestBox } from '../app/domain/bot/boxes/nearest'
 import { specBox, SPEC_WEIGHTS } from '../app/domain/bot/boxes/spec'
 import { threatBox, THREAT_WEIGHTS } from '../app/domain/bot/boxes/threat'
-import { getVersion, loadBox, type Version } from './lib/against'
+import { getVersion, loadBox, loadForget, type Version } from './lib/against'
 import { CLOSE as SCENARIOS, setUp, ARENA } from './lib/scenarios'
 import { run } from '../app/domain/bot/seat'
 import { writeTrace } from './lib/trace'
@@ -97,6 +98,7 @@ function timed(box: Box, into: { n: number; ms: number }): Box {
 
 async function play(jobs: Job[], setup: Setup, done: (p: Played) => void): Promise<void> {
   const make = await makeBoxes(setup)
+  const forgetOther = setup.against ? await loadForget(setup.against) : null
   const set = new Map<string, { state: SceneState; red: string[]; blue: string[] }>()
   for (const job of jobs) {
     const scenario = SCENARIOS.find((s) => s.name === job.scenario)!
@@ -106,6 +108,8 @@ async function play(jobs: Job[], setup: Setup, done: (p: Played) => void): Promi
     const t0 = performance.now()
     const played = playFight({ start: fight.state, sides: [fight.red, fight.blue], boxes: [timed(make[0](), clocks[0]), timed(make[1](), clocks[1])] }, job.seed, job.swapped, setup.rounds)
     done({ ...job, fight: played, decisions: [clocks[0].n, clocks[1].n], ms: [clocks[0].ms, clocks[1].ms], took: performance.now() - t0 })
+    forgetFight()
+    forgetOther?.()
   }
 }
 

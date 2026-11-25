@@ -5,9 +5,11 @@ import { barOf, playOf } from "../net/parts";
 import { sendToHost } from "../net/session";
 import { BOTS, getOwner } from "../domain/profiles";
 import { getBotSeats } from "../domain/bot/bots";
+import { forgetFight } from "../domain/bot/forget";
 import { getLiveStep, NEW_LIVE, type Live } from "../domain/bot/live";
 import { noteSeats, withNoted, type MoveOptions } from "../domain/bot/seat";
 import type { SeatMemories } from "../domain/bot/memory";
+import { isCombatStarted } from "../domain/scene/rules/started";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { readFight, subscribeFight, useFight } from "../stores/useKeptFight";
@@ -86,8 +88,11 @@ export function useBots(table: BotTable = WITH_GM) {
     let kept: Live = NEW_LIVE;
     // what each bot seat remembers of the foes it noticed, noted at every change to the fight
     let memories: SeatMemories = {};
+    let started = isCombatStarted(readFight());
     const note = () => {
       const state = readFight();
+      if (started && !isCombatStarted(state)) forgetFight();
+      started = isCombatStarted(state);
       memories = noteSeats(memories, state, getBotSeats(state, live.current.viewerOf(BOTS[0].id, false).ownerOf));
     };
 

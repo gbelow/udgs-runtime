@@ -840,6 +840,7 @@ function enterOf({ board, footprint: cells, from, kind, ceiling, startFeet, bodi
 // suffers, and only its price and where it may end are read anew.
 const OPEN_WALKS = 100
 const openWalks = perParts<ReturnType<typeof openWalk>>(OPEN_WALKS)
+export const forgetOpenWalks = (): void => openWalks.clear()
 
 function getOpenWalk(walker: Walker): ReturnType<typeof openWalk> {
   const { board, footprint, from, kind, bodies } = walker

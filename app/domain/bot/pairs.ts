@@ -405,9 +405,10 @@ function getHarms(attacker: CampaignCharacter, defender: CampaignCharacter): Har
   const key = `${harmSignature(attacker)}\n${harmSignature(defender)}`
   let table = harmTables.get(key)
   if (!table) {
-    if (harmTables.size >= MOST_KEPT) harmTables.clear()
-    harmTables.set(key, (table = new Map()))
-  }
+    if (harmTables.size >= MOST_KEPT) harmTables.delete(harmTables.keys().next().value as string)
+    table = new Map()
+  } else harmTables.delete(key)
+  harmTables.set(key, table)
   const known = table
   return {
     read: (at, harm) => {
@@ -424,33 +425,51 @@ function getHarms(attacker: CampaignCharacter, defender: CampaignCharacter): Har
 // other ids, it is given again with theirs (`renamed`). `surge` is the surge
 // the defender is read as having made this round, its own by default (none
 // for a fresh round): each defence's DL is then the one with it made
-// (`PairDefence.surged`), each such pair kept beside the plain one.
-type Kept = { pair: PairAttack[]; from: [Map<string, string>, Map<string, string>]; as: Map<string, PairAttack[]> }
+// (`PairDefence.surged`), each such pair kept beside the plain one. Past
+// `MOST_KEPT` pairs, those least lately asked for (`at`) are dropped down to
+// `LEFT_KEPT`, so that those in use are never read again all at once.
+type Kept = { at: number; pair: PairAttack[]; from: [Map<string, string>, Map<string, string>]; as: Map<string, PairAttack[]> }
 
 const pairs = new Map<string, Map<string, Kept>>()
 let kept = 0
-const MOST_KEPT = 4000
+let asked = 0
+const MOST_KEPT = 500
+const LEFT_KEPT = 300
+
+function dropOldest(): void {
+  const oldest = [...pairs].flatMap(([by, against]) => [...against].map(([on, known]) => ({ by, on, at: known.at })))
+    .sort((a, b) => a.at - b.at).slice(0, kept - LEFT_KEPT)
+  for (const { by, on } of oldest) {
+    const against = pairs.get(by)
+    against?.delete(on)
+    if (against?.size === 0) pairs.delete(by)
+  }
+  kept = LEFT_KEPT
+}
+
+export function forgetPairs(): void {
+  pairs.clear()
+  harmTables.clear()
+  kept = 0
+}
 
 export function getPair(attacker: CampaignCharacter, defender: CampaignCharacter, surge: SurgeKind | null = defender.usedSurge): PairAttack[] {
   const by = signature(attacker, 'attacker')
   const on = signature(defender, 'defender')
   const ids = `${getItemIds(attacker)}|${getItemIds(defender)}`
   const buffed = surge !== null && BUFFING_SURGES.includes(surge) ? surge : null
-  let against = pairs.get(by)
-  const known = against?.get(on)
+  const known = pairs.get(by)?.get(on)
   if (known) {
+    known.at = ++asked
     let given = known.as.get(ids)
     if (!given) known.as.set(ids, (given = renamed(known.pair, known.from, [getItemTokens(attacker), getItemTokens(defender)]) ?? readPair(attacker, defender)))
     return buffed ? surgedPair(known, ids, given, buffed) : given
   }
-  if (kept >= MOST_KEPT) {
-    pairs.clear()
-    kept = 0
-    against = undefined
-  }
+  if (kept >= MOST_KEPT) dropOldest()
+  let against = pairs.get(by)
   if (!against) pairs.set(by, (against = new Map()))
   const pair = readPair(attacker, defender)
-  const made: Kept = { pair, from: [getItemTokens(attacker), getItemTokens(defender)], as: new Map([[ids, pair]]) }
+  const made: Kept = { at: ++asked, pair, from: [getItemTokens(attacker), getItemTokens(defender)], as: new Map([[ids, pair]]) }
   against.set(on, made)
   kept++
   return buffed ? surgedPair(made, ids, pair, buffed) : pair
