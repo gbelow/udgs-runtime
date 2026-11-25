@@ -10,7 +10,7 @@ import { getAwaited } from '../rules/options'
 import { getActionNoun } from './labels'
 import { getFightName } from '../rules/fighters'
 import { getCompelledSurge, getStressDuty } from '../rules/stress'
-import { getGivesLine, getRulesLine, getSurgeFacts, getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
+import { getGivesLine, getRuleLines, getSurgeFacts, getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 import { getFollowOptions } from '../rules/follow'
 import { getStealthScore, getStealthTurn } from '../rules/stealth'
 import { canSurge, getSurgeAP, hasAPLeft } from '../../character/rules/surge'
@@ -157,14 +157,14 @@ export function getCombatSurgeOptions(state: SceneState, id: string): SurgeOptio
 
 // The surge buttons with what each gives the character and what it bars
 // (`getSurgeFacts`), and why one is closed by when it may be made.
-export type SurgeView = SurgeOption & { gives: string; rules: string; bar: string | null }
+export type SurgeView = SurgeOption & { gives: string; rules: string[]; bar: string | null }
 
 export function getSurgeViews(state: SceneState, id: string): SurgeView[] {
   const c = state.characters[id]
   if (!c) return []
   return getCombatSurgeOptions(state, id).map((o) => {
     const read = getSurgeFacts(c, o.kind)
-    return { ...o, gives: getGivesLine(read), rules: getRulesLine(read), bar: getSurgeTurnBar(state, id, o.kind) }
+    return { ...o, gives: getGivesLine(read), rules: getRuleLines(read), bar: getSurgeTurnBar(state, id, o.kind) }
   })
 }
 

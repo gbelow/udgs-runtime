@@ -22,6 +22,7 @@ import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useSustainedPanel } from '../hooks/useSustainedPanel';
+import type { SurgeView } from '../domain/scene/projections/turn';
 import { useBindingSurge } from '../hooks/useCharacterData';
 import { useSceneAnswer, useSceneCalls, useSceneDiceBar } from '../hooks/useSceneDice';
 import { DieCalls, RollButtons } from './DieCalls';
@@ -482,31 +483,39 @@ function HeldTestsPanel(){
   )
 }
 
-// The action surge, one a round: the button says which was used, or that none
-// has, and opens the four.
+// The action surge, one a round: a button for each, which opens what it does
+// for the character before it is made; the one made stays lit until the round
+// changes (combat.tex "Action surge": one per round).
 export function SurgeTile(){
   const { endSurge } = useCharacterCommands()
-  const { actionSurge } = useCombatCommands()
   const options = useSurgeViews()
   const binding = useBindingSurge()
 
   return(
-    <div role='group' aria-label='action surges' className='flex flex-col items-stretch rounded border border-line bg-surface px-1.5 py-1 min-w-64 flex-1'>
+    <div role='group' aria-label='action surges' className='flex flex-col items-start rounded border border-line bg-surface px-1.5 py-1 max-w-80'>
       <span className='text-[10px] text-muted'>surge</span>
-      <div className='flex flex-col gap-0.5'>
-        {options.map((option) =>
-          // The surge spent this round stays lit until nextRound clears it; the
-          // others close (combat.tex "Action surge": one per round).
-          <div key={option.kind} className='flex flex-row gap-1.5 items-center min-w-0'>
-            {option.used
-              ? <Button size='xs' selected icon={Check} aria-label={option.kind + ' surge'} aria-pressed title={`${option.kind} surge used this round`} className='pointer-events-none shrink-0'>{option.kind}</Button>
-              : <Button size='xs' aria-label={option.kind + ' surge'} disabled={!option.available} title={option.bar ?? option.rules} className='shrink-0' onClick={() => actionSurge(option.kind)}>{option.kind}</Button>}
-            {option.gives ? <span className='text-[11px] font-mono whitespace-nowrap'>{option.gives}</span> : null}
-            <span className='text-[10px] text-muted truncate' title={option.rules}>{option.rules}</span>
-          </div>
-        )}
+      <div className='flex flex-row flex-wrap gap-1'>
+        {options.map((option) => option.used
+          ? <Button key={option.kind} size='xs' selected icon={Check} aria-label={option.kind + ' surge'} aria-pressed title={`${option.kind} surge used this round`} className='pointer-events-none'>{option.kind}</Button>
+          : <Dropdown key={option.kind} label={option.kind + ' surge'} text={<span className={option.available ? '' : 'text-muted'}>{option.kind}</span>}>
+              {(close) => <SurgeCard option={option} close={close} />}
+            </Dropdown>)}
         {binding ? <Button size='xs' weight='subtle' aria-label='endSurge' title={`give up the ${binding} surge AP left, to do something it does not allow`} onClick={endSurge}>end surge</Button> : null}
       </div>
+    </div>
+  )
+}
+
+// What a surge does for the character, and the press that makes it.
+function SurgeCard({ option, close }: { option: SurgeView, close: () => void }){
+  const { actionSurge } = useCombatCommands()
+  return (
+    <div className='flex flex-col gap-1 max-w-72'>
+      <span className='font-semibold'>{option.kind} surge{option.gives ? <span className='ml-2 font-mono font-normal'>{option.gives}</span> : null}</span>
+      {option.rules.map((line) => <span key={line} className='text-muted'>{line}</span>)}
+      <Tooltip text={option.bar}>
+        <ActionKey look='go' aria-label={`make the ${option.kind} surge`} disabled={!option.available} onClick={() => { actionSurge(option.kind); close() }}>make the surge</ActionKey>
+      </Tooltip>
     </div>
   )
 }

@@ -135,11 +135,11 @@ function getOtherLines(before: CampaignCharacter, after: CampaignCharacter): str
   return (Object.keys(after) as (keyof CampaignCharacter)[]).filter((key) => !SAID.has(key) && before[key] !== after[key]).map((key) => `changes ${key}`)
 }
 
-// The facts in one line each, as a screen prints them.
+// The facts as a screen prints them: the numbers in a line, the rest a line each.
 export function getGivesLine({ gives }: SurgeFacts): string {
   return gives.map(({ label, value }) => `${value < 0 ? '−' : '+'}${Math.abs(value)} ${label}`).join(' ')
 }
 
-export function getRulesLine({ rules, abilities }: SurgeFacts): string {
-  return [...rules, ...(abilities.length > 0 ? [`see ${abilities.join(', ')}`] : [])].join(' · ')
+export function getRuleLines({ rules, abilities }: SurgeFacts): string[] {
+  return [...rules, ...(abilities.length > 0 ? [`see ${abilities.join(', ')}`] : [])]
 }

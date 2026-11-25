@@ -662,9 +662,9 @@ function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (opti
       {shown ? (
         <span className='basis-full flex flex-row flex-wrap gap-x-2 gap-y-0.5 items-center'>
           <Segmented label={`surge ${reactor.name} answers with`}>
-            {surges.map((s) => <Segment key={s.surge ?? 'none'} selected={s === shown} title={s.rules} onClick={() => setSurge(s.surge)}>{s.surge ? `${s.surge} surge` : 'no surge'} <span className='font-mono text-muted'>{s.gives}</span></Segment>)}
+            {surges.map((s) => <Segment key={s.surge ?? 'none'} selected={s === shown} title={[s.gives, ...s.rules].filter(Boolean).join(' · ')} onClick={() => setSurge(s.surge)}>{s.surge ? `${s.surge} surge` : 'no surge'}</Segment>)}
           </Segmented>
-          <span className='text-[10px] text-muted'>{shown.rules}</span>
+          {shown.gives ? <span className='text-[11px] font-mono text-muted'>{shown.gives}</span> : null}
         </span>
       ) : null}
       {(shown ? shown.options : reactor.options).map((o) =>

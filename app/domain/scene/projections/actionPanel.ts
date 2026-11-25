@@ -9,7 +9,7 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAnswersBySurge, getAvailableActions, getAwaited, getGoBar } from '../rules/options'
 import { withoutAnswerSurge } from '../rules/surge'
 import { getContestWait } from '../rules/contest'
-import { getGivesLine, getRulesLine, getSurgeFacts } from '../../character/lenses/surge'
+import { getGivesLine, getRuleLines, getSurgeFacts } from '../../character/lenses/surge'
 import { ActionStep, areReactionsComplete, getOpportunityBar, canAffordOpportunity, getTargetIds, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isGrapplingEffectOffered, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { getCounterShot } from '../rules/counter'
@@ -118,7 +118,7 @@ export type ReactorOptions = {
   // the answers by the surge they are made on, where there is one to choose
   // (`getAnswersBySurge`), each with what it costs and gives; `chosen`, the
   // surge of the answer given
-  surges: { surge: SurgeKind | null; chosen: boolean; gives: string; rules: string; options: ActionOptionView[] }[]
+  surges: { surge: SurgeKind | null; chosen: boolean; gives: string; rules: string[]; options: ActionOptionView[] }[]
   strike: {
     options: AttackOption[]
     locations: LocationOption[]
@@ -208,7 +208,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
         : null
       const options = getAvailableActions(state, c.id)
       const before = withoutAnswerSurge(state, open.id, c.id).characters[c.id]
-      const surges = getAnswersBySurge(options).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: g.surge ? getGivesLine(getSurgeFacts(before, g.surge)) : '', rules: g.surge ? getRulesLine(getSurgeFacts(before, g.surge)) : '', options: labelled(state, c.id, g.options) }))
+      const surges = getAnswersBySurge(options).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: g.surge ? getGivesLine(getSurgeFacts(before, g.surge)) : '', rules: g.surge ? getRuleLines(getSurgeFacts(before, g.surge)) : [], options: labelled(state, c.id, g.options) }))
       return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
     })
     .filter((r) => r.options.length > 0)
