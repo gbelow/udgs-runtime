@@ -7,7 +7,7 @@ import { SceneStateSchema } from '../scene/types'
 import { addAffliction } from '../character/commands/addAffliction'
 import { getOpenButtons } from '../scene/projections/buttons'
 import { getRestAwaited } from '../scene/rules/resting'
-import { hasAgreedToEnd } from '../scene/rules/turn'
+import { getContenders, getTurnHolder, hasAgreedToEnd } from '../scene/rules/turn'
 import { seededRng } from '../play/dice'
 import { nearestBox } from './boxes/nearest'
 import type { Box } from './decision'
@@ -17,11 +17,11 @@ import type { MoveOptions, Seat } from './seat'
 const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
 
 // p is a person's, b a bot's, at a table nobody runs as GM.
-function table(box: Box) {
+function table(box: Box, paused = false) {
   let n = 0
   const ctx: CommandContext = { thrower: () => 9, newId: () => `n${++n}` }
   const seats: Seat[] = [{ id: 'bot', members: ['b'], box }]
-  const opts: MoveOptions = { ctx, botDice: () => 9, rngOf: () => seededRng(1), autoTable: true }
+  const opts: MoveOptions = { ctx, paused, botDice: () => 9, rngOf: () => seededRng(1), autoTable: true }
   let state: SceneState = SceneStateSchema.parse({
     characters: { p: fighter('p'), b: fighter('b') },
     parties: { ours: { name: 'ours' }, theirs: { name: 'theirs' } },
@@ -98,5 +98,23 @@ describe('a bot that presses the same thing back and forth', () => {
     expect(t.step()).toMatchObject({ do: 'stop', first: false })
     t.send({ kind: 'toggleAgreeToEnd', args: ['p'] })
     expect(t.step().do).toBe('press')
+  })
+})
+
+describe('paused bots', () => {
+  // Pausing stopped the table's own presses with the bots, so a contest asked
+  // for while they were paused was never rolled.
+  it('leave the table to roll a contest, and press nothing themselves', () => {
+    const t = table(nearestBox, true)
+    t.send({ kind: 'nextRound', args: [] })
+    for (let i = 0; i < 8 && t.state().roundStep !== null; i++) t.send({ kind: 'continueRound', args: [] })
+    t.send({ kind: 'startTurn', args: ['b'] })
+    expect(t.step().do).toBe('nothing')
+    t.send({ kind: 'toggleContest', args: ['p'] })
+    expect(getContenders(t.state())).toEqual(['p'])
+    expect(t.step()).toMatchObject({ do: 'press', move: { by: 'table' } })
+    expect(t.state().lastContest).not.toBeNull()
+    expect(getTurnHolder(t.state())).not.toBeNull()
+    expect(t.step().do).toBe('nothing')
   })
 })

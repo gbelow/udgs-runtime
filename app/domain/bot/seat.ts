@@ -35,6 +35,10 @@ import { remember, withRemembered, type Notes, type SeatMemories, type SeatMemor
 //    anything (the user's ruling: a turn to better a position is asked for
 //    only when nobody wants one to act now).
 //
+// Paused, the seats decide nothing: only the dice are thrown (1), the contest
+// rolled (2), and what the table presses pressed (4), once no seat owes
+// anything.
+//
 // What is open to a seat (its buttons, its choices, what the table waits on
 // it for) is read off the fight itself, by the panels' own reads (bot/table.ts),
 // so that it is the table's answer, then kept to the seat's members: a rule
@@ -68,6 +72,9 @@ export type MoveOptions = {
   // the first round back until it is told to begin (`getTablePress`)
   autoTable: boolean
   holdStart?: boolean
+  // whether the seats decide nothing: what they owe is left to wait, and only
+  // the dice called for and what the table presses go on
+  paused?: boolean
   // whom a seat presses as: its own player viewer when not given
   viewerOf?: (seat: Seat) => Viewer
   // what each seat remembers of the foes it noticed, and its box's notes, by seat id (`noteSeats`, `withNoted`)
@@ -206,15 +213,18 @@ function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions,
   })
   const holder = getTurnHolder(state)
   if (holder && getContestClosed(state) === null) {
-    yield* askSeats(state, asked.filter((a) => !a.members.includes(holder)), 'immediate', opts)
+    if (!opts.paused) yield* askSeats(state, asked.filter((a) => !a.members.includes(holder)), 'immediate', opts)
     if (opts.autoTable && getRollContestBar(state) === null) yield { by: 'table', who: null, why: 'rollContest', viewer: GM, commands: [{ kind: 'rollContest', args: [] }] }
   }
-  yield* askSeats(state, asked.filter((a) => a.waits.length > 0), 'any', opts)
+  const owing = asked.filter((a) => a.waits.length > 0)
+  if (opts.paused && owing.length > 0) return
+  yield* askSeats(state, owing, 'any', opts)
 
   const players = Object.keys(state.characters).filter((id) => !seats.some((s) => s.members.includes(id)))
   const press = opts.autoTable ? getTablePress(state, players, opts.holdStart) : null
   if (press) yield { by: 'table', who: null, why: press.kind, viewer: GM, commands: [press] }
 
+  if (opts.paused) return
   const idle = asked.filter((a) => a.waits.length === 0)
   yield* askSeats(state, idle, 'immediate', opts)
   yield* askSeats(state, idle, 'any', opts)

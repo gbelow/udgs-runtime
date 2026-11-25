@@ -60,7 +60,8 @@ const BEAT_MS = 300;
 // guest's): after every change to the fight, what is done next
 // (bot/live.ts `getLiveStep`), a move sent as a guest's press is, as the bot.
 // A move the table refuses stops the bots until the fight changes. While they
-// are paused, they make no move at all.
+// are paused, they decide nothing, but the table still presses for the GM
+// nobody plays and the dice called for are thrown (`MoveOptions` `paused`).
 // `table`: whether the table presses for a GM nobody plays (bot/autoTable.ts),
 // as the demo has none, and whether it holds the first round back until it is
 // told to begin.
@@ -91,7 +92,6 @@ export function useBots(table: BotTable = WITH_GM) {
 
     const play = () => {
       timer = null;
-      if (useBotLogStore.getState().paused) return;
       const { viewerOf, thrower } = live.current;
       const state = useCombatStore.getState();
       const ownerOf = viewerOf(BOTS[0].id, false).ownerOf;
@@ -103,6 +103,7 @@ export function useBots(table: BotTable = WITH_GM) {
         rngOf: () => Math.random,
         autoTable: auto,
         holdStart,
+        paused: useBotLogStore.getState().paused,
         viewerOf: (seat) => viewerOf(seat.profile ?? seat.id, false),
         memories,
       };
