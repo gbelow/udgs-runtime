@@ -86,6 +86,8 @@ export type Tally = {
   score: number
   low: number
   high: number
+  // the seeds the first box came out ahead in over its two fights, level and behind
+  pairs: [number, number, number]
   rounds: number
 }
 
@@ -96,7 +98,10 @@ export function tally(fights: readonly Fight[]): Tally {
   const score = played ? (wins + draws / 2) / played : 0
   const [low, high] = wilson(score, played)
   const kept = fights.filter((f) => f.result !== 'broken')
-  return { fights: fights.length, wins, losses, draws, broken, score, low, high, rounds: kept.length ? kept.reduce((a, f) => a + f.rounds, 0) / kept.length : 0 }
+  const points = new Map<number, number>()
+  for (const f of kept) points.set(f.seed, (points.get(f.seed) ?? 0) + (f.result === 'win' ? 1 : f.result === 'loss' ? -1 : 0))
+  const of = (sign: number) => [...points.values()].filter((p) => Math.sign(p) === sign).length
+  return { fights: fights.length, wins, losses, draws, broken, score, low, high, pairs: [of(1), of(0), of(-1)], rounds: kept.length ? kept.reduce((a, f) => a + f.rounds, 0) / kept.length : 0 }
 }
 
 function wilson(p: number, n: number, z = 1.96): [number, number] {

@@ -79,6 +79,8 @@ For every defense, find defenses where harm(attack, defense) < 10.
 if none are found, use defense that lets lowest harm pass
 if any are found, defend if prevented harm (undefended - defended)/AP cost > w.caution, choose the cheapest defense that qualifies
 
+prevented only counts added bleed.
+
 ## Threat
 Threat is how much harm a character could do to another one, undefended, with the AP it has left once it has walked there.
 
@@ -154,13 +156,11 @@ Defend an ally if the following are true:
 
 An ally is the target of a strike or shot, and nobody is defending it yet (itself included).
 The ally's exposure is higher than mine, each with the AP it holds.
-A block, intercept or guard is open to me, with or without a step first. Protection Surge counts, but the plain reaction surge isn't considered.
+A block, intercept or guard is open to me, with or without a step first. Surges are not considered.
 The Defense rule picks one of them, against the ally taking the hit undefended.
 
-Protect only if prevented > Cost(AP, STA) + foregone.
-  prevented using best defense. foregone used only during protection surge
-
-Cost also includes my immediate threat on my target, after its best defense, if my turn can still be started this round
+Protect only if prevented > Cost(AP, STA) 
+  prevented using best defense. 
 
 # Strategic Actions
 

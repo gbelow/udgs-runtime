@@ -48,6 +48,8 @@ export const CLOSE: Scenario[] = [
   { name: 'four a side, archers behind', red: [...red([[-2, -9], [-2, -8], [-2, -7]]), ['Human Ranger', [-6, -8]]], blue: [...blue([[2, -9], [2, -8], [2, -7]]), ['Human Ranger', [6, -8]]] },
   // the same, the front lines 15 m apart as a fight commonly starts, each archer 3 m behind its own
   { name: 'four a side 15 m, archers behind', red: [...red([[-7, -9], [-7, -8], [-7, -7]]), ['Human Ranger', [-10, -8]]], blue: [...blue([[8, -9], [8, -8], [8, -7]]), ['Human Ranger', [11, -8]]] },
+  // the same places with the same four on both sides
+  { name: 'four a side 15 m, mirrored', red: [...red([[-7, -9], [-7, -8], [-7, -7]]), ['Human Ranger', [-10, -8]]], blue: [...red([[8, -9], [8, -8], [8, -7]]), ['Human Ranger', [11, -8]]] },
   // the user's own fight, spread out in the southwest, the nearest 15 m apart
   { name: 'three a side 15 m, southwest', red: [['Erthal Defender', [-9, 3]], ['Halkir squire', [-9, 1]], ['Human Ranger', [-10, 1]]], blue: [['Human Noble', [-1, 10]], ['Erthal Soldier', [0, 11]], ['Surbit Thief', [4, 9]]] },
   // the four a side, close, with a second archer on each side, a Surbit Thief with its long bow

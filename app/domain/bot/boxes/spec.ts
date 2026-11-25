@@ -1,7 +1,7 @@
 import type { Coord, SurgeKind } from '../../types'
 import type { ActionDraft, Degree, SceneState } from '../../scene/types'
 import type { SceneCommand } from '../../scene/commands/registry'
-import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA, isReactiveSurge } from '../../character/rules/surge'
+import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA } from '../../character/rules/surge'
 import { getRecoveredSTA } from '../../character/rules/characteristics'
 import { getAction, getOpenAction } from '../../scene/rules/log'
 import { getBlastOf, type BlastShape } from '../../scene/rules/explosion'
@@ -20,7 +20,7 @@ import { getWorstDrawnAlong, getWorstDrawnAt } from '../approach'
 import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
 import { getBlastHarm, getEscapedBlast, getReflexCost, getReflexOdds, withBlock, withEscape } from '../blast'
-import { getDefenders, getProtections, type Protection } from '../protect'
+import { getDefenders, getProtections } from '../protect'
 import { getAnswer, getEvaded, getHarmAdded, getMet, getUndefendedHarm } from '../harm'
 import { cellOf, getAttackRoute, getBelievedAP, getMeans, getPaceAt, getStrikeCells, getTeam } from '../threat'
 import { REST_TUNING } from '../rest'
@@ -731,25 +731,13 @@ function answer(input: SeatInput, id: string, w: SpecWeights, find: Find, press:
   return { kind: 'declare', intent: { actorId: id, option: draft, picks }, why: `answers with ${draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${best.AP} AP)` }
 }
 
-// spec "Protect": what a reaction surge forgoes, no turn being started after
-// it in the round (combat.tex "Action surge"): the character's immediate
-// threat on its target, as the target's Defense rule answers it; nothing in
-// its own turn, or with no target.
-function getForgone(ctx: Ctx): number {
-  const { view, members, id, w, target } = ctx
-  if (!target || !view.characters[target] || getTurnHolder(view) === id) return 0
-  const { attack, gap, times } = getThreat(view, members, id, target, 'immediate', w)
-  return attack ? times * getAnswer(attack, gap, meansOf(ctx)(target), w).harm : 0
-}
-
 // spec "Protect": an ally attacked is defended where more harm would get
 // through to it than to the character, each where it stands with the AP it
 // holds (`getExposed`), with the block, intercept or guard the Defense rule
 // picks, read for the ally (bot/protect.ts), where the harm it prevents, its
 // bleed counted only over the ally's own (`getHarmAdded`), is above the
-// Cost and what its turns would still do where a reaction surge forgoes them
-// (`getForgone`); never an ally who defends itself or is defended already (the
-// user's ruling: no redundant defence).
+// Cost; never an ally who defends itself or is defended already (the user's
+// ruling: no redundant defence).
 function protect(input: SeatInput, id: string, w: SpecWeights): Decision | null {
   const view = input.view()
   const { members } = input
@@ -766,14 +754,14 @@ function protect(input: SeatInput, id: string, w: SpecWeights): Decision | null 
   if (theirs <= mine) return null
   const met = getProtections(view, id, (draft) => fillAnswer(view, members, id, draft, w))
   if (!met) return null
-  const costOf = (p: Protection) => costAt(ctx, ctx.at(ctx.here), p.AP, p.defence.cost.STA) + (isReactiveSurge(p.surge) ? getForgone(ctx) : 0)
   const best = getAnswer(met.attack, met.gap, me.resources, w)
   const made = met.protections.find((p) => p.defence === best.defence)
   if (!made) return null
   const added = (d: PairDefence | undefined) => (d ? getHarmAdded(met.attack, d, met.gap, target.injuries.bleed, w) : 0)
   const prevented = added(met.attack.defences.find((d) => d.draft === null)) - added(made.defence)
-  if (prevented <= costOf(made)) return null
-  return { kind: 'declare', intent: { actorId: id, option: made.draft, picks: made.picks }, why: `defends ${target.name} with ${made.draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${made.AP} AP, prevents ${prevented.toFixed(1)}, cost ${costOf(made).toFixed(1)}; exposed ${theirs.toFixed(1)} against its own ${mine.toFixed(1)})` }
+  const cost = costAt(ctx, ctx.at(ctx.here), made.defence.cost.AP, made.defence.cost.STA)
+  if (prevented <= cost) return null
+  return { kind: 'declare', intent: { actorId: id, option: made.draft, picks: made.picks }, why: `defends ${target.name} with ${made.draft.kind} (harm ${best.undefended.toFixed(1)} to ${best.harm.toFixed(1)} for ${made.defence.cost.AP} AP, prevents ${prevented.toFixed(1)}, cost ${cost.toFixed(1)}; exposed ${theirs.toFixed(1)} against its own ${mine.toFixed(1)})` }
 }
 
 // spec "Immediate actions": an opportunity attack scored as an attack is, made
