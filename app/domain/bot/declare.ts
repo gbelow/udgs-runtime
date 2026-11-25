@@ -1,6 +1,6 @@
 import type { ActionDraft, ActionKind, SceneState } from '../scene/types'
 import { toUpdater, type CommandContext, type SceneCommand } from '../scene/commands/registry'
-import { getAvailableActions } from '../scene/rules/options'
+import { getAvailableActions, getConfirmable } from '../scene/rules/options'
 import { getNextStep } from '../scene/rules/action'
 import { getOpenAction } from '../scene/rules/log'
 import { shareReach } from '../scene/rules/board/reach'
@@ -19,7 +19,8 @@ import { getOpenChoices, STEPPED_PARTS, type ChoicePart, type OpenChoice } from 
 //
 // Pure: it reads and presses on the state it is given, so a declaration can be
 // tried on the side, and the commands it returns are the ones to send to the
-// table. An answer to the open action is declared the same way, with no commit.
+// table. An answer to the open action is declared the same way, with no commit,
+// and confirmed where it leaves something to choose.
 // What is chosen once the die is thrown is settled the same way (`settle`), and an
 // action opened for its actor to declare is filled in the same way (`declareOpened`).
 
@@ -136,7 +137,9 @@ export function declare(start: SceneState, intent: Intent, ctx: CommandContext):
   if (answer) {
     const strike = getActionOffers(p.state).reactors.find((r) => r.id === actorId)?.strike
     if (strike && !strike.complete) return refuse(`the answer still asks for ${asked(choices())}`)
-    return { ok: true, commands: p.commands, ready: p.state, state: p.state }
+    const ready = p.state
+    if (getConfirmable(ready).some((r) => r.actorId === actorId) && !p.press({ kind: 'confirmReaction', args: [actorId] })) return refuse('confirming the answer was refused')
+    return { ok: true, commands: p.commands, ready, state: p.state }
   }
   return commit(p, actorId)
 }

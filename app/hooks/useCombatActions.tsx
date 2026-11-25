@@ -25,6 +25,7 @@ export function useCombatActions() {
   const react = (reactorId: string, draft: ActionDraft, surge: SurgeKind | null) => dispatch({ kind: "react", args: [reactorId, draft, surge] });
   const amendReacted = (reactorId: string, fields: ReactionAmend) => dispatch({ kind: "amendReaction", args: [reactorId, fields] });
   const pass = (reactorId: string) => dispatch({ kind: "pass", args: [reactorId] });
+  const confirmReacted = (reactorId: string) => dispatch({ kind: "confirmReaction", args: [reactorId] });
   const cancel = () => dispatch({ kind: "cancel", args: [] });
   const roll = () => dispatch({ kind: "roll", args: [] });
   const commit = () => dispatch({ kind: "commit", args: [] });
@@ -48,5 +49,5 @@ export function useCombatActions() {
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, declare, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

@@ -962,7 +962,7 @@ export function specBox(w: SpecWeights): Box {
     const { members, waits, buttons } = input
     const { find, press } = finding(buttons)
     for (const wait of waits) {
-      const made = wait.for === 'answer' ? answer(input, wait.id, w, find, press)
+      const made = wait.for === 'answer' ? press(find('confirmReaction', wait.id), 'is done answering') ?? answer(input, wait.id, w, find, press)
         : wait.for === 'turn' ? takeTurn(input, wait.id, w, find, press)
         : (wait.for === 'action' ? stepOpened(input, wait.id, w) : null) ?? settleWait(input, wait, find, press, w)
       if (made) return made

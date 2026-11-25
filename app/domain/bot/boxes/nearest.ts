@@ -146,9 +146,9 @@ export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Pres
 
 // What is left once nobody is waited on and no turn is started: agree to end
 // the round, then move on what the table holds (a held test, a roll, a payment,
-// a landing), then fill what is asked.
+// a landing), then fill what the table waits on one of them for.
 export function carryOn(input: SeatInput, find: Find): Decision {
-  const { members, buttons, choices } = input
+  const { members, buttons, choices, waits } = input
   const view = input.view()
   // agreeing while the round changes would end the round to come before it
   // begins, and while someone holds a turn or an action is open, before the
@@ -164,7 +164,7 @@ export function carryOn(input: SeatInput, find: Find): Decision {
   // what has been picked once is not picked again: where a jump lands, picked
   // over and over, kept the table from ever being done
   const picked = (c: OpenChoice) => choices.some((x) => x.chosen && x.actorId === c.actorId && x.part === c.part)
-  const fill = choices.find((c) => !c.chosen && !picked(c))
+  const fill = choices.find((c) => !c.chosen && !picked(c) && waits.some((w) => w.id === c.actorId))
   return fill ? { kind: 'press', pick: fill, why: fill.label } : { kind: 'wait', why: 'nothing to do' }
 }
 
@@ -179,7 +179,7 @@ export const nearestBox: Box = (input) => {
   const { find, press } = finding(buttons)
 
   for (const wait of waits) {
-    const made = wait.for === 'answer' ? press(find('pass', wait.id), 'lets it come')
+    const made = wait.for === 'answer' ? press(find('confirmReaction', wait.id), 'is done answering') ?? press(find('pass', wait.id), 'lets it come')
       : wait.for === 'turn' ? takeTurn(input, wait.id, find, press)
       : settleWait(input, wait, find, press, REST_TUNING)
     if (made) return made

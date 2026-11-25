@@ -6,7 +6,7 @@ import type { Area, Character, Item, MoveKind, Skills, SurgeKind } from '../../t
 import { ACTION_CATEGORIES, getActionDef, isAttackAction, isReactionAction, type ActionCategory } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { ActionOption, getAnswersBySurge, getAvailableActions, getAwaited, getGoBar } from '../rules/options'
+import { ActionOption, getAnswersBySurge, getAvailableActions, getAwaited, getConfirmable, getGoBar, getUnconfirmedAnswers } from '../rules/options'
 import { withoutAnswerSurge } from '../rules/surge'
 import { getContestWait } from '../rules/contest'
 import { getGivesLine, getRuleLines, getSurgeFacts } from '../../character/lenses/surge'
@@ -158,6 +158,10 @@ export type ReactorOptions = {
   // with nothing
   awaited: boolean
   passed: boolean
+  // whether they have said they are done with the answer they gave, may say
+  // so, or have yet to finish it; null where it leaves nothing to choose, or
+  // none is given
+  done: 'said' | 'open' | 'closed' | null
 }
 
 type OpportunityMode = ActionOf<'opportunityAttack'>['mode']
@@ -176,6 +180,10 @@ function labelled(state: SceneState, id: string, options: readonly ActionOption[
 
 function getReactors(state: SceneState, open: Action): ReactorOptions[] {
   const awaited = getAwaited(state)
+  const unconfirmed = getUnconfirmedAnswers(state)
+  const confirmable = getConfirmable(state)
+  const doneWith = (answer: Action | undefined): ReactorOptions['done'] =>
+    !answer ? null : answer.confirmed ? 'said' : confirmable.includes(answer) ? 'open' : unconfirmed.includes(answer) ? 'closed' : null
   return Object.values(state.characters)
     .filter((c) => canAnswer(open, c.id))
     .map((c) => {
@@ -209,7 +217,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
       const options = getAvailableActions(state, c.id)
       const before = withoutAnswerSurge(state, open.id, c.id).characters[c.id]
       const surges = getAnswersBySurge(options).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: g.surge ? getGivesLine(getSurgeFacts(before, g.surge)) : '', rules: g.surge ? getRuleLines(getSurgeFacts(before, g.surge)) : [], options: labelled(state, c.id, g.options) }))
-      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, done: doneWith(declared) }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -443,7 +451,8 @@ export type ActionPanelView = {
   // once rolled: what the hit's overflow can buy, and what the action does
   // to everyone it lands on as they stand
   hop: { remaining: number; total: number; terms: Term[]; options: HOPOptionView[] }
-  outcomes: { target: string; outcome: Outcome }[]
+  // (`estimate`: on one shown only by their face, not the sheet it lands on)
+  outcomes: { target: string; outcome: Outcome; estimate: boolean }[]
   // once a cast is rolled: what its overflow can buy, and what it will
   // deliver to whom
   castHOP: { remaining: number; options: ImprovementOption[] }
@@ -692,7 +701,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
       ? { ...getHitHOP(state, attack), options: hopOptions }
       : { remaining: 0, total: 0, terms: [], options: [] },
-    outcomes: open.step === 'post' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
+    outcomes: open.step === 'post' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome, estimate: !!state.characters[id]?.shown })) : [],
     deliveries: settled?.kind === 'cast' ? getCastDeliveries(state, settled.facts ?? {}) : [],
   }
 }

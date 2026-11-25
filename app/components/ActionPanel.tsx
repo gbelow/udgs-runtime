@@ -40,7 +40,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { mustStart } = useTurnControls()
   const knows = useKnows()
   const { step, open } = view
@@ -314,7 +314,7 @@ export function ActionPanel(){
         <div className='flex flex-col gap-1'>
           {view.reactors.map((r) => {
             if (r.strike) {
-              return <LockedFor key={r.id} id={r.id}><ReactorStrike reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} onPass={() => pass(r.id)} /></LockedFor>
+              return <LockedFor key={r.id} id={r.id}><ReactorStrike reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} onPass={() => pass(r.id)} onDone={() => confirmReacted(r.id)} /></LockedFor>
             }
             return (
               <LockedFor key={r.id} id={r.id}>
@@ -323,6 +323,7 @@ export function ActionPanel(){
                   <ActionKey look={r.passed ? 'picked' : 'plain'} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</ActionKey>
                   <Answers reactor={r} onReact={(o) => react(r.id, o.draft, o.surge)} />
                   <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
+                  <AnswerDone done={r.done} onDone={() => confirmReacted(r.id)} />
                   {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
                 </div>
               </LockedFor>
@@ -332,7 +333,7 @@ export function ActionPanel(){
           {view.unnoticed.length > 0 ? <span className='text-xs text-muted'>did not notice: {view.unnoticed.join(', ')}</span> : null}
           {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
           {view.die || view.compare || open.area ? <Test open={open} /> : null}
-          {view.awaited.length > 0 ? <span className='text-xs text-accent'>waiting on {view.awaited.join(', ')}: each answers or picks nothing</span> : null}
+          {view.awaited.length > 0 ? <span className='text-xs text-accent'>waiting on {view.awaited.join(', ')}: each answers and is done, or picks nothing</span> : null}
           <div className='flex flex-row gap-1'>
             <LockedFor id={open.actorId}>
               {view.die
@@ -399,7 +400,7 @@ export function ActionPanel(){
           {open.reactions.filter((r) => r.roll).map((r) => (
             <RollLine key={`${r.actor}:${r.label}`} roll={r.roll} label={`${r.actor} ${r.label}`} className='text-xs text-muted' />
           ))}
-          {view.outcomes.map(({ target, outcome }) => <OutcomeLine key={target} outcome={outcome} target={target} />)}
+          {view.outcomes.map(({ target, outcome, estimate }) => <OutcomeLine key={target} outcome={outcome} target={target} estimate={estimate} />)}
           {open.along !== null ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>on a hit</SectionLabel>
@@ -495,7 +496,7 @@ function SweepDirections({ direction, onTurn }: { direction: SweepDirection, onT
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, onAmend: (fields: ReactionAmend) => void, onPass: () => void }){
+function ReactorStrike({ reactor, onAmend, onPass, onDone }: { reactor: ReactorOptions, onAmend: (fields: ReactionAmend) => void, onPass: () => void, onDone: () => void }){
   const strike = reactor.strike!
   const chosen = reactor.options.find((o) => o.chosen)
   return (
@@ -566,8 +567,18 @@ function ReactorStrike({ reactor, onAmend, onPass }: { reactor: ReactorOptions, 
       {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : strike.bar ?? 'that attack cannot be made from there as declared') : 'pick the attack'}</span> : null}
       </> : null}
       <Modifiers modifiers={reactor.modifiers} onPress={onAmend} />
+      <div><AnswerDone done={reactor.done} onDone={onDone} /></div>
     </div>
   )
+}
+
+// The reactor's word that they are done choosing what their answer is
+// declared as, which the action waits for.
+function AnswerDone({ done, onDone }: { done: ReactorOptions['done'], onDone: () => void }){
+  if (done === null) return null
+  return done === 'said'
+    ? <span className='text-xs text-good'>done: change anything to take it back</span>
+    : <ActionKey look='go' icon={Check} aria-label='done answering' disabled={done === 'closed'} title={done === 'closed' ? 'the answer is not finished' : 'the action waits until you are done choosing'} onClick={onDone}>done</ActionKey>
 }
 
 // The test as it stands, and what each side adds up from. An explosion has
@@ -786,7 +797,7 @@ function ReportEntry({ entry, open }: { entry: EpisodeEntry, open: boolean }){
       {entry.fate ? <div className='text-sm font-medium text-bad'>{entry.fate}</div> : null}
       {entry.outcomes.map((o, i) => (
         <div key={i} className='flex flex-col'>
-          <OutcomeLine outcome={o.outcome} target={o.target} />
+          <OutcomeText outcome={o.outcome} target={o.target} />
           {o.steps.length > 0 ? (
             <details className='pl-3'>
               <summary className='cursor-pointer select-none text-xs text-muted'>why</summary>
@@ -863,7 +874,19 @@ function signed(value: number): string {
 
 
 // What the strike does to the target as it stands, one line.
-function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
+function OutcomeLine({ outcome, target, estimate }: { outcome: Outcome, target: string, estimate: boolean }){
+  const line = <OutcomeText outcome={outcome} target={target} />
+  if (!estimate) return line
+  return (
+    <div className='flex flex-row gap-1 items-baseline' title='you are shown only the face of the target: what lands is worked out on its real sheet'>
+      <span className='text-sm text-accent'>≈</span>
+      {line}
+      <span className='text-xs text-muted'>estimate</span>
+    </div>
+  )
+}
+
+function OutcomeText({ outcome, target }: { outcome: Outcome, target: string }){
   if (outcome.stopped) return <div className='text-sm'>{target}: <span className='text-good'>intercepted</span></div>
   if (outcome.tier === null) {
     return <div className='text-sm'>{target}: <span className='font-mono'>{outcome.damage}</span> {outcome.type} vs <span className='font-mono'>{outcome.armor}</span> · <span className='text-muted'>no injury</span></div>

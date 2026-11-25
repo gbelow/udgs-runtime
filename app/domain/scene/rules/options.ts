@@ -30,7 +30,7 @@ import { getLootCost, getOpenables, getReachableLoot } from './loot'
 import { getStealable } from './steal'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getOpportunityBar, getOpportunityCheck, getOwnCost, getPayableCost, isAnswerable, isDeclarationComplete, isUsedOutsideGrapple, canPayAll, withoutReserve, withRefund } from './action'
-import { getAnswerDrafts } from './modifiers'
+import { getAnswerDrafts, getModifierToggles } from './modifiers'
 import { isGuardPlaced, isStandingGuard } from './protect'
 import { getCombinedOf } from './combinedMove'
 import { makeAction } from '../factories'
@@ -119,14 +119,37 @@ export function hasOpenAnswer(state: SceneState, ids: readonly string[] = Object
   return ids.some((id) => getAvailableActions(state, id).some((o) => o.available))
 }
 
+// Whether the answer, once given, leaves its actor something to choose: what
+// it strikes or shoots with and where it aims, or what it may be declared as
+// besides.
+function hasAnswerChoice(state: SceneState, answer: Action): boolean {
+  return answer.kind === 'opportunityAttack' || answer.kind === 'counterattack' || answer.kind === 'joinShot' || getModifierToggles(state, answer).length > 0
+}
+
+// The answers to the committed action whose actors have something to choose in
+// them and have not said they are done (`confirmed`).
+export const getUnconfirmedAnswers = perState((state: SceneState): Action[] => {
+  const open = getOpenAction(state)
+  if (!open || !isAnswerable(state, open)) return []
+  return getLiveReactionsTo(state, open.id).filter((r) => !r.confirmed && hasAnswerChoice(state, r))
+})
+
+// Those of them with everything declared that they ask for, which their actors
+// may confirm.
+export function getConfirmable(state: SceneState): Action[] {
+  return getUnconfirmedAnswers(state).filter((r) => isDeclarationComplete(state, state.characters[r.actorId], r))
+}
+
 // Who the committed action still waits on before its die is thrown or its
 // price paid: everyone with an answer open to it who has neither declared
-// one nor said they will not (`passed`).
+// one nor said they will not (`passed`), or who is not done with theirs
+// (`getUnconfirmedAnswers`).
 export const getAwaited = perState((state: SceneState): string[] => {
   const open = getOpenAction(state)
   if (!open || !isAnswerable(state, open)) return []
   const answered = new Set(getLiveReactionsTo(state, open.id).map((r) => r.actorId))
-  return Object.keys(state.characters).filter((id) => !answered.has(id) && !open.passed.includes(id) && hasOpenAnswer(state, [id]))
+  const unconfirmed = new Set(getUnconfirmedAnswers(state).map((r) => r.actorId))
+  return Object.keys(state.characters).filter((id) => unconfirmed.has(id) || (!answered.has(id) && !open.passed.includes(id) && hasOpenAnswer(state, [id])))
 })
 
 // Why the committed action cannot be rolled or paid for yet, or null: a die
@@ -135,11 +158,11 @@ export const getAwaited = perState((state: SceneState): string[] => {
 export function getGoBar(state: SceneState, root: Action): string | null {
   const dice = getDiceBar(state.calls)
   if (dice) return dice
-  const awaited = getAwaited(state)
-  if (awaited.length > 0) return `waiting on ${awaited.map((id) => getFightName(state, id)).join(', ')}: each answers or picks nothing`
-  const reactions = getReactionsTo(state, root.id)
   const unfinished = getUnfinishedAnswers(state, root)[0]
   if (unfinished) return `${getFightName(state, unfinished.actorId)}'s ${getActionDef(unfinished.kind).label} is not finished${unfinished.kind === 'opportunityAttack' ? `: ${getOpportunityBar(state, state.characters[unfinished.actorId], unfinished)}` : ''}`
+  const awaited = getAwaited(state)
+  if (awaited.length > 0) return `waiting on ${awaited.map((id) => getFightName(state, id)).join(', ')}: each answers and is done, or picks nothing`
+  const reactions = getReactionsTo(state, root.id)
   // whoever is shown only as a token has no AP to read: whether they can pay is
   // the table's to say
   const broke = [root, ...reactions].find((a) => !state.characters[a.actorId]?.shown && getPayableCost(state, a) === null)

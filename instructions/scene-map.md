@@ -189,6 +189,9 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 - **react** — triggers are read off the locked action (`getTriggers`, `rules/reactions.ts`);
   each character gets one answer, and a new one replaces the old. `pruneReactions` drops
   answers the declaration no longer triggers.
+  An answer that leaves its reactor something to choose (what it strikes with and where it
+  aims, its modifiers) is waited for until they say they are done (`confirmReaction`,
+  `getUnconfirmedAnswers`); amending it takes that back.
 - **roll / pay** (`payAll`) — first, a prepared defense's reposition, and the move a defense carries before its die (`rules/combinedMove.ts`), are walked (`repositionDefenders`) and the die waits; then prices the root and every reaction off their actors as they
   stand, throws the root's die and each reaction's own die (in declaration order), and
   takes every price, all in one update: no state exists where a die is known and its price

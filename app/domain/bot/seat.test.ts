@@ -23,6 +23,35 @@ import { getNextMove, noteSeats, withNoted, type MoveOptions, type Seat } from '
 
 const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
 
+// A person answered a bot's action with an opportunity attack, and the moment
+// they picked its row the bot went on, before they could aim it or make it
+// heavy.
+describe('an opportunity attack a person is still choosing', () => {
+  const rng = seededRng(1)
+  const ctx: CommandContext = { thrower: (e) => rollD10(e, rng), newId: (() => { let n = 0; return () => `o${++n}` })() }
+  const send = (s: SceneState, ...commands: Parameters<typeof applySceneCommand>[1][]) => commands.reduce((at, c) => applySceneCommand(at, c, GM, ctx), s)
+  const begun = send(board({ a: [0, 0], d: [1, 0] }, archer('a'), spearman('d')), { kind: 'startTurn', args: ['a'] }, { kind: 'closeContest', args: [] })
+  const opportunity = (s: SceneState) => getAvailableActions(s, 'd').find((o) => o.available && o.draft.kind === 'opportunityAttack')
+  const drawn = getAvailableActions(begun, 'a')
+    .filter((o) => o.available && o.draft.kind === 'gear')
+    .map((o) => send(begun, { kind: 'declare', args: ['a', o.draft] }, { kind: 'commit', args: [] }))
+    .find((s) => getOpenAction(s)?.step === 'react' && opportunity(s))
+  const row = getFreeAttackOptions(begun, begun.characters.d, 'strike')[0]
+  const move = (s: SceneState, box: Seat['box']) => getNextMove(s, [{ id: 'a', members: ['a'], box }], { ctx, botDice: () => 5, rngOf: () => rng, autoTable: false }).move
+
+  it('is waited for until they say they are done, whatever they change', () => {
+    if (!drawn) throw new Error('nothing drew an opportunity attack')
+    const picked = send(drawn, { kind: 'react', args: ['d', opportunity(drawn)!.draft] }, { kind: 'amendReaction', args: ['d', { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }] })
+    const done = send(picked, { kind: 'confirmReaction', args: ['d'] })
+    const changed = send(done, { kind: 'amendReaction', args: ['d', { location: 'head' }] })
+    for (const box of Object.values(BOT_BOXES)) {
+      expect(move(picked, box)).toBeNull()
+      expect(move(done, box)?.commands.map((c) => c.kind)).toEqual(['pay'])
+      expect(move(changed, box)).toBeNull()
+    }
+  })
+})
+
 // A prone defender who had learned Technical Lift answered a strike with an
 // evasive jump. The cell it landed on was still offered as not chosen, so its
 // bot clicked it again after every change, and the attacker's bot, waiting to

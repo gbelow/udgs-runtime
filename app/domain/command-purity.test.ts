@@ -296,6 +296,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   declareReaction: combatCommands.declareReaction('b', { kind: 'evasiveJump' }, newId),
   withdrawReaction: combatCommands.withdrawReaction('b'),
   withdrawLastReaction: combatCommands.withdrawLastReaction(),
+  confirmReaction: combatCommands.confirmReaction('b'),
   passReaction: combatCommands.passReaction('b'),
   rollAnswered: combatCommands.rollAnswered(() => 7, newId),
   cancelAction: (s) => combatCommands.cancelAction()(deepFreeze(declaredStrike(s))),

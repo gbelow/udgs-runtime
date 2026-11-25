@@ -2,6 +2,7 @@ import { BUFF_TARGETS, type CampaignCharacter, type Skills, type SurgeKind } fro
 import { SURGES, SURGE_ALLOWANCES, SURGE_USES, type Surge, type SurgeWindow } from '../../tables'
 import { surgeKinds } from '../../lists'
 import { canSurge, getSurged, knowsSurge } from '../rules/surge'
+import { getAfflictions, getInjuryPenalty, isDead } from '../rules/afflictions'
 import { getBuffBonus, getLearnedAbilities, getRollModes, getSuppressed, getSurgeAllows } from '../rules/effects'
 import { characteristicLenses, movementLenses, skillLenses } from './index'
 
@@ -31,7 +32,8 @@ export function getSurgeOptions(c: CampaignCharacter, compelled: SurgeKind | nul
 // what it allows and what it bars, and the abilities of theirs that speak of
 // it. Nothing here is written down for a surge. The numbers are the character
 // with the surge made against the same character without it, whatever brought
-// the difference about; the sentences are the fields of `SURGES`, each of
+// the difference about, but for what the IL bled for its STA does, which is
+// said as the IL, the injury penalty and what it leaves them; the sentences are the fields of `SURGES`, each of
 // which has one (a field added does not compile until it does); and a change
 // to the character that neither says is named as it is.
 export type SurgeFacts = { gives: { label: string; value: number }[]; rules: string[]; abilities: string[] }
@@ -53,7 +55,7 @@ function readFacts(c: CampaignCharacter, kind: SurgeKind): SurgeFacts {
   const after = getSurged(kind)(before)
   return {
     gives: getGiven(before, after),
-    rules: [...getFieldLines(after, kind), ...getModeLines(before, after), ...getSuppressionLines(before, after), ...getOtherLines(before, after)],
+    rules: [...getFieldLines(after, kind), ...getModeLines(before, after), ...getSuppressionLines(before, after), ...getInjuryLines(before, after), ...getOtherLines(before, after)],
     abilities: [...new Set(getLearnedAbilities(c).filter((a) => a.description.toLowerCase().includes(`${kind} surge`)).map((a) => a.name))],
   }
 }
@@ -68,15 +70,20 @@ const moved = (pairs: [label: string, before: number, after: number][]): Given =
 const READ = { skill: skillLenses, characteristic: characteristicLenses, attribute: characteristicLenses, movement: movementLenses } as const
 
 function getGiven(before: CampaignCharacter, after: CampaignCharacter): Given {
+  const unbled: CampaignCharacter = { ...after, injuries: before.injuries }
   const resources = moved((Object.keys(after.resources) as (keyof CampaignCharacter['resources'])[]).map((k) => [k, before.resources[k], after.resources[k]]))
   const read = [skillLenses, characteristicLenses, movementLenses].flatMap((lenses) =>
-    moved(Object.entries(lenses).map(([key, lens]) => [key, lens.get(before), lens.get(after)])))
+    moved(Object.entries(lenses).map(([key, lens]) => [key, lens.get(before), lens.get(unbled)])))
   const other = BUFF_TARGETS.flatMap((target) => {
     const [family, key] = target.split(':')
     if (family in READ && key in READ[family as keyof typeof READ]) return []
-    return moved([[`${key} ${family}`, getBuffBonus(before, target), getBuffBonus(after, target)]])
+    return moved([[`${key} ${family}`, getBuffBonus(before, target), getBuffBonus(unbled, target)]])
   })
-  return [...resources, ...read, ...moved([['IL', before.injuries.injuryLevel, after.injuries.injuryLevel]]), ...other]
+  const injury = moved([
+    ['IL (bleeding)', before.injuries.injuryLevel, after.injuries.injuryLevel],
+    ['injury penalty', -getInjuryPenalty(before), -getInjuryPenalty(after)],
+  ])
+  return [...resources, ...read, ...other, ...injury]
 }
 
 const WINDOW_LINES: Record<SurgeWindow, string | null> = {
@@ -125,6 +132,13 @@ function getModeLines(before: CampaignCharacter, after: CampaignCharacter): stri
 function getSuppressionLines(before: CampaignCharacter, after: CampaignCharacter): string[] {
   const had = getSuppressed(before)
   return [...getSuppressed(after)].filter((target) => !had.has(target)).map((target) => `unaffected by ${target}`)
+}
+
+// What the IL bled for the surge's STA leaves the character.
+function getInjuryLines(before: CampaignCharacter, after: CampaignCharacter): string[] {
+  if (isDead(after) && !isDead(before)) return ['the bleeding kills them']
+  const had = getAfflictions(before)
+  return getAfflictions(after).filter((key) => !had.includes(key)).map((key) => `leaves them ${key}`)
 }
 
 // What of the character the surge is written in, and what of it the numbers

@@ -521,6 +521,9 @@ const ActionBase = {
   // who, among those it let answer, said they would not while it waited for
   // its die, written as each says it
   passed: z.array(str).default([]),
+  // for an answer with something left to choose, that its actor is done
+  // choosing; taken back by whatever they change
+  confirmed: z.boolean().default(false),
   // abilities.tex "Guardian": who could have made their protection surge for
   // its target and let it go by, written as it is paid
   unprotectedBy: z.array(str).default([]),

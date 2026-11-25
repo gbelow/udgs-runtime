@@ -5,7 +5,7 @@ import type { SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
 import { getOpenAction, getLiveReactionsTo, canAnswer } from '../rules/log'
-import { getGoBar, getOpenOptions } from '../rules/options'
+import { getConfirmable, getGoBar, getOpenOptions } from '../rules/options'
 import { getHoldCost, getNextStep, getPayableCost, isPreparedRequired, needsDie } from '../rules/action'
 import { canAcceptSpellTest } from '../rules/cast'
 import { getContestBar, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, hasAgreedToEnd } from '../rules/turn'
@@ -104,6 +104,7 @@ function actionButtonsOf(state: SceneState, id: string): OpenButton[] {
   if (getNextStep(state) !== 'react') return []
   return [
     ...options().map((o): OpenButton => ({ command: { kind: 'react', args: [id, o.draft, o.surge] }, label: `${name}: ${getOptionLabel(state, id, o)}` })),
+    ...button(getConfirmable(state).some((r) => r.actorId === id), { kind: 'confirmReaction', args: [id] }, `${name}: done answering`),
     ...button(canAnswer(open, id) && (!open.passed.includes(id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)), { kind: 'pass', args: [id] }, `${name}: pass`),
   ]
 }

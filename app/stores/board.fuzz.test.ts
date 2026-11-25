@@ -7,7 +7,7 @@ import type { ModifierView } from '../domain/scene/projections/modifiers'
 import { getFootprint, getTerrainAt } from '../domain/scene/rules/board/board'
 import { isProne } from '../domain/scene/rules/board/ground'
 import { defRows } from '../domain/scene/rules/attack'
-import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
+import { getAvailableActions, getAwaited, getUnconfirmedAnswers } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getFacesKnownBy, getSeenBy } from '../domain/scene/rules/seen'
@@ -113,9 +113,12 @@ function throwAllCalled(h: Harness, pick: Picker) {
 }
 
 // The presses that carry a committed action to its end: everyone it still
-// waits on answers with nothing, and the die, the price and the landing follow.
+// waits on is done with the answer they gave, or answers with nothing, and the
+// die, the price and the landing follow.
 function carryOn(h: Harness, accept = false) {
-  for (const id of getAwaited(h.state())) h.send({ kind: 'pass', args: [id] })
+  for (const { actorId } of getUnconfirmedAnswers(h.state())) h.send({ kind: 'confirmReaction', args: [actorId] })
+  const unfinished = new Set(getUnconfirmedAnswers(h.state()).map((r) => r.actorId))
+  for (const id of getAwaited(h.state())) if (!unfinished.has(id)) h.send({ kind: 'pass', args: [id] })
   h.send({ kind: 'roll', args: [] })
   if (accept) h.send({ kind: 'accept', args: [] })
   h.send({ kind: 'pay', args: [] })
@@ -384,6 +387,7 @@ function plays(): Play[] {
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.send({ kind: 'back', args: [] }) },
     { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.send({ kind: 'rollHeld', args: [r.id, r.kind, pick([...r.modes])] }) } } },
+    { name: 'be done answering', weight: 2, run: (h, pick) => { const given = getUnconfirmedAnswers(h.state()); if (given.length) h.send({ kind: 'confirmReaction', args: [pick(given).actorId] }) } },
     { name: 'roll', run: (h) => h.send({ kind: 'roll', args: [] }) },
     { name: 'pay', run: (h) => h.send({ kind: 'pay', args: [] }) },
     { name: 'resolve', weight: 2, run: (h) => h.send({ kind: 'resolve', args: [] }) },

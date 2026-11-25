@@ -7,7 +7,7 @@ import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getCost
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { detect, getBystanderDetections, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
-import { findOption, getAwaited, hasOpenAnswer } from '../rules/options'
+import { findOption, getAwaited, getConfirmable, hasOpenAnswer } from '../rules/options'
 import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { answersByDetection } from '../rules/explosion'
 import { needsBreakRolls } from '../rules/breakage'
@@ -287,7 +287,8 @@ function getSurgeMade(before: SceneState, after: SceneState, actorId: string, ki
 
 // Fills in what the reactor's declared reaction still has to say — the
 // strike an opportunity attack opens — while the root is still waiting for
-// its die. The kind is not a declaration and cannot change.
+// its die. The kind is not a declaration and cannot change; whatever is
+// changed is to be confirmed anew.
 export function amendReaction(actorId: string, fields: ReactionAmend): Updater {
   return (state) => {
     const open = getAnswerableOpen(state)
@@ -296,9 +297,18 @@ export function amendReaction(actorId: string, fields: ReactionAmend): Updater {
     if (!reaction || (fields.kind !== undefined && fields.kind !== reaction.kind)) return state
     const { targetId, ...declared } = fields
     const aimed = reaction.kind === 'counterattack' && reaction.mode === 'shoot' && targetId !== undefined ? { targetId } : {}
-    const amended = ActionSchema.parse({ ...reaction, ...declared, ...aimed, kind: reaction.kind })
+    const amended = ActionSchema.parse({ ...reaction, ...declared, ...aimed, kind: reaction.kind, confirmed: false })
     const next = pruneReactions(replaceActions(state, [amended]))
     return amended.kind === 'opportunityAttack' && !canAffordOpportunity(next, amended) ? state : next
+  }
+}
+
+// The reactor is done choosing what their answer is declared as
+// (`getConfirmable`), and the action no longer waits on them for it.
+export function confirmReaction(actorId: string): Updater {
+  return (state) => {
+    const answer = getConfirmable(state).find((r) => r.actorId === actorId)
+    return answer ? replaceActions(state, [{ ...answer, confirmed: true }]) : state
   }
 }
 

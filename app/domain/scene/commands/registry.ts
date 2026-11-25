@@ -35,7 +35,7 @@ import { leadershipRally } from './inspiringDeed'
 import type { Order } from '../rules/domination'
 import { agreeAllToEnd, closeContest, endTurn, rollContest, setContestDecideSeconds, setContestMode, setContestSeconds, settleContest, startTurn, surge, thinkContest, toggleAgreeToEnd, toggleContest } from './turn'
 import {
-  acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, declareAction, declareReaction,
+  acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, confirmReaction, declareAction, declareReaction,
   passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setSpellTestMode, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
 } from './action'
 import { chooseGrapple, chooseManeuver, chooseTheft, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from './choices'
@@ -79,6 +79,7 @@ export const sceneCommands = {
   target: command((_, targetId: string) => setTarget(targetId)).by(panel('open')),
   react: command((ctx, reactorId: string, draft: ActionDraft, surge?: SurgeKind | null) => declareReaction(reactorId, draft, ctx.newId, surge)).by(reactor),
   amendReaction: command((_, reactorId: string, fields: ReactionAmend) => amendReaction(reactorId, fields)).by(reactor),
+  confirmReaction: command((_, reactorId: string) => confirmReaction(reactorId)).by(reactor),
   pass: command((_, reactorId: string) => passReaction(reactorId)).by(reactor),
   cancel: command(() => cancelAction()).by(panel('open')),
   roll: command((ctx) => rollAnswered(ctx.thrower, ctx.newId)).by(panel('open')),
