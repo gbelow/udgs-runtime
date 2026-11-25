@@ -1,21 +1,51 @@
-import type { SceneState } from '../types'
-import { getSeenBy, getVisibleActions } from '../rules/seen'
-import { UNSEEN_HOLDER } from '../rules/contest'
+import type { Action, Change, SceneState } from '../types'
+import { getFacesKnownBy, getSeenBy, getSensedBy, getVisibleActions } from '../rules/seen'
+import type { CampaignCharacter } from '../../types'
+import { UNSEEN_HOLDER, UNSEEN_NAME } from '../rules/contest'
 import { getPublicFace } from '../../character/lenses/face'
 import { hide, keep, prune, type Censor, type Hidden } from '../../prune'
 
 // The fight as a viewer who controls some of its characters is shown it
 // (multiplayer-plan.md "Hidden information"): a fight that is valid on its
-// own, with whoever they do not see nowhere in it, by id or by name.
+// own, with whoever they do not see nowhere in it, by id or by name, but for
+// what its log tells of a face they know.
 
-type Context = { state: SceneState; controlled: ReadonlySet<string>; hidden: Hidden; visible: ReadonlySet<string> }
+// `hidden` is whoever is not seen now, `unknown` those of them whose face the
+// viewer does not know either, and `masked` those seen in an exchange without
+// having been detected: someone, with no face.
+type Context = { state: SceneState; controlled: ReadonlySet<string>; hidden: Hidden; unknown: Hidden; masked: Hidden; visible: ReadonlySet<string> }
 type SceneCensor<V> = Censor<V, Context>
 
 const unseen = <V>(value: V, c: Context): V => prune(value, c.hidden)
 const nobody: SceneCensor<string> = (id, c) => (c.hidden.has(id) ? '' : id)
 
-const onlyShown = <V extends Record<string, unknown>>(value: V, c: Context): V =>
-  prune(Object.fromEntries(Object.entries(value).filter(([id]) => c.visible.has(id))), c.hidden) as V
+// what the log tells, which still names a face the viewer knows
+const told = <V>(value: V, c: Context): V => prune(value, c.unknown)
+
+// Where something went is written down in words, by whose hands it was in, so
+// a line about someone of `hidden` is left out whole.
+function withoutNamed(changes: Change[], hidden: Hidden, state: SceneState): Change[] {
+  if (hidden.size === 0 || changes.length === 0) return changes
+  const names = [...hidden].flatMap((id) => (state.names[id] ? [state.names[id]] : []))
+  const kept = changes.filter((x) => x.kind !== 'move' || !names.some((n) => x.name === n || x.from.startsWith(`${n}'s `) || x.to.startsWith(`${n}'s `)))
+  return kept.length === changes.length ? changes : kept
+}
+
+function toldAction(action: Action, c: Context): Action {
+  const changes = withoutNamed(action.changes, c.unknown, c.state)
+  return prune(changes === action.changes ? action : { ...action, changes }, c.unknown)
+}
+
+const shownActions: SceneCensor<SceneState['actions']> = (actions, c) =>
+  Object.fromEntries(Object.entries(actions).flatMap(([id, a]) => (c.visible.has(id) ? [[id, toldAction(a, c)]] : [])))
+
+// Someone seen in an exchange whose face is not known.
+const masks = new WeakMap<CampaignCharacter, CampaignCharacter>()
+function maskOf(character: CampaignCharacter): CampaignCharacter {
+  let mask = masks.get(character)
+  if (!mask) masks.set(character, (mask = { ...getPublicFace(character), name: UNSEEN_NAME, token: '' }))
+  return mask
+}
 
 // Every field of the fight says how it is hidden, so that one added does not
 // compile until it does.
@@ -27,7 +57,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   },
   resume: unseen,
   // a character the viewer sees but does not play shows as a token
-  characters: (characters, c) => unseen(Object.fromEntries(Object.entries(characters).filter(([id]) => !c.hidden.has(id)).map(([id, ch]) => [id, c.controlled.has(id) ? ch : getPublicFace(ch)])), c),
+  characters: (characters, c) => unseen(Object.fromEntries(Object.entries(characters).filter(([id]) => !c.hidden.has(id)).map(([id, ch]) => [id, c.controlled.has(id) ? ch : c.masked.has(id) ? maskOf(ch) : getPublicFace(ch)])), c),
   // a party with none of its members seen is not shown
   parties: (parties, c) => {
     const shown = new Set(Object.entries(c.state.partyOf).filter(([id]) => !c.hidden.has(id)).map(([, party]) => party))
@@ -46,13 +76,13 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   turnsBegun: keep,
   contenders: unseen,
   contestModes: unseen,
-  lastContest: unseen,
+  lastContest: told,
   contestWindow: keep,
   contestSeconds: keep,
   contestDecideSeconds: keep,
   thinking: unseen,
   letGo: unseen,
-  agreedToEnd: unseen,
+  agreedToEnd: told,
   doneResting: unseen,
   roundStep: keep,
   concentration: unseen,
@@ -84,15 +114,17 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   breakage: keep,
   turnQueue: unseen,
   fleers: unseen,
-  actions: onlyShown,
+  actions: shownActions,
   live: (ids, c) => ids.filter((id) => c.visible.has(id)),
   stack: (ids, c) => ids.filter((id) => c.visible.has(id)),
   landed: (ids, c) => ids.filter((id) => c.visible.has(id)),
   logSaved: keep,
   foundAt: keep,
-  names: unseen,
-  journal: (entries, c) => entries.filter((e) => c.visible.has(e.action.id)).map((e) => { const action = prune(e.action, c.hidden); return action === e.action ? e : { ...e, action } }),
-  edits: (edits, c) => edits.map((e) => { const changes = unseen(e.changes, c); return changes === e.changes ? e : { ...e, changes } }).filter((e) => e.changes.length > 0),
+  names: (names, c) => { const shown = told(names, c); return c.masked.size > 0 ? { ...shown, ...Object.fromEntries([...c.masked].map((id) => [id, UNSEEN_NAME])) } : shown },
+  faces: (faces, c) => told(Object.fromEntries(Object.entries(faces).filter(([id]) => c.controlled.has(id))), c),
+  witnessed: (by, c) => Object.fromEntries(Object.entries(by).flatMap(([id, who]) => (c.visible.has(id) ? [[id, who.filter((w) => c.controlled.has(w))]] : []))),
+  journal: (entries, c) => entries.filter((e) => c.visible.has(e.action.id)).map((e) => { const action = toldAction(e.action, c); return action === e.action ? e : { ...e, action } }),
+  edits: (edits, c) => edits.map((e) => { const changes = unseen(withoutNamed(e.changes, c.hidden, c.state), c); return changes === e.changes ? e : { ...e, changes } }).filter((e) => e.changes.length > 0),
   board: (board, c) => (board ? { ...board, placements: unseen(board.placements, c) } : board),
   binds: unseen,
   floor: unseen,
@@ -119,9 +151,14 @@ const views = new WeakMap<SceneState, Map<string, SceneState>>()
 
 function censor(state: SceneState, controlled: ReadonlySet<string>): SceneState {
   const seen = getSeenBy(state, controlled)
-  const hidden = new Set(Object.keys(state.characters).filter((id) => !seen.has(id)))
-  if (hidden.size === 0 && Object.keys(state.characters).every((id) => controlled.has(id))) return state
-  const context: Context = { state, controlled, hidden, visible: getVisibleActions(state, controlled, seen) }
+  const everyone = Object.keys(state.characters)
+  const hidden = new Set(everyone.filter((id) => !seen.has(id)))
+  const known = getFacesKnownBy(state, controlled)
+  const sensed = getSensedBy(state, controlled)
+  if (hidden.size === 0 && everyone.every((id) => controlled.has(id))) return state
+  const unknown = new Set([...hidden].filter((id) => !known.has(id)))
+  const masked = new Set([...seen].filter((id) => !sensed.has(id) && !known.has(id) && state.characters[id]))
+  const context: Context = { state, controlled, hidden, unknown, masked, visible: getVisibleActions(state, controlled, seen) }
   const entries = Object.entries(CENSORS) as [keyof SceneState, SceneCensor<unknown>][]
   return Object.fromEntries(entries.map(([key, censor]) => [key, censor(state[key], context)])) as SceneState
 }

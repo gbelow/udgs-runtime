@@ -1,7 +1,7 @@
 import { realDice } from "../components/utils";
 import type { Thrower } from "../domain/play/calls";
 import type { Viewer } from "../domain/profiles";
-import { getCommandBar, toUpdater, type SceneCommand } from "../domain/scene/commands/registry";
+import { getCommandBar, playScene, type SceneCommand } from "../domain/scene/commands/registry";
 import { getTableCommandBar, getTableCommandOwners, toTableUpdater, type TableCommand } from "../domain/scene/commands/tableRegistry";
 import { getCampaignCommandBar, toCampaignUpdater, type CampaignCommand } from "../domain/campaign/commands/registry";
 import { getExplorationCommandBar, toExplorationUpdater, type ExplorationCommand } from "../domain/exploration/commands/registry";
@@ -36,7 +36,7 @@ export const PARTS: { [P in PartName]: Part<any, Commands[P]> } = {
   scene: {
     read: readFight,
     bar: getCommandBar,
-    play: (command, thrower) => updateFight(toUpdater(command, { thrower, newId })),
+    play: (command, thrower) => updateFight(playScene(command, { thrower, newId })),
   },
   // what crosses between the campaign and the fight
   table: {

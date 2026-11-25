@@ -43,16 +43,17 @@ describe('a foe that goes out of sight', () => {
     pass(h, FORGET_AFTER + 1)
     memory = noteSights(memory, h.state(), own(h), true)
     expect(board(h, memory).tokens.some((t) => t.id === foe)).toBe(false)
-    expect(getKnown(h.state(), own(h), memory)).toContain(foe)
+    expect(getKnown(h.state(), own(h))).toContain(foe)
   })
 
   it('is neither drawn nor known to those who never noticed it, unless it is heard', () => {
     const h = scene()
     hide(h)
+    h.press((s) => ({ ...s, faces: {} }))
     const foe = h.idOf('Foe')
     const memory = noteSights(NO_SIGHTS, h.state(), own(h), true)
     expect(board(h, memory).tokens.some((t) => t.id === foe)).toBe(false)
-    expect(foe in memory.faces).toBe(false)
+    expect(getKnown(h.state(), own(h))).not.toContain(foe)
   })
 
   it('is forgotten where it stood by one who sees nobody there', () => {

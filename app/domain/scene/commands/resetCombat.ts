@@ -52,6 +52,8 @@ export function resetCombat(state: SceneState): SceneState {
     landed: [],
     logSaved: 0,
     names: {},
+    faces: {},
+    witnessed: {},
     journal: [],
     edits: [],
     board: state.board ? { ...state.board, placements: {} } : null,

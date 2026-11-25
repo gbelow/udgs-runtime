@@ -2138,6 +2138,12 @@ export const SceneStateSchema = z.object({
   // copies of one sheet apart, kept once they have left so the log still
   // names them.
   names: z.record(str, str).default({}),
+  // whom each character has detected in the fight, so whose face they know
+  // (the table's ruling: a face is known from the moment it is detected, for
+  // the rest of the fight), and who took in the actor of each action as it was
+  // played, by its id: written as commands are played (commands/detected.ts)
+  faces: z.record(str, z.array(str)).default({}),
+  witnessed: z.record(str, z.array(str)).default({}),
   // What was withdrawn from play without landing, in the order it was; only
   // ever added to.
   journal: z.array(JournalEntrySchema).default([]),

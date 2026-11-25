@@ -16,6 +16,7 @@ import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, gi
 import { readClick, type Click } from './click'
 import { pressMenu, type MenuPress } from './clickMenu'
 import { endCombat } from './endCombat'
+import { noteDetected } from './detected'
 import { followScene } from './parked'
 import { follow } from './follow'
 import { dropToFloor, placeItem, removeFloorItem, throwOffShieldToFloor } from './floor'
@@ -213,5 +214,12 @@ export type SceneCommandKind = SceneCommand['kind']
 // not send it (`getCommandBar`), the updater it runs with the table's dice and
 // ids (`toUpdater`), and the command played as sent by a viewer, the state
 // left as it was when refused (`applySceneCommand`).
-export const { actorOf: getCommandActor, barOf: getCommandBar, toUpdater, apply: applySceneCommand } =
+export const { actorOf: getCommandActor, barOf: getCommandBar, toUpdater, apply: applied } =
   playedBy<SceneState, CommandContext, typeof sceneCommands>(sceneCommands)
+
+// A command played at the table, with what the fight remembers of who detected
+// whom by it (`noteDetected`); `toUpdater` alone is what it does, for whoever
+// tries one.
+export const playScene = (command: SceneCommand, ctx: CommandContext): Updater => (state) => noteDetected(state, toUpdater(command, ctx)(state))
+
+export const applySceneCommand: typeof applied = (state, command, viewer, ctx) => noteDetected(state, applied(state, command, viewer, ctx))

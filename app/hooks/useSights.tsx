@@ -27,7 +27,7 @@ export function useSights() {
       const memory = noteSights(before.memory, state, own, mode !== "guest" && useKeptFight.getState().scene === null);
       const picked = state.activeCharacterId;
       const last = picked && own.includes(picked) ? picked : before.last && own.includes(before.last) ? before.last : getFirstOwn(state, own);
-      useSightStore.setState({ player: true, own, memory, known: getKnown(state, own, memory), last });
+      useSightStore.setState({ player: true, own, memory, known: getKnown(state, own), last });
     };
     note();
     return useCombatStore.subscribe(note);

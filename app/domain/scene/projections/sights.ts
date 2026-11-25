@@ -1,25 +1,24 @@
 import type { Coord, SceneState, SeenScene } from '../types'
 import { FORGET_AFTER } from '../../tables'
-import { getCellSenser, getSenseReaches } from '../rules/detection'
-import { getSightOf } from '../rules/seen'
-import { getFightName } from '../rules/fighters'
+import { getCellSenser } from '../rules/detection'
+import { getFacesKnownBy, getSightOf } from '../rules/seen'
 import { getPlacedFootprint } from '../rules/board/board'
 import { getBoardView, getBoardViewFrom, type BoardTokenView, type BoardView } from './boardView'
 import type { RosterParty } from './roster'
 
 // What a player at the table knows of who is in the fight, from what their
-// characters sense and have sensed (the table's rulings). A face once noticed
-// by any of them through an active sense is theirs for the rest of the fight;
-// where someone stands is known to each character on their own, for as long as
-// they sense them, and remembered for `FORGET_AFTER` rounds after. Kept by the
-// screen, never by the fight.
+// characters sense and have sensed (the table's rulings). A face once detected
+// by any of them is theirs for the rest of the fight (`SceneState.faces`); where
+// someone stands is known to each character on their own, for as long as they
+// sense them, and remembered for `FORGET_AFTER` rounds after. The places are
+// kept by the screen, never by the fight.
 
 // Where someone was last noticed, as they were drawn there.
 type Sighting = { token: BoardTokenView; cells: Coord[]; round: number }
 
-export type SightMemory = { faces: Record<string, string>; places: Record<string, Record<string, Sighting>> }
+export type SightMemory = { places: Record<string, Record<string, Sighting>> }
 
-export const NO_SIGHTS: SightMemory = { faces: {}, places: {} }
+export const NO_SIGHTS: SightMemory = { places: {} }
 
 // Those of them who can sense anything: on a board, whoever stands on it.
 const sensing = (state: SceneState, own: readonly string[]): string[] => own.filter((id) => state.characters[id] && (!state.board || state.board.placements[id] !== undefined))
@@ -33,11 +32,7 @@ export function noteSights(memory: SightMemory, state: SeenScene, own: readonly 
   if (present.length === 0) return NO_SIGHTS
   const before = present.some((id) => memory.places[id]) ? memory : NO_SIGHTS
   const stays = (id: string) => !whole || state.characters[id] !== undefined
-  const faces = Object.fromEntries(Object.entries(before.faces).filter(([id]) => stays(id)))
   const looking = sensing(state, present)
-  for (const id of Object.keys(state.characters)) {
-    if (!own.includes(id) && looking.some((m) => getSightOf(state, m).has(id) && getSenseReaches(state, m, id).some((r) => r.active))) faces[id] = getFightName(state, id)
-  }
   const tokens = new Map(getBoardView(state).tokens.map((t) => [t.id, t]))
   const places = Object.fromEntries(present.map((m) => {
     const sight = looking.includes(m) ? getSightOf(state, m) : new Set<string>()
@@ -48,7 +43,7 @@ export function noteSights(memory: SightMemory, state: SeenScene, own: readonly 
     })
     return [m, Object.fromEntries([...kept, ...seen])]
   }))
-  return { faces, places }
+  return { places }
 }
 
 // A place is forgotten once the rounds are up, and once whoever remembers it
@@ -59,22 +54,21 @@ function isRemembered(state: SceneState, observerId: string, s: Sighting): boole
   return !s.cells.some((cell) => senses(cell, s.token.elevation))
 }
 
-// Who a player knows to be in the fight now: their own and their parties',
-// the faces they know, and whoever any of theirs senses now, one heard as they
-// act among them (rules/seen.ts `canSee`).
-export function getKnown(state: SceneState, own: readonly string[], memory: SightMemory): string[] {
-  const parties = new Set(own.map((id) => state.partyOf[id]).filter((p) => p !== undefined))
+// Who a player knows to be in the fight now: whose face they know, and whoever
+// any of theirs senses now, one heard as they act among them (rules/seen.ts
+// `canSee`).
+export function getKnown(state: SceneState, own: readonly string[]): string[] {
+  const faces = getFacesKnownBy(state, new Set(own))
   const looking = sensing(state, own)
-  const senses = (id: string) => looking.some((m) => getSightOf(state, m).has(id))
-  return Object.keys(state.characters).filter((id) => own.includes(id) || parties.has(state.partyOf[id]) || id in memory.faces || senses(id))
+  return Object.keys(state.characters).filter((id) => faces.has(id) || looking.some((m) => getSightOf(state, m).has(id)))
 }
 
 // The roster as a player knows it: those they know, and the faces they know of
 // whoever their screen is not shown now, by name alone.
-export function getKnownRoster(parties: RosterParty[], known: readonly string[], memory: SightMemory, shown: SceneState['characters']): { parties: RosterParty[]; away: { id: string; name: string }[] } {
+export function getKnownRoster(parties: RosterParty[], known: readonly string[], state: SceneState, own: readonly string[]): { parties: RosterParty[]; away: { id: string; name: string }[] } {
   return {
     parties: parties.map((p) => ({ ...p, entries: p.entries.filter((e) => known.includes(e.id)) })).filter((p) => p.entries.length > 0),
-    away: Object.entries(memory.faces).flatMap(([id, name]) => (shown[id] ? [] : [{ id, name }])),
+    away: [...getFacesKnownBy(state, new Set(own))].flatMap((id) => (state.characters[id] || !state.names[id] ? [] : [{ id, name: state.names[id] }])),
   }
 }
 

@@ -10,7 +10,7 @@ import { defRows } from '../domain/scene/rules/attack'
 import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
-import { getSeenBy } from '../domain/scene/rules/seen'
+import { getFacesKnownBy, getSeenBy } from '../domain/scene/rules/seen'
 import { getBoardViewFrom } from '../domain/scene/projections/boardView'
 import { getStoreyChoices, getStoreyView, getViewEye } from '../domain/scene/projections/storeyView'
 import { getSceneSeenBy } from '../domain/scene/projections/seen'
@@ -426,7 +426,10 @@ function assertSeen(s: SceneState) {
     const seen = getSceneSeenBy(s, new Set(controlled))
     const view = SceneStateSchema.parse(JSON.parse(JSON.stringify(seen)))
     const shown = getSeenBy(s, new Set(controlled))
-    const left = ids.filter((id) => !shown.has(id))
+    const known = getFacesKnownBy(s, new Set(controlled))
+    const left = ids.filter((id) => !shown.has(id) && !known.has(id))
+    for (const id of ids) if (!shown.has(id)) expect(view.characters[id], `${controlled.join('+')} is shown ${id} in the fight, whom they do not see`).toBeUndefined()
+    for (const id of ids) if (!shown.has(id)) expect(view.board?.placements[id], `${controlled.join('+')} is shown where ${id} stands, whom they do not see`).toBeUndefined()
     const text = JSON.stringify(view)
     for (const id of left) {
       expect(text.includes(id), `${controlled.join('+')} is shown ${id}, whom they do not see, at ${whereIs(view, id)}`).toBe(false)
@@ -441,10 +444,10 @@ function assertSeen(s: SceneState) {
       expect({ trainables, containers, injuries, resources, abilities, spells, notes }, `${controlled.join('+')} is shown the sheet of ${id}, whom they do not play`)
         .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: { ...blank.injuries, injuryLevel: Math.floor(s.characters[id].injuries.injuryLevel / SHOWN_IL_STEP) * SHOWN_IL_STEP, bleed: s.characters[id].injuries.bleed }, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, notes: blank.notes })
     }
-    const known = new Set([...Object.keys(view.actions), ...view.journal.map((e) => e.action.id)])
+    const logged = new Set([...Object.keys(view.actions), ...view.journal.map((e) => e.action.id)])
     for (const a of Object.values(view.actions)) {
       for (const link of [a.reactionTo, a.spawnedBy, a.followUpOf]) {
-        if (link !== null) expect(known.has(link), `${controlled.join('+')} is shown ${a.kind} ${a.id} linked to ${link}, which they are not`).toBe(true)
+        if (link !== null) expect(logged.has(link), `${controlled.join('+')} is shown ${a.kind} ${a.id} linked to ${link}, which they are not`).toBe(true)
       }
     }
     for (const id of [...view.live, ...view.stack, ...view.landed]) expect(view.actions[id], `${controlled.join('+')} is shown ${id} on a list but not in the log`).toBeDefined()

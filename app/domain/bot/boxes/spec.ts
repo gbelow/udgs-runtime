@@ -1,4 +1,4 @@
-import type { Coord, SurgeKind } from '../../types'
+import type { CampaignCharacter, Coord, SurgeKind } from '../../types'
 import type { ActionDraft, Degree, SceneState } from '../../scene/types'
 import type { SceneCommand } from '../../scene/commands/registry'
 import { getSurgeAPLeft, getSurgeRecovery, getSurgeSTA } from '../../character/rules/surge'
@@ -29,7 +29,7 @@ import { getAPWorth, getCompany, getEvadedThreat, getExposed, getExposure, getEx
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getBudgets, getCollapsedCare, getKnownAttack, getOpenedWalks, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesOpenedWalk, takesWalk, trial, TRIAL, wonBy, type AttackCell, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
-import type { Notes } from '../memory'
+import { getAbsentFoes, type Notes } from '../memory'
 
 // The box instructions/bot-spec.md describes, read section by section:
 //
@@ -645,13 +645,16 @@ function planNow(view: SceneState, members: readonly string[], id: string, w: Sp
   return [planAttack(ctx), planEscape(ctx)].reduce<Plan | null>((best, p) => (p && (!best || p.score > best.score) ? p : best), null)
 }
 
-// Whether the round is as good as over for the character's foes: every one
+// Whether the round is as good as over for the character's foes, those it
+// knows to be about and not where among them (the user's ruling): every one
 // has agreed to end it or shows its AP in the lowest third, which a spent foe
 // shows and is as little as a seat is told, so that what the character's AP
 // would defend this round is next to nothing.
 function isRoundEnding(ctx: Ctx): boolean {
   const { view, w } = ctx
-  return getSides(view, ctx.members).foes.every((f) => hasAgreedToEnd(view, f) || view.characters[f].shown?.AP === 0 || getBelievedAP(view.characters[f], false, w) <= 0)
+  const spent = (c: CampaignCharacter) => c.shown?.AP === 0 || getBelievedAP(c, false, w) <= 0
+  return getSides(view, ctx.members).foes.every((f) => hasAgreedToEnd(view, f) || spent(view.characters[f]))
+    && getAbsentFoes(view).every(({ id, face }) => view.agreedToEnd.includes(id) || spent(face))
 }
 
 // How the character would better its position once it has nothing to do now:

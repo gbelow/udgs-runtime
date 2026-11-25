@@ -92,28 +92,48 @@ export function getSightOf(state: SceneState, observerId: string): ReadonlySet<s
   return sight
 }
 
-// The characters a viewer sees: their own, those any of them detects, and
-// whoever shares an exchange with one of theirs — an unseen archer has been
-// seen by whoever they shot.
+// The characters a viewer sees now: their own, those any of them detects, and
+// whoever shares an exchange in play with one of theirs, for as long as it is.
 export function getSeenBy(state: SceneState, controlled: ReadonlySet<string>): Set<string> {
-  const own = [...controlled].filter((id) => state.characters[id])
-  const seen = new Set(own)
-  for (const id of own) getSightOf(state, id).forEach((other) => seen.add(other))
-  for (const { participants } of getExchanges(state).values()) {
-    if ([...participants].some((id) => controlled.has(id))) participants.forEach((id) => seen.add(id))
+  const seen = getSensedBy(state, controlled)
+  const live = new Set(state.live)
+  for (const { ids, participants } of getExchanges(state).values()) {
+    if (ids.some((id) => live.has(id)) && [...participants].some((id) => controlled.has(id))) participants.forEach((id) => seen.add(id))
   }
   return seen
 }
 
+// A viewer's own characters and those any of them detects.
+export function getSensedBy(state: SceneState, controlled: ReadonlySet<string>): Set<string> {
+  const own = [...controlled].filter((id) => state.characters[id])
+  const seen = new Set(own)
+  for (const id of own) getSightOf(state, id).forEach((other) => seen.add(other))
+  return seen
+}
+
+// Whose face a viewer knows, seen now or not (the table's ruling: from the
+// moment one of theirs detects it, for the rest of the fight): their own, their
+// parties', and whoever one of theirs has detected.
+export function getFacesKnownBy(state: SceneState, controlled: ReadonlySet<string>): Set<string> {
+  const parties = new Set([...controlled].flatMap((id) => state.partyOf[id] ?? []))
+  const known = new Set([...controlled, ...Object.keys(state.characters).filter((id) => parties.has(state.partyOf[id]))])
+  for (const id of controlled) (state.faces[id] ?? []).forEach((other) => known.add(other))
+  return known
+}
+
 // The ids of the exchanges' actions the viewer is shown: those they are part
-// of, those they see everyone of, and, of a crowd, those whose actor they see.
+// of, and those whose actor one of theirs took in as it was played
+// (`SceneState.witnessed`). One nobody's witnesses were noted of goes by who is
+// seen now: everyone in it, or, of a crowd, its actor.
 export function getVisibleActions(state: SceneState, controlled: ReadonlySet<string>, seen: ReadonlySet<string>): Set<string> {
   const visible = new Set<string>()
-  for (const { ids, participants, held, actor } of getExchanges(state).values()) {
+  const known = getFacesKnownBy(state, controlled)
+  for (const [root, { ids, participants, held, actor }] of getExchanges(state)) {
     const people = [...participants]
-    const shown = people.some((id) => controlled.has(id))
-      || (people.length > MANY ? seen.has(actor) : people.every((id) => seen.has(id) || !state.characters[id]))
-    if (shown && [...held].every((id) => seen.has(id) || !state.characters[id])) ids.forEach((id) => visible.add(id))
+    const witnesses = state.witnessed[root]
+    const shown = people.some((id) => controlled.has(id)) || (witnesses ? witnesses.some((id) => controlled.has(id))
+      : people.length > MANY ? seen.has(actor) : people.every((id) => seen.has(id) || !state.characters[id]))
+    if (shown && [...held].every((id) => seen.has(id) || known.has(id) || !state.characters[id])) ids.forEach((id) => visible.add(id))
   }
   return visible
 }

@@ -57,10 +57,10 @@ export function useCombatRoster(): {
   useCombatStore(getCombatRosterDigest);
   const player = useSightStore((s) => s.player);
   const known = useSightStore((s) => s.known);
-  const memory = useSightStore((s) => s.memory);
+  const own = useSightStore((s) => s.own);
   const fight = useCombatStore.getState();
   const roster = getRosterParties(fight);
-  const { parties, away } = player ? getKnownRoster(roster, known, memory, fight.characters) : { parties: roster, away: NO_ONE_AWAY };
+  const { parties, away } = player ? getKnownRoster(roster, known, fight, own) : { parties: roster, away: NO_ONE_AWAY };
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
   const picked = useGmPickStore((s) => (s.picking ? s.picked : NONE));

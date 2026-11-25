@@ -164,7 +164,7 @@ const seenKept = new WeakMap<SceneState, Map<string, Seen>>()
 function seenBy(state: SceneState, members: readonly string[], memory: SeatMemory | undefined): Seen {
   const bySeat = seenKept.get(state) ?? new Map<string, Seen>()
   seenKept.set(state, bySeat)
-  const key = `${members.join(',')}|${Object.entries(memory ?? {}).map(([id, m]) => `${id}@${m.round}`).join(',')}`
+  const key = `${members.join(',')}|${Object.entries(memory ?? {}).map(([id, m]) => `${id}@${m.round}${m.placement ? '' : '?'}`).join(',')}`
   let seen = bySeat.get(key)
   if (!seen) bySeat.set(key, (seen = { view: null, unnoticed: new Map() }))
   return seen

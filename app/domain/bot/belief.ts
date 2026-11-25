@@ -105,9 +105,9 @@ function withRequired(keys: AbilityKey[]): AbilityKey[] {
 export function getSeenAbilities(seen: SceneState, id: string): AbilityKey[] {
   const actions = [...Object.values(seen.actions), ...seen.journal.map((entry) => entry.action)].filter((a) => a.actorId === id)
   const recipes = actions.flatMap((a) => [a.recipe, ...a.learnedModifiers].flatMap((r) => abilityOfRecipe(r) ?? []))
-  const surge = seen.characters[id]?.usedSurge
-  const learned = surge ? (SURGES[surge] as { learned?: Grant }).learned : undefined
-  return withRequired([...recipes, ...(learned ? grantedBy(learned) : [])])
+  const surges = [seen.characters[id]?.usedSurge, ...actions.map((a) => a.surged?.kind)]
+  const learned = new Set(surges.flatMap((kind) => (kind ? (SURGES[kind] as { learned?: Grant }).learned ?? [] : [])))
+  return withRequired([...recipes, ...[...learned].flatMap(grantedBy)])
 }
 
 // The abilities as a sheet holds them: each family at the highest stage known.

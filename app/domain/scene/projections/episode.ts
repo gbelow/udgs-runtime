@@ -8,12 +8,16 @@ import { getActionName } from './labels'
 import { getActionReport, type ActionReport } from './outcomes'
 import { ACTIONS } from '../rules/actionCatalog'
 import { getFightName } from '../rules/fighters'
+import { UNSEEN_NAME } from '../rules/contest'
 import { getAction, getHistory, getLanded, getOrigin, getReactionsTo } from '../rules/log'
 import { getGivenUpFor, isInterruptible, isVoided } from '../rules/opportunity'
 import { getInterruptions } from '../rules/interruption'
 import { getMoveOverride, getStandingIn } from '../rules/move'
 import { describeOutcome, describeSource } from '../../play/test'
 import { findWeaponRow } from '../rules/weaponRow'
+
+// What the log calls someone: whoever its reader does not know is someone unseen.
+const getLogName = (state: SceneState, id: string): string => getFightName(state, id) || (id === '' ? UNSEEN_NAME : '')
 
 // What the table reads once an action has played out, whole: the action that
 // started it and everything it drew — the answers given to it, what those
@@ -153,7 +157,7 @@ function getLandedParent(state: SceneState, action: Action, rootIds: Set<string>
 }
 
 function describeWithdrawal(state: SceneState, { action, reason }: JournalEntry): string {
-  const actor = getFightName(state, action.actorId)
+  const actor = getLogName(state, action.actorId)
   const what = getActionName(action)
   switch (reason) {
     case 'tookBack': return `${actor} took back ${what}`
@@ -170,15 +174,15 @@ function describeWithdrawal(state: SceneState, { action, reason }: JournalEntry)
 
 function describeHiddenFrom(state: SceneState, action: Action): string | null {
   if (!action.hiddenFrom) return null
-  const names = action.hiddenFrom.map((id) => getFightName(state, id))
-  return `${getFightName(state, action.actorId)} began the turn hidden from ${names.length > 0 ? names.join(', ') : 'nobody'}`
+  const names = action.hiddenFrom.map((id) => getLogName(state, id))
+  return `${getLogName(state, action.actorId)} began the turn hidden from ${names.length > 0 ? names.join(', ') : 'nobody'}`
 }
 
 // combat.tex "Stealth in combat": the hider's stealth value, less what their
 // turn had spent, against the observer's detection.
 function describeDetection(state: SceneState, { observerId, hiderId, found, test }: Detection): DetectionLine {
-  const observer = getFightName(state, observerId)
-  const hider = getFightName(state, hiderId)
+  const observer = getLogName(state, observerId)
+  const hider = getLogName(state, hiderId)
   if (!test) return { text: `${observer} could not sense ${hider}`, terms: [] }
   const score = test.penalty ? `stealth ${test.score} − ${test.penalty} for the turn = ${test.score - test.penalty}` : `stealth ${test.score}`
   return { text: `${observer} ${found ? 'noticed' : 'did not notice'} ${hider}: ${score} vs ${test.sense} detection ${test.detection} · ${test.degree}`, terms: test.terms }
@@ -187,13 +191,13 @@ function describeDetection(state: SceneState, { observerId, hiderId, found, test
 function getReactionLines(state: SceneState, root: Action): ReactionLine[] {
   return getReactionsTo(state, root.id)
     .filter((r) => r.step === 'done')
-    .map((r) => ({ actor: getFightName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, declared: getDeclared(state, r), cost: r.cost, costTerms: r.costTerms, refunded: r.refunded, surged: r.surged, roll: r.roll, test: getTestLine(r.roll), changes: r.changes.map((c) => describeChange(state, c)) }))
+    .map((r) => ({ actor: getLogName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, declared: getDeclared(state, r), cost: r.cost, costTerms: r.costTerms, refunded: r.refunded, surged: r.surged, roll: r.roll, test: getTestLine(r.roll), changes: r.changes.map((c) => describeChange(state, c)) }))
 }
 
 // The options and targets the action was committed with, a phrase each.
 function getDeclared(state: SceneState, action: Action): string[] {
   const declared: string[] = []
-  if (action.targetId) declared.push(`at ${getFightName(state, action.targetId)}`)
+  if (action.targetId) declared.push(`at ${getLogName(state, action.targetId)}`)
   if ('attack' in action && action.attack) {
     const actor = state.characters[action.actorId]
     const row = actor && 'weaponKey' in action ? findWeaponRow(actor, action.weaponKey, action.attack) : null
@@ -225,7 +229,7 @@ function describeHeadline(target: string, outcome: Outcome): string {
 }
 
 function describe(state: SceneState, action: Action): string {
-  return `${getFightName(state, action.actorId)}'s ${getActionName(action)}`
+  return `${getLogName(state, action.actorId)}'s ${getActionName(action)}`
 }
 
 function getCause(state: SceneState, action: Action): string | null {
@@ -238,7 +242,7 @@ function getCause(state: SceneState, action: Action): string | null {
 function getFate(state: SceneState, action: Action): string | null {
   if (action.kind === 'move') return getMoveFate(state, action)
   if (!isVoided(state, action)) return null
-  const actor = getFightName(state, action.actorId)
+  const actor = getLogName(state, action.actorId)
   const given = isInterruptible(action) ? getGivenUpFor(state, action) : null
   if (given) return `given up: ${actor} answered ${describe(state, given)} instead`
   const hit = getInterruptions(state, action)[0]
@@ -269,15 +273,15 @@ function getMoveFate(state: SceneState, move: MoveAction): string | null {
 // opportunity attack that cut it short.
 function getStopCause(state: SceneState, move: MoveAction, facts: MoveFacts): string | null {
   const blocked = facts.stop === 'trample' ? facts.trampled.find((t) => t.result === 'blocked') : undefined
-  if (blocked) return getFightName(state, blocked.id)
+  if (blocked) return getLogName(state, blocked.id)
   const standing = facts.stop === 'occupied' && facts.path.length < move.path.length ? getStandingIn(state, move, facts.path.length + 1) : null
-  if (standing) return getFightName(state, standing)
+  if (standing) return getLogName(state, standing)
   const by = getMoveOverride(state, move)?.by
   return by ? describe(state, by) : null
 }
 
 export function describeChange(state: SceneState, change: Change): string {
-  return `${change.kind === 'move' ? change.name : getFightName(state, change.id)}: ${describeChangeTo(change)}`
+  return `${change.kind === 'move' ? change.name : getLogName(state, change.id)}: ${describeChangeTo(change)}`
 }
 
 // What the change did, leaving out whom or what it was done to.
