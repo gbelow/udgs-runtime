@@ -1,12 +1,13 @@
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useAppStore } from "../stores/useAppStore";
-import { useCampaignStore } from "../stores/useCampaignStore";
+import { getInPlay, useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
-import { dropFight, keepFight, useFight } from "../stores/useKeptFight";
+import { dropFight, keepFight, readFight, useFight, useKeptFight } from "../stores/useKeptFight";
 import { useBotLogStore } from "../stores/useBotLogStore";
 import { useDemoStore } from "../stores/useDemoStore";
-import { DEMO, DEMO_VISITOR } from "../domain/demo";
+import { makeWriter, readAutosave, writeAutosave } from "../stores/autosave";
+import { DEMO, DEMO_SCENE, DEMO_VISITOR, DemoPlaySchema } from "../domain/demo";
 import { getScenePreset } from "../domain/campaign/rules/scenes";
 import { getBaseCharacters } from "../domain/character/grouping";
 import { getSceneMaterials } from "../domain/scene/projections/prepared";
@@ -14,7 +15,8 @@ import { getDemoPicker, getDemoView } from "../domain/scene/projections/demo";
 import { playDemo } from "../domain/scene/commands/demo";
 import { ExplorationStateSchema } from "../domain/exploration/types";
 import { DowntimeStateSchema } from "../domain/downtime/types";
-import { newFile } from "../domain/saves";
+import { makeCampaignCharacter } from "../domain/factories";
+import { CampaignSaveSchema, fromCampaignSave, newFile, toFileInfo, toStoredCampaign } from "../domain/saves";
 
 // The demo's scene, as the catalog has it.
 const preset = () => getScenePreset(DEMO.scene);
@@ -82,9 +84,47 @@ export function useDemo() {
   };
 }
 
-// The demo's fight is let go of as the page is left.
-export function useDemoEnd() {
-  useEffect(() => dropFight, []);
+// The demo as this browser keeps it: the fight whole, and how the visitor is
+// playing it.
+async function writeDemo() {
+  if (useKeptFight.getState().scene === null) return;
+  const { file, owners } = useCampaignStore.getState();
+  const demo = DemoPlaySchema.parse(useDemoStore.getState());
+  await writeAutosave(DEMO_VISITOR, DEMO_SCENE, { ...toStoredCampaign(file, { ...getInPlay(), fight: readFight() }, owners), at: Date.now(), demo });
+}
+
+// The demo brought back as it was left; nothing where none was kept, or what
+// was kept no longer reads.
+async function resumeDemo(isLeft: () => boolean) {
+  const kept = await readAutosave(DEMO_VISITOR, DEMO_SCENE);
+  const demo = DemoPlaySchema.safeParse(kept?.demo);
+  const save = CampaignSaveSchema.safeParse(kept?.save);
+  if (!kept || !demo.success || !save.success || isLeft() || useKeptFight.getState().scene !== null) return;
+  if (Object.keys(save.data.fight.characters).length === 0) return;
+  const t = fromCampaignSave(save.data, kept.characters.map(makeCampaignCharacter));
+  useBotLogStore.setState({ entries: [], paused: false, open: true });
+  useCampaignStore.getState().openCampaign(t, toFileInfo(save.data), save.data.owners);
+  keepFight(t.fight, DEMO_VISITOR);
+  useCombatStore.setState({ activeCharacterId: Object.keys(t.fight.characters).find((id) => t.fight.partyOf[id] === demo.data.party) ?? null });
+  useDemoStore.setState(demo.data);
+}
+
+// The demo brought back as this browser kept it, kept after every change, and
+// its fight let go of as the page is left.
+export function useDemoKept() {
+  useEffect(() => {
+    let left = false;
+    const writer = makeWriter(writeDemo);
+    const offFight = useKeptFight.subscribe(writer.ask);
+    const offDemo = useDemoStore.subscribe(writer.ask);
+    resumeDemo(() => left).catch((err) => console.error('Resuming the demo failed:', err));
+    return () => {
+      left = true;
+      offFight();
+      offDemo();
+      dropFight();
+    };
+  }, []);
 }
 
 // Whether the visitor is picking or playing, and whether they started the

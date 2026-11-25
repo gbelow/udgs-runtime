@@ -15,7 +15,7 @@ import { EndRound } from '../EndRound'
 import { EndTurn } from '../EndTurn'
 import { ContestBar } from '../ContestBar'
 import { TurnBanner } from '../TurnBanner'
-import { useDemo, useDemoEnd, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
+import { useDemo, useDemoKept, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
 import { useActiveFace, useCombatState, useRoundChange } from '../../hooks/useCombatState'
 import { ActiveFace } from '../ActiveFace'
@@ -39,7 +39,7 @@ const DiceTray = dynamic(() => import('../DiceTray'), { ssr: false })
 // with nothing on the screen but what a player of the fight needs.
 export function DemoApp({ offered }: { offered: string[] | null }) {
   const { stage } = useDemoStage()
-  useDemoEnd()
+  useDemoKept()
   return stage === 'pick' ? <DemoPicker offered={offered} /> : <DemoTable />
 }
 

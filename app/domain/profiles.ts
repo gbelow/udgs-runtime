@@ -49,8 +49,8 @@ export function hasGmTools(role: Role): boolean {
 // of its members. A bot plays every party it is given characters in as a seat
 // of its own.
 export const BOTS = [
-  { id: 'bot:threat', name: 'bot: threat' },
   { id: 'bot:spec', name: 'bot: spec' },
+  { id: 'bot:threat', name: 'bot: threat' },
   { id: 'bot:nearest', name: 'bot: nearest' },
 ] as const satisfies readonly ProfileListing[]
 export type BotId = (typeof BOTS)[number]['id']

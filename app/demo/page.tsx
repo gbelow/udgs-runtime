@@ -4,8 +4,8 @@ import { DemoApp } from "../components/demo/DemoApp";
 import { DEMO_VISITOR } from "../domain/demo";
 
 // The demo: one prepared scene against the bots, played by a visitor with no
-// profile, from the catalog and the shared battle maps alone. Nothing of it
-// is saved.
+// profile, from the catalog and the shared battle maps alone. It is kept
+// in the visitor's browser, and nowhere else.
 export default async function Demo() {
   const [baseRes, boardRes, structureRes, collectionRes] = await Promise.all([
     getBasicCharList(),

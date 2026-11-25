@@ -6,6 +6,9 @@ import { archer, board, meleeTrained, spearman, towerWarden } from '../scene/fix
 import { addAffliction } from '../character/commands/addAffliction'
 import { getAvailableActions, getGoBar } from '../scene/rules/options'
 import { getOpenAction } from '../scene/rules/log'
+import { getHeldOf } from '../scene/rules/hold'
+import { getRoundPhase } from '../scene/rules/roundChange'
+import { getMedicineCost } from '../scene/rules/medicine'
 import { getSceneSeenBy } from '../scene/projections/seen'
 import { getFreeAttackOptions } from '../scene/rules/attack'
 import { getOpenChoices } from '../scene/projections/choices'
@@ -119,6 +122,37 @@ describe('a move asked for again before it is made', () => {
       memories = withNoted(memories, move)
       s = move.commands.reduce((at, c) => applySceneCommand(at, c, move.viewer, ctx), s)
       from = next
+    }
+  })
+})
+
+// A bot collapsed with less AP than Tend Wounds takes held it over, then held
+// on at every round change however much it had paid in, and bled out.
+describe('a bot holding an action over to the next round', () => {
+  const bleeding = archer('a')
+  const price = getMedicineCost('tendWounds').AP
+  const tender = { ...bleeding, usedSurge: 'focus' as const, resources: { ...bleeding.resources, AP: price - 1, STA: 6 }, injuries: { ...bleeding.injuries, bleed: 1 } }
+  const rng = seededRng(1)
+  const ctx: CommandContext = { thrower: (e) => rollD10(e, rng), newId: (() => { let n = 0; return () => `h${++n}` })() }
+  const send = (s: SceneState, ...commands: Parameters<typeof applySceneCommand>[1][]) => commands.reduce((at, c) => applySceneCommand(at, c, GM, ctx), s)
+  let s: SceneState = board({ a: [0, 0] }, tender)
+  s = send(s, { kind: 'startTurn', args: ['a'] }, { kind: 'closeContest', args: [] })
+  const tend = declare(s, { actorId: 'a', option: { kind: 'tendWounds' }, picks: [] }, ctx)
+  if (!tend.ok) throw new Error(tend.refused)
+  s = send(s, ...tend.commands, { kind: 'endTurn', args: [] }, { kind: 'nextRound', args: [] })
+
+  it('finishes it once it has the AP for it, whatever box it plays with', () => {
+    expect(getHeldOf(s, 'a')?.kind).toBe('tendWounds')
+    for (const box of Object.values(BOT_BOXES)) {
+      const opts: MoveOptions = { ctx, botDice: () => 5, rngOf: () => rng, autoTable: true }
+      let at = s
+      for (let i = 0; i < 30 && getRoundPhase(at) !== null; i++) {
+        const move = getNextMove(at, [{ id: 'a', members: ['a'], box }], opts).move
+        if (!move) break
+        at = send(at, ...move.commands)
+      }
+      expect(getRoundPhase(at)).toBeNull()
+      expect(getHeldOf(at, 'a')).toBeNull()
     }
   })
 })

@@ -1,13 +1,8 @@
 import { create } from 'zustand'
+import type { DemoPlay } from '../domain/demo'
 
-// The demo on this screen: the characters the visitor picked, by catalog
-// key, whether they are picking or playing, the fight party that is theirs,
-// and whether they said the fight may begin. Never saved.
-type DemoStore = {
-  stage: 'pick' | 'play'
-  picks: string[]
-  party: string
-  started: boolean
+// The demo on this screen.
+type DemoStore = DemoPlay & {
   setPicks: (picks: string[]) => void
   play: (party: string) => void
   start: () => void

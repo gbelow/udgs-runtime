@@ -13,6 +13,9 @@ import { isClearWalk } from '../reach'
 import { distance } from '../../scene/rules/board/geometry'
 import { getEndTurnBar, getTurnHolder, hasAgreedToEnd } from '../../scene/rules/turn'
 import { getRoundPhase } from '../../scene/rules/roundChange'
+import { getHeldOf } from '../../scene/rules/hold'
+import { getOwnCost } from '../../scene/rules/action'
+import { canAfford } from '../../character/rules/cost'
 import type { OpenButton } from '../../scene/projections/buttons'
 import { declare, settle, type Intent } from '../declare'
 import { getSides } from '../table'
@@ -24,8 +27,8 @@ import { getBestSpendPicks } from '../predict'
 // A baseline to measure other boxes against: each character walks to the foe
 // nearest them and attacks it with the first weapon that reaches, and does
 // nothing else of its own will. It answers nothing (it passes), holds on to
-// what it concentrates on, makes the morale test it owes with its first mode,
-// is taken for a coward rather than do a limit stress action it owes, makes a
+// what it concentrates on until it can finish it, makes the morale test it
+// owes with its first mode, is taken for a coward rather than do a limit stress action it owes, makes a
 // surge the table holds it to, and
 // lands what it rolled with a hit's overflow spent as `getBestSpend` spends it. A turn is started only when
 // there is an attack or a step closer to make in it; otherwise the character
@@ -105,15 +108,27 @@ export function finding(buttons: readonly OpenButton[]): { find: Find; press: Pr
   return { find, press }
 }
 
+// Whether the character holds an action it has the AP to finish now (combat.tex
+// "Concentration": let go of at the round change, the action is completed).
+function canFinishHeld(state: SceneState, id: string): boolean {
+  const c = state.characters[id]
+  const held = getHeldOf(state, id)
+  const price = held && getOwnCost(state, held)
+  return !!c && !!price && canAfford(c, { AP: price.AP, STA: 0 }, isCombatStarted(state))
+}
+
 // What the box does about what the table waits on a member for, but the
-// answer and the turn, which `nearestBox` plays as its own: hold on to what it
-// concentrates on, make the morale test, land what it rolled, and rest or say
-// something at the round's rest step as `getRestChoice` weighs it with `rest`.
+// answer and the turn, which `nearestBox` plays as its own: finish the action
+// it holds once it has the AP for it, else hold on to what it concentrates on,
+// make the morale test, land what it rolled, and rest or say something at the
+// round's rest step as `getRestChoice` weighs it with `rest`.
 export function settleWait(input: SeatInput, wait: Wait, find: Find, press: Press, rest: RestTuning): Decision | null {
   const { id } = wait
   switch (wait.for) {
     case 'concentration':
-      return press(find('holdOn', id) ?? find('letGo', id), 'holds on')
+      return canFinishHeld(input.view(), id)
+        ? press(find('letGo', id), 'finishes what it held')
+        : press(find('holdOn', id) ?? find('letGo', id), 'holds on')
     case 'morale':
       return press(find('rollMorale', id) ?? find('keepMorale', id) ?? find('skipMorale', id), 'makes the morale test')
     case 'action':

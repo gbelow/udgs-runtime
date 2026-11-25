@@ -1,6 +1,6 @@
 import { CampaignStateSchema, type ScenePreset } from '../../campaign/types'
 import { getPresetCast, getScenePartyId } from '../../campaign/rules/scenes'
-import type { CharacterOwners } from '../../profiles'
+import { isBot, type CharacterOwners } from '../../profiles'
 import { DEMO_BOT, DEMO_SCENE, DEMO_VISITOR } from '../../demo'
 import { SceneStateSchema, type SceneState, type Table } from '../types'
 import { extentCells, parseCoordKey } from '../rules/board/geometry'
@@ -14,9 +14,9 @@ export type DemoTable = { table: Table; owners: CharacterOwners; party: string }
 
 // The demo's fight, made fresh: the prepared scene played with the party
 // marked for the visitor made of the catalog characters they picked
-// (`picks`, by key, one each), theirs to play, and every other party the
-// bot's, already standing in its spawn area. Null for a scene with no party
-// for the visitor, or nobody picked.
+// (`picks`, by key, one each), theirs to play, and every other party played
+// by the bots the scene gives it to, already standing in its spawn area. Null
+// for a scene with no party for the visitor, or nobody picked.
 export function playDemo(preset: ScenePreset, picks: readonly string[], board: unknown | null, sheets: Record<string, unknown>, newId: () => string): DemoTable | null {
   const visitorParty = preset.parties.findIndex((p) => p.visitor)
   if (visitorParty < 0 || picks.length === 0) return null
@@ -24,7 +24,7 @@ export function playDemo(preset: ScenePreset, picks: readonly string[], board: u
     ...preset,
     parties: preset.parties.map((p, i) => (i === visitorParty
       ? { ...p, members: picks.map((key) => ({ key, count: 1, player: DEMO_VISITOR })) }
-      : { ...p, members: p.members.map((m) => ({ ...m, player: DEMO_BOT })) })),
+      : { ...p, members: p.members.map((m) => ({ ...m, player: m.player !== null && isBot(m.player) ? m.player : DEMO_BOT })) })),
   }
   const cast = getPresetCast(DEMO_SCENE, played, (p, m) => played.parties[p].members[m].player).filter((c) => sheets[c.key])
   const fight = SceneStateSchema.parse({})

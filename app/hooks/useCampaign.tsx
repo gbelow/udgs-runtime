@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { answerRequest, deleteCampaign, loadCampaign, lockCampaign, requestToJoin, saveCampaign, unlockCampaign, withdrawRequest } from "../actions";
 import { asCopy, CampaignSaveSchema, fromCampaignSave, getCampaignSaveBar, getDeleteBar, hasPlay, newCampaign, newFile, toFileInfo, toStoredCampaign, type CampaignFileInfo, type CampaignSave, type StoredCampaign } from "../domain/saves";
-import { dropAutosave, readAutosave, readLastAutosaveId, useAutosaveStore, writeAutosave } from "../stores/autosave";
+import { dropAutosave, makeWriter, readAutosave, readLastAutosaveId, useAutosaveStore, writeAutosave } from "../stores/autosave";
 import { useTableStore } from "../stores/useTableStore";
 import { getMoveBars, getRosterIn, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
 import type { Sequence } from "../domain/campaign/types";
@@ -144,14 +144,14 @@ function stored(file = useCampaignStore.getState().file): StoredCampaign {
 
 // The autosave write under way, if any: what the campaign in play last
 // changed to is not in storage until it is done.
-let writing: Promise<void> | null = null;
+let writing: () => Promise<void> | null = () => null;
 
 // Opens campaign `id` where this screen left it, from its autosave; what is
 // saved is opened only when there is no autosave or `fresh` asks for it. What
 // is being written is waited for first, so the autosave read is the
 // campaign's latest.
 async function resume(profile: string, id: string, fresh: boolean) {
-  await writing;
+  await writing();
   const kept = fresh ? undefined : await readAutosave(profile, id).catch(() => undefined);
   const parsed = kept ? CampaignSaveSchema.safeParse(kept.save) : null;
   if (kept && parsed?.success) {
@@ -192,10 +192,7 @@ export function useAutosave() {
   const profile = useProfileId();
   useEffect(() => {
     if (!profile) return;
-    let queued = false;
-    let busy = false;
-    let again = false;
-    const write = async () => {
+    const writer = makeWriter(async () => {
       const { file } = useCampaignStore.getState();
       if (file.savedAt === 0 && !hasPlay(getInPlay())) return;
       const at = Date.now();
@@ -203,23 +200,11 @@ export function useAutosave() {
         await writeAutosave(profile, file.id, { ...stored(file), at });
         if (useCampaignStore.getState().file.id === file.id) useAutosaveStore.getState().set(at);
       } catch (err) { console.error('Autosave failed:', err); }
-    };
-    const flush = async () => {
-      queued = false;
-      if (busy) { again = true; return; }
-      busy = true;
-      const loop = (async () => {
-        try { do { again = false; await write(); } while (again); }
-        catch (err) { console.error('Autosave failed:', err); }
-        finally { busy = false; }
-      })();
-      writing = loop;
-      await loop;
-    };
+    });
+    writing = writer.settled;
     const schedule = <T extends object>(s: T, before: T) => {
-      if (!changed(s, before) || useTableStore.getState().mode === 'guest' || queued) return;
-      queued = true;
-      queueMicrotask(flush);
+      if (!changed(s, before) || useTableStore.getState().mode === 'guest') return;
+      writer.ask();
     };
 
     let keeping = false;
