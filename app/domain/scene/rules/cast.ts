@@ -336,6 +336,20 @@ export function isInSpellReach(state: SceneState, casterId: string, targetId: st
   return getTargetEffects(SPELLS[key].effects).every((e) => distance <= (getCastRange(e, extend, size) ?? 1)) && hasLineOfSight(state, casterId, targetId)
 }
 
+// How many times the cast has to be extended to reach the target (spells.tex
+// "Extend Spell"); null where extending it cannot: a touch, or no board.
+export function getNeededExtend(state: SceneState, root: CastAction, targetId: string): number | null {
+  const caster = state.characters[root.actorId]
+  const distance = getDistanceBetween(state, root.actorId, targetId)
+  if (!caster || distance === null || !isSpellKey(root.key)) return null
+  const size = getCastSizeOf(caster, root)
+  const times = getTargetEffects(SPELLS[root.key].effects).map((e) => {
+    const range = getCastRange(e, 0, size)
+    return range ? Math.max(0, Math.ceil(distance / range) - 1) : distance <= 1 ? 0 : null
+  })
+  return times.reduce<number | null>((most, n) => (most === null || n === null ? null : Math.max(most, n)), 0)
+}
+
 // spells.tex "Telepathic Link": who the cast of a spell worked through a
 // link puts to the test — the one a linking spell aims at, or everyone the
 // link it is cast through holds ("These spells are made against all

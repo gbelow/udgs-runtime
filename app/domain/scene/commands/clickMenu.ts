@@ -6,10 +6,12 @@ import { SPELLS } from '../../spells'
 import { getActionDef, type ActionCategory } from '../rules/actionCatalog'
 import { getMovementOptions } from '../rules/move'
 import { getFreeAttackOptions } from '../rules/attack'
-import { getSpellOptions } from '../rules/cast'
+import { getNeededExtend, getSpellOptions } from '../rules/cast'
+import { canTreadToShoot } from '../rules/steadyArms'
+import { getModifierToggles } from '../rules/modifiers'
 import { sameCell } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
-import { getDeclaredHiddenTargets, needsTarget } from '../rules/action'
+import { getDeclaredHiddenTargets, getOwnCost, needsTarget } from '../rules/action'
 import { getAvailableActions, getDefaultAnswers, type ActionOption } from '../rules/options'
 import { getFightName } from '../rules/fighters'
 import { getStartTurnBar } from '../rules/turn'
@@ -55,7 +57,10 @@ export function pressMenu(press: MenuPress, newId: () => string, thrown: Throw):
         const ready = press.surge ? surge(press.actorId, press.surge)(state) : state
         const declared = declareAction(press.actorId, press.draft, newId)(ready)
         if (declared === ready) return state
-        const filled = Object.keys(press.fields).length > 0 ? amendAction(press.fields)(declared) : declared
+        // a recipe is offered on the row it goes with, so the row first
+        const { recipe, ...fields } = press.fields
+        const rowed = Object.keys(fields).length > 0 ? amendAction(fields)(declared) : declared
+        const filled = recipe !== undefined ? amendAction({ recipe })(rowed) : rowed
         const aimed = press.aim ? aim(press.aim, newId)(filled) : filled
         return press.commit ? commitAction(thrown, newId)(aimed) : aimed
       }
@@ -121,7 +126,7 @@ function getEntries(state: SceneState, at: MenuAim, c: CampaignCharacter, o: Act
   switch (draft.kind) {
     case 'strike':
     case 'shoot': {
-      const rows = getFreeAttackOptions(ready, own, draft.kind).map((row) => entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+      const rows = getFreeAttackOptions(ready, own, draft.kind).flatMap((row) => withMoves(state, entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })))
       return rows.length > 0 ? rows : [entry(getDraftLabel(state, c.id, o), null)]
     }
     case 'cast': {
@@ -129,7 +134,11 @@ function getEntries(state: SceneState, at: MenuAim, c: CampaignCharacter, o: Act
       const withFocus = focused === state ? [] : getSpellOptions(focused, focused.characters[c.id])
       const spells = getSpellOptions(state, c).flatMap((s): MenuEntry[] => {
         const { name } = SPELLS[s.key]
-        const cast = (label: string, quicken: boolean, closed: string | null, made: SurgeKind | null) => entry(label, s.cost, { key: s.key, quicken }, closed, made)
+        const cast = (label: string, quicken: boolean, closed: string | null, made: SurgeKind | null) => {
+          const plain = entry(label, s.cost, { key: s.key, quicken }, closed, made)
+          const extend = closed === null ? getExtendTo(state, plain) : 0
+          return extend > 0 ? entry(`${label}, extended ×${extend}`, s.cost, { key: s.key, quicken, extend }, closed, made) : plain
+        }
         const onFocus = withFocus.find((f) => f.key === s.key)?.castable ?? false
         return [
           ...(s.castable ? [cast(name, false, null, null)] : onFocus ? [cast(name, false, null, 'focus')] : []),
@@ -149,6 +158,44 @@ function getEntries(state: SceneState, at: MenuAim, c: CampaignCharacter, o: Act
   }
 }
 
+function probe(state: SceneState, press: MenuPress): SceneState {
+  return pressMenu(press, () => 'probe', () => 5)(state)
+}
+
+// An attack out of reach of the clicked one, and after it the same attack
+// with each move it may carry that brings them in reach: a jump, aimed at them
+// from where it lands (abilities.tex "Lunge"), or a tread, drawn before they
+// are aimed at (abilities.tex "Steady Arms").
+function withMoves(state: SceneState, plain: MenuEntry): MenuEntry[] {
+  const { press } = plain
+  if (plain.bar === null || press.kind !== 'declare' || press.aim?.on !== 'token') return [plain]
+  const at = press.aim
+  const declared = probe(state, { ...press, aim: null })
+  const open = getOpenAction(declared)
+  if (declared === state || !open) return [plain]
+  const moves = getModifierToggles(declared, open).filter((t) => t.allowed && t.press.recipe).flatMap((t): MenuEntry[] => {
+    const carrying = { ...press, fields: { ...press.fields, ...t.press } as Partial<ActionDraft> }
+    const unaimed = probe(state, { ...carrying, aim: null })
+    const attack = getOpenAction(unaimed)
+    if (!attack) return []
+    const entry: MenuEntry = { ...plain, label: `${plain.label} (${t.label})`, cost: getOwnCost(unaimed, attack) ?? plain.cost, bar: null, press: carrying }
+    if (isAimed(probe(state, carrying), at)) return [entry]
+    return attack.kind === 'shoot' && canTreadToShoot(unaimed, attack, at.id) ? [{ ...entry, press: { ...carrying, aim: null } }] : []
+  })
+  return [plain, ...moves]
+}
+
+// How many times the cast that cannot be aimed at the clicked one has to be
+// extended to reach them (spells.tex "Extend Spell"); none where that is not
+// what it lacks.
+function getExtendTo(state: SceneState, { bar, press }: MenuEntry): number {
+  if (bar === null || press.kind !== 'declare' || press.aim?.on !== 'token') return 0
+  const declared = probe(state, { ...press, aim: null })
+  const open = getOpenAction(declared)
+  const extend = declared !== state && open?.kind === 'cast' ? getNeededExtend(declared, open, press.aim.id) ?? 0 : 0
+  return extend > 0 && isAimed(probe(state, { ...press, fields: { ...press.fields, extend } as Partial<ActionDraft> }), press.aim) ? extend : 0
+}
+
 // What the click would aim: an action that needs a target is closed, with
 // why, where the clicked one cannot be it, as is a move that does not reach the
 // cell; one aimed at something else, or at nothing, is declared as the panel
@@ -156,11 +203,10 @@ function getEntries(state: SceneState, at: MenuAim, c: CampaignCharacter, o: Act
 function aimed(state: SceneState, entry: MenuEntry): MenuEntry {
   const { press } = entry
   if (entry.bar !== null || press.kind !== 'declare' || !press.aim) return entry
-  const probe = (p: MenuPress) => pressMenu(p, () => 'probe', () => 5)(state)
-  if (isAimed(probe(press), press.aim)) return entry
+  if (isAimed(probe(state, press), press.aim)) return entry
   if (press.draft.kind === 'move' && press.aim.on === 'cell') return { ...entry, bar: 'out of reach' }
   const unaimed = { ...press, aim: null }
-  const declared = probe(unaimed)
+  const declared = probe(state, unaimed)
   const open = getOpenAction(declared)
   if (declared === state || !open) return { ...entry, bar: 'cannot be declared now' }
   if (press.aim.on === 'token' && needsTarget(declared, open)) return { ...entry, bar: getDeclaredHiddenTargets(declared, open).includes(press.aim.id) ? 'not detected' : 'cannot be aimed at them' }

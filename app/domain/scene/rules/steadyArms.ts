@@ -1,8 +1,9 @@
 import type { MoveAction, SceneState, ShootAction } from '../types'
 import { makeAction } from '../factories'
-import { withPlacements } from './board/board'
+import { placeAt, withPlacements } from './board/board'
 import { getMoveWaypoint } from './board/waypoint'
-import { isPathLegal } from './move'
+import { getWalkableCells, isPathLegal } from './move'
+import { getTargetIds } from './action'
 import { getCarriedMove } from './reactionMoves'
 import { getCarriedOf, getDeclaredMoveAP } from './carriedMove'
 
@@ -49,6 +50,16 @@ export function getFiringState(state: SceneState, shot: ShootAction): SceneState
   if (!isSteadyShot(state, shot) || shot.step !== 'define') return state
   const waypoint = getMoveWaypoint(state, getSteadyPath(state, shot), getFiringStep(shot))
   return waypoint ? withPlacements(state, { [shot.actorId]: waypoint }) : state
+}
+
+// Whether some space a path of the shot's could end on is one the target can
+// be shot from.
+export function canTreadToShoot(state: SceneState, shot: ShootAction, targetId: string): boolean {
+  const from = state.board?.placements[shot.actorId]
+  if (!from || !isSteadyShot(state, shot)) return false
+  const plain: ShootAction = { ...shot, recipe: null, path: [], turns: [], firedAt: null }
+  return getWalkableCells(state, getSteadyPath(state, shot)).some(({ cell }) =>
+    getTargetIds(withPlacements(state, { [shot.actorId]: placeAt(state.board, from, cell) }), plain).includes(targetId))
 }
 
 export type SteadyLeg = 'before' | 'after'
