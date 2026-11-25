@@ -79,8 +79,6 @@ For every defense, find defenses where harm(attack, defense) < 10.
 if none are found, use defense that lets lowest harm pass
 if any are found, defend if prevented harm (undefended - defended)/AP cost > w.caution, choose the cheapest defense that qualifies
 
-prevented only counts added bleed.
-
 ## Threat
 Threat is how much harm a character could do to another one, undefended, with the AP it has left once it has walked there.
 
@@ -161,6 +159,7 @@ The Defense rule picks one of them, against the ally taking the hit undefended.
 
 Protect only if prevented > Cost(AP, STA) 
   prevented using best defense. 
+  prevented only counts added bleed.
 
 # Strategic Actions
 

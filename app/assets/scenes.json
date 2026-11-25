@@ -22,7 +22,9 @@
             "count": 1,
             "player": "bot:threat"
           }
-        ]
+        ],
+        "spawn": [],
+        "visitor": false
       },
       {
         "name": "Porcupine",
@@ -30,19 +32,21 @@
           {
             "key": "Human Noble",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Erthal Soldier",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Surbit Thief",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           }
-        ]
+        ],
+        "spawn": [],
+        "visitor": false
       }
     ],
     "treasure": []
@@ -85,7 +89,9 @@
             "count": 1,
             "player": null
           }
-        ]
+        ],
+        "spawn": [],
+        "visitor": false
       },
       {
         "name": "Enemies",
@@ -93,34 +99,36 @@
           {
             "key": "Erthal Defender",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Erthal Soldier",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Halkir squire",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Human Noble",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Human Ranger",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Surbit Thief",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           }
-        ]
+        ],
+        "spawn": [],
+        "visitor": false
       }
     ],
     "treasure": []
@@ -190,17 +198,17 @@
           {
             "key": "Human Noble",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Erthal Soldier",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           },
           {
             "key": "Surbit Thief",
             "count": 1,
-            "player": "bot:threat"
+            "player": "bot:spec"
           }
         ],
         "spawn": [
