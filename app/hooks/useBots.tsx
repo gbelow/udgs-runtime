@@ -10,6 +10,7 @@ import { noteSeats, withNoted, type MoveOptions } from "../domain/bot/seat";
 import type { SeatMemories } from "../domain/bot/memory";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
+import { readFight, subscribeFight, useFight } from "../stores/useKeptFight";
 import { useTableStore } from "../stores/useTableStore";
 import { useBotLogStore } from "../stores/useBotLogStore";
 import { useGmBar, useGuestViewerCheck } from "./useControl";
@@ -31,7 +32,7 @@ export function useBotsPaused() {
   const paused = useBotLogStore((s) => s.paused);
   const open = useBotLogStore((s) => s.open);
   const owners = useCampaignStore((s) => s.owners);
-  const inPlay = useCombatStore((s) => getBotSeats(s, (id) => getOwner(id, owners)).length > 0);
+  const inPlay = useFight((s) => getBotSeats(s, (id) => getOwner(id, owners)).length > 0);
   const gmBar = useGmBar();
   const bar = open ? null : gmBar;
   const toggle = () => {
@@ -86,14 +87,14 @@ export function useBots(table: BotTable = WITH_GM) {
     // what each bot seat remembers of the foes it noticed, noted at every change to the fight
     let memories: SeatMemories = {};
     const note = () => {
-      const state = useCombatStore.getState();
+      const state = readFight();
       memories = noteSeats(memories, state, getBotSeats(state, live.current.viewerOf(BOTS[0].id, false).ownerOf));
     };
 
     const play = () => {
       timer = null;
       const { viewerOf, thrower } = live.current;
-      const state = useCombatStore.getState();
+      const state = readFight();
       const ownerOf = viewerOf(BOTS[0].id, false).ownerOf;
       const seats = getBotSeats(state, ownerOf);
       if (seats.length === 0 && !auto) return;
@@ -130,7 +131,7 @@ export function useBots(table: BotTable = WITH_GM) {
         if (command === move.commands[0]) useBotLogStore.getState().add({ ...entry, refused: null });
         playOf('scene', command, thrower);
         if (command === move.commands[0]) memories = withNoted(memories, move);
-        if (Object.values(useCombatStore.getState().calls).some((c) => c.die === null)) return;
+        if (Object.values(readFight().calls).some((c) => c.die === null)) return;
       }
     };
     const soon = () => {
@@ -140,7 +141,7 @@ export function useBots(table: BotTable = WITH_GM) {
 
     note();
     soon();
-    const offCombat = useCombatStore.subscribe(() => { note(); soon(); });
+    const offCombat = subscribeFight(() => { note(); soon(); });
     const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) soon(); });
     const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) soon(); });
     return () => { offCombat(); offOwners(); offPaused(); if (timer) clearTimeout(timer); };

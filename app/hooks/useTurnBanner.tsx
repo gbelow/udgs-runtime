@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { getContestResult, getTurnBanner, type TurnBanner } from "../domain/scene/projections/turn";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useControlBar } from "./useControl";
-import { useKnows } from "./useSights";
 
 const CONTEST_READ_MS = 8000;
 
@@ -11,9 +10,7 @@ const CONTEST_READ_MS = 8000;
 // just ended, until another begins.
 export function useTurnBanner(): { view: TurnBanner | null; own: boolean; ended: string | null } {
   useCombatStore((s) => JSON.stringify(getTurnBanner(s)));
-  const banner = getTurnBanner(useCombatStore.getState());
-  const knows = useKnows();
-  const view = banner?.holder && !knows(banner.holder.id) ? { ...banner, holder: { ...banner.holder, name: "someone unseen" } } : banner;
+  const view = getTurnBanner(useCombatStore.getState());
   const own = useControlBar(view?.holder?.id ?? null) === null;
   const name = view?.holder?.name ?? null;
   const last = useRef<string | null>(null);

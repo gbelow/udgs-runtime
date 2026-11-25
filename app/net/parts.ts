@@ -8,6 +8,7 @@ import { getExplorationCommandBar, toExplorationUpdater, type ExplorationCommand
 import { getDowntimeCommandBar, toDowntimeUpdater, type DowntimeCommand } from "../domain/downtime/commands/registry";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
+import { readFight, updateFight } from "../stores/useKeptFight";
 
 const newId = () => crypto.randomUUID();
 
@@ -33,9 +34,9 @@ export type PartName = keyof Commands
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each part judges its commands against a state of its own
 export const PARTS: { [P in PartName]: Part<any, Commands[P]> } = {
   scene: {
-    read: useCombatStore.getState,
+    read: readFight,
     bar: getCommandBar,
-    play: (command, thrower) => useCombatStore.getState().updateCombatState(toUpdater(command, { thrower, newId })),
+    play: (command, thrower) => updateFight(toUpdater(command, { thrower, newId })),
   },
   // what crosses between the campaign and the fight
   table: {

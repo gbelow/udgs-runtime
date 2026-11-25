@@ -2,7 +2,6 @@ import type { Coord, SceneState, SeenScene } from '../types'
 import { FORGET_AFTER } from '../../tables'
 import { getCellSenser, getSenseReaches } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
-import { notices } from '../rules/stealth'
 import { getFightName } from '../rules/fighters'
 import { getPlacedFootprint } from '../rules/board/board'
 import { getBoardView, getBoardViewFrom, type BoardTokenView, type BoardView } from './boardView'
@@ -61,12 +60,12 @@ function isRemembered(state: SceneState, observerId: string, s: Sighting): boole
 }
 
 // Who a player knows to be in the fight now: their own and their parties',
-// the faces they know, and whoever any of theirs takes in now through a sense
-// that answers (combat.tex "Senses").
+// the faces they know, and whoever any of theirs senses now, one heard as they
+// act among them (rules/seen.ts `canSee`).
 export function getKnown(state: SceneState, own: readonly string[], memory: SightMemory): string[] {
   const parties = new Set(own.map((id) => state.partyOf[id]).filter((p) => p !== undefined))
   const looking = sensing(state, own)
-  const senses = (id: string) => looking.some((m) => getSenseReaches(state, m, id).some((r) => r.active || r.reactive) && notices(state, m, id))
+  const senses = (id: string) => looking.some((m) => getSightOf(state, m).has(id))
   return Object.keys(state.characters).filter((id) => own.includes(id) || parties.has(state.partyOf[id]) || id in memory.faces || senses(id))
 }
 

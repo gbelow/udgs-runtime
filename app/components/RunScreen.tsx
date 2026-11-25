@@ -28,6 +28,8 @@ import { useFighterCount } from '../hooks/useCombatState';
 import { useActiveCharacterData, useHasActiveCharacter } from '../hooks/useCharacterData';
 import { BotsPause } from './BotsPause'
 import { EndRound } from './EndRound'
+import { ActiveFace } from './ActiveFace'
+import { useActiveFace } from '../hooks/useCombatState'
 import { useRole } from '../hooks/useRole';
 import { useActiveControlBar } from '../hooks/useControl';
 import { useTray } from '../hooks/useTray';
@@ -117,6 +119,7 @@ export function RunScreen(){
   const { strip, parties, space, resource, resourceEnd, needs, injuryAction, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const { gmTools: hasGmTools } = useRole()
   const hasActiveCharacter = useHasActiveCharacter()
+  const face = useActiveFace()
   const ownSheet = useActiveControlBar() === null
   const throwing = useTray().request !== null
   const waiting = useTableWaiting()
@@ -154,7 +157,7 @@ export function RunScreen(){
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} injuryAction={injuryAction} /> : PICK}
+          {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           <ActionColumn gmTools={gmTools} scene={tab === 'scene' ? <><BotsPause /><EndRound /></> : null}>{hasActiveCharacter ? actions : PICK}</ActionColumn>

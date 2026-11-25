@@ -1,7 +1,7 @@
 import type { SceneState } from '../types'
 import type { RollMode } from '../../play/dice'
 import { describeThrow } from '../../character/rules/terms'
-import { isContestPending } from '../rules/contest'
+import { isContestPending, isUnseenTurn, UNSEEN_HOLDER, UNSEEN_NAME } from '../rules/contest'
 import { getContestBar, getContestable, getContenders, getContestMode, getContestModes, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getOpenAction } from '../rules/log'
 import { getEndCombatBar } from '../rules/fight'
@@ -52,7 +52,7 @@ export type TurnControls = {
 export function getTurnControls(state: SceneState, id: string): TurnControls {
   const holder = getTurnHolder(state)
   return {
-    holder: holder ? getFightName(state, holder) : '',
+    holder: holder ? getFightName(state, holder) : isUnseenTurn(state) ? UNSEEN_NAME : '',
     inTurn: isInTurn(state, id),
     start: getStartTurnBar(state, id),
     contesting: state.contenders.includes(id),
@@ -116,6 +116,7 @@ export type TurnBanner = { turn: number; holder: { id: string; name: string; fle
 export const getTurnBanner = perState((state: SceneState): TurnBanner | null => {
   const holder = getTurnHolder(state)
   if (!isCombatStarted(state) || (!holder && getRoundChangeBar(state))) return null
+  if (isUnseenTurn(state)) return { turn: state.turnsBegun, holder: { id: UNSEEN_HOLDER, name: UNSEEN_NAME, flees: state.fleeing } }
   return { turn: state.turnsBegun, holder: holder ? { id: holder, name: getFightName(state, holder), flees: state.fleeing } : null }
 })
 

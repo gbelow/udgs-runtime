@@ -3,6 +3,7 @@ import { getActorBar, getCampaignRole, getOwner, isAbsentRoller, isOwnRoller, ty
 import { TAB_OWNER, useAppStore, useAppStoreApi, type AppState } from "../stores/useAppStore";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { readFight, useKeepsFight } from "../stores/useKeptFight";
 import { useTableStore } from "../stores/useTableStore";
 import { getControllerId } from "../domain/scene/rules/domination";
 import type { SceneState } from "../domain/scene/types";
@@ -12,7 +13,7 @@ type ViewerFields = Pick<AppState, "profile" | "devServer" | "gmMode" | "profile
 // Profile `profile` at a screen with GM mode `gmMode`, in the campaign in
 // play. A character dominated in the fight is played by whoever plays the
 // one dominating them (`getControllerId`).
-const viewerOf = (app: ViewerFields, campaign: CampaignStore, profile: string | null, gmMode: boolean, scene: SceneState = useCombatStore.getState()): Viewer => ({
+const viewerOf = (app: ViewerFields, campaign: CampaignStore, profile: string | null, gmMode: boolean, scene: SceneState = readFight()): Viewer => ({
   profile, role: getCampaignRole(campaign.file.members, profile, app.devServer), gmMode, profiles: app.profileList,
   ownerOf: (id) => getOwner(getControllerId(scene, id), campaign.owners),
 });
@@ -76,11 +77,12 @@ export function useActorBar(actor: Actor): string | null {
 }
 
 // Whether the screen is shown character `id` as a token only: it joined a
-// table, and the character is not one it plays (`getPublicFace`). What is
-// worked out against one is an estimate.
+// table, or keeps one for a player (the demo), and the character is not one it
+// plays (`getPublicFace`). What is worked out against one is an estimate.
 export function useIsToken(id: string | null): boolean {
   const joined = useTableStore((s) => s.mode === 'guest');
-  return useControlBar(id) !== null && joined;
+  const kept = useKeepsFight();
+  return useControlBar(id) !== null && (joined || kept);
 }
 
 // Why only the GM may use the GM's own controls, or null for the GM.

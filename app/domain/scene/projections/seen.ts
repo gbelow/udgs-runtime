@@ -1,5 +1,6 @@
 import type { SceneState } from '../types'
 import { getSeenBy, getVisibleActions } from '../rules/seen'
+import { UNSEEN_HOLDER } from '../rules/contest'
 import { getPublicFace } from '../../character/lenses/face'
 import { hide, keep, prune, type Censor, type Hidden } from '../../prune'
 
@@ -40,7 +41,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   chase: keep,
   chaseIntents: keep,
   followed: keep,
-  inTurnCharacter: nobody,
+  inTurnCharacter: (id, c) => (c.hidden.has(id) ? UNSEEN_HOLDER : id),
   turn: keep,
   turnsBegun: keep,
   contenders: unseen,

@@ -7,6 +7,7 @@ import { usePartyCommands, useSaveLogBar } from '../hooks/useParty'
 import { useBotLog } from '../hooks/useBots'
 import { useTurnControls } from '../hooks/useCombatState'
 import { useKnows } from '../hooks/useSights'
+import { useRole } from '../hooks/useRole'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
 import type { MovementOption } from '../domain/scene/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/scene/projections/actionPanel'
@@ -731,7 +732,8 @@ export function ActionLog(){
 // What the bots played this round and why, folded away under the log.
 function BotReasons(){
   const entries = useBotLog()
-  if (entries.length === 0) return null
+  const { gmTools } = useRole()
+  if (entries.length === 0 || !gmTools) return null
   return (
     <details className='border-b border-line/50 pb-1.5'>
       <summary className='cursor-pointer select-none text-xs text-muted'>bots this round ({entries.length})</summary>

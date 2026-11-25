@@ -1,6 +1,6 @@
 import { getRosterParties, getCombatRosterDigest, getPartiesPanel, getPartiesPanelDigest, type CombatRosterEntry, type PartiesPanel, type RosterParty } from "../domain/scene/projections/roster";
 import { useActingAsGm } from "./useRole";
-import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
+import { getSceneCards, getSceneCardsDigest, type SceneCard, type SceneCardParty } from "../domain/scene/projections/cards";
 import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../domain/scene/projections/roundChange";
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
@@ -19,6 +19,7 @@ import { useSceneDispatch } from "./useSceneDispatch";
 import { useFollowPick } from "./useFollowPick";
 import { useSightStore } from "../stores/useSightStore";
 import { useKnows } from "./useSights";
+import { useIsToken } from "./useControl";
 import { getKnownRoster } from "../domain/scene/projections/sights";
 
 const NONE: string[] = [];
@@ -89,6 +90,15 @@ export function useSceneCards(): {
   const parties = getSceneCards(useCombatStore.getState()).map((p) => ({ ...p, cards: p.cards.filter((c) => knows(c.id)) }));
   const { pick, picked } = useCombatRoster();
   return { parties, pick, picked };
+}
+
+// The card of the character picked, when the screen is shown only their
+// token; null for one it plays.
+export function useActiveFace(): SceneCard | null {
+  const id = useCombatStore((s) => s.activeCharacterId);
+  const token = useIsToken(id);
+  useCombatStore(getSceneCardsDigest);
+  return token ? getSceneCards(useCombatStore.getState()).flatMap((p) => p.cards).find((c) => c.id === id) ?? null : null;
 }
 
 // The round change for the middle of the run screen, null while the round is

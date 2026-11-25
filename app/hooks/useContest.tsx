@@ -10,6 +10,7 @@ import { useAppStoreApi } from "../stores/useAppStore";
 import { useBotLogStore } from "../stores/useBotLogStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { readFight } from "../stores/useKeptFight";
 import { useTableStore } from "../stores/useTableStore";
 import { useGuestViewerCheck, useRollerCheck } from "./useControl";
 import { useThrower } from "./useDieCalls";
@@ -92,7 +93,7 @@ export function useContestClock() {
     let run = 0;
     let thought: number | null = null;
     const tick = () => {
-      const state = useCombatStore.getState();
+      const state = readFight();
       if (!isContestPending(state)) { turn = null; return; }
       if (turn !== state.turnsBegun) { turn = state.turnsBegun; run = 0; thought = null; }
       const paused = useBotLogStore.getState().paused;

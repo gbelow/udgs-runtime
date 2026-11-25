@@ -13,9 +13,10 @@ import { useSights } from '../../hooks/useSights'
 import { BotsPause } from '../BotsPause'
 import { EndRound } from '../EndRound'
 import { TurnBanner } from '../TurnBanner'
-import { useDemo, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
+import { useDemo, useDemoEnd, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
-import { useCombatState, useRoundChange } from '../../hooks/useCombatState'
+import { useActiveFace, useCombatState, useRoundChange } from '../../hooks/useCombatState'
+import { ActiveFace } from '../ActiveFace'
 import { useTray } from '../../hooks/useTray'
 import type { DemoFate, DemoOutcome } from '../../domain/scene/projections/demo'
 import { BoardCanvas } from '../BoardCanvas'
@@ -36,6 +37,7 @@ const DiceTray = dynamic(() => import('../DiceTray'), { ssr: false })
 // with nothing on the screen but what a player of the fight needs.
 export function DemoApp({ offered }: { offered: string[] | null }) {
   const { stage } = useDemoStage()
+  useDemoEnd()
   return stage === 'pick' ? <DemoPicker offered={offered} /> : <DemoTable />
 }
 
@@ -106,6 +108,7 @@ function DemoTable() {
   useContestClock()
   useSights()
   const hasActive = useHasActiveCharacter()
+  const face = useActiveFace()
   const throwing = useTray().request !== null
   return (
     <div className='flex flex-col h-screen text-left text-sm'>
@@ -124,11 +127,11 @@ function DemoTable() {
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {hasActive ? <Status resource={<SimpleResource rssName={'AP'} />} resourceEnd={<SurgeTile />} needs={false} /> : <span className='text-xs text-muted'>pick a character</span>}
+          {face ? <ActiveFace /> : hasActive ? <Status resource={<SimpleResource rssName={'AP'} />} resourceEnd={<SurgeTile />} needs={false} /> : <span className='text-xs text-muted'>pick a character</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><BotsPause /><EndRound /></div> : null}
-          {started ? (hasActive ? <SceneActions /> : <span className='text-xs text-muted'>pick a character</span>) : <Placing />}
+          {started ? (face ? <span className='text-xs text-muted'>{face.name} is not yours to play</span> : hasActive ? <SceneActions /> : <span className='text-xs text-muted'>pick a character</span>) : <Placing />}
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
           {throwing ? <DiceTray /> : <>

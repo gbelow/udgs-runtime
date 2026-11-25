@@ -16,7 +16,7 @@ import { getRollModes } from '../../character/rules/effects'
 import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
 import { getParkedReason, isParked } from './parked'
-import { getContestWait, isContestPending } from './contest'
+import { getContestWait, isContestPending, isUnseenTurn, UNSEEN_NAME } from './contest'
 import { getPartners } from './partners'
 import { isImmobile } from './situational'
 import { sumTerms } from '../../character/rules/terms'
@@ -87,13 +87,14 @@ export function getFightBusy(state: SceneState): string | null {
   if (dice) return dice
   const holder = getTurnHolder(state)
   if (holder) return `${getFightName(state, holder)}'s turn`
+  if (isUnseenTurn(state)) return `${UNSEEN_NAME}'s turn`
   return getPlayingOutBar(state)
 }
 
 // Why the turn cannot be contested now, by anyone: someone must hold it,
 // have declared nothing in it yet, and it must not have been contested.
 export function getContestClosed(state: SceneState): string | null {
-  if (!getTurnHolder(state)) return 'nobody is in turn'
+  if (!getTurnHolder(state) && !isUnseenTurn(state)) return 'nobody is in turn'
   if (state.fleeing) return 'the turn is a flee'
   if (state.forcedSurge !== '') return 'the turn was forced by a feint'
   if (getStressTurn(state)) return 'the turn is a limit stress action'

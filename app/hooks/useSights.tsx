@@ -4,6 +4,7 @@ import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSightStore } from "../stores/useSightStore";
 import { useTableStore } from "../stores/useTableStore";
+import { useKeptFight } from "../stores/useKeptFight";
 import { useRollerCheck } from "./useControl";
 import { useRole } from "./useRole";
 
@@ -23,7 +24,7 @@ export function useSights() {
       const state = useCombatStore.getState();
       const before = useSightStore.getState();
       const own = Object.keys(state.characters).filter((id) => live.current(id).own);
-      const memory = noteSights(before.memory, state, own, mode !== "guest");
+      const memory = noteSights(before.memory, state, own, mode !== "guest" && useKeptFight.getState().scene === null);
       const picked = state.activeCharacterId;
       const last = picked && own.includes(picked) ? picked : before.last && own.includes(before.last) ? before.last : getFirstOwn(state, own);
       useSightStore.setState({ player: true, own, memory, known: getKnown(state, own, memory), last });

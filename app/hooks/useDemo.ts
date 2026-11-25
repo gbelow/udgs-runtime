@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { useAppStore } from "../stores/useAppStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { dropFight, keepFight, useFight } from "../stores/useKeptFight";
 import { useBotLogStore } from "../stores/useBotLogStore";
 import { useDemoStore } from "../stores/useDemoStore";
 import { DEMO, DEMO_VISITOR } from "../domain/demo";
@@ -53,19 +54,21 @@ function useJoin() {
       newFile(crypto.randomUUID(), { [DEMO_VISITOR]: 'player' }),
       made.owners,
     );
+    keepFight(made.table.fight, DEMO_VISITOR);
     useCombatStore.setState({ activeCharacterId: Object.keys(made.table.fight.characters).find((id) => made.table.fight.partyOf[id] === made.party) ?? null });
     play(made.party);
   };
 }
 
-// The demo while it is played: the view of the fight the visitor reads, and
+// The demo while it is played: the view of the fight the visitor reads (how it
+// stands in full, for who won it), and
 // their presses outside the fight's own (pick a character of theirs, start
 // the fight, play the same party again, pick another).
 export function useDemo() {
   const party = useDemoStore((s) => s.party);
   const started = useDemoStore((s) => s.started);
   const picks = useDemoStore((s) => s.picks);
-  const fight = useCombatStore((s) => s);
+  const fight = useFight((s) => s);
   const characters = useAppStore((s) => s.baseCharacterList);
   const boardMaps = useAppStore((s) => s.boardMaps);
   const view = useMemo(() => getDemoView(fight, party, started), [fight, party, started]);
@@ -77,6 +80,11 @@ export function useDemo() {
     again: () => join(picks, characters, boardMaps),
     back: () => useDemoStore.getState().back(),
   };
+}
+
+// The demo's fight is let go of as the page is left.
+export function useDemoEnd() {
+  useEffect(() => dropFight, []);
 }
 
 // Whether the visitor is picking or playing, and whether they started the
