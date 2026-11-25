@@ -23,7 +23,7 @@ import { getDragComparison } from '../rules/drag'
 import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear, getSpellTestModes } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
-import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
+import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, surgeCause, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
 import { getUnprotectedBy, madeProtectionSurge } from './protection'
 import { getModifierToggles } from '../rules/modifiers'
@@ -254,7 +254,7 @@ export function withdrawSpawnedAction(thrown: Throw, newId: () => string): Updat
 // A reaction to the committed action (combat.tex "Reactions"), declared
 // before the die by anyone the action triggers something in, with the surge
 // the answer is pressed with where one opens it. A character has one answer
-// at a time: a new one replaces it.
+// at a time: a new one replaces it, and the surge that one was made with.
 export function declareReaction(actorId: string, draft: ActionDraft, newId: () => string, surge?: SurgeKind | null): Updater {
   return (state) => {
     const open = getAnswerableOpen(state)
@@ -266,11 +266,12 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const targetId = trigger?.against ?? open.actorId
     const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? draft.recipe ?? null })
     const aimed = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
-    const surged = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), `${chosen.surge} surge for a reaction`)(state) : state
+    const replaced = getLiveReactionsTo(state, open.id).filter((r) => r.actorId === actorId)
+    const cleared = withdrawActions(state, replaced.map((r) => r.id), 'replaced')
+    const surged = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), surgeCause(chosen.surge))(cleared) : cleared
     const paid = chosen.surge === 'protection' ? madeProtectionSurge(surged, actorId) : surged
-    const reaction = { ...aimed, surged: getSurgeMade(state, surged, actorId, chosen.surge) }
-    const replaced = getLiveReactionsTo(paid, open.id).filter((r) => r.actorId === actorId)
-    return pruneReactions(appendActions(withdrawActions(paid, replaced.map((r) => r.id), 'replaced'), [reaction]))
+    const reaction = { ...aimed, surged: getSurgeMade(cleared, surged, actorId, chosen.surge) }
+    return pruneReactions(appendActions(paid, [reaction]))
   }
 }
 
@@ -279,7 +280,7 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
 function getSurgeMade(before: SceneState, after: SceneState, actorId: string, kind: SurgeKind | null | undefined): Action['surged'] {
   const was = before.characters[actorId]
   const now = after.characters[actorId]
-  if (!kind || !was || !now || (was.resources.STA === now.resources.STA && was.surgeFloor === now.surgeFloor && was.resources.AP === now.resources.AP)) return null
+  if (!kind || !was || !now || was.usedSurge === now.usedSurge) return null
   return { kind, STA: was.resources.STA - now.resources.STA, AP: now.resources.AP - was.resources.AP }
 }
 

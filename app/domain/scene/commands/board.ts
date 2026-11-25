@@ -495,8 +495,9 @@ export function readPick(state: SceneState, cell: Coord, newId: () => string, he
   }
   if (open.kind === 'strike' && open.step === 'react' && open.targetId) {
     const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))
-    const recipe = findOpenJump(state, open.targetId)?.draft.recipe ?? null
-    return { actor: open.targetId, apply: to ? declareReaction(open.targetId, { kind: 'evasiveJump', recipe, to }, newId) : unchanged }
+    const jump = findOpenJump(state, open.targetId)
+    const recipe = jump?.draft.recipe ?? null
+    return { actor: open.targetId, apply: to ? declareReaction(open.targetId, { kind: 'evasiveJump', recipe, to }, newId, jump?.surge) : unchanged }
   }
   return own(unchanged)
 }

@@ -40,7 +40,7 @@ export function getOptionLabel(state: SceneState, actorId: string, option: Actio
   return option.surge ? `${label} (${option.surge} surge first)` : label
 }
 
-function getDraftLabel(state: SceneState, actorId: string, option: ActionOption): string {
+export function getDraftLabel(state: SceneState, actorId: string, option: ActionOption): string {
   const draft = option.draft
   switch (draft.kind) {
     case 'block':

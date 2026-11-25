@@ -3,9 +3,10 @@ import { isUnpaidMove } from '../../item/rules/moves'
 import type { Action, ActionDraft, ActionKind, SceneState } from '../types'
 import { SURGES, type SurgeAllowance } from '../../tables'
 import { surgeKinds } from '../../lists'
-import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurged } from '../../character/rules/surge'
+import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurged, getUnsurged, isLearnedSurge } from '../../character/rules/surge'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getSurgeAllows } from '../../character/rules/effects'
+import { getReactionsTo, getSpawned } from './log'
 import { isInGrapple } from './partners'
 import { getSurgeTurnBar, isInTurn } from './turn'
 
@@ -91,6 +92,24 @@ export function getFleeBarFor(state: SceneState, c: CampaignCharacter, kind: Act
   if (!state.fleeing || !isInTurn(state, c.id) || FREE_KINDS.includes(kind)) return null
   if (!allows(state, c, 'movement', kind, variant)) return 'fleeing'
   return getSurgeAPLeft(c) > 0 ? null : 'flee surge spent'
+}
+
+// The table's ruling: the surge an answer was made with goes with it for as
+// long as the answer may be taken back, or changed for another: until it is
+// paid for, or the movement it carries has been opened. A surge only an ability
+// gives stays made, for what making it brings about (abilities.tex "Rallying
+// Guard").
+export function isSurgeUndoable(state: SceneState, a: Action): boolean {
+  return a.reactionTo !== null && a.surged !== null && !isLearnedSurge(a.surged.kind) && a.cost === null && getSpawned(state, a.id).length === 0
+}
+
+// The fight with the surge of the character's answer to the action taken
+// back, the answer itself left as it is: what another answer is weighed
+// against.
+export function withoutAnswerSurge(state: SceneState, rootId: string, characterId: string): SceneState {
+  const answer = getReactionsTo(state, rootId).find((r) => r.actorId === characterId && isSurgeUndoable(state, r))
+  const c = state.characters[characterId]
+  return answer?.surged && c ? { ...state, characters: { ...state.characters, [characterId]: getUnsurged(answer.surged.kind, answer.surged)(c) } } : state
 }
 
 // combat.tex "Action surge": each surge the character may make now, with the

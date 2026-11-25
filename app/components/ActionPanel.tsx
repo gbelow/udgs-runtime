@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { useCombatActions } from '../hooks/useCombatActions'
 import { FollowOption, FollowPicking } from './FollowButton'
 import { useGmBar, useIsToken } from '../hooks/useControl'
@@ -11,6 +12,7 @@ import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionRoll, ReactionAmend, CostTerm, StrikeAction } from '../domain/scene/types'
+import type { SurgeKind } from '../domain/types'
 import { Check, CheckCheck, Dices, Footprints, Hourglass, Minus, Play, Plus, X } from 'lucide-react'
 import { ActionKey, Button, Closed, Dropdown, IconButton, Panel, SectionLabel, Segment, Segmented, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
@@ -313,8 +315,7 @@ export function ActionPanel(){
                 <div className='flex flex-row flex-wrap gap-1 items-center'>
                   <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
                   <ActionKey look={r.passed ? 'picked' : 'plain'} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</ActionKey>
-                  {r.options.map((o) =>
-                    <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft, o.surge)} />)}
+                  <Answers reactor={r} onReact={(o) => react(r.id, o.draft, o.surge)} />
                   <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
                   {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
                 </div>
@@ -641,6 +642,25 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
       disabled={!option.available} title={option.reason ?? `${option.speed} m per block`} onClick={onClick}>
       {option.kind}
     </ActionKey>
+  )
+}
+
+// What a reactor may answer with, each answer once, and, where more than one
+// surge would open them, the surge they are made on.
+function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (option: ActionOptionView) => void }){
+  const [surge, setSurge] = useState<SurgeKind | null>(null)
+  const { surges } = reactor
+  const shown = surges.find((s) => s.surge === surge) ?? surges.find((s) => s.chosen) ?? surges[0]
+  return (
+    <>
+      {shown ? (
+        <Segmented label={`surge ${reactor.name} answers with`}>
+          {surges.map((s) => <Segment key={s.surge} selected={s === shown} title={s.note} onClick={() => setSurge(s.surge)}>{s.surge} surge</Segment>)}
+        </Segmented>
+      ) : null}
+      {(shown ? shown.options : reactor.options).map((o) =>
+        <OptionButton key={`${o.label}:${o.surge ?? ''}`} option={o} active={o.chosen} onClick={() => onReact(o)} />)}
+    </>
   )
 }
 

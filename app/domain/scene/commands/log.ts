@@ -1,5 +1,5 @@
 import { isCombatStarted } from '../rules/started'
-import type { CampaignCharacter } from '../../types'
+import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { Action, ActionKind, ActionOf, SceneState, RootAction, WithdrawalReason } from '../types'
 import { getAction, getLiveActions, getParticipants, getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
@@ -7,6 +7,8 @@ import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, reduceOpened, t
 import { isVoided } from '../rules/opportunity'
 import { getInterruptionsLanding, type StampedInterruption } from '../rules/interruption'
 import { getPreparationOf, getReactedWithin } from '../rules/prepared'
+import { isSurgeUndoable } from '../rules/surge'
+import { getUnsurged } from '../../character/rules/surge'
 import { isProtectionMove } from '../rules/protection'
 import { isAnswerable } from '../rules/action'
 import { settleBinds } from './bind'
@@ -153,13 +155,27 @@ export function discardDraft(state: SceneState, id: string): SceneState {
 
 // Takes the actions, and whatever answers them, out of play without landing
 // them, and writes down what each was and why it went: it was committed, or
-// offered to someone, and the table may want to know what became of it.
+// offered to someone, and the table may want to know what became of it. The
+// surge an answer was made with is taken back with it (`isSurgeUndoable`).
 export function withdrawActions(state: SceneState, ids: string[], reason: WithdrawalReason): SceneState {
   const live = getLiveActions(state)
   const gone = live.filter((a) => ids.includes(a.id) || (a.reactionTo !== null && ids.includes(a.reactionTo)))
   if (gone.length === 0) return state
-  const journal = [...state.journal, ...gone.map((action) => ({ action, reason, round: state.round, turn: state.turn }))]
-  return setActions({ ...state, journal }, live.filter((a) => !gone.includes(a)))
+  const undone = gone.filter((a) => isSurgeUndoable(state, a))
+  const journal = [...state.journal, ...gone.map((action) => ({ action: undone.includes(action) ? { ...action, surged: null } : action, reason, round: state.round, turn: state.turn }))]
+  return setActions({ ...undone.reduce(undoSurge, state), journal }, live.filter((a) => !gone.includes(a)))
+}
+
+// What a surge made for an answer is noted as among the edits.
+export const surgeCause = (kind: SurgeKind): string => `${kind} surge for a reaction`
+
+// The surge of the answer taken back, and its note with it.
+function undoSurge(state: SceneState, a: Action): SceneState {
+  const c = state.characters[a.actorId]
+  if (!a.surged || !c) return state
+  const cause = surgeCause(a.surged.kind)
+  const noted = state.edits.findLastIndex((e) => e.cause === cause && e.round === state.round && e.changes.some((x) => x.id === c.id))
+  return { ...state, edits: state.edits.filter((_, i) => i !== noted), characters: { ...state.characters, [c.id]: getUnsurged(a.surged.kind, a.surged)(c) } }
 }
 
 export function replaceActions(state: SceneState, next: Action[]): SceneState {

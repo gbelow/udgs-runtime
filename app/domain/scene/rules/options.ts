@@ -44,7 +44,7 @@ import { getReloadCost } from '../../character/rules/gear'
 import { getSpellOptions } from './cast'
 import { isSpellKey } from '../../spells'
 import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain'
-import { getFleeBarFor, getSurgeBarFor, getSurgeProbes, getSurgeVariant } from './surge'
+import { getFleeBarFor, getSurgeBarFor, getSurgeProbes, getSurgeVariant, withoutAnswerSurge } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
 import { findPrepared, getPreparedBar } from './prepared'
@@ -198,7 +198,33 @@ function listAvailableActions(state: SceneState, characterId: string): ActionOpt
   if (!open) return withSurges(state, c, c, listOwn(state, c), (on, surged, kinds) => listOwn(on, surged, kinds), false)
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId) || isDead(c)) return []
-  return withSurges(state, c, withRefund(state, withoutReserve(state, c, open.id), open.id), getAnswers(state, c, open), (on, surged, kinds) => getAnswers(on, surged, open, kinds), true)
+  // an answer already given is weighed against any other as if its surge were
+  // yet to be made
+  const before = withoutAnswerSurge(state, open.id, characterId)
+  const own = before.characters[characterId]
+  const made = getReactionsTo(state, open.id).find((r) => r.actorId === characterId)?.surged?.kind ?? null
+  return withSurges(before, own, withRefund(before, withoutReserve(before, own, open.id), open.id), getAnswers(before, own, open), (on, surged, kinds) => getAnswers(on, surged, open, kinds), true)
+    .map((o) => (o.chosen && before !== state && o.surge !== made ? { ...o, chosen: false } : o))
+}
+
+// The answers as they are picked from: with two surges or more to make them
+// on, once for each surge, every answer in it, made on that surge where it
+// opens the answer and on whatever does where it does not; with one surge or
+// none, no choice of surge (empty). A surge only an ability gives comes with
+// the answer it is made with, and is no choice of its own.
+export function getAnswersBySurge(options: readonly ActionOption[]): { surge: SurgeKind; options: ActionOption[] }[] {
+  const surges = [...new Set(options.flatMap((o) => (o.available && o.surge !== null && !isLearnedSurge(o.surge) ? [o.surge] : [])))]
+  if (surges.length < 2) return []
+  return surges.map((surge) => ({
+    surge,
+    options: options.filter((o, i) => o.surge === null || o.surge === surge
+      || (!options.some((x) => x.surge === surge && sameDraft(x.draft, o.draft)) && options.findIndex((x) => sameDraft(x.draft, o.draft)) === i)),
+  }))
+}
+
+// The answers with each listed once, on the surge listed first for it.
+export function getDefaultAnswers(options: readonly ActionOption[]): readonly ActionOption[] {
+  return getAnswersBySurge(options)[0]?.options ?? options
 }
 
 // The character's own options, of the kinds named (all of them by default).
@@ -265,11 +291,12 @@ const LIFTED_BY_A_SURGE: ReadonlySet<string | null> = new Set([CANNOT_AFFORD, NO
 
 // An answer is listed once for each surge that would open it (a movement
 // surge and a reaction surge both may), the surge it is pressed with, the
-// movement surge's last outside the character's turn; an action of their own
+// reaction surge's first and the movement surge's last; an action of their own
 // is marked with the first.
 function withSurges(state: SceneState, c: CampaignCharacter, payer: CampaignCharacter, now: ActionOption[], list: ListFor, opens: boolean): ActionOption[] {
   const probed = getSurgeProbes(state, c, opens)
-  const surges = isInTurn(state, c.id) ? probed : [...probed.filter((p) => p.kind !== 'movement'), ...probed.filter((p) => p.kind === 'movement')]
+  const rank = (p: { kind: SurgeKind }) => (p.kind === 'reaction' ? 0 : p.kind === 'movement' ? 2 : 1)
+  const surges = opens ? [...probed].sort((a, b) => rank(a) - rank(b)) : probed
   const giving = opens && surges.some((p) => isLearnedSurge(p.kind))
   if (now.every((o) => o.available) && !giving) return now
   const fixed = new Set([NOT_YOUR_TURN, IMMOBILE, COLLAPSED, UNCONSCIOUS, getDiceBar(state.calls), getRoundChangeActBar(state)])
@@ -747,10 +774,12 @@ function closeByRoundChange(state: SceneState, options: ActionOption[]): ActionO
 
 // The option a draft would take, so a command can refuse exactly what the
 // list shows as closed.
-// The evasive jump open to the character, made as whatever it may be made
-// as (abilities.tex "Technical Lift"), if any.
+// The evasive jump open to the character: the one they have declared, or the
+// first, made as whatever it may be made as (abilities.tex "Technical Lift"),
+// if any.
 export function findOpenJump(state: SceneState, characterId: string): ActionOption | null {
-  return getAvailableActions(state, characterId).find((o) => o.draft.kind === 'evasiveJump' && o.available) ?? null
+  const jumps = getAvailableActions(state, characterId).filter((o) => o.draft.kind === 'evasiveJump' && o.available)
+  return jumps.find((o) => o.chosen) ?? jumps[0] ?? null
 }
 
 // The option the draft declares; `surge`, for an answer listed once per

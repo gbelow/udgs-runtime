@@ -8,7 +8,7 @@ import { getFreeAttackOptions } from '../rules/attack'
 import { getSpellOptions } from '../rules/cast'
 import { sameCell } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
-import { getAvailableActions } from '../rules/options'
+import { getAvailableActions, getDefaultAnswers } from '../rules/options'
 import { getFightName } from '../rules/fighters'
 import { getActionName, getOptionLabel } from '../projections/labels'
 import { amendAction, declareAction, declareReaction, passReaction, setTarget } from './action'
@@ -72,7 +72,8 @@ export function isAimed(state: SceneState, at: MenuAim): boolean {
 
 // What the selected character may declare against a click, one entry for each
 // way of declaring it (each weapon row, each spell), or what the clicked
-// character may answer the open action with. Null when nothing is offered.
+// character may answer the open action with, each answer once: another surge
+// to make it on is picked in the panel. Null when nothing is offered.
 export function getClickMenu(state: SceneState, at: MenuAim, selected: string | null): ClickMenu | null {
   const open = getOpenAction(state)
   if (!open) return selected ? getOwnMenu(state, at, selected) : null
@@ -111,7 +112,7 @@ function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu
 const categoryOrder = (category: MenuEntry['category']): number => category === 'answer' ? ACTION_CATEGORIES.length : ACTION_CATEGORIES.indexOf(category)
 
 function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
-  const answers = getAvailableActions(state, id).filter((o) => o.available && o.reactionTo !== null)
+  const answers = getDefaultAnswers(getAvailableActions(state, id)).filter((o) => o.available && o.reactionTo !== null)
   if (answers.length === 0) return null
   const entries: MenuEntry[] = [
     ...answers.map((o): MenuEntry => ({ label: getOptionLabel(state, id, o), category: 'answer', cost: o.cost, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge } })),

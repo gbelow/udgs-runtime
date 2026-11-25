@@ -120,6 +120,18 @@ export function getSurged(kind: SurgeKind): (c: CampaignCharacter) => CampaignCh
   }
 }
 
+// The character with a surge they made taken back, for the STA and AP it
+// moved, before any of its AP has paid for anything: one earmarked goes back
+// to what they held before it, given up since or not.
+export function getUnsurged(kind: SurgeKind, moved: { STA: number; AP: number }): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    if (c.usedSurge !== kind) return c
+    const char = getBled(-moved.STA)(c)
+    const AP = SURGES[kind].earmarked ? char.surgeFloor ?? char.resources.AP : char.resources.AP - moved.AP
+    return { ...char, usedSurge: null, runsFree: false, surgeFloor: null, resources: { ...char.resources, AP, STA: char.resources.STA + moved.STA } }
+  }
+}
+
 // Whether some surge is still open to the character, whichever kind.
 export function canSurgeAtAll(c: CampaignCharacter): boolean {
   return surgeKinds.some((kind) => canSurge(kind)(c))
