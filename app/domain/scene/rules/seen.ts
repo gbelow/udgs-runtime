@@ -1,6 +1,7 @@
 import type { Action, SceneState } from '../types'
 import { getStealthTurn, notices } from './stealth'
 import { getSenseReaches } from './detection'
+import { getLiveActions } from './log'
 import { TOGETHER } from '../../prune'
 
 // What a viewer who controls some of the fight's characters is shown of it
@@ -72,11 +73,20 @@ export function getExchanges(state: SceneState): Map<string, Exchange> {
 // Whether the observer has the target in sight: an active sense takes them
 // in, or, in the target's own turn, any sense that answers (the table's
 // ruling, 2026-11-21: an ear finds a hider as they act, `getBystanderDetections`),
-// and their stealth value, if they have one, does not hold against it. Whom
-// one may aim at is `notices`'s.
+// and their stealth value, if they have one, does not hold against it; or an
+// action of theirs, while it is played out, was found by them as it was
+// committed. Whom one may aim at is `notices`'s.
 export function canSee(state: SceneState, observerId: string, targetId: string): boolean {
+  if (isFoundActing(state, observerId, targetId)) return true
   const acting = getStealthTurn(state)?.id === targetId
   return getSenseReaches(state, observerId, targetId).some((r) => r.active || (acting && r.reactive)) && notices(state, observerId, targetId)
+}
+
+// combat.tex "Actions in stealth": the noise of an action finds its actor for
+// whoever may react to it, before the turn counts it.
+function isFoundActing(state: SceneState, observerId: string, targetId: string): boolean {
+  return getLiveActions(state).some((a) => a.actorId === targetId && (a.step === 'react' || a.step === 'post')
+    && a.detections.some((d) => d.found && d.observerId === observerId && d.hiderId === targetId))
 }
 
 // Whom each character detects, worked out once for the fight as it stands: a
