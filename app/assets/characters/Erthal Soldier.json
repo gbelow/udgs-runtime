@@ -878,5 +878,6 @@
   "raceDraft": null,
   "attributeBalanceBase": 10,
   "limitStress": "violent",
-  "notes": "The strongest of the lot, with a pike that keeps foes at a distance. Charges into an attack straight from a run, and recovers from wounds with a regenerative reservoir. Lightly armored, with little defense."
+  "description": "The strongest of the lot, with a pike that keeps foes at a distance. Charges into an attack straight from a run, and recovers from wounds with a regenerative reservoir. Lightly armored, with little defense.",
+  "notes": ""
 }

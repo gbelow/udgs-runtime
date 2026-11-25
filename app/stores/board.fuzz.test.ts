@@ -444,9 +444,9 @@ function assertSeen(s: SceneState) {
     const blank = CampaignCharacterSchema.parse({})
     for (const id of shown) {
       if (controlled.includes(id) || !view.characters[id]) continue
-      const { trainables, containers, injuries, resources, abilities, spells, notes } = view.characters[id]
-      expect({ trainables, containers, injuries, resources, abilities, spells, notes }, `${controlled.join('+')} is shown the sheet of ${id}, whom they do not play`)
-        .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: { ...blank.injuries, injuryLevel: Math.floor(s.characters[id].injuries.injuryLevel / SHOWN_IL_STEP) * SHOWN_IL_STEP, bleed: s.characters[id].injuries.bleed }, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, notes: blank.notes })
+      const { trainables, containers, injuries, resources, abilities, spells, description, notes } = view.characters[id]
+      expect({ trainables, containers, injuries, resources, abilities, spells, description, notes }, `${controlled.join('+')} is shown the sheet of ${id}, whom they do not play`)
+        .toEqual({ trainables: blank.trainables, containers: blank.containers, injuries: { ...blank.injuries, injuryLevel: Math.floor(s.characters[id].injuries.injuryLevel / SHOWN_IL_STEP) * SHOWN_IL_STEP, bleed: s.characters[id].injuries.bleed }, resources: blank.resources, abilities: blank.abilities, spells: blank.spells, description: blank.description, notes: blank.notes })
     }
     const logged = new Set([...Object.keys(view.actions), ...view.journal.map((e) => e.action.id)])
     for (const a of Object.values(view.actions)) {

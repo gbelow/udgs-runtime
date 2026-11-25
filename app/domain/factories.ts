@@ -304,6 +304,7 @@ const CharacterIngestValues = {
   spells: z.record(z.string(), z.any()).optional(),
 
   limitStress: z.enum(LIMIT_STRESS_ACTIONS).optional().catch(undefined),
+  description: z.string().optional(),
   notes: z.string().optional(),
 }
 

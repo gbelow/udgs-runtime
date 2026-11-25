@@ -29,6 +29,10 @@ export function setCreationName(name: string): (d: CreationDraft) => CreationDra
   return (d: CreationDraft) => ({ ...d, character: { ...d.character, name } })
 }
 
+export function setCreationDescription(description: string): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => ({ ...d, character: { ...d.character, description } })
+}
+
 export function setCreationNotes(notes: string): (d: CreationDraft) => CreationDraft {
   return (d: CreationDraft) => ({ ...d, character: { ...d.character, notes } })
 }

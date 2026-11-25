@@ -897,5 +897,6 @@
   "raceDraft": null,
   "attributeBalanceBase": 10,
   "limitStress": "martyr",
-  "notes": "A trained fighter in half armor with a warhammer, who lunges at foes out of reach. Hard to break, with an iron will, and a leader who steadies the team by rallying it."
+  "description": "A trained fighter in half armor with a warhammer, who lunges at foes out of reach. Hard to break, with an iron will, and a leader who steadies the team by rallying it.",
+  "notes": ""
 }

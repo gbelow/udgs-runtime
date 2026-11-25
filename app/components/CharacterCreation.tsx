@@ -95,12 +95,16 @@ function Gear() {
 // budget and the gold, and what still keeps the character from being created.
 // The last step: the character is named, may be described, and is made.
 function Finish() {
-  const { view, rename, annotate, finish } = useCreation()
+  const { view, rename, describe, annotate, finish } = useCreation()
   return (
     <div className='md:col-span-12 flex flex-col gap-3 max-w-xl'>
       <label className='flex flex-col gap-1'>
         <SectionLabel>Name</SectionLabel>
         <TextInput aria-label='character name' placeholder='name' className='text-base font-medium' value={view.name} onChange={(e) => rename(e.target.value)} />
+      </label>
+      <label className='flex flex-col gap-1'>
+        <SectionLabel>Description</SectionLabel>
+        <textarea aria-label='description' className={`${inputClass} bg-surface p-1 min-h-20 text-sm`} placeholder='who they are and what they do, in a few sentences' value={view.description} onChange={(e) => describe(e.target.value)} />
       </label>
       <label className='flex flex-col gap-1'>
         <SectionLabel>Notes</SectionLabel>

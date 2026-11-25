@@ -1838,6 +1838,8 @@ const CharacterValues = {
   // stress action"; a coward until another is chosen
   limitStress: z.enum(LIMIT_STRESS_ACTIONS).catch('coward').default('coward'),
 
+  // who they are, for whoever may pick them; `notes` are their player's own
+  description: z.string().default(''),
   notes: z.string().default(''),
 }
 

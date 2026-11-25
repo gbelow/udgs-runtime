@@ -20,10 +20,10 @@ import { getFightName } from '../rules/fighters'
 // takes, and why it cannot join yet.
 export type DemoPicker = {
   scene: string
-  offered: { key: string; name: string; tags: string[]; notes: string }[]
+  offered: { key: string; name: string; tags: string[]; description: string }[]
   lineup: string[]
   slots: number
-  picks: { key: string; name: string; notes: string }[]
+  picks: { key: string; name: string; description: string }[]
   full: boolean
   joinBar: string | null
 }
@@ -37,7 +37,7 @@ export function getDemoPicker(preset: ScenePreset, characters: readonly BaseChar
   const byKey = new Map(characters.map((c) => [c.name, c]))
   const rows = (offered ?? characters.map((c) => c.name)).flatMap((key) => {
     const c = byKey.get(key)
-    return c ? [{ key, name: c.name, tags: c.tags, notes: c.notes.trim() }] : []
+    return c ? [{ key, name: c.name, tags: c.tags, description: c.description.trim() }] : []
   })
   const kept = picks.filter((key) => byKey.has(key) && (!offered || offered.includes(key) || lineup.includes(key)))
   return {
@@ -45,7 +45,7 @@ export function getDemoPicker(preset: ScenePreset, characters: readonly BaseChar
     offered: rows,
     lineup: lineup.filter((key) => byKey.has(key)),
     slots,
-    picks: kept.map((key) => ({ key, name: byKey.get(key)?.name ?? key, notes: byKey.get(key)?.notes.trim() ?? '' })),
+    picks: kept.map((key) => ({ key, name: byKey.get(key)?.name ?? key, description: byKey.get(key)?.description.trim() ?? '' })),
     full: kept.length >= slots,
     joinBar: !party ? 'the demo scene has no party for the visitor' : kept.length === 0 ? 'pick at least one character' : null,
   }

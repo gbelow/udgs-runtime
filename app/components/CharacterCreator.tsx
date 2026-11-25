@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Save, Trash2 } from 'lucide-react'
+import { Save, Trash2 } from 'lucide-react'
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
@@ -124,7 +124,6 @@ export function CharacterCreator() {
 
 function EditorHeader(){
   const { tab, tabs, setTab } = useEditorTab()
-  const [notesOpen, setNotesOpen] = useState(false)
   return(
     <div className='sticky top-0 z-20 flex flex-col gap-2 bg-surface border-b border-line px-1 pt-2'>
       <div className='flex flex-row flex-wrap items-center gap-2'>
@@ -135,13 +134,11 @@ function EditorHeader(){
         <TagItem level='category' />
         <Experience />
         <div className='ml-auto flex flex-row items-center gap-2'>
-          <Button icon={FileText} selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
           <SaveCatalogCharacterButton />
           <SavePlayerCharacterButton />
           <DeleteCharacterButton />
         </div>
       </div>
-      {notesOpen ? <TextItem keyName='notes' mode='large'/> : null}
       <div className='flex flex-row items-stretch' role='tablist' aria-label='character parts'>
         {tabs.map((name) => {
           const current = name === tab
@@ -175,6 +172,8 @@ function Experience(){
 function BodyTab(){
   return(
     <div className='grid grid-cols-12 gap-4'>
+      <TextItem keyName='description' mode='large'/>
+      <TextItem keyName='notes' mode='large'/>
       <div className='col-span-5 flex flex-col gap-3'>
         <Creature />
         <div className='flex flex-row flex-wrap items-start gap-4'>
@@ -408,11 +407,14 @@ function TagItem({ level }: { level: TagLevel }){
   return <TextInput className='w-40' aria-label={level} placeholder={level} value={value} onChange={(e) => setValue(e.target.value)} />
 }
 
-const TextItem = ({keyName, mode}:{keyName: 'name' | 'notes' | 'token', mode: 'normal' | 'large'}) => {
+const TextItem = ({keyName, mode}:{keyName: 'name' | 'description' | 'notes' | 'token', mode: 'normal' | 'large'}) => {
   const [value, setValue] = useTextLens(keyName)
 
   return mode == 'large' ?
-    <textarea aria-label='notes' className={`${inputClass} p-1 min-h-32 w-full text-sm bg-surface`} value={value+''} onChange={(e) => setValue(e.target.value)} /> :
+    <label className='col-span-6 flex flex-col gap-1'>
+      <SectionLabel>{keyName}</SectionLabel>
+      <textarea aria-label={keyName} className={`${inputClass} p-1 min-h-20 w-full text-sm bg-surface`} value={value+''} onChange={(e) => setValue(e.target.value)} />
+    </label> :
     <TextInput className='w-64 text-base font-medium' title={keyName} placeholder={keyName === 'token' ? '/tokens/name.webp' : 'name'} value={value+''} onChange={(e) => setValue(e.target.value)} />
 }
 

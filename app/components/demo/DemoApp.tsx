@@ -70,7 +70,7 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
         <div className='flex flex-row flex-wrap gap-2'>
           {view.picks.map((p, i) => (
             <span key={`${p.key}-${i}`} className='inline-flex items-center gap-1 rounded border border-accent bg-accent/10 pl-3 pr-1 py-1.5'>
-              <Tooltip text={p.notes}><span>{p.name}</span></Tooltip>
+              <Tooltip text={p.description}><span>{p.name}</span></Tooltip>
               <IconButton icon={X} aria-label={`remove ${p.name}`} onClick={() => remove(i)} />
             </span>
           ))}
@@ -84,7 +84,7 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
         <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2'>
           {view.offered.map((c) => (
             <Popover key={c.key} className='flex' content={<span className='flex flex-col gap-1 w-72 max-w-[80vw] whitespace-normal'>
-              {c.notes ? <span>{c.notes}</span> : null}
+              {c.description ? <span>{c.description}</span> : null}
               <span className='text-muted'>{view.full ? 'the party is full' : `click to add ${c.name} to the party`}</span>
             </span>}>
             <button type='button' aria-label={`add ${c.name} to the party`} disabled={view.full}
@@ -93,7 +93,7 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
               <span className='flex flex-col grow min-w-0'>
                 <span className='font-medium truncate'>{c.name}</span>
                 {c.tags.length > 0 ? <span className='text-xs text-muted truncate'>{c.tags.join(' · ')}</span> : null}
-                {c.notes ? <span className='text-xs line-clamp-3'>{c.notes}</span> : null}
+                {c.description ? <span className='text-xs line-clamp-3'>{c.description}</span> : null}
               </span>
               <Plus className='w-4 h-4 text-muted shrink-0' />
             </button>

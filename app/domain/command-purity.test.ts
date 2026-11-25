@@ -234,6 +234,7 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   toggleCreationRaceTalent: (d) => creationCommands.toggleCreationRaceTalent('INT')(deepFreeze({ ...d, race: d.race && { ...d.race, talentChoices: 2 }, raceTalents: ['CON'] })),
   setCreationName: creationCommands.setCreationName('Ann'),
   setCreationPriority: creationCommands.setCreationPriority('DEX', 'A'),
+  setCreationDescription: creationCommands.setCreationDescription('tall'),
   setCreationNotes: creationCommands.setCreationNotes('a scar'),
   setCreationLimitStress: creationCommands.setCreationLimitStress('coward'),
   setCreationConviction: creationCommands.setCreationConviction('conviction1', 'Fatalism'),
