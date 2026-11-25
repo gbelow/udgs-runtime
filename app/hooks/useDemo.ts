@@ -6,7 +6,8 @@ import { useCombatStore } from "../stores/useCombatStore";
 import { dropFight, keepFight, readFight, useFight, useKeptFight } from "../stores/useKeptFight";
 import { useBotLogStore } from "../stores/useBotLogStore";
 import { useDemoStore } from "../stores/useDemoStore";
-import { makeWriter, readAutosave, writeAutosave } from "../stores/autosave";
+import { makeWriter, readAutosave, readBotMemories, writeAutosave, writeBotMemories } from "../stores/autosave";
+import { useBotMemoryStore } from "../stores/useBotMemoryStore";
 import { DEMO, DEMO_SCENE, DEMO_VISITOR, DemoPlaySchema } from "../domain/demo";
 import { getScenePreset } from "../domain/campaign/rules/scenes";
 import { getBaseCharacters } from "../domain/character/grouping";
@@ -51,6 +52,7 @@ function useJoin() {
     const made = playDemo(scene, picks, board, sheets, () => crypto.randomUUID());
     if (!made) { toast.error('The demo scene cannot be played.'); return; }
     useBotLogStore.setState({ entries: [], paused: false, open: true });
+    useBotMemoryStore.getState().restore();
     useCampaignStore.getState().openCampaign(
       { campaign: made.table.campaign, exploration: ExplorationStateSchema.parse({}), downtime: DowntimeStateSchema.parse({}), fight: made.table.fight },
       newFile(crypto.randomUUID(), { [DEMO_VISITOR]: 'player' }),
@@ -98,13 +100,14 @@ async function writeDemo() {
 // The demo brought back as it was left; nothing where none was kept, or what
 // was kept no longer reads.
 async function resumeDemo(isLeft: () => boolean) {
-  const kept = await readAutosave(DEMO_VISITOR, DEMO_SCENE);
+  const [kept, memories] = await Promise.all([readAutosave(DEMO_VISITOR, DEMO_SCENE), readBotMemories(DEMO_VISITOR, DEMO_SCENE)]);
   const demo = DemoPlaySchema.safeParse(kept?.demo);
   const save = CampaignSaveSchema.safeParse(kept?.save);
   if (!kept || !demo.success || !save.success || isLeft() || useKeptFight.getState().scene !== null) return;
   if (Object.keys(save.data.fight.characters).length === 0) return;
   const t = fromCampaignSave(save.data, kept.characters.map(makeCampaignCharacter));
   useBotLogStore.setState({ entries: [], paused: false, open: true });
+  useBotMemoryStore.getState().restore(memories);
   useCampaignStore.getState().openCampaign(t, toFileInfo(save.data), save.data.owners);
   keepFight(t.fight, DEMO_VISITOR);
   useCombatStore.setState({ activeCharacterId: Object.keys(t.fight.characters).find((id) => t.fight.partyOf[id] === demo.data.party) ?? null });
@@ -119,11 +122,14 @@ export function useDemoKept() {
     const writer = makeWriter(writeDemo);
     const offFight = useKeptFight.subscribe(writer.ask);
     const offDemo = useDemoStore.subscribe(writer.ask);
+    const memoryWriter = makeWriter(() => writeBotMemories(DEMO_VISITOR, DEMO_SCENE, useBotMemoryStore.getState().memories).then(() => undefined));
+    const offMemory = useBotMemoryStore.subscribe((s, before) => { if (s.restored === before.restored) memoryWriter.ask(); });
     resumeDemo(() => left).catch((err) => console.error('Resuming the demo failed:', err));
     return () => {
       left = true;
       offFight();
       offDemo();
+      offMemory();
       dropFight();
     };
   }, []);

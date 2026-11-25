@@ -1,5 +1,6 @@
-import type { CampaignCharacter } from '../types'
-import type { Placement, SceneState } from '../scene/types'
+import { z } from 'zod'
+import { CampaignCharacterSchema, type CampaignCharacter } from '../types'
+import { PlacementSchema, type Placement, type SceneState } from '../scene/types'
 import { getEyesToward, seesAcross } from '../scene/rules/board/board'
 import { FORGET_AFTER, ROUND_AP } from '../tables'
 import { getSightOf } from '../scene/rules/seen'
@@ -18,7 +19,8 @@ import { getSides } from './table'
 // noticed, once a member sees the cell it stood on and it is not there, and
 // once someone the seat notices stands there. One only met in an exchange,
 // which no member detects, is not noticed by it.
-export type Sighting = { sheet: CampaignCharacter; placement: Placement | null; party: string | undefined; round: number }
+const SightingSchema = z.object({ sheet: CampaignCharacterSchema, placement: PlacementSchema.nullable(), party: z.string().optional(), round: z.number() })
+export type Sighting = { sheet: CampaignCharacter; placement: Placement | null; party?: string; round: number }
 export type SeatMemory = Readonly<Record<string, Sighting>>
 
 // What a box notes for itself, from one look at the fight to the next
@@ -28,6 +30,9 @@ export type Notes = Readonly<Record<string, unknown>>
 
 // Each seat's, by seat id: the foes it remembers and its box's notes.
 export type SeatMemories = Readonly<Record<string, { foes: SeatMemory; notes: Notes }>>
+
+// As a browser keeps them beside the fight (stores/useBotMemoryStore.ts).
+export const SeatMemoriesSchema = z.record(z.string(), z.object({ foes: z.record(z.string(), SightingSchema), notes: z.record(z.string(), z.unknown()) }))
 
 // The seat's memory once it has looked at the fight as it stands.
 export function remember(memory: SeatMemory | undefined, state: SceneState, members: readonly string[]): SeatMemory {

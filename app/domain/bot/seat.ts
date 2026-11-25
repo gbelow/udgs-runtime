@@ -58,7 +58,7 @@ export function seatViewer(seat: Pick<Seat, 'id' | 'members' | 'profile'>): View
   return { profile, role: 'player', gmMode: false, profiles: [], ownerOf: (id) => (seat.members.includes(id) ? profile : undefined) }
 }
 
-const GM: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
+export const TABLE: Viewer = { profile: null, role: 'gm', gmMode: true, profiles: [], ownerOf: () => undefined }
 
 // One move: who made it, why, the presses sent with the dice each drew, and
 // what was refused, if anything was.
@@ -218,12 +218,12 @@ function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions,
   const players = Object.keys(state.characters).filter((id) => !seats.some((s) => s.members.includes(id)))
   if (holder && getContestClosed(state) === null) {
     if (!opts.paused) yield* askSeats(state, asked.filter((a) => !a.members.includes(holder)), 'immediate', opts)
-    if (opts.autoTable && !isContestPending(state) && getRollContestBar(state) === null) yield { by: 'table', who: null, why: 'rollContest', viewer: GM, commands: [{ kind: 'rollContest', args: [] }] }
+    if (opts.autoTable && !isContestPending(state) && getRollContestBar(state) === null) yield { by: 'table', who: null, why: 'rollContest', viewer: TABLE, commands: [{ kind: 'rollContest', args: [] }] }
   }
   // the time to contest is closed by whoever keeps the table's clock, unless
   // only bots are at it, who have all been asked
   if (isContestPending(state)) {
-    if (opts.autoTable && players.length === 0) yield { by: 'table', who: null, why: 'closeContest', viewer: GM, commands: [{ kind: 'closeContest', args: [] }] }
+    if (opts.autoTable && players.length === 0) yield { by: 'table', who: null, why: 'closeContest', viewer: TABLE, commands: [{ kind: 'closeContest', args: [] }] }
     return
   }
   const owing = asked.filter((a) => a.waits.length > 0)
@@ -231,7 +231,7 @@ function* getMoves(state: SceneState, seats: readonly Seat[], opts: MoveOptions,
   yield* askSeats(state, owing, 'any', opts)
 
   const press = opts.autoTable ? getTablePress(state, players, opts.holdStart) : null
-  if (press) yield { by: 'table', who: null, why: press.kind, viewer: GM, commands: [press] }
+  if (press) yield { by: 'table', who: null, why: press.kind, viewer: TABLE, commands: [press] }
 
   if (opts.paused) return
   const idle = asked.filter((a) => a.waits.length === 0)

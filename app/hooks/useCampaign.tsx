@@ -2,7 +2,8 @@ import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { answerRequest, deleteCampaign, loadCampaign, lockCampaign, requestToJoin, saveCampaign, unlockCampaign, withdrawRequest } from "../actions";
 import { asCopy, CampaignSaveSchema, fromCampaignSave, getCampaignSaveBar, getDeleteBar, hasPlay, newCampaign, newFile, toFileInfo, toStoredCampaign, type CampaignFileInfo, type CampaignSave, type StoredCampaign } from "../domain/saves";
-import { dropAutosave, makeWriter, readAutosave, readLastAutosaveId, useAutosaveStore, writeAutosave } from "../stores/autosave";
+import { dropAutosave, makeWriter, readAutosave, readBotMemories, readLastAutosaveId, useAutosaveStore, writeAutosave, writeBotMemories } from "../stores/autosave";
+import { useBotMemoryStore } from "../stores/useBotMemoryStore";
 import { useTableStore } from "../stores/useTableStore";
 import { getMoveBars, getRosterIn, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
 import type { Sequence } from "../domain/campaign/types";
@@ -155,6 +156,7 @@ async function resume(profile: string, id: string, fresh: boolean) {
   const kept = fresh ? undefined : await readAutosave(profile, id).catch(() => undefined);
   const parsed = kept ? CampaignSaveSchema.safeParse(kept.save) : null;
   if (kept && parsed?.success) {
+    useBotMemoryStore.getState().restore(await readBotMemories(profile, id).catch(() => undefined));
     play(parsed.data, kept.characters);
     useAutosaveStore.getState().set(kept.at);
     toast.success(`Campaign ${parsed.data.name || 'unnamed'} resumed from its autosave.`);
@@ -163,6 +165,7 @@ async function resume(profile: string, id: string, fresh: boolean) {
   const res = await loadCampaign(id);
   if (!res.ok) { toast.error(res.error); return; }
   dropAutosave(profile, id).catch(() => undefined);
+  useBotMemoryStore.getState().restore();
   play(res.data.save, res.data.characters);
   useAutosaveStore.getState().set(null);
   toast.success(`Campaign ${res.data.save.name} opened from its save.`);
@@ -202,6 +205,7 @@ export function useAutosave() {
       } catch (err) { console.error('Autosave failed:', err); }
     });
     writing = writer.settled;
+    const memoryWriter = makeWriter(() => writeBotMemories(profile, useCampaignStore.getState().file.id, useBotMemoryStore.getState().memories).then(() => undefined));
     const schedule = <T extends object>(s: T, before: T) => {
       if (!changed(s, before) || useTableStore.getState().mode === 'guest') return;
       writer.ask();
@@ -215,6 +219,7 @@ export function useAutosave() {
     };
     const fighters = (s: { characters: object }) => Object.keys(s.characters).length;
     const unsubscribe = [
+      useBotMemoryStore.subscribe((s, before) => { if (s.restored === before.restored) memoryWriter.ask(); }),
       useCampaignStore.subscribe(schedule),
       useCombatStore.subscribe(schedule),
       useCombatStore.subscribe((s, before) => { if (fighters(before) > 0 && fighters(s) === 0) keep(); }),
@@ -247,6 +252,7 @@ export function useCampaignFiles() {
   const refreshCharacters = useAppStore((s) => s.updatePlayerCharacterList);
 
   const create = () => {
+    useBotMemoryStore.getState().restore();
     openCampaign(newCampaign(), newFile(crypto.randomUUID(), profile ? { [profile]: 'gm' } : {}));
     useAutosaveStore.getState().set(null);
   };

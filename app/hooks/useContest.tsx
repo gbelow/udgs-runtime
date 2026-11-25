@@ -5,6 +5,7 @@ import { isContestPending } from "../domain/scene/rules/contest";
 import { isBot } from "../domain/profiles";
 import type { SceneState } from "../domain/scene/types";
 import type { RollMode } from "../domain/play/dice";
+import { haveBotsAnswered } from "../bots/client";
 import { playOf } from "../net/parts";
 import { useAppStoreApi } from "../stores/useAppStore";
 import { useBotLogStore } from "../stores/useBotLogStore";
@@ -16,9 +17,9 @@ import { useGuestViewerCheck, useRollerCheck } from "./useControl";
 import { useThrower } from "./useDieCalls";
 import { useSceneDispatch } from "./useSceneDispatch";
 
-// How long the bots are given to ask for a contest before it may close, and how
-// often the clock is read.
-const BOTS_MS = 900;
+// How long the bots may keep a contest from closing while they decide whether
+// to ask for it, and how often the clock is read.
+const BOTS_MS = 10_000;
 const TICK_MS = 200;
 
 // The time to contest a turn, for the characters the screen answers for, the
@@ -104,7 +105,7 @@ export function useContestClock() {
       const { ownerOf } = viewerOf(me ?? "", false);
       const seated = [...useTableStore.getState().guests.map((g) => g.profile), ...(me ? [me] : [])];
       const botsMay = !paused && getContestable(state).some((id) => isBot(ownerOf(id) ?? ""));
-      if (botsMay && run < BOTS_MS) return;
+      if (botsMay && run < BOTS_MS && !haveBotsAnswered()) return;
       if (isContestDue(state, getPeople(state, ownerOf, seated), run / 1000, thought === null ? null : thought / 1000)) playOf("scene", { kind: "closeContest", args: [] }, thrower);
     };
     const timer = setInterval(tick, TICK_MS);

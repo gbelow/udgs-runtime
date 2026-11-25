@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { realDice } from "../components/utils";
+import { startBots, type Bots } from "../bots/client";
+import type { BotAnswer } from "../bots/player";
 import { barOf, playOf } from "../net/parts";
 import { sendToHost } from "../net/session";
-import { BOTS, getOwner } from "../domain/profiles";
+import { getOwner } from "../domain/profiles";
 import { getBotSeats } from "../domain/bot/bots";
-import { forgetFight } from "../domain/bot/forget";
-import { getLiveStep, NEW_LIVE, type Live } from "../domain/bot/live";
-import { noteSeats, withNoted, type MoveOptions } from "../domain/bot/seat";
-import type { SeatMemories } from "../domain/bot/memory";
-import { isCombatStarted } from "../domain/scene/rules/started";
+import { TABLE } from "../domain/bot/seat";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { readFight, subscribeFight, useFight } from "../stores/useKeptFight";
 import { useTableStore } from "../stores/useTableStore";
 import { useBotLogStore } from "../stores/useBotLogStore";
+import { useBotMemoryStore } from "../stores/useBotMemoryStore";
 import { useGmBar, useGuestViewerCheck } from "./useControl";
 import { useThrower } from "./useDieCalls";
 
@@ -56,13 +54,11 @@ export function useBotsPauseSetting() {
   return { open, bar, toggle: () => { if (bar === null) useBotLogStore.getState().setOpen(!open); } } as const;
 }
 
-// A beat between a bot's moves, so that the table can follow them.
-const BEAT_MS = 300;
-
 // The bots at the fight, played on the screen that keeps the table (never a
-// guest's): after every change to the fight, what is done next
-// (bot/live.ts `getLiveStep`), a move sent as a guest's press is, as the bot.
-// A move the table refuses stops the bots until the fight changes. While they
+// guest's): their thread (bots/client.ts) is told of every change to the fight
+// and answers with what is done next (bot/live.ts `getLiveStep`), a move sent as
+// a guest's press is, as the bot. It runs while the fight has a bot in it, or
+// the table presses for itself. A move the table refuses stops the bots until the fight changes. While they
 // are paused, they decide nothing, but the table still presses for the GM
 // nobody plays and the dice called for are thrown (`MoveOptions` `paused`).
 // `table`: whether the table presses for a GM nobody plays (bot/autoTable.ts),
@@ -76,79 +72,74 @@ export function useBots(table: BotTable = WITH_GM) {
   const mode = useTableStore((s) => s.mode);
   const viewerOf = useGuestViewerCheck();
   const thrower = useThrower();
-  const live = useRef({ viewerOf, thrower });
-  live.current = { viewerOf, thrower };
+  const live = useRef({ viewerOf, thrower, auto, holdStart });
+  live.current = { viewerOf, thrower, auto, holdStart };
+  // tells the thread how things stand
+  const tell = useRef<() => void>(() => {});
 
   // the demo's pause is the visitor's, whatever this browser remembers
   useEffect(() => { if (!auto && mode !== 'guest') useBotLogStore.getState().recall(); }, [auto, mode]);
 
   useEffect(() => {
     if (mode === 'guest') return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let kept: Live = NEW_LIVE;
-    // what each bot seat remembers of the foes it noticed, noted at every change to the fight
-    let memories: SeatMemories = {};
-    let started = isCombatStarted(readFight());
-    const note = () => {
-      const state = readFight();
-      if (started && !isCombatStarted(state)) forgetFight();
-      started = isCombatStarted(state);
-      memories = noteSeats(memories, state, getBotSeats(state, live.current.viewerOf(BOTS[0].id, false).ownerOf));
-    };
+    let bots: Bots | null = null;
 
-    const play = () => {
-      timer = null;
+    // whether the answer's first press was made
+    const press = ({ step, refused }: BotAnswer): boolean => {
+      if (refused.length) console.warn('[bots]', refused);
+      if (step.do === 'nothing') return false;
+      const { move } = step;
       const { viewerOf, thrower } = live.current;
       const state = readFight();
-      const ownerOf = viewerOf(BOTS[0].id, false).ownerOf;
-      const seats = getBotSeats(state, ownerOf);
-      if (seats.length === 0 && !auto) return;
-      const opts: MoveOptions = {
-        ctx: { thrower: realDice, newId: () => crypto.randomUUID() },
-        botDice: realDice,
-        rngOf: () => Math.random,
-        autoTable: auto,
-        holdStart,
-        paused: useBotLogStore.getState().paused,
-        viewerOf: (seat) => viewerOf(seat.profile ?? seat.id, false),
-        memories,
-      };
-      const { step, live: next, refused } = getLiveStep(kept, state, seats, opts);
-      kept = next;
-      if (refused.length) console.warn('[bots]', refused);
-      if (step.do === 'nothing') return;
-      const { move } = step;
+      const entry = { round: state.round, who: (move.who && state.characters[move.who]?.name) || move.by, why: move.why };
       if (step.do === 'stop') {
         if (step.first) {
           toast.error('A bot keeps making the same move: the bots stop until something else happens.');
-          useBotLogStore.getState().add({ round: state.round, who: (move.who && state.characters[move.who]?.name) || move.by, why: move.why, refused: 'the same move again: stopped' });
+          useBotLogStore.getState().add({ ...entry, refused: 'the same move again: stopped' });
         }
-        return;
+        return false;
       }
-      const entry = { round: state.round, who: (move.who && state.characters[move.who]?.name) || move.by, why: move.why };
+      const viewer = move.as === null ? TABLE : viewerOf(move.as, false);
+      let played = false;
       for (const command of move.commands) {
-        const why = barOf('scene', command, move.viewer);
+        const why = barOf('scene', command, viewer);
         if (why) {
           toast.error(`A bot was refused: ${why}.`);
           useBotLogStore.getState().add({ ...entry, refused: `${command.kind}: ${why}` });
-          return;
+          return played;
         }
-        if (command === move.commands[0]) useBotLogStore.getState().add({ ...entry, refused: null });
+        if (!played) useBotLogStore.getState().add({ ...entry, refused: null });
         playOf('scene', command, thrower);
-        if (command === move.commands[0]) memories = withNoted(memories, move);
-        if (Object.values(readFight().calls).some((c) => c.die === null)) return;
+        played = true;
+        if (Object.values(readFight().calls).some((c) => c.die === null)) break;
       }
+      return played;
     };
-    const soon = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(play, BEAT_MS);
+    const fail = (why: string, over: boolean) => {
+      console.error('[bots]', why);
+      if (over) toast.error('The bots could not be started. Reload the page to try again.', { id: 'bots-failed', duration: Infinity });
+      else toast.error('The bots could not go on: they try again once the fight changes.', { id: 'bots-failed' });
+    };
+    tell.current = () => {
+      const { auto, holdStart } = live.current;
+      const state = readFight();
+      const { owners } = useCampaignStore.getState();
+      if (!auto && getBotSeats(state, (id) => getOwner(id, owners)).length === 0) {
+        bots?.stop();
+        bots = null;
+        return;
+      }
+      bots ??= startBots(press, fail);
+      bots.tell(state, { owners, auto, holdStart, paused: useBotLogStore.getState().paused });
     };
 
-    note();
-    soon();
-    const offCombat = subscribeFight(() => { note(); soon(); });
-    const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) soon(); });
-    const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) soon(); });
-    return () => { offCombat(); offOwners(); offPaused(); if (timer) clearTimeout(timer); };
-  }, [mode, auto, holdStart]);
+    tell.current();
+    const offCombat = subscribeFight(() => tell.current());
+    const offOwners = useCampaignStore.subscribe((s, before) => { if (s.owners !== before.owners) tell.current(); });
+    const offPaused = useBotLogStore.subscribe((s, before) => { if (s.paused !== before.paused) tell.current(); });
+    const offMemory = useBotMemoryStore.subscribe((s, before) => { if (s.restored !== before.restored) tell.current(); });
+    return () => { offCombat(); offOwners(); offPaused(); offMemory(); tell.current = () => {}; bots?.stop(); };
+  }, [mode]);
+
+  useEffect(() => tell.current(), [auto, holdStart]);
 }

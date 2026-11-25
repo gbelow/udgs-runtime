@@ -10,6 +10,8 @@ const DB = 'chargenfallow'
 const STORE = 'autosave'
 const keyOf = (profile: string, id: string) => `${profile}/${id}`
 const lastOf = (profile: string) => `${profile}/last`
+// what the bots of its fight remember, kept on its own since it changes after the fight does
+const botsOf = (profile: string, id: string) => `${keyOf(profile, id)}/bots`
 
 // Opened once and kept, until another tab upgrades the database.
 let opened: Promise<IDBDatabase> | null = null
@@ -40,7 +42,9 @@ async function run<T>(mode: IDBTransactionMode, act: (store: IDBObjectStore) => 
 export const readAutosave = (profile: string, id: string) => run<Autosave>('readonly', (s) => s.get(keyOf(profile, id)))
 export const readLastAutosaveId = (profile: string) => run<string>('readonly', (s) => s.get(lastOf(profile)))
 export const writeAutosave = (profile: string, id: string, a: Autosave) => run('readwrite', (s) => { s.put(a, keyOf(profile, id)); s.put(id, lastOf(profile)) })
-export const dropAutosave = (profile: string, id: string) => run('readwrite', (s) => { s.delete(keyOf(profile, id)) })
+export const dropAutosave = (profile: string, id: string) => run('readwrite', (s) => { s.delete(keyOf(profile, id)); s.delete(botsOf(profile, id)) })
+export const readBotMemories = (profile: string, id: string) => run<unknown>('readonly', (s) => s.get(botsOf(profile, id)))
+export const writeBotMemories = (profile: string, id: string, memories: unknown) => run('readwrite', (s) => { s.put(memories, botsOf(profile, id)) })
 
 // Runs `write` when asked to, one at a time, and again once it is done if
 // asked meanwhile, so that the last state is always the one written.
