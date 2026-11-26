@@ -20,6 +20,8 @@ export const FACE_KEYS: (keyof Face)[] = ['id', 'name', 'token', 'size', 'footpr
 const SHOWN_AFFLICTIONS: ReadonlySet<AfflictionKey> = new Set<AfflictionKey>(['prone', 'immobile', 'collapsed', 'lame', 'grappled', 'unconscious'])
 
 export const SHOWN_IL_STEP = 10
+// the tens a face shows no further than: combat.tex "Injuries and Death" has them collapse at 50
+export const MOST_TENS = 5
 
 const blank = CampaignCharacterSchema.parse({})
 const faces = new WeakMap<CampaignCharacter, CampaignCharacter>()

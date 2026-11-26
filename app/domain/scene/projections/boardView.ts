@@ -31,6 +31,8 @@ import { getAwaited } from '../rules/options'
 import { getCellSenser } from '../rules/detection'
 import { getSightOf } from '../rules/seen'
 import { isOffGrid } from '../rules/parked'
+import { getBoardMarkers, getBoardMotions, type BoardMarkerView, type BoardMotionView } from './boardMotion'
+import { getGauges, type Gauges } from '../../character/lenses/bars'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -184,6 +186,8 @@ export type BoardTokenView = {
   // to, which way that is in degrees, and the metres of it climbed out of all
   // of them; null for one not hanging
   hanging: { to: string; angle: number; covered: number; height: number } | null
+  // what they are seen to have left, as their face shows it (`getGauges`)
+  gauge: Gauges
 }
 
 // Something lying on a cell, drawn over whoever stands there, and whether a
@@ -410,6 +414,10 @@ export type BoardView = {
   // combat.tex "Push and drag": where everyone a push moves will stand once
   // it lands, drawn over the board before it does
   ghosts: BoardGhostView[]
+  // the moves that landed lately, as they were walked, and what the actions
+  // that landed lately did to whom (boardMotion.ts), for the stage to play
+  motions: BoardMotionView[]
+  markers: BoardMarkerView[]
   // who a click on a pickable floor item picks it up for
   picker: string | null
   // characters in the fight with no place on the board yet
@@ -431,7 +439,7 @@ const compareArts = (a: CellArt, b: CellArt): number =>
 
 const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, hex: [], frame: { x: 0, y: 0, width: 1, height: 1 }, arts: [], cells: [], rims: [], ridges: [], faces: [], chords: [], corners: [], overhead: [], standing: [], sprites: [], bands: 1, front: false, beyond: [] }
 
-const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, hex: [], light: 'bright', lights: [], frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, hex: [], light: 'bright', lights: [], frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], motions: [], markers: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
@@ -550,6 +558,7 @@ function buildBoardView(state: SeenScene): BoardView {
       heard: false,
       shieldAngle: facing === null ? null : (facing * 180) / Math.PI,
       hanging: placement.climb ? { to: coordKey(placement.climb.to), angle: (angleBetween(anchor, toPlane(placement.climb.to)) * 180) / Math.PI, covered: placement.climb.covered, height: Math.abs(placement.climb.bound - placement.climb.floor) } : null,
+      gauge: getGauges(c),
     }]
   })
 
@@ -601,6 +610,8 @@ function buildBoardView(state: SeenScene): BoardView {
     floor,
     binds,
     ghosts,
+    motions: getBoardMotions(state),
+    markers: getBoardMarkers(state),
     picker: floorPicker?.picker ?? null,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id] && !isOffGrid(state, c.id)).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
     mode: getBoardMode(state),
@@ -796,6 +807,11 @@ export const getBoardViewFrom = perState((state: SeenScene): BoardView => {
     cells,
     tokens: tokens.map((t) => (t.id !== eye && t.cells.every((c) => unseen.has(c.key)) ? { ...t, heard: true } : t)),
     ghosts: view.ghosts.filter((g) => drawn.has(g.id)),
+    motions: view.motions.flatMap((m) => {
+      const steps = m.steps.filter((s) => !unseen.has(s.cell))
+      return drawn.has(m.id) && steps.length > 1 ? [{ ...m, steps: [{ ...steps[0], seconds: 0 }, ...steps.slice(1)] }] : []
+    }),
+    markers: view.markers.filter((m) => drawn.has(m.id)),
     floor: view.floor.filter((f) => { const at = state.floor.find((x) => x.item.id === f.itemId)?.cell; return !at || !unseen.has(coordKey(at)) }),
     binds: view.binds.filter((b) => b.key.slice(b.key.indexOf(':') + 1).split('~').every((id) => drawn.has(id))),
   }

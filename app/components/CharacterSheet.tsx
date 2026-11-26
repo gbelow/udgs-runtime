@@ -13,7 +13,7 @@ import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useResourceBars, useResourceLens } from '../hooks/useResourceLens';
-import { HURT, THIRDS } from './SceneCards';
+import { SHADE_BG, shadeOf } from '../gaugeShades';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveAfflictions, useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
@@ -111,11 +111,11 @@ export function ResourceBars({ after }: { after?: ReactNode }){
       <SectionLabel className='block max-w-full truncate !text-xs'>{tableName || name}</SectionLabel>
       <div className='flex flex-col gap-2 items-start'>
         <div className='flex flex-col gap-1.5 w-full min-w-0'>
-          <Bar label='AP' value={AP} fill={bars.AP.fill} color={THIRDS[bars.AP.third].className} title={THIRDS[bars.AP.third].label}
+          <Bar label='AP' value={AP} fill={bars.AP.fill} color={SHADE_BG[shadeOf('AP', bars.AP.third)]} title={bars.AP.label}
             set={setAP} raise={() => setAP(AP + 1)} lower={() => setAP(AP - 1)} />
-          <Bar label='STA' value={STA} fill={bars.STA.fill} color={THIRDS[bars.STA.third].className} title={THIRDS[bars.STA.third].label}
+          <Bar label='STA' value={STA} fill={bars.STA.fill} color={SHADE_BG[shadeOf('STA', bars.STA.third)]} title={bars.STA.label}
             set={setSTA} raise={() => setSTA(STA + 1)} lower={() => updateSTA(STA - 1)} />
-          <Bar label='IL' value={IL} fill={bars.IL.fill} color={HURT[bars.IL.tens]} title={bars.IL.collapsed ? 'collapsed' : 'injury level'} mark={bars.IL.collapse} lit={bars.IL.collapsed}
+          <Bar label='IL' value={IL} fill={bars.IL.fill} color={SHADE_BG[shadeOf('IL', bars.IL.level)]} title={bars.IL.collapsed ? 'collapsed' : 'injury level'} mark={bars.IL.collapse} lit={bars.IL.collapsed}
             set={(v) => setInjury('injuryLevel', v)} raise={() => setInjury('injuryLevel', IL + 1)} lower={() => updateIL(IL - 1)} />
         </div>
         {after}

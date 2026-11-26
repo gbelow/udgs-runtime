@@ -2,6 +2,8 @@
 import type { ReactNode } from 'react'
 import { useSceneCards } from '../hooks/useCombatState'
 import type { SceneCard } from '../domain/scene/projections/cards'
+import type { Gauge } from '../domain/character/lenses/bars'
+import { SHADE_BG, shadeOf, type GaugeKey } from '../gaugeShades'
 
 // The fight with no board: everyone is in reach, so the middle shows each
 // character as a card, by party. A click aims the open action at a target,
@@ -24,25 +26,18 @@ export function SceneCards(){
   )
 }
 
-export const THIRDS = [
-  { label: 'low', className: 'bg-bad' },
-  { label: 'middling', className: 'bg-caution' },
-  { label: 'high', className: 'bg-good' },
-] as const
-
-// What is left of a resource: the number, or on a token only the third.
-function Left({ value }: { value: SceneCard['AP'] }){
-  if (typeof value === 'number') return <span className='font-mono text-fg'>{value}</span>
-  const third = THIRDS[value.third]
-  return <span title={`${third.label} (a third)`} aria-label={third.label} className={`inline-block w-2 h-2 rounded-full ${third.className}`} />
-}
-
-export const HURT = ['bg-good', 'bg-injury-1', 'bg-injury-2', 'bg-injury-3', 'bg-injury-4', 'bg-injury-5'] as const
-
-// How hurt: the number, or on a token a colour for every ten.
-function Hurt({ value }: { value: SceneCard['IL'] }){
-  if (typeof value === 'number') return <span className='font-mono text-fg'>{value}</span>
-  return <span title={`injury level ${value.tens}0 or more`} aria-label={`injury level ${value.tens}0 or more`} className={`inline-block w-2 h-2 rounded-full ${HURT[value.tens]}`} />
+// A resource as its face shows it: a small bar filled and shaded by its
+// gauge, with the number beside it on a sheet the viewer plays.
+function Left({ name, gauge, value }: { name: GaugeKey, gauge: Gauge, value: number | null }){
+  return (
+    <span className='inline-flex flex-row items-center gap-1'>
+      {name}
+      <span title={gauge.label} aria-label={`${name} ${gauge.label}`} className='inline-block w-8 h-1.5 rounded-sm bg-raised border border-line overflow-hidden'>
+        <span className={`block h-full ${SHADE_BG[shadeOf(name, gauge.level)]}`} style={{ width: `${gauge.fill}%` }} />
+      </span>
+      {value !== null ? <span className='font-mono text-fg'>{value}</span> : null}
+    </span>
+  )
 }
 
 // One character's card; a click picks them, and what is passed in sits under
@@ -65,9 +60,9 @@ export function Card({ card, picked = false, onClick, children }: { card: SceneC
           {card.role && card.role !== 'none' ? <span className='ml-auto text-[10px] text-muted'>{card.role}</span> : null}
         </div>
         <div className='flex flex-row flex-wrap gap-x-2.5 text-xs text-muted'>
-          <span>AP <Left value={card.AP} /></span>
-          <span>STA <Left value={card.STA} /></span>
-          <span>IL <Hurt value={card.IL} /></span>
+          <Left name='AP' gauge={card.gauges.AP} value={card.AP} />
+          <Left name='STA' gauge={card.gauges.STA} value={card.STA} />
+          <Left name='IL' gauge={card.gauges.IL} value={card.IL} />
           {card.bleed ? <span className='text-bad'>bleed <span className='font-mono'>{card.bleed}</span></span> : null}
           {card.burning ? <span className='text-bad'>burning <span className='font-mono'>{card.burning}</span></span> : null}
         </div>

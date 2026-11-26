@@ -1,5 +1,9 @@
 import { type AlphaFilter, type BlurFilter, Container, Graphics, Matrix, Sprite, Text, Texture, Rectangle, type TextStyleOptions } from 'pixi.js'
 import type { BoardBindView, BoardCellView, BoardChordView, BoardCornerView, BoardFloorItemView, BoardGhostView, BoardGround, BoardGroundCell, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from '../domain/scene/projections/boardView'
+import type { BoardMarkerView } from '../domain/scene/projections/boardMotion'
+import type { Gauges } from '../domain/character/lenses/bars'
+import { shadeOf, type GaugeKey } from '../gaugeShades'
+import type { Tone } from '../domain/scene/projections/outcomes'
 import type { SurfaceArt } from '../domain/scene/types'
 import type { Grain, Point } from '../domain/scene/rules/board/geometry'
 import { isFlatGround } from './ground'
@@ -451,6 +455,46 @@ export function drawToken(kit: Kit, t: BoardTokenView, hex: Point[], picked: boo
     body.addChild(chevron, label(`⇡${t.hanging.covered}/${t.hanging.height}`, 0.32, kit.palette.good, { x: 0.75 * scale, y: -0.8 * scale }, { x: 0.5, y: 0.8 }))
   }
   if (t.depth > 0) body.addChild(label(`↓${t.depth}`, 0.35, kit.palette.accent, { x: 0, y: -radius - 0.18 }, { x: 0.5, y: 0.8 }))
+  body.addChild(drawGauge(kit, t.gauge, radius))
+  return out
+}
+
+// What a token is seen to have left, as three arcs round its ring, each a
+// track filled as far as its gauge in its shade: AP up the left side and STA
+// up the right from the bottom, the injury level over the top from the left,
+// with the bottom left clear for the name. Angles in degrees, clockwise from
+// the right.
+const GAUGE_ARCS: { key: GaugeKey; from: number; to: number }[] = [
+  { key: 'AP', from: 110, to: 210 },
+  { key: 'STA', from: 70, to: -30 },
+  { key: 'IL', from: 220, to: 320 },
+]
+const GAUGE_GAP = 0.24
+const GAUGE_WIDTH = 0.08
+
+function drawGauge(kit: Kit, gauges: Gauges, radius: number): Graphics {
+  const g = new Graphics()
+  const r = radius + GAUGE_GAP
+  const rad = (degrees: number) => (degrees * Math.PI) / 180
+  const arc = (from: number, to: number) => g.moveTo(r * Math.cos(rad(from)), r * Math.sin(rad(from))).arc(0, 0, r, rad(from), rad(to), to < from)
+  for (const { key, from, to } of GAUGE_ARCS) {
+    const gauge = gauges[key]
+    arc(from, to).stroke({ width: GAUGE_WIDTH * 1.8, cap: 'round', ...colorOf(kit, { color: 'bg', alpha: 0.75 }) })
+    arc(from, to).stroke({ width: GAUGE_WIDTH, cap: 'round', ...colorOf(kit, { color: 'line' }) })
+    if (gauge.fill > 0) arc(from, from + ((to - from) * gauge.fill) / 100).stroke({ width: GAUGE_WIDTH, cap: 'round', ...colorOf(kit, { color: shadeOf(key, gauge.level) }) })
+  }
+  return g
+}
+
+const TONE_COLORS: Record<Tone, Token> = { good: 'good', bad: 'bad', mixed: 'caution' }
+const MARKER_SIZE = 0.42
+
+// What an action did to a character, a line each, the last at the bottom;
+// the stage puts it over the token and lifts it.
+export function drawMarker(kit: Kit, m: BoardMarkerView): Container {
+  const out = new Container()
+  const lines = [...m.lines].reverse()
+  lines.forEach((line, i) => out.addChild(label(line.text, MARKER_SIZE, kit.palette[TONE_COLORS[line.tone]], { x: 0, y: -i * MARKER_SIZE * 1.15 }, { x: 0.5, y: 1 }, { fontWeight: '700', stroke: { color: kit.palette.bg, width: 0.16 * TEXT_SIZE / MARKER_SIZE * 0.5, join: 'round' } })))
   return out
 }
 

@@ -5,7 +5,7 @@ import type { Point } from '../domain/scene/rules/board/geometry'
 import { readPalette } from './palette'
 import { getTexture } from './textures'
 import { drawFlatGround } from './ground'
-import { FLOOR_ITEM_HALF, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, tokenBody, type Kit } from './draw'
+import { FLOOR_ITEM_HALF, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMarker, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, tokenBody, type Kit } from './draw'
 import { destroyShadeTargets, drawShadeCorners, drawShadeMap, drawShadeOver, makeShadeTargets, type ShadeMap } from './light'
 
 // The board drawn on a canvas by Pixi: the view as the domain gives it, laid
@@ -49,8 +49,19 @@ const BLUR_PER_SIGMA = 2
 const VEIL_BLUR = 0.15
 const VEIL_OPACITY = 0.45
 const PULSE_SECONDS = 2
+// a token drawn somewhere new with no walk to take it there slides there
+const SLIDE_MS = 250
+// what an action did rises this far off the token while it shows, a marker
+// on the same token waiting for the one before it to be read
+const MARKER_MS = 1400
+const MARKER_RISE = 0.9
+const MARKER_GAP_MS = 400
 
 type Part = { deps: unknown[]; object: Container }
+// A token on its way: the places it passes, and when it is at each, in
+// milliseconds from `start`.
+type Walk = { points: Point[]; times: number[]; start: number }
+type Float = { id: string; node: Container; start: number }
 type Band = { root: Container; normal: Container; veiled: Container; parts: Record<string, Part> }
 
 const sameDeps = (a: unknown[], b: unknown[]) => a.length === b.length && a.every((x, i) => x === b[i])
@@ -82,6 +93,18 @@ export class BoardStage {
   private frameRequest = 0
   private press: { id: number; x: number; y: number; camera: { x: number; y: number }; panning: boolean } | null = null
   private resize: ResizeObserver | null = null
+  // what is played: the motions and markers seen (those of the first view
+  // drawn are taken as seen, not played), the tokens on their way, where each
+  // token was drawn last, and the markers rising
+  private played = new Set<string>()
+  private primed = false
+  private still = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  private walks = new Map<string, Walk>()
+  private lastAt = new Map<string, Point>()
+  private lastFront: boolean | null = null
+  private tokenNodes = new Map<string, Container>()
+  private floats: Float[] = []
+  private floatLayer = new Container()
 
   constructor(private host: HTMLElement, private events: BoardEvents) {
     const onTexture = () => { this.textures++; this.sync() }
@@ -118,7 +141,7 @@ export class BoardStage {
     canvas.style.height = '100%'
     canvas.style.touchAction = 'none'
     this.host.appendChild(canvas)
-    this.world.addChild(this.bandLayer, this.litLayer, this.top)
+    this.world.addChild(this.bandLayer, this.litLayer, this.top, this.floatLayer)
     this.app.stage.addChild(this.world)
     canvas.addEventListener('pointerdown', this.onPointerDown)
     canvas.addEventListener('pointermove', this.onPointerMove)
@@ -182,9 +205,15 @@ export class BoardStage {
     const top = this.top
     top.removeChildren()
     this.part(this.parts, 'overhead', top, [view.ground.overhead, view.hex, this.textures], () => drawOverhead(this.kit, view.ground.overhead, view.hex))
+    this.queue(view)
     this.part(this.parts, 'tokens', top, [view.tokens, view.hex, picked, this.textures], () => {
       const out = new Container()
-      view.tokens.forEach((t) => out.addChild(drawToken(this.kit, t, view.hex, picked.includes(t.id))))
+      this.tokenNodes.clear()
+      view.tokens.forEach((t) => {
+        const node = drawToken(this.kit, t, view.hex, picked.includes(t.id))
+        this.tokenNodes.set(t.id, node)
+        out.addChild(node)
+      })
       return out
     })
     this.part(this.parts, 'awaited', top, [view.tokens], () => drawAwaited(this.kit, view.tokens))
@@ -256,6 +285,101 @@ export class BoardStage {
     })
   }
 
+  // ---------------------------------------------------------------------------
+  // What is played
+
+  // Where a token is drawn at a moment: along its walk, or where it was.
+  private shownAt(id: string, now: number, fallback: Point): Point {
+    const walk = this.walks.get(id)
+    return walk ? alongWalk(walk, now) : fallback
+  }
+
+  // The motions and markers the view offers that have not been seen, set
+  // going; a token the view has somewhere new with no motion to take it there
+  // slides there, unless the whole board is being looked at another way.
+  private queue(view: BoardView) {
+    const now = performance.now()
+    const playing = this.primed && !this.still
+    const turned = this.lastFront !== null && this.lastFront !== view.front
+    const tokens = new Map(view.tokens.map((t) => [t.id, t]))
+    const started = new Set<string>()
+    for (const m of view.motions) {
+      if (this.played.has(m.key)) continue
+      this.played.add(m.key)
+      const token = tokens.get(m.id)
+      if (!playing || turned || !token) continue
+      const was = this.shownAt(m.id, now, this.lastAt.get(m.id) ?? m.steps[0])
+      const steps = m.steps.slice(nearest(m.steps, was))
+      const points: Point[] = steps.map((s) => ({ x: s.x, y: s.y }))
+      const times: number[] = []
+      steps.forEach((s, i) => times.push(i === 0 ? 0 : times[i - 1] + s.seconds * 1000))
+      const end = points.at(-1)
+      if (end && (end.x !== token.x || end.y !== token.y)) {
+        points.push({ x: token.x, y: token.y })
+        times.push((times.at(-1) ?? 0) + SLIDE_MS)
+      }
+      if (points.length < 2) continue
+      this.walks.set(m.id, { points, times, start: now })
+      started.add(m.id)
+    }
+    for (const t of view.tokens) {
+      const was = this.lastAt.get(t.id)
+      if (!was || started.has(t.id)) continue
+      const at = this.shownAt(t.id, now, was)
+      if (at.x === t.x && at.y === t.y) continue
+      if (playing && !turned) this.walks.set(t.id, { points: [at, { x: t.x, y: t.y }], times: [0, SLIDE_MS], start: now })
+      else this.walks.delete(t.id)
+    }
+    for (const m of view.markers) {
+      if (this.played.has(m.key)) continue
+      this.played.add(m.key)
+      if (!this.primed || !tokens.has(m.id)) continue
+      const start = this.floats.filter((f) => f.id === m.id).reduce((latest, f) => Math.max(latest, f.start + MARKER_GAP_MS), now)
+      const node = drawMarker(this.kit, m)
+      node.visible = false
+      this.floatLayer.addChild(node)
+      this.floats.push({ id: m.id, node, start })
+    }
+    for (const id of [...this.walks.keys()]) if (!tokens.has(id)) this.walks.delete(id)
+    this.lastAt = new Map(view.tokens.map((t) => [t.id, { x: t.x, y: t.y }]))
+    this.lastFront = view.front
+    this.primed = true
+  }
+
+  // Every token on its way put where it is now, and every marker; whether
+  // anything is still being played.
+  private play(now: number): boolean {
+    const tokens = new Map((this.drawn?.view.tokens ?? []).map((t) => [t.id, t]))
+    for (const [id, node] of this.tokenNodes) {
+      const walk = this.walks.get(id)
+      const token = tokens.get(id)
+      if (!walk || !token || now - walk.start >= (walk.times.at(-1) ?? 0)) {
+        this.walks.delete(id)
+        node.position.set(0, 0)
+        continue
+      }
+      const at = alongWalk(walk, now)
+      node.position.set(at.x - token.x, at.y - token.y)
+    }
+    this.floats = this.floats.filter((f) => {
+      const token = tokens.get(f.id)
+      const age = now - f.start
+      if (!token || age >= MARKER_MS) {
+        f.node.destroy({ children: true })
+        return false
+      }
+      if (age < 0) return true
+      const body = tokenBody(token)
+      const offset = this.tokenNodes.get(f.id)?.position ?? { x: 0, y: 0 }
+      const share = age / MARKER_MS
+      f.node.visible = true
+      f.node.position.set(body.x + offset.x, body.y + offset.y - body.radius - (this.still ? 0 : MARKER_RISE * share))
+      f.node.alpha = share < 0.6 ? 1 : 1 - (share - 0.6) / 0.4
+      return true
+    })
+    return this.walks.size > 0 || this.floats.length > 0
+  }
+
   private drawLit() {
     if (!this.input) return
     this.litLayer.removeChildren().forEach((c) => c.destroy())
@@ -263,7 +387,7 @@ export class BoardStage {
   }
 
   // The canvas drawn on the next frame, once however often it is asked; kept
-  // drawing while a ring pulses.
+  // drawing while a ring pulses or anything is played.
   private render() {
     if (this.frameRequest || !this.ready) return
     this.frameRequest = requestAnimationFrame((time) => {
@@ -271,8 +395,9 @@ export class BoardStage {
       if (this.disposed) return
       const pulsing = !!this.drawn?.view.tokens.some((t) => t.awaited)
       if (this.awaited) this.awaited.alpha = pulsing ? 0.5 + 0.5 * Math.cos((2 * Math.PI * time) / (PULSE_SECONDS * 1000)) : 1
+      const playing = this.play(Math.max(time, performance.now()))
       this.app.render()
-      if (pulsing) this.render()
+      if (pulsing || playing) this.render()
     })
   }
 
@@ -413,4 +538,30 @@ export class BoardStage {
   setEvents(events: BoardEvents) {
     this.events = events
   }
+}
+
+// Where along its walk a token is at a moment: setting off and coming to a
+// stop eased, at an even pace between.
+function alongWalk(walk: Walk, now: number): Point {
+  const t = now - walk.start
+  const { points, times } = walk
+  if (t <= 0) return points[0]
+  const last = points.length - 1
+  for (let i = 1; i <= last; i++) {
+    if (t > times[i]) continue
+    const span = times[i] - times[i - 1]
+    const k = span <= 0 ? 1 : (t - times[i - 1]) / span
+    const eased = last === 1 ? k * k * (3 - 2 * k) : i === 1 ? setOff(k) : i === last ? 1 - setOff(1 - k) : k
+    return { x: points[i - 1].x + (points[i].x - points[i - 1].x) * eased, y: points[i - 1].y + (points[i].y - points[i - 1].y) * eased }
+  }
+  return points[last]
+}
+
+// From standing still to the even pace over one stretch.
+const setOff = (k: number) => 2 * k * k - k * k * k
+
+// The step of a walk nearest a place, the first of those as near.
+function nearest(steps: readonly Point[], at: Point): number {
+  const away = (p: Point) => Math.hypot(p.x - at.x, p.y - at.y)
+  return steps.reduce((best, s, i) => (away(s) < away(steps[best]) - 1e-6 ? i : best), 0)
 }

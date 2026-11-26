@@ -1,7 +1,7 @@
 import type { SeenScene } from '../types'
-import type { AfflictionKey, Third } from '../../types'
+import type { AfflictionKey } from '../../types'
 import { perState } from '../../perState'
-import { SHOWN_IL_STEP } from '../../character/lenses/face'
+import { getGauges, type Gauges } from '../../character/lenses/bars'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { getSituationalAfflictions } from '../rules/situational'
 import { CombatRosterEntry, getRosterParties } from './roster'
@@ -11,18 +11,16 @@ import { CombatRosterEntry, getRosterParties } from './roster'
 // and what afflicts them now.
 export type SceneCard = CombatRosterEntry & {
   dead: boolean
-  // a number on a sheet the viewer plays, a third left on a face
-  AP: number | { third: Third }
-  STA: number | { third: Third }
-  // and how hurt, the number or, on a face, its tens, up to the collapse
-  IL: number | { tens: number }
+  // what they have left and how hurt they are: the numbers on a sheet the
+  // viewer plays, none on a face, and as a face shows them, for their gauges
+  AP: number | null
+  STA: number | null
+  IL: number | null
+  gauges: Gauges
   bleed: number
   burning: number
   conditions: AfflictionKey[]
 }
-
-// the tens a face shows no further than: combat.tex "Injuries and Death" has them collapse at 50
-const MOST_TENS = 5
 
 export type SceneCardParty = { id: string; name: string; cards: SceneCard[] }
 
@@ -35,9 +33,10 @@ function buildSceneCards(state: SeenScene): SceneCardParty[] {
       return {
         ...entry,
         dead: isDead(c),
-        AP: c.shown ? { third: c.shown.AP } : c.resources.AP,
-        STA: c.shown ? { third: c.shown.STA } : c.resources.STA,
-        IL: c.shown ? { tens: Math.min(MOST_TENS, c.injuries.injuryLevel / SHOWN_IL_STEP) } : c.injuries.injuryLevel,
+        AP: c.shown ? null : c.resources.AP,
+        STA: c.shown ? null : c.resources.STA,
+        IL: c.shown ? null : c.injuries.injuryLevel,
+        gauges: getGauges(c),
         bleed: c.injuries.bleed,
         burning: c.injuries.burning,
         conditions: getAfflictions(c, getSituationalAfflictions(state, entry.id)),

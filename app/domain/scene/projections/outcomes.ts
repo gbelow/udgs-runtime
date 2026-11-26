@@ -129,7 +129,7 @@ function dragNotes(facts: DragFacts, named: (id: string) => string): { target: s
 // a miss bad, and in between is mixed.
 export type Tone = 'good' | 'bad' | 'mixed'
 
-function toneOf(degree: Degree): Tone {
+export function toneOf(degree: Degree): Tone {
   return degree === 'miss' ? 'bad' : degree === 'hit' || degree === 'critical' ? 'good' : 'mixed'
 }
 

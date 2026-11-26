@@ -29,6 +29,23 @@
   --injury-3: #DC4C4C;
   --injury-4: #A8262B;
   --injury-5: #5A1216;
+
+  /* What a character has left, each resource in a hue of its own (AP amber,
+     STA green, IL red), its levels lowest first: AP and STA by the third
+     left, dark and grey when low and bright when full; IL by the ten,
+     deepening toward the collapse. Written out whole, since the board reads
+     them as plain colours. */
+  --ap-0: #94703A;
+  --ap-1: #C49640;
+  --ap-2: #F5BC45;
+  --sta-0: #4E7A5D;
+  --sta-1: #46A36B;
+  --sta-2: #58DC8D;
+  --il-1: #EC8A82;
+  --il-2: #E2635C;
+  --il-3: #CF403B;
+  --il-4: #A1242A;
+  --il-5: #6A1418;
 }
 
 :root[data-theme="frost"] {
@@ -73,6 +90,17 @@
   --color-injury-3: var(--injury-3);
   --color-injury-4: var(--injury-4);
   --color-injury-5: var(--injury-5);
+  --color-ap-0: var(--ap-0);
+  --color-ap-1: var(--ap-1);
+  --color-ap-2: var(--ap-2);
+  --color-sta-0: var(--sta-0);
+  --color-sta-1: var(--sta-1);
+  --color-sta-2: var(--sta-2);
+  --color-il-1: var(--il-1);
+  --color-il-2: var(--il-2);
+  --color-il-3: var(--il-3);
+  --color-il-4: var(--il-4);
+  --color-il-5: var(--il-5);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --animate-flash: flash 700ms ease-out;
