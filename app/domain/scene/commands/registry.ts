@@ -19,6 +19,7 @@ import { endCombat } from './endCombat'
 import { noteDetected } from './detected'
 import { followScene } from './parked'
 import { follow } from './follow'
+import { openAgainstAllies, setAgainstAllies } from './allegiance'
 import { dropToFloor, placeItem, removeFloorItem, throwOffShieldToFloor } from './floor'
 import { setOffExplosion } from './gmExplosion'
 import { chargeByGM, setOffItem } from './gmCharge'
@@ -154,6 +155,8 @@ export const sceneCommands = {
   agreeAllToEnd: command((_, ids: string[], agree?: boolean) => agreeAllToEnd(ids, agree)).by((_, ids) => ({ anyOf: ids })),
   surge: command((_, id: string, kind: SurgeKind) => surge(id, kind)).by(own),
   follow: command((_, id: string, targetId: string | null) => follow(id, targetId)).by(own),
+  againstAllies: command((_, id: string, on: boolean) => setAgainstAllies(id, on)).by(own),
+  openAgainstAllies: command((_, id: string) => openAgainstAllies(id)).by(own),
   endTurn: command(() => endTurn).by((state) => character(state.inTurnCharacter || null)),
   rollContest: command((ctx) => rollContest(ctx.thrower)).by(gm),
   thinkContest: command((_, ids: string[]) => thinkContest(ids)).by((_, ids) => ({ allOf: ids })),

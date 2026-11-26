@@ -15,7 +15,7 @@ import { getRetargetOptions } from './fireAgain'
 import { getEnteringStep, getMovePlacements } from './board/waypoint'
 import { firstStep, getApproachStep, getPathDistances, getPathMeleeDistances } from './approach'
 import { getPreparedTriggers } from './prepared'
-import { getAction, getOpeningReaction, getReactionsTo, getRootOf } from './log'
+import { getAction, getOpenAction, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { getJoinReaction } from './coordinated'
 import { defRows, hasShootingRow } from './attack'
 import { getGroundCell } from './floorAttack'
@@ -27,6 +27,8 @@ import { getSweepTargets, isSweep, isSweepLink } from './sweep'
 import { detect, type Detected } from './stealth'
 import { getCounterspellReach, isInCounterspellReach } from './counterspell'
 import { perPair } from '../../perState'
+import { getDiceBar } from '../../play/calls'
+import { mayTurnOnAllies, turnsOnAllies } from './allegiance'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -90,7 +92,18 @@ export function getReactorDetections(state: SceneState, root: RootAction): Detec
   })
 }
 
-const getDrawnTriggers: (state: SceneState, root: RootAction) => Trigger[] = perPair(({ a: state, b: root }) => readDrawnTriggers(state, root))
+const getDrawnTriggers: (state: SceneState, root: RootAction) => Trigger[] = perPair(({ a: state, b: root }) =>
+  getUnswornTriggers(state, root).filter((t) => !turnsOnAllies(state, root, t) || mayTurnOnAllies(state, t.characterId, root)))
+
+const getUnswornTriggers: (state: SceneState, root: RootAction) => Trigger[] = perPair(({ a: state, b: root }) => readDrawnTriggers(state, root))
+
+// Who would have an answer to the action were they let turn on their own
+// party for it (rules/allegiance.ts), and have none as it stands.
+export function getHeldBackAnswerers(state: SceneState, root: RootAction): string[] {
+  const answering = new Set(getTriggers(state, root).map((t) => t.characterId))
+  const held = getUnswornTriggers(state, root).filter((t) => !answering.has(t.characterId) && turnsOnAllies(state, root, t) && canReactTo(state, root, t))
+  return [...new Set(held.map((t) => t.characterId))]
+}
 
 function readDrawnTriggers(state: SceneState, root: RootAction): Trigger[] {
   const own = getKindTriggers(state, root)
@@ -463,3 +476,13 @@ function moveTriggers(state: SceneState, root: MoveAction): Trigger[] {
   return triggers
 }
 
+
+// Why the character cannot be let turn on their own party for the open
+// action, or null: it must still wait for answers, and the setting must be
+// what keeps them from one.
+export function getHeldBackBar(state: SceneState, id: string): string | null {
+  const open = getOpenAction(state)
+  if (!open || open.step !== 'react') return 'no action waits for answers'
+  if (getDiceBar(state.calls)) return 'a die waits'
+  return getHeldBackAnswerers(state, open).includes(id) ? null : 'nothing to answer against an ally'
+}

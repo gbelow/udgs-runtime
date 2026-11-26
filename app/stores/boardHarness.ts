@@ -93,6 +93,13 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
       record.start = SceneStateSchema.parse(state())
       record.sent = []
     },
+    // the parties panel: the named characters split off into a party of their
+    // own, the others' foes
+    foes: (...names: string[]) => {
+      const [first, ...rest] = names.map(idOf)
+      send({ kind: 'splitOff', args: [first] })
+      for (const id of rest) send({ kind: 'moveToParty', args: [id, state().partyOf[first]] })
+    },
     createBoard: (radius: number) => send({ kind: 'createBoard', args: [radius] }),
     removeBoard: () => send({ kind: 'removeBoard', args: [] }),
     // a kept battle map played on, as the board panel's map picker loads it

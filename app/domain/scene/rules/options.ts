@@ -244,26 +244,28 @@ function listAvailableActions(state: SceneState, characterId: string): ActionOpt
     .map((o) => (o.chosen && before !== state && o.surge !== made ? { ...o, chosen: false } : o))
 }
 
-// The answers as they are picked from: with two ways or more to make some of
-// them, with no surge (null) or on one, once for each way, every answer in it
-// made that way where it can be and the first way it can where not; empty with
-// no such choice. A surge only an ability gives comes with the answer it is
-// made with, and is no choice of its own.
-export function getAnswersBySurge(options: readonly ActionOption[]): { surge: SurgeKind | null; options: ActionOption[] }[] {
-  const surged = options.filter((o) => o.available && o.surge !== null && !isLearnedSurge(o.surge))
-  const free = options.some((o) => o.available && o.surge === null && surged.some((x) => sameDraft(x.draft, o.draft)))
-  const ways: (SurgeKind | null)[] = [...(free ? [null] : []), ...new Set(surged.map((o) => o.surge))]
-  if (ways.length < 2) return []
-  return ways.map((surge) => ({
-    surge,
-    options: options.filter((o, i) => o.surge === surge
-      || (!options.some((x) => x.surge === surge && sameDraft(x.draft, o.draft)) && options.findIndex((x) => sameDraft(x.draft, o.draft)) === i)),
-  }))
+// Each answer once, with every way it may be made: with no surge, or on one.
+// It is made, unless another way is picked, the way it was given, else the
+// first way open, no surge before any surge.
+export type AnswerWays = { answer: ActionOption; ways: ActionOption[] }
+
+export function getAnswerWays(options: readonly ActionOption[]): AnswerWays[] {
+  const answers: ActionOption[][] = []
+  for (const o of options) {
+    const same = answers.find((ways) => sameDraft(ways[0].draft, o.draft))
+    if (same) same.push(o)
+    else answers.push([o])
+  }
+  return answers.map((found) => {
+    const ways = [...found].sort((a, b) => Number(a.surge !== null) - Number(b.surge !== null))
+    return { answer: ways.find((o) => o.chosen) ?? ways.find((o) => o.available) ?? ways[0], ways }
+  })
 }
 
-// The answers with each listed once, on the surge listed first for it.
+// The answers with each listed once, made the way it is unless another is
+// picked.
 export function getDefaultAnswers(options: readonly ActionOption[]): readonly ActionOption[] {
-  return getAnswersBySurge(options)[0]?.options ?? options
+  return getAnswerWays(options).map((a) => a.answer)
 }
 
 // The character's own options, of the kinds named (all of them by default).

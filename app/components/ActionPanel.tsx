@@ -1,8 +1,7 @@
 'use client'
-import { useState } from 'react'
 import { useCombatActions } from '../hooks/useCombatActions'
 import { FollowOption, FollowPicking } from './FollowButton'
-import { useGmBar, useIsToken } from '../hooks/useControl'
+import { useControlBar, useGmBar, useIsToken } from '../hooks/useControl'
 import { usePartyCommands, useSaveLogBar } from '../hooks/useParty'
 import { useBotLog } from '../hooks/useBots'
 import { useTurnControls } from '../hooks/useCombatState'
@@ -41,7 +40,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, menu, press, amend, turnOnAllies, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { mustStart } = useTurnControls()
   const knows = useKnows()
   const { step, open } = view
@@ -95,7 +94,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
           <ActionKey look={r.passed ? 'picked' : 'plain'} title={r.pass.hint} onClick={() => pass(r.id)}>{r.pass.label}</ActionKey>
-          <Answers reactor={r} onReact={(o) => react(r.id, o.draft, o.surge)} />
+          <Answers reactor={r} onReact={(o, surge) => react(r.id, o.draft, surge)} />
           <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
           <AnswerDone done={r.done} onDone={() => confirmReacted(r.id)} />
           {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
@@ -350,6 +349,7 @@ export function ActionPanel(){
             )
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
+          {view.heldBack.map((h) => <HeldBack key={h.id} id={h.id} name={h.name} onOpen={() => turnOnAllies(h.id)} />)}
           {view.unnoticed.length > 0 ? <span className='text-xs text-muted'>did not notice: {view.unnoticed.join(', ')}</span> : null}
           {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
           {view.die || view.compare || open.area ? <Test open={open} /> : null}
@@ -690,25 +690,41 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
   )
 }
 
-// What a reactor may answer with, each answer once, and, where more than one
-// surge would open them, the surge they are made on.
-function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (option: ActionOptionView) => void }){
-  const [surge, setSurge] = useState<SurgeKind | null | undefined>(undefined)
-  const { surges } = reactor
-  const shown = surges.find((s) => s.surge === surge) ?? surges.find((s) => s.chosen) ?? surges[0]
+// What a reactor may answer with, each answer once and made the way it would
+// be; once one is given, the other surges it may be made on, where there are.
+function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (option: ActionOptionView, surge: SurgeKind | null) => void }){
   return (
     <>
-      {shown ? (
-        <span className='basis-full flex flex-row flex-wrap gap-x-2 gap-y-0.5 items-center'>
-          <Segmented label={`surge ${reactor.name} answers with`}>
-            {surges.map((s) => <Segment key={s.surge ?? 'none'} selected={s === shown} title={[s.gives, ...s.rules].filter(Boolean).join(' · ')} onClick={() => setSurge(s.surge)}>{s.surge ? `${s.surge} surge` : 'no surge'}</Segment>)}
-          </Segmented>
-          {shown.gives ? <span className='text-[11px] font-mono text-muted'>{shown.gives}</span> : null}
-        </span>
-      ) : null}
-      {(shown ? shown.options : reactor.options).map((o) =>
-        <OptionButton key={`${o.label}:${o.surge ?? ''}`} option={o} active={o.chosen} onClick={() => onReact(o)} />)}
+      {reactor.answers.map((a, i) => {
+        const open = a.ways.filter((w) => w.available || w.chosen)
+        const way = a.ways.find((w) => w.chosen)
+        return (
+          <span key={`${a.label}:${i}`} className='inline-flex flex-row flex-wrap gap-1 items-center'>
+            <OptionButton option={a} active={a.chosen} onClick={() => onReact(a, a.surge)} />
+            {a.chosen && open.length > 1 ? (
+              <Segmented label={`surge ${reactor.name} makes the ${a.label} on`}>
+                {open.map((w) => <Segment key={w.surge ?? 'none'} selected={w.chosen} title={[w.gives, ...w.rules].filter(Boolean).join(' · ')} onClick={() => onReact(a, w.surge)}>{w.surge ? `${w.surge} surge` : 'no surge'}</Segment>)}
+              </Segmented>
+            ) : null}
+            {a.chosen && way?.gives ? <span className='text-[11px] font-mono text-muted'>{way.gives}</span> : null}
+          </span>
+        )
+      })}
     </>
+  )
+}
+
+// One the action would give an answer against their own party, shown only
+// to whoever plays them: theirs to open for this action.
+function HeldBack({ id, name, onOpen }: { id: string, name: string, onOpen: () => void }){
+  if (useControlBar(id) !== null) return null
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center text-xs text-muted'>
+      <span>{name} does not act against allies</span>
+      <Tooltip text='only for this action: whatever they may answer it with against their own party is offered'>
+        <Button size='xs' aria-label={`${name} answers against allies`} onClick={onOpen}>answer anyway</Button>
+      </Tooltip>
+    </div>
   )
 }
 
@@ -718,7 +734,7 @@ function OptionButton({ option, active = false, onClick }: { option: ActionOptio
       <ActionKey look={active ? 'picked' : 'plain'} icon={ACTION_ICONS[option.draft.kind]} cost={costLabel(option.cost)}
         disabled={!option.available} onClick={onClick}>
         {option.label}
-        {option.surge ? <span className='text-accent'>{option.surge} surge</span> : null}
+        {option.surgeTag ? <span className='text-accent'>{option.surgeTag}</span> : null}
       </ActionKey>
     </Closed>
   )

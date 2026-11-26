@@ -6,6 +6,7 @@ import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getBreakFreeView, getMockeryView, type MockeryView } from "../domain/scene/projections/domination";
 import { getLeadershipView, type LeadershipView } from "../domain/scene/projections/providence";
+import { getAgainstAlliesView, type AgainstAlliesView } from "../domain/scene/projections/allegiance";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getEndTurnBar, getGearBar, getTurnHolder } from "../domain/scene/rules/turn";
 import { getFightName } from "../domain/scene/rules/fighters";
@@ -211,6 +212,12 @@ export function useCowardBar(): string | null {
 export function useMockery(): MockeryView | null {
   const view = useCombatStore(useShallow((s) => (s.activeCharacterId ? getMockeryView(s, s.activeCharacterId) : null)));
   return view;
+}
+
+// Whether the active character may answer against their own party for the
+// rest of the fight, null for one in no party.
+export function useAgainstAllies(): AgainstAlliesView | null {
+  return useCombatStore(useShallow((s) => (s.activeCharacterId ? getAgainstAlliesView(s, s.activeCharacterId) : null)));
 }
 
 // abilities.tex "Leadership": the active character's rally at the round

@@ -10,6 +10,7 @@ import { getReactionsTo } from './log'
 import { isInGrapple } from './partners'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
+import { areAllies, mayTurnOnAllies } from './allegiance'
 
 // combat.tex "Flee": "It is possible to activate the movement surge as a
 // reaction to prevent them from entering a 4m perimeter from the character,
@@ -51,9 +52,10 @@ export function getFleeStep(state: SceneState, move: MoveAction): number | null 
 }
 
 // Who the landed action offers a flee as a follow-up, when they can flee: a
-// strike's target ("after receiving a melee attack").
+// strike's target ("after receiving a melee attack"), unless the striker is
+// an ally they may not turn on (rules/allegiance.ts).
 export function getFleeFollowUps(state: SceneState, root: RootAction): string[] {
-  const offered = root.kind === 'strike' && root.targetId ? [root.targetId] : []
+  const offered = root.kind === 'strike' && root.targetId && (!areAllies(state, root.targetId, root.actorId) || mayTurnOnAllies(state, root.targetId, root)) ? [root.targetId] : []
   return offered.filter((id) => {
     const c = state.characters[id]
     return !!c && getFleeBar(state, c) === null

@@ -23,6 +23,8 @@ export function useCombatActions() {
 
   const press = (entry: MenuEntry) => dispatch({ kind: "menu", args: [entry.press] });
   const amend = (fields: Partial<ActionDraft>) => dispatch({ kind: "amend", args: [fields] });
+  // the character may answer this action against their own party
+  const turnOnAllies = (id: string) => dispatch({ kind: "openAgainstAllies", args: [id] });
   const target = (id: string) => dispatch({ kind: "target", args: [id] });
   const react = (reactorId: string, draft: ActionDraft, surge: SurgeKind | null) => dispatch({ kind: "react", args: [reactorId, draft, surge] });
   const amendReacted = (reactorId: string, fields: ReactionAmend) => dispatch({ kind: "amendReaction", args: [reactorId, fields] });
@@ -52,5 +54,5 @@ export function useCombatActions() {
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, menu, press, amend, turnOnAllies, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

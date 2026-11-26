@@ -13,7 +13,7 @@ import { useEndScene, usePartyCommands, useTableParties } from '../hooks/usePart
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useActiveFace, useBreakage, useCombatRoster, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
+import { useActiveFace, useBreakage, useCombatRoster, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useAgainstAllies, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useContestSeconds } from '../hooks/useContest';
 import { useGmFloorTools } from '../hooks/useBoard';
@@ -241,6 +241,7 @@ export function SceneActions(){
         <TurnControl />
         <MockButton />
         <LeadershipButton />
+        <AgainstAlliesSwitch />
       </ControlLocked>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -266,6 +267,24 @@ function MockButton(){
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <Tooltip text={view.bar ?? `a taunt with +1, for ${view.AP} AP`}>
         <Button size='xs' aria-label='mock' disabled={view.bar !== null} onClick={mock}>{view.target ? `mock ${view.target}` : 'mock'}</Button>
+      </Tooltip>
+    </div>
+  )
+}
+
+// Whether the active character is offered answers against their own party
+// (an opportunity attack on an ally, guarding a foe from one) for the rest of
+// the fight.
+function AgainstAlliesSwitch(){
+  const view = useAgainstAllies()
+  const { againstAllies } = useCombatCommands()
+  if (!view) return null
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <Tooltip text={view.bar ?? (view.on ? 'answers against their own party are offered: switch off to keep them from it' : 'answers against their own party are not offered: switch on to offer them for the rest of the fight')}>
+        <Button size='xs' aria-label='against allies' aria-pressed={view.on} active={view.on} disabled={view.bar !== null} onClick={() => againstAllies(!view.on)}>
+          against allies: {view.on ? 'on' : 'off'}
+        </Button>
       </Tooltip>
     </div>
   )

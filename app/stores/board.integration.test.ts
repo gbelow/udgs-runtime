@@ -304,6 +304,7 @@ describe('a move past someone whose attacks cannot reach it', () => {
   const stillWaiting = (lowered: [number, number][]) => {
     const h = openHarness()
     h.bring(fighter('Cy'), spearman('Bob'))
+    h.foes('Bob')
     h.createBoard(7)
     h.paint('lower', lowered)
     for (const [name, q, r] of [['Cy', 0, 0], ['Bob', 3, 1]] as const) {

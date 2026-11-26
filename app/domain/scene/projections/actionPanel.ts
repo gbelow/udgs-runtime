@@ -6,7 +6,7 @@ import type { Area, CampaignCharacter, Character, Item, MoveKind, Skills, SurgeK
 import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { ActionOption, getAnswersBySurge, getAvailableActions, getAwaited, getConfirmable, getGoBar, getUnconfirmedAnswers } from '../rules/options'
+import { ActionOption, getAnswerWays, getAvailableActions, getAwaited, getConfirmable, getGoBar, getUnconfirmedAnswers } from '../rules/options'
 import { withoutAnswerSurge } from '../rules/surge'
 import { getContestWait } from '../rules/contest'
 import { getGivesLine, getRuleLines, getSurgeFacts } from '../../character/lenses/surge'
@@ -41,6 +41,7 @@ import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { getFiringSteps, isSteadyShot } from '../rules/steadyArms'
 import { isRootAction } from '../rules/actionCatalog'
+import { getHeldBackAnswerers, getHeldBackBar } from '../rules/reactions'
 import { getBreakableLimbs, getDisarmOptions, getManeuversOf, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
 import { EQUIPMENT_ATTACK_PENALTY, getAimableItems } from '../rules/equipment'
@@ -106,7 +107,9 @@ function getLocationOptions(target: Character | undefined, aim: { location: HitL
 // and, for one who has chosen an opportunity attack, the strike it opens
 // still to be declared: its rows and where it aims.
 // The option lists as the panel shows them: each named for its button.
-export type ActionOptionView = ActionOption & { label: string }
+// `surgeTag`, the surge the option is made on, said beside its label where
+// the label does not already name it (a recipe named for its surge)
+export type ActionOptionView = ActionOption & { label: string; surgeTag: string | null }
 export type AttackOptionView = AttackOption & { selected: boolean }
 export type HOPOptionView = HOPOption & { label: string }
 export type SpellOptionView = SpellOption & { name: string }
@@ -119,10 +122,10 @@ export type ReactorOptions = {
   // listed first
   target: boolean
   options: ActionOptionView[]
-  // the answers by the surge they are made on, where there is one to choose
-  // (`getAnswersBySurge`), each with what it costs and gives; `chosen`, the
-  // surge of the answer given
-  surges: { surge: SurgeKind | null; chosen: boolean; gives: string; rules: string[]; options: ActionOptionView[] }[]
+  // each answer once, as it is made unless another way is picked, with the
+  // ways it may be made (`getAnswerWays`): with no surge or on one, what each
+  // gives, and the one it was given on
+  answers: AnswerView[]
   strike: {
     options: AttackOption[]
     locations: LocationOption[]
@@ -170,6 +173,9 @@ export type ReactorOptions = {
   done: 'said' | 'open' | 'closed' | null
 }
 
+export type AnswerWayView = { surge: SurgeKind | null; available: boolean; reason: string | null; chosen: boolean; gives: string; rules: string[] }
+export type AnswerView = ActionOptionView & { ways: AnswerWayView[] }
+
 type OpportunityMode = ActionOf<'opportunityAttack'>['mode']
 
 // The modes an opportunity attack may be declared in by its attacker: a
@@ -181,7 +187,11 @@ function getOpportunityModes(state: SceneState, c: Character, targetId: string):
 
 // The options as their buttons name them, the surge of each said beside it.
 function labelled(state: SceneState, id: string, options: readonly ActionOption[]): ActionOptionView[] {
-  return options.map((o) => ({ ...o, label: getDraftLabel(state, id, o) }))
+  return options.map((o) => {
+    const label = getDraftLabel(state, id, o)
+    const tag = o.surge ? `${o.surge} surge` : null
+    return { ...o, label, surgeTag: tag && !label.includes(tag) ? tag : null }
+  })
 }
 
 // What a character shown only by their token answers with, marked among their
@@ -230,8 +240,11 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
         : null
       const options = withShownAnswer(c, getAvailableActions(state, c.id), declared)
       const before = withoutAnswerSurge(state, open.id, c.id).characters[c.id]
-      const surges = (c.shown ? [] : getAnswersBySurge(options)).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: g.surge ? getGivesLine(getSurgeFacts(before, g.surge)) : '', rules: g.surge ? getRuleLines(getSurgeFacts(before, g.surge)) : [], options: labelled(state, c.id, g.options) }))
-      return { id: c.id, name: getFightName(state, c.id), target: 'targetId' in open && open.targetId === c.id, options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, pass: getPassLabel(state, c.id, options), done: doneWith(declared) }
+      const answers = getAnswerWays(options).map(({ answer, ways }): AnswerView => ({
+        ...labelled(state, c.id, [answer])[0],
+        ways: ways.map((w) => ({ surge: w.surge, available: w.available, reason: w.reason, chosen: w.chosen, gives: w.surge ? getGivesLine(getSurgeFacts(before, w.surge)) : '', rules: w.surge ? getRuleLines(getSurgeFacts(before, w.surge)) : [] })),
+      }))
+      return { id: c.id, name: getFightName(state, c.id), target: 'targetId' in open && open.targetId === c.id, options: labelled(state, c.id, options), answers, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, pass: getPassLabel(state, c.id, options), done: doneWith(declared) }
     })
     .filter((r) => r.options.length > 0)
     .sort((a, b) => Number(b.target) - Number(a.target))
@@ -408,6 +421,9 @@ export type ActionPanelView = {
   // at `react`: everyone the open action triggers something in, with their
   // options; the target's defenses are among them
   reactors: ReactorOptions[]
+  // at `react`: who would have an answer were they let turn on their own
+  // party for this action (rules/allegiance.ts)
+  heldBack: { id: string; name: string }[]
   // at `declare`: the rows and variations an attack can be made with, the
   // spells a cast can be of, or the charges that can be set off
   attacks: AttackOptionView[]
@@ -483,7 +499,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, follow: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, commitBar: null, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, follow: null, reactors: [], heldBack: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, commitBar: null, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -648,6 +664,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
 
   return {
     ...offers,
+    heldBack: step === 'react' ? getHeldBackAnswerers(state, open).filter((id) => getHeldBackBar(state, id) === null).map((id) => ({ id, name: getFightName(state, id) })) : [],
     open: {
       ...offered!,
       id: open.id,

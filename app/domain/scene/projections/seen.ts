@@ -96,6 +96,8 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   protectionMoves: unseen,
   firstTurn: (first, c) => (first && c.hidden.has(first.id) ? null : first),
   following: unseen,
+  againstAllies: unseen,
+  againstAlliesOnce: unseen,
   stealthTurns: (turns, c) => unseen(turns.filter((t) => c.controlled.has(t.id)), c),
   bodyCover: unseen,
   pressure: unseen,

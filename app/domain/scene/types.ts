@@ -2076,6 +2076,10 @@ export const SceneStateSchema = z.object({
   // combat.tex "Follow": whom each character marked to follow, by id, lapsing
   // at the round's end
   following: z.record(str, str).default({}),
+  // rules/allegiance.ts: who may answer against their own party for the
+  // whole fight, and who for one action alone (the root's id, by character)
+  againstAllies: z.array(str).default([]),
+  againstAlliesOnce: z.record(str, str).default({}),
   // combat.tex "Actions in stealth": each turn of the round, by its number,
   // who held it, whom they began it undetected by, and the AP their actions in
   // it have spent, all of it and what an ear hears more of (`StealthTurnSchema`)

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterAll, describe, expect, it } from 'vitest'
 import { rollD10, seededRng } from '../domain/play/dice'
-import { SceneStateSchema, type ActionDraft, type ChaseIntent, type SceneState } from '../domain/scene/types'
+import { SceneStateSchema, SIGHTING_CHOICES, type ActionDraft, type ChaseIntent, type SceneState } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import type { ModifierView } from '../domain/scene/projections/modifiers'
 import { getFootprint, getTerrainAt } from '../domain/scene/rules/board/board'
@@ -120,6 +120,8 @@ function carryOn(h: Harness, accept = false) {
   const unfinished = new Set(getUnconfirmedAnswers(h.state()).map((r) => r.actorId))
   for (const id of getAwaited(h.state())) if (!unfinished.has(id)) h.send({ kind: 'pass', args: [id] })
   h.send({ kind: 'roll', args: [] })
+  // a mover who came to notice someone outside their party goes on
+  if (getActionPanel(h.state()).open?.sighted) h.send({ kind: 'sight', args: ['goOn'] })
   if (accept) h.send({ kind: 'accept', args: [] })
   h.send({ kind: 'pay', args: [] })
   h.send({ kind: 'resolve', args: [] })
@@ -210,6 +212,30 @@ function answerWithAStrike(h: Harness, id: string, pick: Picker) {
 function plays(): Play[] {
   const names = (h: Harness) => Object.values(h.state().characters).map((c) => c.name)
   return [
+    {
+      name: 'switch answering against allies',
+      run: (h, pick) => {
+        const id = pick(Object.keys(h.state().characters))
+        if (id) h.send({ kind: 'againstAllies', args: [id, !h.state().againstAllies.includes(id)] })
+      },
+    },
+    {
+      name: 'choose what a mover does on noticing someone',
+      run: (h, pick) => {
+        if (getActionPanel(h.state()).open?.sighted) h.send({ kind: 'sight', args: [pick(SIGHTING_CHOICES)] })
+      },
+    },
+    {
+      name: 'answer against allies anyway',
+      weight: 2,
+      run: (h, pick) => {
+        const held = getActionPanel(h.state()).heldBack
+        if (!held.length) return
+        const { id, name } = pick(held)
+        h.send({ kind: 'openAgainstAllies', args: [id] })
+        expect(getActionPanel(h.state()).reactors.some((r) => r.id === id), `${name}, let answer against allies, is among those who answer`).toBe(true)
+      },
+    },
     {
       name: 'click a cell',
       weight: 3,
@@ -784,6 +810,7 @@ describe('pressing everything on the board, in any order', () => {
     const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
     const h = openHarness((explodes) => rollD10(explodes, rng))
     h.bring(spearman('Ann'), brawler('Bob'), archer('Cy'), mage('Dee'))
+    h.foes('Bob', 'Dee')
     h.createBoard(5)
     for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 2, 0], ['Cy', -2, 1], ['Dee', 0, -2]] as const) {
       h.select(name)
@@ -1290,6 +1317,7 @@ function playDuel(duel: (typeof DUELS)[number], seed: number, table = false) {
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
   const third = 'third' in duel ? duel.third : null
   h.bring(duel.a('Ann'), duel.b('Bob'), ...(third ? [third.make('Cy')] : []))
+  h.foes('Bob', ...(third ? ['Cy'] : []))
   h.createBoard(4)
   if (duel.pane) {
     h.paint('glass', [duel.pane])
@@ -1338,6 +1366,7 @@ function playCrowd(seed: number, walls: [number, number][] = [], table = false) 
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
   h.bring(guardian(walls.length ? towerWarden('Ann') : cunningTrained(warden('Ann'))), fatalist(bomber('Bob')), providential(netter('Cy')), mage('Dee'), archer('Eve'), adapted(archer('Fay')), ferocious(walls.length ? torchbearer('Gus') : brawler('Gus')))
+  h.foes('Cy', 'Dee', 'Gus')
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
@@ -1435,6 +1464,7 @@ function playHouse(seed: number, table = false) {
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng), { table })
   h.bring(towerWarden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), adapted(archer('Fay')), torchbearer('Gus'))
+  h.foes('Cy', 'Dee', 'Gus')
   h.createBoard(5)
   h.loadMap(houseMap())
   expect(Object.keys(h.state().board?.pieces ?? {}).sort(), 'the house and the trees stand on the board').toEqual(['house', ...TREES.map((_, i) => `tree ${i}`)].sort())
