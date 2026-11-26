@@ -1,13 +1,16 @@
 'use client'
 import { useState } from 'react'
 import { useAbilityLens } from '../hooks/useAbilityLens'
+import { useGameTab } from '../hooks/useGameTab'
 import { Button, Panel, Row } from './ui'
 
 // The abilities a character has learned, one row per family. A click on the
 // name unfolds every stage's text (learned stages highlighted); the button
-// steps the family back one stage, the mirror of the sidebar's learn button.
+// steps the family back one stage, the mirror of the sidebar's learn button,
+// and is not there in a fight.
 export function AbilityPanel(){
   const { learned, forget, toggle, use } = useAbilityLens()
+  const { inFight } = useGameTab()
   const [open, setOpen] = useState<string | null>(null)
 
   return(
@@ -37,7 +40,7 @@ export function AbilityPanel(){
                 : null
               }
               {
-                row.top ?
+                row.top && !inFight ?
                 <Button size='xs' weight='subtle' tone='bad' aria-label={`forget ${row.top.name}`} onClick={() => forget(row.top!.key)}>{row.stages.length > 1 ? `− ${row.top.name}` : '− forget'}</Button>
                 : null
               }

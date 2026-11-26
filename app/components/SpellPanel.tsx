@@ -1,15 +1,18 @@
 'use client'
 import { useState } from 'react'
 import { useSpellLens } from '../hooks/useSpellLens'
+import { useGameTab } from '../hooks/useGameTab'
 import { Minus, Plus } from 'lucide-react'
 import { Button, IconButton, Panel, Row } from './ui'
 
 // The spells a character knows, one row per spell: the skill it is cast
 // with, the casting DL and, unfolded, the test the target makes and what each
 // degree does. Casting is done from the fight's action panel; a held spell
-// can be let go of here.
+// can be let go of here. In a fight the practice is only shown and nothing
+// is forgotten.
 export function SpellPanel(){
   const { learned, forget, practice, release } = useSpellLens()
+  const { inFight } = useGameTab()
   const [open, setOpen] = useState<string | null>(null)
 
   return(
@@ -26,16 +29,16 @@ export function SpellPanel(){
                 <span className='text-xs text-muted'> · {row.method} · skill {row.skill} · DL {row.DL ?? '?'}</span>
               </button>
               <span className='flex flex-row items-center gap-1 text-xs text-muted'>
-                <IconButton icon={Minus} aria-label={`practice ${row.name} down`} onClick={() => practice(row.key, -1)} />
+                {inFight ? null : <IconButton icon={Minus} aria-label={`practice ${row.name} down`} onClick={() => practice(row.key, -1)} />}
                 <span className='font-mono text-fg' title='practice'>{row.practice}</span>
-                <IconButton icon={Plus} aria-label={`practice ${row.name} up`} onClick={() => practice(row.key, 1)} />
+                {inFight ? null : <IconButton icon={Plus} aria-label={`practice ${row.name} up`} onClick={() => practice(row.key, 1)} />}
               </span>
               {
                 row.active ?
                 <Button size='xs' weight='subtle' tone='good' aria-label={`release ${row.name}`} onClick={() => release(row.key)}>release</Button>
                 : null
               }
-              <Button size='xs' weight='subtle' tone='bad' aria-label={`forget ${row.name}`} onClick={() => forget(row.key)}>− forget</Button>
+              {inFight ? null : <Button size='xs' weight='subtle' tone='bad' aria-label={`forget ${row.name}`} onClick={() => forget(row.key)}>− forget</Button>}
             </Row>
             {
               open === row.key ?

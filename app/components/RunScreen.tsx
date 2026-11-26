@@ -237,9 +237,11 @@ const LOOKER_TABS: readonly SheetTab[] = ['gear']
 // their gear, closed, to everyone else.
 // The inventory holds what an item is taken into — the hands, the worn
 // armor, the containers, the trade — so it stays short beside a catalog;
-// what the gear does in a fight is under gear.
-function SheetTabs({ own }: { own: boolean }){
-  const [picked, setTab] = useState<SheetTab>('inventory')
+// what the gear does in a fight is under gear. `opening` is the tab shown
+// first, and `copy` whether the screen has a library to copy the character
+// into.
+export function SheetTabs({ own, opening = 'inventory', copy = true }: { own: boolean, opening?: SheetTab, copy?: boolean }){
+  const [picked, setTab] = useState<SheetTab>(opening)
   const tabs = own ? SHEET_TABS : LOOKER_TABS
   const tab = tabs.find((t) => t === picked) ?? tabs[0]
   const { tableName } = useActiveCharacterData()
@@ -252,7 +254,7 @@ function SheetTabs({ own }: { own: boolean }){
           <Segment key={t} aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Segment>)}
       </Segmented>
       <ControlLocked>
-        {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
+        {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave copy={copy} /></> : null}
         {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
         {tab === 'inventory' ? <GearLocked><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></GearLocked> : null}
         {tab === 'gear' ? <GearLocked><WeaponPanel /><ArmorPanel /></GearLocked> : null}

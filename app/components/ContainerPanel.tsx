@@ -2,6 +2,7 @@
 import { useContainerLens } from '../hooks/useContainerLens'
 import { useItemLens } from '../hooks/useItemLens'
 import { useTradeLens } from '../hooks/useTradeLens'
+import { useGameTab } from '../hooks/useGameTab'
 import type { ContainerSlotView } from '../domain/item/projections/containers'
 import { ArrowLeftRight, Hand, Minus, Shirt, X } from 'lucide-react'
 import { Button, IconButton, Panel } from './ui'
@@ -55,6 +56,7 @@ export function ContainerPanel(){
 function SlotGroupRow({ containerKey, group }: { containerKey: string, group: ContainerSlotView }){
   const { pending, place, remove, draw, wear, putOn } = useItemLens()
   const { trading, isOffered, toggleOffer } = useTradeLens()
+  const { inFight } = useGameTab()
   const buying = trading && pending?.source === 'catalog'
   const dimmed = group.fits === false
 
@@ -77,8 +79,8 @@ function SlotGroupRow({ containerKey, group }: { containerKey: string, group: Co
             {item.wear ? <Button size='xs' weight='subtle' icon={Shirt} aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? 'put on' : item.wear.why} onClick={() => wear(containerKey, item.id)}>wear</Button> : null}
             {item.putOn ? <Button size='xs' weight='subtle' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.able ? (item.putOn.cost === null ? 'put on' : `put on for ${item.putOn.cost} AP`) : item.putOn.why} onClick={() => putOn(containerKey, item.id)}>{item.putOn.cost === null ? 'put on' : `put on ${item.putOn.cost}AP`}</Button> : null}
             {trading && item.offerable ? <Button size='xs' weight='subtle' tone='good' icon={ArrowLeftRight} active={isOffered(item.id)} aria-label={`offer ${item.name}`} onClick={() => toggleOffer(item.id)}>{isOffered(item.id) ? 'offered' : 'offer'}</Button> : null}
-            {item.amount > 1 ? <IconButton icon={Minus} aria-label={`remove one ${item.name}`} onClick={() => remove(containerKey, item.id, 1)} /> : null}
-            <IconButton icon={X} tone='bad' aria-label={`remove ${item.name}`} onClick={() => remove(containerKey, item.id)} />
+            {item.amount > 1 && !inFight ? <IconButton icon={Minus} aria-label={`remove one ${item.name}`} onClick={() => remove(containerKey, item.id, 1)} /> : null}
+            {inFight ? null : <IconButton icon={X} tone='bad' aria-label={`remove ${item.name}`} onClick={() => remove(containerKey, item.id)} />}
           </span>
         ))}
       </div>

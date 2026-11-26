@@ -3,14 +3,15 @@ import { EDITOR_TABS, isCatalogTab, isRunTab, RUN_TABS, useAppStore } from "../s
 // The only adapter onto the app store's tab. Components read the tab through
 // this rather than reaching into the store, so the tab stays one concept with
 // one owner. `runTab` is the run screen's mode to open it on, `inRun`
-// whether the tab is one of them, `runTabs` the modes, and `inCatalog`
-// whether the tab is one of the catalog's.
+// whether the tab is one of them, `runTabs` the modes, `inCatalog`
+// whether the tab is one of the catalog's, and `inFight` whether it is the
+// fight's, where a sheet is played and not edited.
 export function useGameTab() {
   const tab = useAppStore((s) => s.selectedGameTab);
   const runTab = useAppStore((s) => s.runTab);
   const setTab = useAppStore((s) => s.setSelectedGameTab);
 
-  return { tab, runTab, inRun: isRunTab(tab), runTabs: RUN_TABS, inCatalog: isCatalogTab(tab), setTab } as const;
+  return { tab, runTab, inRun: isRunTab(tab), runTabs: RUN_TABS, inCatalog: isCatalogTab(tab), inFight: tab === 'scene', setTab } as const;
 }
 
 // The character editor's part shown, and the parts there are.

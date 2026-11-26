@@ -22,7 +22,8 @@ import { ZoomButtons } from '../BoardPanel'
 import { ClickMenuHost } from '../ClickMenu'
 import { RoundChangePanel } from '../RoundChangePanel'
 import { CharacterList, FightActions, FightButtons, SurgeTile } from '../ScenePanel'
-import { AutoThrow, Status } from '../RunScreen'
+import { AutoThrow, SheetTabs, Status } from '../RunScreen'
+import { useActiveControlBar } from '../../hooks/useControl'
 import { ActionLog } from '../ActionPanel'
 import { Button, IconButton, SectionLabel, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
@@ -100,7 +101,8 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
 }
 
 // The fight: the round, everyone in it and the start along the top, the
-// board in the middle, and along the bottom the active character's state,
+// board in the middle with the sheet of the visitor's character picked beside
+// it, and along the bottom the active character's state,
 // what they can do (or, before the fight, placing the party) and the log.
 function DemoTable() {
   const { started, scene, back } = useDemoStage()
@@ -110,6 +112,7 @@ function DemoTable() {
   useSights()
   const hasActive = useHasActiveCharacter()
   const face = useActiveFace()
+  const own = useActiveControlBar() === null
   const throwing = useTray().request !== null
   return (
     <div className='flex flex-col h-screen text-left text-sm'>
@@ -123,9 +126,16 @@ function DemoTable() {
         <HelpButton />
         <Button size='xs' weight='ghost' title='back to picking the party' onClick={back}>restart game</Button>
       </header>
-      <div className='relative flex-1 min-h-0 flex flex-col p-2'>
-        <DemoSpace />
-        <Result />
+      <div className='flex flex-col md:flex-row flex-1 min-h-0'>
+        <div className='relative flex-1 min-w-0 min-h-0 flex flex-col p-2'>
+          <DemoSpace />
+          <Result />
+        </div>
+        {hasActive && !face && own ? (
+          <aside className='md:w-[32rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
+            <SheetTabs own opening='sheet' copy={false} />
+          </aside>
+        ) : null}
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>

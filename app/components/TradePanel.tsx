@@ -1,13 +1,17 @@
 'use client'
 import { useTradeLens } from '../hooks/useTradeLens'
+import { useGameTab } from '../hooks/useGameTab'
 import { ArrowLeftRight, X } from 'lucide-react'
 import { Button, IconButton, Panel } from './ui'
 
 // Trading with a merchant: put stacks down from the container panel, pick what
 // to buy in the item sidebar and place it where it goes, and the panel counts.
+// Nobody trades in a fight.
 export function TradePanel(){
   const { trading, view, start, cancel, toggleOffer, removeLine, confirm } = useTradeLens()
+  const { inFight } = useGameTab()
 
+  if (inFight) return null
   if (!trading || !view) {
     return (
       <Panel title='Trade' actions={<Button size='xs' onClick={start}>trade</Button>}>

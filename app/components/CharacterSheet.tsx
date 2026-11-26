@@ -24,6 +24,7 @@ import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useConvictionXP } from '../hooks/useConvictionXP';
 import { useRiskyTests } from '../hooks/useRiskyTests';
+import { useGameTab } from '../hooks/useGameTab';
 import { useFormalKnowledgeLens, useKnowledgeTerms, useSpecificKnowledges } from '../hooks/useKnowledgeLens';
 import { knowledges_list } from '../domain/lists';
 
@@ -196,9 +197,11 @@ export function CharacteristicTiles(){
 // A conviction's XP, raised or lowered by hand for the attitudes the table
 // judges (abilities.tex "Promoted Attitudes"), given to something it may
 // study where one is picked (abilities.json "Cunning Studies", abilities.tex
-// "Adaptive Learning"), with how far each XP goes on it.
+// "Adaptive Learning"), with how far each XP goes on it. In a fight it is
+// only shown.
 function ConvictionXP({slot}: {slot: 'conviction1' | 'conviction2'}){
   const { name, XP, adopted, studies, addXP, study } = useConvictionXP(slot)
+  const { inFight } = useGameTab()
   const [studied, setStudied] = useState('')
   if (!adopted) return null
   const picked = studies.find((s) => s.key === studied)
@@ -206,6 +209,7 @@ function ConvictionXP({slot}: {slot: 'conviction1' | 'conviction2'}){
     <div className='flex flex-row items-center gap-1.5 rounded border border-line bg-surface px-1.5 py-1 text-sm'>
       <span className='text-muted'>{name} XP</span>
       <span className='tabular-nums'>{XP}</span>
+      {inFight ? null : <>
       <IconButton icon={Plus} aria-label={`give ${name} XP`} title={picked ? `give 1 XP to ${name}, ${picked.rate} to ${picked.name}` : 'give 1 XP'} onClick={() => (picked ? study(picked.target, 1) : addXP(1))} />
       <IconButton icon={Minus} aria-label={`take ${name} XP`} title='take 1 XP' onClick={() => addXP(-1)} />
       {studies.length > 0 ?
@@ -213,6 +217,7 @@ function ConvictionXP({slot}: {slot: 'conviction1' | 'conviction2'}){
           <option value=''>{name} only</option>
           {studies.map((s) => <option key={s.key} value={s.key}>also {s.name}{s.rate === 1 ? '' : ` (×${s.rate})`}</option>)}
         </select> : null}
+      </>}
     </div>
   )
 }
@@ -249,7 +254,9 @@ export function SkillTiles(){
   )
 }
 
-export function NotesAndSave(){
+// The description, the notes and, where the screen has a library to copy
+// into, the copy.
+export function NotesAndSave({ copy = true }: { copy?: boolean }){
   const { copyToMyCharacters } = useGameCommands()
   const { tableName, description, notes, setNotes } = useActiveCharacterData()
   return(
@@ -259,7 +266,7 @@ export function NotesAndSave(){
         <SectionLabel>notes</SectionLabel>
         <textarea key={`${tableName}:${notes}`} aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' placeholder='kept while they are in play' defaultValue={notes} onBlur={(e) => setNotes(e.target.value)} />
       </label>
-      <div><Button weight='solid' tone='accent' onClick={copyToMyCharacters}>copy to my characters</Button></div>
+      {copy ? <div><Button weight='solid' tone='accent' onClick={copyToMyCharacters}>copy to my characters</Button></div> : null}
     </>
   )
 }
