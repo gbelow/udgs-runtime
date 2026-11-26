@@ -103,3 +103,7 @@ Cheat-sheets in `RPG_Below_v7_en/.claude/skills/*/SKILL.md` (`skill-test-core`, 
 
 ## BOT
 - Read the bot-spec in instructions any time you are working on the bot
+
+## Feature details
+
+- Keep the demo and the run page sharing the largest amount of functions as possible. Don't do treat them as different unless that is part of the design. 

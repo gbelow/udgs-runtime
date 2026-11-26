@@ -115,6 +115,9 @@ export type ChargeView = ChargeOption & { name: string; item: string; holder: st
 export type ReactorOptions = {
   id: string
   name: string
+  // whom the action is aimed at, whose answer is the one that matters most:
+  // listed first
+  target: boolean
   options: ActionOptionView[]
   // the answers by the surge they are made on, where there is one to choose
   // (`getAnswersBySurge`), each with what it costs and gives; `chosen`, the
@@ -228,9 +231,10 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
       const options = withShownAnswer(c, getAvailableActions(state, c.id), declared)
       const before = withoutAnswerSurge(state, open.id, c.id).characters[c.id]
       const surges = (c.shown ? [] : getAnswersBySurge(options)).map((g) => ({ surge: g.surge, chosen: g.options.some((o) => o.chosen && o.surge === g.surge), gives: g.surge ? getGivesLine(getSurgeFacts(before, g.surge)) : '', rules: g.surge ? getRuleLines(getSurgeFacts(before, g.surge)) : [], options: labelled(state, c.id, g.options) }))
-      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, pass: getPassLabel(state, c.id, options), done: doneWith(declared) }
+      return { id: c.id, name: getFightName(state, c.id), target: 'targetId' in open && open.targetId === c.id, options: labelled(state, c.id, options), surges, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, pass: getPassLabel(state, c.id, options), done: doneWith(declared) }
     })
     .filter((r) => r.options.length > 0)
+    .sort((a, b) => Number(b.target) - Number(a.target))
 }
 
 function getGrapplingView(state: SceneState, grapple: GrappleAction, targetId: string): NonNullable<OpenActionView['grappling']> {

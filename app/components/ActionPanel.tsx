@@ -86,6 +86,22 @@ export function ActionPanel(){
   // before the commit the action is free to drop; one a reaction opened is
   // withdrawn along with the reaction instead
   const declared = !locked
+  // one reactor's answers: an attack of their own to fill in, or the answers
+  // they may give and their word that they are done
+  const reactor = (r: ReactorOptions) => r.strike
+    ? <LockedFor id={r.id}><ReactorStrike reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} onPass={() => pass(r.id)} onDone={() => confirmReacted(r.id)} /></LockedFor>
+    : (
+      <LockedFor id={r.id}>
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
+          <ActionKey look={r.passed ? 'picked' : 'plain'} title={r.pass.hint} onClick={() => pass(r.id)}>{r.pass.label}</ActionKey>
+          <Answers reactor={r} onReact={(o) => react(r.id, o.draft, o.surge)} />
+          <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
+          <AnswerDone done={r.done} onDone={() => confirmReacted(r.id)} />
+          {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
+        </div>
+      </LockedFor>
+    )
   return (
     <Panel title={<>{open.actor} · {open.label}{open.target ? <> → {open.target}</> : null}</>}
       meta={step ? STEP_LABEL[step] : null}
@@ -321,21 +337,16 @@ export function ActionPanel(){
 
       {step === 'react' ? (
         <div className='flex flex-col gap-1'>
-          {view.reactors.map((r) => {
-            if (r.strike) {
-              return <LockedFor key={r.id} id={r.id}><ReactorStrike reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} onPass={() => pass(r.id)} onDone={() => confirmReacted(r.id)} /></LockedFor>
-            }
+          {view.reactors.map((r, i) => {
+            const others = !r.target && view.reactors[i - 1]?.target ? <SectionLabel>others may answer too</SectionLabel> : null
             return (
-              <LockedFor key={r.id} id={r.id}>
-                <div className='flex flex-row flex-wrap gap-1 items-center'>
-                  <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
-                  <ActionKey look={r.passed ? 'picked' : 'plain'} title={r.pass.hint} onClick={() => pass(r.id)}>{r.pass.label}</ActionKey>
-                  <Answers reactor={r} onReact={(o) => react(r.id, o.draft, o.surge)} />
-                  <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
-                  <AnswerDone done={r.done} onDone={() => confirmReacted(r.id)} />
-                  {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
+              <div key={r.id} className='contents'>
+                {others}
+                <div className={r.target ? 'rounded border border-accent/60 bg-accent/5 p-1.5' : ''}>
+                  {r.target ? <span className='block text-xs text-accent'>{open.label} at {r.name}</span> : null}
+                  {reactor(r)}
                 </div>
-              </LockedFor>
+              </div>
             )
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
