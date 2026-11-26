@@ -120,6 +120,8 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   landed: (ids, c) => ids.filter((id) => c.visible.has(id)),
   logSaved: keep,
   foundAt: keep,
+  // a seat's own memory, put in its view after the fight is seen
+  remembered: keep,
   names: (names, c) => { const shown = told(names, c); return c.masked.size > 0 ? { ...shown, ...Object.fromEntries([...c.masked].map((id) => [id, UNSEEN_NAME])) } : shown },
   faces: (faces, c) => told(Object.fromEntries(Object.entries(faces).filter(([id]) => c.controlled.has(id))), c),
   witnessed: (by, c) => Object.fromEntries(Object.entries(by).flatMap(([id, who]) => (c.visible.has(id) ? [[id, who.filter((w) => c.controlled.has(w))]] : []))),

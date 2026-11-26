@@ -75,27 +75,22 @@ function faceIn(round: number, s: Sighting): CampaignCharacter {
   return face
 }
 
-// How many rounds ago each remembered foe put back in a view was noticed, by
-// its sheet there, which every fight made from that view keeps while nothing
-// lands on it.
-const ages = new WeakMap<CampaignCharacter, number>()
-
 // The fight as the seat takes it to stand with what it remembers: every
 // remembered foe it does not see now stands where it was last noticed, with the
 // face it had then. None of its members notices it (`notices` reads the fight
 // itself), so none aims at it. One whose place is forgotten stands nowhere in
-// it, and counts only where `getAbsentFoes` is asked.
+// it, and counts only where `getAbsentFoes` is asked. Both are written into the
+// view (`remembered`), so every fight made from it keeps them.
 export function withRemembered(view: SceneState, memory: SeatMemory | undefined): SceneState {
   const missing = Object.entries(memory ?? {}).filter(([id]) => !view.characters[id])
   if (missing.length === 0 || !view.board) return view
   const placed = missing.flatMap(([id, s]) => (s.placement ? [{ id, s, face: faceIn(view.round, s), placement: s.placement }] : []))
-  for (const { s, face } of placed) ages.set(face, view.round - s.round)
-  // a fight made from this one keeps its faces, so whoever it knows to be about is found by them
-  const faces = { ...view.faces }
-  absent.set(faces, missing.flatMap(([id, s]) => (s.placement ? [] : [{ id, face: faceIn(view.round, s) }])))
   return {
     ...view,
-    faces,
+    remembered: {
+      ages: Object.fromEntries(placed.map(({ id, s }) => [id, view.round - s.round])),
+      absent: missing.flatMap(([id, s]) => (s.placement ? [] : [{ id, face: faceIn(view.round, s) }])),
+    },
     characters: { ...view.characters, ...Object.fromEntries(placed.map(({ id, face }) => [id, face])) },
     partyOf: { ...view.partyOf, ...Object.fromEntries(placed.flatMap(({ id, s }) => (s.party ? [[id, s.party]] : []))) },
     board: { ...view.board, placements: { ...view.board.placements, ...Object.fromEntries(placed.map(({ id, placement }) => [id, placement])) } },
@@ -104,13 +99,10 @@ export function withRemembered(view: SceneState, memory: SeatMemory | undefined)
 
 // The foes the seat knows to be in the fight with no idea where, by face: they
 // threaten nothing anywhere, but may still act (the user's ruling, 2026-11-25).
-const absent = new WeakMap<SceneState['faces'], { id: string; face: CampaignCharacter }[]>()
-
-export const getAbsentFoes = (view: SceneState): { id: string; face: CampaignCharacter }[] => absent.get(view.faces) ?? []
+export const getAbsentFoes = (view: SceneState): readonly { id: string; face: CampaignCharacter }[] => view.remembered.absent
 
 // How many rounds ago the seat last noticed `id`, standing in `state` from
 // memory; null for one it notices.
 export function getRememberedAge(state: SceneState, id: string): number | null {
-  const c = state.characters[id]
-  return c ? (ages.get(c) ?? null) : null
+  return state.characters[id] ? (state.remembered.ages[id] ?? null) : null
 }

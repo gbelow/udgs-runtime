@@ -2165,6 +2165,11 @@ export const SceneStateSchema = z.object({
   // where the prepared scene being played was met, by place key: what is
   // left on the floor when the fight ends is left there
   foundAt: z.string().nullable().default(null),
+  // Only in a seat's own view of the fight (bot/memory.ts `withRemembered`),
+  // empty in the fight itself: how many rounds ago the seat last noticed each
+  // foe it put back where it stood, and the faces of the foes it knows to be in
+  // the fight with no idea where.
+  remembered: z.object({ ages: z.record(str, num), absent: z.array(z.object({ id: str, face: CampaignCharacterSchema })) }).default({ ages: {}, absent: [] }),
 }).strip()
 
 export type SceneState = z.infer<typeof SceneStateSchema>
