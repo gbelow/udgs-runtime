@@ -102,7 +102,10 @@ STAharm = w.STA x STA + w.IL x STA x bleed
 T = Σ threat, P = Σ prevented, D = Σ defense cost, n = allies within w.solitude, me included
 num allies is the amount of party members within w.solitude m radius of the location, including self. 
 
-exposure(cell, AP) = (T − P × min(1, n × AP / D)) / n
+y = AP / D
+covered = 1 − (1 − y)ⁿ for y < 1, and 1 beyond
+
+exposure(cell, AP) = (T − P × covered) / n
   my share of the harm I could take − what my AP can prevent of it
 
 drain = exposure(character, AP after its action) − exposure(character, AP it holds) + STAharm of its action
@@ -221,7 +224,7 @@ If threat on me is from ranged attacks,
 recovery = maxSTA/2 x (1 - currentSTA/fullSTA)
   STA is worth 2 AP when STA < 3, less when it is more. 
 
-Score = Exposure(self, 8AP) - Exposure(self, AP after resting + recovery) + threat(me, AP after resting + AP from recovery) - threat(me, 8 AP) + maxSTA/4 x w.STA x (1 - currentSTA/fullSTA)
+Score = Exposure(self, 8AP) - Exposure(self, AP after resting + recovery) + threat(me, AP after resting + AP from recovery) - threat(me, 8 AP) + maxSTA/4 x w.STA x (1 - currentSTA/fullSTA) - bleed x w.IL x maxSTA/4  
 
 If my potential threat on the target is 0 from here: threat(me, AP) = far threat at the cell AP walks me to along the way to the target, the same Score as Tactical
 

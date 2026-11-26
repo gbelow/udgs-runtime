@@ -398,9 +398,12 @@ export function getCompany(view: SceneState, id: string, cell: Coord | null, w: 
 }
 
 // spec "Cost and exposure", exposure: the harm that gets through to one holding `AP`,
-// which evades its share of the attacks as far as that pays for.
+// which evades its share of the attacks: alone, as far as its AP pay for them;
+// with company, all of them only once it could pay for every attack on the
+// side (they may all come at it), each AP evading less the more it holds.
 export function getExposed(on: Exposure, company: number, AP: number): number {
-  const covered = on.defenceAP > 0 ? Math.min(1, (AP * company) / on.defenceAP) : 1
+  const y = on.defenceAP > 0 ? AP / on.defenceAP : 1
+  const covered = y < 1 ? 1 - (1 - y) ** company : 1
   return (on.threat - covered * on.prevented) / company
 }
 

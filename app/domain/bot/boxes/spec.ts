@@ -1052,8 +1052,10 @@ export function specBox(w: SpecWeights): Box {
 // round's AP: the potential exposure it sheds and the potential threat it adds
 // on the character's target (or, with none, on the foe it threatens most;
 // where it has none on it from here, the far threat at the cell those AP walk
-// it to along the way, as Tactical reads it), and STA's own worth, `STA` for each, as much less as the pool is full. It rests
-// where that comes to more than nothing, and never says anything instead.
+// it to along the way, as Tactical reads it), and STA's own worth, `STA` for
+// each, as much less as the pool is full, less the IL each costs spent while
+// bleeding (combat.tex "Bleed"). It rests where that comes to more than
+// nothing, and never says anything instead.
 function rest(input: SeatInput, id: string, w: SpecWeights, notes: Notes | undefined): Decision | null {
   const view = input.view()
   const { members } = input
@@ -1074,7 +1076,7 @@ function rest(input: SeatInput, id: string, w: SpecWeights, notes: Notes | undef
   const exposure = getExposed(on, company, ROUND_AP) - getExposed(on, company, AP)
   const threatWith = target ? reachOn(view, id, target, w, threatOn) : () => 0
   const threat = threatWith(AP) - threatWith(ROUND_AP)
-  const worth = (pool / 4) * w.STA * empty
+  const worth = (pool / 4) * (w.STA * empty - w.IL * me.injuries.bleed)
   const score = exposure + threat + worth
   if (score <= 0) return null
   return { kind: 'declare', intent: { actorId: id, option: option.draft, picks: [] }, why: `rests (next round with ${AP.toFixed(1)} AP, ${recovery.toFixed(1)} of them from STA: exposure ${exposure.toFixed(1)} + threat ${threat.toFixed(1)} + STA ${worth.toFixed(1)} = ${score.toFixed(1)})` }
