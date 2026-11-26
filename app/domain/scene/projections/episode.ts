@@ -249,7 +249,9 @@ function getFate(state: SceneState, action: Action): string | null {
   return hit ? `broken: ${describe(state, hit.by)} ${hit.level} ${actor} before it took effect` : null
 }
 
-// combat.tex "Interruption", "Crash", "Flee", "Evasive Jump"
+// combat.tex "Interruption", "Crash", "Flee", "Evasive Jump"; the user's
+// ruling (2026-11-26) for a stop on noticing someone, who is left unnamed so
+// the log gives nobody away
 const STOP_REASON: Record<MoveStop, (by: string | null) => string | null> = {
   end: () => null,
   reaction: (by) => (by ? `interrupted by ${by}` : 'interrupted'),
@@ -258,6 +260,7 @@ const STOP_REASON: Record<MoveStop, (by: string | null) => string | null> = {
   trample: (by) => (by ? `blocked by ${by}` : 'blocked'),
   flee: () => 'someone fled it',
   occupied: (by) => (by ? `${by} stood where it ended` : 'its end was taken'),
+  sighting: () => 'stopped on noticing someone',
 }
 
 function getMoveFate(state: SceneState, move: MoveAction): string | null {

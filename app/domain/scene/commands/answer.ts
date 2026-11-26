@@ -1,7 +1,7 @@
 import type { SceneResume, Updater } from '../types'
 import { answerCall, getOpenCalls, type Throw } from '../../play/calls'
 import type { DieSource } from '../../play/dice'
-import { acceptSpellTest, payAction, resolveAction, rollAction, withdrawSpawnedAction } from './action'
+import { acceptSpellTest, chooseSighting, payAction, resolveAction, rollAction, withdrawSpawnedAction } from './action'
 import { rollContest } from './turn'
 import { continueRound, holdOn, letGo, nextRound } from './nextRound'
 import { endCombat } from './endCombat'
@@ -16,6 +16,7 @@ function resumeWith(resume: SceneResume, thrown: Throw, newId: () => string): Up
     case 'roll': return rollAction(thrown, newId)
     case 'pay': return payAction(newId, thrown)
     case 'resolve': return resolveAction(newId, thrown)
+    case 'sight': return chooseSighting(resume.choice, newId, thrown)
     case 'accept': return acceptSpellTest(newId, thrown)
     case 'withdrawSpawned': return withdrawSpawnedAction(thrown, newId)
     case 'contest': return rollContest(thrown)

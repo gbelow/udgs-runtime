@@ -53,6 +53,7 @@ import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
 import { isSidestepPlaced } from './sidestep'
 import { getPendingDisplacement } from './displace'
+import { getPendingSighting } from './sighting'
 import { canOverdraw } from '../../character/rules/rest'
 import { getIncomingAP } from './roundChange'
 import { getCounterShot, getCounterStrike } from './counter'
@@ -733,9 +734,10 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     // combat.tex "Theft": a hit leaves the thief the choice to take it
     case 'steal':
       return isTheftChoiceOffered(open) ? 'spend' : 'confirm'
-    // combat.tex "Crash": the space a won crash puts its defender in
+    // combat.tex "Crash": the space a won crash puts its defender in; the
+    // user's ruling (2026-11-26): whether to stop on someone newly noticed
     case 'move':
-      return getPendingDisplacement(state, open) ? 'aim' : 'confirm'
+      return getPendingDisplacement(state, open) ? 'aim' : getPendingSighting(state, open) ? 'choose' : 'confirm'
     case 'explosion':
     case 'drag':
     case 'release':

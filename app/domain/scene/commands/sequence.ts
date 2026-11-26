@@ -43,6 +43,7 @@ import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 import { getInterruptedClimb } from '../rules/move'
 import { getNextDisplacement } from '../rules/displace'
+import { getSightingState } from '../rules/sighting'
 import { getLapsedSteps, getPendingStep, openStepsAfter } from '../rules/combinedMove'
 import { openSteadyLeg } from '../rules/steadyArms'
 import { getClimbRedoTest } from '../rules/attack'
@@ -75,7 +76,7 @@ export function advance(state: SceneState, newId: () => string, caller: Caller):
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
   if (opened !== state) return opened
-  if (hasPostChoice(state, top)) return state
+  if (hasPostChoice(state, top)) return top.kind === 'move' ? getSightingState(state, top) : state
   // combat.tex "Concentration": the attacks an action held over drew are
   // fought; unless they came to nothing of it, it waits for the round to change
   return top.holding && !isVoided(state, top) ? advance(parkHeld(state, top), newId, caller) : land(state, top, newId, caller)

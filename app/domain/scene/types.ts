@@ -1019,7 +1019,7 @@ export const BlockExplosionActionSchema = z.object({ ...ActionBase, kind: z.lite
 // away from one (a movement of its own, which takes over), by a fall on
 // difficult terrain, by someone fleeing it, or by someone who came to stand on
 // its end while it was under way.
-export const MoveStopSchema = z.enum(['end', 'reaction', 'jump', 'fall', 'trample', 'flee', 'occupied'])
+export const MoveStopSchema = z.enum(['end', 'reaction', 'jump', 'fall', 'trample', 'flee', 'occupied', 'sighting'])
 export type MoveStop = z.infer<typeof MoveStopSchema>
 
 // The fall a move ends in: how far the mover drops, and the cell they land on
@@ -1115,6 +1115,13 @@ export const MoveActionSchema = z.object({
   // for an evader's step, where the mover whose way it goes out of stood,
   // taken off the board while it is taken (rules/sidestep.ts)
   passing: PlacementSchema.nullable().default(null),
+  // the user's ruling (2026-11-26): the mover may stop where they come to
+  // notice someone they did not as they set out (rules/sighting.ts). The
+  // step of the path they chose to stop at, the last step they chose to go
+  // on past, and whether they chose to go on whoever they notice next
+  stoppedAt: num.nullable().default(null),
+  goneOn: num.default(0),
+  regardless: z.boolean().default(false),
   // where the mover set out from, written at the commit: the path is read
   // from here even once an opportunity attack has the mover standing part
   // of the way along it
@@ -1943,6 +1950,11 @@ export const ChaseIntentSchema = z.discriminatedUnion('kind', [
 ])
 export type ChaseIntent = z.infer<typeof ChaseIntentSchema>
 
+// What a mover may do on noticing someone (rules/sighting.ts): stop there,
+// go on, or go on whoever they notice next.
+export const SIGHTING_CHOICES = ['stop', 'goOn', 'regardless'] as const
+export type SightingChoice = (typeof SIGHTING_CHOICES)[number]
+
 // The command a scene's dice were called for by, carried on once the last of
 // them is in: the exchange's roll or payment, the turn contest, the round
 // change and its steps, a concentrating character's choice, the combat's end,
@@ -1951,6 +1963,7 @@ export const SceneResumeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('roll') }),
   z.object({ kind: z.literal('pay') }),
   z.object({ kind: z.literal('resolve') }),
+  z.object({ kind: z.literal('sight'), choice: z.enum(SIGHTING_CHOICES) }),
   z.object({ kind: z.literal('accept') }),
   z.object({ kind: z.literal('withdrawSpawned') }),
   z.object({ kind: z.literal('contest') }),

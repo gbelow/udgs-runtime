@@ -1,5 +1,6 @@
 import { isCombatStarted } from '../rules/started'
-import { ActionSchema, type Action, type Coord, type ActionDraft, type ReactionAmend, type CastAction, type SceneState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
+import { ActionSchema, type Action, type Coord, type ActionDraft, type ReactionAmend, type CastAction, type SceneState, type FireAgainAction, type MoveAction, type RootAction, type SightingChoice, type Updater } from '../types'
+import { getPendingSighting } from '../rules/sighting'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
@@ -556,6 +557,19 @@ export function resolveAction(newId: () => string, thrown: Throw): Updater {
     const step = getNextStep(state)
     if (!open || (step !== 'confirm' && step !== 'spend')) return state
     return land(state, open, newId, caller)
+  })
+}
+
+// The user's ruling (2026-11-26): the mover's choice on the sighting the
+// rolled move waits on (rules/sighting.ts), and the move carried on from
+// there: what it reaches next fought, or the move landed.
+export function chooseSighting(choice: SightingChoice, newId: () => string, thrown: Throw): Updater {
+  return calling({ kind: 'sight', choice }, thrown, (caller) => (state) => {
+    const open = getOpenAt(state, 'post')
+    const pending = open?.kind === 'move' ? getPendingSighting(state, open) : null
+    if (open?.kind !== 'move' || !pending) return state
+    const chosen = choice === 'stop' ? { ...open, stoppedAt: pending.step } : choice === 'goOn' ? { ...open, goneOn: pending.step } : { ...open, regardless: true }
+    return advance(replaceActions(state, [chosen]), newId, caller)
   })
 }
 

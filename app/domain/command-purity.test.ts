@@ -313,6 +313,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   setSpellTestMode: (s) => combatCommands.setSpellTestMode('normal')(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   displaceTrampled: (s) => combatCommands.displaceTrampled({ q: 1, r: 1 })(deepFreeze(crashedMove(s))),
+  chooseSighting: (s) => combatCommands.chooseSighting('stop', newId, () => 5)(deepFreeze(combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))))),
   improveSpell: (s) => combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))),
   refundImprovement: (s) => combatCommands.refundImprovement('enhance')(deepFreeze(combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))))),
   saveGraze: (s) => combatCommands.saveGraze()(deepFreeze(grazedCast(s))),

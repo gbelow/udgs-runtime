@@ -197,6 +197,9 @@ function finishAction(input: SeatInput, id: string, find: Find, press: Press): D
   const view = input.view()
   const open = getOpenAction(view)
   if (open?.actorId !== id) return null
+  // a move stopped on noticing someone (scene/rules/sighting.ts) goes on to its end
+  const regardless = input.choices.find((c) => c.actorId === id && c.part === 'sighting' && c.value === 'regardless')
+  if (regardless) return { kind: 'press', pick: regardless, why: 'goes on regardless of whom it notices' }
   if (open.step === 'post') {
     // a hit's overflow spent as `getBestSpend` spends it, or nothing where the table takes none of that
     const bought = isAttackAction(open) ? getBestSpendPicks(view, open) : []

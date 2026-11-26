@@ -193,6 +193,8 @@ Any enemy that is detected through a passive sense or remembered can be pursued 
 
 If no foe is seen, the bot lists its seen and unseen spaces and moves up to w.search AP towards the nearest unseen space: to the nearest cell it can reach from which that space is seen, or if none, as far towards it as it can. Allies never end a move farther than w.solitude from the nearest ally, unless the move brings you closer.
 
+When a move stops on noticing someone new, the bot stands where it noticed them and compares that cell with the move's end, now that they are known: Tactical Score − danger(cell, AP held there). It stops if here is worth as much or more, else goes on.
+
 
 ## Strategies
 Pick one each round, the one with the highest score.

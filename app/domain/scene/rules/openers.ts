@@ -16,6 +16,7 @@ import { withSweepArc } from './sweep'
 import { getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
 import { getReactionDegree } from './explosion'
 import { getCounterspellCast, isInCounterspellReach } from './counterspell'
+import { isSightingBefore } from './sighting'
 
 // What each reaction opens, and when. `before` is played out between the
 // root's roll and its effect (combat.tex "Opportunity Attack": "The attack
@@ -78,6 +79,7 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
     before: (state, root, reaction, newId) => {
       if (getOpenedBy(state, reaction)) return null
       if (getOpportunityStop(state, root) !== null || !isOpportunityReached(state, root, reaction)) return null
+      if (root.kind === 'move' && isSightingBefore(state, root, reaction.at)) return null
       if (root.kind === 'strike' && !isFlankInReach(state, reaction, root)) return null
       const placed = getOpportunityState(state, reaction)
       const action = getOpportunityAction(placed, reaction, newId())
@@ -95,6 +97,7 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
       const { move, passedMove, passedMain } = getPreparedParts(state, reaction)
       if (!prepared || root.kind !== 'move' || passedMain || getOpenedMain(state, reaction) || isPreparedCancelled(state, reaction)) return null
       if (getOpportunityStop(state, root) !== null || !isPreparedReached(reaction, getMoveFacts(state, root).path.length)) return null
+      if (isSightingBefore(state, root, reaction.at)) return null
       const placed = getPreparedState(state, reaction)
       const owner = placed.characters[reaction.actorId]
       const budget = owner ? getPreparedMoveBudget(placed, owner, prepared) : 0

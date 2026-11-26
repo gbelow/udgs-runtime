@@ -1,4 +1,4 @@
-import type { Coord, SceneState } from '../types'
+import { SIGHTING_CHOICES, type Coord, type SceneState, type SightingChoice } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
 import { findOpenRoot, getLiveReactionsTo, getOpenAction } from '../rules/log'
@@ -12,6 +12,7 @@ import { getEvasiveJumpPlacements, type ReachableCell } from '../rules/move'
 import { isAimable } from '../rules/explosion'
 import { ring, sameCell } from '../rules/board/geometry'
 import { isJumpAttack } from '../rules/attackJump'
+import { getPendingSighting } from '../rules/sighting'
 import { getActionOffers, type ActionOffers, type ReactorOptions } from './actionPanel'
 import type { PrepareView } from './prepare'
 import type { ModifierView } from './modifiers'
@@ -39,7 +40,7 @@ export type ChoicePart =
   | 'row' | 'ammo' | 'item' | 'container' | 'spell' | 'gear' | 'chargeInto' | 'charge' | 'suggested' | 'modifier'
   | 'movement' | 'mode' | 'ledge' | 'metres' | 'leap' | 'dive' | 'target' | 'location' | 'object' | 'sweep' | 'firedAt'
   | 'flee' | 'pushMovement' | 'boost' | 'extend' | 'for' | 'main' | 'defense' | 'trigger' | 'opportunityMode' | 'maneuver'
-  | 'cell' | 'overflow' | 'grapple' | 'theft' | 'improve' | 'grazeSave' | 'along' | 'grappling' | 'disarm' | 'testMode' | 'restMove'
+  | 'cell' | 'overflow' | 'grapple' | 'theft' | 'improve' | 'grazeSave' | 'along' | 'grappling' | 'disarm' | 'testMode' | 'restMove' | 'sighting'
 
 export type OpenChoice = { actorId: string; part: ChoicePart; value: Json; chosen: boolean; from?: number; command: SceneCommand; label: string }
 
@@ -209,6 +210,8 @@ function cellChoices(state: SceneState): OpenChoice[] {
   return []
 }
 
+const SIGHTING_LABELS: Record<SightingChoice, string> = { stop: 'stop here', goOn: 'go on', regardless: 'go on regardless' }
+
 // Once the die is thrown: what the overflow buys, a grapple or a theft on the
 // hit, a spell's improvements, a graze saved, what a won grapple maneuver does,
 // the tread a rest allows; and while the die waits, how a spell's
@@ -240,6 +243,10 @@ function afterRollChoices(state: SceneState, offers: ActionOffers): OpenChoice[]
     }
     for (const d of open.disarm) add('disarm', d.itemId, d.itemId === open.item, { kind: 'choose', args: [{ item: d.itemId }] }, d.name)
     if (offers.restMove) add('restMove', true, false, { kind: 'restMove', args: [] }, 'tread')
+  }
+  const root = getOpenAction(state)
+  if (step === 'choose' && root?.kind === 'move' && getPendingSighting(state, root)) {
+    for (const choice of SIGHTING_CHOICES) add('sighting', choice, false, { kind: 'sight', args: [choice] }, SIGHTING_LABELS[choice])
   }
   return out
 }

@@ -9,7 +9,7 @@ import type { ExplosionDraft } from '../rules/impose'
 import { getPanelActor, type PanelPress } from '../rules/decider'
 import { getMembers } from '../rules/fighters'
 import type { CalledKind } from '../rules/heldTest'
-import type { ActionDraft, ReactionAmend, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, SurfaceTarget, Updater } from '../types'
+import type { ActionDraft, ReactionAmend, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, SightingChoice, SurfaceTarget, Updater } from '../types'
 import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
 import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, turnAround } from './chase'
@@ -36,7 +36,7 @@ import type { Order } from '../rules/domination'
 import { agreeAllToEnd, closeContest, endTurn, rollContest, setContestDecideSeconds, setContestMode, setContestSeconds, settleContest, startTurn, surge, thinkContest, toggleAgreeToEnd, toggleContest } from './turn'
 import {
   acceptAnswered, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, commitAction, confirmReaction, declareAction, declareReaction,
-  passReaction, payAnswered, resolveAction, rollAnswered, rollOrPay, setSpellTestMode, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
+  passReaction, payAnswered, resolveAction, chooseSighting, rollAnswered, rollOrPay, setSpellTestMode, setTarget, stepExtend, withdrawLastReaction, withdrawSpawnedAction,
 } from './action'
 import { chooseGrapple, chooseManeuver, chooseTheft, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from './choices'
 
@@ -97,6 +97,7 @@ export const sceneCommands = {
   grapple: command((_, on: boolean) => chooseGrapple(on)).by(panel('open')),
   theft: command((_, take: boolean) => chooseTheft(take)).by(panel('open')),
   resolve: command((ctx) => resolveAction(ctx.newId, ctx.thrower)).by(panel('open')),
+  sight: command((ctx, choice: SightingChoice) => chooseSighting(choice, ctx.newId, ctx.thrower)).by(panel('open')),
   improve: command((_, name: SpellModification) => improveSpell(name)).by(panel('open')),
   unimprove: command((_, name: SpellModification) => refundImprovement(name)).by(panel('open')),
   grazeSave: command(() => saveGraze()).by(panel('open')),

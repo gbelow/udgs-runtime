@@ -163,7 +163,7 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 |---|---|---|
 | `define` | `declare`, `target`, `aim`, `commit` | `declareAction`, `amendAction`, `setTarget`, `commitAction`, `cancelAction`, `withdrawSpawnedAction`; board clicks through `readClick` (`commands/click.ts`), which picks `pickCell` / `turnMove` and the rest |
 | `react` | `react` | `declareReaction`, `amendReaction`, `withdrawReaction`, `withdrawLastReaction`, `boostPush` (the pusher's +5, also at `define`); then `rollAction(dice, newId)` or, for an action with no die, `payAction(newId)` |
-| `post` | `spend`, `aim`, `choose`, `confirm` | `commands/choices.ts`: `spendHOP` / `refundHOP`, `chooseGrapple` (a hit with a grapple row grapples, free, only when the attacker says so), `improveSpell` / `refundImprovement`, `saveGraze`, `aimExplosion`, `displaceTrampled` (where a won crash puts its defender), `chooseManeuver`; then `resolveAction(newId)` |
+| `post` | `spend`, `aim`, `choose`, `confirm` | `commands/choices.ts`: `spendHOP` / `refundHOP`, `chooseGrapple` (a hit with a grapple row grapples, free, only when the attacker says so), `improveSpell` / `refundImprovement`, `saveGraze`, `aimExplosion`, `displaceTrampled` (where a won crash puts its defender), `chooseManeuver`; then `resolveAction(newId)`. A move's sighting is chosen with `chooseSighting` (`commands/action.ts`), which carries the move on itself |
 | `done` | — | — |
 
 - **define** — free to edit or cancel. Only one root can be declared at a time
@@ -285,8 +285,16 @@ resolveAction ─────────► land(top)
   deliveries, or, for its own actor, a tied counterattack's strike. What opens already
   committed (explosions, spell tests, a counterattack's strike) is not a choice and is
   not gated here.
+- **Sightings** — a move waits at `post` on its mover's choice wherever they come to notice
+  someone outside their party they did not as they set out (`rules/sighting.ts`, the user's
+  ruling, 2026-11-26): stop there, go on, or go on regardless of whoever comes next. Only where
+  the move may stop (`isStoppableAt`, `rules/move.ts`: no jump, a run inside its first 2 AP),
+  short of its end. While it waits the mover stands at that step (`getSightingState`, as an
+  opportunity attack has them), and the opportunity attacks and prepared actions further along
+  wait too (`isSightingBefore`). A stop cuts the walk there (`getWalkedPath`, stop
+  `sighting`), ends the attacks past it (`getOpportunityStop`) and pays for the blocks walked.
 - **Auto-landing** — a root at `post` with nothing to choose (`hasPostChoice`: no HOP to
-  spend, spray to point, pick to make, graze to save, rest move or along to decide) is
+  spend, spray to point, pick to make, graze to save, rest move, sighting or along to decide) is
   landed by `advance` once its attacks are fought. `resolveAction` is only pressed where a
   choice was offered.
 - **Withdrawing** an opened action (`withdrawSpawnedAction`: passed up), an answer taken back
@@ -462,6 +470,7 @@ app/domain/scene/
 │   ├── reload.ts       reloads: the rows in hand that are reloaded, why one cannot be, the stack it takes and what it leaves in the weapon (`Item.loaded`)
 │   ├── detection.ts    senses: how impaired each of an observer's senses is against a target (`none`, `partial`, `total`: line of sight, darkness no light reaches, bad and zero visibility, fog's radius, a sense's range, touch and smell at 0 m being a grapple partner, camouflage carried, the afflictions that blind, deafen or worsen a sense), and what each detects at; `getActionHeading`, the way a landed action leaves a one-cell token facing, drawn only (written by `reduceBoard`)
 │   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getBystanderDetections`, the tests everyone else in the fight (allies included) makes of an action of the hider's own turn, written at commit beside the reactors', so an ear may find them (rules/seen.ts `canSee` has a hider in sight in their own turn by any reactive sense that finds them); `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test
+│   ├── sighting.ts     the user's ruling (2026-11-26): where a move's mover first notices someone outside their party (`getSightings`), the one the rolled move waits on their choice for (`getPendingSighting`), whether a reaction further along waits for it (`isSightingBefore`), and the mover stood there meanwhile (`getSightingState`)
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   ├── chase.ts        a chase (`state.chase`, combat.tex "Chases"): the chain of links (each party chases at most one other, at a tier; a team is the side that ran away first or gave chase), the starting chain, a party leaving the chain (`getRechained`: its pursuers take over its link, shared by merging back and a party with nobody alive, `getChaseWithoutDead`), the stage each party stands at in the round (`getChaseStage`: deciding, then running, skirmish or routing), who is held (fighting), far links frozen while enemies are at combat range, who declares and in what order, run speeds, who is caught, what may be declared and resolved, the tier between two parties (the farthest on the chain between them, `getChaseDistance`, read by `getDistanceBetween`, so reach, shot penalties, spells and senses see it; a shot crosses tiers by the tier its range names, `reachesTier`), how long a round takes (`state.elapsed`), the routing bonus, cover, skirmish AP, the hiding, scouting and crossing tests, following, putting back, merging back, joining a fight, and a party splitting (`getSplitChase`, called by splitOff)
 │   ├── parked.ts       isParked, getParkedReason, isOffGrid, getFollowSceneBar, isFollowOpen: who is parked, frozen with no turns and nothing from the round change (another party followed, outside the fight that lives in the chase, or out of the chase: `isFrozenParty`) or off the grid (running or parked: not placed, the view offers no placing), and when the scene may follow a party

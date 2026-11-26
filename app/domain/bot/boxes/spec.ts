@@ -630,6 +630,30 @@ function avoid(input: SeatInput, id: string, w: SpecWeights, find: Find, press: 
 // The move a defence of an ally is made after goes to the cell of the least
 // exposure the defence can be made from. Null with no such move open, or none
 // worth making.
+// A move of the character's that waits on its choice on noticing someone
+// (scene/rules/sighting.ts), the character stood where it noticed them: it
+// stops where that cell is worth as much as the move's end or more, read as
+// Tactical reads a cell now that they are known (its Score on the
+// character's target, less the danger there with the AP it would hold:
+// what stopping gives back, or what the move has paid), else goes on.
+function sight(input: SeatInput, id: string, w: SpecWeights): Decision | null {
+  const stop = input.choices.find((c) => c.actorId === id && c.part === 'sighting' && c.value === 'stop')
+  const on = input.choices.find((c) => c.actorId === id && c.part === 'sighting' && c.value === 'goOn')
+  if (!stop || !on) return null
+  const view = input.view()
+  const open = getOpenAction(view)
+  const ctx = getCtx(view, input.members, id, w, input.unnoticed(id), getTarget(input.notes ?? {}, id))
+  const end = open?.kind === 'move' ? open.path.at(-1) : undefined
+  if (!ctx?.here || !end) return { kind: 'press', pick: on, why: 'goes on' }
+  const stopped = trial(view, stop.command).characters[id]
+  const kept = stopped ? Math.max(0, stopped.resources.AP - getSurgeAPLeft(stopped)) : ctx.held
+  const scoreOf = ctx.target && ctx.foes.includes(ctx.target) ? getTacticalScore(ctx, ctx.target, ctx.here) : () => 0
+  const here = scoreOf(ctx.here) - getDanger(ctx, ctx.here, kept)
+  const there = scoreOf(end) - getDanger(ctx, end, ctx.held)
+  const told = `here ${here.toFixed(1)}, at its end ${there.toFixed(1)}`
+  return here >= there ? { kind: 'press', pick: stop, why: `stops on noticing someone (${told})` } : { kind: 'press', pick: on, why: `goes on past whom it notices (${told})` }
+}
+
 // A move of the character's that ends on someone it puts aside, the cells it
 // may put them in offered (displace.ts `getPendingDisplacement`, read off
 // what is offered, since the faces the seat guesses may not be put aside
@@ -1036,7 +1060,7 @@ export function specBox(w: SpecWeights): Box {
       const made = wait.for === 'answer' ? press(find('confirmReaction', wait.id), 'is done answering') ?? answer(input, wait.id, w, find, press)
         : wait.for === 'turn' ? takeTurn(input, wait.id, w, find, press)
         : wait.for === 'rest' ? rest(input, wait.id, w, input.notes)
-        : (wait.for === 'action' ? displace(input, wait.id, w) ?? stepOpened(input, wait.id, w) : null) ?? settleWait(input, wait, find, press, w)
+        : (wait.for === 'action' ? sight(input, wait.id, w) ?? displace(input, wait.id, w) ?? stepOpened(input, wait.id, w) : null) ?? settleWait(input, wait, find, press, w)
       if (made) return made
     }
     const view = input.view()

@@ -428,6 +428,18 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
   }
 }
 
+// Whether the move may come to a stop once `step` steps of its path are
+// walked: never a movement the rules force, a run only inside its first 2 AP
+// (combat.tex "Running": "The first 2 AP worth of running must be
+// uninterrupted, otherwise, running cannot be started"), never a jump, and a
+// climb only where it is no climb at all.
+export function isStoppableAt(state: SceneState, action: MoveAction, step: number): boolean {
+  const mover = state.characters[action.actorId]
+  const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', RUN_START_AP) : 0
+  return !action.forced && ((action.movement !== 'run' && action.movement !== 'jump') || step < starting)
+    && (action.movement !== 'climb' || isTrivialClimb(state, action))
+}
+
 // Where an opportunity attack fought against the move took it over, if one
 // has: one space short of the stretch that triggered it, the table's
 // ruling. combat.tex "Interruption": "Movement is cancelled, except running
@@ -446,26 +458,21 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
 // stops them first along the path does.
 type MoveOverride = { step: number; stop: 'reaction' | 'jump' | 'trample'; by: Action }
 export function getMoveOverride(state: SceneState, action: MoveAction): MoveOverride | null {
-  const mover = state.characters[action.actorId]
-  const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', RUN_START_AP) : 0
-  const stoppable = (at: number) => !action.forced && ((action.movement !== 'run' && action.movement !== 'jump') || at - 1 < starting)
-    && (action.movement !== 'climb' || isTrivialClimb(state, action))
   const spelled = getReactionsTo(state, action.id).flatMap((reaction): MoveOverride[] => {
-    if (reaction.kind !== 'counterspell' || reaction.at === null || !stoppable(reaction.at)) return []
+    if (reaction.kind !== 'counterspell' || reaction.at === null || !isStoppableAt(state, action, reaction.at - 1)) return []
     const cast = getOpenedBy(state, reaction)
     return cast?.step === 'done' && getInterruptionBy(state, cast, action.actorId) !== 'none' ? [{ step: reaction.at - 1, stop: 'reaction', by: cast }] : []
   })
-  const struck = getStrikeOverride(state, action, starting)
+  const struck = getStrikeOverride(state, action)
   return [...spelled, ...(struck ? [struck] : [])].reduce<MoveOverride | null>((first, o) => (first === null || o.step < first.step ? o : first), null)
 }
 
-function getStrikeOverride(state: SceneState, action: MoveAction, starting: number): MoveOverride | null {
+function getStrikeOverride(state: SceneState, action: MoveAction): MoveOverride | null {
   for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.step !== 'done') continue
-    const stoppable = !action.forced && ((action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting)
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump', by: strike }
-    const interrupted = stoppable && (action.movement !== 'climb' || isTrivialClimb(state, action)) && getInterruptionOf(strike, action.actorId) !== 'none'
+    const interrupted = isStoppableAt(state, action, reaction.at! - 1) && getInterruptionOf(strike, action.actorId) !== 'none'
     if (interrupted || isKnockedDownByHook(state, strike, action.actorId)) return { step: reaction.at! - 1, stop: 'reaction', by: strike }
     if (strike.trample?.result === 'blocked') return { step: reaction.at! - 1, stop: 'trample', by: strike }
   }
@@ -523,7 +530,8 @@ export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
 
 // The path as far as the move is walked before the mover is stood short of
 // anyone in the space it would end in: cut short by a flee, an opportunity
-// attack, or a crash that blocked it.
+// attack, where its mover chose to stop on noticing someone
+// (rules/sighting.ts), or a crash that blocked it.
 export function getWalkedPath(state: SceneState, action: MoveAction): { path: Coord[]; stop: MoveFacts['stop']; tramples: ReturnType<typeof getMoveTramples> } {
   let path = action.path
   let stop: MoveFacts['stop'] = 'end'
@@ -537,6 +545,10 @@ export function getWalkedPath(state: SceneState, action: MoveAction): { path: Co
   if (override !== null && override.step < path.length) {
     path = path.slice(0, override.step)
     stop = override.stop
+  }
+  if (action.stoppedAt !== null && action.stoppedAt < path.length) {
+    path = path.slice(0, action.stoppedAt)
+    stop = 'sighting'
   }
   const tramples = getMoveTramples(state, action, path)
   if (tramples.stop !== null) {

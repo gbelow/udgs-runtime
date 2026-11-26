@@ -41,7 +41,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { mustStart } = useTurnControls()
   const knows = useKnows()
   const { step, open } = view
@@ -391,6 +391,14 @@ export function ActionPanel(){
               <SectionLabel>on the hit</SectionLabel>
               <Button size='xs' selected={open.theft} title='it is taken, and the target notices' onClick={() => theft(true)}>take it</Button>
               <Button size='xs' selected={!open.theft} title='nothing is taken, and nobody notices' onClick={() => theft(false)}>let it be</Button>
+            </div>
+          ) : null}
+          {open.sighted ? (
+            <div className='flex flex-row flex-wrap gap-1 items-center'>
+              <SectionLabel>notices {open.sighted.join(', ')}</SectionLabel>
+              <Button size='xs' title='the move ends here, and pays for the blocks walked' onClick={() => sight('stop')}>stop here</Button>
+              <Button size='xs' title='the move goes on, and asks again on noticing anyone else' onClick={() => sight('goOn')}>go on</Button>
+              <Button size='xs' title='the move goes on to its end, whoever is noticed' onClick={() => sight('regardless')}>go on regardless</Button>
             </div>
           ) : null}
           {step === 'spend' && view.castHOP.options.length > 0 ? (

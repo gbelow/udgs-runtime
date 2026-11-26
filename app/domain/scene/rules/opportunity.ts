@@ -37,12 +37,16 @@ export function getOpportunityState(state: SceneState, reaction: ActionOf<'oppor
 
 // Where the root's run of opportunity attacks was brought to a stop, as the
 // step the one stopped stands short of; null while it goes on. A move is
-// stopped by what `getMoveOverride` reads, a push by the comparison or by an
+// stopped by what `getMoveOverride` reads or where its mover chose to stop on
+// a sighting (rules/sighting.ts), a push by the comparison or by an
 // attack that stunned the pusher (`getPushStop`). Anything else is never stopped:
 // every attack it drew is fought, even once one has cancelled it (the
 // table's ruling), since there is no later stretch it fails to reach.
 export function getOpportunityStop(state: SceneState, root: Action): number | null {
-  if (root.kind === 'move') return getMoveOverride(state, root)?.step ?? null
+  if (root.kind === 'move') {
+    const steps = [getMoveOverride(state, root)?.step ?? null, root.stoppedAt].filter((s): s is number => s !== null)
+    return steps.length ? Math.min(...steps) : null
+  }
   if (root.kind === 'drag') return getPushStop(state, root)
   return null
 }

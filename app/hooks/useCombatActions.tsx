@@ -1,7 +1,7 @@
 import type { RollMode } from "../domain/play/dice";
 import type { SurgeKind } from "../domain/types";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
-import type { ActionDraft, HOPPurchase, ReactionAmend } from "../domain/scene/types";
+import type { ActionDraft, HOPPurchase, ReactionAmend, SightingChoice } from "../domain/scene/types";
 import type { chooseManeuver } from "../domain/scene/commands/choices";
 import type { SpellModification } from "../domain/tables";
 import { getActionMenu, getActionMenuDigest, type MenuEntry } from "../domain/scene/commands/clickMenu";
@@ -40,6 +40,7 @@ export function useCombatActions() {
   const refund = (purchase: HOPPurchase) => dispatch({ kind: "refund", args: [purchase] });
   const grapple = (on: boolean) => dispatch({ kind: "grapple", args: [on] });
   const theft = (take: boolean) => dispatch({ kind: "theft", args: [take] });
+  const sight = (choice: SightingChoice) => dispatch({ kind: "sight", args: [choice] });
   const resolve = () => dispatch({ kind: "resolve", args: [] });
   const improve = (name: SpellModification) => dispatch({ kind: "improve", args: [name] });
   const unimprove = (name: SpellModification) => dispatch({ kind: "unimprove", args: [name] });
@@ -51,5 +52,5 @@ export function useCombatActions() {
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

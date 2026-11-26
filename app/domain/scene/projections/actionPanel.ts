@@ -29,6 +29,7 @@ import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { getSceneModeOf } from '../rules/test'
 import { MovementOption, ReachableCell, getMoveBudget, getMoveModes, getMoveTest, getMovementOptions, needsBalanceTest } from '../rules/move'
+import { getPendingSighting } from '../rules/sighting'
 import { getReachableCells } from '../rules/board/reach'
 import { getMoraleSpell, getSuggestible } from '../rules/moraleSpell'
 import type { LimitStressAction } from '../../lists'
@@ -317,6 +318,9 @@ export type OpenActionView = {
   diveSteps: { up: number | null; down: number | null } | null
   // how far the move will actually get and why it stops there
   walked: { cells: number; stop: MoveStop } | null
+  // while the rolled move waits on its mover's choice to stop: whom they have
+  // come to notice there (rules/sighting.ts)
+  sighted: string[] | null
   // opened by a reaction — an opportunity attack, a follow, a riposte —
   // and whether it is the attack an opportunity attack opens
   spawned: boolean
@@ -654,6 +658,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
       source: explosion?.source ?? null,
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
+      sighted: open.kind === 'move' && step === 'choose' ? (getPendingSighting(state, open)?.ids.map((id) => getFightName(state, id)) ?? null) : null,
       spawned: open.spawnedBy !== null,
       required: isPreparedRequired(state, open),
       opportunity: open.kind === 'strike' && open.opportunity,
