@@ -3,7 +3,7 @@ import type { ScenePreset } from '../../campaign/types'
 import type { SceneState } from '../types'
 import { isDead } from '../../character/rules/afflictions'
 import { getStandingParties, isDown } from '../rules/fight'
-import { getFightBusy, getNextRoundBar, hasAgreedToEnd } from '../rules/turn'
+import { getFightBusy, getNextRoundBar, getStartTurnBar, hasAgreedToEnd } from '../rules/turn'
 import { getRoundChangeBar } from '../rules/roundChange'
 import { isCombatStarted } from '../rules/started'
 import { getOpenAction } from '../rules/log'
@@ -100,6 +100,7 @@ function getDemoHint(state: SceneState, mine: readonly string[], seen: readonly 
   const hint: DemoHint | null = getAnswersOwed(state).some((id) => mine.includes(id)) ? 'answer'
     : open?.step === 'define' && mine.includes(open.actorId) ? 'action'
     : isRoundOnly(state, mine) ? 'round'
+    : mine.some((id) => getStartTurnBar(state, id) === null) ? 'turn'
     : null
   return hint !== null && !seen.includes(hint) ? hint : null
 }

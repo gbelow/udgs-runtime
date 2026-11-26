@@ -26,8 +26,9 @@ export const DEMO_BOT: BotId = 'bot:spec'
 export const DEMO_SCENE = 'demo'
 
 // What the visitor is told when it first comes up: an action of theirs being
-// declared, one waiting on their answer, the round waiting on them.
-export const DEMO_HINTS = ['action', 'answer', 'round'] as const
+// declared, one waiting on their answer, the round waiting on them, a turn
+// one of theirs may start.
+export const DEMO_HINTS = ['action', 'answer', 'round', 'turn'] as const
 export type DemoHint = (typeof DEMO_HINTS)[number]
 
 // How the visitor is playing the demo: the characters they picked, by catalog

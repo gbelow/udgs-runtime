@@ -26,7 +26,7 @@ import { AutoThrow, Status } from '../RunScreen'
 import { ActionLog } from '../ActionPanel'
 import { Button, IconButton, SectionLabel, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
-import { Basics, HelpButton, HintLine, Objective } from './DemoHelp'
+import { Basics, HelpButton, HintLine, HowToPlay } from './DemoHelp'
 
 const DiceTray = dynamic(() => import('../DiceTray'), { ssr: false })
 
@@ -55,7 +55,7 @@ function DemoPicker({ offered }: { offered: string[] | null }) {
         <span className='text-muted'>demo</span>
         {view.scene ? <span className='text-muted'>· {view.scene}</span> : null}
       </div>
-      <Objective />
+      <HowToPlay />
       <section className='flex flex-col gap-3 rounded border border-line bg-surface p-4'>
         <div className='flex flex-row flex-wrap items-center gap-2'>
           <h2 className='text-lg font-medium grow'>Your party</h2>
