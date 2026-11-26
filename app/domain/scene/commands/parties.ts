@@ -1,6 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { SceneState, Updater } from '../types'
 import { makeName } from '../../instances'
+import { getSTA } from '../../character/rules/characteristics'
 import { getEmptiedParties, nextPartyName } from '../../campaign/rules/parties'
 import { getOpenAction } from '../rules/log'
 import { getSplitChase } from '../rules/chase'
@@ -27,12 +28,14 @@ export function createParty(partyId: string, name: string): Updater {
 // under `partyName` if the fight does not have it yet. They go by the name
 // the fight gave them before, or else by `preferred` or their sheet's name,
 // made apart from every name the fight has given and the `reserved` ones,
-// which others at the table go by.
+// which others at the table go by. They come in with their full STA (the
+// user's ruling, 2026-11-26).
 export function joinFight(char: CampaignCharacter, partyId: string, partyName: string, reserved: readonly string[], preferred?: string): Updater {
   return (state) => {
     const named = state.names[char.id] ?? makeName(preferred ?? char.name, [...Object.values(state.names), ...reserved])
     const parties = state.parties[partyId] ? state.parties : { ...state.parties, [partyId]: { name: partyName || nextPartyName(state.parties), from: '' } }
-    return { ...state, characters: { ...state.characters, [char.id]: char }, names: { ...state.names, [char.id]: named }, parties, partyOf: { ...state.partyOf, [char.id]: partyId } }
+    const rested = { ...char, resources: { ...char.resources, STA: getSTA(char) } }
+    return { ...state, characters: { ...state.characters, [char.id]: rested }, names: { ...state.names, [char.id]: named }, parties, partyOf: { ...state.partyOf, [char.id]: partyId } }
   }
 }
 
