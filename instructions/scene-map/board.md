@@ -35,7 +35,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   somewhere to go. A run turns at most one side of a hex a step (combat.tex "Movement": "60
   degrees"), across a turn too, so its reach is walked with a heading; it may set out any way.
   A jump is one straight line (`line`) and a climb one face: a new cell replaces either.
-  A drawn way goes around anyone standing whom the mover's party knows of (`getReachableCells`,
+  A drawn way goes around anyone standing whom the mover's party has in sight (`getReachableCells`,
   `getAvoided`): the mover's own move comes into someone's space only by a click on them (their
   token or their cell), and a click past them then goes on through. A move something opened
   goes through people only to spaces it comes to no other way, and a jump goes over them as it

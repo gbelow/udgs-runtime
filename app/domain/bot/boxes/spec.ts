@@ -687,7 +687,8 @@ function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | nu
 }
 
 // spec "Search": with no foe the side knows of, a walk of at most `search` AP
-// spent this round towards the nearest cell nobody of its side sees, never
+// spent this round towards the nearest cell nobody of its side sees: to the
+// cheapest cell it reaches that sees it, else as near it as it comes, never
 // ending more than `solitude` metres from the nearest ally unless it comes
 // nearer one. A foe the side knows of is gone after by Tactical.
 function planSearch(ctx: Ctx): Plan | null {
@@ -707,7 +708,9 @@ function planSearch(ctx: Ctx): Plan | null {
   for (const walk of getWalks(view, id)) {
     const found = walk.cells
       .filter((c) => c.AP <= allow && !sameCell(c.cell, here) && distance(c.cell, nearest) < distance(here, nearest) && fits(c.cell))
-      .sort((x, y) => distance(x.cell, nearest) - distance(y.cell, nearest) || x.AP + x.STA - (y.AP + y.STA))
+      .map((c) => ({ c, sees: seesAcross(board, [c.cell], [nearest], eyes) }))
+      .sort((x, y) => Number(y.sees) - Number(x.sees) || (x.sees ? 0 : distance(x.c.cell, nearest) - distance(y.c.cell, nearest)) || x.c.AP + x.c.STA - (y.c.AP + y.c.STA))
+      .map(({ c }) => c)
       .find((c) => walk.clear(c))
     if (!found) continue
     const intent = moveIntent(id, walk.movement, found.cell, found.elevation)

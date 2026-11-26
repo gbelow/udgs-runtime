@@ -8,7 +8,7 @@ import { getSidestepCells } from '../sidestep'
 import { isCombinedLanding } from '../combinedMove'
 import { getOpenAction } from '../log'
 import { isTrampleable } from '../trample'
-import { canSee, getExchanges } from '../seen'
+import { canSee } from '../seen'
 import { getEnteringStep, getMoveOrigin, getMovePlacements } from './waypoint'
 
 // The spaces a declared move may be taken to: all it can walk to, but for the
@@ -71,13 +71,13 @@ function getAvoided(state: SceneState, action: MoveAction): string[] {
   })
 }
 
-// Whether the mover's party has the character in sight, or shares an exchange
-// with them.
+// Whether the mover's party has the character in sight now (the user's
+// ruling, 2026-11-26): one met in an exchange but out of sight is walked into,
+// and trampled, as one nobody knows of is.
 function isKnownOf(state: SceneState, moverId: string, id: string): boolean {
   const party = state.partyOf[moverId]
   const own = [moverId, ...Object.keys(state.characters).filter((m) => m !== moverId && party !== undefined && state.partyOf[m] === party)]
   return own.includes(id) || own.some((m) => canSee(state, m, id))
-    || [...getExchanges(state).values()].some(({ participants }) => participants.has(id) && own.some((m) => participants.has(m)))
 }
 
 // Where a click on a character takes the move being declared: the last cell of
