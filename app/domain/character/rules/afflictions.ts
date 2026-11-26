@@ -170,7 +170,12 @@ export function isDead(c: Character): boolean {
 const CAPACITY_PENALTY = 5
 
 export function getInjuryCapacity(c: CampaignCharacter): number {
-  return CAPACITY_PENALTY * getIT(c) + getBuffBonus(c, 'injury:capacity')
+  return getBaseInjuryCapacity(c) + getBuffBonus(c, 'injury:capacity')
+}
+
+// The capacity before any ability raises it.
+export function getBaseInjuryCapacity(c: CampaignCharacter): number {
+  return CAPACITY_PENALTY * getIT(c)
 }
 
 // The IL that is death: the least at which the character is dead.

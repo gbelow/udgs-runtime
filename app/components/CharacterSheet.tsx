@@ -115,7 +115,7 @@ export function ResourceBars({ after }: { after?: ReactNode }){
             set={setAP} raise={() => setAP(AP + 1)} lower={() => setAP(AP - 1)} />
           <Bar label='STA' value={STA} fill={bars.STA.fill} color={THIRDS[bars.STA.third].className} title={THIRDS[bars.STA.third].label}
             set={setSTA} raise={() => setSTA(STA + 1)} lower={() => updateSTA(STA - 1)} />
-          <Bar label='IL' value={IL} fill={bars.IL.fill} color={HURT[bars.IL.tens]} title={`injury level, collapse marked`} mark={bars.IL.collapse}
+          <Bar label='IL' value={IL} fill={bars.IL.fill} color={HURT[bars.IL.tens]} title={bars.IL.collapsed ? 'collapsed' : 'injury level'} mark={bars.IL.collapse} lit={bars.IL.collapsed}
             set={(v) => setInjury('injuryLevel', v)} raise={() => setInjury('injuryLevel', IL + 1)} lower={() => updateIL(IL - 1)} />
         </div>
         {after}
@@ -124,13 +124,13 @@ export function ResourceBars({ after }: { after?: ReactNode }){
   )
 }
 
-function Bar({ label, value, fill, color, title, mark, set, raise, lower }: { label: string, value: number, fill: number, color: string, title: string, mark?: number, set: (value: number) => void, raise: () => void, lower: () => void }){
+function Bar({ label, value, fill, color, title, mark = null, lit = false, set, raise, lower }: { label: string, value: number, fill: number, color: string, title: string, mark?: number | null, lit?: boolean, set: (value: number) => void, raise: () => void, lower: () => void }){
   return(
     <div className='flex flex-row items-center gap-1.5'>
       <span className='w-7 shrink-0 text-[10px] text-muted'>{label}</span>
-      <div title={title} className='relative grow min-w-12 h-3 rounded-sm border border-line bg-raised overflow-hidden'>
+      <div title={title} className={`relative grow min-w-12 h-3 rounded-sm border bg-raised overflow-hidden ${lit ? 'border-injury-4 ring-2 ring-injury-4/60' : 'border-line'}`}>
         <div className={`absolute inset-y-0 left-0 ${color}`} style={{ width: `${fill}%` }} />
-        {mark !== undefined ? <div className='absolute inset-y-0 w-px bg-fg/70' style={{ left: `${mark}%` }} /> : null}
+        {mark !== null ? <div className='absolute inset-y-0 w-px bg-fg/70' style={{ left: `${mark}%` }} /> : null}
       </div>
       <NumberInput className='w-10 border-transparent text-sm px-0' aria-label={label} value={value} onChange={(e) => set(parseInt(e.target.value) || 0)} />
       <div className='flex flex-row gap-0.5'>
