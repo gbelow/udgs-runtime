@@ -1,4 +1,4 @@
-import type { ActionDraft, Coord, SceneState, Updater } from '../types'
+import type { ActionDraft, Coord, SceneState, SeenScene, Updater } from '../types'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { Throw } from '../../play/calls'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -20,6 +20,8 @@ import { getDraftLabel, getPassLabel } from '../projections/labels'
 import { amendAction, commitAction, declareAction, declareReaction, passReaction, setTarget } from './action'
 import { readPick } from './board'
 import { surge } from './turn'
+import { ACTION_CATEGORIES } from '../../lists'
+import { perState } from '../../perState'
 
 // What a click on the board offers: everything the selected character could
 // declare, aimed at what was clicked where it can be, or the answers a clicked
@@ -43,10 +45,22 @@ export type MenuPress =
 // `bar`, why it cannot be pressed now; `surge`, the surge it is made on.
 export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress }
 
+// The entries of one category, and how many of them may be pressed now.
+export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntry[], open: number }
+
 // `select` is the clicked character, whom the screen may pick instead;
 // `actor`, whose entries they are; `turn`, said when they must start a turn
-// before they act, and why they cannot now.
-export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[] }
+// before they act, and why they cannot now; `groups`, the entries under the
+// heading of their category, every category shown.
+export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[], groups: MenuGroup[] }
+
+function groupEntries(entries: readonly MenuEntry[]): MenuGroup[] {
+  const categories = entries.some((e) => e.category === 'answer') ? ['answer' as const] : ACTION_CATEGORIES
+  return categories.map((category) => {
+    const shown = entries.filter((e) => e.category === category)
+    return { category, entries: shown, open: shown.filter((e) => e.bar === null).length }
+  })
+}
 
 export function pressMenu(press: MenuPress, newId: () => string, thrown: Throw): Updater {
   return (state) => {
@@ -101,20 +115,41 @@ function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu
   const c = state.characters[selected]
   if (!c || (at.on !== 'token' && !state.board?.placements[selected])) return null
   const note = getMustStart(state, selected)
-  const entries = getAvailableActions(state, selected).filter((o) => o.reactionTo === null).flatMap((o) => getEntries(state, at, c, o))
+  const entries = getOwnEntries(state, at, c)
   return {
     title: at.on === 'token' ? getFightName(state, at.id) : at.on === 'cell' ? 'here' : 'item',
     select: at.on === 'token' ? at.id : null,
     actor: selected,
     turn: note ? { note, bar: getStartTurnBar(state, selected) } : null,
     entries,
+    groups: groupEntries(entries),
   }
 }
+
+function getOwnEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter): MenuEntry[] {
+  return getAvailableActions(state, c.id).filter((o) => o.reactionTo === null).flatMap((o) => getEntries(state, at, c, o))
+}
+
+// What the character may declare with nothing clicked, which the action panel
+// lists: the same entries the board's menu offers, aimed at nothing, under the
+// categories that have any; none while an action is open.
+const actionMenus = perState((_: SceneState) => new Map<string, MenuGroup[]>())
+
+export function getActionMenu(state: SceneState, id: string | null): MenuGroup[] {
+  const c = id ? state.characters[id] : undefined
+  if (!c || getOpenAction(state)) return []
+  const known = actionMenus(state)
+  const groups = known.get(c.id) ?? groupEntries(getOwnEntries(state, null, c)).filter((g) => g.entries.length > 0)
+  known.set(c.id, groups)
+  return groups
+}
+
+export const getActionMenuDigest = perState((state: SeenScene) => JSON.stringify(getActionMenu(state, state.activeCharacterId)))
 
 // The entries of one of the character's own options: one for each thing it can
 // be declared with, read on the fight with its surge made where it needs one,
 // or the option itself, closed, where there is none.
-function getEntries(state: SceneState, at: MenuAim, c: CampaignCharacter, o: ActionOption): MenuEntry[] {
+function getEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter, o: ActionOption): MenuEntry[] {
   const { draft } = o
   const category = getActionDef(draft.kind).category ?? 'tactical'
   const needs = o.available ? null : o.surge
@@ -150,7 +185,7 @@ function getEntries(state: SceneState, at: MenuAim, c: CampaignCharacter, o: Act
     }
     // a move is offered once for each way of moving: which one is the player's to say
     case 'move': {
-      const ways = getMovementOptions(ready, own).map((m) => entry(at.on === 'cell' ? `${m.kind} here` : m.kind, m.block, { movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, recipe: null, metres: null, ledge: null }, m.available ? null : m.reason ?? 'closed'))
+      const ways = getMovementOptions(ready, own).map((m) => entry(at?.on === 'cell' ? `${m.kind} here` : m.kind, m.block, { movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false, recipe: null, metres: null, ledge: null }, m.available ? null : m.reason ?? 'closed'))
       return ways.length > 0 ? ways : [entry(getDraftLabel(state, c.id, o), null)]
     }
     default:
@@ -221,5 +256,5 @@ function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
     ...answers.map((o): MenuEntry => ({ label: getDraftLabel(state, id, o), category: 'answer', cost: o.cost, surge: o.surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge } })),
     { label: getPassLabel(state, id, options).label, category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
   ]
-  return { title: `${getFightName(state, id)} answers`, select: id, actor: id, turn: null, entries }
+  return { title: `${getFightName(state, id)} answers`, select: id, actor: id, turn: null, entries, groups: groupEntries(entries) }
 }

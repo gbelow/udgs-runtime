@@ -5,7 +5,7 @@ import { useClickMenu } from '../hooks/useClickMenu'
 import { ActionKey, Button, Closed, Floating, SectionLabel } from './ui'
 import { Locked } from './Locks'
 import { useControlBar } from '../hooks/useControl'
-import { ACTION_CATEGORIES } from '../domain/lists'
+import type { MenuEntry } from '../domain/scene/commands/clickMenu'
 import { ACTION_ICONS } from './actionIcons'
 
 // Where the last press landed, which is where a click on the board opens its menu.
@@ -62,8 +62,7 @@ export function ClickMenuHost(){
   if (!menu) return null
   // beside the click, not under it, so that a second click on the same spot still reaches the board
   const toRight = at.x + SIDE_GAP + MENU_ROOM <= window.innerWidth
-  const answering = menu.entries.some((e) => e.category === 'answer')
-  const groups = (answering ? ['answer' as const] : ACTION_CATEGORIES).map((category) => ({ category, entries: menu.entries.filter((e) => e.category === category) }))
+  const { groups } = menu
 
   return (
     <>
@@ -77,26 +76,33 @@ export function ClickMenuHost(){
               <ActionKey look='go' icon={Play} aria-label='start turn here' disabled={menu.turn.bar !== null} onClick={start}>start turn</ActionKey>
             </div>
           ) : null}
-          {groups.map(({ category, entries }) => {
+          {groups.map(({ category, entries, open }) => {
             const expanded = groups.length === 1 || shown === category
             return (
               <div key={category} className='flex flex-col items-stretch gap-1'>
                 <Button size='xs' selected={expanded} aria-expanded={expanded} aria-label={`${category} actions`} disabled={entries.length === 0} onClick={() => setShown(expanded && groups.length > 1 ? null : category)}>
-                  {category} <span className='font-mono text-muted'>{entries.filter((e) => e.bar === null).length}/{entries.length}</span>
+                  {category} <span className='font-mono text-muted'>{open}/{entries.length}</span>
                 </Button>
-                {expanded ? entries.map((e, i) => (
-                  <Closed key={`${e.label}:${i}`} reason={e.bar}>
-                    <ActionKey icon={e.press.kind === 'declare' ? ACTION_ICONS[e.press.draft.kind] : undefined} disabled={e.bar !== null}
-                      cost={e.cost ? `${e.cost.AP} AP${e.cost.STA ? ` · ${e.cost.STA} STA` : ''}` : null} onClick={() => press(e)}>
-                      {e.label}{e.surge ? <span className='text-accent'> {e.surge} surge</span> : null}
-                    </ActionKey>
-                  </Closed>
-                )) : null}
+                {expanded ? entries.map((e, i) => <MenuEntryKey key={`${e.label}:${i}`} entry={e} onPress={() => press(e)} />) : null}
               </div>
             )
           })}
         </Locked>
       </Floating>
     </>
+  )
+}
+
+// One entry of what a character may declare or answer: what it is, its price,
+// the surge it is made on, and why it is closed when it is. The board's menu
+// and the action panel both show entries this way.
+export function MenuEntryKey({ entry, onPress }: { entry: MenuEntry, onPress: () => void }){
+  return (
+    <Closed reason={entry.bar}>
+      <ActionKey icon={entry.press.kind === 'declare' ? ACTION_ICONS[entry.press.draft.kind] : undefined} disabled={entry.bar !== null}
+        cost={entry.cost ? `${entry.cost.AP} AP${entry.cost.STA ? ` · ${entry.cost.STA} STA` : ''}` : null} onClick={onPress}>
+        {entry.label}{entry.surge ? <span className='text-accent'> {entry.surge} surge</span> : null}
+      </ActionKey>
+    </Closed>
   )
 }

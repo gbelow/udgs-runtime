@@ -4,6 +4,7 @@ import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain
 import type { ActionDraft, HOPPurchase, ReactionAmend } from "../domain/scene/types";
 import type { chooseManeuver } from "../domain/scene/commands/choices";
 import type { SpellModification } from "../domain/tables";
+import { getActionMenu, getActionMenuDigest, type MenuEntry } from "../domain/scene/commands/clickMenu";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSceneDispatch } from "./useSceneDispatch";
 
@@ -13,13 +14,14 @@ import { useSceneDispatch } from "./useSceneDispatch";
 // and the registry says whom each acts for, so the hook only names the press.
 export function useCombatActions() {
   useCombatStore(getActionPanelDigest);
-  const view: ActionPanelView = getActionPanel(useCombatStore.getState());
+  useCombatStore(getActionMenuDigest);
+  const state = useCombatStore.getState();
+  const view: ActionPanelView = getActionPanel(state);
+  // what the active character may declare, as the board's menu offers it
+  const menu = getActionMenu(state, state.activeCharacterId);
   const dispatch = useSceneDispatch();
 
-  const declare = (draft: ActionDraft) => {
-    const actorId = useCombatStore.getState().activeCharacterId;
-    if (actorId) dispatch({ kind: "declare", args: [actorId, draft] });
-  };
+  const press = (entry: MenuEntry) => dispatch({ kind: "menu", args: [entry.press] });
   const amend = (fields: Partial<ActionDraft>) => dispatch({ kind: "amend", args: [fields] });
   const target = (id: string) => dispatch({ kind: "target", args: [id] });
   const react = (reactorId: string, draft: ActionDraft, surge: SurgeKind | null) => dispatch({ kind: "react", args: [reactorId, draft, surge] });
@@ -49,5 +51,5 @@ export function useCombatActions() {
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, declare, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

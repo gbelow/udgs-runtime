@@ -23,6 +23,7 @@ import { Preparation } from './Preparation'
 import { ControlLocked, LockedFor } from './Locks'
 import { Modifiers } from './Modifiers'
 import { ACTION_ICONS } from './actionIcons'
+import { MenuEntryKey } from './ClickMenu'
 
 const STEP_LABEL = {
   declare: 'declare',
@@ -40,7 +41,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, menu, press, amend, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { mustStart } = useTurnControls()
   const knows = useKnows()
   const { step, open } = view
@@ -49,22 +50,30 @@ export function ActionPanel(){
     return (
       <Panel title='Actions'>
         <ControlLocked>
-          {view.categories.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
+          {menu.length === 0 && !view.follow ? <span className='text-xs text-muted'>no character in the fight</span> : null}
           {mustStart ? <span role='note' className='text-xs text-accent'>{mustStart}</span> : null}
           <FollowPicking />
           <div className='flex flex-row flex-wrap gap-1 items-center'>
-            {view.categories.map((c) => c.options.length === 1 && c.extras.length === 0
-              ? <OptionButton key={c.key} option={c.options[0]} onClick={() => declare(c.options[0].draft)} />
-              : (
-                <Dropdown key={c.key} label={`${c.key} actions`} text={<>{c.key}<> <span className='font-mono text-muted'>{c.available}/{c.total}</span></></>}>
-                  {(close) => (
-                    <div className='flex flex-col items-stretch gap-1'>
-                      {c.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => { declare(o.draft); close() }} />)}
-                      {c.extras.includes('follow') && view.follow ? <FollowOption offer={view.follow} onPress={close} /> : null}
-                    </div>
-                  )}
-                </Dropdown>
-              ))}
+            {menu.map((g) => {
+              const follow = g.category === 'tactical' ? view.follow : null
+              return g.entries.length === 1 && !follow
+                ? <MenuEntryKey key={g.category} entry={g.entries[0]} onPress={() => press(g.entries[0])} />
+                : (
+                  <Dropdown key={g.category} label={`${g.category} actions`} text={<>{g.category}<> <span className='font-mono text-muted'>{g.open}/{g.entries.length}</span></></>}>
+                    {(close) => (
+                      <div className='flex flex-col items-stretch gap-1'>
+                        {g.entries.map((e, i) => <MenuEntryKey key={`${e.label}:${i}`} entry={e} onPress={() => { press(e); close() }} />)}
+                        {follow ? <FollowOption offer={follow} onPress={close} /> : null}
+                      </div>
+                    )}
+                  </Dropdown>
+                )
+            })}
+            {view.follow && !menu.some((g) => g.category === 'tactical') ? (
+              <Dropdown label='tactical actions' text='tactical'>
+                {(close) => <FollowOption offer={view.follow!} onPress={close} />}
+              </Dropdown>
+            ) : null}
           </div>
         </ControlLocked>
         <Prepared rows={view.prepared} />

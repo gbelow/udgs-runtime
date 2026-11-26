@@ -3,7 +3,7 @@ import type { Action, ActionDraft, LootSource, ActionOf, ActionRoll, SceneState,
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, CampaignCharacter, Character, Item, MoveKind, Skills, SurgeKind } from '../../types'
-import { ACTION_CATEGORIES, getActionDef, isAttackAction, isReactionAction, type ActionCategory } from '../rules/actionCatalog'
+import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAnswersBySurge, getAvailableActions, getAwaited, getConfirmable, getGoBar, getUnconfirmedAnswers } from '../rules/options'
@@ -394,11 +394,6 @@ export type PushView = {
 export type ActionPanelView = {
   step: ActionStep | null
   open: OpenActionView | null
-  // with nothing open: what the active character can declare, under the
-  // headings of rules/actionCatalog.ts `ACTION_CATEGORIES`, those with
-  // something to show; `extras` are what a heading holds besides the actions
-  // (a tread while a spell is held, follow), and the counts include them
-  categories: { key: ActionCategory; options: ActionOptionView[]; available: number; total: number; extras: 'follow'[] }[]
   // combat.tex "Follow": marking whom to follow is offered with the tactical
   // actions, null when there is nobody to follow
   follow: FollowOffer | null
@@ -480,7 +475,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, categories: [], follow: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, commitBar: null, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, follow: null, reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, commitBar: null, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -611,17 +606,8 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
   const edits = getEditsSince(state)
 
   if (!open) {
-    const own = active ? labelled(state, active.id, getAvailableActions(state, active.id)) : []
     const follow = active ? getFollowOffer(state, active.id) : null
-    const categories = ACTION_CATEGORIES
-      .map((key) => ({ key, options: own.filter((o) => (getActionDef(o.draft.kind).category ?? 'tactical') === key) }))
-      .map((c) => {
-        const extras = follow && c.key === 'tactical' ? ['follow' as const] : []
-        const openExtras = extras.filter(() => follow?.bar === null)
-        return { ...c, extras, available: c.options.filter((o) => o.available).length + openExtras.length, total: c.options.length + extras.length }
-      })
-      .filter((c) => c.options.length > 0 || c.extras.length > 0)
-    return { ...EMPTY, step: getNextStep(state), follow, categories, episodes, edits, prepared: getPreparedRows(state) }
+    return { ...EMPTY, step: getNextStep(state), follow, episodes, edits, prepared: getPreparedRows(state) }
   }
 
   const { open: offered, hopOptions, ...offers } = getActionOffers(state)
@@ -688,7 +674,6 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     episodes,
     edits,
     prepared: getPreparedRows(state),
-    categories: [],
     follow: null,
     awaited: step === 'react' ? getAwaited(state).map((id) => getFightName(state, id)) : [],
     unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
