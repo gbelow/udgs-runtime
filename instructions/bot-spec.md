@@ -102,10 +102,7 @@ STAharm = w.STA x STA + w.IL x STA x bleed
 T = Σ threat, P = Σ prevented, D = Σ defense cost, n = allies within w.solitude, me included
 num allies is the amount of party members within w.solitude m radius of the location, including self. 
 
-y = AP / D
-covered = 1 − (1 − y)ⁿ for y < 1, and 1 beyond
-
-exposure(cell, AP) = (T − P × covered) / n
+exposure(cell, AP) = (T − P × min(1, n × AP / D)) / n
   my share of the harm I could take − what my AP can prevent of it
 
 drain = exposure(character, AP after its action) − exposure(character, AP it holds) + STAharm of its action

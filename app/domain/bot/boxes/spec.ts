@@ -630,6 +630,34 @@ function avoid(input: SeatInput, id: string, w: SpecWeights, find: Find, press: 
 // The move a defence of an ally is made after goes to the cell of the least
 // exposure the defence can be made from. Null with no such move open, or none
 // worth making.
+// A move of the character's that ends on someone it puts aside, the cells it
+// may put them in offered (displace.ts `getPendingDisplacement`, read off
+// what is offered, since the faces the seat guesses may not be put aside
+// where the real ones are): a foe where the character's side has the most
+// potential threat on it, an ally where it is exposed to least; one it does
+// not see (a foe, since allies are seen) where the first cell offered is.
+function displace(input: SeatInput, id: string, w: SpecWeights): Decision | null {
+  const view = input.view()
+  const open = getOpenAction(view)
+  if (open?.kind !== 'move' || open.actorId !== id || open.step !== 'post') return null
+  const end = open.path.at(-1)
+  const who = end ? Object.keys(view.characters).find((c) => { const at = cellOf(view, c); return c !== id && !!at && sameCell(at, end) }) : undefined
+  const offered = input.choices.filter((c) => c.actorId === id && c.part === 'cell')
+  if (!offered.length) return null
+  if (!who) return { kind: 'press', pick: offered[0], why: 'puts aside someone it does not see' }
+  const { members } = input
+  const team = getTeam(view, members)
+  const ally = team.includes(who)
+  const side = ally ? getSides(view, members).foes : team
+  const on = (c: (typeof offered)[number]) => {
+    const { q, r } = c.value as Coord
+    return getEvadedThreat(getExposure(view, members, side, who, 'potential', w, [{ id: who, at: { q, r } }]))
+  }
+  const rated = offered.map((c) => ({ c, threat: on(c) })).sort((x, y) => (ally ? x.threat - y.threat : y.threat - x.threat))
+  const best = rated[0]
+  return { kind: 'press', pick: best.c, why: `puts ${view.characters[who]?.name ?? who} aside where ${ally ? 'it is exposed to least' : 'its side threatens it most'} (${best.threat.toFixed(1)})` }
+}
+
 function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | null {
   const view = input.view()
   const walks = getOpenedWalks(view, id)
@@ -1005,7 +1033,7 @@ export function specBox(w: SpecWeights): Box {
       const made = wait.for === 'answer' ? press(find('confirmReaction', wait.id), 'is done answering') ?? answer(input, wait.id, w, find, press)
         : wait.for === 'turn' ? takeTurn(input, wait.id, w, find, press)
         : wait.for === 'rest' ? rest(input, wait.id, w, input.notes)
-        : (wait.for === 'action' ? stepOpened(input, wait.id, w) : null) ?? settleWait(input, wait, find, press, w)
+        : (wait.for === 'action' ? displace(input, wait.id, w) ?? stepOpened(input, wait.id, w) : null) ?? settleWait(input, wait, find, press, w)
       if (made) return made
     }
     const view = input.view()
