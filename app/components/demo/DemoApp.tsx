@@ -18,7 +18,7 @@ import { ActiveFace } from '../ActiveFace'
 import { useTray } from '../../hooks/useTray'
 import type { DemoFate, DemoOutcome } from '../../domain/scene/projections/demo'
 import { BoardCanvas } from '../BoardCanvas'
-import { ZoomButtons } from '../BoardPanel'
+import { MotionButtons, ZoomButtons } from '../BoardPanel'
 import { ClickMenuHost } from '../ClickMenu'
 import { RoundChangePanel } from '../RoundChangePanel'
 import { CharacterList, FightActions, FightButtons, SurgeTile } from '../ScenePanel'
@@ -235,9 +235,10 @@ function DemoBoard() {
         <span className='grow' />
         <IconButton icon={RotateCw} aria-label='turn' title='turn the move clockwise, or the character picked until the fight starts' onClick={() => turn(false)} />
         <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
+        <MotionButtons look={look} />
         <ZoomButtons camera={camera} />
       </div>
-      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={started ? space : undefined}
+      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={started ? space : undefined} motion={look.motion}
         onCell={(cell) => clickCell(cell, null, false, 0)} onToken={clickToken} onFloorItem={clickFloorItem} />
       <ClickMenuHost />
     </div>

@@ -4,6 +4,7 @@ import type { BoardCellView, BoardView } from '../domain/scene/projections/board
 import type { Coord } from '../domain/scene/types'
 import type { BoardCamera } from '../hooks/useBoardCanvas'
 import type { BoardHover, BoardStage } from '../board/stage'
+import type { BoardMotion } from '../board/playback'
 
 type Props = {
   view: BoardView
@@ -21,6 +22,8 @@ type Props = {
   // what the space bar does while the board has the focus, which it takes
   // under the pointer unless something is being written
   onSpace?: () => void
+  // how fast what happens on the board plays, or not at all
+  motion?: BoardMotion
 }
 
 const NONE: readonly string[] = []
@@ -28,7 +31,7 @@ const NONE: readonly string[] = []
 // The board drawn on a canvas (app/board), with what the pointer rests on said
 // in words beside it. Pixi is loaded only in the browser.
 export function BoardCanvas(props: Props){
-  const { view, veiled, picked = NONE, label, className, onSpace } = props
+  const { view, veiled, picked = NONE, label, className, onSpace, motion = 'normal' } = props
   const host = useRef<HTMLDivElement>(null)
   const stage = useRef<BoardStage | null>(null)
   const latest = useRef(props)
@@ -51,6 +54,7 @@ export function BoardCanvas(props: Props){
       })
       stage.current = made
       latest.current.camera.attach(made)
+      made.setMotion(latest.current.motion ?? 'normal')
       made.set({ view: latest.current.view, veiled: latest.current.veiled, picked: latest.current.picked ?? NONE })
     })
     return () => {
@@ -62,6 +66,7 @@ export function BoardCanvas(props: Props){
   }, [])
 
   useEffect(() => { stage.current?.set({ view, veiled, picked }) }, [view, veiled, picked])
+  useEffect(() => { stage.current?.setMotion(motion) }, [motion])
 
   const title = hover ? titleOf(view, hover) : null
   return (

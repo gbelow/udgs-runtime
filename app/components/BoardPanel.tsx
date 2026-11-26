@@ -12,7 +12,7 @@ import { BoardCanvas } from './BoardCanvas'
 import { assetUrl } from '../board/assetUrl'
 import type { TerrainBrush } from '../domain/types'
 import { BRUSH_RADIUS_MOST, LIFT_LEAST, LIFT_MOST, LIGHT_LEVELS, GROUND_BRUSHES, SURFACE_TARGETS } from '../domain/lists'
-import { useBoardLook } from '../hooks/useBoardLook'
+import { useBoardLook, type BoardLook } from '../hooks/useBoardLook'
 import { useBotsPaused } from '../hooks/useBots'
 import { useEyes } from '../hooks/useSights'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
@@ -133,6 +133,7 @@ export function BoardPanel(){
       actions={<>
         <ZoomButtons camera={camera} />
         <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
+        <MotionButtons look={look} />
         {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
         {storeys.length > 1 ?
           <Segmented label='storey'>
@@ -184,7 +185,7 @@ export function BoardPanel(){
         </div>
       ) : null}
 
-      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={space}
+      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={space} motion={look.motion}
         onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
         onToken={clickToken}
         onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />
@@ -271,6 +272,22 @@ export function ZoomButtons({ camera }: { camera: BoardCamera }){
     <IconButton icon={ZoomOut} aria-label='zoom out' title='zoom out (or the wheel)' onClick={camera.zoomOut} />
     <IconButton icon={Scan} aria-label='fit board' disabled={!camera.zoomed} title='show the whole board' onClick={camera.reset} />
   </>)
+}
+
+const MOTION_TITLES: Record<BoardLook['motion'], string> = {
+  normal: 'what happens on the board plays: walks, blows, shots and spells',
+  fast: 'what happens on the board plays at twice the speed',
+  off: 'nothing plays: tokens jump straight to where they end up',
+}
+
+// How fast the board plays what happens, or not at all; kept in the browser.
+export function MotionButtons({ look }: { look: Pick<BoardLook, 'motion' | 'setMotion'> }){
+  return (
+    <Segmented label='animation'>
+      {(['normal', 'fast', 'off'] as const).map((m) =>
+        <Segment key={m} selected={look.motion === m} title={MOTION_TITLES[m]} onClick={() => look.setMotion(m)}>{m === 'normal' ? 'play' : m}</Segment>)}
+    </Segmented>
+  )
 }
 
 // The board widened or narrowed around its centre. A shrink waits for the GM

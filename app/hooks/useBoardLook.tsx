@@ -1,21 +1,25 @@
 import { useEffect, useState } from "react";
 import { LIFT_LEAST, LIFT_MOST, LIFT_PER_METRE } from "../domain/lists";
+import type { BoardMotion } from "../board/playback";
 
 // How this viewer sees the board: from the front, higher ground lifted up the
-// screen, or from above, and how much a metre lifts. A per-viewer
+// screen, or from above, how much a metre lifts, and how fast what happens
+// on it plays (walks, blows, streaks), or not at all. A per-viewer
 // convenience kept in the browser, never part of the fight.
-export type BoardLook = { front: boolean; lift: number; setFront: (front: boolean) => void; setLift: (lift: number) => void };
+export type BoardLook = { front: boolean; lift: number; motion: BoardMotion; setFront: (front: boolean) => void; setLift: (lift: number) => void; setMotion: (motion: BoardMotion) => void };
 
 const KEY = "chargenfallow.boardLook.v2";
 
-type Stored = { front: boolean; lift: number };
-const DEFAULT: Stored = { front: true, lift: LIFT_PER_METRE };
+type Stored = { front: boolean; lift: number; motion: BoardMotion };
+const DEFAULT: Stored = { front: true, lift: LIFT_PER_METRE, motion: "normal" };
+const MOTIONS: readonly BoardMotion[] = ["normal", "fast", "off"];
 
 function read(): Stored {
   try {
     const raw = JSON.parse(window.localStorage.getItem(KEY) ?? "null");
     const lift = typeof raw?.lift === "number" && raw.lift >= LIFT_LEAST && raw.lift <= LIFT_MOST ? raw.lift : DEFAULT.lift;
-    return { front: typeof raw?.front === "boolean" ? raw.front : DEFAULT.front, lift };
+    const motion = MOTIONS.find((m) => m === raw?.motion) ?? DEFAULT.motion;
+    return { front: typeof raw?.front === "boolean" ? raw.front : DEFAULT.front, lift, motion };
   } catch {
     return DEFAULT;
   }
@@ -39,6 +43,7 @@ export function useBoardLook(): BoardLook {
   return {
     ...look,
     setFront: (front) => change({ ...look, front }),
+    setMotion: (motion) => change({ ...look, motion }),
     setLift: (lift) => change({ ...look, lift: Number.isFinite(lift) ? Math.min(LIFT_MOST, Math.max(LIFT_LEAST, lift)) : look.lift }),
   };
 }

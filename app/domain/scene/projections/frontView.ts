@@ -229,8 +229,10 @@ function build(view: BoardView, lift: number): BoardView {
   })
 
   const motions = view.motions.map((m) => ({ ...m, steps: m.steps.map((s) => ({ ...s, y: s.y - rise(s.elevation) })) }))
+  const onGround = <T extends { cell: string; y: number }>(s: T): T => ({ ...s, y: s.y - rise(elevationOf.get(s.cell) ?? 0) })
+  const strikes = view.strikes.map((x) => ({ ...x, at: x.at && onGround(x.at), cells: x.cells.map(onGround) }))
 
-  return { ...view, ground, front: true, bands: ground.bands, cells, rims, ridges: ground.ridges, chords: ground.chords, overhead: ground.overhead, tokens, floor, binds, ghosts, motions, sprites: ground.sprites, frame: ground.frame }
+  return { ...view, ground, front: true, bands: ground.bands, cells, rims, ridges: ground.ridges, chords: ground.chords, overhead: ground.overhead, tokens, floor, binds, ghosts, motions, strikes, sprites: ground.sprites, frame: ground.frame }
 }
 
 // The groups of what is drawn over the middle of any of these cells, seen from

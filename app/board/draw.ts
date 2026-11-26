@@ -1,6 +1,6 @@
-import { type AlphaFilter, type BlurFilter, Container, Graphics, Matrix, Sprite, Text, Texture, Rectangle, type TextStyleOptions } from 'pixi.js'
+import { type AlphaFilter, type BlurFilter, type Filter, Container, Graphics, Matrix, Sprite, Text, Texture, Rectangle, type TextStyleOptions } from 'pixi.js'
 import type { BoardBindView, BoardCellView, BoardChordView, BoardCornerView, BoardFloorItemView, BoardGhostView, BoardGround, BoardGroundCell, BoardOverheadView, BoardRidgeView, BoardSpriteView, BoardTokenView, BoardView } from '../domain/scene/projections/boardView'
-import type { BoardMarkerView } from '../domain/scene/projections/boardMotion'
+import type { BoardMarkerView, BoardPosture } from '../domain/scene/projections/boardMotion'
 import type { Gauges } from '../domain/character/lenses/bars'
 import { shadeOf, type GaugeKey } from '../gaugeShades'
 import type { Tone } from '../domain/scene/projections/outcomes'
@@ -23,6 +23,8 @@ export type Kit = {
   texture: (src: string) => Texture | null
   blur: (sigma: number) => BlurFilter
   fade: (alpha: number) => AlphaFilter
+  // the filter a token's picture is seen through when it lies dead or collapsed
+  dim: (look: 'grey' | 'dark') => Filter
 }
 
 export function colorOf(kit: Kit, paint: Paint): { color: number; alpha: number } {
@@ -435,19 +437,27 @@ export function drawToken(kit: Kit, t: BoardTokenView, hex: Point[], picked: boo
   const body = new Container()
   body.position.set(x, y)
   out.addChild(body)
+  // the picture and what is worn on it, laid down, darkened or greyed as the
+  // character lies (`POSTURES`); the stage eases it from one way to the next
+  const figure = new Container()
+  figure.label = FIGURE
+  const look = POSTURES[t.posture]
+  figure.scale.set(look.x, look.y)
+  if (look.filter) figure.filters = [kit.dim(look.filter)]
+  body.addChild(figure)
   const g = new Graphics()
   g.circle(0, 0, radius).fill(colorOf(kit, { color: 'raised' }))
   const picture = t.image ? kit.texture(t.image) : null
   if (picture) g.circle(0, 0, radius).fill({ texture: picture, textureSpace: 'local' })
   if (t.targetable || t.hidden) { dashed(g, circlePoints(radius), true, [0.2, 0.12]); g.stroke({ width, ...colorOf(kit, { color: ring }) }) }
   else g.circle(0, 0, radius).stroke({ width, ...colorOf(kit, { color: ring }) })
-  if (t.isInTurn) g.circle(0, 0, radius + 0.13).stroke({ width: 0.1, ...colorOf(kit, { color: 'good' }) })
+  if (t.isInTurn) g.circle(0, 0, radius + 0.13).stroke({ width: 0.1, ...colorOf(kit, { color: 'fg' }) })
   if (t.shieldAngle !== null) {
     const shield = new Graphics().roundRect(0.72 * scale, -0.45 * scale, 0.16, 0.9 * scale, 0.05).fill(colorOf(kit, { color: 'accent' }))
     shield.rotation = (t.shieldAngle * Math.PI) / 180
-    body.addChild(g, shield)
-  } else body.addChild(g)
-  if (!picture) body.addChild(label(t.name.slice(0, 2), 0.45 * scale, kit.palette.fg, { x: 0, y: 0 }))
+    figure.addChild(g, shield)
+  } else figure.addChild(g)
+  if (!picture) figure.addChild(label(t.name.slice(0, 2), 0.45 * scale, kit.palette.fg, { x: 0, y: 0 }))
   body.addChild(label(t.name, 0.32, kit.palette.fg, { x: 0, y: radius + 0.33 }, { x: 0.5, y: 0.75 }, { fontWeight: '600', stroke: { color: kit.palette.bg, width: 0.16 * TEXT_SIZE / 0.32, join: 'round' } }))
   if (t.hanging) {
     const chevron = new Graphics().moveTo(0.7 * scale, -0.4).lineTo(0.95 * scale, 0).lineTo(0.7 * scale, 0.4).stroke({ width: 0.1, cap: 'round', join: 'round', ...colorOf(kit, { color: 'good' }) })
@@ -455,8 +465,37 @@ export function drawToken(kit: Kit, t: BoardTokenView, hex: Point[], picked: boo
     body.addChild(chevron, label(`⇡${t.hanging.covered}/${t.hanging.height}`, 0.32, kit.palette.good, { x: 0.75 * scale, y: -0.8 * scale }, { x: 0.5, y: 0.8 }))
   }
   if (t.depth > 0) body.addChild(label(`↓${t.depth}`, 0.35, kit.palette.accent, { x: 0, y: -radius - 0.18 }, { x: 0.5, y: 0.8 }))
-  body.addChild(drawGauge(kit, t.gauge, radius))
+  if (t.posture === 'dead') {
+    out.alpha *= DEAD_ALPHA
+    body.addChild(drawCross(kit, radius))
+  } else body.addChild(drawGauge(kit, t.gauge, radius))
   return out
+}
+
+// What a token's picture is called inside it, for the stage to find.
+export const FIGURE = 'figure'
+
+// How a token's picture is drawn for each way its character lies: its scale
+// across and up, and the filter it is seen through. Prone is laid flat;
+// collapsed flat and darkened; dead shrunk and greyed, its gauges gone.
+export const POSTURES: Record<BoardPosture, { x: number; y: number; filter: 'grey' | 'dark' | null }> = {
+  standing: { x: 1, y: 1, filter: null },
+  prone: { x: 1, y: 0.62, filter: null },
+  collapsed: { x: 1, y: 0.62, filter: 'dark' },
+  dead: { x: 0.85, y: 0.85, filter: 'grey' },
+}
+const DEAD_ALPHA = 0.75
+
+// The cross over the dead, above where their gauges were.
+function drawCross(kit: Kit, radius: number): Graphics {
+  const [top, arm] = [-radius - 0.42, 0.11]
+  return new Graphics()
+    .moveTo(0, top).lineTo(0, top + 0.36)
+    .moveTo(-arm, top + 0.11).lineTo(arm, top + 0.11)
+    .stroke({ width: 0.17, cap: 'round', ...colorOf(kit, { color: 'bg', alpha: 0.8 }) })
+    .moveTo(0, top).lineTo(0, top + 0.36)
+    .moveTo(-arm, top + 0.11).lineTo(arm, top + 0.11)
+    .stroke({ width: 0.08, cap: 'round', ...colorOf(kit, { color: 'fg' }) })
 }
 
 // What a token is seen to have left, as three arcs round its ring, each a
@@ -499,16 +538,20 @@ export function drawMarker(kit: Kit, m: BoardMarkerView): Container {
 }
 
 // The rings round the characters the committed action still waits on, which
-// the stage pulses.
-export function drawAwaited(kit: Kit, tokens: BoardTokenView[]): Graphics {
-  const g = new Graphics()
+// the stage pulses: one to each, named by whose it is, so that it goes along
+// with their token.
+export function drawAwaited(kit: Kit, tokens: BoardTokenView[]): Container {
+  const out = new Container()
   for (const t of tokens) {
     if (!t.awaited) continue
     const { x, y, radius } = tokenBody(t)
+    const g = new Graphics()
+    g.label = t.id
     dashed(g, circlePoints(radius + 0.2, x, y), true, [0.25, 0.15])
     g.stroke({ width: 0.08, ...colorOf(kit, { color: 'accent' }) })
+    out.addChild(g)
   }
-  return g
+  return out
 }
 
 const BIND_STROKE: Record<BoardBindView['kind'], { paint: Paint; dash?: number[] }> = {
