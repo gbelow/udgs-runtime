@@ -38,6 +38,8 @@ export type BoardEvents = {
   // what the pointer is on, with where it is in the canvas's own pixels
   onHover?: (hover: BoardHover | null) => void
   onZoomed?: (zoomed: boolean) => void
+  // when what the board has been given will have been played (`performance.now()`)
+  onPlaying?: (until: number) => void
 }
 
 const ZOOM_STEP = 1.2
@@ -207,6 +209,7 @@ export class BoardStage {
     top.removeChildren()
     this.part(this.parts, 'overhead', top, [view.ground.overhead, view.hex, this.textures], () => drawOverhead(this.kit, view.ground.overhead, view.hex))
     this.playback.queue(view, performance.now())
+    this.events.onPlaying?.(this.playback.busyUntil)
     this.part(this.parts, 'tokens', top, [view.tokens, view.hex, picked, this.textures], () => {
       const out = new Container()
       this.tokenNodes.clear()

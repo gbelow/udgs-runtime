@@ -80,6 +80,14 @@ export class Playback {
     this.pace = this.reduced ? 0 : PACE[motion]
   }
 
+  // When what has been given is played out: the last of what waits its turn,
+  // and every walk.
+  get busyUntil(): number {
+    let until = this.cursor
+    for (const w of this.walks.values()) until = Math.max(until, w.start + (w.times.at(-1) ?? 0))
+    return until
+  }
+
   // How long something that takes `ms` at the normal pace takes now.
   private ms(ms: number): number {
     return this.pace > 0 ? ms / this.pace : 0

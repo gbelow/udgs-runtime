@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getCellAt } from "../domain/scene/projections/boardView";
+import { usePlaybackStore } from "../stores/usePlaybackStore";
 
 // What the board's canvas is zoomed and panned by: the buttons beside it reach
 // the stage drawing it, and are told whether it is zoomed. A per-viewer
@@ -31,3 +32,11 @@ export function useBoardCamera(): BoardCamera {
 export function useCellAt() {
   return getCellAt;
 }
+
+// Where the board says when it will have played what it was given, for the
+// bots and the time to contest to wait on (`usePlaybackStore`).
+export function usePlaybackReport(): (until: number) => void {
+  return reportPlayback;
+}
+
+const reportPlayback = (until: number) => usePlaybackStore.getState().setUntil(until);

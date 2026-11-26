@@ -9,6 +9,7 @@ import { haveBotsAnswered } from "../bots/client";
 import { playOf } from "../net/parts";
 import { useAppStoreApi } from "../stores/useAppStore";
 import { useBotLogStore } from "../stores/useBotLogStore";
+import { isBoardPlaying } from "../stores/usePlaybackStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { readFight } from "../stores/useKeptFight";
@@ -47,6 +48,7 @@ export function useContest(): { view: ContestView | null; left: number | null; s
   useEffect(() => {
     if (turn === null || paused) return;
     const timer = setInterval(() => {
+      if (isBoardPlaying()) return;
       setRun((was) => was + TICK_MS / 1000);
       setThought((was) => (was === null ? null : was + TICK_MS / 1000));
     }, TICK_MS);
@@ -79,7 +81,8 @@ function getPeople(state: SceneState, ownerOf: (id: string) => string | undefine
 
 // The table's clock for the time to contest a turn, kept on the screen that
 // keeps the table (never a guest's): it is closed as `isContestDue` says, and
-// stands still while the bots are paused.
+// stands still while the bots are paused and while the board is still playing
+// what happened, as the clock each screen shows does on its own board.
 export function useContestClock() {
   const mode = useTableStore((s) => s.mode);
   const app = useAppStoreApi();
@@ -99,7 +102,7 @@ export function useContestClock() {
       if (turn !== state.turnsBegun) { turn = state.turnsBegun; run = 0; thought = null; }
       const paused = useBotLogStore.getState().paused;
       if (thought === null && state.thinking.length > 0) thought = 0;
-      if (!paused) { run += TICK_MS; if (thought !== null) thought += TICK_MS; }
+      if (!paused && !isBoardPlaying()) { run += TICK_MS; if (thought !== null) thought += TICK_MS; }
       const { viewerOf, thrower } = live.current;
       const me = app.getState().profile?.id ?? null;
       const { ownerOf } = viewerOf(me ?? "", false);

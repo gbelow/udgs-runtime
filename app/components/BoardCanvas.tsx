@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { BoardCellView, BoardView } from '../domain/scene/projections/boardView'
 import type { Coord } from '../domain/scene/types'
-import type { BoardCamera } from '../hooks/useBoardCanvas'
+import { usePlaybackReport, type BoardCamera } from '../hooks/useBoardCanvas'
 import type { BoardHover, BoardStage } from '../board/stage'
 import type { BoardMotion } from '../board/playback'
 
@@ -37,6 +37,7 @@ export function BoardCanvas(props: Props){
   const latest = useRef(props)
   latest.current = props
   const [hover, setHover] = useState<BoardHover | null>(null)
+  const report = usePlaybackReport()
 
   useEffect(() => {
     let alive = true
@@ -51,6 +52,7 @@ export function BoardCanvas(props: Props){
         onFloorItem: onFloorItem ? (id) => latest.current.onFloorItem?.(id) : undefined,
         onHover: (h) => { setHover(h); latest.current.setLit?.(h?.kind === 'cell' ? h.key : null) },
         onZoomed: (z) => latest.current.camera.setZoomed(z),
+        onPlaying: report,
       })
       stage.current = made
       latest.current.camera.attach(made)
@@ -63,7 +65,7 @@ export function BoardCanvas(props: Props){
       stage.current = null
       latest.current.camera.attach(null)
     }
-  }, [])
+  }, [report])
 
   useEffect(() => { stage.current?.set({ view, veiled, picked }) }, [view, veiled, picked])
   useEffect(() => { stage.current?.setMotion(motion) }, [motion])
