@@ -136,7 +136,7 @@
   "Demo": {
     "name": "Demo",
     "text": "",
-    "board": "Arena 1",
+    "board": "Demo field",
     "parties": [
       {
         "name": "Your party",
