@@ -332,13 +332,13 @@ function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coo
   return made
 }
 
-// The AP `a` has left for attacks once it has walked `walk` AP, of what it
-// holds or of a fresh round's: with the surge it may still make, which shows
+// The AP `a` has left for attacks once it has walked `walk` AP of the `held`
+// it holds, or starts a fresh round with: with the surge it may still make, which shows
 // on a face (the user's rulings, 2026-11-24), the combat surge paying for walk
 // and attacks alike, or the movement surge for the walk alone, whichever
 // leaves more. A shot the focus surge opens is made with no other surge.
 function getLeft(a: CampaignCharacter, held: number, walk: number, focus: boolean, when: When): number {
-  const AP = when === 'potential' ? ROUND_AP : held
+  const AP = held
   const surge = when === 'potential' ? null : a.usedSurge
   if (focus) return surge === null || surge === 'focus' ? AP - walk : 0
   if (surge !== null) return AP - walk
@@ -348,7 +348,8 @@ function getLeft(a: CampaignCharacter, held: number, walk: number, focus: boolea
 const isMoved = (shifts: readonly Shift[], id: string): boolean => shifts.some((s) => s.id === id && s.at !== undefined)
 
 // The threat of `a` on `d` (see above), each where it stands holding what it
-// is believed to, but as `shifts` reads it. Of `plays`, only whether it holds
+// is believed to, a fresh round's AP for a potential threat, but as `shifts`
+// reads it. Of `plays`, only whether it holds
 // a character counts (its sheet, or its face). `by`: what the attack it is made
 // of is the most of, undefended unless told (`getEvadedThreat`).
 export function getThreat(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = [], by: (r: Exposure) => number = (r) => r.threat): Threat {
@@ -357,13 +358,14 @@ export function getThreat(view: SceneState, plays: readonly string[], a: string,
   const ca = view.characters[a]
   const cd = view.characters[d]
   if (!from.at || !on.at || !ca || !cd) return NO_ATTACKS
+  const held = when === 'potential' ? (shifts.find((s) => s.id === a)?.AP ?? ROUND_AP) : from.AP
   let most = NO_ATTACKS
   let reached = 0
   for (const { walk, rate } of getProfile(view, a, from.at, d, on.at, when === 'potential' ? null : cd.usedSurge, { a: isMoved(shifts, a), d: isMoved(shifts, d) }, w)) {
-    const AP = getLeft(ca, from.AP, 0, rate.focus, when)
+    const AP = getLeft(ca, held, 0, rate.focus, when)
     if (AP <= 0 || by(rate) * AP <= reached) continue
     const walked = walk(AP)
-    const left = walked === null ? 0 : getLeft(ca, from.AP, walked, rate.focus, when)
+    const left = walked === null ? 0 : getLeft(ca, held, walked, rate.focus, when)
     if (by(rate) * left <= reached) continue
     reached = by(rate) * left
     most = timesOf(rate, left)
@@ -395,14 +397,6 @@ export function getCompany(view: SceneState, id: string, cell: Coord | null, w: 
   }, 1)
 }
 
-// spec "Cost and exposure", Cost: the harm an AP is worth to one holding `AP`, exposed to `on`
-// with `company` beside it: what defending against its share of the attacks
-// prevents, over the AP that takes, or the AP it holds where that is more.
-export function getAPWorth(on: Exposure, company: number, AP: number): number {
-  const over = Math.max(on.defenceAP, company * AP)
-  return over > 0 ? on.prevented / over : 0
-}
-
 // spec "Cost and exposure", exposure: the harm that gets through to one holding `AP`,
 // which evades its share of the attacks as far as that pays for.
 export function getExposed(on: Exposure, company: number, AP: number): number {
@@ -411,9 +405,10 @@ export function getExposed(on: Exposure, company: number, AP: number): number {
 }
 
 // spec "Escape": the exposure that is too much, a share `courage` of the harm
-// the character can still take (combat.tex "Injuries and Death").
+// the character can still take (combat.tex "Injuries and Death"), less what it
+// bleeds by the next round ("Bleed").
 export function getExposureLimit(c: CampaignCharacter, w: SpecWeights): number {
-  return w.courage * w.IL * Math.max(0, getInjuryCapacity(c) - c.injuries.injuryLevel)
+  return w.courage * w.IL * Math.max(0, getInjuryCapacity(c) - c.injuries.injuryLevel) - w.IL * c.injuries.bleed
 }
 
 // spec "Strategies", "Attack": the potential threat of `a`, evaded, on one it cannot
@@ -431,6 +426,6 @@ export function getFarThreat(view: SceneState, a: string, d: string, w: SpecWeig
   const presence = getPresence(view, d, w)
   return (walked) => {
     const walk = (Math.max(0, edge - walked) / pace.metres) * pace.AP
-    return presence * rates.reduce((most, r) => Math.max(most, getEvadedThreat(r) * getLeft(ca, 0, walk, r.focus, 'potential')), 0)
+    return presence * rates.reduce((most, r) => Math.max(most, getEvadedThreat(r) * getLeft(ca, ROUND_AP, walk, r.focus, 'potential')), 0)
   }
 }

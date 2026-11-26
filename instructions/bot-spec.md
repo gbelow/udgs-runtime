@@ -5,7 +5,7 @@ If any immediate action, try taking turn.
 If no immediate action, do I have a positional action? 
 if yes, try to take turn. 
 Am I ok to end round?
-If no end round actions are worth it, remove AP cost from positional ones. If nothing worth it, end round ok
+If nothing worth it, end round ok
 
 ## Immediate actions
 
@@ -102,12 +102,15 @@ STAharm = w.STA x STA + w.IL x STA x bleed
 T = Σ threat, P = Σ prevented, D = Σ defense cost, n = allies within w.solitude, me included
 num allies is the amount of party members within w.solitude m radius of the location, including self. 
 
-Cost = AP × (P / D) × min(1, D / (n × AP held)) + STAharm
-  average harm an AP prevents × how much of my AP the defending needs
-
-
 exposure(cell, AP) = (T − P × min(1, n × AP / D)) / n
   my share of the harm I could take − what my AP can prevent of it
+
+drain = exposure(character, AP after its action) − exposure(character, AP it holds) + STAharm of its action
+  how much exposure increases with spending AP plus how much harm spending STA does
+
+  any time drain is used more than once in the same calculation, consider everyones AP synchronously. One characters AP influences the exposure of the other.
+
+danger(cell, AP) = max( immediate exposure(cell, AP), potential exposure(cell, 8 AP) )
 
 # Immediate Actions
 
@@ -118,9 +121,7 @@ OA drawn = the harm from the highest harm available opportunity attack received 
 
 Choose the target with the highest score, for the best attack/defense available choice.
 
-Score = harm + Cost(defense) + w.aggressivity × target threat + exposure(here, AP held) − exposure(end, AP left) − STAharm − OA drawn
-
-Read this as The harm I am expected to cause - how much that costs me to defend myself later - what expected harm it does to me + how much more vulnerable that makes my opponent + how dangerous is this foe
+Score = harm + drain(enemy) + w.aggressivity × target threat - drain(me) − OA drawn
 
 An attack is treted as a block, including the move to do it and its execution. It is reevaluated if anything changes before the attack happens.
 
@@ -145,8 +146,20 @@ Score = harm(explosion, reflex/block) + exposure(end, AP left) − exposure(here
 
 ### Escape
 
-Considered only if potential exposure(here) > w.courage × w.IL × (injury capacity − current IL).
-Score = exposure(here, AP held) − exposure(end, AP left) − w.aggro × (potential threat(here) − potential threat(end)) − STAharm − OA drawn. The highest Score wins, against attacks too.
+limit = w.courage × w.IL × (injury capacity − current IL) − w.IL × bleed
+
+Considered only if potential exposure(here) > limit
+
+harm(cell) = danger(cell, AP left) + STAharm + OA drawn
+  what getting there and standing there could cost me
+
+safe cells = cells with harm(cell) ≤ limit
+Go to the safe cell with the highest potential threat on target vs evasion
+  (with none in reach, the target is read nearer, as in Attack).
+  On a tie, the least harm.
+If there are none, don't escape.
+
+Score = danger(here, AP held) − harm(cell), if above 0. The highest Score wins, against attacks too.
 
 ### Protect
 
@@ -157,7 +170,7 @@ The ally's exposure is higher than mine, each with the AP it holds.
 A block, intercept or guard is open to me, with or without a step first. Surges are not considered.
 The Defense rule picks one of them, against the ally taking the hit undefended.
 
-Protect only if prevented > Cost(AP, STA) 
+Protect only if prevented > Drain(me)
   prevented using best defense. 
   prevented only counts added bleed.
 
@@ -167,9 +180,11 @@ Protect only if prevented > Cost(AP, STA)
 
 ### Tactical
 
-Move to place where
-Score(cell) = w.aggro × my potential threat on target there vs evasion − potential exposure(there, 8 AP) + potential exposure(here, 8 AP)
-Pick the cell and movement with the highest Score(there) − Score(here) − Cost − OA drawn, if above 0.
+Score(cell) = w.aggro × my potential threat on target there vs evasion
+
+Pick the cell and movement with the highest
+Score(there) − Score(here) − (danger(there, AP left) − danger(here, AP held)) − STAharm − OA drawn
+if above 0.
 
 
 ### Search
@@ -199,7 +214,18 @@ Score(cell) = w.aggro × potential threat(Aggro, me there) − potential exposur
 
 If threat on me is from ranged attacks, 
 
+# End of round
 
+## Resting
+
+recovery = maxSTA/2 x (1 - currentSTA/fullSTA)
+  STA is worth 2 AP when STA < 3, less when it is more. 
+
+Score = Exposure(self, 8AP) - Exposure(self, AP after resting + recovery) + threat(me, AP after resting + AP from recovery) - threat(me, 8 AP) + maxSTA/4 x w.STA x (1 - currentSTA/fullSTA)
+
+If my potential threat on the target is 0 from here: threat(me, AP) = far threat at the cell AP walks me to along the way to the target, the same Score as Tactical
+
+If Score = 0, rest if maxSTA/4 x w.STA x (1 - currentSTA/fullSTA)
 
 # Misc
 
