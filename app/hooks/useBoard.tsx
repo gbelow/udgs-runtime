@@ -17,6 +17,7 @@ import { useSightStore } from "../stores/useSightStore";
 import { getEyesBoard, lookingFrom } from "../domain/scene/projections/sights";
 import { usePendingItem } from "./useItemLens";
 import { useState } from "react";
+import { toast } from "sonner";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,
 // like the action panel. What a click means, and whom it acts for, is the
@@ -60,7 +61,10 @@ export function useBoard(look: Pick<BoardLook, "front" | "lift"> = { front: fals
     const read = readClick(state, c, { brush, radius, reposition, selected, newId: () => "" });
     if ("select" in read) setActiveCharacter(read.select);
     else if ("menu" in read) useClickMenuStore.getState().setMenu(read.menu);
-    else dispatch({ kind: "click", args: [c, brush, reposition, selected, radius] });
+    else {
+      if (read.bar) toast(read.bar);
+      dispatch({ kind: "click", args: [c, brush, reposition, selected, radius] });
+    }
   };
 
   const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean, radius: number) => click({ on: 'cell', cell, height }, brush, reposition, radius);

@@ -1,9 +1,8 @@
-import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
 import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type SurfaceTarget, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
 import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
-import { isInSpawnArea } from '../rules/board/spawn'
+import { getPlaceBar, getPlacementAt } from '../rules/board/spawn'
 import { BRUSH_RADIUS_MOST, CHORD_BRUSH_CORNER, DRAWN_WIDTH_LEAST, DRAWN_WIDTH_STEP, GROUND_ONLY_BRUSHES } from '../../lists'
 import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
@@ -178,11 +177,7 @@ export function loadBoardMap(raw: unknown): Updater {
 // character on the board is moved by a move, or by the GM
 // (`repositionCharacter`).
 export function placeCharacter(id: string, cell: Coord): Updater {
-  return (state) => {
-    if (state.board?.placements[id] && isCombatStarted(state)) return state
-    const placed = repositionCharacter(id, cell)(state)
-    return isInSpawnArea(placed, id) ? placed : state
-  }
+  return (state) => getPlaceBar(state, id, cell) === null ? withPlacements(state, { [id]: getPlacementAt(state, id, cell) }) : state
 }
 
 

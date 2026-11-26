@@ -6,6 +6,7 @@ import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { getBoardMode, getFloorPicker } from '../rules/board/boardMode'
 import { getOpenAction } from '../rules/log'
 import { getPickOn } from '../rules/board/reach'
+import { getPlaceBar } from '../rules/board/spawn'
 import { setTarget } from './action'
 import { paintTerrain, pickCell, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
 import { pickFloorItem } from './floor'
@@ -28,7 +29,8 @@ export type ClickContext = { brush: TerrainBrush | null, radius?: number, reposi
 // What a click means: whom it acts for and what it does to the fight, or the
 // character it picks on the screen it was made on, which the fight never sees, or
 // the menu of what could be done there (`getClickMenu`), which changes nothing until an entry is pressed.
-export type ClickReading = { actor: Actor, apply: Updater } | { select: string } | { menu: ClickMenu }
+// `bar`, why a character put down by hand cannot stand there, said to whoever clicked.
+export type ClickReading = { actor: Actor, apply: Updater, bar?: string | null } | { select: string } | { menu: ClickMenu }
 
 // What a click means in the state it lands on: painting if a brush is in
 // hand, a path edit while a move is being declared, the landing of an evasive
@@ -85,7 +87,7 @@ function readCell(state: SceneState, cell: Coord, ctx: ClickContext, height?: nu
     if (menu) return { menu }
   }
   if (mode === 'idle' && ctx.selected) {
-    return ctx.reposition ? { actor: 'gm', apply: repositionCharacter(ctx.selected, cell) } : { actor: { id: ctx.selected }, apply: placeCharacter(ctx.selected, cell) }
+    return ctx.reposition ? { actor: 'gm', apply: repositionCharacter(ctx.selected, cell) } : { actor: { id: ctx.selected }, apply: placeCharacter(ctx.selected, cell), bar: getPlaceBar(state, ctx.selected, cell) }
   }
   return NOTHING
 }
