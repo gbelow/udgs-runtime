@@ -540,6 +540,15 @@ export function getOwnCost(state: SceneState, action: Action): ActionCost | null
   return terms && terms.reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
 }
 
+// combat.tex "Interruption": an action committed and no longer possible as
+// declared by the time it is paid, what it drew having taken what it needs (a
+// weapon hand broken), is paid at its committed price and comes to nothing:
+// "The AP and STA costs of the action ... are lost" (the user's ruling).
+export function isNoLongerPossible(state: SceneState, action: Action): boolean {
+  const c = state.characters[action.actorId]
+  return !!c && action.committedCost !== null && !action.holding && getDeclaredCost(state, c, action) === null
+}
+
 // The lines `getOwnCost` adds up: what the action is priced at, then what
 // its recipe moved that by.
 export function getCostTerms(state: SceneState, action: Action): CostTerm[] | null {
@@ -555,7 +564,7 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
     return full && [{ label: 'held over to the next round', AP: Math.max(0, c.resources.AP), STA: full.STA }]
   }
   const own = getDeclaredCost(state, c, action)
-  if (!own) return null
+  if (!own) return isNoLongerPossible(state, action) ? [{ label: 'as committed, no longer possible', ...action.committedCost! }] : null
   const { declared, label, added } = getOwnModifiedPrice(state, action, own)
   const recipe = getRecipeCost(state, action, declared)
   const modified = addModifierLines(recipe, added)

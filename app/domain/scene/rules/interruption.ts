@@ -115,5 +115,6 @@ export function isInterruptedBy(state: SceneState, landed: Action, id: string): 
 // cut short where it was caught instead (`getMoveOverride`), and a push
 // carries on unless its pusher is stunned (`getPushStop`).
 export function isBroken(state: SceneState, action: Action): boolean {
+  if (action.impossible) return true
   return action.kind !== 'move' && action.kind !== 'drag' && getInterruptions(state, action).length > 0
 }

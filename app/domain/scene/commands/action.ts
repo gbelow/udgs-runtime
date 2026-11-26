@@ -4,7 +4,7 @@ import { getPendingSighting } from '../rules/sighting'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isNoLongerPossible, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { detect, getBystanderDetections, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
@@ -118,7 +118,7 @@ export function commitAction(thrown: Throw, newId: () => string): Updater {
     const hold = cost ? null : getHoldCost(state, open)
     if (!cost && !hold) return state
     // combat.tex "Concentration": what it cannot be paid for, it is held over
-    const committed: RootAction = { ...withCommitFacts(state, actor, open, toThrower(thrown).dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, step: 'react' }
+    const committed: RootAction = { ...withCommitFacts(state, actor, open, toThrower(thrown).dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, committedCost: getOwnCost(state, open), step: 'react' }
     const from = isJumpAttack(open) ? getJumpingState(open.kind === 'shoot' ? getFiringState(state, open) : state, open) : state
     const locked = replaceActions(state, [withStealthFacts(from, withMatesPassed(state, committed))])
     // abilities.tex "Steady Arms": the steps walked before the shot is fired
@@ -542,7 +542,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, caller: Ca
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    const stamped = { ...a, endsSurge: endsSurge(state, a), ...(a.id === root.id ? { unprotectedBy: getUnprotectedBy(state, a) } : {}) }
+    const stamped = { ...a, endsSurge: endsSurge(state, a), impossible: isNoLongerPossible(state, a), ...(a.id === root.id ? { unprotectedBy: getUnprotectedBy(state, a) } : {}) }
     const rolled = thrown(stamped)
     paid.push({ ...rolled, cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo, a.kind) : 0, preparedCrit: getPreparedCrit(state, rolled), step: a.id === root.id ? 'post' : 'done' })
   }

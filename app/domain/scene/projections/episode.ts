@@ -246,7 +246,8 @@ function getFate(state: SceneState, action: Action): string | null {
   const given = isInterruptible(action) ? getGivenUpFor(state, action) : null
   if (given) return `given up: ${actor} answered ${describe(state, given)} instead`
   const hit = getInterruptions(state, action)[0]
-  return hit ? `broken: ${describe(state, hit.by)} ${hit.level} ${actor} before it took effect` : null
+  if (hit) return `broken: ${describe(state, hit.by)} ${hit.level} ${actor} before it took effect`
+  return action.impossible ? `broken: ${actor} could no longer make it as declared, and its cost is lost` : null
 }
 
 // combat.tex "Interruption", "Crash", "Flee", "Evasive Jump"; the user's

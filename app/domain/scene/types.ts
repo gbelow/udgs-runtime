@@ -478,6 +478,13 @@ const ActionBase = {
   // the round it was declared in, stamped with the turn
   round: num.nullable().default(null),
   cost: ActionCostSchema.nullable().default(null),
+  // what the action cost as it was committed, which it is paid at should it
+  // no longer be possible as declared by the time it is paid (a weapon hand
+  // broken by an opportunity attack it drew); null before the commit
+  committedCost: ActionCostSchema.nullable().default(null),
+  // combat.tex "Interruption": paid for at its committed price, no longer
+  // possible as declared, so it comes to nothing; written as it is paid
+  impossible: z.boolean().default(false),
   // combat.tex "Actions in stealth": what the action, as it was committed,
   // will take off its actor's stealth value (rules/stealth.ts `getNoise`)
   noise: z.object({ AP: num, heardAP: num }).strip().nullable().default(null),

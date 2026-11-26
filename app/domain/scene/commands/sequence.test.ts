@@ -1554,3 +1554,26 @@ describe("a crash's displacement over an edge", () => {
     expect(getMoveFall(ledge, step, step.path, false)?.height).toBe(LEDGE)
   })
 })
+
+// Regression: a lunge's strike, whose weapon hand the opportunity attack its
+// jump drew broke, could no longer be priced, and waited at react for good.
+// combat.tex "Interruption": "The AP and STA costs of the action ... are
+// lost" (the user's ruling: it is paid, and comes to nothing).
+describe('a committed strike its weapon hands are broken under', () => {
+  it('is paid at its committed price and lands nothing', () => {
+    let s = onBoard({ a: [0, 0], b: [1, 0] }, spearman('a'), fighter('b'))
+    const row = getAttackOptions(s.characters.a, 'strike', true).find((o) => o.weaponKey === s.characters.a.held[0].id)!
+    s = declareAction('a', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('b')(s))
+    const root = getOpenAction(s)!
+    const broken = s.characters.a.body.filter((p) => /hand/i.test(p.id)).map((p) => ({ name: 'broken hand', part: p.id, IL: 10, perDay: 0 }))
+    s = { ...s, characters: { ...s.characters, a: { ...s.characters.a, injuries: { ...s.characters.a.injuries, wounds: broken } } } }
+    const before = { a: s.characters.a.resources, b: s.characters.b }
+    const { state } = playOut(s, LAND)
+    const strike = getLog(state).find((a) => a.id === root.id)!
+    expect(strike.impossible).toBe(true)
+    expect(state.characters.a.resources.AP).toBe(before.a.AP - root.committedCost!.AP)
+    expect(state.characters.a.resources.STA).toBe(before.a.STA - root.committedCost!.STA)
+    expect(state.characters.b.injuries).toEqual(before.b.injuries)
+  })
+})
