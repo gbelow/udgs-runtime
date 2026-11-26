@@ -31,6 +31,7 @@ import { BotsPause } from './BotsPause';
 import { ContestBar } from './ContestBar';
 import { EndRound } from './EndRound';
 import { EndTurn } from './EndTurn';
+import { OwnChips, TargetList } from './FocusBar';
 
 // The scene's pieces of the run screen.
 
@@ -212,9 +213,10 @@ export function FightActions(){
   const { waiting, pick } = useFollowOwing()
   const hasActive = useHasActiveCharacter()
   const face = useActiveFace()
-  if (hasActive && !face) return <SceneActions />
+  if (hasActive && !face) return <><OwnChips /><SceneActions /><TargetList /></>
   return(
     <>
+      <OwnChips />
       <SceneCalls />
       <span className='text-xs text-muted'>{face ? `${face.name} is not yours to play` : 'pick a character'}</span>
       {waiting ? <Button tone='accent' className='self-start' onClick={pick}>the fight waits on {waiting.name}</Button> : null}

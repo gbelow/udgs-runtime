@@ -89,6 +89,10 @@ export class Playback {
   }
 
   // How long something that takes `ms` at the normal pace takes now.
+  paced(ms: number): number {
+    return this.ms(ms)
+  }
+
   private ms(ms: number): number {
     return this.pace > 0 ? ms / this.pace : 0
   }

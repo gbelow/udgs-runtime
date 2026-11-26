@@ -6,7 +6,7 @@ import { NO_SIGHTS, type SightMemory } from '../domain/scene/projections/sights'
 // and whom they know to be in it; the last of theirs they picked, whose eyes
 // they look through; and for a GM, whether the board is seen through the eyes
 // of whoever is picked.
-type SightStore = {
+export type SightStore = {
   player: boolean
   own: readonly string[]
   memory: SightMemory

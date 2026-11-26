@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { getCellAt } from "../domain/scene/projections/boardView";
+import { useCameraStore } from "../stores/useCameraStore";
 import { usePlaybackStore } from "../stores/usePlaybackStore";
 
 // What the board's canvas is zoomed and panned by: the buttons beside it reach
@@ -31,6 +32,16 @@ export function useBoardCamera(): BoardCamera {
 // The cell a point of the board's plane picks (`getCellAt`).
 export function useCellAt() {
   return getCellAt;
+}
+
+// The character this screen last asked the board's camera to look at, and
+// asking for one: the board snaps to them.
+export function useCameraAsked(): { id: string; n: number } | null {
+  return useCameraStore((s) => s.asked);
+}
+
+export function useLookAt(): (id: string) => void {
+  return useCameraStore((s) => s.ask);
 }
 
 // Where the board says when it will have played what it was given, for the

@@ -52,11 +52,19 @@ const BLUR_PER_SIGMA = 2
 const VEIL_BLUR = 0.15
 const VEIL_OPACITY = 0.45
 const PULSE_SECONDS = 2
+// how wide a hex is drawn by default, in the canvas's pixels: close enough
+// for the art on a token to read
+const CLOSE_HEX_PX = 70
+// how long the camera takes to glide to whoever comes to hold the turn
+const GLIDE_MS = 200
 
 type Part = { deps: unknown[]; object: Container }
 type Band = { root: Container; normal: Container; veiled: Container; parts: Record<string, Part> }
 
 const sameDeps = (a: unknown[], b: unknown[]) => a.length === b.length && a.every((x, i) => x === b[i])
+
+// Whoever holds the turn, where they are drawn in sight on this floor.
+const inTurn = (view: BoardView) => view.tokens.find((t) => t.isInTurn && !t.heard && !t.elsewhere)
 
 export class BoardStage {
   private app = new Application()
@@ -82,6 +90,10 @@ export class BoardStage {
   private shade: { deps: unknown[]; map: ShadeMap | null } = { deps: [], map: null }
   private shadeTargets = makeShadeTargets()
   private camera = { scale: 1, x: 0, y: 0, zoomed: false, fit: 1 }
+  // where the camera glides to, from where, and when
+  private glide: { from: Point; to: Point; start: number; end: number } | null = null
+  // the one holding the turn the camera last went to
+  private followed: string | null = null
   private framed = ''
   private frameRequest = 0
   private press: { id: number; x: number; y: number; camera: { x: number; y: number }; panning: boolean } | null = null
@@ -209,7 +221,8 @@ export class BoardStage {
     top.removeChildren()
     this.part(this.parts, 'overhead', top, [view.ground.overhead, view.hex, this.textures], () => drawOverhead(this.kit, view.ground.overhead, view.hex))
     this.playback.queue(view, performance.now())
-    this.events.onPlaying?.(this.playback.busyUntil)
+    this.follow(view)
+    this.events.onPlaying?.(Math.max(this.playback.busyUntil, this.glide?.end ?? 0))
     this.part(this.parts, 'tokens', top, [view.tokens, view.hex, picked, this.textures], () => {
       const out = new Container()
       this.tokenNodes.clear()
@@ -304,9 +317,11 @@ export class BoardStage {
       if (this.disposed) return
       const pulsing = !!this.drawn?.view.tokens.some((t) => t.awaited)
       if (this.awaited) this.awaited.alpha = pulsing ? 0.5 + 0.5 * Math.cos((2 * Math.PI * time) / (PULSE_SECONDS * 1000)) : 1
-      const playing = this.playback.frame(Math.max(time, performance.now()), this.drawn?.view, { tokens: this.tokenNodes, awaited: this.awaited, binds: this.parts.binds?.object ?? null })
+      const now = Math.max(time, performance.now())
+      const gliding = this.stepGlide(now)
+      const playing = this.playback.frame(now, this.drawn?.view, { tokens: this.tokenNodes, awaited: this.awaited, binds: this.parts.binds?.object ?? null })
       this.app.render()
-      if (pulsing || playing) this.render()
+      if (pulsing || playing || gliding) this.render()
     })
   }
 
@@ -314,23 +329,109 @@ export class BoardStage {
   // Camera
 
   private place() {
-    this.world.scale.set(this.camera.scale)
-    this.world.position.set(this.camera.x, this.camera.y)
-    this.blurs.forEach((filter, sigma) => { filter.strength = sigma * BLUR_PER_SIGMA * this.camera.scale })
+    this.applyCamera()
     this.render()
   }
 
-  private fit() {
-    if (!this.input) return
-    const { x, y, width, height } = this.input.view.frame
-    const [w, h] = [this.app.screen.width, this.app.screen.height]
-    const scale = Math.min(w / width, h / height)
-    this.camera = { scale, fit: scale, x: (w - width * scale) / 2 - x * scale, y: (h - height * scale) / 2 - y * scale, zoomed: false }
-    this.events.onZoomed?.(false)
+  private applyCamera() {
+    this.world.scale.set(this.camera.scale)
+    this.world.position.set(this.camera.x, this.camera.y)
+    this.blurs.forEach((filter, sigma) => { filter.strength = sigma * BLUR_PER_SIGMA * this.camera.scale })
+  }
+
+  // The scale at which the whole board fits the canvas, and at which a hex is
+  // drawn `CLOSE_HEX_PX` wide.
+  private scales(): { whole: number; close: number } {
+    const view = this.input!.view
+    const { width, height } = view.frame
+    const xs = view.hex.map((p) => p.x)
+    const hex = xs.length > 0 ? Math.max(...xs) - Math.min(...xs) : 0
+    const whole = Math.min(this.app.screen.width / width, this.app.screen.height / height)
+    return { whole, close: hex > 0 ? CLOSE_HEX_PX / hex : whole }
+  }
+
+  // Where the camera stands to put a point of the board in the canvas's middle
+  // at `scale`.
+  private centred(at: Point, scale: number): Point {
+    return { x: this.app.screen.width / 2 - at.x * scale, y: this.app.screen.height / 2 - at.y * scale }
+  }
+
+  private setCamera(scale: number, at: Point) {
+    this.glide = null
+    const zoomed = scale > this.camera.fit * 1.001
+    this.camera = { ...this.camera, scale, ...this.centred(at, scale), zoomed }
+    this.events.onZoomed?.(zoomed)
     this.place()
   }
 
+  // The whole board in the canvas.
+  private fitWhole() {
+    if (!this.input) return
+    const { x, y, width, height } = this.input.view.frame
+    const { whole } = this.scales()
+    this.camera = { ...this.camera, fit: whole }
+    this.setCamera(whole, { x: x + width / 2, y: y + height / 2 })
+  }
+
+  // The board as it is first seen: close, on whoever holds the turn if they
+  // are seen, else on whoever is picked, or the whole of it where that is
+  // closer still.
+  private fit() {
+    if (!this.input) return
+    const view = this.input.view
+    const { whole, close } = this.scales()
+    this.camera = { ...this.camera, fit: whole }
+    const holder = inTurn(view)
+    this.followed = holder?.id ?? null
+    const on = holder ?? view.tokens.find((t) => t.isActive && !t.heard)
+    if (close <= whole || !on) return this.fitWhole()
+    this.setCamera(close, tokenBody(on))
+  }
+
+  // The camera glides to whoever comes to hold the turn, once the board has
+  // played what came before, unless the whole board is in sight or they are
+  // not. A character who drops out of sight and back is gone to again.
+  private follow(view: BoardView) {
+    const holder = inTurn(view)
+    if (holder?.id === this.followed) return
+    this.followed = holder?.id ?? null
+    if (!holder || !this.camera.zoomed) return
+    const to = this.centred(tokenBody(holder), this.camera.scale)
+    const ms = this.playback.paced(GLIDE_MS)
+    if (ms === 0) {
+      this.glide = null
+      this.camera = { ...this.camera, ...to }
+      this.place()
+      return
+    }
+    const start = Math.max(performance.now(), this.playback.busyUntil)
+    this.glide = { from: { x: this.camera.x, y: this.camera.y }, to, start, end: start + ms }
+    this.render()
+  }
+
+  // The glide moved on to `now`; whether it is still under way.
+  private stepGlide(now: number): boolean {
+    const g = this.glide
+    if (!g) return false
+    if (now < g.start) return true
+    const t = Math.min(1, (now - g.start) / (g.end - g.start))
+    const k = t < 0.5 ? 2 * t * t : 1 - (2 - 2 * t) ** 2 / 2
+    this.camera = { ...this.camera, x: g.from.x + (g.to.x - g.from.x) * k, y: g.from.y + (g.to.y - g.from.y) * k }
+    this.applyCamera()
+    if (t < 1) return true
+    this.glide = null
+    return false
+  }
+
+  // The camera snapped to a character, at least as close as by default.
+  lookAt(id: string) {
+    const t = this.input?.view.tokens.find((x) => x.id === id)
+    if (!t) return
+    this.setCamera(Math.max(this.camera.scale, this.scales().close), tokenBody(t))
+  }
+
   private zoomAt(factor: number, at: Point) {
+    this.glide = null
     const c = this.camera
     const scale = Math.min(c.fit * MAX_ZOOM, Math.max(c.fit * MIN_ZOOM, c.scale * factor))
     const k = scale / c.scale
@@ -341,14 +442,18 @@ export class BoardStage {
 
   zoomIn() { this.zoomAt(ZOOM_STEP, { x: this.app.screen.width / 2, y: this.app.screen.height / 2 }) }
   zoomOut() { this.zoomAt(1 / ZOOM_STEP, { x: this.app.screen.width / 2, y: this.app.screen.height / 2 }) }
-  reset() { this.fit() }
+  reset() { this.fitWhole() }
 
   private onResize() {
     const [w, h] = [Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight)]
     if (w === this.app.screen.width && h === this.app.screen.height) return
     this.app.renderer.resize(w, h)
-    if (this.camera.zoomed) this.render()
-    else this.fit()
+    if (!this.input) return
+    if (this.camera.zoomed) {
+      this.camera = { ...this.camera, fit: this.scales().whole }
+      this.render()
+    }
+    else this.fitWhole()
   }
 
   // ---------------------------------------------------------------------------
@@ -413,6 +518,7 @@ export class BoardStage {
     if (!press.panning) {
       if (Math.hypot(dx, dy) < PAN_SLOP) return
       press.panning = true
+      this.glide = null
       this.app.canvas.setPointerCapture(e.pointerId)
       this.app.canvas.style.cursor = 'grabbing'
       this.hovered = ''

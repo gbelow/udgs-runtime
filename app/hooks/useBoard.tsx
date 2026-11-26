@@ -1,4 +1,4 @@
-import type { BoardExtent, Coord, GroundRecipe, LightLevel, SurfaceTarget } from "../domain/scene/types";
+import type { BoardExtent, Coord, GroundRecipe, LightLevel, SeenScene, SurfaceTarget } from "../domain/scene/types";
 import { EXPLOSION_DRAFT, EXPLOSION_EFFECTS, IMPOSE_AFFLICTIONS, IMPOSE_DAMAGE_KINDS, type ExplosionDraft } from "../domain/scene/rules/impose";
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, CHORD_BRUSH_ICONS, getBoardView, getBoardViewDigest, getBoardViewFrom, getBoardViewFromDigest, getResizeWarning } from "../domain/scene/projections/boardView";
@@ -13,7 +13,7 @@ import { useClickMenuStore } from "../stores/useClickMenuStore";
 import { useGmPickStore } from "../stores/useGmPickStore";
 import { useSceneDispatch } from "./useSceneDispatch";
 import { useFollowPick } from "./useFollowPick";
-import { useSightStore } from "../stores/useSightStore";
+import { useSightStore, type SightStore } from "../stores/useSightStore";
 import { getEyesBoard, lookingFrom } from "../domain/scene/projections/sights";
 import { usePendingItem } from "./useItemLens";
 import { useState } from "react";
@@ -26,6 +26,14 @@ import { toast } from "sonner";
 // screen has picked.
 const NONE: string[] = [];
 
+// The fight as the screen looks at it, and the board in it as drawn before
+// the floor and the front view are picked: a player through the eyes of one
+// of theirs, a GM through those of whoever is picked or at all of it.
+export function readSeenBoard(fight: SeenScene, sight: Pick<SightStore, "player" | "eyes" | "last" | "memory" | "own">): { state: SeenScene; seen: BoardView } {
+  const state = sight.player ? lookingFrom(fight, sight.last) : fight;
+  return { state, seen: sight.player ? getEyesBoard(state, sight.own, sight.memory) : sight.eyes ? getBoardViewFrom(state) : getBoardView(state) };
+}
+
 // `storey` is the height the board is looked at from, or 'auto' for the floor
 // whoever looks stands on. A player looks through the eyes of one of theirs
 // (`useEyes`), a GM through those of whoever is picked, or at all of it.
@@ -36,10 +44,8 @@ export function useBoard(look: Pick<BoardLook, "front" | "lift"> = { front: fals
   const memory = useSightStore((s) => s.memory);
   const own = useSightStore((s) => s.own);
   useCombatStore((s) => (player ? getBoardViewFromDigest(lookingFrom(s, last)) : eyes ? getBoardViewFromDigest(s) : getBoardViewDigest(s)));
-  const fight = useCombatStore.getState();
-  const state = player ? lookingFrom(fight, last) : fight;
+  const { state, seen } = readSeenBoard(useCombatStore.getState(), { player, eyes, last, memory, own });
   const height = getViewHeight(state, storey);
-  const seen = player ? getEyesBoard(state, own, memory) : eyes ? getBoardViewFrom(state) : getBoardView(state);
   const flat: BoardView = getStoreyView(state, seen, height, getViewEye(state, storey));
   const view = look.front ? getFrontView(flat, look.lift) : flat;
   const storeys = getStoreyChoices(state.board);
