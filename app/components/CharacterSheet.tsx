@@ -12,7 +12,8 @@ import { SkillTooltip } from './SkillTooltip';
 import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useInjuryLens } from '../hooks/useinjuryLens';
-import { useResourceLens } from '../hooks/useResourceLens';
+import { useResourceBars, useResourceLens } from '../hooks/useResourceLens';
+import { HURT, THIRDS } from './SceneCards';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveAfflictions, useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
@@ -94,11 +95,57 @@ export function ResourceTiles({ children, after, needs = true }: { children?: Re
   )
 }
 
-export function InjuryDials({ action }: { action?: ReactNode }){
+// AP, STA and IL as bars coloured as a face shows them, one under the other,
+// with what is passed in (the surges) under them.
+export function ResourceBars({ after }: { after?: ReactNode }){
+  const { tableName, name } = useActiveCharacterData()
+  const bars = useResourceBars()
+  const [AP, setAP] = useResourceLens('AP')
+  const [STA, setSTA] = useResourceLens('STA')
+  const { injuries, setInjury } = useInjuryLens()
+  const { updateSTA, updateIL } = useCharacterCommands()
+  if (!bars) return null
+  const IL = injuries.injuryLevel
+  return(
+    <div className='flex flex-col gap-1 min-w-0'>
+      <SectionLabel className='block max-w-full truncate !text-xs'>{tableName || name}</SectionLabel>
+      <div className='flex flex-col gap-2 items-start'>
+        <div className='flex flex-col gap-1.5 w-full min-w-0'>
+          <Bar label='AP' value={AP} fill={bars.AP.fill} color={THIRDS[bars.AP.third].className} title={THIRDS[bars.AP.third].label}
+            set={setAP} raise={() => setAP(AP + 1)} lower={() => setAP(AP - 1)} />
+          <Bar label='STA' value={STA} fill={bars.STA.fill} color={THIRDS[bars.STA.third].className} title={THIRDS[bars.STA.third].label}
+            set={setSTA} raise={() => setSTA(STA + 1)} lower={() => updateSTA(STA - 1)} />
+          <Bar label='IL' value={IL} fill={bars.IL.fill} color={HURT[bars.IL.tens]} title={`injury level, collapse marked`} mark={bars.IL.collapse}
+            set={(v) => setInjury('injuryLevel', v)} raise={() => setInjury('injuryLevel', IL + 1)} lower={() => updateIL(IL - 1)} />
+        </div>
+        {after}
+      </div>
+    </div>
+  )
+}
+
+function Bar({ label, value, fill, color, title, mark, set, raise, lower }: { label: string, value: number, fill: number, color: string, title: string, mark?: number, set: (value: number) => void, raise: () => void, lower: () => void }){
+  return(
+    <div className='flex flex-row items-center gap-1.5'>
+      <span className='w-7 shrink-0 text-[10px] text-muted'>{label}</span>
+      <div title={title} className='relative grow min-w-12 h-3 rounded-sm border border-line bg-raised overflow-hidden'>
+        <div className={`absolute inset-y-0 left-0 ${color}`} style={{ width: `${fill}%` }} />
+        {mark !== undefined ? <div className='absolute inset-y-0 w-px bg-fg/70' style={{ left: `${mark}%` }} /> : null}
+      </div>
+      <NumberInput className='w-10 border-transparent text-sm px-0' aria-label={label} value={value} onChange={(e) => set(parseInt(e.target.value) || 0)} />
+      <div className='flex flex-row gap-0.5'>
+        <IconButton icon={Plus} aria-label={`raise ${label}`} title='raise' onClick={raise} />
+        <IconButton icon={Minus} aria-label={`lower ${label}`} title='lower' onClick={lower} />
+      </div>
+    </div>
+  )
+}
+
+export function InjuryDials({ action, level = true }: { action?: ReactNode, level?: boolean }){
   return(
     <div className='flex flex-row flex-wrap gap-3 items-end'>
       <InjuryControl type='potion' />
-      <InjuryControl type='injuryLevel' />
+      {level ? <InjuryControl type='injuryLevel' /> : null}
       <InjuryControl type='bleed' />
       <InjuryControl type='burning' />
       {action}

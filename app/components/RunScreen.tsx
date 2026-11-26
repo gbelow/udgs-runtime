@@ -12,7 +12,7 @@ import { TradePanel } from './TradePanel';
 import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
-import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
+import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceBars, ResourceTiles, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { TableParties } from './TableParties';
 import { TableLink, TableWait, ViewAs } from './RunParts';
 import { useTableWaiting } from '../hooks/useTable';
@@ -51,6 +51,8 @@ type Mode = {
   resourceEnd?: ReactNode
   // whether exhaustion, hunger and thirst show among the tiles
   needs: boolean
+  // whether AP, STA and IL show as bars, with what sits beside the stamina under them
+  bars?: boolean
   injuryAction?: ReactNode
   // what is pressed for no one character, beside who acts
   buttons?: ReactNode
@@ -66,9 +68,9 @@ const MODES: Record<RunTab, Mode> = {
     strip: <SceneStrip />,
     parties: <TableParties />,
     space: <SceneSpace />,
-    resource: <SimpleResource rssName={'AP'} />,
-    resourceEnd: <SurgeTile />,
+    resourceEnd: <SurgeTile wide />,
     needs: false,
+    bars: true,
     injuryAction: <KillButton />,
     buttons: <FightButtons />,
     actions: <FightActions />,
@@ -122,7 +124,7 @@ const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
 // mode's.
 export function RunScreen(){
   const { tab } = useGameTab()
-  const { strip, parties, space, resource, resourceEnd, needs, injuryAction, buttons, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
+  const { strip, parties, space, resource, resourceEnd, needs, bars, injuryAction, buttons, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const { gmTools: hasGmTools } = useRole()
   const hasActiveCharacter = useHasActiveCharacter()
   const face = useActiveFace()
@@ -163,7 +165,7 @@ export function RunScreen(){
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} injuryAction={injuryAction} /> : PICK}
+          {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} bars={bars} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           <ActionColumn gmTools={gmTools} buttons={buttons}>{actions}</ActionColumn>
@@ -266,11 +268,11 @@ function SheetTabs({ own }: { own: boolean }){
 // resources, the injury dials and the pending tests are the character's,
 // edited and rolled by whoever plays them, while the kill button, the wounds
 // and the afflictions are the GM's.
-export function Status({ resource, resourceEnd, needs, injuryAction }: { resource?: ReactNode, resourceEnd?: ReactNode, needs: boolean, injuryAction?: ReactNode }){
+export function Status({ resource, resourceEnd, needs, bars = false, injuryAction }: { resource?: ReactNode, resourceEnd?: ReactNode, needs: boolean, bars?: boolean, injuryAction?: ReactNode }){
   return(
     <>
-      <ControlLocked><ResourceTiles needs={needs} after={resourceEnd}>{resource}</ResourceTiles></ControlLocked>
-      <ControlLocked><InjuryDials action={injuryAction ? <GmLocked>{injuryAction}</GmLocked> : undefined} /></ControlLocked>
+      <ControlLocked>{bars ? <ResourceBars after={resourceEnd} /> : <ResourceTiles needs={needs} after={resourceEnd}>{resource}</ResourceTiles>}</ControlLocked>
+      <ControlLocked><InjuryDials level={!bars} action={injuryAction ? <GmLocked>{injuryAction}</GmLocked> : undefined} /></ControlLocked>
       <ActiveConditions />
       <ControlLocked><PendingPanel /></ControlLocked>
     </>

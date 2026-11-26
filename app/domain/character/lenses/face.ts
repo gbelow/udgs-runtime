@@ -24,7 +24,7 @@ export const SHOWN_IL_STEP = 10
 const blank = CampaignCharacterSchema.parse({})
 const faces = new WeakMap<CampaignCharacter, CampaignCharacter>()
 
-function thirdOf(value: number, most: number): Third {
+export function thirdOf(value: number, most: number): Third {
   if (most <= 0 || 3 * value > 2 * most) return 2
   return 3 * value > most ? 1 : 0
 }

@@ -514,13 +514,13 @@ function HeldTestsPanel(){
 // The action surge, one a round: a button for each, which opens what it does
 // for the character before it is made; the one made stays lit until the round
 // changes (combat.tex "Action surge": one per round).
-export function SurgeTile(){
+export function SurgeTile({ wide = false }: { wide?: boolean }){
   const { endSurge } = useCharacterCommands()
   const options = useSurgeViews()
   const binding = useBindingSurge()
 
   return(
-    <div role='group' aria-label='action surges' className='flex flex-col items-start rounded border border-line bg-surface px-1.5 py-1 max-w-80'>
+    <div role='group' aria-label='action surges' className={`flex flex-col items-start rounded border border-line bg-surface px-1.5 py-1 ${wide ? 'self-stretch' : 'max-w-80'}`}>
       <span className='text-[10px] text-muted'>surge</span>
       <div className='flex flex-row flex-wrap gap-1'>
         {options.map((option) => option.used

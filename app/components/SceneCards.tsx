@@ -24,7 +24,7 @@ export function SceneCards(){
   )
 }
 
-const THIRDS = [
+export const THIRDS = [
   { label: 'low', className: 'bg-bad' },
   { label: 'middling', className: 'bg-caution' },
   { label: 'high', className: 'bg-good' },
@@ -37,7 +37,7 @@ function Left({ value }: { value: SceneCard['AP'] }){
   return <span title={`${third.label} (a third)`} aria-label={third.label} className={`inline-block w-2 h-2 rounded-full ${third.className}`} />
 }
 
-const HURT = ['bg-good', 'bg-injury-1', 'bg-injury-2', 'bg-injury-3', 'bg-injury-4', 'bg-injury-5'] as const
+export const HURT = ['bg-good', 'bg-injury-1', 'bg-injury-2', 'bg-injury-3', 'bg-injury-4', 'bg-injury-5'] as const
 
 // How hurt: the number, or on a token a colour for every ten.
 function Hurt({ value }: { value: SceneCard['IL'] }){

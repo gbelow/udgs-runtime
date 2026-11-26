@@ -1,4 +1,5 @@
 import { makeResourceLens } from "../domain/character/lenses/factories";
+import { getResourceBars, type ResourceBars } from "../domain/character/lenses/bars";
 import { Character, Resources } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
@@ -17,4 +18,9 @@ export function useResourceLens(keyName: keyof Resources) {
   };
 
   return [value, setValue] as const;
+}
+
+// The active character's AP, STA and IL as bars, or null off a campaign sheet.
+export function useResourceBars(): ResourceBars | null {
+  return useActiveCharacterSelector((c: Character) => (isCampaignCharacter(c) ? getResourceBars(c) : null));
 }

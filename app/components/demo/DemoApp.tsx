@@ -24,7 +24,6 @@ import { RoundChangePanel } from '../RoundChangePanel'
 import { CharacterList, FightActions, FightButtons, SurgeTile } from '../ScenePanel'
 import { AutoThrow, Status } from '../RunScreen'
 import { ActionLog } from '../ActionPanel'
-import { SimpleResource } from '../CharacterSheet'
 import { Button, IconButton, SectionLabel, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
 import { Basics, HelpButton, HintLine, Objective } from './DemoHelp'
@@ -130,7 +129,7 @@ function DemoTable() {
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {face ? <ActiveFace /> : hasActive ? <Status resource={<SimpleResource rssName={'AP'} />} resourceEnd={<SurgeTile />} needs={false} /> : <span className='text-xs text-muted'>pick a character</span>}
+          {face ? <ActiveFace /> : hasActive ? <Status resourceEnd={<SurgeTile wide />} needs={false} bars /> : <span className='text-xs text-muted'>pick a character</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><FightButtons /></div> : null}
