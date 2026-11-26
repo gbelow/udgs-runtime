@@ -162,7 +162,22 @@ void main() {
 
 // The shade of the board, ready to be laid over its cells: the texture, and
 // how its pixels lie over the plane.
-export type ShadeMap = { texture: RenderTexture; plane: Point; scale: number; destroy: () => void }
+export type ShadeMap = { texture: RenderTexture; plane: Point; scale: number }
+
+// The textures the shade is drawn through, kept from one drawing to the next
+// and resized to each, so that none drawn on the board is ever destroyed under
+// it; `shade` is the one a shade map hands out.
+export type ShadeTargets = { raw: RenderTexture; soft: RenderTexture; shade: RenderTexture }
+
+export function makeShadeTargets(): ShadeTargets {
+  return { raw: RenderTexture.create({ width: 1, height: 1 }), soft: RenderTexture.create({ width: 1, height: 1 }), shade: RenderTexture.create({ width: 1, height: 1 }) }
+}
+
+export function destroyShadeTargets(targets: ShadeTargets): void {
+  targets.raw.destroy(true)
+  targets.soft.destroy(true)
+  targets.shade.destroy(true)
+}
 
 const AMBIENT_DARK: Record<BoardCellView['ambient'], number> = { bright: 0, dim: NIGHT_DIM, dark: NIGHT_DARK }
 const darkOf = (c: BoardCellView): number => (c.unseen ? UNSEEN : AMBIENT_DARK[c.ambient])
@@ -202,9 +217,9 @@ function quad(width: number, height: number): MeshGeometry {
   })
 }
 
-// The board's shade drawn by `renderer`, from its cells, their thin walls and
-// the sources of light; null for a board with no cells.
-export function drawShadeMap(renderer: Renderer, cells: BoardCellView[], chords: BoardChordView[], lights: BoardLightView[]): ShadeMap | null {
+// The board's shade drawn by `renderer` into `targets`, from its cells, their
+// thin walls and the sources of light; null for a board with no cells.
+export function drawShadeMap(renderer: Renderer, targets: ShadeTargets, cells: BoardCellView[], chords: BoardChordView[], lights: BoardLightView[]): ShadeMap | null {
   if (cells.length === 0) return null
   const points = cells.map(planeOf)
   const [x0, y0] = [Math.min(...points.map((p) => p.x)) - MARGIN, Math.min(...points.map((p) => p.y)) - MARGIN]
@@ -234,10 +249,10 @@ export function drawShadeMap(renderer: Renderer, cells: BoardCellView[], chords:
       },
     }),
   })
-  const raw = RenderTexture.create({ width, height })
+  const { raw, soft, shade } = targets
+  for (const target of [raw, soft, shade]) target.source.resize(width, height)
   renderer.render({ container: light, target: raw, clear: true })
 
-  const soft = RenderTexture.create({ width, height })
   const blurred = new Sprite(raw)
   const blur = new BlurFilter({ strength: BLUR * BLUR_PER_SIGMA * scale, quality: 4 })
   blurred.filters = [blur]
@@ -245,7 +260,6 @@ export function drawShadeMap(renderer: Renderer, cells: BoardCellView[], chords:
   holder.addChild(blurred)
   renderer.render({ container: holder, target: soft, clear: true })
 
-  const shade = RenderTexture.create({ width, height })
   const compose = new Mesh({ geometry, shader: Shader.from({ gl: { vertex: VERTEX, fragment: COMPOSE, name: 'board-shade' }, resources: { uMap: soft.source } }) })
   renderer.render({ container: compose, target: shade, clear: true })
 
@@ -257,9 +271,7 @@ export function drawShadeMap(renderer: Renderer, cells: BoardCellView[], chords:
   blur.destroy()
   geometry.destroy()
   grid.texture.destroy(true)
-  raw.destroy(true)
-  soft.destroy(true)
-  return { texture: shade, plane: { x: x0, y: y0 }, scale, destroy: () => shade.destroy(true) }
+  return { texture: shade, plane: { x: x0, y: y0 }, scale }
 }
 
 // The shade over the corners thin walls cut off, drawn with the ground they

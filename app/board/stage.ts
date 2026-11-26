@@ -6,7 +6,7 @@ import { readPalette } from './palette'
 import { getTexture } from './textures'
 import { drawFlatGround } from './ground'
 import { FLOOR_ITEM_HALF, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, tokenBody, type Kit } from './draw'
-import { drawShadeCorners, drawShadeMap, drawShadeOver, type ShadeMap } from './light'
+import { destroyShadeTargets, drawShadeCorners, drawShadeMap, drawShadeOver, makeShadeTargets, type ShadeMap } from './light'
 
 // The board drawn on a canvas by Pixi: the view as the domain gives it, laid
 // out band by band, each part of a band drawn again only when what it is
@@ -76,6 +76,7 @@ export class BoardStage {
   private fades = new Map<number, AlphaFilter>()
   private kit: Kit
   private shade: { deps: unknown[]; map: ShadeMap | null } = { deps: [], map: null }
+  private shadeTargets = makeShadeTargets()
   private camera = { scale: 1, x: 0, y: 0, zoomed: false, fit: 1 }
   private framed = ''
   private frameRequest = 0
@@ -145,7 +146,7 @@ export class BoardStage {
       this.app.canvas.remove()
       this.app.destroy(true, { children: true })
     }
-    this.shade.map?.destroy()
+    destroyShadeTargets(this.shadeTargets)
     this.blurs.forEach((f) => f.destroy())
     this.fades.forEach((f) => f.destroy())
   }
@@ -176,10 +177,8 @@ export class BoardStage {
       this.fit()
     }
     const shadeDeps = [view.cells, view.chords, view.lights]
-    const old = sameDeps(this.shade.deps, shadeDeps) ? null : this.shade.map
-    if (!sameDeps(this.shade.deps, shadeDeps)) this.shade = { deps: shadeDeps, map: drawShadeMap(this.app.renderer, view.cells, view.chords, view.lights) }
+    if (!sameDeps(this.shade.deps, shadeDeps)) this.shade = { deps: shadeDeps, map: drawShadeMap(this.app.renderer, this.shadeTargets, view.cells, view.chords, view.lights) }
     this.syncBands(view, veiled)
-    old?.destroy()
     const top = this.top
     top.removeChildren()
     this.part(this.parts, 'overhead', top, [view.ground.overhead, view.hex, this.textures], () => drawOverhead(this.kit, view.ground.overhead, view.hex))
