@@ -12,14 +12,14 @@ const OBJECTIVE = 'Be the last side standing. A character is out when they colla
 
 const BASICS = [
   { title: 'Where to act', text: 'Double click a character, start your turn, then click a cell, a foe or an item. The options will appear on the screen.' },
-  { title: 'AP lasts the whole round', text: 'Attacks, moves and defenses all spend Action Points(AP), and it comes back only next round: keep some to defend.' },
+  { title: 'AP lasts the whole round', text: 'Attacks, moves and defenses all spend Action Points (AP), and it comes back only next round: keep some to defend.' },
   { title: 'Turns have no fixed order', text: 'There is no turn order. Enemies will try to start theirs, so contest them to take yours.' },
   { title: 'Injury Level', text: 'If a character\'s IL reaches 50, they are out of the game.' },
 ]
 
 const HINTS: Record<DemoHint, { title: string, text: string }> = {
-  action: { title: 'Actions', text: 'Pressing commit, roll or done in the action bar is irreversible. ' },
-  answer: { title: 'Reactions', text: 'You need to choose reactions to things others do to you, which usally happens outside your turn. Reactions cost AP, and not defending is very bad without armor.' },
+  action: { title: 'Actions', text: 'Pressing commit, roll or done in the action bar is irreversible.' },
+  answer: { title: 'Reactions', text: 'You need to choose reactions to things others do to you, which usually happens outside your turn. Reactions cost AP, and not defending is very bad without armor.' },
   turn: { title: 'STA and bleed', text: 'STA can be used to power actions and do surges, which give reserve AP. Spending 1 STA causes IL damage equal to bleed. Bleed also causes IL damage every end of round.' },
   round: { title: 'Ending the round', text: 'The end round ok button signals that all your characters accept to end the round. Any unspent AP can be used to recover STA.' },
 }

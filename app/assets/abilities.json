@@ -2770,7 +2770,7 @@
             }
           ]
         ],
-        "description": "Jumps toward the target before the attack and attacks from the final position. This movement triggers opportunity attacks and braced attacks normally.",
+        "description": "Jumps toward the target before the attack and attacks from the final position. This movement triggers opportunity attacks and braced attacks normally. Lunge can only be used during the character's turn.",
         "effect": [],
         "recipes": [
           {
