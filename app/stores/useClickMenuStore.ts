@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import type { ClickMenu } from '../domain/scene/commands/clickMenu'
-import type { WalkKey, WalkState } from '../domain/scene/projections/openWalk'
+import type { ReactorPick, WalkKey, WalkState } from '../domain/scene/projections/openWalk'
 
-// The action an entry of the menu declared or answered, walked a step at a
-// time where the menu was (`from`).
-export type MenuWalk = WalkState & { from: ClickMenu }
+// The action an entry of the menu declared or reacted to, walked a step at a
+// time where the menu was (`from`); of its reactions, the reactor picked to
+// be shown, and whether they are put away to a button (`collapsed`), or as
+// whether the viewer has any to make says (null).
+export type MenuWalk = WalkState & { from: ClickMenu, pick: ReactorPick | null, collapsed: boolean | null }
 
 // The menu a click on the board has opened, until it is pressed or dismissed,
 // and the walk an entry of it started, until what it walks is played out,
@@ -18,6 +20,8 @@ type ClickMenuStore = {
   bindWalk: (actionId: string) => void
   stepWalk: (walk: string, key: WalkKey) => void
   backWalk: (walk: string, key: WalkKey) => void
+  pickReactor: (pick: ReactorPick) => void
+  collapseWalk: (collapsed: boolean) => void
   closeWalk: () => void
 }
 
@@ -35,5 +39,7 @@ export const useClickMenuStore = create<ClickMenuStore>((set) => ({
     const passed = passedOf(s.walk, key)
     return { walk: { ...s.walk, passed: { ...s.walk.passed, [key]: passed.slice(0, Math.max(0, passed.lastIndexOf(step))) } } }
   }),
+  pickReactor: (pick) => set((s) => (s.walk ? { walk: { ...s.walk, pick, collapsed: false } } : {})),
+  collapseWalk: (collapsed) => set((s) => (s.walk ? { walk: { ...s.walk, collapsed } } : {})),
   closeWalk: () => set({ walk: null }),
 }))

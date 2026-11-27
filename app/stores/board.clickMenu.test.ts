@@ -95,7 +95,7 @@ describe('the walk of an action declared from the menu', () => {
     const menu = h.menu({ on: 'token', id: h.idOf(name) })!
     const entry = aimedAt(h, name)[nth]
     h.pressMenu(entry)
-    store().startWalk({ from: menu, actorId: h.active()!, actionId: null, given: getGivenSteps(entry.press), passed: {} })
+    store().startWalk({ from: menu, actorId: h.active()!, actionId: null, given: getGivenSteps(entry.press), passed: {}, pick: null, collapsed: null })
     expect(read(h), `${entry.label} opens a walk`).not.toBeNull()
     through(h, () => { const v = read(h); return v?.kind === 'declare' ? v : null }, change)
     return entry

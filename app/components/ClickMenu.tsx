@@ -1,12 +1,12 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Dices, Hourglass, Play, X } from 'lucide-react'
+import { Check, ChevronUp, Dices, Hourglass, Play, X } from 'lucide-react'
 import { useClickMenu, useOpenWalk } from '../hooks/useClickMenu'
 import { ActionKey, Button, Closed, Floating, IconButton, SectionLabel } from './ui'
 import { Locked, LockedFor } from './Locks'
 import { useControlBar } from '../hooks/useControl'
 import type { MenuEntry } from '../domain/scene/commands/clickMenu'
-import type { AnswerWalk, DeclarationWalk, ExchangeWalk, WalkStep } from '../domain/scene/projections/openWalk'
+import type { AnswerWalk, DeclarationWalk, ExchangeWalk, ReactorStatus, WalkStep } from '../domain/scene/projections/openWalk'
 import { ACTION_ICONS } from './actionIcons'
 
 // Where the last press landed, which is where a click on the board opens its menu.
@@ -18,7 +18,9 @@ const MENU_ROOM = 260
 // character, or any action the selected one could declare, under the heading
 // of its category, all of them always shown. An action declared or answered
 // from it is walked where it was: its declaration one step at a time to its
-// commit, then each answer a step at a time, and the go.
+// commit, then the reactions one reactor at a time, each a step at a time,
+// and the go; the reactions put away to a small button while none of them
+// are the viewer's to make.
 export function ClickMenuHost(){
   const { menu, walk, press, start, close, closeWalk, escape } = useClickMenu()
   const walked = useOpenWalk()
@@ -79,13 +81,19 @@ export function ClickMenuHost(){
   const box = 'min-w-60 flex flex-col gap-1.5 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'
 
   if (!menu) {
-    const { view, press: step, next, back, send } = walked
+    const { view, press: step, next, back, send, shown, expanded, show, collapse } = walked
     const on = { press: step, next, back, send }
+    const small = view!.kind === 'exchange' && !expanded
     return (
       <>
         {place}
-        <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role='dialog' aria-label={view!.title} className={box}>
-          {view!.kind === 'declare' ? <DeclarationView view={view!} {...on} /> : <ExchangeView view={view!} {...on} />}
+        <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role='dialog' aria-label={view!.title}
+          className={small ? 'flex flex-row items-center gap-1 bg-raised border border-line rounded p-1 shadow-lg shadow-black/40 text-xs' : box}>
+          {view!.kind === 'declare'
+            ? <DeclarationView view={view!} {...on} />
+            : expanded
+              ? <ExchangeView view={view!} shown={shown} onShow={show} onCollapse={() => collapse(true)} {...on} />
+              : <ReactionsButton view={view!} onExpand={() => collapse(false)} send={send} />}
         </Floating>
       </>
     )
@@ -177,19 +185,52 @@ function DeclarationView({ view, send, ...on }: { view: DeclarationWalk } & Walk
   )
 }
 
-// The answers to the committed action, each answerer's a step at a time,
-// whom the action is aimed at first; then the actor's go.
-function ExchangeView({ view, send, ...on }: { view: ExchangeWalk } & WalkPresses){
-  const { go, back, accept } = view
+const STATUS_LABEL: Record<ReactorStatus, string> = { waiting: 'waiting', open: 'may react', reacting: 'reacting', passed: 'passed', done: 'done' }
+
+// The reactions put away: how many are made, whom the action waits on, and
+// the actor's go once it is open.
+function ReactionsButton({ view, onExpand, send }: { view: ExchangeWalk, onExpand: () => void, send: WalkPresses['send'] }){
+  const { go } = view
   return (
     <>
-      <SectionLabel>{view.title}</SectionLabel>
-      {view.answerers.map((a) => <AnswerView key={a.id} answerer={a} send={send} {...on} />)}
-      {view.answerers.length === 0 ? <span className='text-muted'>nobody answers</span> : null}
+      <Button size='xs' aria-expanded={false} aria-label='show the reactions' onClick={onExpand}>
+        reactions <span className='font-mono text-muted'>{view.reacted}/{view.answerers.length}</span>
+      </Button>
+      {view.awaited.length > 0 ? <span className='text-accent'>waiting on {view.awaited.join(', ')}</span> : null}
+      {go.bar === null ? (
+        <LockedFor id={view.actorId}>
+          <ActionKey look='go' icon={go.label === 'roll' ? Dices : Play} aria-label={`${go.label} action`} onClick={() => send(go.command)}>{go.label}</ActionKey>
+        </LockedFor>
+      ) : null}
+    </>
+  )
+}
+
+// The reactions to the committed action: a chip for each reactor and where
+// they stand, the one shown walked a step at a time; then the actor's go.
+function ExchangeView({ view, shown, onShow, onCollapse, send, ...on }: { view: ExchangeWalk, shown: string | null, onShow: (a: AnswerWalk) => void, onCollapse: () => void } & WalkPresses){
+  const { go, back, accept } = view
+  const reactor = view.answerers.find((a) => a.id === shown) ?? null
+  return (
+    <>
+      <div className='flex flex-row items-center justify-between gap-2'>
+        <SectionLabel>{view.title}</SectionLabel>
+        <IconButton icon={ChevronUp} aria-label='put the reactions away' title='put the reactions away' onClick={onCollapse} />
+      </div>
+      {view.answerers.length > 1 ? (
+        <div className='flex flex-row flex-wrap gap-1'>
+          {view.answerers.map((a) => (
+            <Button key={a.id} size='xs' selected={a.id === shown} title={a.answer ?? undefined} onClick={() => onShow(a)}>
+              <span className={a.target ? 'text-accent' : ''}>{a.name}</span> <span className='text-muted'>{STATUS_LABEL[a.status]}</span>
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      {reactor ? <AnswerView answerer={reactor} send={send} {...on} /> : <span className='text-muted'>nobody reacts</span>}
       {view.heldBack.map((h) => (
         <LockedFor key={h.id} id={h.id} className='flex flex-row flex-wrap gap-1 items-center text-muted'>
           <span>{h.name} does not act against allies</span>
-          <Button size='xs' weight='subtle' onClick={() => send(h.command)}>answer anyway</Button>
+          <Button size='xs' weight='subtle' onClick={() => send(h.command)}>react anyway</Button>
         </LockedFor>
       ))}
       {view.hint ? <span className='text-muted'>{view.hint}</span> : null}
@@ -203,14 +244,14 @@ function ExchangeView({ view, send, ...on }: { view: ExchangeWalk } & WalkPresse
         <Closed reason={go.bar}>
           <ActionKey look='go' icon={go.label === 'roll' ? Dices : Play} aria-label={`${go.label} action`} disabled={go.bar !== null} onClick={() => send(go.command)}>{go.label}</ActionKey>
         </Closed>
-        {back ? <Button size='xs' weight='ghost' title='take back the last answer' onClick={() => send(back)}>take back</Button> : null}
+        {back ? <Button size='xs' weight='ghost' title='take back the last reaction' onClick={() => send(back)}>take back</Button> : null}
       </LockedFor>
       {accept ? <LockedFor id={view.targetId}><ActionKey title='the target allows it: no test' onClick={() => send(accept)}>allow it</ActionKey></LockedFor> : null}
     </>
   )
 }
 
-// One answerer's answer, a step at a time, then their word that they are done.
+// One reactor's reaction, a step at a time, then their word that they are done.
 function AnswerView({ answerer: a, send, ...on }: { answerer: AnswerWalk } & WalkPresses){
   const { done } = a
   return (
@@ -222,8 +263,8 @@ function AnswerView({ answerer: a, send, ...on }: { answerer: AnswerWalk } & Wal
         done.state === 'said'
           ? <span className='text-good'>done</span>
           : (
-            <Closed reason={done.state === 'closed' ? 'the answer is not finished' : null}>
-              <ActionKey look='go' icon={Check} aria-label={`${a.name} done answering`} disabled={done.state === 'closed'} onClick={() => send(done.command)}>done</ActionKey>
+            <Closed reason={done.state === 'closed' ? 'the reaction is not finished' : null}>
+              <ActionKey look='go' icon={Check} aria-label={`${a.name} done reacting`} disabled={done.state === 'closed'} onClick={() => send(done.command)}>done</ActionKey>
             </Closed>
           )
       ) : null}

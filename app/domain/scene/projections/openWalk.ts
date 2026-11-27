@@ -96,20 +96,28 @@ export type DeclarationWalk = Walked & {
   drop: { label: string; command: SceneCommand } | null
 }
 
-// `answer`, what they answer with once it is all said; `done`, their word
+// Where a reactor stands: the action waits on their reaction (`waiting`),
+// or they may react and it does not wait (`open`); they have reacted and
+// are still saying what with, or the action waits on their word
+// (`reacting`); they react with nothing (`passed`) or are done (`done`).
+export type ReactorStatus = 'waiting' | 'open' | 'reacting' | 'passed' | 'done'
+
+// `answer`, what they react with once it is all said; `done`, their word
 // that they are done with it, closed while it is not finished, or already
-// said, where the answer leaves anything to choose.
+// said, where the reaction leaves anything to choose.
 export type AnswerWalk = Walked & {
   id: string
   name: string
   target: boolean
+  status: ReactorStatus
   answer: string | null
   cancellable: string | null
   done: { state: 'open' | 'closed' | 'said'; command: SceneCommand } | null
 }
 
-// The exchange: each answerer's walk, the one aimed at first; the actor's go,
-// closed with why; what else may be pressed, and whom it waits on.
+// The exchange: each reactor's walk, the one aimed at first, and how many
+// of them have reacted or passed (`reacted`); the actor's go, closed with
+// why; what else may be pressed, and whom it waits on.
 export type ExchangeWalk = {
   kind: 'exchange'
   actionId: string
@@ -117,6 +125,7 @@ export type ExchangeWalk = {
   targetId: string | null
   title: string
   answerers: AnswerWalk[]
+  reacted: number
   heldBack: { id: string; name: string; command: SceneCommand }[]
   go: { label: string; command: SceneCommand; bar: string | null }
   back: SceneCommand | null
@@ -173,13 +182,15 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
   const die = needsDie(state, open)
   const go = find(die ? 'roll' : 'pay')
   const targetId = 'targetId' in open ? open.targetId : null
+  const answerers = offers.reactors.map((r) => getAnswerWalk(open, r, choices.filter((c) => c.actorId === r.id), passed(r.id)))
   return {
     kind: 'exchange',
     actionId: open.id,
     actorId: open.actorId,
     targetId,
     title: titleOf(state, open),
-    answerers: offers.reactors.map((r) => getAnswerWalk(open, r, choices.filter((c) => c.actorId === r.id), passed(r.id))),
+    answerers,
+    reacted: answerers.filter((a) => a.status === 'passed' || a.status === 'done').length,
     heldBack: getHeldBackAnswerers(state, open).filter((id) => getHeldBackBar(state, id) === null).map((id) => ({ id, name: getFightName(state, id), command: { kind: 'openAgainstAllies', args: [id] } })),
     go: { label: die ? 'roll' : 'go', command: { kind: die ? 'roll' : 'pay', args: [] }, bar: go ? null : getGoBar(state, open) ?? 'cannot go yet' },
     back: find('back'),
@@ -190,13 +201,13 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
   }
 }
 
-// An answer a step at a time: what it is (or nothing), the surge it is made
+// A reaction a step at a time: what it is (or nothing), the surge it is made
 // on where it may be made on another, then what it is declared as.
 function getAnswerWalk(open: Action, r: ReactorOptions, choices: OpenChoice[], passed: readonly WalkKey[]): AnswerWalk {
   const chosen = r.answers.find((a) => a.chosen) ?? null
   const answer: WalkStep = {
     key: 'answer',
-    label: 'answer',
+    label: 'reaction',
     kind: 'pick',
     now: null,
     keep: chosen !== null || r.passed,
@@ -224,11 +235,36 @@ function getAnswerWalk(open: Action, r: ReactorOptions, choices: OpenChoice[], p
     id: r.id,
     name: r.name,
     target: r.target,
+    status: r.passed ? 'passed' : !chosen ? (r.awaited ? 'waiting' : 'open') : r.awaited || r.done === 'open' || r.done === 'closed' ? 'reacting' : 'done',
     answer: chosen ? `${chosen.label}${way?.surge ? ` on the ${way.surge} surge` : ''}` : r.passed ? r.pass.label : null,
     cancellable: r.cancellable,
     done,
     ...walked(steps, passed, passed),
   }
+}
+
+// Which reactor the exchange shows of those offered a reaction, one at a
+// time: the one picked (`pick`), while they are not finished or were picked
+// to be looked at again (`review`); else the first of the viewer's own
+// (`controlled`) the action waits on, or who has yet to finish, the one aimed
+// at first; else whoever was picked, or the first. A reactor is finished
+// once they passed or are done and their walk is at its end, so one who is
+// done moves the exchange on to the next of the viewer's own.
+export type ReactorPick = { id: string; review: boolean }
+
+export const isFinished = (a: AnswerWalk) => (a.status === 'passed' || a.status === 'done') && a.step === null
+
+export function getShownReactor(answerers: readonly AnswerWalk[], controlled: readonly string[], pick: ReactorPick | null): string | null {
+  const picked = pick ? answerers.find((a) => a.id === pick.id) : undefined
+  if (picked && pick && (pick.review || !isFinished(picked))) return picked.id
+  const own = answerers.filter((a) => controlled.includes(a.id))
+  const next = own.find((a) => (a.status === 'waiting' || a.status === 'reacting') && !isFinished(a)) ?? own.find((a) => !isFinished(a))
+  return (next ?? picked ?? own[0] ?? answerers[0])?.id ?? null
+}
+
+// Whether the exchange opens shown whole: some of the viewer's own are waited on.
+export function hasOwnToReact(answerers: readonly AnswerWalk[], controlled: readonly string[]): boolean {
+  return answerers.some((a) => controlled.includes(a.id) && (a.status === 'waiting' || a.status === 'reacting') && !isFinished(a))
 }
 
 function titleOf(state: SceneState, open: Action): string {

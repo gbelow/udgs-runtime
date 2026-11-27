@@ -97,6 +97,19 @@ export function useControlBar(id: string | null): string | null {
   return useActorBar(id === null ? null : { id });
 }
 
+// Which of the characters `ids` whoever is at the screen may act for, kept
+// up to date as `useActorBar` is.
+export function useControlled(ids: readonly string[]): string[] {
+  const profile = useAppStore((s) => s.profile);
+  const devServer = useAppStore((s) => s.devServer);
+  const gmMode = useAppStore((s) => s.gmMode);
+  const profileList = useAppStore((s) => s.profileList);
+  const app = { profile, devServer, gmMode, profileList };
+  useCombatStore((s) => s.dominations.map((d) => getControllerId(s, d.id)).join());
+  const own = useCampaignStore((s) => JSON.stringify(ids.filter((id) => getActorBar({ id }, viewerOf(app, s, profile?.id ?? null, gmMode)) === null)));
+  return JSON.parse(own) as string[];
+}
+
 // The same, for the character the tab shows.
 export function useActiveControlBar(): string | null {
   const owner = TAB_OWNER[useAppStore((s) => s.selectedGameTab)];
