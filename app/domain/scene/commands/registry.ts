@@ -14,7 +14,7 @@ import { answerScene } from './answer'
 import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
 import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, turnAround } from './chase'
 import { readClick, type Click } from './click'
-import { pressMenu, type MenuPress } from './clickMenu'
+import { getPressActor, pressMenu, type MenuPress } from './clickMenu'
 import { endCombat } from './endCombat'
 import { noteDetected } from './detected'
 import { followScene } from './parked'
@@ -75,7 +75,7 @@ const sheet = (ctx: CommandContext, edit: CharacterCommand | GearCommand) =>
 export const sceneCommands = {
   declare: command((ctx, actorId: string, draft: ActionDraft) => declareAction(actorId, draft, ctx.newId)).by((_, actorId) => ({ id: actorId })),
   // an entry of the menu a click on the board opens
-  menu: command((ctx, press: MenuPress) => pressMenu(press, ctx.newId, ctx.thrower)).by((_, press) => ({ id: press.kind === 'declare' ? press.actorId : press.reactorId })),
+  menu: command((ctx, press: MenuPress) => pressMenu(press, ctx.newId, ctx.thrower)).by((_, press) => ({ id: getPressActor(press) })),
   amend: command((_, fields: Partial<ActionDraft>) => amendAction(fields)).by(panel('open')),
   target: command((_, targetId: string) => setTarget(targetId)).by(panel('open')),
   react: command((ctx, reactorId: string, draft: ActionDraft, surge?: SurgeKind | null) => declareReaction(reactorId, draft, ctx.newId, surge)).by(reactor),

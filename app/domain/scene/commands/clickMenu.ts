@@ -16,11 +16,13 @@ import { getDeclaredHiddenTargets, getOwnCost, needsTarget } from '../rules/acti
 import { getAvailableActions, getDefaultAnswers, type ActionOption } from '../rules/options'
 import { getFightName } from '../rules/fighters'
 import { getStartTurnBar } from '../rules/turn'
+import { getFollowBar } from '../rules/follow'
 import { getMustStart } from '../projections/turn'
 import { getDraftLabel, getPassLabel } from '../projections/labels'
 import { amendAction, commitAction, declareAction, declareReaction, passReaction, setTarget } from './action'
 import { readPick } from './board'
 import { surge } from './turn'
+import { follow } from './follow'
 import { ACTION_CATEGORIES } from '../../lists'
 import { perState } from '../../perState'
 
@@ -37,11 +39,16 @@ export type MenuAim =
 // What pressing an entry does: declare an action with the fields the panel
 // would fill in, aimed where the click was if it can be, on a surge made first
 // where it needs one, and committed at once where nothing is left to say
-// (`commit`); or answer the action in play.
+// (`commit`); or answer the action in play; or mark whom to follow, or take
+// the mark back (`targetId` null).
 export type MenuPress =
   | { kind: 'declare', actorId: string, draft: ActionDraft, fields: Partial<ActionDraft>, aim: MenuAim | null, surge?: SurgeKind | null, commit?: boolean }
   | { kind: 'answer', reactorId: string, draft: ActionDraft, surge: SurgeKind | null }
   | { kind: 'pass', reactorId: string }
+  | { kind: 'follow', actorId: string, targetId: string | null }
+
+// Whom the press acts for.
+export const getPressActor = (press: MenuPress): string => (press.kind === 'declare' || press.kind === 'follow' ? press.actorId : press.reactorId)
 
 // `bar`, why it cannot be pressed now; `surge`, the surge it is made on.
 export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress }
@@ -69,6 +76,7 @@ export function pressMenu(press: MenuPress, newId: () => string, thrown: Throw):
     switch (press.kind) {
       case 'answer': return declareReaction(press.reactorId, press.draft, newId, press.surge)(state)
       case 'pass': return passReaction(press.reactorId)(state)
+      case 'follow': return follow(press.actorId, press.targetId)(state)
       case 'declare': {
         const ready = press.surge ? surge(press.actorId, press.surge)(state) : state
         const declared = declareAction(press.actorId, press.draft, newId)(ready)
@@ -117,7 +125,7 @@ function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu
   const c = state.characters[selected]
   if (!c || (at.on !== 'token' && !state.board?.placements[selected])) return null
   const note = getMustStart(state, selected)
-  const entries = getOwnEntries(state, at, c)
+  const entries = [...getOwnEntries(state, at, c), ...getFollowEntry(state, at, c)]
   return {
     title: at.on === 'token' ? getFightName(state, at.id) : at.on === 'cell' ? 'here' : 'item',
     select: at.on === 'token' ? at.id : null,
@@ -126,6 +134,15 @@ function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu
     entries,
     groups: groupEntries(entries),
   }
+}
+
+// combat.tex "Follow": the clicked one marked as whom the character follows
+// this round, for free, or the mark taken back from them; closed with why.
+function getFollowEntry(state: SceneState, at: MenuAim, c: CampaignCharacter): MenuEntry[] {
+  if (at.on !== 'token' || at.id === c.id || !state.characters[at.id]) return []
+  const marked = state.following[c.id] === at.id
+  const name = getFightName(state, at.id)
+  return [{ label: marked ? `stop following ${name}` : `follow ${name}`, category: 'tactical', cost: null, surge: null, bar: marked ? null : getFollowBar(state, c.id, at.id), press: { kind: 'follow', actorId: c.id, targetId: marked ? null : at.id } }]
 }
 
 function getOwnEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter): MenuEntry[] {

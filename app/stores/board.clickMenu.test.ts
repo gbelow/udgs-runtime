@@ -64,6 +64,38 @@ describe('the menu a click on the board opens', () => {
   })
 })
 
+// combat.tex "Follow": the menu on a token marks whom the selected character
+// follows, and takes the mark back. Expected values are what was clicked.
+describe('the follow entry of the menu a token opens', () => {
+  const followOf = (h: Harness, name: string) => h.menu({ on: 'token', id: h.idOf(name) })?.entries.find((e) => e.press.kind === 'follow')
+  // the mark is made in the fight, once it has begun
+  const started = (): Harness => {
+    const h = scene()
+    h.send({ kind: 'nextRound', args: [] })
+    for (let i = 0; i < 8 && h.state().roundStep !== null; i++) h.send({ kind: 'continueRound', args: [] })
+    h.select('Ann')
+    h.startTurn()
+    return h
+  }
+  it('marks the clicked one followed, and pressed again takes the mark back', () => {
+    const h = started()
+    const entry = followOf(h, 'Bob')
+    expect(entry?.bar).toBeNull()
+    h.pressMenu(entry!)
+    expect(h.state().following[h.idOf('Ann')]).toBe(h.idOf('Bob'))
+    h.pressMenu(followOf(h, 'Bob')!)
+    expect(h.state().following[h.idOf('Ann')] ?? null).toBeNull()
+  })
+
+  it('is closed on one out of melee range, and pressing it marks nobody', () => {
+    const h = started()
+    const entry = followOf(h, 'Cy')
+    expect(entry?.bar).not.toBeNull()
+    h.pressMenu(entry!)
+    expect(h.state().following[h.idOf('Ann')] ?? null).toBeNull()
+  })
+})
+
 // The popover goes on from a pressed entry to walk the action it opened, a
 // step at a time, through its commit and the answers to it, on the popover's
 // own store. Expected values are what was clicked and pressed: an action

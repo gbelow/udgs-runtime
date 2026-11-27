@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { MenuEntry } from "../domain/scene/commands/clickMenu";
+import { getPressActor, type MenuEntry } from "../domain/scene/commands/clickMenu";
 import type { SceneCommand } from "../domain/scene/commands/registry";
 import { getGivenSteps, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
 import { useControlled } from "./useControl";
@@ -30,7 +30,7 @@ export function useClickMenu() {
     if (menu && p.kind === "declare") startWalk({ from: menu, actorId: p.actorId, actionId: null, given: getGivenSteps(p), passed: {}, pick: null, collapsed: null });
     // the reaction is picked: its walk goes on from what it is made on, theirs shown
     else if (menu?.answering) {
-      const id = p.kind === "declare" ? p.actorId : p.reactorId;
+      const id = getPressActor(p);
       startWalk({ from: menu, actorId: id, actionId: menu.answering, given: [], passed: { [walkKey(menu.answering, id)]: ["answer"] }, pick: { id, review: false }, collapsed: false });
     }
     else setMenu(null);
