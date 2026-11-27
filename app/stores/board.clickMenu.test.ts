@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { archer, fighter, mage, meleeTrained, rangedTrained, spearman } from '../domain/scene/fixtures'
 import { readClick } from '../domain/scene/commands/click'
-import { isAimed } from '../domain/scene/commands/clickMenu'
+import { isAimed, type MenuEntry } from '../domain/scene/commands/clickMenu'
+import { getGivenSteps } from '../domain/scene/projections/openWalk'
+import type { ChoicePart } from '../domain/scene/projections/choices'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getBoardView } from '../domain/scene/projections/boardView'
 import type { CampaignCharacter } from '../domain/types'
@@ -11,9 +13,9 @@ import type { CampaignCharacter } from '../domain/types'
 // was clicked: a pressed entry stands the open action on the clicked token or
 // cell, and a click that opens a menu changes nothing until one is pressed.
 
-function scene(): Harness {
+function scene(actor: (name: string) => CampaignCharacter = spearman): Harness {
   const h = openHarness()
-  h.bring(spearman('Ann'), fighter('Bob'), fighter('Cy'))
+  h.bring(actor('Ann'), fighter('Bob'), fighter('Cy'))
   h.createBoard(6)
   h.select('Ann')
   h.cell(0, 0)
@@ -57,6 +59,47 @@ describe('the menu a click on the board opens', () => {
     expect(open).toMatchObject({ kind: 'move', step: 'define' })
     expect(isAimed(h.state(), { on: 'cell', cell })).toBe(true)
   })
+})
+
+// The popover goes on from a pressed entry to walk the declaration it opened,
+// a step at a time, to its commit. Expected values are what was clicked: an
+// action walked from a token's menu is committed at that token, whichever
+// values the steps were given.
+describe('the walk of an action declared from the menu', () => {
+  const aimedAt = (h: Harness, name: string): MenuEntry[] =>
+    (h.menu({ on: 'token', id: h.idOf(name) })?.entries ?? []).filter((e) => e.bar === null && e.press.kind === 'declare' && e.press.aim?.on === 'token')
+  const walkTo = (make: (name: string) => CampaignCharacter, name: string, nth: number, change: boolean) => {
+    const h = scene(make)
+    const entry = aimedAt(h, name)[nth]
+    h.pressMenu(entry)
+    const actor = h.active()!
+    const given = getGivenSteps(entry.press)
+    const passed: ChoicePart[] = []
+    let view = h.walk(actor, given, passed)
+    expect(view, `${entry.label} opens a walk`).not.toBeNull()
+    for (let i = 0; view?.step && i < 40; i++, view = h.walk(actor, given, passed)) {
+      const { step } = view
+      const other = step.buttons.find((b) => b.command !== null && !b.selected)
+      if ((change || !step.keep) && other) h.send(other.command!)
+      passed.push(step.key)
+    }
+    expect(view?.step ?? null, `${entry.label} walks to its commit`).toBeNull()
+    expect(view!.commit.bar, `${entry.label} may be committed`).toBeNull()
+    const id = view!.actionId
+    h.send(view!.commit.command)
+    const action = h.state().actions[id]
+    expect(action.step, `${entry.label} is committed`).not.toBe('define')
+    expect('targetId' in action ? action.targetId : null, `${entry.label} is aimed at ${name}`).toBe(h.idOf(name))
+    expect(h.walk(actor, given, passed), 'the walk ends with the commit').toBeNull()
+  }
+
+  for (const actor of [spearman, archer, mage]) for (const change of [false, true]) {
+    it(`commits every entry ${actor.name} aims at the clicked token at that token, ${change ? 'giving each step another value' : 'keeping every value'}`, () => {
+      const count = aimedAt(scene(actor), 'Bob').length
+      expect(count).toBeGreaterThan(0)
+      for (let nth = 0; nth < count; nth++) walkTo(actor, 'Bob', nth, change)
+    })
+  }
 })
 
 // What only an ability or an extension reaches was shown out of reach, with no

@@ -8,6 +8,7 @@ import { getMovementOptions } from '../rules/move'
 import { getFreeAttackOptions } from '../rules/attack'
 import { getNeededExtend, getSpellOptions } from '../rules/cast'
 import { canTreadToShoot } from '../rules/steadyArms'
+import { isVariantOpenOn } from '../rules/strikeDeclaration'
 import { getModifierToggles } from '../rules/modifiers'
 import { sameCell } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
@@ -161,7 +162,8 @@ function getEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter,
   switch (draft.kind) {
     case 'strike':
     case 'shoot': {
-      const rows = getFreeAttackOptions(ready, own, draft.kind).flatMap((row) => withMoves(state, entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })))
+      // declared on its own, nobody's step draws it: a braced row waits for one
+      const rows = getFreeAttackOptions(ready, own, draft.kind).flatMap((row) => withMoves(state, entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, isVariantOpenOn(null, row.variant) ? null : 'only drawn by a step towards the weapon')))
       return rows.length > 0 ? rows : [entry(getDraftLabel(state, c.id, o), null)]
     }
     case 'cast': {

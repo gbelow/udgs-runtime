@@ -259,7 +259,7 @@ function getGrapplingView(state: SceneState, grapple: GrappleAction, targetId: s
 
 // What the open action is called: one made under a recipe goes by its name
 // (rules/recipes.ts).
-function getOpenLabel(state: SceneState, open: Action): string {
+export function getOpenLabel(state: SceneState, open: Action): string {
   return getRecipeOf(state, open)?.label ?? getActionName(open)
 }
 

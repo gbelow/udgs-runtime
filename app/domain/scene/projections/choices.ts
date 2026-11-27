@@ -27,7 +27,7 @@ import type { ModifierView } from './modifiers'
 // back (a row, a toggle), so only the others are offers. A part stepped one at
 // a time (how many times a spell is extended, how far a climb goes, how deep a
 // swim dives) gives each step's value and, in `from`, the value it has now.
-// `actorId` is whose choice it is.
+// `actorId` is whose choice it is. A toggle's two values carry its `name`.
 //
 // The offers are the action panel's own (`getActionOffers`), so they are the
 // panel's, and its cells off the rules the board view reads: the reach of a
@@ -42,7 +42,7 @@ export type ChoicePart =
   | 'flee' | 'pushMovement' | 'boost' | 'extend' | 'for' | 'main' | 'defense' | 'trigger' | 'opportunityMode' | 'maneuver'
   | 'cell' | 'overflow' | 'grapple' | 'theft' | 'improve' | 'grazeSave' | 'along' | 'grappling' | 'disarm' | 'testMode' | 'restMove' | 'sighting'
 
-export type OpenChoice = { actorId: string; part: ChoicePart; value: Json; chosen: boolean; from?: number; command: SceneCommand; label: string }
+export type OpenChoice = { actorId: string; part: ChoicePart; value: Json; chosen: boolean; from?: number; name?: string; command: SceneCommand; label: string }
 
 // Parts given a step at a time: a pick names the value they end at.
 export const STEPPED_PARTS: readonly ChoicePart[] = ['extend', 'metres', 'dive']
@@ -69,13 +69,13 @@ function choice(actorId: string, part: ChoicePart, value: Json, chosen: boolean,
 
 // a toggle: the value it has, and the one a press gives it
 function toggle(actorId: string, part: ChoicePart, now: boolean, command: SceneCommand, label: string): OpenChoice[] {
-  return [choice(actorId, part, now, true, command, `${label}: ${now ? 'on' : 'off'}`), choice(actorId, part, !now, false, command, `${label}: ${now ? 'off' : 'on'}`)]
+  return [{ ...choice(actorId, part, now, true, command, `${label}: ${now ? 'on' : 'off'}`), name: label }, { ...choice(actorId, part, !now, false, command, `${label}: ${now ? 'off' : 'on'}`), name: label }]
 }
 
 function modifierChoices(actorId: string, modifiers: ModifierView[], send: (press: ModifierView['press']) => SceneCommand): OpenChoice[] {
   return modifiers.filter((m) => m.allowed || m.on).flatMap((m) => [
-    choice(actorId, 'modifier', { key: m.key, on: m.on }, true, send(m.press), `${m.label}: ${m.on ? 'on' : 'off'}`),
-    ...(m.allowed ? [choice(actorId, 'modifier', { key: m.key, on: !m.on }, false, send(m.press), `${m.label}: ${m.on ? 'off' : 'on'}`)] : []),
+    { ...choice(actorId, 'modifier', { key: m.key, on: m.on }, true, send(m.press), `${m.label}: ${m.on ? 'on' : 'off'}`), name: m.label },
+    ...(m.allowed ? [{ ...choice(actorId, 'modifier', { key: m.key, on: !m.on }, false, send(m.press), `${m.label}: ${m.on ? 'off' : 'on'}`), name: m.label }] : []),
   ])
 }
 

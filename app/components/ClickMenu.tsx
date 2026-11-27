@@ -1,11 +1,12 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Play } from 'lucide-react'
-import { useClickMenu } from '../hooks/useClickMenu'
-import { ActionKey, Button, Closed, Floating, SectionLabel } from './ui'
+import { Check, Hourglass, Play, X } from 'lucide-react'
+import { useClickMenu, useOpenWalk } from '../hooks/useClickMenu'
+import { ActionKey, Button, Closed, Floating, IconButton, SectionLabel } from './ui'
 import { Locked } from './Locks'
 import { useControlBar } from '../hooks/useControl'
 import type { MenuEntry } from '../domain/scene/commands/clickMenu'
+import type { OpenWalk } from '../domain/scene/projections/openWalk'
 import { ACTION_ICONS } from './actionIcons'
 
 // Where the last press landed, which is where a click on the board opens its menu.
@@ -15,16 +16,20 @@ const MENU_ROOM = 260
 
 // The menu a click on the board opens beside the click: pick the clicked
 // character, or any action the selected one could declare, under the heading
-// of its category, all of them always shown.
+// of its category, all of them always shown. An action declared from it is
+// walked where it was, one step of its declaration at a time, to its commit.
 export function ClickMenuHost(){
-  const { menu, press, start, close, escape } = useClickMenu()
-  const bar = useControlBar(menu?.actor ?? null)
+  const { menu, walk, press, start, close, closeWalk, escape } = useClickMenu()
+  const walked = useOpenWalk()
+  const bar = useControlBar(menu?.actor ?? walk?.actorId ?? null)
   const [shown, setShown] = useState<string | null>(null)
   const anchor = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   // where the pointer was when this menu opened, so that it stays put
+  // the walk stays where the menu it came from was
+  const from = menu ?? walk?.from ?? null
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const at = useMemo(() => ({ x: pointer.x, y: pointer.y }), [menu])
+  const at = useMemo(() => ({ x: pointer.x, y: pointer.y }), [from])
 
   useEffect(() => {
     const note = (e: PointerEvent) => { pointer.x = e.clientX; pointer.y = e.clientY }
@@ -39,7 +44,12 @@ export function ClickMenuHost(){
     // a press outside the board only closes the menu: it reaches nothing under it, nor does the release and click that follow
     const away = (e: PointerEvent) => {
       // a press on the board is the board's to read: the click that opened the menu, pressed again, picks its character
-      if (!menu || panel.current?.contains(e.target as Node) || e.target instanceof HTMLCanvasElement) return
+      if (panel.current?.contains(e.target as Node) || e.target instanceof HTMLCanvasElement) return
+      // the walk is only put away: the action stays open in the panel, which the press reaches
+      if (!menu) {
+        if (walk) closeWalk()
+        return
+      }
       e.stopPropagation()
       close()
       const swallow = (later: Event) => later.stopPropagation()
@@ -59,15 +69,31 @@ export function ClickMenuHost(){
     return () => { window.removeEventListener('pointerdown', away, true); window.removeEventListener('keydown', key, true) }
   })
 
-  if (!menu) return null
+  if (!menu && !walked.view) return null
   // beside the click, not under it, so that a second click on the same spot still reaches the board
   const toRight = at.x + SIDE_GAP + MENU_ROOM <= window.innerWidth
+  const place = (
+    <div ref={anchor} aria-hidden style={{ position: 'fixed', left: toRight ? at.x + SIDE_GAP : at.x - SIDE_GAP, top: at.y, width: 1, height: 1 }} />
+  )
+  const box = 'min-w-60 flex flex-col gap-1.5 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'
+
+  if (!menu) {
+    const { view, ...on } = walked
+    return (
+      <>
+        {place}
+        <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role='dialog' aria-label={`declaring ${view!.title}`} className={box}>
+          <WalkView view={view!} bar={bar} {...on} />
+        </Floating>
+      </>
+    )
+  }
   const { groups } = menu
 
   return (
     <>
-      <div ref={anchor} aria-hidden style={{ position: 'fixed', left: toRight ? at.x + SIDE_GAP : at.x - SIDE_GAP, top: at.y, width: 1, height: 1 }} />
-      <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role='menu' aria-label={`actions on ${menu.title}`} className='min-w-60 flex flex-col gap-1.5 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
+      {place}
+      <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role='menu' aria-label={`actions on ${menu.title}`} className={box}>
         <SectionLabel>{menu.title}</SectionLabel>
         <Locked bar={bar} className='flex flex-col gap-1.5'>
           {menu.turn ? (
@@ -89,6 +115,45 @@ export function ClickMenuHost(){
           })}
         </Locked>
       </Floating>
+    </>
+  )
+}
+
+function costLabel(cost: OpenWalk['cost']){
+  return cost ? `${cost.AP} AP${cost.STA ? ` · ${cost.STA} STA` : ''}` : null
+}
+
+// The open action's declaration, one step at a time: a pick is made and goes
+// on, toggles and steps are set and gone on from; then the commit.
+function WalkView({ view, bar, pick, toggle, next, back, commit, drop }: { view: OpenWalk, bar: string | null } & Omit<ReturnType<typeof useOpenWalk>, 'walk' | 'view'>){
+  const { step } = view
+  return (
+    <>
+      <div className='flex flex-row items-center justify-between gap-2'>
+        <SectionLabel>{view.title} {view.cost ? <span className='font-mono text-muted'>{costLabel(view.cost)}</span> : null}</SectionLabel>
+        {view.drop ? <IconButton icon={X} aria-label={view.drop.label} title={view.drop.label} onClick={drop} /> : null}
+      </div>
+      <Locked bar={bar} className='flex flex-col gap-1.5'>
+        {step ? (
+          <div className='flex flex-col items-stretch gap-1'>
+            <SectionLabel>{step.label}{step.now !== null ? <span className='font-mono text-muted'> {step.now}</span> : null}</SectionLabel>
+            <div className='flex flex-row flex-wrap gap-1'>
+              {step.buttons.map((b, i) => (
+                <Button key={`${b.label}:${i}`} size='xs' selected={b.selected} disabled={step.kind !== 'pick' && b.command === null}
+                  onClick={() => (step.kind === 'pick' ? pick(b) : toggle(b))}>{b.label}</Button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Closed reason={view.commit.bar}>
+            <ActionKey look='go' icon={view.commit.label === 'hold' ? Hourglass : Check} aria-label={`${view.commit.label} action`} disabled={view.commit.bar !== null} cost={costLabel(view.cost)} onClick={commit}>{view.commit.label}</ActionKey>
+          </Closed>
+        )}
+        <div className='flex flex-row gap-1'>
+          {view.back ? <Button size='xs' weight='ghost' onClick={back}>back</Button> : null}
+          {step?.keep ? <Button size='xs' weight='subtle' onClick={next}>{step.kind === 'pick' ? 'keep' : 'next'}</Button> : null}
+        </div>
+      </Locked>
     </>
   )
 }
