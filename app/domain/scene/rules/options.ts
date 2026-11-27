@@ -246,13 +246,19 @@ function listAvailableActions(state: SceneState, characterId: string): ActionOpt
 
 // Each answer once, with every way it may be made: with no surge, or on one.
 // It is made, unless another way is picked, the way it was given, else the
-// first way open, no surge before any surge.
+// first way open, no surge before any surge. A surge only an ability gives
+// makes the answer with the move its recipe carries (abilities.tex
+// "Protection Surge"), so that way is the same answer as the one without it.
 export type AnswerWays = { answer: ActionOption; ways: ActionOption[] }
+
+function answerOf(o: ActionOption): ActionDraft {
+  return o.surge && isLearnedSurge(o.surge) && 'recipe' in o.draft ? { ...o.draft, recipe: undefined } : o.draft
+}
 
 export function getAnswerWays(options: readonly ActionOption[]): AnswerWays[] {
   const answers: ActionOption[][] = []
   for (const o of options) {
-    const same = answers.find((ways) => sameDraft(ways[0].draft, o.draft))
+    const same = answers.find((ways) => sameDraft(answerOf(ways[0]), answerOf(o)))
     if (same) same.push(o)
     else answers.push([o])
   }

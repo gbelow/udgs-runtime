@@ -13,7 +13,7 @@ import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView,
 import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
-import type { Action, ActionRoll, ReactionAmend, CostTerm, StrikeAction } from '../domain/scene/types'
+import type { Action, ActionDraft, ActionRoll, ReactionAmend, CostTerm, StrikeAction } from '../domain/scene/types'
 import type { SurgeKind } from '../domain/types'
 import { Check, CheckCheck, Dices, Footprints, Hourglass, Minus, Play, Plus, X } from 'lucide-react'
 import { ActionKey, Button, Closed, Dropdown, IconButton, Panel, SectionLabel, Segment, Segmented, Tooltip } from './ui'
@@ -94,7 +94,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
           <ActionKey look={r.passed ? 'picked' : 'plain'} title={r.pass.hint} onClick={() => pass(r.id)}>{r.pass.label}</ActionKey>
-          <Answers reactor={r} onReact={(o, surge) => react(r.id, o.draft, surge)} />
+          <Answers reactor={r} onReact={(draft, surge) => react(r.id, draft, surge)} />
           <Modifiers modifiers={r.modifiers} onPress={(fields) => amendReacted(r.id, fields)} />
           <AnswerDone done={r.done} onDone={() => confirmReacted(r.id)} />
           {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
@@ -692,7 +692,7 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
 
 // What a reactor may answer with, each answer once and made the way it would
 // be; once one is given, the other surges it may be made on, where there are.
-function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (option: ActionOptionView, surge: SurgeKind | null) => void }){
+function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (draft: ActionDraft, surge: SurgeKind | null) => void }){
   return (
     <>
       {reactor.answers.map((a, i) => {
@@ -700,10 +700,10 @@ function Answers({ reactor, onReact }: { reactor: ReactorOptions, onReact: (opti
         const way = a.ways.find((w) => w.chosen)
         return (
           <span key={`${a.label}:${i}`} className='inline-flex flex-row flex-wrap gap-1 items-center'>
-            <OptionButton option={a} active={a.chosen} onClick={() => onReact(a, a.surge)} />
+            <OptionButton option={a} active={a.chosen} onClick={() => onReact(a.draft, a.surge)} />
             {a.chosen && open.length > 1 ? (
               <Segmented label={`surge ${reactor.name} makes the ${a.label} on`}>
-                {open.map((w) => <Segment key={w.surge ?? 'none'} selected={w.chosen} title={[w.gives, ...w.rules].filter(Boolean).join(' · ')} onClick={() => onReact(a, w.surge)}>{w.surge ? `${w.surge} surge` : 'no surge'}</Segment>)}
+                {open.map((w) => <Segment key={w.surge ?? 'none'} selected={w.chosen} title={[w.gives, ...w.rules].filter(Boolean).join(' · ')} onClick={() => onReact(w.draft, w.surge)}>{w.surge ? `${w.surge} surge` : 'no surge'}</Segment>)}
               </Segmented>
             ) : null}
             {a.chosen && way?.gives ? <span className='text-[11px] font-mono text-muted'>{way.gives}</span> : null}

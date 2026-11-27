@@ -173,7 +173,7 @@ export type ReactorOptions = {
   done: 'said' | 'open' | 'closed' | null
 }
 
-export type AnswerWayView = { surge: SurgeKind | null; available: boolean; reason: string | null; chosen: boolean; gives: string; rules: string[] }
+export type AnswerWayView = { draft: ActionDraft; surge: SurgeKind | null; available: boolean; reason: string | null; chosen: boolean; gives: string; rules: string[] }
 export type AnswerView = ActionOptionView & { ways: AnswerWayView[] }
 
 type OpportunityMode = ActionOf<'opportunityAttack'>['mode']
@@ -242,7 +242,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
       const before = withoutAnswerSurge(state, open.id, c.id).characters[c.id]
       const answers = getAnswerWays(options).map(({ answer, ways }): AnswerView => ({
         ...labelled(state, c.id, [answer])[0],
-        ways: ways.map((w) => ({ surge: w.surge, available: w.available, reason: w.reason, chosen: w.chosen, gives: w.surge ? getGivesLine(getSurgeFacts(before, w.surge)) : '', rules: w.surge ? getRuleLines(getSurgeFacts(before, w.surge)) : [] })),
+        ways: ways.map((w) => ({ draft: w.draft, surge: w.surge, available: w.available, reason: w.reason, chosen: w.chosen, gives: w.surge ? getGivesLine(getSurgeFacts(before, w.surge)) : '', rules: w.surge ? getRuleLines(getSurgeFacts(before, w.surge)) : [] })),
       }))
       return { id: c.id, name: getFightName(state, c.id), target: 'targetId' in open && open.targetId === c.id, options: labelled(state, c.id, options), answers, strike, cancellable: getCancellableLabel(state, open, c.id, declared?.kind), modifiers: declared ? getModifierViews(state, declared) : [], awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared, pass: getPassLabel(state, c.id, options), done: doneWith(declared) }
     })

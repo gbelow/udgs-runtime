@@ -8,7 +8,7 @@ import { grantAbility } from '../../character/commands/abilities'
 import { ABILITIES, type AbilityKey } from '../../abilities'
 import { PROTECTION_FAILED_TIER, PROTECTION_RANGE } from '../../tables'
 import { getSurgeAP } from '../../character/rules/surge'
-import { getAvailableActions } from '../rules/options'
+import { getAnswerWays, getAvailableActions } from '../rules/options'
 import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDefendingReaction, getDLTerms } from '../rules/attack'
 import { getOpenAction } from '../rules/log'
@@ -65,8 +65,8 @@ function takeStep(declared: SceneState): SceneState {
 
 // A spearman thrusts at an ally two spaces away. Off the line, within reach
 // of a run: a guardian, and one with a shield who has learned nothing.
-function thrustAtAlly(guardian = shielded('g', ['protection-surge'])): SceneState {
-  let s = onBoard({ atk: [0, 0], ally: [2, 0], g: [1, 2], o: [2, 2] }, spearman('atk'), fighter('ally'), guardian, shielded('o'))
+function thrustAtAlly(guardian = shielded('g', ['protection-surge']), at: [number, number] = [1, 2]): SceneState {
+  let s = onBoard({ atk: [0, 0], ally: [2, 0], g: at, o: [2, 2] }, spearman('atk'), fighter('ally'), guardian, shielded('o'))
   const [row] = getAttackOptions(s.characters.atk, 'strike', true)
   s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
   return commitAction(() => 5, newId)(setTarget('ally')(s))
@@ -120,6 +120,16 @@ describe('the protection surge', () => {
     const moved = takeStep(declareReaction('g', guard!.draft, newId)(start))
     expect(getAdjacentIds(moved, 'ally')).toContain('g')
     expect(getDefendingReaction(moved, getOpenAction(moved)!)?.actorId).toBe('g')
+  })
+
+  // The table's ruling: the defense made on the surge is the same answer as
+  // the one made without it, listed once with the surge among its ways.
+  it('lists the defense on the surge as one way of the same answer', () => {
+    // the guardian stands on the strike's line, so a block is open without the surge too
+    const start = thrustAtAlly(undefined, [1, -1])
+    const blocks = getAnswerWays(getAvailableActions(start, 'g')).filter((a) => a.answer.draft.kind === 'block')
+    expect(blocks.length).toBeGreaterThan(0)
+    for (const block of blocks) expect(block.ways.map((w) => w.surge)).toEqual([null, 'protection'])
   })
 })
 
