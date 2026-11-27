@@ -5,7 +5,7 @@ import { readClick } from '../domain/scene/commands/click'
 import { isAimed, type MenuEntry } from '../domain/scene/commands/clickMenu'
 import { getGivenSteps, walkKey, type OpenWalk, type WalkStep } from '../domain/scene/projections/openWalk'
 import { getOpenChoices } from '../domain/scene/projections/choices'
-import { getReactionsTo } from '../domain/scene/rules/log'
+import { getAncestry, getReactionsTo } from '../domain/scene/rules/log'
 import type { SceneCommand } from '../domain/scene/commands/registry'
 import { useClickMenuStore } from './useClickMenuStore'
 import { getOpenAction } from '../domain/scene/rules/log'
@@ -114,20 +114,42 @@ describe('the walk of an action declared from the menu', () => {
   }
 
   for (const actor of [spearman, archer, mage]) for (const change of [false, true]) {
-    it(`commits every entry ${actor.name} aims at the clicked token at that token, ${change ? 'giving each step another value' : 'keeping every value'}`, () => {
+    it(`commits every entry ${actor.name} aims at the clicked token at that token, and lands it where nobody reacts, ${change ? 'giving each step another value' : 'keeping every value'}`, () => {
       const count = aimedAt(scene(actor), 'Bob').length
       expect(count).toBeGreaterThan(0)
       for (let nth = 0; nth < count; nth++) {
         const h = scene(actor)
         const { id } = committed(h, 'Bob', nth, change)
         const view = read(h)
-        expect(view === null || (view.kind === 'exchange' && view.actionId === id), 'after the commit the walk is the exchange of what it committed, or done').toBe(true)
+        expect(view === null || view.kind !== 'declare' || view.actionId !== id, 'after the commit the walk goes on to what it committed or what comes of it, or is done').toBe(true)
+        if (view) expect(view.actionId === id || getAncestry(h.state(), getOpenAction(h.state())!).some((a) => a.id === id), 'what the walk goes on with comes of the action').toBe(true)
+        if (view?.kind === 'land') landed(h, id, change)
       }
     })
   }
 
+  // what the thrown action lands with walked to its landing: it lands, and the
+  // walk goes on only with what comes of it
+  const landed = (h: Harness, id: string, change: boolean) => {
+    const at = read(h)
+    if (at?.kind !== 'land') {
+      expect(at === null || getAncestry(h.state(), getOpenAction(h.state())!).some((a) => a.id === id), 'past its reactions the walk is the action landing, or what comes of it').toBe(true)
+      return
+    }
+    through(h, () => { const v = read(h); return v?.kind === 'land' && v.actionId === id ? v : null }, change)
+    const view = read(h)
+    if (view?.kind !== 'land' || view.actionId !== id) return
+    expect(view.step, 'the landing walks to its end').toBeNull()
+    expect(view.land.bar, 'walked to its end, the action may land').toBeNull()
+    h.send(view.land.command)
+    expect(h.state().stack.includes(id), 'the action lands').toBe(false)
+    const next = read(h)
+    const open = getOpenAction(h.state())
+    expect(next === null || (open !== null && getAncestry(h.state(), open).some((a) => a.id === id)), 'what the walk goes on with comes of the action').toBe(true)
+  }
+
   for (const actor of [spearman, archer]) for (const change of [false, true]) {
-    it(`gives the answer walked for the target of ${actor.name}'s attack, then goes, ${change ? 'giving each step another value' : 'keeping every value'}`, () => {
+    it(`gives the answer walked for the target of ${actor.name}'s attack, then goes and lands, ${change ? 'giving each step another value' : 'keeping every value'}`, () => {
       const answersOf = (h: Harness) => {
         const view = read(h)
         const bob = view?.kind === 'exchange' ? view.answerers.find((a) => a.id === h.idOf('Bob')) : undefined
@@ -165,6 +187,7 @@ describe('the walk of an action declared from the menu', () => {
         else expect(given?.kind, `${picked.label} is given`).toBe((picked.command as Extract<SceneCommand, { kind: 'react' }>).args[1].kind)
         h.send(after.go.command)
         expect(h.state().actions[id].step, 'the action goes on past the answers').not.toBe('react')
+        landed(h, id, change)
       }
     })
   }

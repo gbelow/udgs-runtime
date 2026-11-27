@@ -1,12 +1,14 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronUp, Dices, Hourglass, Play, X } from 'lucide-react'
+import { Check, CheckCheck, ChevronUp, Dices, Hourglass, Minus, Play, X } from 'lucide-react'
 import { useClickMenu, useOpenWalk } from '../hooks/useClickMenu'
 import { ActionKey, Button, Closed, Floating, IconButton, SectionLabel } from './ui'
 import { Locked, LockedFor } from './Locks'
 import { useControlBar } from '../hooks/useControl'
 import type { MenuEntry } from '../domain/scene/commands/clickMenu'
-import type { AnswerWalk, DeclarationWalk, ExchangeWalk, ReactorStatus, WalkStep } from '../domain/scene/projections/openWalk'
+import type { AnswerWalk, DeclarationWalk, ExchangeWalk, LandingWalk, ReactorStatus, WalkStep } from '../domain/scene/projections/openWalk'
+import type { ActionPanelView } from '../domain/scene/projections/actionPanel'
+import { OutcomeLine, RollLine } from './ActionPanel'
 import { ACTION_ICONS } from './actionIcons'
 
 // Where the last press landed, which is where a click on the board opens its menu.
@@ -20,7 +22,8 @@ const MENU_ROOM = 260
 // from it is walked where it was: its declaration one step at a time to its
 // commit, then the reactions one reactor at a time, each a step at a time,
 // and the go; the reactions put away to a small button while none of them
-// are the viewer's to make.
+// are the viewer's to make; then what it lands with, a step at a time, and
+// its landing; then whatever follows from it, the same way.
 export function ClickMenuHost(){
   const { menu, walk, press, start, close, closeWalk, escape } = useClickMenu()
   const walked = useOpenWalk()
@@ -81,7 +84,7 @@ export function ClickMenuHost(){
   const box = 'min-w-60 flex flex-col gap-1.5 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'
 
   if (!menu) {
-    const { view, press: step, next, back, send, shown, expanded, show, collapse } = walked
+    const { view, press: step, next, back, send, shown, expanded, show, collapse, readout } = walked
     const on = { press: step, next, back, send }
     const small = view!.kind === 'exchange' && !expanded
     return (
@@ -91,7 +94,9 @@ export function ClickMenuHost(){
           className={small ? 'flex flex-row items-center gap-1 bg-raised border border-line rounded p-1 shadow-lg shadow-black/40 text-xs' : box}>
           {view!.kind === 'declare'
             ? <DeclarationView view={view!} {...on} />
-            : expanded
+            : view!.kind === 'land'
+              ? <LandingView view={view!} readout={readout} {...on} />
+              : expanded
               ? <ExchangeView view={view!} shown={shown} onShow={show} onCollapse={() => collapse(true)} {...on} />
               : <ReactionsButton view={view!} onExpand={() => collapse(false)} send={send} />}
         </Floating>
@@ -145,10 +150,13 @@ function StepView({ walk, step, backTo, press, next, back }: { walk: string, ste
           <SectionLabel>{step.label}{step.now !== null ? <span className='font-mono text-muted'> {step.now}</span> : null}</SectionLabel>
           <div className='flex flex-row flex-wrap gap-1'>
             {step.buttons.map((b, i) => (
-              <Closed key={`${b.label}:${i}`} reason={b.bar ?? null}>
-                <Button size='xs' selected={b.selected} disabled={!!b.bar || (step.kind !== 'pick' && b.command === null)}
-                  onClick={() => press(walk, step, b)}>{b.label}</Button>
-              </Closed>
+              <span key={`${b.label}:${i}`} className='inline-flex items-stretch'>
+                <Closed reason={b.bar ?? null}>
+                  <Button size='xs' selected={b.selected} disabled={!!b.bar || (step.kind !== 'pick' && b.command === null)}
+                    onClick={() => press(walk, step, b)}>{b.label}{b.count ? <span className='ml-1 font-mono'>×{b.count}</span> : null}</Button>
+                </Closed>
+                {b.undo ? <IconButton icon={Minus} aria-label={`take back ${b.label}`} onClick={() => press(walk, step, { ...b, command: b.undo! })} /> : null}
+              </span>
             ))}
           </div>
           {step.note ? <span className='text-[11px] font-mono text-muted'>{step.note}</span> : null}
@@ -247,6 +255,37 @@ function ExchangeView({ view, shown, onShow, onCollapse, send, ...on }: { view: 
         {back ? <Button size='xs' weight='ghost' title='take back the last reaction' onClick={() => send(back)}>take back</Button> : null}
       </LockedFor>
       {accept ? <LockedFor id={view.targetId}><ActionKey title='the target allows it: no test' onClick={() => send(accept)}>allow it</ActionKey></LockedFor> : null}
+    </>
+  )
+}
+
+// The thrown action: the roll and what it does as it stands, what it lands
+// with a step at a time, then its landing.
+function LandingView({ view, readout, send, ...on }: { view: LandingWalk, readout: ActionPanelView | null } & WalkPresses){
+  const { land } = view
+  const open = readout?.open ?? null
+  return (
+    <>
+      <SectionLabel>{view.title}</SectionLabel>
+      {open?.roll ? (
+        <RollLine roll={open.roll} className='text-xs'>
+          {readout && readout.hop.total > 0 ? <span>HOP <span className='font-mono'>{readout.hop.remaining}</span> of <span className='font-mono'>{readout.hop.total}</span></span> : null}
+        </RollLine>
+      ) : null}
+      {open?.walked ? <span className='text-muted'>{open.movement} · walks <span className='font-mono'>{open.walked.cells}</span> of <span className='font-mono'>{open.path.length}</span>{open.walked.stop !== 'end' ? <span className='text-bad'> · {open.walked.stop}</span> : null}</span> : null}
+      {open?.spell && open.roll?.degree !== 'hit' ? <span className='text-muted'>the spell fails</span> : null}
+      {readout?.deliveries.map((d, i) => <span key={i}>{d.target}: {d.name || d.kind}{d.test ? <span className='text-muted'> · rolls {d.test}</span> : null}</span>)}
+      {readout?.outcomes.map(({ target, outcome, estimate }) => <OutcomeLine key={target} outcome={outcome} target={target} estimate={estimate} />)}
+      {open?.grapple.map((n, i) => <span key={i}>{n.target ? `${n.target}: ` : ''}<span className='text-muted'>{n.text}</span></span>)}
+      {open?.area && readout?.outcomes.length === 0 ? <span className='text-muted'>nobody in the area</span> : null}
+      <LockedFor id={view.actorId} className='flex flex-col gap-1.5'>
+        <StepView walk={view.walk} step={view.step} backTo={view.back} {...on} />
+        {view.step ? null : (
+          <Closed reason={land.bar}>
+            <ActionKey look='go' icon={CheckCheck} aria-label='resolve action' disabled={land.bar !== null} onClick={() => send(land.command)}>done</ActionKey>
+          </Closed>
+        )}
+      </LockedFor>
     </>
   )
 }

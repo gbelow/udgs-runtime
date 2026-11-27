@@ -918,7 +918,7 @@ function signed(value: number): string {
 
 
 // What the strike does to the target as it stands, one line.
-function OutcomeLine({ outcome, target, estimate }: { outcome: Outcome, target: string, estimate: boolean }){
+export function OutcomeLine({ outcome, target, estimate }: { outcome: Outcome, target: string, estimate: boolean }){
   const line = <OutcomeText outcome={outcome} target={target} />
   if (!estimate) return line
   return (
@@ -951,7 +951,7 @@ function OutcomeText({ outcome, target }: { outcome: Outcome, target: string }){
 
 // A test as thrown: who made it, the die, the score against the DL and the
 // degree, then whatever follows from it.
-function RollLine({ roll, label, className, children }: { roll: ActionRoll | null, label?: string, className: string, children?: React.ReactNode }){
+export function RollLine({ roll, label, className, children }: { roll: ActionRoll | null, label?: string, className: string, children?: React.ReactNode }){
   return (
     <div className={`flex flex-row flex-wrap gap-x-3 items-baseline ${className}`}>
       {label ? <span>{label}</span> : null}

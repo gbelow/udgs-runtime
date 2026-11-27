@@ -3,6 +3,7 @@ import type { MenuEntry } from "../domain/scene/commands/clickMenu";
 import type { SceneCommand } from "../domain/scene/commands/registry";
 import { getGivenSteps, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
 import { useControlled } from "./useControl";
+import { getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import { useClickMenuStore, type MenuWalk } from "../stores/useClickMenuStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useFollowPick } from "./useFollowPick";
@@ -89,5 +90,10 @@ export function useOpenWalk() {
   const expanded = walk?.collapsed === null || walk?.collapsed === undefined ? hasOwnToReact(reactors, controlled) : !walk.collapsed;
   const show = (a: AnswerWalk) => pickReactor({ id: a.id, review: isFinished(a) });
 
-  return { walk, view, press, next, back, send, shown, expanded, show, collapse: collapseWalk } as const;
+  // what the thrown action shows as it lands: the action panel's own reading of it
+  const landing = view?.kind === "land";
+  useCombatStore((s) => (landing ? getActionPanelDigest(s) : ""));
+  const readout = landing ? getActionPanel(useCombatStore.getState()) : null;
+
+  return { walk, view, press, next, back, send, shown, expanded, show, collapse: collapseWalk, readout } as const;
 }
