@@ -83,11 +83,23 @@ export function BrushFace({ brush, icons }: { brush: TerrainBrush, icons: Partia
 
 const toSvgPoints = (points: { x: number; y: number }[]) => points.map((p) => `${p.x},${p.y}`).join(' ')
 
+const PLAIN_MODE_LABEL = {
+  idle: 'click a token to pick it',
+  path: 'click cells to walk the move',
+  jump: 'click a cell to jump there',
+  aim: 'click a cell to aim',
+  locked: 'an action is open',
+} as const
+
 // The simulated grid: a hex field the GM paints, lights and repositions
 // characters on, each placed by hand the first time, and the surface a move
 // is walked on, zoomed with the wheel and panned by dragging. Everything drawn is a field of the board view; the panel
 // only translates it into shapes.
-export function BoardPanel(){
+// `plain`: nothing on it but what a player of the fight clicks (cells, tokens
+// and items, the turn of a move, the storey, the zoom and the view), as the
+// demo shows it. `placing`: the party is still being put down and the fight
+// has not begun, so the space bar holds no bots yet.
+export function BoardPanel({ plain = false, placing = false }: { plain?: boolean, placing?: boolean }){
   const eyes = useEyes()
   const look = useBoardLook()
   const [storey, setStorey] = useState<number | null | 'auto'>('auto')
@@ -107,18 +119,19 @@ export function BoardPanel(){
   const open = tools && gmTools
   const camera = useBoardCamera()
   const { space } = useBotsPaused()
+  const onSpace = placing ? undefined : space
 
   if (!view.present) {
     return (
       <Panel meta='no grid: everyone is in reach'
-        title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' tone='accent' aria-label='new board' disabled={gmBar !== null} title={gmBar ?? 'draw a hex grid for the scene'} onClick={() => create(6)}>simulate a grid</Button></span>}>
-        {gmTools ? <MapsRow canSave={false} /> : null}
+        title={plain ? 'Board' : <span className='inline-flex items-center gap-2'>Board <Button size='xs' tone='accent' aria-label='new board' disabled={gmBar !== null} title={gmBar ?? 'draw a hex grid for the scene'} onClick={() => create(6)}>simulate a grid</Button></span>}>
+        {gmTools && !plain ? <MapsRow canSave={false} /> : null}
         <SceneCards />
       </Panel>
     )
   }
 
-  const floor = gmTools ? floorTool : null
+  const floor = gmTools && !plain ? floorTool : null
   const painting = open && floor === null && brush !== null
   const surfacing = open && floor === null && brush === null && laying !== null
   const repositioning = open && floor === null && reposition
@@ -127,23 +140,51 @@ export function BoardPanel(){
   const exploding = floor === 'explode'
   const charging = floor === 'charge'
   const settingOff = floor === 'setoff'
+  const front = <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
+  const storeyPick = storeys.length > 1 ?
+    <Segmented label='storey'>
+      <Segment selected={storey === 'auto'} title='the floor the active character stands on' onClick={() => setStorey('auto')}>theirs</Segment>
+      {storeys.map((s) => <Segment key={s.label} selected={storey !== 'auto' && s.height === height} onClick={() => setStorey(s.height)}>{s.label}</Segment>)}
+    </Segmented>
+    : null
+  const turnButton = <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
+  const canvas = <>
+    <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={onSpace} motion={look.motion}
+      onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
+      onToken={clickToken}
+      onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />
+    <ClickMenuHost />
+  </>
+
+  if (plain) {
+    return (
+      <div className='flex flex-col flex-1 min-h-0 gap-1'>
+        <div className='flex flex-row flex-wrap items-center gap-1'>
+          <span className={`text-xs ${view.mode === 'idle' && !placing ? 'text-muted' : 'text-accent'}`}>{placing ? 'click a cell to place the character picked' : PLAIN_MODE_LABEL[view.mode]}</span>
+          <span className='grow' />
+          {storeyPick}
+          {turnButton}
+          {front}
+          <MotionButtons look={look} />
+          <ZoomButtons camera={camera} />
+        </div>
+        {canvas}
+      </div>
+    )
+  }
+
   return (
     <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : grounding ? `click a cell to lay ${item.name || item.refId} on it` : exploding ? 'click a cell to set the explosion off there' : charging ? 'click an item on the floor to charge it with the explosion described' : settingOff ? 'click an item on the floor to set its charge off' : clearing ? 'click an item on the floor to take it away' : repositioning ? 'click a cell to put the active character there, turn to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
         <ZoomButtons camera={camera} />
-        <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front: higher ground lifted up the screen. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
+        {front}
         <MotionButtons look={look} />
         {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
-        {storeys.length > 1 ?
-          <Segmented label='storey'>
-            <Segment selected={storey === 'auto'} title='the floor the active character stands on' onClick={() => setStorey('auto')}>theirs</Segment>
-            {storeys.map((s) => <Segment key={s.label} selected={storey !== 'auto' && s.height === height} onClick={() => setStorey(s.height)}>{s.label}</Segment>)}
-          </Segmented>
-          : null}
+        {storeyPick}
         <Button size='xs' selected={eyes.on} aria-label='see as the active character' disabled={eyes.player} title={eyes.player ? 'you see what the last character of yours you picked senses' : 'draw only what the active character can see'} onClick={eyes.toggle}>their eyes</Button>
         {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setFloorTool(null) }}>GM board tools</Button> : null}
-        <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
+        {turnButton}
         <Button size='xs' weight='subtle' tone='bad' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>
       </>}>
 
@@ -185,11 +226,7 @@ export function BoardPanel(){
         </div>
       ) : null}
 
-      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={space} motion={look.motion}
-        onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
-        onToken={clickToken}
-        onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />
-      <ClickMenuHost />
+      {canvas}
     </Panel>
   )
 }
@@ -281,7 +318,7 @@ const MOTION_TITLES: Record<BoardLook['motion'], string> = {
 }
 
 // How fast the board plays what happens, or not at all; kept in the browser.
-export function MotionButtons({ look }: { look: Pick<BoardLook, 'motion' | 'setMotion'> }){
+function MotionButtons({ look }: { look: Pick<BoardLook, 'motion' | 'setMotion'> }){
   return (
     <Segmented label='animation'>
       {(['normal', 'fast', 'off'] as const).map((m) =>

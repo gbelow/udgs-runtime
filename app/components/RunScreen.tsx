@@ -37,30 +37,46 @@ import { useETAutoThrow } from '../hooks/useParty';
 import { useDowntimeAutoThrow } from '../hooks/useDowntime';
 import type { RunTab } from '../stores/useAppStore';
 
-type Mode = {
+// What a player of a mode has along the bottom, at any table: the run screen's
+// and the demo's.
+export type PlayerSlots = {
+  status: {
+    // what the active character spends beside the tiles every mode has
+    resource?: ReactNode
+    // what sits beside the stamina tile
+    resourceEnd?: ReactNode
+    // whether exhaustion, hunger and thirst show among the tiles
+    needs: boolean
+    // whether AP, STA and IL show as bars, with what sits beside the stamina under them
+    bars?: boolean
+  }
+  // what is pressed for no one character, beside who acts
+  buttons?: ReactNode
+  // what the active character can do, which says so itself where nobody is picked
+  actions: ReactNode
+  log: { label: string, node: ReactNode }
+}
+
+type Mode = PlayerSlots & {
   // what moves time and who is in play, along the top
   strip: ReactNode
   // who is in play, in a popover over the middle
   parties: ReactNode
   // the mode's own space in the middle
   space: ReactNode
-  // what the active character spends beside the tiles every mode has, and
-  // the button beside their injuries
-  resource?: ReactNode
-  // what sits beside the stamina tile
-  resourceEnd?: ReactNode
-  // whether exhaustion, hunger and thirst show among the tiles
-  needs: boolean
-  // whether AP, STA and IL show as bars, with what sits beside the stamina under them
-  bars?: boolean
+  // the GM's button beside the active character's injuries
   injuryAction?: ReactNode
-  // what is pressed for no one character, beside who acts
-  buttons?: ReactNode
-  // what the active character can do, which says so itself where nobody is picked
-  actions: ReactNode
   // what the GM does to the mode that no character does
   gmTools?: ReactNode
-  log: { label: string, node: ReactNode, action?: ReactNode }
+  log: { action?: ReactNode }
+}
+
+// The fight's slots for a player of it.
+export const FIGHT_SLOTS: PlayerSlots = {
+  status: { resourceEnd: <SurgeTile wide />, needs: false, bars: true },
+  buttons: <FightButtons />,
+  actions: <FightActions />,
+  log: { label: 'Log', node: <ActionLog /> },
 }
 
 const MODES: Record<RunTab, Mode> = {
@@ -68,20 +84,16 @@ const MODES: Record<RunTab, Mode> = {
     strip: <SceneStrip />,
     parties: <TableParties />,
     space: <SceneSpace />,
-    resourceEnd: <SurgeTile wide />,
-    needs: false,
-    bars: true,
+    ...FIGHT_SLOTS,
     injuryAction: <KillButton />,
-    buttons: <FightButtons />,
-    actions: <FightActions />,
     gmTools: <GmSceneTools />,
-    log: { label: 'Log', node: <ActionLog />, action: <SaveLogButton /> },
+    log: { ...FIGHT_SLOTS.log, action: <SaveLogButton /> },
   },
   exploration: {
     strip: <ExplorationStrip />,
     parties: <TableParties sequence='exploration' />,
     space: <PartyCards />,
-    needs: true,
+    status: { needs: true },
     actions: <Picked><ControlLocked><ExplorationSection /></ControlLocked></Picked>,
     log: { label: 'Last ET', node: <div className='flex flex-col gap-2'><LastEtLog /><RecentJournal /></div> },
   },
@@ -89,7 +101,7 @@ const MODES: Record<RunTab, Mode> = {
     strip: <DowntimeStrip />,
     parties: <TableParties sequence='downtime' />,
     space: <DowntimeRoster />,
-    needs: true,
+    status: { needs: true },
     actions: <Picked><ControlLocked><DowntimeActions /></ControlLocked></Picked>,
     log: { label: 'Last days', node: <div className='flex flex-col gap-2'><LastDaysLog /><RecentJournal /></div> },
   },
@@ -124,7 +136,7 @@ const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
 // mode's.
 export function RunScreen(){
   const { tab } = useGameTab()
-  const { strip, parties, space, resource, resourceEnd, needs, bars, injuryAction, buttons, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
+  const { strip, parties, space, status, injuryAction, buttons, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const { gmTools: hasGmTools } = useRole()
   const hasActiveCharacter = useHasActiveCharacter()
   const face = useActiveFace()
@@ -165,7 +177,7 @@ export function RunScreen(){
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status resource={resource} resourceEnd={resourceEnd} needs={needs} bars={bars} injuryAction={injuryAction} /> : PICK}
+          {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status {...status} injuryAction={injuryAction} /> : PICK}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           <ActionColumn gmTools={gmTools} buttons={buttons}>{actions}</ActionColumn>

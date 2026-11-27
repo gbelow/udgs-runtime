@@ -166,10 +166,14 @@ function FightSettings(){
 // fight lives in the chase, the chase saved and frozen above the board the
 // fight is played on; the chase's chain while it runs; the board otherwise;
 // and whom the scene follows once a chase is over.
-export function SceneSpace(){
+// At a table that runs itself (`selfRun`, the demo) the players say they are
+// done with the round change's rest step, and the board carries only what a
+// player of the fight clicks; `placing`: the party is still being put down.
+export function SceneSpace({ selfRun = false, placing = false }: { selfRun?: boolean, placing?: boolean }){
   const chase = useChase()
   const { view } = useRoundChange()
   const [mapOf, setMapOf] = useState<number | null>(null)
+  const board = <BoardPanel plain={selfRun} placing={placing} />
   if (view) {
     const onMap = chase.boardInPlay && view.stressTurn !== null && view.stressTurn.turn === mapOf
     return onMap ? (
@@ -178,16 +182,16 @@ export function SceneSpace(){
           <Button size='xs' onClick={() => setMapOf(null)}>back to the round change</Button>
         </div>
         <TurnBanner />
-        <BoardPanel />
+        {board}
       </>
-    ) : <RoundChangePanel openMap={chase.boardInPlay ? setMapOf : null} />
+    ) : <RoundChangePanel openMap={chase.boardInPlay ? setMapOf : null} selfRun={selfRun} />
   }
   return(
     <>
       <TurnBanner />
       <FollowPanel />
       {chase.saved ? <><ChaseSaved /><ChaseTrack /></> : chase.chasing ? <><ChaseTrack /><ChasePanel /></> : null}
-      {chase.boardInPlay ? <BoardPanel /> : null}
+      {chase.boardInPlay ? board : null}
     </>
   )
 }

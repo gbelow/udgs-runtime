@@ -2,29 +2,19 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Check, Plus, RotateCw, X } from 'lucide-react'
-import { useBoard } from '../../hooks/useBoard'
-import { useBoardVeil, useLitCell } from '../../hooks/useBoardVeil'
-import { useBoardCamera, useCellAt } from '../../hooks/useBoardCanvas'
-import { useBoardLook } from '../../hooks/useBoardLook'
-import { useBots, useBotsPaused } from '../../hooks/useBots'
+import { Check, Plus, X } from 'lucide-react'
+import { useBots } from '../../hooks/useBots'
 import { useContestClock } from '../../hooks/useContest'
 import { useSights } from '../../hooks/useSights'
-import { TurnBanner } from '../TurnBanner'
 import { useDemo, useDemoKept, useDemoPicker, useDemoStage } from '../../hooks/useDemo'
 import { useHasActiveCharacter } from '../../hooks/useCharacterData'
-import { useActiveFace, useCombatState, useRoundChange } from '../../hooks/useCombatState'
+import { useActiveFace, useCombatState } from '../../hooks/useCombatState'
 import { ActiveFace } from '../ActiveFace'
 import { useTray } from '../../hooks/useTray'
 import type { DemoFate, DemoOutcome } from '../../domain/scene/projections/demo'
-import { BoardCanvas } from '../BoardCanvas'
-import { MotionButtons, ZoomButtons } from '../BoardPanel'
-import { ClickMenuHost } from '../ClickMenu'
-import { RoundChangePanel } from '../RoundChangePanel'
-import { CharacterList, FightActions, FightButtons, SurgeTile } from '../ScenePanel'
-import { AutoThrow, SheetTabs, Status } from '../RunScreen'
+import { CharacterList, SceneSpace } from '../ScenePanel'
+import { AutoThrow, FIGHT_SLOTS, SheetTabs, Status } from '../RunScreen'
 import { useActiveControlBar } from '../../hooks/useControl'
-import { ActionLog } from '../ActionPanel'
 import { Button, IconButton, SectionLabel, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
 import { Basics, HelpButton, HintLine, HowToPlay } from './DemoHelp'
@@ -128,7 +118,7 @@ function DemoTable() {
       </header>
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
         <div className='relative flex-1 min-w-0 min-h-0 flex flex-col p-2'>
-          <DemoSpace />
+          <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'><SceneSpace selfRun placing={!started} /></div>
           <Result />
         </div>
         {hasActive && !face && own ? (
@@ -139,17 +129,17 @@ function DemoTable() {
       </div>
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {face ? <ActiveFace /> : hasActive ? <Status resourceEnd={<SurgeTile wide />} needs={false} bars /> : <span className='text-xs text-muted'>pick a character</span>}
+          {face ? <ActiveFace /> : hasActive ? <Status {...FIGHT_SLOTS.status} /> : <span className='text-xs text-muted'>pick a character</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'><FightButtons /></div> : null}
+          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'>{FIGHT_SLOTS.buttons}</div> : null}
           {view.hint ? <HintLine hint={view.hint} onClose={() => { if (view.hint) seeHint(view.hint) }} /> : null}
-          {started ? <FightActions /> : <Placing />}
+          {started ? FIGHT_SLOTS.actions : <Placing />}
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
           {throwing ? <DiceTray /> : !started ? <Basics /> : <>
-            <SectionLabel>Log</SectionLabel>
-            <div className='flex-1 min-h-0 overflow-y-auto'><ActionLog /></div>
+            <SectionLabel>{FIGHT_SLOTS.log.label}</SectionLabel>
+            <div className='flex-1 min-h-0 overflow-y-auto'>{FIGHT_SLOTS.log.node}</div>
           </>}
         </div>
       </div>
@@ -186,61 +176,6 @@ function Placing() {
         <Button size='sm' weight='solid' tone='accent' disabled={view.startBar !== null} onClick={start} className='px-8 py-2 text-base'>START</Button>
       </Tooltip>
       {view.startBar ? <span className='text-xs text-muted'>{view.startBar}</span> : null}
-    </div>
-  )
-}
-
-// The round change while it runs, with the board in its place for as long as
-// one of the visitor's characters takes the limit stress action they owe,
-// opened from their card; the board otherwise.
-function DemoSpace() {
-  const { view } = useRoundChange()
-  const [mapOf, setMapOf] = useState<number | null>(null)
-  if (!view) return <><TurnBanner /><DemoBoard /></>
-  if (view.stressTurn !== null && view.stressTurn.turn === mapOf) {
-    return (
-      <>
-        <div><Button size='xs' onClick={() => setMapOf(null)}>back to the round change</Button></div>
-        <TurnBanner />
-        <DemoBoard />
-      </>
-    )
-  }
-  return <div className='flex-1 min-h-0 overflow-y-auto'><RoundChangePanel openMap={setMapOf} selfRun /></div>
-}
-
-const MODE_TEXT = {
-  idle: 'click a token to pick it',
-  path: 'click cells to walk the move',
-  jump: 'click a cell to jump there',
-  aim: 'click a cell to aim',
-  locked: 'an action is open',
-} as const
-
-// The board with nothing but what a player of the fight clicks: cells,
-// tokens and items, the turn of a move, the zoom and the view from the front.
-function DemoBoard() {
-  const look = useBoardLook()
-  const { started } = useDemoStage()
-  const { view, clickCell, clickToken, clickFloorItem, picked, turn } = useBoard(look, 'auto')
-  const veil = useBoardVeil(view)
-  const { setLit } = useLitCell(view, veil.setOver)
-  const cellAt = useCellAt()
-  const camera = useBoardCamera()
-  const { space } = useBotsPaused()
-  return (
-    <div className='flex flex-col flex-1 min-h-0 gap-1'>
-      <div className='flex flex-row flex-wrap items-center gap-1'>
-        <span className={`text-xs ${view.mode === 'idle' ? 'text-muted' : 'text-accent'}`}>{started ? MODE_TEXT[view.mode] : 'click a cell to place the character picked'}</span>
-        <span className='grow' />
-        <IconButton icon={RotateCw} aria-label='turn' title='turn the move clockwise, or the character picked until the fight starts' onClick={() => turn(false)} />
-        <Button size='xs' selected={look.front} aria-label='front view' title={look.front ? 'seen from the front. Click for the view from above' : 'seen from above. Click for the view from the front'} onClick={() => look.setFront(!look.front)}>{look.front ? 'front' : 'top'}</Button>
-        <MotionButtons look={look} />
-        <ZoomButtons camera={camera} />
-      </div>
-      <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={started ? space : undefined} motion={look.motion}
-        onCell={(cell) => clickCell(cell, null, false, 0)} onToken={clickToken} onFloorItem={clickFloorItem} />
-      <ClickMenuHost />
     </div>
   )
 }
