@@ -147,6 +147,7 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
       {storeys.map((s) => <Segment key={s.label} selected={storey !== 'auto' && s.height === height} onClick={() => setStorey(s.height)}>{s.label}</Segment>)}
     </Segmented>
     : null
+  const eyesButton = <Button size='xs' selected={eyes.on} aria-label='see as the active character' disabled={eyes.player} title={eyes.player ? 'you see what the last character of yours you picked senses' : 'draw only what the active character can see'} onClick={eyes.toggle}>their eyes</Button>
   const turnButton = <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
   const canvas = <>
     <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={onSpace} motion={look.motion}
@@ -165,6 +166,7 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
           {storeyPick}
           {turnButton}
           {front}
+          {eyes.player ? null : eyesButton}
           <MotionButtons look={look} />
           <ZoomButtons camera={camera} />
         </div>
@@ -182,7 +184,7 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
         <MotionButtons look={look} />
         {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
         {storeyPick}
-        <Button size='xs' selected={eyes.on} aria-label='see as the active character' disabled={eyes.player} title={eyes.player ? 'you see what the last character of yours you picked senses' : 'draw only what the active character can see'} onClick={eyes.toggle}>their eyes</Button>
+        {eyesButton}
         {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setFloorTool(null) }}>GM board tools</Button> : null}
         {turnButton}
         <Button size='xs' weight='subtle' tone='bad' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>

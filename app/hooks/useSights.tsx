@@ -4,14 +4,15 @@ import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useSightStore } from "../stores/useSightStore";
 import { useTableStore } from "../stores/useTableStore";
-import { useKeptFight } from "../stores/useKeptFight";
+import { useKeptFight, useWatchesFight } from "../stores/useKeptFight";
 import { useRollerCheck } from "./useControl";
 import { useRole } from "./useRole";
 
 // What the player at the screen knows of the fight, noted at every change to
-// it; a GM knows all of it.
+// it; a GM, and whoever only watches the fight, knows all of it.
 export function useSights() {
   const { gmTools } = useRole();
+  const watching = useWatchesFight();
   const rolls = useRollerCheck();
   const live = useRef(rolls);
   live.current = rolls;
@@ -19,7 +20,7 @@ export function useSights() {
   const owners = useCampaignStore((s) => s.owners);
 
   useEffect(() => {
-    if (gmTools) { useSightStore.setState({ player: false }); return; }
+    if (gmTools || watching) { useSightStore.setState({ player: false }); return; }
     const note = () => {
       const state = useCombatStore.getState();
       const before = useSightStore.getState();
@@ -31,7 +32,7 @@ export function useSights() {
     };
     note();
     return useCombatStore.subscribe(note);
-  }, [gmTools, mode, owners]);
+  }, [gmTools, watching, mode, owners]);
 }
 
 // Whether a player at the screen knows character `id` to be in the fight; a GM

@@ -3,9 +3,10 @@ import demoConfig from '../assets/demo.json'
 import type { BotId } from './profiles'
 
 // The demo on the home page: a prepared scene of the catalog (`scene`, by
-// key), whose party marked for the visitor they fill from a collection of
-// catalog characters (`collection`, the id of one for everyone; none offers the whole character
-// catalog) and play against the bots, who play every other party.
+// key), each of whose parties (one for each spawn area) the visitor fills
+// from a collection of catalog characters (`collection`, the id of one for
+// everyone; none offers the whole character catalog). They play one of them
+// against the bots, who play every other, or watch the bots play them all.
 export const DemoConfigSchema = z.object({
   scene: z.string().catch(''),
   collection: z.string().catch(''),
@@ -31,12 +32,27 @@ export const DEMO_SCENE = 'demo'
 export const DEMO_HINTS = ['action', 'answer', 'round', 'turn'] as const
 export type DemoHint = (typeof DEMO_HINTS)[number]
 
-// How the visitor is playing the demo: the characters they picked, by catalog
-// key, whether they are picking or playing, the fight party that is theirs,
-// whether they said the fight may begin, and the hints they have put away.
+// The most characters a party of the demo takes, and the most in its fight
+// (the user's ruling, 2026-11-27).
+export const DEMO_PARTY_MOST = 12
+export const DEMO_FIGHT_MOST = 24
+
+// One of the demo scene's parties as the visitor makes it up: the catalog
+// characters in it, by key, and whether the visitor plays it or the bot does.
+export const DemoSideSchema = z.object({
+  picks: z.array(z.string()),
+  you: z.boolean(),
+})
+export type DemoSide = z.infer<typeof DemoSideSchema>
+
+// How the visitor is playing the demo: the scene's parties as they made them
+// up (one for each of the scene's, in its order; none yet for the scene's own
+// line-up), whether they are picking or playing, the fight party that is
+// theirs (none while they watch), whether they said the fight may begin, and
+// the hints they have put away.
 export const DemoPlaySchema = z.object({
   stage: z.enum(['pick', 'play']),
-  picks: z.array(z.string()),
+  sides: z.array(DemoSideSchema),
   party: z.string(),
   started: z.boolean(),
   seen: z.array(z.enum(DEMO_HINTS)).catch([]),

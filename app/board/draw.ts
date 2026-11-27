@@ -233,6 +233,10 @@ const SPAWN_FILL: Record<number, Paint> = {
   2: { color: 'bad', alpha: 0.4 },
   3: { color: 'accent', alpha: 0.45 },
   4: { color: 'injury-2', alpha: 0.45 },
+  5: { color: 'fg', alpha: 0.3 },
+  6: { color: 'muted', alpha: 0.45 },
+  7: { color: 'caution', alpha: 0.45 },
+  8: { color: 'il-5', alpha: 0.6 },
 }
 
 function cellFill(c: BoardCellView): Paint | null {

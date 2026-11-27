@@ -11,7 +11,7 @@ import { getMembers } from '../rules/fighters'
 import type { CalledKind } from '../rules/heldTest'
 import type { ActionDraft, ReactionAmend, BoardExtent, ChaseDeclaration, ChaseIntent, Coord, GroundRecipe, HOPPurchase, LightLevel, SceneState, SightingChoice, SurfaceTarget, Updater } from '../types'
 import { answerScene } from './answer'
-import { backSegment, createBoard, loadBoardMap, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
+import { backSegment, createBoard, loadBoardMap, placeParty, removeBoard, laySurface, generateGround, resizeBoard, setLight, setSurface } from './board'
 import { chooseChase, confirmChase, crossObstacle, declareChase, followParty, giveUp, leaveBehind, mergeBack, putBack, resolveChase, setChaseCover, turnAround } from './chase'
 import { readClick, type Click } from './click'
 import { getPressActor, pressMenu, type MenuPress } from './clickMenu'
@@ -113,6 +113,8 @@ export const sceneCommands = {
   click: command((ctx, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null, radius?: number): Updater =>
     (state) => readOn(ctx.newId, state, click, brush, reposition, selected, radius ?? 0)?.apply(state) ?? state)
     .by((state, click, brush, reposition, selected, radius) => readOn(() => '', state, click, brush, reposition, selected, radius ?? 0)?.actor ?? null),
+  // everyone of the party not yet on the board put down where there is room
+  placeParty: command((_, partyId: string) => placeParty(partyId)).by(partyMember),
   createBoard: command((_, radius: number, seed?: number) => createBoard(radius, seed)).by(gm),
   removeBoard: command(() => removeBoard).by(gm),
   resizeBoard: command((_, extent: BoardExtent) => resizeBoard(extent)).by(gm),

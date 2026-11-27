@@ -1,9 +1,9 @@
 import { create } from 'zustand'
-import type { DemoHint, DemoPlay } from '../domain/demo'
+import type { DemoHint, DemoPlay, DemoSide } from '../domain/demo'
 
 // The demo on this screen.
 type DemoStore = DemoPlay & {
-  setPicks: (picks: string[]) => void
+  setSides: (sides: DemoSide[]) => void
   play: (party: string) => void
   start: () => void
   back: () => void
@@ -12,11 +12,11 @@ type DemoStore = DemoPlay & {
 
 export const useDemoStore = create<DemoStore>((set) => ({
   stage: 'pick',
-  picks: [],
+  sides: [],
   party: '',
   started: false,
   seen: [],
-  setPicks: (picks) => set({ picks }),
+  setSides: (sides) => set({ sides }),
   play: (party) => set({ stage: 'play', party, started: false }),
   start: () => set({ started: true }),
   back: () => set({ stage: 'pick', started: false }),

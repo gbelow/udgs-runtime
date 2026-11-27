@@ -13,7 +13,9 @@ import { getScenePreset } from "../domain/campaign/rules/scenes";
 import { getBaseCharacters } from "../domain/character/grouping";
 import { getSceneMaterials } from "../domain/scene/projections/prepared";
 import { getDemoPicker, getDemoView } from "../domain/scene/projections/demo";
-import { playDemo } from "../domain/scene/commands/demo";
+import { addDemoPick, fillDemoSides, playDemo, playDemoSide, removeDemoPick } from "../domain/scene/commands/demo";
+import type { DemoSide } from "../domain/demo";
+import { useSceneDispatch } from "./useSceneDispatch";
 import { ExplorationStateSchema } from "../domain/exploration/types";
 import { DowntimeStateSchema } from "../domain/downtime/types";
 import { makeCampaignCharacter } from "../domain/factories";
@@ -22,34 +24,38 @@ import { CampaignSaveSchema, fromCampaignSave, newFile, toFileInfo, toStoredCamp
 // The demo's scene, as the catalog has it.
 const preset = () => getScenePreset(DEMO.scene);
 
-// Picking the visitor's party: what is offered and picked, and the presses
-// that change it; joining makes the fight and opens it.
+// Making up the scene's parties: what is offered and picked for each, who
+// plays it, and the presses that change them; joining makes the fight and
+// opens it.
 export function useDemoPicker(offered: readonly string[] | null) {
   const characters = useAppStore((s) => s.baseCharacterList);
   const boardMaps = useAppStore((s) => s.boardMaps);
-  const picks = useDemoStore((s) => s.picks);
-  const setPicks = useDemoStore((s) => s.setPicks);
-  const view = useMemo(() => getDemoPicker(preset(), getBaseCharacters(characters), offered, picks), [characters, offered, picks]);
+  const stored = useDemoStore((s) => s.sides);
+  const setSides = useDemoStore((s) => s.setSides);
+  const view = useMemo(() => getDemoPicker(preset(), getBaseCharacters(characters), offered, stored), [characters, offered, stored]);
+  const sides = (): DemoSide[] => view.sides.map((s) => ({ picks: s.picks.map((p) => p.key), you: s.you }));
   const join = useJoin();
   return {
     view,
-    add: (key: string) => { if (!view.full) setPicks([...view.picks.map((p) => p.key), key]); },
-    remove: (at: number) => setPicks(view.picks.map((p) => p.key).filter((_, i) => i !== at)),
-    preselect: () => setPicks(view.lineup),
-    join: () => { if (view.joinBar === null) join(view.picks.map((p) => p.key), characters, boardMaps); },
+    add: (at: number, key: string) => setSides(addDemoPick(sides(), at, key)),
+    remove: (at: number, n: number) => setSides(removeDemoPick(sides(), at, n)),
+    play: (at: number, you: boolean) => setSides(playDemoSide(sides(), at, you)),
+    preselect: () => setSides(fillDemoSides(preset(), sides())),
+    join: () => { if (view.joinBar === null) join(sides(), characters, boardMaps); },
   };
 }
 
-// The fight made from the picks and put on the screen: the campaign that
-// lends its characters, who plays whom (the visitor, or the bot), the
-// visitor's first character picked, and the demo at its placing.
+// The fight made from the parties made up and put on the screen: the
+// campaign that lends its characters, who plays whom (the visitor, or the
+// bot), the visitor's first character picked, and the demo at its placing;
+// one who plays none of them watches the whole fight.
 function useJoin() {
   const play = useDemoStore((s) => s.play);
-  return (picks: string[], characters: Record<string, unknown>, boardMaps: Parameters<typeof getSceneMaterials>[1]) => {
+  return (sides: DemoSide[], characters: Record<string, unknown>, boardMaps: Parameters<typeof getSceneMaterials>[1]) => {
     const scene = preset();
-    const keys = [...new Set([...picks, ...scene.parties.flatMap((p) => p.members.map((m) => m.key))])];
+    const keys = [...new Set(sides.flatMap((s) => s.picks))];
     const { board, sheets } = getSceneMaterials({ board: scene.board, keys }, boardMaps, characters);
-    const made = playDemo(scene, picks, board, sheets, () => crypto.randomUUID());
+    const made = playDemo(scene, sides, board, sheets, () => crypto.randomUUID());
     if (!made) { toast.error('The demo scene cannot be played.'); return; }
     useBotLogStore.setState({ entries: [], paused: false, open: true });
     useBotMemoryStore.getState().restore();
@@ -58,33 +64,38 @@ function useJoin() {
       newFile(crypto.randomUUID(), { [DEMO_VISITOR]: 'player' }),
       made.owners,
     );
-    keepFight(made.table.fight, DEMO_VISITOR);
-    useCombatStore.setState({ activeCharacterId: Object.keys(made.table.fight.characters).find((id) => made.table.fight.partyOf[id] === made.party) ?? null });
-    play(made.party);
+    const ids = Object.keys(made.table.fight.characters);
+    keepFight(made.table.fight, DEMO_VISITOR, made.party === null);
+    useCombatStore.setState({ activeCharacterId: ids.find((id) => made.table.fight.partyOf[id] === made.party) ?? null });
+    useDemoStore.getState().setSides(sides);
+    play(made.party ?? '');
   };
 }
 
 // The demo while it is played: the view of the fight the visitor reads (how it
-// stands in full, for who won it), and
-// their presses outside the fight's own (pick a character of theirs, start
-// the fight, play the same party again, pick another).
+// stands in full, for who won it), whether they only watch it, and their
+// presses outside the fight's own (pick a character, place the rest of their
+// party, start the fight, play the same parties again, make up others).
 export function useDemo() {
   const party = useDemoStore((s) => s.party);
   const started = useDemoStore((s) => s.started);
-  const picks = useDemoStore((s) => s.picks);
+  const sides = useDemoStore((s) => s.sides);
   const seen = useDemoStore((s) => s.seen);
   const fight = useFight((s) => s);
   const characters = useAppStore((s) => s.baseCharacterList);
   const boardMaps = useAppStore((s) => s.boardMaps);
   const activeId = useCombatStore((s) => s.activeCharacterId);
-  const view = useMemo(() => getDemoView(fight, party, started, seen), [fight, party, started, seen]);
+  const view = useMemo(() => getDemoView(fight, party || null, started, seen), [fight, party, started, seen]);
   const join = useJoin();
+  const dispatch = useSceneDispatch();
   return {
     view,
+    watching: party === '',
     activeId,
     pick: (id: string) => useCombatStore.getState().setActiveCharacter(id),
+    placeRest: () => { if (party) dispatch({ kind: 'placeParty', args: [party] }); },
     start: () => { if (view.startBar === null) useDemoStore.getState().start(); },
-    again: () => join(picks, characters, boardMaps),
+    again: () => join(sides, characters, boardMaps),
     back: () => useDemoStore.getState().back(),
     seeHint: useDemoStore.getState().seeHint,
   };
@@ -111,7 +122,7 @@ async function resumeDemo(isLeft: () => boolean) {
   useBotLogStore.setState({ entries: [], paused: false, open: true });
   useBotMemoryStore.getState().restore(memories);
   useCampaignStore.getState().openCampaign(t, toFileInfo(save.data), save.data.owners);
-  keepFight(t.fight, DEMO_VISITOR);
+  keepFight(t.fight, DEMO_VISITOR, demo.data.party === '');
   useCombatStore.setState({ activeCharacterId: Object.keys(t.fight.characters).find((id) => t.fight.partyOf[id] === demo.data.party) ?? null });
   useDemoStore.setState(demo.data);
 }

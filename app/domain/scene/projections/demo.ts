@@ -8,51 +8,71 @@ import { getRoundChangeBar } from '../rules/roundChange'
 import { isCombatStarted } from '../rules/started'
 import { getOpenAction } from '../rules/log'
 import { getAnswersOwed } from '../rules/options'
-import type { DemoHint } from '../../demo'
+import type { DemoHint, DemoSide } from '../../demo'
+import { getDemoSides, getLineups, getSideFullBar } from '../rules/demo'
 import { getSpawnParties } from '../rules/board/spawn'
 import { getFightName } from '../rules/fighters'
 
-// The demo as the visitor sees it: picking their party before the fight,
-// placing it, the fight's start, and how it ended.
+// The demo as the visitor sees it: making up the parties before the fight,
+// placing theirs, the fight's start, and how it ended.
 
-// The party picker: the catalog characters offered, the line-up the scene's
-// party for the visitor is made of (offered ready-made), how many the party
-// takes, and why it cannot join yet.
+// The party picker: the catalog characters offered, and each of the scene's
+// parties as the visitor is making it up: its name, the tint of its spawn
+// area, the line-up the scene gives it (offered ready-made), the picks, who
+// plays it, and why it takes nobody more; and why the fight cannot be joined
+// yet.
 export type DemoPicker = {
   scene: string
   offered: { key: string; name: string; tags: string[]; description: string }[]
-  lineup: string[]
-  slots: number
-  picks: { key: string; name: string }[]
-  full: boolean
+  sides: {
+    name: string
+    // the tint of its spawn area (`SPAWN_SWATCH`), null for placed anywhere
+    area: number | null
+    lineup: string[]
+    picks: { key: string; name: string }[]
+    you: boolean
+    fullBar: string | null
+  }[]
+  // whether the visitor plays none of the parties, and only watches
+  watching: boolean
   joinBar: string | null
 }
 
 // `offered`: the keys the demo's collection names, or null for the whole
-// character catalog; only those the catalog has are offered.
-export function getDemoPicker(preset: ScenePreset, characters: readonly BaseCharacter[], offered: readonly string[] | null, picks: readonly string[]): DemoPicker {
-  const party = preset.parties.find((p) => p.visitor)
-  const lineup = party ? party.members.flatMap((m) => Array.from({ length: Math.max(0, m.count) }, () => m.key)) : []
-  const slots = Math.max(1, lineup.length)
+// character catalog; only those the catalog has are offered, and a pick of
+// one neither offered nor in a line-up of the scene's is dropped.
+export function getDemoPicker(preset: ScenePreset, characters: readonly BaseCharacter[], offered: readonly string[] | null, stored: readonly DemoSide[]): DemoPicker {
   const byKey = new Map(characters.map((c) => [c.name, c]))
+  const lineups = getLineups(preset).map((l) => l.filter((key) => byKey.has(key)))
+  const allowed = (key: string) => byKey.has(key) && (!offered || offered.includes(key) || lineups.some((l) => l.includes(key)))
   const rows = (offered ?? characters.map((c) => c.name)).flatMap((key) => {
     const c = byKey.get(key)
     return c ? [{ key, name: c.name, tags: c.tags, description: c.description.trim() }] : []
   })
-  const kept = picks.filter((key) => byKey.has(key) && (!offered || offered.includes(key) || lineup.includes(key)))
+  const sides = getDemoSides(preset, stored).map((s) => ({ ...s, picks: s.picks.filter(allowed) }))
+  // the fight tints the areas of the parties it brings in, in the scene's order
+  const tinted = sides.flatMap((s, i) => (s.picks.length > 0 && preset.parties[i].spawn.length > 0 ? [i] : []))
   return {
     scene: preset.name,
     offered: rows,
-    lineup: lineup.filter((key) => byKey.has(key)),
-    slots,
-    picks: kept.map((key) => ({ key, name: byKey.get(key)?.name ?? key })),
-    full: kept.length >= slots,
-    joinBar: !party ? 'the demo scene has no party for the visitor' : kept.length === 0 ? 'pick at least one character' : null,
+    sides: sides.map((s, i) => ({
+      name: preset.parties[i].name || `party ${i + 1}`,
+      area: tinted.indexOf(i) + 1 || null,
+      lineup: lineups[i],
+      picks: s.picks.map((key) => ({ key, name: byKey.get(key)?.name ?? key })),
+      you: s.you,
+      fullBar: getSideFullBar(sides, i),
+    })),
+    watching: !sides.some((s) => s.you && s.picks.length > 0),
+    joinBar: preset.parties.length === 0 ? 'the demo scene has no parties'
+      : sides.filter((s) => s.picks.length > 0).length < 2 ? 'fill at least two parties'
+      : null,
   }
 }
 
 export type DemoFate = 'standing' | 'surrendered' | 'down' | 'dead'
-export type DemoOutcome = 'won' | 'lost' | 'draw'
+// `over`: decided, watched with no party of the visitor's in it
+export type DemoOutcome = 'won' | 'lost' | 'draw' | 'over'
 
 export type DemoView = {
   // the tint of the spawn area the visitor's party is placed in
@@ -63,32 +83,48 @@ export type DemoView = {
   startBar: string | null
   // what they are told now, once the fight has begun
   hint: DemoHint | null
-  // once the fight is decided: who won, and how everyone came out of it
-  result: { outcome: DemoOutcome; rows: { id: string; name: string; yours: boolean; fate: DemoFate }[] } | null
+  // once the fight is decided: who won (the party left standing, none for a
+  // draw), and how everyone of each party came out of it
+  result: {
+    outcome: DemoOutcome
+    winner: string | null
+    parties: { id: string; name: string; yours: boolean; rows: { id: string; name: string; fate: DemoFate }[] }[]
+  } | null
 }
 
-// `party`: the visitor's fight party; `started`: whether they said the
-// fight may begin; `seen`: the hints they have put away.
-export function getDemoView(state: SceneState, party: string, started: boolean, seen: readonly DemoHint[]): DemoView {
+// `party`: the visitor's fight party, null while they watch; `started`:
+// whether they said the fight may begin; `seen`: the hints they have put
+// away.
+export function getDemoView(state: SceneState, party: string | null, started: boolean, seen: readonly DemoHint[]): DemoView {
   const ids = Object.keys(state.characters)
-  const mine = ids.filter((id) => state.partyOf[id] === party)
-  const unplaced = mine.filter((id) => !state.board?.placements[id])
+  const mine = party === null ? [] : ids.filter((id) => state.partyOf[id] === party)
+  const unplaced = ids.filter((id) => !state.board?.placements[id])
+  const theirs = unplaced.filter((id) => !mine.includes(id))
   const standing = getStandingParties(state)
   const decided = started && standing.length <= 1
   const fate = (id: string): DemoFate => {
     const c = state.characters[id]
     return !c || isDead(c) ? 'dead' : isDown(state, id) ? 'down' : state.surrendered.includes(id) ? 'surrendered' : 'standing'
   }
+  const name = (partyId: string) => state.parties[partyId]?.name || partyId
+  const parties = [...new Set(ids.map((id) => state.partyOf[id] ?? ''))]
   return {
-    area: getSpawnParties(state).indexOf(party) + 1 || null,
+    area: party === null ? null : getSpawnParties(state).indexOf(party) + 1 || null,
     members: mine.map((id) => ({ id, name: getFightName(state, id), placed: !unplaced.includes(id) })),
     startBar: started ? 'the fight has begun'
+      : theirs.length > 0 ? `there is no room in their party's area for ${theirs.map((id) => getFightName(state, id)).join(', ')}`
       : unplaced.length > 0 ? `place ${unplaced.map((id) => getFightName(state, id)).join(', ')} first`
       : getNextRoundBar(state),
     hint: started && !decided ? getDemoHint(state, mine, seen) : null,
     result: decided ? {
-      outcome: standing.length === 0 ? 'draw' : standing[0] === party ? 'won' : 'lost',
-      rows: ids.map((id) => ({ id, name: getFightName(state, id), yours: mine.includes(id), fate: fate(id) })),
+      outcome: standing.length === 0 ? 'draw' : party === null ? 'over' : standing[0] === party ? 'won' : 'lost',
+      winner: standing.length === 0 ? null : name(standing[0]),
+      parties: parties.map((p) => ({
+        id: p,
+        name: name(p),
+        yours: p === party,
+        rows: ids.filter((id) => (state.partyOf[id] ?? '') === p).map((id) => ({ id, name: getFightName(state, id), fate: fate(id) })),
+      })),
     } : null,
   }
 }

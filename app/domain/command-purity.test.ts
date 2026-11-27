@@ -333,6 +333,8 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   setLevel: (s) => combatCommands.setLevel(0, { floor: 4 })(deepFreeze(combatCommands.addLevel()(cleared(s)))),
   loadBoardMap: (s) => combatCommands.loadBoardMap({ name: 'x', terrain: { '1,1': { blocking: true } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
+  placeWhereFree: (s) => combatCommands.placeWhereFree('a')(deepFreeze(cleared(s))),
+  placeParty: (s) => combatCommands.placeParty('p')(deepFreeze(cleared(s))),
   repositionCharacter: (s) => combatCommands.repositionCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
   turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(cleared(s))),
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),

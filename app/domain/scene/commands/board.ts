@@ -1,8 +1,8 @@
 import type { TerrainBrush } from '../../types'
 import { BoardExtentSchema, BoardSchema, LevelCellSchema, LevelSchema, PlacementSchema, TerrainCellSchema, type Board, type BoardExtent, type GroundRecipe, type SceneState, type Coord, type LightLevel, type MoveAction, type LevelCell, type Piece, type Structure, type Surface, type SurfaceTarget, type TerrainCell, type Updater } from '../types'
 import { makeBoard, makeBoardMap } from '../factories'
-import { coordKey, directionTo, disk, distance, extentCells, inExtent, sameCell, turn } from '../rules/board/geometry'
-import { getPlaceBar, getPlacementAt } from '../rules/board/spawn'
+import { coordKey, directionTo, disk, distance, extentCells, inExtent, parseCoordKey, sameCell, turn } from '../rules/board/geometry'
+import { getPlaceBar, getPlacementAt, getSpawnArea } from '../rules/board/spawn'
 import { BRUSH_RADIUS_MOST, CHORD_BRUSH_CORNER, DRAWN_WIDTH_LEAST, DRAWN_WIDTH_STEP, GROUND_ONLY_BRUSHES } from '../../lists'
 import { getOpenAction } from '../rules/log'
 import { planGround } from '../rules/board/generate'
@@ -178,6 +178,29 @@ export function loadBoardMap(raw: unknown): Updater {
 // (`repositionCharacter`).
 export function placeCharacter(id: string, cell: Coord): Updater {
   return (state) => getPlaceBar(state, id, cell) === null ? withPlacements(state, { [id]: getPlacementAt(state, id, cell) }) : state
+}
+
+// The character put down by hand on the first cell of their spawn area they
+// may be placed on, or of the board when they have none; left unplaced where
+// no cell takes them, or where they already stand.
+export function placeWhereFree(id: string): Updater {
+  return (state) => {
+    const board = state.board
+    if (!board || board.placements[id]) return state
+    const area = getSpawnArea(state, id)
+    const cells = area === null ? extentCells(board.origin, board.extent) : area.flatMap((key) => parseCoordKey(key) ?? [])
+    for (const cell of cells) {
+      const placed = placeCharacter(id, cell)(state)
+      if (placed !== state) return placed
+    }
+    return state
+  }
+}
+
+// Everyone of the party who is not on the board yet, placed as
+// `placeWhereFree` places them.
+export function placeParty(partyId: string): Updater {
+  return (state) => Object.keys(state.characters).filter((id) => state.partyOf[id] === partyId).reduce((s, id) => placeWhereFree(id)(s), state)
 }
 
 

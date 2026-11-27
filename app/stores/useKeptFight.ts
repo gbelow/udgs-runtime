@@ -8,17 +8,18 @@ import { useCombatStore } from './useCombatStore'
 // The whole fight, on a screen that keeps a table of its own for someone who
 // is shown only part of it (the demo): every command is judged and played here,
 // and the combat store, which every panel reads, holds what `viewer` is shown
-// of it, as a guest's does. Null everywhere else: the combat store is the fight.
-type KeptFight = { scene: SceneState | null; viewer: string }
+// of it, as a guest's does, or all of it to one who only watches (`whole`).
+// Null everywhere else: the combat store is the fight.
+type KeptFight = { scene: SceneState | null; viewer: string; whole: boolean }
 
-export const useKeptFight = create<KeptFight>(() => ({ scene: null, viewer: '' }))
+export const useKeptFight = create<KeptFight>(() => ({ scene: null, viewer: '', whole: false }))
 
 const called = (s: SceneState) => [s.calls]
 
-useKeptFight.subscribe(({ scene, viewer }) => {
+useKeptFight.subscribe(({ scene, viewer, whole }) => {
   if (!scene) return
   const { owners } = useCampaignStore.getState()
-  useCombatStore.setState(getSceneSeenBy(scene, new Set(Object.keys(scene.characters).filter((id) => owners[id] === viewer))))
+  useCombatStore.setState(getSceneSeenBy(scene, new Set(Object.keys(scene.characters).filter((id) => owners[id] === viewer)), whole))
 })
 
 // The fight as it stands, whatever the screen is shown of it.
@@ -30,8 +31,8 @@ export function updateFight(updater: Updater) {
   else useCombatStore.getState().updateCombatState(updater)
 }
 
-export const keepFight = (scene: SceneState, viewer: string) => useKeptFight.setState({ scene, viewer })
-export const dropFight = () => useKeptFight.setState({ scene: null, viewer: '' })
+export const keepFight = (scene: SceneState, viewer: string, whole = false) => useKeptFight.setState({ scene, viewer, whole })
+export const dropFight = () => useKeptFight.setState({ scene: null, viewer: '', whole: false })
 
 // Told of every change to the fight.
 export function subscribeFight(told: () => void): () => void {
@@ -49,4 +50,7 @@ export function useFight<T>(select: (state: SceneState) => T): T {
 }
 
 // Whether the screen is shown only part of the fight it keeps.
-export const useKeepsFight = (): boolean => useKeptFight((s) => s.scene !== null)
+export const useKeepsFight = (): boolean => useKeptFight((s) => s.scene !== null && !s.whole)
+
+// Whether the screen keeps a fight it only watches, shown all of it.
+export const useWatchesFight = (): boolean => useKeptFight((s) => s.scene !== null && s.whole)
