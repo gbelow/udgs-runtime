@@ -52,8 +52,9 @@ export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntr
 // `select` is the clicked character, whom the screen may pick instead;
 // `actor`, whose entries they are; `turn`, said when they must start a turn
 // before they act, and why they cannot now; `groups`, the entries under the
-// heading of their category, every category shown.
-export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[], groups: MenuGroup[] }
+// heading of their category, every category shown; `answering`, the open
+// action its answers are to.
+export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[], groups: MenuGroup[], answering?: string }
 
 function groupEntries(entries: readonly MenuEntry[]): MenuGroup[] {
   const categories = entries.some((e) => e.category === 'answer') ? ['answer' as const] : ACTION_CATEGORIES
@@ -263,5 +264,5 @@ function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
     }),
     { label: getPassLabel(state, id, options).label, category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
   ]
-  return { title: `${getFightName(state, id)} answers`, select: id, actor: id, turn: null, entries, groups: groupEntries(entries) }
+  return { title: `${getFightName(state, id)} answers`, select: id, actor: id, turn: null, entries, groups: groupEntries(entries), answering: getOpenAction(state)?.id }
 }

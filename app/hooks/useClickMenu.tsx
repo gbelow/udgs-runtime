@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { MenuEntry } from "../domain/scene/commands/clickMenu";
-import { getGivenSteps, getOpenWalk, type OpenWalk, type WalkButton } from "../domain/scene/projections/openWalk";
+import type { SceneCommand } from "../domain/scene/commands/registry";
+import { getGivenSteps, getOpenWalk, walkKey, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
 import { useClickMenuStore, type MenuWalk } from "../stores/useClickMenuStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useFollowPick } from "./useFollowPick";
@@ -8,7 +9,7 @@ import { useSceneDispatch } from "./useSceneDispatch";
 
 // The menu a click on the board opened, and its presses: an entry is sent as
 // the scene's `menu` command, which declares or answers as the panel would,
-// and one that declares goes on to walk the action it opened, where the menu
+// and goes on to walk the action it declared or answered, where the menu
 // was; picking the clicked character is this screen's alone.
 export function useClickMenu() {
   const menu = useClickMenuStore((s) => s.menu);
@@ -23,7 +24,10 @@ export function useClickMenu() {
   const close = () => setMenu(null);
   const press = (entry: MenuEntry) => {
     dispatch({ kind: "menu", args: [entry.press] });
-    if (menu && entry.press.kind === "declare") startWalk({ from: menu, actorId: entry.press.actorId, actionId: null, given: getGivenSteps(entry.press), passed: [] });
+    const p = entry.press;
+    if (menu && p.kind === "declare") startWalk({ from: menu, actorId: p.actorId, actionId: null, given: getGivenSteps(p), passed: {} });
+    // the answer is picked: its walk goes on from what it is made on
+    else if (menu?.answering) startWalk({ from: menu, actorId: p.kind === "declare" ? p.actorId : p.reactorId, actionId: menu.answering, given: [], passed: { [walkKey(menu.answering, p.kind === "declare" ? p.actorId : p.reactorId)]: ["answer"] } });
     else setMenu(null);
   };
   // the turn of whoever the menu's actions are for
@@ -43,12 +47,11 @@ export function useClickMenu() {
   return { menu, walk, press, start, close, closeWalk, escape } as const;
 }
 
-const walkOf = (state: Parameters<typeof getOpenWalk>[0], walk: MenuWalk | null): OpenWalk | null =>
-  walk ? getOpenWalk(state, walk.actorId, walk.given, walk.passed) : null;
+const walkOf = (state: Parameters<typeof getOpenWalk>[0], walk: MenuWalk | null): OpenWalk | null => (walk ? getOpenWalk(state, walk) : null);
 
-// The open action as the walk shows it, gated on a digest of itself, and its
-// presses. The walk ends with the action it walks: once it is committed or
-// dropped, or another is open in its place.
+// The action as the walk shows it, gated on a digest of itself, and its
+// presses. The walk ends with what it walks: once it is played out or
+// dropped, or moves past what the popover plays.
 export function useOpenWalk() {
   const walk = useClickMenuStore((s) => s.walk);
   const { bindWalk, stepWalk, backWalk, closeWalk } = useClickMenuStore.getState();
@@ -56,33 +59,22 @@ export function useOpenWalk() {
   const view = walkOf(useCombatStore.getState(), walk);
   const dispatch = useSceneDispatch();
 
-  const actionId = walk?.actionId ?? null;
-  const openId = view?.actionId ?? null;
+  const bound = walk?.actionId ?? null;
+  const seen = view?.actionId ?? null;
   useEffect(() => {
     if (!walk) return;
-    if (actionId === null && openId !== null) bindWalk(openId);
-    else if (actionId !== null && openId !== actionId) closeWalk();
-  }, [walk, actionId, openId, bindWalk, closeWalk]);
+    if (bound === null && seen !== null) bindWalk(seen);
+    else if (bound !== null && seen === null) closeWalk();
+  }, [walk, bound, seen, bindWalk, closeWalk]);
 
-  const pick = (b: WalkButton) => {
+  // a pick is made and gone on from; a toggle or a step is set and stays
+  const press = (key: string, step: WalkStep, b: WalkButton) => {
     if (b.command) dispatch(b.command);
-    if (view?.step) stepWalk(view.step.key);
+    if (step.kind === "pick") stepWalk(key, step.key);
   };
-  const toggle = (b: WalkButton) => {
-    if (b.command) dispatch(b.command);
-  };
-  const next = () => {
-    if (view?.step) stepWalk(view.step.key);
-  };
-  const back = () => {
-    if (view?.back) backWalk(view.back);
-  };
-  const commit = () => {
-    if (view) dispatch(view.commit.command);
-  };
-  const drop = () => {
-    if (view?.drop) dispatch(view.drop.command);
-  };
+  const next = (key: string, step: WalkStep) => stepWalk(key, step.key);
+  const back = (key: string, step: WalkKey) => backWalk(key, step);
+  const send = (command: SceneCommand) => dispatch(command);
 
-  return { walk, view, pick, toggle, next, back, commit, drop } as const;
+  return { walk, view, press, next, back, send } as const;
 }

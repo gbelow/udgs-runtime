@@ -5,8 +5,7 @@ import { SceneStateSchema, type ActionDraft, type BoardMap, type GroundRecipe, t
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { readClick, type Click } from '../domain/scene/commands/click'
 import { getClickMenu, type MenuAim, type MenuEntry } from '../domain/scene/commands/clickMenu'
-import { getOpenWalk } from '../domain/scene/projections/openWalk'
-import type { ChoicePart } from '../domain/scene/projections/choices'
+import { getOpenWalk, type WalkState } from '../domain/scene/projections/openWalk'
 import { applySceneCommand, type SceneCommand } from '../domain/scene/commands/registry'
 import type { Viewer } from '../domain/profiles'
 import { makeCampaignCharacter } from '../domain/factories'
@@ -120,8 +119,8 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     // what a click on the board would offer the active character, and an entry of it pressed
     menu: (at: MenuAim) => getClickMenu(state(), at, active()),
     pressMenu: (entry: MenuEntry) => send({ kind: 'menu', args: [entry.press] }),
-    // the open action as the menu walks it, with the steps it is told are behind; its buttons send their `command`
-    walk: (actorId: string, given: readonly ChoicePart[], passed: readonly ChoicePart[]) => getOpenWalk(state(), actorId, given, passed),
+    // the action as the menu walks it, with the steps it is told are behind; its buttons send their `command`
+    walk: (walk: WalkState) => getOpenWalk(state(), walk),
     select: (name: string) => useCombatStore.getState().setActiveCharacter(idOf(name)),
     holdBrush: (b: TerrainBrush | null) => { brush = b },
     // the GM's repositioning tool, held while `run` clicks

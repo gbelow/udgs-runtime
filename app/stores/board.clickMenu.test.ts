@@ -3,8 +3,11 @@ import { openHarness, type Harness } from './boardHarness'
 import { archer, fighter, mage, meleeTrained, rangedTrained, spearman } from '../domain/scene/fixtures'
 import { readClick } from '../domain/scene/commands/click'
 import { isAimed, type MenuEntry } from '../domain/scene/commands/clickMenu'
-import { getGivenSteps } from '../domain/scene/projections/openWalk'
-import type { ChoicePart } from '../domain/scene/projections/choices'
+import { getGivenSteps, walkKey, type OpenWalk, type WalkStep } from '../domain/scene/projections/openWalk'
+import { getOpenChoices } from '../domain/scene/projections/choices'
+import { getReactionsTo } from '../domain/scene/rules/log'
+import type { SceneCommand } from '../domain/scene/commands/registry'
+import { useClickMenuStore } from './useClickMenuStore'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { getBoardView } from '../domain/scene/projections/boardView'
 import type { CampaignCharacter } from '../domain/types'
@@ -61,43 +64,108 @@ describe('the menu a click on the board opens', () => {
   })
 })
 
-// The popover goes on from a pressed entry to walk the declaration it opened,
-// a step at a time, to its commit. Expected values are what was clicked: an
-// action walked from a token's menu is committed at that token, whichever
-// values the steps were given.
+// The popover goes on from a pressed entry to walk the action it opened, a
+// step at a time, through its commit and the answers to it, on the popover's
+// own store. Expected values are what was clicked and pressed: an action
+// walked from a token's menu is committed at that token, whichever values the
+// steps were given, and the answer walked is the one given.
 describe('the walk of an action declared from the menu', () => {
+  const store = () => useClickMenuStore.getState()
   const aimedAt = (h: Harness, name: string): MenuEntry[] =>
     (h.menu({ on: 'token', id: h.idOf(name) })?.entries ?? []).filter((e) => e.bar === null && e.press.kind === 'declare' && e.press.aim?.on === 'token')
-  const walkTo = (make: (name: string) => CampaignCharacter, name: string, nth: number, change: boolean) => {
-    const h = scene(make)
+  // the walk as the popover reads it, bound to what it walks once that is open
+  const read = (h: Harness): OpenWalk | null => {
+    const walk = store().walk
+    const view = walk ? h.walk(walk) : null
+    if (walk && walk.actionId === null && view) store().bindWalk(view.actionId)
+    return store().walk ? h.walk(store().walk!) : null
+  }
+  // each step left as it is, where it may be, or given another value
+  const through = (h: Harness, get: () => { walk: string, step: WalkStep | null } | null, change: boolean) => {
+    for (let i = 0; i < 40; i++) {
+      const at = get()
+      if (!at?.step) return
+      const { step } = at
+      const other = step.buttons.find((b) => b.command !== null && !b.selected && !b.bar)
+      if ((change || !step.keep) && other) h.send(other.command!)
+      store().stepWalk(at.walk, step.key)
+    }
+  }
+  const declared = (h: Harness, name: string, nth: number, change: boolean) => {
+    const menu = h.menu({ on: 'token', id: h.idOf(name) })!
     const entry = aimedAt(h, name)[nth]
     h.pressMenu(entry)
-    const actor = h.active()!
-    const given = getGivenSteps(entry.press)
-    const passed: ChoicePart[] = []
-    let view = h.walk(actor, given, passed)
-    expect(view, `${entry.label} opens a walk`).not.toBeNull()
-    for (let i = 0; view?.step && i < 40; i++, view = h.walk(actor, given, passed)) {
-      const { step } = view
-      const other = step.buttons.find((b) => b.command !== null && !b.selected)
-      if ((change || !step.keep) && other) h.send(other.command!)
-      passed.push(step.key)
-    }
-    expect(view?.step ?? null, `${entry.label} walks to its commit`).toBeNull()
-    expect(view!.commit.bar, `${entry.label} may be committed`).toBeNull()
-    const id = view!.actionId
-    h.send(view!.commit.command)
-    const action = h.state().actions[id]
+    store().startWalk({ from: menu, actorId: h.active()!, actionId: null, given: getGivenSteps(entry.press), passed: {} })
+    expect(read(h), `${entry.label} opens a walk`).not.toBeNull()
+    through(h, () => { const v = read(h); return v?.kind === 'declare' ? v : null }, change)
+    return entry
+  }
+  const committed = (h: Harness, name: string, nth: number, change: boolean) => {
+    const entry = declared(h, name, nth, change)
+    const view = read(h)
+    expect(view?.kind === 'declare' ? view.step : null, `${entry.label} walks to its commit`).toBeNull()
+    if (view?.kind !== 'declare') throw new Error(`${entry.label} is not walked`)
+    expect(view.commit.bar, `${entry.label} may be committed`).toBeNull()
+    h.send(view.commit.command)
+    const action = h.state().actions[view.actionId]
     expect(action.step, `${entry.label} is committed`).not.toBe('define')
     expect('targetId' in action ? action.targetId : null, `${entry.label} is aimed at ${name}`).toBe(h.idOf(name))
-    expect(h.walk(actor, given, passed), 'the walk ends with the commit').toBeNull()
+    return { entry, id: view.actionId }
   }
 
   for (const actor of [spearman, archer, mage]) for (const change of [false, true]) {
     it(`commits every entry ${actor.name} aims at the clicked token at that token, ${change ? 'giving each step another value' : 'keeping every value'}`, () => {
       const count = aimedAt(scene(actor), 'Bob').length
       expect(count).toBeGreaterThan(0)
-      for (let nth = 0; nth < count; nth++) walkTo(actor, 'Bob', nth, change)
+      for (let nth = 0; nth < count; nth++) {
+        const h = scene(actor)
+        const { id } = committed(h, 'Bob', nth, change)
+        const view = read(h)
+        expect(view === null || (view.kind === 'exchange' && view.actionId === id), 'after the commit the walk is the exchange of what it committed, or done').toBe(true)
+      }
+    })
+  }
+
+  for (const actor of [spearman, archer]) for (const change of [false, true]) {
+    it(`gives the answer walked for the target of ${actor.name}'s attack, then goes, ${change ? 'giving each step another value' : 'keeping every value'}`, () => {
+      const answersOf = (h: Harness) => {
+        const view = read(h)
+        const bob = view?.kind === 'exchange' ? view.answerers.find((a) => a.id === h.idOf('Bob')) : undefined
+        return bob?.step?.key === 'answer' ? bob.step.buttons.filter((b) => b.command !== null && !b.bar) : []
+      }
+      const first = scene(actor)
+      committed(first, 'Bob', 0, false)
+      const count = answersOf(first).length
+      expect(count, 'the target has answers to walk').toBeGreaterThan(0)
+      for (let nth = 0; nth < count; nth++) {
+        const h = scene(actor)
+        const { id } = committed(h, 'Bob', 0, false)
+        const bob = h.idOf('Bob')
+        const picked = answersOf(h)[nth]
+        const walk = walkKey(id, bob)
+        const answerer = () => { const v = read(h); return v?.kind === 'exchange' ? v.answerers.find((a) => a.id === bob) ?? null : null }
+        h.send(picked.command!)
+        store().stepWalk(walk, 'answer')
+        through(h, answerer, change)
+        const jumping = read(h)
+        if (jumping?.kind === 'exchange' && jumping.hint) for (const cell of getOpenChoices(h.state()).filter((c) => c.part === 'cell' && c.actorId === bob).slice(0, 1)) h.send(cell.command)
+        const done = answerer()?.done
+        if (done?.state === 'open') h.send(done.command)
+        const view = read(h)
+        if (view?.kind !== 'exchange') throw new Error(`answering ${picked.label} leaves no exchange`)
+        for (const other of view.answerers.filter((a) => a.id !== bob)) {
+          const pass = other.step?.buttons.find((b) => b.command?.kind === 'pass')
+          if (pass?.command) h.send(pass.command)
+        }
+        const after = read(h)
+        if (after?.kind !== 'exchange') throw new Error(`answering ${picked.label} leaves no exchange`)
+        expect(after.go.bar, `${picked.label} walked, the action may go on`).toBeNull()
+        const given = getReactionsTo(h.state(), id).find((r) => r.actorId === bob)
+        if (picked.command!.kind === 'pass') expect(given, 'passing gives no answer').toBeUndefined()
+        else expect(given?.kind, `${picked.label} is given`).toBe((picked.command as Extract<SceneCommand, { kind: 'react' }>).args[1].kind)
+        h.send(after.go.command)
+        expect(h.state().actions[id].step, 'the action goes on past the answers').not.toBe('react')
+      }
     })
   }
 })

@@ -1,24 +1,27 @@
 import { create } from 'zustand'
 import type { ClickMenu } from '../domain/scene/commands/clickMenu'
-import type { ChoicePart } from '../domain/scene/projections/choices'
+import type { WalkKey, WalkState } from '../domain/scene/projections/openWalk'
 
-// The open action an entry of the menu declared, walked a step at a time
-// where the menu was (`from`): whose it is, its id once it is seen open, the
-// steps the entry gave and the ones walked through since.
-export type MenuWalk = { from: ClickMenu, actorId: string, actionId: string | null, given: ChoicePart[], passed: ChoicePart[] }
+// The action an entry of the menu declared or answered, walked a step at a
+// time where the menu was (`from`).
+export type MenuWalk = WalkState & { from: ClickMenu }
 
 // The menu a click on the board has opened, until it is pressed or dismissed,
-// and the walk an entry of it started, until it is committed, dropped or dismissed.
+// and the walk an entry of it started, until what it walks is played out,
+// dropped or dismissed. A step is walked through or gone back to in the list
+// of passed steps its walk keeps (`walkKey`).
 type ClickMenuStore = {
   menu: ClickMenu | null
   walk: MenuWalk | null
   setMenu: (menu: ClickMenu | null) => void
   startWalk: (walk: MenuWalk) => void
   bindWalk: (actionId: string) => void
-  stepWalk: (key: ChoicePart) => void
-  backWalk: (key: ChoicePart) => void
+  stepWalk: (walk: string, key: WalkKey) => void
+  backWalk: (walk: string, key: WalkKey) => void
   closeWalk: () => void
 }
+
+const passedOf = (walk: MenuWalk, key: string) => walk.passed[key] ?? []
 
 export const useClickMenuStore = create<ClickMenuStore>((set) => ({
   menu: null,
@@ -26,7 +29,11 @@ export const useClickMenuStore = create<ClickMenuStore>((set) => ({
   setMenu: (menu) => set(menu ? { menu, walk: null } : { menu }),
   startWalk: (walk) => set({ menu: null, walk }),
   bindWalk: (actionId) => set((s) => (s.walk ? { walk: { ...s.walk, actionId } } : {})),
-  stepWalk: (key) => set((s) => (s.walk && !s.walk.passed.includes(key) ? { walk: { ...s.walk, passed: [...s.walk.passed, key] } } : {})),
-  backWalk: (key) => set((s) => (s.walk ? { walk: { ...s.walk, passed: s.walk.passed.slice(0, Math.max(0, s.walk.passed.lastIndexOf(key))) } } : {})),
+  stepWalk: (key, step) => set((s) => (s.walk && !passedOf(s.walk, key).includes(step) ? { walk: { ...s.walk, passed: { ...s.walk.passed, [key]: [...passedOf(s.walk, key), step] } } } : {})),
+  backWalk: (key, step) => set((s) => {
+    if (!s.walk) return {}
+    const passed = passedOf(s.walk, key)
+    return { walk: { ...s.walk, passed: { ...s.walk.passed, [key]: passed.slice(0, Math.max(0, passed.lastIndexOf(step))) } } }
+  }),
   closeWalk: () => set({ walk: null }),
 }))
