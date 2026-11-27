@@ -6,7 +6,7 @@ import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import type { ModifierView } from '../domain/scene/projections/modifiers'
 import { getFootprint, getTerrainAt } from '../domain/scene/rules/board/board'
 import { isProne } from '../domain/scene/rules/board/ground'
-import { defRows } from '../domain/scene/rules/attack'
+import { defRows, hasShootingRow } from '../domain/scene/rules/attack'
 import { getAvailableActions, getAwaited, getUnconfirmedAnswers } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
@@ -1087,16 +1087,18 @@ function rescue(h: Harness, pick: Picker) {
   playOut(h, pick)
 }
 
-// Someone shoots at whoever holds a body shield, who guards and takes cover
-// behind it when they may; then the exchanges go on around them.
+// Someone who can shoot shoots at whoever holds a body shield, who guards and
+// takes cover behind it when they may; then the exchanges go on around them.
 const holdsBodyShield = (c: Character) => defRows(c).some((row) => row.weapon.shield?.body)
 
 function shelter(h: Harness, pick: Picker) {
   const characters = Object.values(h.state().characters)
   const bearers = characters.filter(holdsBodyShield).map((c) => c.id)
-  const shooters = characters.filter((c) => !bearers.includes(c.id)).map((c) => c.id)
+  const shooters = characters.filter((c) => !bearers.includes(c.id) && hasShootingRow(c, true)).map((c) => c.id)
   if (!bearers.length || !shooters.length) return
   startTurnOf(h, pick, shooters)
+  // combat.tex "Concentration": a shot is made under the focus surge
+  if (!ownOptions(h, h.active()!).some((o) => o.draft.kind === 'shoot')) h.send({ kind: 'surge', args: [h.active()!, 'focus'] })
   if (!ownOptions(h, h.active()!).some((o) => o.draft.kind === 'shoot')) return
   h.declare({ kind: 'shoot' })
   const panel = getActionPanel(h.state())
@@ -1107,8 +1109,13 @@ function shelter(h: Harness, pick: Picker) {
   if (bearer) h.click({ on: 'token', id: bearer.id })
   h.commit()
   if (getOpenAction(h.state())?.step === 'define') { h.send({ kind: 'cancel', args: [] }); return }
-  const covers = answersOffered(h).filter((o) => o.draft.kind === 'guard' && o.draft.cover)
-  if (covers.length) { const o = pick(covers); h.send({ kind: 'react', args: [o.id, o.draft, o.surge] }) }
+  const guards = answersOffered(h).filter((o) => o.draft.kind === 'guard')
+  if (guards.length) {
+    const o = pick(guards)
+    h.send({ kind: 'react', args: [o.id, o.draft, o.surge] })
+    const cover = getActionPanel(h.state()).reactors.find((r) => r.id === o.id)?.modifiers.find((m) => m.key === 'cover' && m.allowed && !m.on)
+    if (cover) h.send({ kind: 'amendReaction', args: [o.id, cover.press] })
+  }
   playOut(h, pick)
 }
 

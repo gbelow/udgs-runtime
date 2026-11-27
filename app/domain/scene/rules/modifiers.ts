@@ -151,6 +151,17 @@ const WINDED: Modifier = {
   terms: () => [{ label: 'no stamina', value: -5 }],
 }
 
+// combat.tex "Cover": a guard made with a body shield may take total cover
+// behind it, at no price of its own
+const GUARD_MODIFIERS: Record<ModifierKey<'guard'>, Modifier> = {
+  cover: {
+    label: 'take cover',
+    offer: 'toggle',
+    allowed: ({ actor, action }) => action.kind === 'guard' && !!findWeaponRow(actor, action.weaponKey, action.attack)?.weapon.shield?.body,
+    price: () => ({ add: { AP: 0, STA: 0 } }),
+  },
+}
+
 const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modifier<ContextOf<K>>> } = {
   strike: STRIKE_MODIFIERS,
   counterattack: STRIKE_MODIFIERS,
@@ -160,6 +171,7 @@ const DECLARATION_MODIFIERS: { [K in ModifierKind]: Record<ModifierKey<K>, Modif
   // partner a maneuver (combat.tex "Grapple Maneuvers")
   opportunityAttack: when(STRIKE_MODIFIERS, ({ action }) => action.kind === 'opportunityAttack' && action.mode === 'strike'),
   grapple: { winded: WINDED },
+  guard: GUARD_MODIFIERS,
 }
 
 // The modifiers, open only where the action is the one they go with.

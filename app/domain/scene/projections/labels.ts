@@ -46,7 +46,7 @@ export function getDraftLabel(state: SceneState, actorId: string, option: Action
     case 'block':
     case 'guard': {
       const label = getAnswerLabel(draft) ?? (draft.preparedId ? `prepared ${ACTIONS[draft.kind].label}` : ACTIONS[draft.kind].label)
-      return withWeapon(state, actorId, draft, draft.kind === 'guard' && draft.cover ? `${label}, taking cover` : label)
+      return withWeapon(state, actorId, draft, draft.kind === 'guard' && draft.modifiers?.cover ? `${label}, taking cover` : label)
     }
     case 'blockExplosion':
       return withWeapon(state, actorId, draft, ACTIONS[draft.kind].label)

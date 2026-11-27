@@ -111,7 +111,7 @@ function noteInterruptions(entering: Action[], state: SceneState): SceneState {
 // fight without a board, where no shot comes from anywhere.
 function noteCover(state: SceneState, declared: Action[], cover: SceneState['bodyCover'], action: Action): SceneState['bodyCover'] {
   const { [action.actorId]: _left, ...rest } = cover
-  if (action.kind === 'guard' && action.cover) {
+  if (action.kind === 'guard' && action.modifiers.cover) {
     const shot = declared.find((a) => a.id === action.reactionTo) ?? (action.reactionTo ? getAction(state, action.reactionTo) : null)
     const toward = shot ? state.board?.placements[shot.actorId]?.cell : undefined
     return toward ? { ...rest, [action.actorId]: { weaponKey: action.weaponKey, toward } } : rest

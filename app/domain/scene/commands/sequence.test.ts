@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { getModifierToggles } from '../rules/modifiers'
 import { TerrainCellSchema, type Action, type ActionDraft, type DragAction, type SceneState, type Coord } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
@@ -21,7 +22,7 @@ import { produceEffects } from '../../character/rules/production'
 import { SPELLS, type SpellKey } from '../../spells'
 import { FALL, ROUND_AP } from '../../tables'
 import { getItemArmor } from '../../item/rules/items'
-import { archer, board as onBoard } from '../fixtures'
+import { archer, board as onBoard, towerWarden } from '../fixtures'
 import { grantAbility } from '../../character/commands/abilities'
 import { ABILITIES, type AbilityKey } from '../../abilities'
 import { getPartners, getTethers } from '../rules/partners'
@@ -1575,5 +1576,23 @@ describe('a committed strike its weapon hands are broken under', () => {
     expect(state.characters.a.resources.AP).toBe(before.a.AP - root.committedCost!.AP)
     expect(state.characters.a.resources.STA).toBe(before.a.STA - root.committedCost!.STA)
     expect(state.characters.b.injuries).toEqual(before.b.injuries)
+  })
+})
+
+// combat.tex "Cover": a guard made with a body shield may take total cover
+// behind it, declared on the guard; once the guard lands, its guard stays
+// behind the shield.
+describe('a guard with a body shield', () => {
+  it('may be declared taking cover, and leaves its guard in cover', () => {
+    let s = onBoard({ atk: [0, 0], def: [-3, 0] }, archer('atk'), towerWarden('def'))
+    s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
+    const guard = getAvailableActions(s, 'def').find((o) => o.draft.kind === 'guard' && o.available && o.surge === null)!
+    s = declareReaction('def', guard.draft, newId)(s)
+    const declared = getLiveReactionsTo(s, getOpenAction(s)!.id).find((r) => r.actorId === 'def')!
+    const cover = getModifierToggles(s, declared).find((t) => t.key === 'cover' && t.allowed)!
+    s = amendReaction('def', cover.press)(s)
+    const { state } = playOut(s, MISS)
+    expect(state.bodyCover.def?.weaponKey).toBe(guard.draft.kind === 'guard' ? guard.draft.weaponKey : '')
   })
 })

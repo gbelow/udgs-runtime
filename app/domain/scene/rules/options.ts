@@ -436,15 +436,12 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
             return answer(draft, own, reason ?? seizedReason(state, guard))
           })
         })
-      // combat.tex "Cover": a guard with a body shield may take total cover
-      // behind it
       // A guard that carries a move (rules/combinedMove.ts) is made from
       // where it ends; any other from where its guard stands.
       case 'guard':
         return guardRows(state, c, open).flatMap((row) => {
           const plain: ActionDraft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
-          const drafts = [plain, ...(row.weapon.shield?.body ? [{ ...plain, cover: true }] : [])]
-          return drafts.flatMap((d) => [d, ...getAnswerDrafts(state, c.id, open.id, d)]).map((draft) => {
+          return [plain, ...getAnswerDrafts(state, c.id, open.id, plain)].map((draft) => {
             const guard = makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id } as Parameters<typeof makeAction>[1])
             const own = getOwnCost(state, guard) ?? cost
             const placed = getCombinedOf(c, guard)?.recipe.order === 'before' || isStandingGuard(state, open, c.id)
