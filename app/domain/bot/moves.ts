@@ -9,7 +9,8 @@ import { getHeavyDegree } from '../scene/rules/heavy'
 import { getHeavyName } from '../character/rules/gear'
 import { getMovementOptions, getMovePrice, type MovementOption } from '../scene/rules/move'
 import { getReachableCells } from '../scene/rules/board/reach'
-import { distance, sameCell } from '../scene/rules/board/geometry'
+import { getMoveFall } from '../scene/rules/board/cliff'
+import { coordKey, distance, sameCell } from '../scene/rules/board/geometry'
 import { placeAt, withPlacements } from '../scene/rules/board/board'
 import { getMedicineAbility, getMedicineBar } from '../scene/rules/medicine'
 import { hasAbility } from '../abilities'
@@ -18,6 +19,7 @@ import { isClearWalk } from './reach'
 import { declare, declareOpened, type Declared, type Intent } from './declare'
 import { getHarm, getPair, type PairAttack } from './pairs'
 import { cellOf, getHarmAgainst } from './threat'
+import { getNoFall } from './footing'
 
 // What a box presses to walk, attack and pay for it, tried on its own copy of
 // the fight: the walks open, the surges that may pay, the cells an attack is
@@ -31,8 +33,12 @@ export const argOf = (command: SceneCommand): unknown => (command.args as readon
 // `elevation`: the floor the walk ends on in the cell (a cell may be come to on two).
 // `clear`: whether the walk to a cell of `cells` comes into nobody standing
 // (`isClearWalk`), asked only of the cells a turn picks from, each once.
+// `footing`: the chance the walk there is not cut short by a fall (spec
+// "Movement", `getNoFall`). `fall`: the fall it may end in, a jump down
+// surely, a climb on a miss, `p` how likely; null for none.
 export type WalkCell = { cell: Coord; AP: number; STA: number; path: Coord[]; elevation: number }
-export type Walk = { movement: MovementKind; cells: WalkCell[]; clear: (c: WalkCell) => boolean }
+export type WalkFall = { height: number; to: Coord; p: number }
+export type Walk = { movement: MovementKind; cells: WalkCell[]; clear: (c: WalkCell) => boolean; footing: (c: WalkCell) => number; fall: (c: WalkCell) => WalkFall | null }
 
 // The first `n` of `cells`, in their order, that walk clear.
 export function firstClear(walk: Walk, cells: readonly WalkCell[], n = Infinity): WalkCell[] {
@@ -70,24 +76,46 @@ function walkDeclared(declared: SceneState, id: string, movement: MovementKind):
   const action = getOpenAction(moving)
   if (action?.kind !== 'move' || action.actorId !== id) return null
   const cells = getReachableCells(moving, action as MoveAction, getKeptWalk).map((r) => ({ cell: r.cell, AP: r.cost.AP, STA: r.cost.STA, path: r.path, elevation: r.elevation }))
+  const move = action as MoveAction
   const known = new Map<WalkCell, boolean>()
   const clear = (c: WalkCell) => {
     let is = known.get(c)
-    if (is === undefined) known.set(c, (is = isClearWalk(moving, action as MoveAction, c.path)))
+    if (is === undefined) known.set(c, (is = isClearWalk(moving, move, c.path)))
     return is
   }
-  return { movement, cells, clear }
+  const footings = new Map<WalkCell, number>()
+  const footing = (c: WalkCell) => {
+    let p = footings.get(c)
+    if (p === undefined) footings.set(c, (p = getNoFall(moving, move, c.path)))
+    return p
+  }
+  const from = moving.board?.placements[id]?.elevation ?? 0
+  const fall = (c: WalkCell): WalkFall | null => {
+    if (movement === 'jump') {
+      const made = getMoveFall(moving, { ...move, path: c.path }, c.path, false)
+      return made ? { height: made.height, to: made.to ?? c.cell, p: 1 } : null
+    }
+    const height = Math.abs(c.elevation - from)
+    return movement === 'climb' && height > 0 ? { height, to: c.cell, p: 1 - footing(c) } : null
+  }
+  return { movement, cells, clear, footing, fall }
 }
 
-// The walks weighed: at a walk and a run where each is open, and at the
-// fastest movement open, so that one who can only swim, climb or crawl still
-// has a walk; or only at `only`.
-const WEIGHED: readonly MovementKind[] = ['walk', 'run']
+// The walks weighed: at a walk, a run and a climb where each is open, and at
+// the fastest movement open, so that one who can only swim, climb or crawl
+// still has a walk; and at a jump, to the cells no other of them comes to
+// (down a cliff, over a gap); or only at `only`.
+const WEIGHED: readonly MovementKind[] = ['walk', 'run', 'climb']
 
 export function getWalks(state: SceneState, id: string, only?: MovementKind): Walk[] {
   const open = openMovements(state, id)
-  const kinds = only ? (open.includes(only) ? [only] : []) : weighedOf(open)
-  return kinds.flatMap((m) => walkAt(state, id, m) ?? [])
+  if (only) return open.includes(only) ? [walkAt(state, id, only)].flatMap((x) => x ?? []) : []
+  const walks = weighedOf(open).flatMap((m) => walkAt(state, id, m) ?? [])
+  const jump = open.includes('jump') && !walks.some((x) => x.movement === 'jump') ? walkAt(state, id, 'jump') : null
+  if (!jump) return walks
+  const reached = new Set(walks.flatMap((x) => x.cells.map((c) => `${coordKey(c.cell)}@${c.elevation}`)))
+  const beyond = jump.cells.filter((c) => !reached.has(`${coordKey(c.cell)}@${c.elevation}`))
+  return beyond.length ? [...walks, { ...jump, cells: beyond }] : walks
 }
 
 const weighedOf = (open: MovementKind[]): MovementKind[] => [...new Set([...open.slice(0, 1), ...WEIGHED.filter((m) => open.includes(m))])]

@@ -382,7 +382,7 @@ export function getMoveModes(state: SceneState, action: MoveAction): RollMode[] 
 // Every step of the path that comes down on difficult ground, with the DL of
 // the worst difficult cell the mover's footprint covers there. combat.tex
 // "Balance": each is held against the one stored score.
-function getDifficultSteps(state: SceneState, action: MoveAction): { step: number; DL: number }[] {
+export function getDifficultSteps(state: SceneState, action: MoveAction): { step: number; DL: number }[] {
   const board = state.board
   if (!board) return []
   const steps = getMovePlacements(state, action).slice(1)
@@ -419,7 +419,7 @@ function getFallStep(state: SceneState, action: MoveAction): number | null {
 // inconsequential. On a success, walking is safe, but not jumping or
 // running. On a graze, treading is safe. On a miss, only crawling is
 // allowed."
-function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
+export function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
   switch (degree) {
     case 'critical': return true
     case 'hit': return kind !== 'run' && kind !== 'jump'

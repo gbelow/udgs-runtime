@@ -15,6 +15,8 @@ import { getTurnHolder } from '../../scene/rules/turn'
 import { isCollapsed } from '../../scene/rules/situational'
 import { isDown } from '../../scene/rules/fight'
 import { ROUND_AP } from '../../tables'
+import { getPostureCost } from '../../scene/rules/move'
+import { getFallHarm } from '../footing'
 import { declare, type Intent, type Pick } from '../declare'
 import { getWorstDrawnAlong, getWorstDrawnAt } from '../approach'
 import { getSides } from '../table'
@@ -61,7 +63,7 @@ import type { Notes } from '../memory'
 // rolled with a hit's overflow spent as `getBestSpend` spends it) it plays as
 // the nearest box does.
 
-export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, end: 'most', AP: 1.3, STA: 3, IL: 2, bleed: 8, caution: 5, courage: 0.75, aggro: 1, aggressivity: 0.5, search: 4, solitude: 5 }
+export const SPEC_WEIGHTS: SpecWeights = { ...REST_TUNING, end: 'most', AP: 1.3, STA: 3, IL: 2, bleed: 8, caution: 5, courage: 0.75, aggro: 1, aggressivity: 0.5, search: 4, solitude: 5, footing: 0.8, upright: 5 }
 
 // An action decided: its first step, and what is declared after it (`then`).
 type Plan = (
@@ -259,7 +261,7 @@ function getSpots(ctx: Ctx, attack: PairAttack, walk: Walk | null, at: Coord | n
   const meets = (c: Coord) => distance(c, at) <= attack.reach && clear(c)
   const pace = getPaceAt(view, id, 'walk')
   const peeks = attack.kind === 'shoot'
-  const walked = !walk || (peeks && walk.movement !== 'walk') ? [] : walk.cells.filter((c) => (!peeks || (pace !== null && c.AP <= PEEK_BLOCKS * pace.AP)) && !sameCell(c.cell, here) && meets(c.cell))
+  const walked = !walk || (peeks && walk.movement !== 'walk') ? [] : walk.cells.filter((c) => (!peeks || (pace !== null && c.AP <= PEEK_BLOCKS * pace.AP)) && !sameCell(c.cell, here) && meets(c.cell) && footed(ctx, walk, c))
   return [...stood.filter(() => meets(here)), ...walked]
 }
 
@@ -320,8 +322,9 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
           const pick = pickOf(ctx, attack, i, gap, foe)
           const threat = w.aggressivity * rate(ctx, foe).threat
           const drew = Math.max(fromHere ? 0 : drawnOn(ctx, spot as WalkCell, runs(walk)), attack.kind === 'shoot' ? firedFrom(ctx, cell) : 0)
+          const fell = fromHere || !walk ? 0 : fallOf(ctx, walk, spot as WalkCell)
           const scored = (end: Coord | null, moreAP: number, moreSTA: number, leaving: number) => {
-            const STAharm = getSTAHarm(STAspent + moreSTA + b.surgeSTA + (needsFocus ? focusSTA : 0), me.injuries.bleed, w)
+            const STAharm = getSTAHarm(STAspent + moreSTA + b.surgeSTA + (needsFocus ? focusSTA : 0), me.injuries.bleed, w) + fell
             const most = Math.max(drew, leaving)
             const drains = getDrains(ctx, foe, pick, needsFocus ? focused() : b.view, end, leftAfter(ctx, b, AP + moreAP, spent + moreAP), STAharm)
             const score = pick.harm + drains.foe + threat - drains.me - most
@@ -350,7 +353,7 @@ function planAttack(ctx: Ctx, compelled = false, on: readonly string[] = ctx.tar
             if (!from || !back || !pace) return null
             let best: Weighed | null = null
             for (const r of back.cells) {
-              if (sameCell(r.cell, from) || r.AP > PEEK_BLOCKS * pace.AP || !canPay(b, AP + r.AP, attack.cost.AP) || STAspent + r.STA > b.STA) continue
+              if (sameCell(r.cell, from) || r.AP > PEEK_BLOCKS * pace.AP || !canPay(b, AP + r.AP, attack.cost.AP) || STAspent + r.STA > b.STA || !footed(ctx, back, r)) continue
               const { score, why } = scored(r.cell, r.AP, r.STA, drawnOn(ctx, r, false, from))
               if ((best && score <= best.score) || !back.clear(r)) continue
               best = { score, settle: settleWith(score, () => `${named} and walks to cover ${why()}`, [moveIntent(id, back.movement, r.cell, r.elevation)]) }
@@ -381,7 +384,7 @@ function getSteps(ctx: Ctx): Step[] {
   const steps: Step[] = []
   if (!here) return steps
   for (const { b, walks } of getWalkBudgets(view, id, ctx.budgets)) for (const walk of walks) for (const c of walk.cells) {
-    if (!sameCell(c.cell, here) && isWalkPaid(view, id, b, c.AP)) steps.push({ b, walk, c, ...ctx.at(c.cell) })
+    if (!sameCell(c.cell, here) && isWalkPaid(view, id, b, c.AP) && footed(ctx, walk, c)) steps.push({ b, walk, c, ...ctx.at(c.cell) })
   }
   return steps
 }
@@ -434,7 +437,18 @@ function bestStep<T extends { score: number }>(ctx: Ctx, steps: readonly Step[],
 const getDanger = (ctx: Ctx, cell: Coord | null, AP: number): number => Math.max(ctx.at(cell).exposed(AP), ctx.later(cell))
 
 const dangerAfter = (ctx: Ctx, s: Step): number => getDanger(ctx, s.c.cell, leftAfter(ctx, s.b, s.c.AP, s.c.AP))
-const stepSTAHarm = (ctx: Ctx, s: Step): number => getSTAHarm(s.c.STA + s.b.surgeSTA, ctx.me.injuries.bleed, ctx.w)
+const stepSTAHarm = (ctx: Ctx, s: Step): number => getSTAHarm(s.c.STA + s.b.surgeSTA, ctx.me.injuries.bleed, ctx.w) + fallOf(ctx, s.walk, s.c)
+
+// spec "Movement": whether a walk to `c` is weighed at all, its chance of not
+// falling at least `footing`.
+const footed = (ctx: Ctx, walk: Walk, c: WalkCell): boolean => walk.footing(c) >= ctx.w.footing
+
+// spec "Movement", fall harm: what the fall a walk to `c` may end in costs,
+// as likely as it is.
+function fallOf(ctx: Ctx, walk: Walk, c: WalkCell): number {
+  const fall = walk.fall(c)
+  return fall && fall.p > 0 ? fall.p * getFallHarm(ctx.view, ctx.id, fall.height, fall.to, ctx.w) : 0
+}
 
 // spec "Escape": only from a potential exposure above `limit`, to a cell that
 // costs it no more than that to get to and stand in, the one of those that
@@ -531,6 +545,38 @@ function pickTactical<T extends { score: number }>(ctx: Ctx, steps: readonly Ste
   return bestStep(ctx, steps, (s) => score(s.c.cell) - stay, cost, (s, net, told) => settle(s, net, `repositions towards ${name} (${s.walk.movement}, score ${told})`))
 }
 
+// spec "Standing up": what standing up where it lies gains the character:
+// the worth of being upright (`upright`, the user's ruling, 2026-11-28: so
+// that it stands with nothing near), the Tactical Score it comes to standing
+// against lying, each where it stands and on the best Tactical step it has
+// from there (standing, the walks open to it with the AP standing leaves;
+// lying, its crawls), and the danger it sheds standing with the AP standing
+// leaves it, less the STA standing costs and the worst opportunity attack it
+// draws (rules/reactions.ts: standing up draws them), if above nothing.
+function planStand(ctx: Ctx): Plan | null {
+  const { view, members, id, w, me, here, target } = ctx
+  if (!here || !me.afflictions.includes('prone')) return null
+  const intent: Intent = { actorId: id, option: { kind: 'move' }, picks: [{ part: 'movement', value: 'stand' }] }
+  const cost = getPostureCost(me, 'stand')
+  if (cost.AP > ctx.left.AP || cost.STA > ctx.left.STA || !declare(view, intent, TRIAL).ok) return null
+  const standing = { ...me, afflictions: me.afflictions.filter((a) => a !== 'prone'), resources: { ...me.resources, AP: me.resources.AP - cost.AP, STA: me.resources.STA - cost.STA } }
+  const up = getCtx({ ...view, characters: { ...view.characters, [id]: standing } }, members, id, w, new Set(ctx.foes.filter((f) => !ctx.targets.includes(f))), target)
+  if (!up) return null
+  const worth = (c: Ctx) => {
+    if (!target || !c.foes.includes(target)) return 0
+    const step = pickTactical(c, stepsOf(c), (_, score) => ({ score }))
+    return getTacticalScore(c, target, here)(here) + (step?.score ?? 0)
+  }
+  const threat = worth(up) - worth(ctx)
+  const lying = getDanger(ctx, here, ctx.held)
+  const stood = getDanger(up, here, up.held)
+  const STAharm = getSTAHarm(cost.STA, me.injuries.bleed, w)
+  const drawn = firedFrom(ctx, here)
+  const score = w.upright + threat + lying - stood - STAharm - drawn
+  if (score <= 0) return null
+  return { kind: 'walk', intent, score, why: `stands up (upright ${w.upright.toFixed(1)} + threat ${threat.toFixed(1)} + danger lying ${lying.toFixed(1)} - standing ${stood.toFixed(1)} - STA ${STAharm.toFixed(1)} - drawn ${drawn.toFixed(1)} = ${score.toFixed(1)})` }
+}
+
 // spec "Avoid explosion": the walks of an escape made holding `AP`, each with
 // the harm the explosion does where it ends, the exposure it adds and the STA
 // it costs, the least first; only those that score less than standing still,
@@ -543,10 +589,10 @@ function getEscapes(ctx: Ctx, view: SceneState, blast: BlastShape, AP: number): 
   const exposed = ctx.at(here).exposed(AP)
   const stay = getBlastHarm(view, blast, id, null, w)
   return walks.flatMap((walk) => walk.cells.flatMap((c) => {
-    if (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA) return []
+    if (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA || !footed(ctx, walk, c)) return []
     const harm = getBlastHarm(view, blast, id, c.cell, w)
     const s: Step = { b, walk, c, ...ctx.at(c.cell) }
-    const score = harm + s.exposed(Math.max(0, AP - ownAP(view, id, b, c.AP, c.AP))) - exposed + getSTAHarm(c.STA, ctx.me.injuries.bleed, w)
+    const score = harm + s.exposed(Math.max(0, AP - ownAP(view, id, b, c.AP, c.AP))) - exposed + getSTAHarm(c.STA, ctx.me.injuries.bleed, w) + fallOf(ctx, walk, c)
     return score < stay ? [{ s, harm, score }] : []
   })).sort((x, y) => x.score - y.score)
 }
@@ -697,7 +743,7 @@ function stepOpened(input: SeatInput, id: string, w: SpecWeights): Decision | nu
     const escape = getEscapes(ctx, view, blast, ctx.held).find((e) => e.s.walk.clear(e.s.c) && takesOpenedWalk(view, id, moveIntent(id, e.s.walk.movement, e.s.c.cell, e.s.c.elevation), e.s.c.AP, e.s.c.STA))
     return escape ? { kind: 'declareOpened', picks: moveIntent(id, escape.s.walk.movement, escape.s.c.cell, escape.s.c.elevation).picks, why: `escapes the explosion (${escape.s.walk.movement}, harm ${getBlastHarm(view, blast, id, null, w).toFixed(1)} to ${escape.harm.toFixed(1)}, score ${escape.score.toFixed(1)})` } : null
   }
-  const steps = walks.flatMap((walk) => walk.cells.flatMap((c): Step[] => (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA ? [] : [{ b, walk, c, ...ctx.at(c.cell) }])))
+  const steps = walks.flatMap((walk) => walk.cells.flatMap((c): Step[] => (sameCell(c.cell, here) || !canPay(b, c.AP, 0) || c.STA > b.STA || !footed(ctx, walk, c) ? [] : [{ b, walk, c, ...ctx.at(c.cell) }])))
   const intentOf = (s: Step) => moveIntent(id, s.walk.movement, s.c.cell, s.c.elevation)
   if (guarding && open?.kind === 'move') {
     const landing = steps.filter((s) => isCombinedLanding(view, open, s.c.cell) && s.walk.clear(s.c)).sort((x, y) => x.exposed(ctx.held) - y.exposed(ctx.held) || x.c.AP - y.c.AP).find((s) => takesOpenedWalk(view, id, intentOf(s), s.c.AP, s.c.STA))
@@ -731,7 +777,7 @@ function planSearch(ctx: Ctx): Plan | null {
   const fits = (cell: Coord) => apart(cell) <= w.solitude || apart(cell) < apartHere
   for (const walk of getWalks(view, id)) {
     const found = walk.cells
-      .filter((c) => c.AP <= allow && !sameCell(c.cell, here) && distance(c.cell, nearest) < distance(here, nearest) && fits(c.cell))
+      .filter((c) => c.AP <= allow && !sameCell(c.cell, here) && distance(c.cell, nearest) < distance(here, nearest) && fits(c.cell) && footed(ctx, walk, c))
       .map((c) => ({ c, sees: seesAcross(board, [c.cell], [nearest], eyes) }))
       .sort((x, y) => Number(y.sees) - Number(x.sees) || (x.sees ? 0 : distance(x.c.cell, nearest) - distance(y.c.cell, nearest)) || x.c.AP + x.c.STA - (y.c.AP + y.c.STA))
       .map(({ c }) => c)
@@ -760,8 +806,8 @@ function planLater(view: SceneState, members: readonly string[], id: string, w: 
   if (me && isCollapsed(view, me)) return null
   const ctx = getCtx(view, members, id, w, unnoticed, target)
   if (!ctx) return null
-  if (!ctx.foes.length) return planSearch(ctx)
-  return planTactical(ctx)
+  if (!ctx.foes.length) return planSearch(ctx) ?? planStand(ctx)
+  return [planTactical(ctx), planStand(ctx)].reduce<Plan | null>((best, p) => (p && (!best || p.score > best.score) ? p : best), null)
 }
 
 function planTurn(view: SceneState, members: readonly string[], id: string, w: SpecWeights, unnoticed: ReadonlySet<string>, pass: Pass, target: string | null): Plan | null {

@@ -1,10 +1,12 @@
 import type { CampaignCharacter, Coord, MovementKind, SurgeKind, Third } from '../types'
 import type { SceneState } from '../scene/types'
 import type { RollMode } from '../play/dice'
-import { getMovementOptions } from '../scene/rules/move'
+import { getMovementOptions, getPostureCost, type MovementOption } from '../scene/rules/move'
+import { canStandAt, isInLiquid } from '../scene/rules/board/ground'
+import { getSwimRate } from './footing'
 import { getKeptBodyWalk, getKeptWalk } from './walks'
 import { makeAction } from '../scene/factories'
-import { coordKey, disk, distance, extentCells, parseCoordKey, sameCell } from '../scene/rules/board/geometry'
+import { cellNumber, coordKey, disk, distance, extentCells, inExtent, parseCoordKey, ring, sameCell } from '../scene/rules/board/geometry'
 import { getDistancePenalty, getShotReach } from '../character/rules/gear'
 import { getSTA } from '../character/rules/characteristics'
 import { getMovementBlock } from '../character/rules/movement'
@@ -165,16 +167,79 @@ type Pace = { metres: number; AP: number; STA: number; running: boolean }
 
 const paces = new WeakMap<SceneState, Map<string, Pace | null>>()
 
+// spec "Movement": the metres a block of a movement goes, a swim's at the
+// pace its test is read to keep (`getSwimRate`).
+const metresOf = (state: SceneState, id: string, o: MovementOption): number => (o.kind === 'swim' ? getSwimRate(state, id, o.speed, o.block.AP) * o.block.AP : o.speed)
+
 export function getPace(state: SceneState, id: string): Pace | null {
   const byId = paces.get(state) ?? new Map<string, Pace | null>()
   paces.set(state, byId)
   if (byId.has(id)) return byId.get(id) ?? null
   const c = state.characters[id]
-  const open = c ? getMovementOptions(state, c).filter((o) => o.available && o.speed > 0 && o.block.AP > 0) : []
-  const best = open.reduce<(typeof open)[number] | null>((b, o) => (!b || o.speed / o.block.AP > b.speed / b.block.AP ? o : b), null)
-  const pace = best ? { metres: best.speed, AP: best.block.AP, STA: best.block.STA, running: best.kind === 'run' || best.kind === 'jump' } : null
+  const open = c ? getMovementOptions(state, c).filter((o) => o.available && o.speed > 0 && o.block.AP > 0).map((o) => ({ o, metres: metresOf(state, id, o) })) : []
+  const best = open.reduce<(typeof open)[number] | null>((b, x) => (!b || x.metres / x.o.block.AP > b.metres / b.o.block.AP ? x : b), null)
+  const pace = best ? { metres: best.metres, AP: best.o.block.AP, STA: best.o.block.STA, running: best.o.kind === 'run' || best.o.kind === 'jump' } : null
   byId.set(id, pace)
   return pace
+}
+
+// Whether `id` stood at `cell` would stand in water, and so swim and lie
+// prone there (combat.tex "Movement": swimming "also applies the prone condition").
+export function isWetAt(state: SceneState, id: string, cell: Coord): boolean {
+  const c = state.characters[id]
+  const p = state.board?.placements[id]
+  if (!c || !p || !state.board) return false
+  return isInLiquid(sameCell(p.cell, cell) ? state : withPlacements(state, { [id]: placeAt(state.board, p, cell) }), c)
+}
+
+// spec "Movement": the AP of a walk of `metres` from `from`, at the pace the
+// character would have stood there. In water it swims to the nearest cell
+// it can stand on dry, comes out of the water prone (rules/swim.ts
+// `getSwimFinish`), stands up, and goes on at the pace it has standing on
+// that bank. Null where it cannot move from there.
+type Wading = { swim: number; bank: number; stand: number; land: number } | { swim: null; land: number }
+
+const BANK_SCAN = 12
+const wadings = new WeakMap<SceneState, Map<string, Wading | null>>()
+
+export function getRouteAP(state: SceneState, id: string, from: Coord, metres: number): number | null {
+  const route = getWading(state, id, from)
+  if (!route) return null
+  if (route.swim === null) return metres * route.land
+  const swum = Math.min(metres, route.bank)
+  return swum * route.swim + (metres > swum ? route.stand + (metres - swum) * route.land : 0)
+}
+
+function getWading(state: SceneState, id: string, from: Coord): Wading | null {
+  const byKey = wadings.get(state) ?? new Map<string, Wading | null>()
+  wadings.set(state, byKey)
+  const key = `${id}|${cellNumber(from)}`
+  if (byKey.has(key)) return byKey.get(key) ?? null
+  const made = readWading(state, id, from)
+  byKey.set(key, made)
+  return made
+}
+
+const perMetre = (pace: Pace | null): number | null => (pace && pace.metres > 0 ? pace.AP / pace.metres : null)
+
+function readWading(state: SceneState, id: string, from: Coord): Wading | null {
+  const c = state.characters[id]
+  const board = state.board
+  const p = board?.placements[id]
+  if (!c || !board || !p) return null
+  const at = (s: SceneState, cell: Coord) => (sameCell(p.cell, cell) ? s : withPlacements(s, { [id]: placeAt(board, p, cell) }))
+  const there = at(state, from)
+  const pace = perMetre(getPace(there, id))
+  if (!isWetAt(state, id, from)) return pace === null ? null : { swim: null, land: pace }
+  if (pace === null) return null
+  for (let r = 1; r <= BANK_SCAN; r++) {
+    const bank = ring(from, r).find((cell) => inExtent(board.origin, board.extent, cell) && !isWetAt(state, id, cell) && canStandAt(state, id, placeAt(board, p, cell)))
+    if (!bank) continue
+    const standing = { ...c, afflictions: c.afflictions.filter((a) => a !== 'prone') }
+    const land = perMetre(getPace(at({ ...state, characters: { ...state.characters, [id]: standing } }, bank), id))
+    return land === null ? { swim: null, land: pace } : { swim: pace, bank: r, stand: getPostureCost(c, 'stand').AP, land }
+  }
+  return { swim: null, land: pace }
 }
 
 // The same at one movement, null for one it is not open to now.
@@ -187,7 +252,7 @@ export function getPaceAt(state: SceneState, id: string, kind: MovementKind): Pa
   if (byKey.has(key)) return byKey.get(key) ?? null
   const c = state.characters[id]
   const open = c && getMovementOptions(state, c).find((o) => o.kind === kind && o.available && o.speed > 0 && o.block.AP > 0)
-  const pace = open ? { metres: open.speed, AP: open.block.AP, STA: open.block.STA, running: kind === 'run' || kind === 'jump' } : null
+  const pace = open ? { metres: metresOf(state, id, open), AP: open.block.AP, STA: open.block.STA, running: kind === 'run' || kind === 'jump' } : null
   byKey.set(key, pace)
   return pace
 }

@@ -10,7 +10,7 @@ import { getSurgeAP } from '../character/rules/surge'
 import { ROUND_AP } from '../tables'
 import { getPair, type PairAttack } from './pairs'
 import { getEvaded, getUndefendedHarm } from './harm'
-import { cellOf, getBelievedAP, getPace, getCarriedMetres, getPaceAt, getPresence, getOpenStepMap, getStrikeCells } from './threat'
+import { cellOf, getBelievedAP, getPace, getCarriedMetres, getPaceAt, getPresence, getOpenStepMap, getRouteAP, getStrikeCells, isWetAt } from './threat'
 import type { SpecWeights } from './cost'
 
 // The threat, the price of AP and the exposure of instructions/bot-spec.md
@@ -122,16 +122,15 @@ function stepsInto(map: Map<string, number> | null, at: Coord, reach: number, cl
   return fewest
 }
 
-// The AP of the walk `a` makes from `from` to strike `d` at `at`, null where
-// it cannot.
+// The AP of the walk `a` makes from `from` to strike `d` at `at`, at the pace
+// it has there (`getRouteAP`), null where it cannot.
 function walkAP(view: SceneState, a: string, from: Coord, d: string, at: Coord, attack: PairAttack, moved: Moved): number | null {
   const board = view.board
   if (!board) return 0
   const steps = meleeSteps(view, a, from, d, at, attack.reach, moved)
   if (steps === null) return null
-  const walked = steps - getCarriedMetres(view, a, attack)
-  const pace = getPace(view, a)
-  return walked <= 0 ? 0 : pace ? (walked / pace.metres) * pace.AP : null
+  const walked = steps - (isWetAt(view, a, from) ? 0 : getCarriedMetres(view, a, attack))
+  return walked <= 0 ? 0 : getRouteAP(view, a, from, walked)
 }
 
 // What may be read in place of where a character stands and the AP it holds.
@@ -321,7 +320,8 @@ function getProfile(view: SceneState, a: string, from: Coord, d: string, at: Coo
   const ca = view.characters[a]
   const cd = view.characters[d]
   if (ca && cd) {
-    const pair = getPair(ca, cd, surge)
+    // one in water lies prone there, and has no evasive jump (rules/options.ts)
+    const pair = getPair(ca, isWetAt(view, d, at) && !cd.afflictions.includes('prone') ? { ...cd, afflictions: [...cd.afflictions, 'prone'] } : cd, surge)
     for (const rate of getStrikeRates(pair, w)) {
       const walk = walkAP(view, a, from, d, at, rate.attack, moved)
       if (walk !== null) made.push({ walk: () => walk, rate })

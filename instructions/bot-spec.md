@@ -112,6 +112,17 @@ drain = exposure(character, AP after its action) − exposure(character, AP it h
 
 danger(cell, AP) = max( immediate exposure(cell, AP), potential exposure(cell, 8 AP) )
 
+## Movement
+This is the bots measure of pace in terrain that required a skill to be traversed. Use the value of pace to calculate movement instead of plain movement speed.
+
+pace(movement) = Σ_degree p(degree) × metres per AP at that degree
+
+Weigh a movement only if p(no fall) ≥ w.footing.
+  p(no fall) = Σ p(degrees that clear it), balance through difficult terrain and climb (a climb miss falls).
+  A test saved this round is known: its degree clears the movement or does not.
+
+fall harm = Σ_degree p(degree) × harm(fall damage at that degree)
+
 # Immediate Actions
 
 ## Attacking
@@ -161,26 +172,6 @@ If there are none, don't escape.
 
 Score = danger(here, AP held) − harm(cell), if above 0. The highest Score wins, against attacks too.
 
-## Moving
-
-### Standing up
-A prone character weighs every move two ways: crawling as it lies, and standing up first and then any movement open to it standing.
-Standing adds its cost to the walk (5 − AGI/5 AP + 1 STA) and the opportunity attacks it draws to OA drawn.
-An attack from where it lies needs no standing.
-
-### Reading a cell
-Whatever is read at a cell (threat from it, exposure at it, the walks out of it) is read with the movements the character would have standing at that cell.
-In water that is only swimming, at the pace of the swim test it would make there: a graze or a miss swims 1 m per 5 AP, and a miss's STA counts in STAharm.
-
-### Falling
-A walk into or through difficult terrain needs the balance test the board asks for, unless a test saved this round already clears its movement.
-critical: any movement, hit: walking, graze: treading, miss: only crawling.
-
-value(walk) = Σ_degree p(degree) × value(where that degree leaves it)
-
-A degree that does not clear the movement leaves it prone at the first difficult cell of the walk, with the harm of the fall, having paid only the blocks walked to it, and with no attack made after it.
-value is whatever the walk is picked by (Attack, Escape, Tactical, Search).
-
 ### Protect
 
 Defend an ally if the following are true:
@@ -207,6 +198,13 @@ Score(cell) = w.aggro × my potential threat on target there vs evasion
 Pick the cell and movement with the highest
 Score(there) − Score(here) − (danger(there, AP left) − danger(here, AP held)) − STAharm − OA drawn
 if above 0.
+
+### Standing up
+
+Score = w.aggro × (potential threat on target standing − potential threat on target prone)
+  + danger(here prone, AP held) − danger(here standing, AP after standing)
+  − STAharm(stand) − OA drawn
+stand up if above 0.
 
 
 ### Search
@@ -274,4 +272,5 @@ w.search = 4
 w.solitude = 5
 w.courage = 0.75
 w.aggro = 1
+w.footing = 0.8
 

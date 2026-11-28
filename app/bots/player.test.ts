@@ -58,6 +58,13 @@ function thread() {
 
 const TABLE_OF: BotsTable = { owners: OWNERS, auto: true, holdStart: false, paused: false }
 
+// A note of nothing (a block noted null once it is done) is kept by the thread
+// until the seat's notes are next read, and gone on the screen's own thread
+// from then: both mean nothing noted, so neither is compared.
+function noted(memories: SeatMemories): SeatMemories {
+  return Object.fromEntries(Object.entries(memories).map(([seat, m]) => [seat, { ...m, notes: Object.fromEntries(Object.entries(m.notes ?? {}).filter(([, v]) => v !== null)) }]))
+}
+
 // The moves the bots make on the screen's own thread, as `run` would play them.
 function playedHere(): { moves: string[]; memories: SeatMemories } {
   const b = bout()
@@ -78,7 +85,7 @@ function playedHere(): { moves: string[]; memories: SeatMemories } {
     b.press({ seq: i, step: { do: 'press', move: { ...move, as: move.viewer.profile } }, refused: [], memories: null })
     memories = withNoted(memories, move)
   }
-  return { moves, memories: seen }
+  return { moves, memories: noted(seen) }
 }
 
 // `late`: an answer for every fight is dropped, the fight told again meanwhile.
@@ -105,7 +112,7 @@ function playedByThread(late: boolean): { moves: string[]; memories: SeatMemorie
     t.tell(b.state())
     t.hear({ kind: 'done', seq: answered, played: true })
   }
-  return { moves, memories }
+  return { moves, memories: noted(memories) }
 }
 
 describe('the bots on a thread of their own', () => {

@@ -24,6 +24,10 @@ export type SpecWeights = RestTuning & {
   // metres within which party members share the foes' attacks
   search: number
   solitude: number
+  // Movement: the least chance of not falling a movement is weighed at
+  footing: number
+  // Standing up: what being upright is worth, in harm
+  upright: number
 }
 
 // What spending `STA` costs one bleeding `bleed`: every STA spent bleeding

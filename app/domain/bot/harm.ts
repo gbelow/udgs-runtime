@@ -52,15 +52,24 @@ export function getUndefendedHarm(attack: PairAttack, gap: number, w: SpecWeight
   return none ? getHarmOf(attack, none, gap, w) : 0
 }
 
-// spec "Cost": the defence threats are taken to be met with, an evade against
-// a strike (combat.tex "Evade") and an evasion against a shot ("Evasion"):
-// the harm it leaves and the AP it costs; the attack's whole harm, for no AP,
-// where it offers neither.
-const EVASION = { strike: 'evade', shoot: 'evasion' } as const
+// spec "Cost": the defence threats are taken to be met with, the best of the
+// evasions the defender has against the attack (the user's ruling,
+// 2026-11-28): an evade or an evasive jump against a strike (combat.tex
+// "Evade", "Evasive Jump"), whichever leaves less harm, the cheaper of two
+// alike, and an evasion against a shot ("Evasion"): the harm it leaves and the
+// AP it costs; the attack's whole harm, for no AP, where it offers none. One
+// lying prone has no evasive jump (pairs.ts reads it off the sheet).
+const EVASIONS = { strike: ['evade', 'evasiveJump'], shoot: ['evasion'] } as const
 
 export function getEvaded(attack: PairAttack, gap: number, w: SpecWeights): { harm: number; AP: number } {
-  const defence = attack.defences.find((d) => d.draft?.kind === EVASION[attack.kind])
-  return defence ? { harm: getHarmOf(attack, defence, gap, w), AP: defence.cost.AP } : { harm: getUndefendedHarm(attack, gap, w), AP: 0 }
+  const kinds: readonly string[] = EVASIONS[attack.kind]
+  let best: { harm: number; AP: number } | null = null
+  for (const d of attack.defences) {
+    if (!d.draft || !kinds.includes(d.draft.kind)) continue
+    const made = { harm: getHarmOf(attack, d, gap, w), AP: d.cost.AP }
+    if (!best || made.harm < best.harm || (made.harm === best.harm && made.AP < best.AP)) best = made
+  }
+  return best ?? { harm: getUndefendedHarm(attack, gap, w), AP: 0 }
 }
 
 // spec "Defense": of the defences `guard` pays for (and `open` keeps), where
