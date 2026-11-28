@@ -489,6 +489,15 @@ function canPayAsDeclarable(state: SceneState, action: Action): boolean {
 // spell is missing when it finishes, the action fails" — why the held action
 // cannot finish now, or null: what it needed to be made, bar the focus surge
 // and the price, which holding it has paid.
+// The actor's party mates begin by answering with nothing, except the one the
+// action is aimed at; each may still declare a reaction instead.
+export function withMatesPassed(state: SceneState, root: RootAction): RootAction {
+  const party = state.partyOf[root.actorId]
+  if (!party) return root
+  const mates = Object.keys(state.characters).filter((id) => id !== root.actorId && id !== root.targetId && state.partyOf[id] === party && !root.passed.includes(id))
+  return mates.length ? { ...root, passed: [...root.passed, ...mates] } : root
+}
+
 // The character releasing the action they hold before the round changes
 // (the user's ruling): on their own turn, with nothing else being played out,
 // and the AP for what is left of its price; why not, or null.

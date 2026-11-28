@@ -51,7 +51,7 @@ type Card = {
 // to make; then whatever the roll leaves to choose, a step at a time, the
 // last landing it; then whatever follows from it, the same way.
 export function ClickMenuHost(){
-  const { menu, shown: category, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory, goOn } = useClickMenu()
+  const { menu, shown: category, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory, goOn, release } = useClickMenu()
   const walked = useOpenWalk()
   const anchor = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -77,11 +77,11 @@ export function ClickMenuHost(){
   const keys = useKeyMap()
   const small = !menu && view?.kind === 'exchange' && !expanded
   const spot = usePopoverSpot(!!menu || (!!view && !small))
-  const card: Card | null = menu ? menuCard(menu, category, { press, start, close, show: showCategory, send: walked.send })
+  const card: Card | null = menu ? menuCard(menu, category, { press, start, close, show: showCategory, send: walked.send, release })
     : !view || small ? null
     : view.kind === 'declare' ? declarationCard(view, walked, closeWalk)
     : view.kind === 'land' ? landingCard(view, walked, closeWalk)
-    : view.kind === 'held' ? heldCard(view, walked, closeWalk)
+    : view.kind === 'held' ? heldCard(view, walked, closeWalk, release)
     : exchangeCard(view, walked)
   useCardKeys(card, keys)
   // the key that goes on brings back reactions put away, or the action put away
@@ -314,7 +314,7 @@ function TileView({ tile: t, n, onHint }: { tile: Tile, n: string | null, onHint
   )
 }
 
-type MenuPresses = { press: (e: MenuEntry) => void, start: () => void, close: () => void, show: (category: string | null) => void, send: (command: SceneCommand) => void }
+type MenuPresses = { press: (e: MenuEntry) => void, start: () => void, close: () => void, show: (category: string | null) => void, send: (command: SceneCommand) => void, release: (command: SceneCommand) => void }
 
 function entryIcon(e: MenuEntry): LucideIcon | undefined {
   return e.press.kind === 'declare' || e.press.kind === 'answer' ? ACTION_ICONS[e.press.draft.kind] : undefined
@@ -336,7 +336,7 @@ function menuCard(menu: ClickMenu, shown: string | null, on: MenuPresses): Card 
       {held ? (
         <div className='flex flex-row flex-wrap items-center gap-1 rounded border border-accent/60 bg-accent/10 px-2 py-1.5'>
           <span className='flex-1'>holds <span className='font-semibold'>{held.title}</span></span>
-          <Closed reason={held.bar}><Button size='xs' disabled={held.bar !== null} onClick={() => on.send(held.release)}>release</Button></Closed>
+          <Closed reason={held.bar}><Button size='xs' disabled={held.bar !== null} onClick={() => on.release(held.release)}>release</Button></Closed>
           <Button size='xs' weight='subtle' onClick={() => on.send(held.drop)}>drop</Button>
         </div>
       ) : null}
@@ -419,18 +419,18 @@ function declarationCard(view: DeclarationWalk, on: Walked, closeWalk: () => voi
 // The action held over to the next round: it goes on at the round change by
 // itself, or now, on its actor's turn, once they have the AP for it; or it is
 // dropped.
-function heldCard(view: HeldWalk, on: Walked, closeWalk: () => void): Card {
+function heldCard(view: HeldWalk, on: Walked, closeWalk: () => void, release: (command: SceneCommand) => void): Card {
   return {
     title: view.title,
     meta: 'held',
     top: <span className='rounded border border-accent/60 bg-accent/10 px-2 py-1.5'>held over: it goes on at the round change</span>,
     tiles: [
-      { key: 'release', label: 'release it now', icon: Play, bar: view.release.bar, run: () => on.send(view.release.command) },
+      { key: 'release', label: 'release it now', icon: Play, bar: view.release.bar, run: () => release(view.release.command) },
       { key: 'drop', label: 'drop it', icon: X, note: 'what it was paid comes back, less 1 AP', run: () => on.send(view.drop) },
     ],
     lock: view.actorId,
     back: null,
-    primary: { label: 'release', icon: Play, run: () => on.send(view.release.command), bar: view.release.bar },
+    primary: { label: 'release', icon: Play, run: () => release(view.release.command), bar: view.release.bar },
     cancel: closeWalk,
   }
 }

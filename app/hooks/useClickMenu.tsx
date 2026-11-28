@@ -67,6 +67,12 @@ export function useClickMenu() {
     dispatch({ kind: "startTurn", args: [id] });
     return true;
   };
+  // a held action released goes on in the popover, shown whole
+  const release = (command: SceneCommand) => {
+    if (!dispatch(command)) return;
+    setMenu(null);
+    resumeWalk();
+  };
   // the turn of whoever the menu's actions are for
   const start = () => {
     if (menu) dispatch({ kind: "startTurn", args: [menu.actor] });
@@ -88,7 +94,7 @@ export function useClickMenu() {
     else setActiveCharacter(null);
   };
 
-  return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory, goOn } as const;
+  return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory, goOn, release } as const;
 }
 
 // Where on the screen the character the popover is about is drawn, the

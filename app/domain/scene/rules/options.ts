@@ -240,8 +240,13 @@ function listAvailableActions(state: SceneState, characterId: string): ActionOpt
   const before = withoutAnswerSurge(state, open.id, characterId)
   const own = before.characters[characterId]
   const made = getReactionsTo(state, open.id).find((r) => r.actorId === characterId)?.surged?.kind ?? null
-  return withSurges(before, own, withRefund(before, withoutReserve(before, own, open.id), open.id), getAnswers(before, own, open), (on, surged, kinds) => getAnswers(on, surged, open, kinds), true)
+  const answers = withSurges(before, own, withRefund(before, withoutReserve(before, own, open.id), open.id), getAnswers(before, own, open), (on, surged, kinds) => getAnswers(on, surged, open, kinds), true)
     .map((o) => (o.chosen && before !== state && o.surge !== made ? { ...o, chosen: false } : o))
+  // the user's ruling: an action being held over draws only the opportunity
+  // attacks its declaring triggers (combat.tex "Opportunity Attack": "any
+  // actions that require concentration"); it is defended against once it is
+  // taken up, released or finished
+  return 'holding' in open && open.holding ? answers.filter((o) => o.draft.kind === 'opportunityAttack') : answers
 }
 
 // Each answer once, with every way it may be made: with no surge, or on one.

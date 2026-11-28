@@ -2,7 +2,7 @@ import type { Action, RootAction, SceneState } from '../types'
 import type { Caller } from '../../play/calls'
 import { WAITING } from './calling'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { getFinishBar, getOwnCost, getReleaseBar } from '../rules/action'
+import { getFinishBar, getOwnCost, getReleaseBar, withMatesPassed } from '../rules/action'
 import { getGiveUpLoss } from '../rules/stoicism'
 import { getHeldActions, getHeldOf } from '../rules/hold'
 import { getAction, getLiveActions, getOpenAction } from '../rules/log'
@@ -112,8 +112,10 @@ export function dropHeld(id: string): (state: SceneState) => SceneState {
   }
 }
 
+// Taken up, it is answered anew: whoever passed while it was being held over
+// may defend against it now; party mates begin passed, as at a commit.
 const openHeld = (state: SceneState, held: RootAction): SceneState => {
-  const open: Action = { ...held, step: 'react', cost: null, costTerms: [] }
+  const open: Action = withMatesPassed(state, { ...held, step: 'react', cost: null, costTerms: [], passed: [] })
   return setActions(state, getLiveActions(state).map((a) => (a.id === held.id ? open : a)), [held.id])
 }
 

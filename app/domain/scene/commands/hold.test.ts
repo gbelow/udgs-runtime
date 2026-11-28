@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { ActionSchema, type SceneState } from '../types'
 import type { CampaignCharacter } from '../../types'
-import { board, medic, passRound, spearman } from '../fixtures'
+import { archer, board, fighter, medic, passRound, spearman } from '../fixtures'
 import { getAvailableActions } from '../rules/options'
 import { getHeldActions, getHeldOf } from '../rules/hold'
 import { getOpenAction } from '../rules/log'
 import { getFreeAttackOptions } from '../rules/attack'
-import { commitAction, declareAction, declareReaction, rollAction, setTarget } from './action'
+import { amendAction, commitAction, declareAction, declareReaction, rollAction, setTarget } from './action'
+import { getOpenChoices } from '../projections/choices'
 import { breakHeld, dropHeld, finishHeld, releaseHeld } from './hold'
 import { makeCaller } from '../../play/calls'
 import { ROUND_AP } from '../../tables'
@@ -151,6 +152,25 @@ describe('an action held over to the next round', () => {
     expect(getHeldOf(released, 'm')).toBeNull()
     expect(getOpenAction(released)?.kind).toBe('firstAid')
     expect(releaseHeld('m')({ ...topped, inTurnCharacter: 'e' })).toEqual({ ...topped, inTurnCharacter: 'e' })
+  })
+
+  // the user's ruling: a shot being held over is defended against once it is
+  // taken up, not as it is held
+  it('is defended against once released, not as it is held', () => {
+    const start = board({ a: [0, 0], f: [3, 0] }, archer('a'), fighter('f'))
+    const row = getFreeAttackOptions(start, start.characters.a, 'shoot')[0]
+    const short = { ...start, characters: { ...start.characters, a: leftWith(start.characters.a, row.AP - 1) } }
+    const aimed = setTarget('f')(declareAction('a', { kind: 'shoot', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(inTurn(short, 'a')))
+    const ammo = getOpenChoices(aimed).find((c) => c.part === 'ammo' && !c.chosen)?.command
+    const declared = ammo?.kind === 'amend' ? amendAction(ammo.args[0])(aimed) : aimed
+    const holding = commitAction(() => HIT, newId, true)(declared)
+    expect(getAvailableActions(holding, 'f').some((o) => o.available && o.draft.kind !== 'opportunityAttack')).toBe(false)
+    const held = getHeldOf(holding, 'a') ? holding : rollAction(() => HIT, newId)(holding)
+    expect(getHeldOf(held, 'a')?.kind).toBe('shoot')
+    const topped = inTurn({ ...held, characters: { ...held.characters, a: { ...held.characters.a, resources: { ...held.characters.a.resources, AP: row.AP } } } }, 'a')
+    const released = releaseHeld('a')(topped)
+    expect(getOpenAction(released)?.kind).toBe('shoot')
+    expect(getAvailableActions(released, 'f').some((o) => o.available && o.draft.kind !== 'opportunityAttack')).toBe(true)
   })
 
   // the user's ruling, priced as combat.tex "Interruption": "The AP from the

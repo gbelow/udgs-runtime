@@ -4,7 +4,7 @@ import { getPendingSighting } from '../rules/sighting'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isNoLongerPossible, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { withMatesPassed, areReactionsComplete, canAffordOpportunity, isPreparedRequired, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isNoLongerPossible, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { detect, getBystanderDetections, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
@@ -131,15 +131,6 @@ export function commitAction(thrown: Throw, newId: () => string, holding = false
     if (walking) return commitAction(thrown, newId, holding)(appendActions(locked, [walking]))
     return hasOpenAnswer(locked) ? locked : rollOrPay(thrown, newId)(locked)
   }
-}
-
-// The actor's party mates begin by answering with nothing, except the one the
-// action is aimed at; each may still declare a reaction instead.
-function withMatesPassed(state: SceneState, root: RootAction): RootAction {
-  const party = state.partyOf[root.actorId]
-  if (!party) return root
-  const mates = Object.keys(state.characters).filter((id) => id !== root.actorId && id !== root.targetId && state.partyOf[id] === party && !root.passed.includes(id))
-  return mates.length ? { ...root, passed: [...root.passed, ...mates] } : root
 }
 
 // combat.tex "Stealth in combat": what the root writes down of who had whom
