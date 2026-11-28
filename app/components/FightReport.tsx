@@ -1,8 +1,10 @@
-import type { DamageLine, FightReportRow, Tally } from '../domain/scene/projections/report'
+import { Fragment, type ReactNode } from 'react'
+import type { Degree } from '../domain/types'
+import type { Figures, FightReportRow, Tally } from '../domain/scene/projections/report'
 import { useFightReport } from '../hooks/useFightReport'
-import { Dropdown, SectionLabel } from './ui'
+import { Dropdown } from './ui'
 
-const DEGREE_TONE: Record<string, string> = { miss: 'text-muted', graze: 'text-fg', hit: 'text-good', critical: 'text-accent' }
+const DEGREE_TONE: Record<Degree, string> = { miss: 'text-muted', graze: 'text-fg', hit: 'text-good', critical: 'text-accent' }
 
 // What the fight came to for each who was in it: damage dealt and taken, the
 // bleeding each put on, attacks, defenses and attacks taken undefended.
@@ -20,68 +22,100 @@ export function FightReport() {
 export function FightReportButton() {
   return (
     <Dropdown label='fight report' text='report' title='damage, bleeding, attacks and defenses of everyone in the fight'>
-      {() => <div className='max-h-[70vh] w-[28rem] max-w-[90vw] overflow-y-auto'><FightReport /></div>}
+      {() => <div className='max-h-[70vh] w-[42rem] max-w-[90vw] overflow-y-auto'><FightReport /></div>}
     </Dropdown>
   )
 }
 
+const TH = 'px-1.5 font-normal text-muted text-right align-bottom leading-tight'
+const TD = 'px-1.5 font-mono text-right tabular-nums'
+const LABEL = 'pr-3 text-left whitespace-nowrap overflow-hidden text-ellipsis'
+
 function ReportCard({ row }: { row: FightReportRow }) {
+  const tallies: [string, Tally][] = [
+    ['attacks made', row.attacks],
+    ['of them met by the SD', row.attacksUnanswered],
+    ['defenses made', row.defenses],
+    ['attacks taken undefended', row.takenUndefended],
+  ]
+  const shown = tallies.filter(([, t]) => t.total > 0)
   return (
-    <div className='flex flex-col gap-1 border-b border-line/50 pb-2'>
+    <div className='flex flex-col gap-1.5 border-b border-line/50 pb-2'>
       <div className='flex flex-row gap-2 items-baseline'>
         <span className='text-sm font-semibold'>{row.name}</span>
         {row.party ? <span className='text-muted'>{row.party}</span> : null}
       </div>
-      <div className='grid grid-cols-2 gap-x-4 gap-y-1'>
-        <div className='flex flex-col gap-0.5'>
-          <SectionLabel>dealt</SectionLabel>
-          <Figures damage={row.dealt.damage} IL={row.dealt.IL} bleed={row.dealt.bleed} />
-          <span className='text-muted'>{row.dealt.wounds} wounds · {row.dealt.kills} kills</span>
-          <Lines lines={row.dealtTo} word='to' />
-        </div>
-        <div className='flex flex-col gap-0.5'>
-          <SectionLabel>taken</SectionLabel>
-          <Figures damage={row.taken.damage} IL={row.taken.IL} bleed={row.taken.bleed} />
-          {row.taken.other > 0 ? <span className='text-muted' title='fire, falls, edits and anything else no attack or bleed put on'>{row.taken.other} IL otherwise</span> : null}
-          <Lines lines={row.takenFrom} word='from' />
-        </div>
-      </div>
-      <TallyLine label='attacks' tally={row.attacks} />
-      <TallyLine label='of them met by the SD' tally={row.attacksUnanswered} />
-      <TallyLine label='defenses' tally={row.defenses} hint='by the degree the attack defended came to' />
-      <TallyLine label='attacks taken without a defense' tally={row.takenUndefended} />
+      <table className='w-full table-fixed'>
+        <colgroup><col className='w-[42%]' /><col /><col /><col /><col /><col /><col /></colgroup>
+        <thead>
+          <tr>
+            <th />
+            <th className={TH} title='damage past the armor it was measured against'>past armor</th>
+            <th className={TH} title='damage that reached them, the degree and the defense counted'>damage</th>
+            <th className={TH}>IL</th>
+            <th className={TH} title='IL bled from the bleeds this character put on, or that were put on them'>bled IL</th>
+            <th className={TH}>wounds</th>
+            <th className={TH}>kills</th>
+          </tr>
+        </thead>
+        <tbody>
+          <FigureRow label='dealt' figures={row.dealt} strong extra={[row.dealt.wounds, row.dealt.kills]} />
+          {row.dealtTo.map((l) => <FigureRow key={l.id} label={`to ${l.name}`} figures={l} />)}
+          <FigureRow label='taken' figures={row.taken} strong />
+          {row.takenFrom.map((l) => <FigureRow key={l.id} label={`from ${l.name}`} figures={l} />)}
+          {row.taken.other > 0 ? (
+            <tr className='text-muted' title='fire, falls, edits and anything else no attack or bleed put on'>
+              <td className={`${LABEL} pl-3`}>otherwise</td><td /><td /><td className={TD}>{row.taken.other}</td><td /><td /><td />
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+      {shown.length > 0 ? (
+        <table className='w-full table-fixed'>
+          <colgroup><col className='w-[42%]' /><col className='w-[8%]' />{row.attacks.shares.map((s) => <Fragment key={s.degree}><col className='w-[5%]' /><col className='w-[8.5%]' /></Fragment>)}</colgroup>
+          <thead>
+            <tr>
+              <th />
+              <th className={TH}>total</th>
+              {row.attacks.shares.map((s) => <th key={s.degree} colSpan={2} className={`px-1.5 font-normal text-center whitespace-nowrap ${DEGREE_TONE[s.degree]}`}>{s.degree}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map(([label, t]) => (
+              <tr key={label}>
+                <td className={LABEL}>{label}</td>
+                <td className={TD}>{t.total}</td>
+                {t.shares.map((s) => (
+                  <Pair key={s.degree} count={s.count} percent={<>{s.percent}%</>} />
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
     </div>
   )
 }
 
-function Figures({ damage, IL, bleed }: { damage: number; IL: number; bleed: number }) {
+function FigureRow({ label, figures, strong = false, extra }: { label: string; figures: Figures; strong?: boolean; extra?: [number, number] }) {
   return (
-    <span>
-      <span className='font-mono'>{damage}</span> damage · <span className='font-mono'>{IL}</span> IL · <span className='font-mono'>{bleed}</span> IL bled
-    </span>
+    <tr className={strong ? 'font-semibold' : 'text-muted'}>
+      <td className={strong ? LABEL : `${LABEL} pl-3`}>{label}</td>
+      <td className={TD}>{figures.pastArmor}</td>
+      <td className={TD}>{figures.damage}</td>
+      <td className={TD}>{figures.IL}</td>
+      <td className={TD}>{figures.bleed}</td>
+      <td className={TD}>{extra ? extra[0] : null}</td>
+      <td className={TD}>{extra ? extra[1] : null}</td>
+    </tr>
   )
 }
 
-function Lines({ lines, word }: { lines: DamageLine[]; word: string }) {
+function Pair({ count, percent }: { count: number; percent: ReactNode }) {
   return (
     <>
-      {lines.map((l) => (
-        <span key={l.id} className='text-muted'>
-          {word} {l.name}: <span className='font-mono'>{l.damage}</span> dmg, <span className='font-mono'>{l.IL}</span> IL{l.bleed > 0 ? <>, <span className='font-mono'>{l.bleed}</span> bled</> : null}
-        </span>
-      ))}
+      <td className={TD}>{count}</td>
+      <td className={`${TD} text-muted`}>{percent}</td>
     </>
-  )
-}
-
-function TallyLine({ label, tally, hint }: { label: string; tally: Tally; hint?: string }) {
-  if (tally.total === 0) return null
-  return (
-    <div className='flex flex-row flex-wrap gap-x-2' title={hint}>
-      <span>{label} <span className='font-mono'>{tally.total}</span>:</span>
-      {tally.shares.map((s) => (
-        <span key={s.degree} className={DEGREE_TONE[s.degree]}>{s.degree} {s.count} ({s.percent}%)</span>
-      ))}
-    </div>
   )
 }

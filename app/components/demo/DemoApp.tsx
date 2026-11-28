@@ -227,7 +227,7 @@ function Result() {
   if (hidden) return <Button className='absolute top-3 right-3 z-10' weight='solid' tone='accent' onClick={() => setHidden(false)}>{title}: the result</Button>
   return (
     <div role='dialog' aria-label='result' className='absolute inset-0 z-10 flex items-center justify-center bg-bg/70'>
-      <div className='flex flex-col gap-4 rounded border border-line bg-raised p-6 shadow-lg shadow-black/40 max-w-lg w-full mx-4'>
+      <div className='flex flex-col gap-4 rounded border border-line bg-raised p-6 shadow-lg shadow-black/40 max-w-2xl w-full mx-4'>
         <h2 className={`text-3xl font-semibold text-center ${OUTCOME_TONE[outcome]}`}>{title}</h2>
         <div className='flex flex-row flex-wrap gap-6 justify-center max-h-[50vh] overflow-y-auto'>
           {parties.map((p) => (

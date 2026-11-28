@@ -16,13 +16,17 @@ import { TEND_AFTER_FIGHT_CAUSE } from '../rules/fight'
 
 export type DegreeShare = { degree: Degree; count: number; percent: number }
 export type Tally = { total: number; shares: DegreeShare[] }
-export type DamageLine = { id: string; name: string; damage: number; IL: number; bleed: number }
+// `damage` is what reached the character, its degree and the defense met
+// counted (combat.tex "Evade": "On a graze, the attack has 50% damage");
+// `pastArmor` what of it went past the armor it was measured against.
+export type Figures = { damage: number; pastArmor: number; IL: number; bleed: number }
+export type DamageLine = Figures & { id: string; name: string }
 export type FightReportRow = {
   id: string
   name: string
   party: string
-  dealt: { damage: number; IL: number; bleed: number; wounds: number; kills: number }
-  taken: { damage: number; IL: number; bleed: number; other: number }
+  dealt: Figures & { wounds: number; kills: number }
+  taken: Figures & { other: number }
   dealtTo: DamageLine[]
   takenFrom: DamageLine[]
   attacks: Tally
@@ -35,7 +39,7 @@ export type FightReportRow = {
 const EARLIER = ''
 const EARLIER_NAME = 'from before the fight'
 
-type Hits = Map<string, { damage: number; IL: number; bleed: number }>
+type Hits = Map<string, Figures>
 
 type Ledger = {
   hits: Map<string, Hits>
@@ -63,11 +67,14 @@ export function getFightReport(state: SceneState): FightReportRow[] {
 
 // The report as lines, for the journal.
 export function getFightReportLines(state: SceneState): string[] {
-  const tally = (label: string, t: Tally) => (t.total === 0 ? [] : [`  ${label} ${t.total}: ${t.shares.filter((s) => s.count > 0).map((s) => `${s.degree} ${s.count} (${s.percent}%)`).join(', ')}`])
+  const figures = (f: Figures) => `damage ${f.damage}, past armor ${f.pastArmor}, IL ${f.IL}, bled IL ${f.bleed}`
+  const tally = (label: string, t: Tally) => (t.total === 0 ? [] : [`  ${label}: ${t.total} (${t.shares.map((s) => `${s.degree} ${s.count}, ${s.percent}%`).join('; ')})`])
   return getFightReport(state).flatMap((r) => [
-    `${r.name}${r.party ? ` (${r.party})` : ''}: dealt ${r.dealt.damage} damage, ${r.dealt.IL} IL, ${r.dealt.bleed} IL by bleeding, ${r.dealt.wounds} wounds, ${r.dealt.kills} kills; took ${r.taken.damage} damage, ${r.taken.IL} IL, ${r.taken.bleed} IL by bleeding, ${r.taken.other} IL otherwise`,
-    ...r.dealtTo.map((l) => `  to ${l.name}: ${l.damage} damage, ${l.IL} IL, ${l.bleed} IL by bleeding`),
-    ...r.takenFrom.map((l) => `  from ${l.name}: ${l.damage} damage, ${l.IL} IL, ${l.bleed} IL by bleeding`),
+    `${r.name}${r.party ? ` (${r.party})` : ''}`,
+    `  dealt: ${figures(r.dealt)}, wounds ${r.dealt.wounds}, kills ${r.dealt.kills}`,
+    ...r.dealtTo.map((l) => `    to ${l.name}: ${figures(l)}`),
+    `  taken: ${figures(r.taken)}${r.taken.other > 0 ? `, IL otherwise ${r.taken.other}` : ''}`,
+    ...r.takenFrom.map((l) => `    from ${l.name}: ${figures(l)}`),
     ...tally('attacks', r.attacks),
     ...tally('attacks met by the SD', r.attacksUnanswered),
     ...tally('defenses', r.defenses),
@@ -83,10 +90,13 @@ function add(map: Map<string, number>, id: string, n: number): void {
   if (n !== 0) map.set(id, (map.get(id) ?? 0) + n)
 }
 
-function hit(ledger: Ledger, from: string, to: string, part: { damage?: number; IL?: number; bleed?: number }): void {
-  const byTarget = ledger.hits.get(from) ?? new Map()
-  const was = byTarget.get(to) ?? { damage: 0, IL: 0, bleed: 0 }
-  byTarget.set(to, { damage: was.damage + (part.damage ?? 0), IL: was.IL + (part.IL ?? 0), bleed: was.bleed + (part.bleed ?? 0) })
+const NONE: Figures = { damage: 0, pastArmor: 0, IL: 0, bleed: 0 }
+const FIGURES = Object.keys(NONE) as (keyof Figures)[]
+
+function hit(ledger: Ledger, from: string, to: string, part: Partial<Figures>): void {
+  const byTarget = ledger.hits.get(from) ?? new Map<string, Figures>()
+  const was = byTarget.get(to) ?? NONE
+  byTarget.set(to, Object.fromEntries(FIGURES.map((k) => [k, was[k] + (part[k] ?? 0)])) as Figures)
   ledger.hits.set(from, byTarget)
 }
 
@@ -138,7 +148,7 @@ function readAction(state: SceneState, ledger: Ledger, action: Action): void {
   for (const r of action.results) {
     if (r.outcome.stopped) continue
     add(directOn, r.targetId, r.outcome.IL)
-    hit(ledger, action.actorId, r.targetId, { damage: r.outcome.damage, IL: r.outcome.IL })
+    hit(ledger, action.actorId, r.targetId, { damage: r.outcome.damage, pastArmor: Math.max(0, r.outcome.damage - r.outcome.armor), IL: r.outcome.IL })
     if (r.outcome.wound) add(ledger.wounds, action.actorId, 1)
     if (r.outcome.dead) add(ledger.kills, action.actorId, 1)
   }
@@ -170,18 +180,18 @@ function getTally(degrees: Degree[]): Tally {
 
 function getRow(state: SceneState, ledger: Ledger, id: string): FightReportRow {
   const name = (who: string) => (who === EARLIER ? EARLIER_NAME : getFightName(state, who))
-  const line = (who: string, h: { damage: number; IL: number; bleed: number }): DamageLine => ({ id: who, name: name(who), ...h })
-  const some = (h: { damage: number; IL: number; bleed: number }) => h.damage > 0 || h.IL > 0 || h.bleed > 0
+  const line = (who: string, h: Figures): DamageLine => ({ id: who, name: name(who), ...h })
+  const some = (h: Figures) => FIGURES.some((k) => h[k] > 0)
   const dealtTo = [...(ledger.hits.get(id) ?? new Map())].filter(([, h]) => some(h)).map(([to, h]) => line(to, h))
   const takenFrom = [...ledger.hits].flatMap(([from, byTarget]) => { const h = byTarget.get(id); return h && some(h) ? [line(from, h)] : [] })
-  const sum = (lines: DamageLine[], key: 'damage' | 'IL' | 'bleed') => lines.reduce((n, l) => n + l[key], 0)
-  const taken = { damage: sum(takenFrom, 'damage'), IL: sum(takenFrom, 'IL'), bleed: sum(takenFrom, 'bleed') }
+  const sum = (lines: DamageLine[]): Figures => Object.fromEntries(FIGURES.map((k) => [k, lines.reduce((n, l) => n + l[k], 0)])) as Figures
+  const taken = sum(takenFrom)
   const partyId = state.partyOf[id]
   return {
     id,
     name: name(id),
     party: partyId ? state.parties[partyId]?.name ?? '' : '',
-    dealt: { damage: sum(dealtTo, 'damage'), IL: sum(dealtTo, 'IL'), bleed: sum(dealtTo, 'bleed'), wounds: ledger.wounds.get(id) ?? 0, kills: ledger.kills.get(id) ?? 0 },
+    dealt: { ...sum(dealtTo), wounds: ledger.wounds.get(id) ?? 0, kills: ledger.kills.get(id) ?? 0 },
     taken: { ...taken, other: Math.max(0, (ledger.rise.get(id) ?? 0) - taken.IL - taken.bleed) },
     dealtTo,
     takenFrom,
