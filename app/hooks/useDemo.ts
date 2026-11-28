@@ -6,7 +6,7 @@ import { useCombatStore } from "../stores/useCombatStore";
 import { dropFight, keepFight, readFight, useFight, useKeptFight } from "../stores/useKeptFight";
 import { useBotLogStore } from "../stores/useBotLogStore";
 import { useDemoStore } from "../stores/useDemoStore";
-import { makeWriter, readAutosave, readBotMemories, writeAutosave, writeBotMemories } from "../stores/autosave";
+import { makeKeptParts, makeWriter, readAutosave, readBotMemories, writeAutosave, writeBotMemories } from "../stores/autosave";
 import { useBotMemoryStore } from "../stores/useBotMemoryStore";
 import { DEMO, DEMO_SCENE, DEMO_VISITOR, DemoPlaySchema } from "../domain/demo";
 import { getScenePreset } from "../domain/campaign/rules/scenes";
@@ -19,7 +19,7 @@ import { useSceneDispatch } from "./useSceneDispatch";
 import { ExplorationStateSchema } from "../domain/exploration/types";
 import { DowntimeStateSchema } from "../domain/downtime/types";
 import { makeCampaignCharacter } from "../domain/factories";
-import { CampaignSaveSchema, fromCampaignSave, newFile, toFileInfo, toStoredCampaign } from "../domain/saves";
+import { CampaignSaveSchema, fromCampaignSave, newFile, readFallen, readGround, toFileInfo, toStoredCampaign } from "../domain/saves";
 
 // The demo's scene, as the catalog has it.
 const preset = () => getScenePreset(DEMO.scene);
@@ -101,13 +101,19 @@ export function useDemo() {
   };
 }
 
+// What of the demo kept apart from its save this browser holds.
+const demoKept = makeKeptParts();
+
 // The demo as this browser keeps it: the fight whole, and how the visitor is
 // playing it.
 async function writeDemo() {
   if (useKeptFight.getState().scene === null) return;
   const { file, owners } = useCampaignStore.getState();
   const demo = DemoPlaySchema.parse(useDemoStore.getState());
-  await writeAutosave(DEMO_VISITOR, DEMO_SCENE, { ...toStoredCampaign(file, { ...getInPlay(), fight: readFight() }, owners), at: Date.now(), demo });
+  const t = { ...getInPlay(), fight: readFight() };
+  const { save, characters } = toStoredCampaign(file, t, owners);
+  await writeAutosave(DEMO_VISITOR, DEMO_SCENE, { save, characters, at: Date.now(), demo, fallen: demoKept.fallen(DEMO_SCENE, t), ground: demoKept.ground(DEMO_SCENE, t) });
+  demoKept.mark(DEMO_SCENE, t);
 }
 
 // The demo brought back as it was left; nothing where none was kept, or what
@@ -118,7 +124,7 @@ async function resumeDemo(isLeft: () => boolean) {
   const save = CampaignSaveSchema.safeParse(kept?.save);
   if (!kept || !demo.success || !save.success || isLeft() || useKeptFight.getState().scene !== null) return;
   if (Object.keys(save.data.fight.characters).length === 0) return;
-  const t = fromCampaignSave(save.data, kept.characters.map(makeCampaignCharacter));
+  const t = fromCampaignSave(save.data, kept.characters.map(makeCampaignCharacter), readFallen(kept.fallen, kept.save), readGround(kept.ground));
   useBotLogStore.setState({ entries: [], paused: false, open: true });
   useBotMemoryStore.getState().restore(memories);
   useCampaignStore.getState().openCampaign(t, toFileInfo(save.data), save.data.owners);

@@ -3,15 +3,33 @@ import type { CampaignCharacter } from './types'
 import { CampaignRecordSchema, CampaignStateSchema, type CampaignRecord, type CampaignState } from './campaign/types'
 import { ExplorationStateSchema, type ExplorationState } from './exploration/types'
 import { DowntimeStateSchema, type DowntimeState } from './downtime/types'
-import { SceneStateSchema, type SceneState } from './scene/types'
+import { BoardSchema, SceneStateSchema, type SceneState } from './scene/types'
 import { isFromRoster } from './scene/rules/fight'
 import { nameByParty } from './campaign/commands/names'
 import { makeCampaignCharacter } from './factories'
 import { CampaignMembersSchema, CharacterOwnersSchema, type CampaignMembers, type CharacterOwners } from './profiles'
 
+// What changes seldom is kept apart from the save, so that writing the
+// campaign after a change does not write it again: the dead lying where
+// fights left them, each a record of its own, and the ground of the fight's
+// board.
+export const GroundSchema = BoardSchema.pick({ terrain: true, levels: true, pieces: true })
+export type Ground = z.infer<typeof GroundSchema>
+
+const idOf = (c: unknown) => (typeof c === 'object' && c !== null && 'id' in c ? c.id : c)
+
+// The campaign's record as it is saved: the dead by id, at the place they
+// lie. An older save holds them whole, and is read for their ids.
+const SavedRecordSchema = CampaignRecordSchema.omit({ fallen: true }).extend({
+  fallen: z.record(z.string(), z.array(z.preprocess(idOf, z.string()))).catch({}),
+})
+type SavedRecord = z.infer<typeof SavedRecordSchema>
+
 // A campaign as it is saved: who plays it, its own record, what exploration
 // and downtime keep beside it, the fight being played out, the ids of its
-// characters, saved apart, and the profile that plays each. A locked campaign
+// characters, saved apart, and the profile that plays each. The dead and the
+// ground of the board are saved apart too (`GroundSchema`); an older save
+// holds them in it. A locked campaign
 // is never saved over: play on it is saved as a copy, which names the
 // campaign it was copied from. `savedAt` is when the server last wrote it.
 // Read back best effort: a part that no longer parses comes back empty.
@@ -21,7 +39,7 @@ export const CampaignSaveSchema = z.object({
   members: CampaignMembersSchema.catch({}),
   characterIds: z.array(z.string()).default([]),
   owners: CharacterOwnersSchema.catch({}),
-  campaign: CampaignRecordSchema.catch(() => CampaignRecordSchema.parse({})),
+  campaign: SavedRecordSchema.catch(() => SavedRecordSchema.parse({})),
   exploration: ExplorationStateSchema.catch(() => ExplorationStateSchema.parse({})),
   downtime: DowntimeStateSchema.catch(() => DowntimeStateSchema.parse({})),
   fight: SceneStateSchema.catch(() => SceneStateSchema.parse({})),
@@ -81,12 +99,25 @@ function getSavedCharacters(t: CampaignInPlay): CampaignCharacter[] {
   return [...Object.values(t.campaign.characters), ...Object.values(t.fight.characters).filter((c) => isFromRoster(table, c.id))]
 }
 
-// What is written for the campaign in play: its save, and the records of the
-// characters it names.
-export type StoredCampaign = { save: CampaignSave; characters: CampaignCharacter[] }
+// What is written for the campaign in play: its save, the records of the
+// characters it names, and what is kept apart from it.
+export type StoredCampaign = { save: CampaignSave; characters: CampaignCharacter[]; fallen: CampaignCharacter[]; ground: Ground | null }
+
+// The ground of the fight's board, as the board holds it; none without a board.
+export function getGround(fight: SceneState): Ground | null {
+  if (!fight.board) return null
+  const { terrain, levels, pieces } = fight.board
+  return { terrain, levels, pieces }
+}
+
+export function isSameGround(a: Ground | null, b: Ground | null): boolean {
+  return a === b || (a !== null && b !== null && a.terrain === b.terrain && a.levels === b.levels && a.pieces === b.pieces)
+}
+
+const NO_GROUND: Ground = { terrain: {}, levels: [], pieces: {} }
 
 const SCENE_KEYS = Object.keys(SceneStateSchema.shape) as (keyof SceneState)[]
-const RECORD_KEYS = Object.keys(CampaignRecordSchema.shape) as (keyof CampaignRecord)[]
+const RECORD_KEYS = Object.keys(CampaignRecordSchema.shape).filter((k) => k !== 'fallen') as (keyof Omit<CampaignRecord, 'fallen'>)[]
 const pick = <T extends object>(from: T, keys: readonly (keyof T)[]) => Object.fromEntries(keys.map((k) => [k, from[k]])) as T
 
 // Whom each character is given to is kept for everyone the save holds: the
@@ -99,10 +130,27 @@ export function toStoredCampaign(file: CampaignFileInfo, t: CampaignInPlay, owne
   const save: CampaignSave = {
     ...toFileInfo(file), characterIds,
     owners: Object.fromEntries(Object.entries(owners).filter(([cid]) => held.has(cid))),
-    campaign: pick<CampaignRecord>(t.campaign, RECORD_KEYS), exploration: t.exploration, downtime: t.downtime,
-    fight: pick(t.fight, SCENE_KEYS),
+    campaign: { ...pick<Omit<SavedRecord, 'fallen'>>(t.campaign, RECORD_KEYS), fallen: Object.fromEntries(Object.entries(t.campaign.fallen).map(([at, dead]) => [at, dead.map((c) => c.id)])) },
+    exploration: t.exploration, downtime: t.downtime,
+    fight: { ...pick(t.fight, SCENE_KEYS), board: t.fight.board && { ...t.fight.board, ...NO_GROUND } },
   }
-  return { save, characters }
+  return { save, characters, fallen: Object.values(t.campaign.fallen).flat(), ground: getGround(t.fight) }
+}
+
+// The dead kept apart from save `raw` (read best effort, as it came out of
+// storage), and those an older save holds whole; what is kept apart wins.
+export function readFallen(kept: readonly unknown[] | undefined, raw: unknown): CampaignCharacter[] {
+  const record = (v: unknown) => (typeof v === 'object' && v !== null ? v as Record<string, unknown> : {})
+  const inSave = Object.values(record(record(record(raw).campaign).fallen)).flatMap((dead) => (Array.isArray(dead) ? dead : []))
+  const sheets = [...inSave, ...(kept ?? [])].filter((c) => typeof c === 'object' && c !== null).map(makeCampaignCharacter)
+  return [...new Map(sheets.map((c) => [c.id, c])).values()]
+}
+
+// The ground kept apart, or none where it does not read: the save's own is
+// played then, as an older save holds it.
+export function readGround(kept: unknown): Ground | undefined {
+  const parsed = GroundSchema.safeParse(kept)
+  return kept !== undefined && kept !== null && parsed.success ? parsed.data : undefined
 }
 
 export function toFileInfo(from: CampaignFileInfo): CampaignFileInfo {
@@ -114,18 +162,21 @@ export function toFileInfo(from: CampaignFileInfo): CampaignFileInfo {
 // did not come back is on the roster again. One that was not found is out of
 // every party and goes by no name, and one on a timeline the save has no name
 // for is named (`nameByParty`). The fight's characters are read the way the
-// campaign's are.
-export function fromCampaignSave(save: CampaignSave, characters: readonly CampaignCharacter[]): CampaignInPlay {
+// campaign's are. The dead lie where the save says, those found in `fallen`,
+// and the board stands on `ground` where it was kept apart.
+export function fromCampaignSave(save: CampaignSave, characters: readonly CampaignCharacter[], fallen: readonly CampaignCharacter[] = [], ground?: Ground): CampaignInPlay {
+  const dead = new Map(fallen.map((c) => [c.id, c]))
+  const lying = Object.fromEntries(Object.entries(save.campaign.fallen).map(([at, ids]) => [at, ids.flatMap((id) => dead.get(id) ?? [])]))
   const fighting = (id: string) => id in save.fight.characters
   const found = Object.fromEntries(characters.filter((c) => save.characterIds.includes(c.id) && !fighting(c.id)).map((c) => [c.id, c]))
   const known = (id: string) => id in found || fighting(id)
   const partyOf = Object.fromEntries(Object.entries(save.campaign.partyOf).filter(([id]) => known(id)))
   const names = Object.fromEntries(Object.entries(save.campaign.names).filter(([id]) => known(id)))
   return {
-    campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, partyOf, names, lent: save.campaign.lent.filter(fighting) }),
+    campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, partyOf, names, lent: save.campaign.lent.filter(fighting), fallen: lying }),
     exploration: save.exploration,
     downtime: save.downtime,
-    fight: { ...save.fight, characters: Object.fromEntries(Object.entries(save.fight.characters).map(([id, c]) => [id, makeCampaignCharacter(c)])) },
+    fight: { ...save.fight, board: ground && save.fight.board ? { ...save.fight.board, ...ground } : save.fight.board, characters: Object.fromEntries(Object.entries(save.fight.characters).map(([id, c]) => [id, makeCampaignCharacter(c)])) },
   }
 }
 

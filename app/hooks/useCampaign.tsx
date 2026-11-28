@@ -1,15 +1,15 @@
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { answerRequest, deleteCampaign, loadCampaign, lockCampaign, requestToJoin, saveCampaign, unlockCampaign, withdrawRequest } from "../actions";
-import { asCopy, CampaignSaveSchema, fromCampaignSave, getCampaignSaveBar, getDeleteBar, hasPlay, newCampaign, newFile, toFileInfo, toStoredCampaign, type CampaignFileInfo, type CampaignSave, type StoredCampaign } from "../domain/saves";
-import { dropAutosave, makeWriter, readAutosave, readBotMemories, readLastAutosaveId, useAutosaveStore, writeAutosave, writeBotMemories } from "../stores/autosave";
+import { answerRequest, deleteCampaign, loadCampaign, lockCampaign, requestToJoin, saveCampaign, saveCampaignParts, unlockCampaign, withdrawRequest } from "../actions";
+import { asCopy, CampaignSaveSchema, fromCampaignSave, getCampaignSaveBar, getDeleteBar, hasPlay, newCampaign, newFile, readFallen, readGround, toFileInfo, toStoredCampaign, type CampaignFileInfo, type CampaignInPlay, type CampaignSave, type Ground } from "../domain/saves";
+import { dropAutosave, makeKeptParts, makeWriter, readAutosave, readBotMemories, readLastAutosaveId, useAutosaveStore, writeAutosave, writeBotMemories } from "../stores/autosave";
 import { useBotMemoryStore } from "../stores/useBotMemoryStore";
 import { useTableStore } from "../stores/useTableStore";
 import { getMoveBars, getRosterIn, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
 import type { Sequence } from "../domain/campaign/types";
 import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
 import { useMapNames } from "./useMap";
-import type { Character } from "../domain/types";
+import type { CampaignCharacter, Character } from "../domain/types";
 import { copyIntoPlay, makeCampaignCharacter } from "../domain/factories";
 import { getInPlay, useCampaignStore } from "../stores/useCampaignStore";
 import { useCampaignRole } from "./useRole";
@@ -134,13 +134,49 @@ export function useCampaignRequests() {
   return { requests, refresh, accept: (character: string) => answer(character, true), decline: (character: string) => answer(character, false) } as const;
 }
 
-function play(save: CampaignSave, characters: unknown[]) {
-  useCampaignStore.getState().openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), toFileInfo(save), save.owners);
+function play(save: CampaignSave, characters: unknown[], fallen: CampaignCharacter[], ground: Ground | undefined) {
+  useCampaignStore.getState().openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter), fallen, ground), toFileInfo(save), save.owners);
 }
 
 // The campaign in play as it is written, under `file`.
-function stored(file = useCampaignStore.getState().file): StoredCampaign {
-  return toStoredCampaign(file, getInPlay(), useCampaignStore.getState().owners);
+function stored(file: CampaignFileInfo, t: CampaignInPlay) {
+  return toStoredCampaign(file, t, useCampaignStore.getState().owners);
+}
+
+// What of the campaign kept apart from its save the server holds, as this
+// screen last saved it there.
+const serverKept = makeKeptParts();
+
+// Under what a server action takes in one call.
+const BATCH = 700_000;
+
+function inBatches(sheets: CampaignCharacter[]): CampaignCharacter[][] {
+  const batches: CampaignCharacter[][] = [];
+  let size = BATCH;
+  for (const c of sheets) {
+    const n = JSON.stringify(c).length;
+    if (size + n > BATCH) { batches.push([]); size = 0; }
+    batches[batches.length - 1].push(c);
+    size += n;
+  }
+  return batches;
+}
+
+// Writes the campaign in play under `as` with `action`: first what it keeps
+// apart that the server does not hold yet, the ground alone and the dead in
+// batches, then the save that names it.
+async function sendCampaign(action: typeof saveCampaign, as: CampaignFileInfo): ReturnType<typeof saveCampaign> {
+  const t = getInPlay();
+  const { save, characters } = stored(as, t);
+  const ground = serverKept.ground(as.id, t);
+  const parts = [...(ground ? [{ dead: [], ground }] : []), ...inBatches(serverKept.newSheets(as.id, t)).map((dead) => ({ dead, ground: null }))];
+  for (const part of parts) {
+    const res = await saveCampaignParts(as.id, part.dead, part.ground);
+    if (!res.ok) return { ok: false, error: res.error };
+  }
+  const res = await action(save, characters);
+  if (res.ok) serverKept.mark(as.id, t);
+  return res;
 }
 
 // The autosave write under way, if any: what the campaign in play last
@@ -157,7 +193,7 @@ async function resume(profile: string, id: string, fresh: boolean) {
   const parsed = kept ? CampaignSaveSchema.safeParse(kept.save) : null;
   if (kept && parsed?.success) {
     useBotMemoryStore.getState().restore(await readBotMemories(profile, id).catch(() => undefined));
-    play(parsed.data, kept.characters);
+    play(parsed.data, kept.characters, readFallen(kept.fallen, kept.save), readGround(kept.ground));
     useAutosaveStore.getState().set(kept.at);
     toast.success(`Campaign ${parsed.data.name || 'unnamed'} resumed from its autosave.`);
     return;
@@ -166,7 +202,7 @@ async function resume(profile: string, id: string, fresh: boolean) {
   if (!res.ok) { toast.error(res.error); return; }
   dropAutosave(profile, id).catch(() => undefined);
   useBotMemoryStore.getState().restore();
-  play(res.data.save, res.data.characters);
+  play(res.data.save, res.data.characters, res.data.fallen, res.data.ground ?? undefined);
   useAutosaveStore.getState().set(null);
   toast.success(`Campaign ${res.data.save.name} opened from its save.`);
 }
@@ -180,8 +216,7 @@ const changed = <T extends object>(s: T, before: T) =>
 async function keepSaved() {
   const { file, setFile } = useCampaignStore.getState();
   if (file.savedAt === 0 || file.locked) return;
-  const { save, characters } = stored(file);
-  const res = await saveCampaign(save, characters);
+  const res = await sendCampaign(saveCampaign, file);
   if (!res.ok) { toast.error(res.error); return; }
   setFile({ ...res.data, locked: false });
 }
@@ -195,12 +230,16 @@ export function useAutosave() {
   const profile = useProfileId();
   useEffect(() => {
     if (!profile) return;
+    const autosaved = makeKeptParts();
     const writer = makeWriter(async () => {
       const { file } = useCampaignStore.getState();
-      if (file.savedAt === 0 && !hasPlay(getInPlay())) return;
+      const t = getInPlay();
+      if (file.savedAt === 0 && !hasPlay(t)) return;
       const at = Date.now();
       try {
-        await writeAutosave(profile, file.id, { ...stored(file), at });
+        const { save, characters } = stored(file, t);
+        await writeAutosave(profile, file.id, { save, characters, at, fallen: autosaved.fallen(file.id, t), ground: autosaved.ground(file.id, t) });
+        autosaved.mark(file.id, t);
         if (useCampaignStore.getState().file.id === file.id) useAutosaveStore.getState().set(at);
       } catch (err) { console.error('Autosave failed:', err); }
     });
@@ -263,8 +302,7 @@ export function useCampaignFiles() {
   // Writes the campaign in play under `as` and takes what the server says of
   // it into the file.
   const write = async (action: typeof saveCampaign, as: CampaignFileInfo, done: string) => {
-    const { save, characters } = stored(as);
-    const res = await action(save, characters);
+    const res = await sendCampaign(action, as);
     if (!res.ok) { toast.error(res.error); return false; }
     setFile({ ...as, ...res.data, locked: action === lockCampaign });
     toast.success(done);

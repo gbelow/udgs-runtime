@@ -5,14 +5,14 @@ import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
 import { SavedBoardMapSchema, SavedStructureSchema, type BoardMap, type SavedBoardMap, type SavedStructure, type Structure } from './domain/scene/types';
 import { makeBoardMap, makeStructure } from './domain/scene/factories';
-import { CampaignSaveSchema, getCampaignSaveBar, getDeleteBar, getLockBar, getOverwriteBar, type CampaignSave } from './domain/saves';
+import { CampaignSaveSchema, getCampaignSaveBar, getDeleteBar, getLockBar, getOverwriteBar, GroundSchema, readFallen, readGround, type CampaignSave, type Ground } from './domain/saves';
 import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getAssignBar, getCampaignRole, getCampaignRow, getJoinBar, type CampaignRow, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type DicePlace, type CampaignMembers, type CharacterListing, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import type { ZodType } from 'zod';
 import { isDevServer } from './devServer';
 import { DEMO } from './domain/demo';
-import type { CampaignCharacter } from './domain/types';
+import { CampaignCharacterSchema, type CampaignCharacter } from './domain/types';
 import { CATALOGS, isCatalogName } from './forms/catalogs';
 import { isBaseCharacter, without } from './domain/utils';
 import redis from './redis'
@@ -561,13 +561,24 @@ export async function setDicePlace(dice: DicePlace): Promise<ActionResult<Profil
 const CAMPAIGN_INDEX_KEY = 'campaignIndex';
 const campaignKey = (id: string) => `campaign:${id}`;
 const campaignCharacterKey = (id: string, characterId: string) => `campaign:${id}:char:${characterId}`;
+// what the save keeps apart, since it changes seldom: each of the dead, and
+// the ground of the fight's board
+const campaignFallenKey = (id: string, characterId: string) => `campaign:${id}:fallen:${characterId}`;
+const campaignGroundKey = (id: string) => `campaign:${id}:ground`;
+const fallenIds = (save: CampaignSave | null) => Object.values(save?.campaign.fallen ?? {}).flat();
 
 // Read once per request: the page's lists all need it.
 const readCampaignIndex = cache((): Promise<Record<string, CampaignListing>> => readIndex(CAMPAIGN_INDEX_KEY, CampaignListingSchema));
 
 async function readCampaign(id: string): Promise<CampaignSave | null> {
-  const parsed = CampaignSaveSchema.safeParse(await redis.get(campaignKey(id)));
-  return parsed.success ? parsed.data : null;
+  return (await readCampaignRaw(id)).save;
+}
+
+// The save as stored, beside it read: an older one holds what is now kept apart.
+async function readCampaignRaw(id: string): Promise<{ raw: unknown, save: CampaignSave | null }> {
+  const raw = await redis.get(campaignKey(id));
+  const parsed = CampaignSaveSchema.safeParse(raw);
+  return { raw, save: parsed.success ? parsed.data : null };
 }
 
 // Every saved campaign, as the profile picked at the screen sees it: what
@@ -659,6 +670,32 @@ export async function lockCampaign(raw: CampaignSave, characters: CampaignCharac
 
 type SavedCampaign = { members: CampaignMembers, savedAt: number };
 
+// What the save keeps apart, written before the save that names it: the dead
+// given (those it already holds as they are need not be), and the ground
+// unless null. Only a GM writes it, for a campaign that is not locked.
+export async function saveCampaignParts(id: string, fallen: CampaignCharacter[], ground: Ground | null): Promise<ActionResult> {
+  const sheets = fallen.map((c) => CampaignCharacterSchema.safeParse(c));
+  const parsedGround = ground === null ? null : GroundSchema.safeParse(ground);
+  if (typeof id !== 'string' || !id || sheets.some((c) => !c.success) || (parsedGround && !parsedGround.success)) return { ok: false, error: 'Not a campaign.' };
+  try {
+    const { profile, dev } = await getViewer();
+    if (!profile) return { ok: false, error: 'Pick a profile first.' };
+    const before = await readCampaign(id);
+    if (before && !hasGmTools(getCampaignRole(before.members, profile, dev))) return { ok: false, error: 'Only a GM can save the campaign.' };
+    const overwriteBar = getOverwriteBar(before?.locked ?? false);
+    if (overwriteBar) return { ok: false, error: `Not saved: ${overwriteBar}.` };
+    const writes = redis.pipeline();
+    const dead = sheets.flatMap((c) => (c.success ? [c.data] : []));
+    if (dead.length) writes.mset(Object.fromEntries(dead.map((c) => [campaignFallenKey(id, c.id), c])));
+    if (parsedGround?.success) writes.set(campaignGroundKey(id), parsedGround.data);
+    if (dead.length || parsedGround) await writes.exec();
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error saving what a campaign keeps apart:', err);
+    return { ok: false, error: 'Failed to save campaign.' };
+  }
+}
+
 async function writeCampaign(raw: CampaignSave, characters: CampaignCharacter[], locked: boolean): Promise<ActionResult<SavedCampaign>> {
   const verb = locked ? 'lock' : 'save';
   const parsed = CampaignSaveSchema.safeParse(raw);
@@ -677,7 +714,11 @@ async function writeCampaign(raw: CampaignSave, characters: CampaignCharacter[],
     const assigned = Object.entries(save.owners).filter(([cid, owner]) => owner !== (before?.owners[cid] ?? null));
     const assignBar = assigned.map(([, owner]) => getAssignBar(save.members, owner)).find((bar) => bar !== null);
     if (assignBar) return { ok: false, error: `Not saved: ${assignBar}.` };
-    const stale = (before?.characterIds ?? []).filter((cid) => !save.characterIds.includes(cid)).map((cid) => campaignCharacterKey(save.id, cid));
+    const lying = new Set(fallenIds(save));
+    const stale = [
+      ...(before?.characterIds ?? []).filter((cid) => !save.characterIds.includes(cid)).map((cid) => campaignCharacterKey(save.id, cid)),
+      ...fallenIds(before).filter((cid) => !lying.has(cid)).map((cid) => campaignFallenKey(save.id, cid)),
+    ];
     const writes = redis.pipeline();
     if (characters.length) writes.mset(Object.fromEntries(characters.map((c) => [campaignCharacterKey(save.id, c.id), c])));
     if (stale.length) writes.del(...stale);
@@ -708,15 +749,20 @@ export async function unlockCampaign(id: string): Promise<ActionResult> {
   }
 }
 
-// The campaign with its characters.
-export async function loadCampaign(id: string): Promise<ActionResult<{ save: CampaignSave, characters: unknown[] }>> {
+// The campaign with its characters, and what it keeps apart.
+export async function loadCampaign(id: string): Promise<ActionResult<{ save: CampaignSave, characters: unknown[], fallen: CampaignCharacter[], ground: Ground | null }>> {
   try {
-    const [save, { profile, dev }] = await Promise.all([readCampaign(id), getViewer()]);
+    const [{ raw, save }, { profile, dev }] = await Promise.all([readCampaignRaw(id), getViewer()]);
     if (!save) return { ok: false, error: 'Campaign not found.' };
     if (!dev && !(profile && profile in save.members)) return { ok: false, error: 'Only its members open a campaign.' };
     const keys = save.characterIds.map((cid) => campaignCharacterKey(id, cid));
-    const characters = keys.length ? (await redis.mget<unknown[]>(...keys)).filter((c) => c !== null) : [];
-    return { ok: true, data: { save, characters } };
+    const deadKeys = fallenIds(save).map((cid) => campaignFallenKey(id, cid));
+    const [characters, dead, ground] = await Promise.all([
+      keys.length ? redis.mget<unknown[]>(...keys).then((cs) => cs.filter((c) => c !== null)) : [],
+      deadKeys.length ? redis.mget<unknown[]>(...deadKeys).then((cs) => cs.filter((c) => c !== null)) : [],
+      redis.get(campaignGroundKey(id)),
+    ]);
+    return { ok: true, data: { save, characters, fallen: readFallen(dead, raw), ground: readGround(ground) ?? null } };
   } catch (err) {
     console.error('Error loading campaign:', err);
     return { ok: false, error: 'Failed to load campaign.' };
@@ -732,8 +778,9 @@ export async function deleteCampaign(id: string): Promise<ActionResult> {
     const deleteBar = getDeleteBar(save?.locked ?? false);
     if (deleteBar) return { ok: false, error: `Not deleted: ${deleteBar}.` };
     const own = (save?.characterIds ?? []).map((cid) => campaignCharacterKey(id, cid));
+    const dead = fallenIds(save).map((cid) => campaignFallenKey(id, cid));
     const writes = redis.pipeline();
-    writes.del(...own, campaignKey(id));
+    writes.del(...own, ...dead, campaignGroundKey(id), campaignKey(id));
     writes.hdel(CAMPAIGN_INDEX_KEY, id);
     await writes.exec();
     return { ok: true, data: undefined };
