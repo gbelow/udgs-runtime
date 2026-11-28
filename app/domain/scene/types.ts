@@ -1499,14 +1499,6 @@ export const FirstAidActionSchema = z.object({
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Tend Wounds": a health test against the actor's own bleed;
-// what it did to them, written at the resolve.
-export const TendWoundsActionSchema = z.object({
-  ...ActionBase,
-  kind: z.literal('tendWounds'),
-  facts: DeliveriesSchema.nullable().default(null),
-}).strip()
-
 // abilities.tex "Cauterization": "Tries to stop bleeding through burning the
 // area", no test; what it did to the target, written at the resolve.
 export const CauterizeActionSchema = z.object({
@@ -1657,7 +1649,6 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ThrowActionSchema,
   DrinkActionSchema,
   FirstAidActionSchema,
-  TendWoundsActionSchema,
   CauterizeActionSchema,
   ReloadActionSchema,
   ExtinguishActionSchema,
@@ -1709,7 +1700,6 @@ export type PlantAction = z.infer<typeof PlantActionSchema>
 export type GearAction = z.infer<typeof GearActionSchema>
 export type DrinkAction = z.infer<typeof DrinkActionSchema>
 export type FirstAidAction = z.infer<typeof FirstAidActionSchema>
-export type TendWoundsAction = z.infer<typeof TendWoundsActionSchema>
 export type CauterizeAction = z.infer<typeof CauterizeActionSchema>
 export type ReloadAction = z.infer<typeof ReloadActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>

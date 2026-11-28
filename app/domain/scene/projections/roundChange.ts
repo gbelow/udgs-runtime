@@ -12,6 +12,7 @@ import { getSceneCards, type SceneCard } from './cards'
 import { ROUND_AP } from '../../tables'
 import { isDead } from '../../character/rules/afflictions'
 import { canStillRest, getRestAwaited } from '../rules/resting'
+import { getGetUpBar, getLieDownBar } from '../rules/collapse'
 import { getFightName, getMembers, getPartyName } from '../rules/fighters'
 import { isParkedParty } from '../rules/parked'
 import { getAvailableActions } from '../rules/options'
@@ -64,6 +65,9 @@ export type RoundCard = SceneCard & {
   orders: OrdersRow[]
   // what they may do of their own in the rest step, resting first
   resting: RestRow[]
+  // combat.tex "Tend Wounds": collapsing to have the wounds tended as the
+  // round begins, or standing back up; null where neither is open
+  collapse: CollapseChoice | null
   // combat.tex "Dominated": whom the character is dominated by
   dominated: string | null
 }
@@ -71,6 +75,8 @@ export type RoundCard = SceneCard & {
 // `gains`, what it gives back; `commit`, whether a press is all it takes, the
 // rest of it, whom it is said to, still to be declared otherwise; `bar`, why not.
 export type RestRow = { label: string; draft: ActionDraft; cost: ActionCost | null; gains: string; commit: boolean; bar: string | null }
+
+export type CollapseChoice = { press: 'lieDown' | 'getUp'; label: string; hint: string }
 
 export type OrdersRow = { by: string; name: string; options: OrderOption[] }
 
@@ -155,6 +161,12 @@ function getRestRows(state: SceneState, id: string): RestRow[] {
     .sort((a, b) => Number(b.commit) - Number(a.commit))
 }
 
+function getCollapseChoice(state: SceneState, id: string): CollapseChoice | null {
+  if (getGetUpBar(state, id) === null) return { press: 'getUp', label: 'stand back up', hint: 'their wounds go untended as this round begins' }
+  if (getLieDownBar(state, id) === null) return { press: 'lieDown', label: 'collapse', hint: 'their wounds are tended before this round bleeds, and they fight no more until they stand back up' }
+  return null
+}
+
 // Who could overrule or subjugate the character in the limit stress action
 // they owe, each with the orders they could give.
 function getOrdersRows(state: SceneState, targetId: string): OrdersRow[] {
@@ -192,6 +204,7 @@ function buildRoundChange(state: SeenScene): RoundChangeView | null {
         stress: getStressOwed(state, card.id),
         orders: getOrdersRows(state, card.id),
         resting: getRestRows(state, card.id),
+        collapse: getCollapseChoice(state, card.id),
         dominated: getDominationLine(state, card.id),
       })),
     })),

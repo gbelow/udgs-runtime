@@ -115,7 +115,7 @@ function DoneResting({ view }: { view: RoundChangeView }){
 function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | null }){
   const { holdOn, letGo } = useCombatCommands()
   const held = card.concentration
-  if (card.resting.length === 0 && card.happened.length === 0 && !held && !card.morale && !card.stress && card.orders.length === 0 && !card.dominated) return null
+  if (card.resting.length === 0 && !card.collapse && card.happened.length === 0 && !held && !card.morale && !card.stress && card.orders.length === 0 && !card.dominated) return null
 
   return (
     <>
@@ -149,10 +149,11 @@ function RoundLines({ card, onMap }: { card: RoundCard; onMap: (() => void) | nu
 // them: the rest, made at once, and what they could say, declared and aimed
 // like any action.
 function Resting({ card }: { card: RoundCard }){
-  const { restWith } = useCombatCommands()
+  const { restWith, lieDown, getUp } = useCombatCommands()
   const bar = useControlBar(card.id)
   const [speaking, setSpeaking] = useState(false)
-  if (bar !== null || card.resting.length === 0) return null
+  if (bar !== null || (card.resting.length === 0 && !card.collapse)) return null
+  const collapse = card.collapse
   const key = (row: RoundCard['resting'][number]) => (
     <Closed key={row.label} reason={row.bar}>
       <ActionKey aria-label={`${row.label} ${card.name}`} icon={ACTION_ICONS[row.draft.kind]} disabled={row.bar !== null}
@@ -165,7 +166,12 @@ function Resting({ card }: { card: RoundCard }){
     <div className='flex flex-col gap-1 border-t border-line pt-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         {card.resting.filter((r) => r.commit).map(key)}
-        <Button size='xs' selected={speaking} aria-label={`speak ${card.name}`} title='a social action counts as a rest and gives what it does' onClick={() => setSpeaking(!speaking)}>speak <span className='text-muted'>also rests</span></Button>
+        {collapse ? (
+          <Tooltip text={collapse.hint}>
+            <ActionKey aria-label={`${collapse.label} ${card.name}`} onClick={() => (collapse.press === 'lieDown' ? lieDown : getUp)(card.id)}>{collapse.label}</ActionKey>
+          </Tooltip>
+        ) : null}
+        {card.resting.length > 0 ? <Button size='xs' selected={speaking} aria-label={`speak ${card.name}`} title='a social action counts as a rest and gives what it does' onClick={() => setSpeaking(!speaking)}>speak <span className='text-muted'>also rests</span></Button> : null}
       </div>
       {speaking ? <div className='flex flex-row flex-wrap gap-1'>{card.resting.filter((r) => !r.commit).map(key)}</div> : null}
     </div>

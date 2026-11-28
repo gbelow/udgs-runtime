@@ -312,10 +312,9 @@ export function sameDraft(a: ActionDraft, b: ActionDraft): boolean {
 }
 
 // The turn of a collapsed character (the user's ruling): only its own bleed
-// stopped, by First Aid where it has learned it, else by Tend Wounds
-// (combat.tex "Tend Wounds"), after the focus surge both need; worth the harm
-// the bleed does. Null with no bleed, or neither open to it. `then`: what is
-// declared after the surge.
+// stopped, by First Aid where it has learned it, after the focus surge it
+// needs; worth the harm the bleed does. Null with no bleed, or First Aid not
+// open to it. `then`: what is declared after the surge.
 export type Care = { kind: 'care'; intent: Intent; score: number; why: string } | { kind: 'surge'; surge: SurgeKind; score: number; why: string; then: Intent[] }
 
 export function getCollapsedCare(view: SceneState, id: string): Care | null {
@@ -323,10 +322,10 @@ export function getCollapsedCare(view: SceneState, id: string): Care | null {
   if (!me || me.injuries.bleed === 0) return null
   const score = getHarm(OutcomeSchema.parse({ bleed: me.injuries.bleed }))
   const focused = me.usedSurge === null ? trial(view, { kind: 'surge', args: [id, 'focus'] }) : null
-  for (const kind of ['firstAid', 'tendWounds'] as const) {
-    if (kind === 'firstAid' && !hasAbility(me, getMedicineAbility(kind))) continue
-    const intent: Intent = { actorId: id, option: { kind }, picks: kind === 'firstAid' ? [{ part: 'target', value: id }] : [] }
-    const why = `collapsed, stops its bleed of ${me.injuries.bleed} with ${kind === 'firstAid' ? 'first aid' : 'tend wounds'}`
+  for (const kind of ['firstAid'] as const) {
+    if (!hasAbility(me, getMedicineAbility(kind))) continue
+    const intent: Intent = { actorId: id, option: { kind }, picks: [{ part: 'target', value: id }] }
+    const why = `collapsed, stops its bleed of ${me.injuries.bleed} with first aid`
     if (declare(view, intent, TRIAL).ok) return { kind: 'care', intent, score, why }
     if (getMedicineBar(view, me, kind) === NEEDS_FOCUS && focused && focused !== view && declare(focused, intent, TRIAL).ok) return { kind: 'surge', surge: 'focus', score, why: `focuses: ${why}`, then: [intent] }
   }

@@ -5,7 +5,8 @@ import { ROUND_AP } from '../../tables'
 import type { CampaignCharacter } from '../../types'
 import { expireUsedAbilities } from '../../character/commands/abilities'
 import { applyTrigger } from '../../character/commands/effects'
-import { suffocate, bleed } from '../../character/commands/bleed'
+import { suffocate, bleed, tendWounds } from '../../character/commands/bleed'
+import { getTendWoundsTest } from '../../character/rules/tendWounds'
 import { burnAtRoundStart, burnScorch } from '../../character/commands/deliver'
 import { getAfflictions, hasAffliction, isDead } from '../../character/rules/afflictions'
 import { rollPercent } from '../../play/dice'
@@ -20,7 +21,7 @@ import { payCost } from '../../character/commands/cost'
 import type { SceneState, Updater } from '../types'
 import { getHazardOf } from '../rules/board/hazard'
 import { getPlayingOutBar } from '../rules/log'
-import { getSituationalAfflictions, isSuffocating } from '../rules/situational'
+import { getSituationalAfflictions, isCollapsed, isSuffocating } from '../rules/situational'
 import { getMoraleCalled, getMoraleVolunteers } from '../rules/morale'
 import { getHeldCalled } from '../rules/heldTest'
 import { getHeldActions } from '../rules/hold'
@@ -158,7 +159,7 @@ function continueWith(caller: Caller): Updater {
 
 function stepOn(state: SceneState, caller: Caller): SceneState {
   switch (state.roundStep) {
-    case 'rest': return openConcentration(passEnvironment({ ...state, doneResting: [] }), caller)
+    case 'rest': return openConcentration(passEnvironment({ ...state, doneResting: [] }, caller), caller)
     case 'concentration': return { ...state, roundStep: 'join' }
     case 'join': return { ...state, roundStep: 'chase' }
     case 'chase': {
@@ -195,19 +196,22 @@ function passIdle(state: SceneState, caller: Caller): SceneState {
   return (phase === 'chase' && !fightLives) || ((phase === 'rest' || phase === 'join' || phase === 'morale') && running) ? continueWith(caller)(state) : state
 }
 
-// combat.tex "Bleed": "+1 to their IL per bleed intensity at the end of
-// every round in combat", unless First Aid staunched it for the round. Then
+// combat.tex "Tend Wounds": "It happens automatically before bleeding while
+// collapsed", on the character's own die. combat.tex "Bleed": "+1 to their
+// IL per bleed intensity at the beginning of every round in combat", unless
+// First Aid staunched it for the round. Then
 // what the ground does to whoever stands in it: the fire touched in a turn the
 // round change ended burns, and then the counter burns with the fire they
 // stand in added, as one instance (combat.tex "Burning", "Fire"); not being
 // able to breathe costs its STA. A dead character has nothing left to bleed
 // out or burn.
-function passEnvironment(state: SceneState): SceneState {
+function passEnvironment(state: SceneState, caller: Caller): SceneState {
   return Object.values(state.characters).filter((c) => !isDead(c) && !isParked(state, c.id)).reduce((s, c) => {
+    const tended = tendCollapsed(s, c.id, caller)
     const bled = updateCharacter(c.id, (x) => {
       const out = bleed(1)(x)
       return out.injuries.staunched ? { ...out, injuries: { ...out.injuries, staunched: false } } : out
-    }, 'bleeding')(s)
+    }, 'bleeding')(tended)
     const fire = getHazardOf(state, c.id).fire
     const suffocating = isSuffocating(state, c)
     return updateCharacter(c.id, (x) => {
@@ -215,6 +219,13 @@ function passEnvironment(state: SceneState): SceneState {
       return suffocating ? suffocate(burnt) : burnt
     }, 'environment')(bled)
   }, state)
+}
+
+function tendCollapsed(state: SceneState, id: string, caller: Caller): SceneState {
+  const c = state.characters[id]
+  if (!c || c.injuries.bleed === 0 || !isCollapsed(state, c)) return state
+  const degree = caller.test({ id: `tendWounds:${id}`, roller: id, label: 'tend wounds', test: getTendWoundsTest(c) })?.degree ?? 'miss'
+  return updateCharacter(id, tendWounds(degree), `tend wounds: ${degree}`)(state)
 }
 
 // The AP are cut down to the round's, and whoever keeps nothing going through

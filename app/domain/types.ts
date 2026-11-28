@@ -658,9 +658,12 @@ export const InjuriesSchema = z.object({
   // combat.tex "Fire": the worst fire surface touched during the character's
   // own turn, dealt as burning damage when the turn ends
   scorch: z.number().default(0),
-  // abilities.tex "First Aid": "On a hit or crit, prevents bleeding that turn
-  // completely" — until the round changes
+  // abilities.tex "First Aid": "On a hit or crit, prevents bleeding that round
+  // completely": the bleed the next round would start with
   staunched: z.boolean().default(false),
+  // combat.tex "Tend Wounds": "A character can collapse themselves to trigger
+  // this", until they stand back up
+  collapsedByChoice: z.boolean().default(false),
   potion: z.number().default(0),
   injuryThreshold: z.number().default(10),
 }).strip()

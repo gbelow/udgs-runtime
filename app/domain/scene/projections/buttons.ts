@@ -1,6 +1,7 @@
 import { getDiceBar } from '../../play/calls'
 import { getContestWait, isContestPending } from '../rules/contest'
 import { getRestAwaited } from '../rules/resting'
+import { getGetUpBar, getLieDownBar } from '../rules/collapse'
 import type { SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
@@ -163,6 +164,8 @@ function roundChangeButtonsOf(state: SceneState, id: string): OpenButton[] {
     ...concentration,
     ...morale,
     ...button(getRestAwaited(state).includes(id), { kind: 'doneResting', args: [[id]] }, `${name}: done resting`),
+    ...button(getLieDownBar(state, id) === null, { kind: 'lieDown', args: [id] }, `${name}: collapse to tend wounds`),
+    ...button(getGetUpBar(state, id) === null, { kind: 'getUp', args: [id] }, `${name}: stand back up`),
     ...button(getLeadershipView(state, id)?.bar === null, { kind: 'leadershipRally', args: [id] }, `${name}: rally`),
   ]
 }

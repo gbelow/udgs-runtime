@@ -56,6 +56,8 @@ export function useCombatCommands() {
   }
   // what a character does of their own in the round change's rest step
   const restWith = (id: string, row: RestRow) => dispatch({ kind: "menu", args: [{ kind: 'declare', actorId: id, draft: row.draft, fields: {}, aim: null, commit: row.commit }] })
+  const lieDown = (id: string) => dispatch({ kind: "lieDown", args: [id] })
+  const getUp = (id: string) => dispatch({ kind: "getUp", args: [id] })
   const holdOn = (id: string) => dispatch({ kind: "holdOn", args: [id] })
   const letGo = (id: string) => dispatch({ kind: "letGo", args: [id] })
   const rollMorale = (id: string, mode: RollMode, enemyNear: boolean, die?: number) => dispatch({ kind: "rollMorale", args: [id, mode, enemyNear, die] })
@@ -73,5 +75,5 @@ export function useCombatCommands() {
   const renameParty = (partyId: string, name: string) => dispatch({ kind: "renameParty", args: [partyId, name] })
   const removeCharacter = (id: string) => sendTable({ kind: "removeFromFight", args: [id] })
 
-  return { killCharacter, startTurn, toggleContest, contestMode, rollContest, endTurn, actionSurge, follow, againstAllies, nextRound, endCombat, continueRound, doneResting, restWith, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, leadershipRally, breakFree, giveOrder, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
+  return { killCharacter, startTurn, toggleContest, contestMode, rollContest, endTurn, actionSurge, follow, againstAllies, nextRound, endCombat, continueRound, doneResting, restWith, lieDown, getUp, holdOn, letGo, rollMorale, hypeUp, skipMorale, rerollMorale, keepMorale, setTablePressure, rollHeld, defaultToCoward, mock, leadershipRally, breakFree, giveOrder, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
 }

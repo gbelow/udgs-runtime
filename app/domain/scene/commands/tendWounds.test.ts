@@ -6,6 +6,8 @@ import { getAvailableActions } from '../rules/options'
 import { getMedicineCost } from '../rules/medicine'
 import { commitAction, declareAction, setTarget } from './action'
 import { endCombat } from './endCombat'
+import { continueRound, nextRound } from './nextRound'
+import { getUp, lieDown } from './collapse'
 import { answerScene } from './answer'
 import { toTable } from '../../play/calls'
 import { getInjuryCapacity } from '../../character/rules/afflictions'
@@ -16,14 +18,10 @@ import { sumTerms } from '../../character/rules/terms'
 let n = 0
 const newId = () => `t${++n}`
 
-// Bleeding, with the focus surge made and AP enough for Tend Wounds'
-// price; collapsed at their injury capacity where asked.
-function ready(c: CampaignCharacter, collapsed = false): CampaignCharacter {
-  const r = { ...c, usedSurge: 'focus' as const, resources: { ...c.resources, AP: getMedicineCost('tendWounds').AP, STA: 6 }, injuries: { ...c.injuries, bleed: Math.max(1, c.injuries.bleed) } }
-  return collapsed ? { ...r, injuries: { ...r.injuries, injuryLevel: getInjuryCapacity(r) } } : r
-}
+const bleeding = (c: CampaignCharacter): CampaignCharacter => ({ ...c, injuries: { ...c.injuries, bleed: Math.max(1, c.injuries.bleed) } })
+const collapsed = (c: CampaignCharacter): CampaignCharacter => ({ ...c, injuries: { ...c.injuries, collapsedByChoice: true } })
 
-const scene = (c: CampaignCharacter): SceneState => ({ ...board({ m: [0, 0], e: [4, 0] }, { ...c, id: 'm' }, spearman('e')), inTurnCharacter: 'm' })
+const scene = (c: CampaignCharacter): SceneState => ({ ...board({ m: [0, 0], e: [4, 0] }, { ...c, id: 'm' }, bleeding(spearman('e'))), inTurnCharacter: 'm' })
 
 const option = (state: SceneState, kind: string) => getAvailableActions(state, 'm').find((o) => o.draft.kind === kind)
 
@@ -31,31 +29,62 @@ const option = (state: SceneState, kind: string) => getAvailableActions(state, '
 // (play.tex "Degrees of success": 5 or more over the DL is a hit, 10 a crit).
 const hitDie = (skill: number, DL: number) => Math.min(9, Math.max(0, DL + 5 - skill))
 
-// combat.tex "Tend Wounds", "Collapsed": "cannot use any of the combat skills
-// nor force"; the user's rulings: Tend Wounds needs no ability, and a
-// collapsed character may still give care.
-describe('Tend Wounds', () => {
-  it('is open to a collapsed character who has learned nothing, who may not strike', () => {
-    const state = scene(ready(brawler('m'), true))
-    expect(option(state, 'tendWounds')?.available).toBe(true)
-    expect(option(state, 'strike')?.available).toBe(false)
+// A fight past its first round, in the rest step of the next.
+const resting = (state: SceneState): SceneState => nextRound(() => 0)(passRound(() => 0)(state))
+
+const rollers = (state: SceneState) => Object.values(state.calls).map((c) => c.roller)
+
+// combat.tex "Tend Wounds": "It happens automatically before bleeding while
+// collapsed. A character can collapse themselves to trigger this. They can
+// do it to themselves at the start of a round, before bleeding. They can
+// uncollapse themselves at the same moment, foregoing the effects of that
+// round."
+describe('Tend Wounds as the round begins', () => {
+  it('waits on the die of the collapsed who bleed, and of nobody standing', () => {
+    const waiting = continueRound(toTable(() => 0))(resting(scene(collapsed(bleeding(brawler('m'))))))
+    expect(rollers(waiting)).toEqual(['m'])
   })
 
-  it('is closed to one who is not bleeding', () => {
-    const c = ready(brawler('m'))
-    expect(option(scene({ ...c, injuries: { ...c.injuries, bleed: 0 } }), 'tendWounds')?.available).toBe(false)
+  it('lowers the bleed before the round takes it', () => {
+    const c = collapsed(bleeding(medic('m')))
+    const before = resting(scene(c))
+    const after = continueRound(() => hitDie(getHealth(c), c.injuries.bleed))(before).characters.m
+    const was = before.characters.m.injuries
+    expect(after.injuries.bleed).toBeLessThan(was.bleed)
+    expect(after.injuries.injuryLevel - was.injuryLevel).toBe(after.injuries.bleed)
   })
 
-  // combat.tex "Tend Wounds": "stops 0/0/1/2 bleed per use"; only First Aid
-  // "prevents bleeding that turn completely".
-  it('lowers the tender’s own bleed on a hit, and staunches nothing where First Aid would', () => {
-    const c = ready(medic('m'))
-    const { bleed } = c.injuries
-    const tended = commitAction(() => hitDie(getHealth(c), bleed), newId)(declareAction('m', { kind: 'tendWounds' }, newId)(scene(c))).characters.m
-    expect(tended.injuries.bleed).toBe(bleed - 1)
-    expect(tended.injuries.staunched).toBe(false)
+  it('is tended for whoever collapses in the rest step, and forgone by whoever stands back up in it', () => {
+    const before = resting(scene(bleeding(brawler('m'))))
+    const down = lieDown('m')(before)
+    expect(rollers(continueRound(toTable(() => 0))(down))).toEqual(['m'])
+    const up = getUp('m')(down)
+    expect(up.characters.m.injuries.collapsedByChoice).toBe(false)
+    expect(rollers(continueRound(toTable(() => 0))(up))).toEqual([])
+  })
 
-    const aidDie = hitDie(sumTerms(getKnowledgeTestTerms('medicine')(c)) + getHealth(c), bleed)
+  it('cannot be stood up from by one collapsed by their injuries', () => {
+    const c = collapsed(bleeding(brawler('m')))
+    const hurt = { ...c, injuries: { ...c.injuries, injuryLevel: getInjuryCapacity(c) } }
+    const before = resting(scene(hurt))
+    expect(getUp('m')(before)).toBe(before)
+  })
+})
+
+// abilities.tex "First Aid": "on self or other character, as long as the
+// patient is collapsed".
+describe('First Aid', () => {
+  const ready = (c: CampaignCharacter): CampaignCharacter => ({ ...c, usedSurge: 'focus' as const, resources: { ...c.resources, AP: getMedicineCost('firstAid').AP, STA: 6 } })
+
+  it('is closed with nobody collapsed within reach, and open once the patient is', () => {
+    expect(option(scene(ready(medic('m'))), 'firstAid')?.available).toBe(false)
+    expect(option(scene(collapsed(ready(medic('m')))), 'firstAid')?.available).toBe(true)
+  })
+
+  // "On a hit or crit, prevents bleeding that round completely."
+  it('staunches the patient on a hit', () => {
+    const c = collapsed(ready(medic('m')))
+    const aidDie = hitDie(sumTerms(getKnowledgeTestTerms('medicine')(c)) + getHealth(c), c.injuries.bleed)
     const aided = commitAction(() => aidDie, newId)(setTarget('m')(declareAction('m', { kind: 'firstAid' }, newId)(scene(c)))).characters.m
     expect(aided.injuries.staunched).toBe(true)
   })

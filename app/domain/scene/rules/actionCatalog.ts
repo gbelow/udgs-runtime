@@ -170,8 +170,6 @@ export const ACTIONS = {
   drink:       { label: 'drink', rule: 'gear.tex "Potions and Medicine"', type: 'action', price: 'standardAction', reactsTo: [],      die: false, category: 'care' },
   // abilities.tex "Medicine": priced by the ability, aimed at one bleeding
   firstAid:    { label: 'first aid', rule: `abilities.tex "First Aid"; the table's ruling for "full turn": the focus surge and 8 AP, in melee`, type: 'action', price: null, reactsTo: [], die: true, targeted: true, category: 'care' },
-  // combat.tex "Tend Wounds": anyone's, on their own bleed
-  tendWounds:  { label: 'tend wounds', rule: 'combat.tex "Tend Wounds"', type: 'action', price: null, reactsTo: [], die: true, category: 'care' },
   cauterize:   { label: 'cauterize', rule: 'abilities.tex "Cauterization"', type: 'action', price: null, reactsTo: [], die: false, targeted: true, category: 'care' },
   // gear.tex "Reload": priced by the row it loads; part of the shot (the
   // table's ruling)

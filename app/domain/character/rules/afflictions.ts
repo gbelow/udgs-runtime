@@ -17,8 +17,13 @@ import { getBuffBonus, getSuppressed } from './effects'
 // abilities.tex "Rage Endurance": "ignores the effect") is not among them.
 export function getAfflictions(character: Character, situational: readonly AfflictionKey[] = []): AfflictionKey[] {
   const suppressed = getSuppressed(character)
-  const all = combineAfflictions(getStoredAfflictions(character), [...getForcedAfflictions(character, suppressed), ...situational])
+  const all = withCollapseOfUnconscious(combineAfflictions(getStoredAfflictions(character), [...getForcedAfflictions(character, suppressed), ...situational]))
   return suppressed.size === 0 ? all : all.filter((key) => !suppressed.has(`affliction:${key}`))
+}
+
+// combat.tex "Unconscious": "Being unconscious also means being collapsed."
+function withCollapseOfUnconscious(keys: AfflictionKey[]): AfflictionKey[] {
+  return keys.includes('unconscious') && !keys.includes('collapsed') ? [...keys, 'collapsed'] : keys
 }
 
 // What the hand, or a hit, put on the character. Stored afflictions come
@@ -67,9 +72,10 @@ export function getForcedAfflictions(character: Character, suppressed: ReadonlyS
   // combat.tex "Wounds": a carried wound's consequence, for as long as it is,
   // and the legs lost or broken, as many as the stance can bear;
   // spells.tex "Curse": a carried curse's, the same
-  // combat.tex "Injuries and Death": collapsed at injury capacity; a body
-  // lies where it fell, prone (the user's ruling), so others step over it
-  if (character.injuries.injuryLevel >= getInjuryCapacity(character)) afflictions.add('collapsed')
+  // combat.tex "Injuries and Death": collapsed at injury capacity, or by
+  // choice (combat.tex "Tend Wounds"); a body lies where it fell, prone (the
+  // user's ruling), so others step over it
+  if (character.injuries.injuryLevel >= getInjuryCapacity(character) || character.injuries.collapsedByChoice) afflictions.add('collapsed')
   if (isDead(character)) afflictions.add('prone')
 
   for (const key of getWoundAfflictions(character, suppressed)) afflictions.add(key)

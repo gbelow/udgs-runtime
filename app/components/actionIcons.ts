@@ -56,7 +56,6 @@ export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
   drink: FlaskConical,
   firstAid: BriefcaseMedical,
   cauterize: Flame,
-  tendWounds: HeartPulse,
   reload: RefreshCcw,
   extinguish: Droplets,
   plant: ShieldCheck,

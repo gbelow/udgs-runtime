@@ -29,6 +29,7 @@ import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../
 import { rollHeld } from './heldTest'
 import { hypeUp, keepMorale, rerollMorale, rollMorale, setTablePressure, skipMorale } from './morale'
 import { backToChase, continueRound, doneResting, holdOn, joinChaseFight, letGo, nextRound } from './nextRound'
+import { getUp, lieDown } from './collapse'
 import { dropHeld, releaseHeld } from './hold'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
@@ -172,6 +173,8 @@ export const sceneCommands = {
   setContestDecideSeconds: command((_, seconds: number) => setContestDecideSeconds(seconds)).by(gm),
   nextRound: command((ctx) => nextRound(ctx.thrower)).by(gm),
   doneResting: command((_, ids: string[]) => doneResting(ids)).by((_, ids) => ({ anyOf: ids })),
+  lieDown: command((_, id: string) => lieDown(id)).by(own),
+  getUp: command((_, id: string) => getUp(id)).by(own),
   continueRound: command((ctx) => continueRound(ctx.thrower)).by(gm),
   endCombat: command((ctx) => endCombat(ctx.thrower)).by(gm),
   followScene: command((ctx, partyId: string) => followScene(partyId, ctx.thrower)).by(gm),

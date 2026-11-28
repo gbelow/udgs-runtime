@@ -1,7 +1,7 @@
 import { NEEDS_FOCUS } from '../../character/rules/surge'
 import { isCombatStarted } from './started'
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
-import { getFirstAidTerms, getTendWoundsTerms } from './medicine'
+import { getFirstAidTerms } from './medicine'
 import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, SceneState, HitLocation, MoveAction, OpportunityAction, RootAction, ShootAction, StrikeAction } from '../types'
@@ -447,8 +447,6 @@ export function getDLTerms(state: SceneState, root: RootAction): Term[] {
       return getFeintTerms(state, root)?.DL ?? []
     case 'firstAid':
       return getFirstAidTerms(state, root)?.DL ?? []
-    case 'tendWounds':
-      return getTendWoundsTerms(state, root)?.DL ?? []
     case 'cut':
       return CUT_DL
     case 'fall':
@@ -576,9 +574,6 @@ function getOwnRootTestTerms(state: SceneState, root: RootAction): RootTestTerms
     // abilities.tex "First Aid": a medicine test
     case 'firstAid':
       return onDegrees(getFirstAidTerms(state, root))
-    // combat.tex "Tend Wounds": a health test
-    case 'tendWounds':
-      return onDegrees(getTendWoundsTerms(state, root))
     case 'cut':
       return onDegrees({ skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL })
     // combat.tex "Balance" ("Fall skill test"): the faller's own die

@@ -12,6 +12,7 @@ import { breakHeld, dropHeld, finishHeld, releaseHeld } from './hold'
 import { makeCaller } from '../../play/calls'
 import { ROUND_AP } from '../../tables'
 import { ABILITIES } from '../../abilities'
+import { BLEED_STOPPED } from '../../character/rules/tendWounds'
 
 let n = 0
 const newId = () => `h${++n}`
@@ -21,24 +22,31 @@ const MISS = 1
 const FIRST_AID_AP = ABILITIES['first-aid'].cost.AP
 const SHORT = FIRST_AID_AP - 2
 
-// A medic with the focus surge made and `AP` left, bleeding (the fixture's
-// own bleed is what First Aid tends).
+// A medic with the focus surge made and `AP` left.
 function leftWith(c: CampaignCharacter, AP: number): CampaignCharacter {
   return { ...c, usedSurge: 'focus', resources: { ...c.resources, AP, STA: 6 } }
+}
+
+// Collapsed and bleeding, for First Aid to tend (abilities.tex "First Aid":
+// "as long as the patient is collapsed"), with more bleed than their own
+// tend wounds tests stop over the rounds a test passes.
+function patient(id: string): CampaignCharacter {
+  const c = fighter(id)
+  return { ...c, injuries: { ...c.injuries, bleed: BLEED_STOPPED.critical * 3, collapsedByChoice: true } }
 }
 
 function inTurn(state: SceneState, id: string): SceneState {
   return { ...state, inTurnCharacter: id }
 }
 
-// First Aid on themselves, held over with whatever AP is left.
-function tendSelf(state: SceneState, id: string): SceneState {
+// First Aid on the patient beside them, held over with whatever AP is left.
+function tend(state: SceneState, id: string, patientId: string): SceneState {
   const declared = declareAction(id, { kind: 'firstAid' }, newId)(inTurn(state, id))
-  return commitAction(() => HIT, newId, true)(setTarget(id)(declared))
+  return commitAction(() => HIT, newId, true)(setTarget(patientId)(declared))
 }
 
 function medicHolding(AP: number, enemyAt: [number, number] = [4, 0]): SceneState {
-  return tendSelf(board({ m: [0, 0], e: enemyAt }, leftWith(medic('m'), AP), spearman('e')), 'm')
+  return tend(board({ m: [0, 0], p: [0, 1], e: enemyAt }, leftWith(medic('m'), AP), patient('p'), spearman('e')), 'm', 'p')
 }
 
 // The enemy closes in on the medic once the hold is made.
@@ -102,7 +110,7 @@ describe('an action held over to the next round', () => {
 
   it('fails when what it needs is gone by the time it finishes, and spends none of the new round', () => {
     const held = medicHolding(SHORT)
-    const healed = { ...held, characters: { ...held.characters, m: { ...held.characters.m, injuries: { ...held.characters.m.injuries, bleed: 0 } } } }
+    const healed = { ...held, characters: { ...held.characters, p: { ...held.characters.p, injuries: { ...held.characters.p.injuries, bleed: 0 } } } }
     const round = passRound(() => HIT)(healed)
     expect(getOpenAction(round)).toBeNull()
     expect(getHeldOf(round, 'm')).toBeNull()
@@ -137,8 +145,8 @@ describe('an action held over to the next round', () => {
   // the user's ruling: holding is a choice of its own, never what a commit
   // does by itself
   it('is never held by a commit that cannot be paid for', () => {
-    const declared = declareAction('m', { kind: 'firstAid' }, newId)(inTurn(board({ m: [0, 0], e: [4, 0] }, leftWith(medic('m'), SHORT), spearman('e')), 'm'))
-    const aimed = setTarget('m')(declared)
+    const declared = declareAction('m', { kind: 'firstAid' }, newId)(inTurn(board({ m: [0, 0], p: [0, 1], e: [4, 0] }, leftWith(medic('m'), SHORT), patient('p'), spearman('e')), 'm'))
+    const aimed = setTarget('p')(declared)
     expect(commitAction(() => HIT, newId)(aimed)).toBe(aimed)
   })
 
@@ -189,8 +197,8 @@ describe('an action held over to the next round', () => {
 // highest to lowest."
 describe('several actions finishing in the same round', () => {
   function twoMedics(): SceneState {
-    const start = board({ a: [0, 0], b: [3, 0], e: [8, 0] }, leftWith(medic('a'), SHORT), leftWith(medic('b'), SHORT), spearman('e'))
-    return tendSelf(tendSelf(start, 'a'), 'b')
+    const start = board({ a: [0, 0], pa: [0, 1], b: [3, 0], pb: [3, 1], e: [8, 0] }, leftWith(medic('a'), SHORT), patient('pa'), leftWith(medic('b'), SHORT), patient('pb'), spearman('e'))
+    return tend(tend(start, 'a', 'pa'), 'b', 'pb')
   }
   const fresh = (state: SceneState): SceneState => ({ ...state, characters: Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, { ...c, usedSurge: null, resources: { ...c.resources, AP: ROUND_AP } }])) })
 

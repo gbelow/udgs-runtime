@@ -6547,7 +6547,7 @@
             }
           ]
         ],
-        "description": "Tries to stop bleeding through a tourniquet or pressure on self or other. Make a test of medicine + target's health against a DL equal to the bleeding. On a hit or crit, prevents bleeding that turn completely. Reduces bleeding by 0/0/1/2.",
+        "description": "Tries to stop bleeding through a tourniquet or pressure on self or other character, as long as the patient is collapsed. Make a test of medicine + target's health against a DL equal to the bleeding. On a hit or crit, prevents bleeding that round completely. Reduces bleeding by 0/1/2/3.",
         "effect": [],
         "recipes": [],
         "grants": [],

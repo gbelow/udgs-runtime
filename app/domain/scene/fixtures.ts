@@ -203,9 +203,9 @@ export function bomber(id: string): CampaignCharacter {
   return holdItem(getCatalogItem('Darkseeing')!)(holdItem(grenade)(fighter(id)))
 }
 
-// A brawler who knows medicine and is bleeding already, so that First Aid,
-// Cauterization and Tend Wounds have someone to tend from the start
-// (abilities.tex "Medicine", combat.tex "Tend Wounds").
+// A brawler who knows medicine and is bleeding already, so that First Aid
+// and Cauterization have someone to tend from the start (abilities.tex
+// "Medicine"); First Aid once they collapse.
 export function medic(id: string): CampaignCharacter {
   const base = brawler(id)
   const schooled = { ...base, trainables: { ...base.trainables, medicine: { ...base.trainables.medicine, value: 1 } }, injuries: { ...base.injuries, bleed: 2 } }
