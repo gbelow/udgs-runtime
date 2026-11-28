@@ -8,6 +8,8 @@ import { getOpenAction } from '../rules/log'
 import { getPickOn } from '../rules/board/reach'
 import { getPlaceBar } from '../rules/board/spawn'
 import { setTarget } from './action'
+import { toggleContest } from './turn'
+import { isContestPending } from '../rules/contest'
 import { paintTerrain, pickCell, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
 import { pickFloorItem } from './floor'
 import { getClickMenu, type ClickMenu } from './clickMenu'
@@ -50,6 +52,8 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
   switch (click.on) {
     case 'cell': return readCell(state, click.cell, ctx, click.height)
     case 'token': {
+      // while their player thinks about contesting the turn, a click on one of theirs picks them to contest it, or takes them back
+      if (isContestPending(state) && state.thinking.includes(click.id)) return { actor: { id: click.id }, apply: toggleContest(click.id) }
       if (getDeclaredTargets(state, open).includes(click.id)) return { actor, apply: setTarget(click.id) }
       const on = getBoardMode(state) === 'path' && open?.kind === 'move' && open.actorId === ctx.selected ? getPickOn(state, open, click.id) : null
       if (on) return { actor, apply: pickCell(on.cell, ctx.newId, on.elevation) }

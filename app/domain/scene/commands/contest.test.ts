@@ -6,6 +6,7 @@ import { getOpenAction } from '../rules/log'
 import { getContenders, getEndTurnBar, getSurgeTurnBar, isContestDue } from '../rules/turn'
 import { isContestPending } from '../rules/contest'
 import { commitAction, declareAction, setTarget } from './action'
+import { readClick } from './click'
 import { closeContest, endTurn, setContestDecideSeconds, setContestSeconds, settleContest, startTurn, thinkContest, toggleContest } from './turn'
 
 let n = 0
@@ -34,6 +35,18 @@ describe('the time to contest a turn', () => {
     const over = closeContest(five)(s)
     expect(isContestPending(over)).toBe(false)
     expect(getOpenAction(strikeBy('a', 'b', over))?.step).not.toBe('define')
+  })
+
+  // the user's ruling (2026-11-28): asked for, the contest is made with whoever their player clicks on the board
+  it('takes one of theirs a click picks while their player thinks about it, and lets them go on another click', () => {
+    const click = (s: SceneState) => {
+      const read = readClick(s, { on: 'token', id: 'b' }, { brush: null, reposition: false, selected: null, newId })
+      if (!('apply' in read)) throw new Error('a click on one of theirs while they think is no pick')
+      return read.apply(s)
+    }
+    const picked = click(thinkContest(['b', 'c'])(begun()))
+    expect(picked.contenders).toEqual(['b'])
+    expect(click(picked).contenders).toEqual([])
   })
 
   it('is held open past its end by whoever is thinking about it, and by nobody once they have decided', () => {

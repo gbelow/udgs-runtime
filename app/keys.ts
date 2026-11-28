@@ -5,13 +5,12 @@ import defaults from './assets/keys/default.json'
 // it is called, and the keys each is pressed by in a key profile. The default
 // profile is a file (assets/keys/default.json); a profile of a player's own
 // would name only the commands it binds otherwise. A key is named as
-// `KeyboardEvent.key` names it, but for `Space` and the right button
-// (`RightClick`).
+// `KeyboardEvent.key` names it, a letter in lower case whether or not shift
+// is held, but for `Space` and the right button (`RightClick`).
 
 export const KEY_COMMANDS = {
   'card.back': 'back a step',
-  'card.next': 'go on',
-  'card.commit': 'commit',
+  'card.next': 'go on, commit, roll',
   'card.cancel': 'cancel',
   'card.tile1': 'tile 1',
   'card.tile2': 'tile 2',
@@ -22,6 +21,7 @@ export const KEY_COMMANDS = {
   'card.tile7': 'tile 7',
   'card.tile8': 'tile 8',
   'card.tile9': 'tile 9',
+  'contest.ask': 'contest the turn, then contest with those picked',
   'bots.pause': 'pause the bots',
 } as const
 
@@ -44,7 +44,7 @@ export function getKeyMap(profile: z.infer<typeof KeyProfileSchema> = {}): KeyMa
 
 const RIGHT_CLICK = 'RightClick'
 
-const nameOf = (e: KeyboardEvent | MouseEvent): string => (e instanceof MouseEvent ? (e.button === 2 ? RIGHT_CLICK : '') : e.key === ' ' ? 'Space' : e.key)
+const nameOf = (e: KeyboardEvent | MouseEvent): string => (e instanceof MouseEvent ? (e.button === 2 ? RIGHT_CLICK : '') : e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toLowerCase() : e.key)
 
 // Whether the key or the click presses the command.
 export function isKey(map: KeyMap, command: KeyCommand, e: KeyboardEvent | MouseEvent): boolean {
@@ -62,5 +62,5 @@ const SHOWN: Record<string, string> = { Escape: 'Esc', [RIGHT_CLICK]: 'right cli
 // The first key the command is pressed by, as a hint beside it says it.
 export function keyLabel(map: KeyMap, command: KeyCommand): string {
   const key = map[command][0]
-  return key === undefined ? '' : SHOWN[key] ?? key
+  return key === undefined ? '' : SHOWN[key] ?? (key.length === 1 ? key.toUpperCase() : key)
 }

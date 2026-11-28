@@ -19,9 +19,8 @@ const MENU_ROOM = 340
 
 // One screen of the popover: a set of numbered tiles, the first nine pressed
 // by a key as well, and a footer that stays put from screen to screen, back
-// on its left and the press that goes on on its right. One key commits what
-// is declared as it stands, whatever step it is at (`commit`), and another
-// cancels what the screen is choosing. Which keys they are is the key
+// on its left and the press that goes on on its right (going on, committing,
+// rolling, landing), and another key cancels what the screen is choosing. Which keys they are is the key
 // profile's (app/keys.ts).
 type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; note?: ReactNode; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
 type Act = { label: string; run: () => void; bar?: string | null; icon?: LucideIcon }
@@ -37,7 +36,6 @@ type Card = {
   back: Act | null
   primary: Act | null
   primaryLock?: string | null
-  commit?: Act | null
   cancel: () => void
 }
 
@@ -51,7 +49,7 @@ type Card = {
 // to make; then whatever the roll leaves to choose, a step at a time, the
 // last landing it; then whatever follows from it, the same way.
 export function ClickMenuHost(){
-  const { menu, shown: category, show: showCategory, walk, press, start, close, closeWalk, escape } = useClickMenu()
+  const { menu, shown: category, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory } = useClickMenu()
   const walked = useOpenWalk()
   const anchor = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -70,6 +68,7 @@ export function ClickMenuHost(){
     : view.kind === 'land' ? landingCard(view, walked, closeWalk)
     : exchangeCard(view, walked)
   useCardKeys(card, keys)
+  useTurnKeys(!menu && !view, keys, openCategory)
 
   useEffect(() => {
     const note = (e: PointerEvent) => { pointer.x = e.clientX; pointer.y = e.clientY }
@@ -144,8 +143,9 @@ function isTyping(e: Event): boolean {
 }
 
 // The card's keys, as the key profile binds them: a tile's key presses it,
-// and back, go on, commit and cancel each have theirs; cancel may be the
-// right button too.
+// and back, going on and cancel each have theirs; cancel may be the right
+// button too. A key nothing on the card takes is left to whatever else
+// answers to it (the contest).
 function useCardKeys(card: Card | null, keys: KeyMap){
   const current = useRef<{ card: Card | null, keys: KeyMap }>({ card: null, keys })
   useEffect(() => { current.current = { card, keys } })
@@ -159,10 +159,10 @@ function useCardKeys(card: Card | null, keys: KeyMap){
         if (c.back && !c.back.bar) c.back.run()
         return
       }
-      const going = isKey(map, 'card.commit', e) ? c.commit ?? c.primary : isKey(map, 'card.next', e) ? c.primary : undefined
-      if (going !== undefined) {
+      if (isKey(map, 'card.next', e)) {
+        if (!c.primary || c.primary.bar) return
         e.preventDefault()
-        if (going && !going.bar && !e.repeat) going.run()
+        if (!e.repeat) c.primary.run()
         return
       }
       const pressed = findKey(map, TILE_COMMANDS, e)
@@ -183,14 +183,31 @@ function useCardKeys(card: Card | null, keys: KeyMap){
   }, [])
 }
 
+// With no card open, a tile's key opens the menu of the character holding the
+// turn at the category of that tile, aimed at nothing.
+function useTurnKeys(idle: boolean, keys: KeyMap, open: (tile: number) => void){
+  const current = useRef({ idle, keys, open })
+  useEffect(() => { current.current = { idle, keys, open } })
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      const { idle: free, keys: map, open: opening } = current.current
+      if (!free || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
+      const pressed = findKey(map, TILE_COMMANDS, e)
+      if (!pressed) return
+      e.preventDefault()
+      opening(TILE_COMMANDS.indexOf(pressed))
+    }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [])
+}
+
 function costLabel(cost: ActionCost | null | undefined){
   return cost ? `${cost.AP} AP${cost.STA ? ` · ${cost.STA} STA` : ''}` : null
 }
 
 function CardView({ card, keys }: { card: Card, keys: KeyMap }){
   const { back, primary } = card
-  // the press on the right is the commit on the last step, and goes by the commit's key there
-  const committing = !!card.commit && primary?.label === card.commit.label
   return (
     <div className='flex h-[26rem] w-80 flex-col'>
       <div className='flex flex-row items-center gap-2 border-b border-line px-3 py-2'>
@@ -210,11 +227,9 @@ function CardView({ card, keys }: { card: Card, keys: KeyMap }){
       </div>
       <div className='flex flex-row items-center gap-2 border-t border-line bg-surface/60 p-2'>
         <FootKey act={back} fallback='back' hint={keyLabel(keys, 'card.back')} className='w-24' />
-        <span className='flex-1 text-center text-[9px] text-muted'>
-          {card.commit && !card.commit.bar && !committing ? <><span className='font-mono text-fg'>{keyLabel(keys, 'card.commit')}</span> {card.commit.label}</> : null}
-        </span>
+        <span className='flex-1' />
         <LockedFor id={card.primaryLock === undefined ? card.lock : card.primaryLock}>
-          <FootKey act={primary} hint={keyLabel(keys, committing ? 'card.commit' : 'card.next')} look='go' className='w-36' />
+          <FootKey act={primary} hint={keyLabel(keys, 'card.next')} look='go' className='w-36' />
         </LockedFor>
       </div>
     </div>
@@ -359,7 +374,6 @@ function declarationCard(view: DeclarationWalk, on: Walked, closeWalk: () => voi
     primary: step
       ? (step.keep ? { label: 'next', run: () => on.next(view.walk, step) } : null)
       : { label: commit.label, icon: commit.label === 'hold' ? Hourglass : Check, run: () => on.send(commit.command), bar: commit.bar },
-    commit: { label: commit.label, run: () => on.send(commit.command), bar: commit.bar },
     cancel: () => (drop ? on.send(drop.command) : closeWalk()),
   }
 }
@@ -404,11 +418,13 @@ function ReactionsButton({ view, onExpand, send }: { view: ExchangeWalk, onExpan
 }
 
 // The reactions to the committed action: a chip for each reactor and where
-// they stand, the one shown walked a step at a time, then their word that
-// they are done; then the actor's go.
+// they stand, the one shown walked a step at a time where they are the
+// viewer's, then their word that they are done; then the actor's go. Of a
+// reactor who is not theirs the viewer sees only what they react with.
 function exchangeCard(view: ExchangeWalk, on: Walked): Card {
   const { go } = view
-  const reactor: AnswerWalk | null = view.answerers.find((a) => a.id === on.shown) ?? null
+  const shown: AnswerWalk | null = view.answerers.find((a) => a.id === on.shown) ?? null
+  const reactor = shown && on.controlled.includes(shown.id) ? shown : null
   const done = reactor && !reactor.step && reactor.done && reactor.done.state !== 'said' ? reactor.done : null
   const top = (
     <>
@@ -427,7 +443,17 @@ function exchangeCard(view: ExchangeWalk, on: Walked): Card {
   const below = (
     <>
       {reactor && !reactor.step ? <span>{reactor.name}{reactor.answer ? <span className='text-muted'>: {reactor.answer}</span> : null}{reactor.done?.state === 'said' ? <span className='text-good'> · done</span> : null}</span> : null}
-      {!reactor ? <span className='text-muted'>nobody reacts</span> : null}
+      {!reactor && view.answerers.length > 0 ? (
+        <div className='flex flex-col'>
+          {view.answerers.map((a) => (
+            <div key={a.id} className='flex flex-row gap-2 border-t border-line/60 py-1'>
+              <span className={`w-20 shrink-0 truncate ${a.target ? 'text-accent' : ''}`}>{a.name}</span>
+              <span className={a.answer ? '' : 'text-muted'}>{a.answer ?? STATUS_LABEL[a.status]}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {view.answerers.length === 0 ? <span className='text-muted'>nobody reacts</span> : null}
       {view.heldBack.map((h) => (
         <LockedFor key={h.id} id={h.id} className='flex flex-row flex-wrap gap-1 items-center text-muted'>
           <span>{h.name} does not act against allies</span>
@@ -459,7 +485,6 @@ function exchangeCard(view: ExchangeWalk, on: Walked): Card {
     back: reactor?.back ? { label: 'back', run: () => on.back(reactor.walk, reactor.back!) } : view.back ? { label: 'take back', run: () => on.send(view.back!) } : null,
     primary,
     primaryLock: done || reactor?.step?.keep ? reactor?.id ?? null : view.actorId,
-    commit: { label: go.label, run: () => on.send(go.command), bar: go.bar },
     cancel: () => on.collapse(true),
   }
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { archer, fighter, mage, meleeTrained, rangedTrained, spearman } from '../domain/scene/fixtures'
 import { readClick } from '../domain/scene/commands/click'
-import { isAimed, LONE_PARTS, type MenuEntry } from '../domain/scene/commands/clickMenu'
+import { getTurnMenu, isAimed, LONE_PARTS, type MenuEntry } from '../domain/scene/commands/clickMenu'
 import { getGivenSteps, walkKey, type OpenWalk, type WalkStep } from '../domain/scene/projections/openWalk'
 import { getOpenChoices } from '../domain/scene/projections/choices'
 import { getAncestry, getReactionsTo } from '../domain/scene/rules/log'
@@ -67,6 +67,22 @@ describe('the menu a click on the board opens', () => {
 // The user's ruling (2026-11-28): an action may be started with no target,
 // from a click on the character themself, and what there is only one of is
 // picked by itself.
+// The user's ruling (2026-11-28): in a character's turn a key opens their
+// menu with no click, aimed at nothing.
+describe('the menu the turn holder opens with no click', () => {
+  it('is aimed at nothing, and nobody but the turn holder has one', () => {
+    const h = scene()
+    h.send({ kind: 'nextRound', args: [] })
+    for (let i = 0; i < 8 && h.state().roundStep !== null; i++) h.send({ kind: 'continueRound', args: [] })
+    h.select('Ann')
+    h.startTurn()
+    const menu = getTurnMenu(h.state(), h.idOf('Ann'))
+    expect(menu).not.toBeNull()
+    for (const e of menu!.entries) if (e.press.kind === 'declare') expect(e.press.aim, e.label).toBeNull()
+    expect(getTurnMenu(h.state(), h.idOf('Bob'))).toBeNull()
+  })
+})
+
 describe('the menu a click on the selected character opens', () => {
   for (const actor of [spearman, archer, mage]) {
     it(`aims every entry ${actor.name} may declare at nothing`, () => {

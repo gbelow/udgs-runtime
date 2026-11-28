@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { getAimCells, type BoardView } from "../domain/scene/projections/boardView";
-import { getPressActor, type MenuEntry } from "../domain/scene/commands/clickMenu";
+import { getPressActor, getTurnMenu, type MenuEntry } from "../domain/scene/commands/clickMenu";
 import type { SceneCommand } from "../domain/scene/commands/registry";
 import { getGivenSteps, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
 import { useControlled } from "./useControl";
@@ -40,6 +40,13 @@ export function useClickMenu() {
     if (menu) dispatch({ kind: "startTurn", args: [menu.actor] });
     setMenu(null);
   };
+  // the turn holder's menu opened with no click, at the category of the tile
+  // asked for, aimed at nothing
+  const openCategory = (tile: number) => {
+    const state = useCombatStore.getState();
+    const opened = getTurnMenu(state, state.activeCharacterId);
+    if (opened) setMenu(opened, opened.groups[tile]?.category ?? null);
+  };
   // Escape backs out one thing at a time: the menu or the walk, then a follow
   // pick waiting for its click, then whoever is picked.
   const escape = () => {
@@ -49,12 +56,16 @@ export function useClickMenu() {
     else setActiveCharacter(null);
   };
 
-  return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape } as const;
+  return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory } as const;
 }
 
 // The cells of what the popover was opened on, kept lit while it is open.
 export function useMarkedCells(view: BoardView): readonly string[] {
-  const at = useClickMenuStore((s) => s.menu?.at ?? s.walk?.from.at ?? null);
+  // a menu opened on the character themself is aimed at nothing
+  const at = useClickMenuStore((s) => {
+    const from = s.menu ?? s.walk?.from ?? null;
+    return from && !(from.at.on === "token" && from.at.id === from.actor) ? from.at : null;
+  });
   return useMemo(() => getAimCells(view, at), [view, at]);
 }
 
@@ -104,6 +115,15 @@ export function useOpenWalk() {
     if (walk) setMenu(walk.from, walk.category);
   };
 
+  // a settled exchange goes on by itself, once, on the screen its action was declared from
+  const going = view?.kind === "exchange" && view.settled && walk?.actorId === view.actorId ? view.actionId : null;
+  const went = useRef<string | null>(null);
+  useEffect(() => {
+    if (!going || went.current === going || view?.kind !== "exchange") return;
+    went.current = going;
+    dispatch(view.go.command);
+  });
+
   // of the reactions, the one reactor shown and whether they are all put away to a button
   const reactors = view?.kind === "exchange" ? view.answerers : NO_REACTORS;
   const controlled = useControlled(reactors.map((a) => a.id));
@@ -111,5 +131,5 @@ export function useOpenWalk() {
   const expanded = walk?.collapsed === null || walk?.collapsed === undefined ? hasOwnToReact(reactors, controlled) : !walk.collapsed;
   const show = (a: AnswerWalk) => pickReactor({ id: a.id, review: isFinished(a) });
 
-  return { walk, view, press, next, back, send, reopen, shown, expanded, show, collapse: collapseWalk } as const;
+  return { walk, view, press, next, back, send, reopen, shown, controlled, expanded, show, collapse: collapseWalk } as const;
 }

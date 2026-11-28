@@ -17,7 +17,7 @@ import { getDeclaredHiddenTargets, getOwnCost, needsTarget } from '../rules/acti
 import { getAnswerWays, getAvailableActions, type ActionOption } from '../rules/options'
 import { getGivesLine, getSurgeFacts } from '../../character/lenses/surge'
 import { getFightName } from '../rules/fighters'
-import { getStartTurnBar } from '../rules/turn'
+import { getStartTurnBar, getTurnHolder } from '../rules/turn'
 import { getFollowBar } from '../rules/follow'
 import { getMustStart } from '../projections/turn'
 import { getOpenChoices, type ChoicePart } from '../projections/choices'
@@ -141,6 +141,14 @@ export function isAimed(state: SceneState, at: MenuAim): boolean {
 // what the clicked character may answer the open action with, each answer once:
 // another surge to make it on is picked in the panel. Null when the click is
 // not theirs to act on: nobody placed is selected, or someone answers nothing.
+// The menu the character holding the turn opens with no click, aimed at
+// nothing, as a click on themself opens it; none for anyone else, nor while
+// an action is open.
+export function getTurnMenu(state: SceneState, selected: string | null): ClickMenu | null {
+  if (!selected || getOpenAction(state) || getTurnHolder(state) !== selected) return null
+  return getOwnMenu(state, { on: 'token', id: selected }, selected)
+}
+
 export function getClickMenu(state: SceneState, at: MenuAim, selected: string | null): ClickMenu | null {
   const open = getOpenAction(state)
   if (!open) return selected ? getOwnMenu(state, at, selected) : null

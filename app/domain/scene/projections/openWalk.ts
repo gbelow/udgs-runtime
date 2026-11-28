@@ -132,7 +132,9 @@ export type AnswerWalk = Walked & {
 
 // The exchange: each reactor's walk, the one aimed at first, and how many
 // of them have reacted or passed (`reacted`); the actor's go, closed with
-// why; what else may be pressed, and whom it waits on.
+// why; what else may be pressed, and whom it waits on. Once every reactor
+// has reacted or passed and nobody has anything left to say, the go is all
+// there is (`settled`), and it goes on its own.
 export type ExchangeWalk = {
   kind: 'exchange'
   actionId: string
@@ -148,6 +150,7 @@ export type ExchangeWalk = {
   testMode: WalkButton[]
   awaited: string[]
   hint: string | null
+  settled: boolean
 }
 
 // What the action lands with, a step at a time, then its landing, closed
@@ -265,6 +268,8 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
     const reaction = reactions.find((a) => a.actorId === r.id)
     return getAnswerWalk(open, r, choices.filter((c) => c.actorId === r.id), passed(r.id), reaction ? getHeavyBase(state, reaction) : null)
   })
+  const heldBack = getHeldBackAnswerers(state, open).filter((id) => getHeldBackBar(state, id) === null).map((id) => ({ id, name: getFightName(state, id), command: { kind: 'openAgainstAllies' as const, args: [id] as [string] } }))
+  const accept = find('accept')
   return {
     kind: 'exchange',
     actionId: open.id,
@@ -273,13 +278,14 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
     title: titleOf(state, open),
     answerers,
     reacted: answerers.filter((a) => a.status === 'passed' || a.status === 'done').length,
-    heldBack: getHeldBackAnswerers(state, open).filter((id) => getHeldBackBar(state, id) === null).map((id) => ({ id, name: getFightName(state, id), command: { kind: 'openAgainstAllies', args: [id] } })),
+    heldBack,
     go: { label: die ? 'roll' : 'go', command: { kind: die ? 'roll' : 'pay', args: [] }, bar: go ? null : getGoBar(state, open) ?? 'cannot go yet' },
     back: find('back'),
-    accept: find('accept'),
+    accept,
     testMode: choices.filter((c) => c.part === 'testMode').map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command })),
     awaited: offers.reactors.filter((r) => r.awaited).map((r) => r.name),
     hint: getReactionsTo(state, open.id).some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open) ? 'pick where the evasive jump lands on the board' : null,
+    settled: go !== null && accept === null && heldBack.length === 0 && answerers.every((a) => a.status === 'passed' || a.status === 'done'),
   }
 }
 
