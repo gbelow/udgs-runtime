@@ -161,6 +161,26 @@ If there are none, don't escape.
 
 Score = danger(here, AP held) − harm(cell), if above 0. The highest Score wins, against attacks too.
 
+## Moving
+
+### Standing up
+A prone character weighs every move two ways: crawling as it lies, and standing up first and then any movement open to it standing.
+Standing adds its cost to the walk (5 − AGI/5 AP + 1 STA) and the opportunity attacks it draws to OA drawn.
+An attack from where it lies needs no standing.
+
+### Reading a cell
+Whatever is read at a cell (threat from it, exposure at it, the walks out of it) is read with the movements the character would have standing at that cell.
+In water that is only swimming, at the pace of the swim test it would make there: a graze or a miss swims 1 m per 5 AP, and a miss's STA counts in STAharm.
+
+### Falling
+A walk into or through difficult terrain needs the balance test the board asks for, unless a test saved this round already clears its movement.
+critical: any movement, hit: walking, graze: treading, miss: only crawling.
+
+value(walk) = Σ_degree p(degree) × value(where that degree leaves it)
+
+A degree that does not clear the movement leaves it prone at the first difficult cell of the walk, with the harm of the fall, having paid only the blocks walked to it, and with no attack made after it.
+value is whatever the walk is picked by (Attack, Escape, Tactical, Search).
+
 ### Protect
 
 Defend an ally if the following are true:
@@ -173,6 +193,8 @@ The Defense rule picks one of them, against the ally taking the hit undefended.
 Protect only if prevented > Drain(me)
   prevented using best defense. 
   prevented only counts added bleed.
+
+
 
 # Strategic Actions
 
