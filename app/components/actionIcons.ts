@@ -5,6 +5,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { ActionKind } from '../domain/scene/types'
+import type { ActionCategory } from '../domain/scene/rules/actionCatalog'
 
 // The icon each kind of action leads its key with, wherever it is offered.
 export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
@@ -64,4 +65,17 @@ export const ACTION_ICONS: Record<ActionKind, LucideIcon> = {
   social: MessageCircle,
   taunt: Megaphone,
   fall: ArrowDown,
+}
+
+// The icon each category of action leads its tile with in the board's menu.
+export const CATEGORY_ICONS: Record<ActionCategory | 'answer', LucideIcon> = {
+  attack: Sword,
+  move: Footprints,
+  spell: Sparkles,
+  grapple: Grab,
+  gear: Backpack,
+  care: HeartPulse,
+  social: MessageCircle,
+  tactical: Timer,
+  answer: Shield,
 }

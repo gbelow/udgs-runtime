@@ -8,6 +8,8 @@ import { areReactionsComplete, getHoldCost, getNextStep, getOwnCost, getPayableC
 import { getGoBar } from '../rules/options'
 import { getHeldBackAnswerers, getHeldBackBar } from '../rules/reactions'
 import { getFightName } from '../rules/fighters'
+import { getHeavyBase } from '../rules/modifiers'
+import type { Damage } from '../../character/rules/gear'
 import { getActionOffers, getOpenLabel, type ReactorOptions } from './actionPanel'
 import { getOpenButtons } from './buttons'
 import { getOpenChoices, type ChoicePart, type OpenChoice } from './choices'
@@ -30,9 +32,11 @@ import { getOpenChoices, type ChoicePart, type OpenChoice } from './choices'
 //
 // A `pick` step takes one value and is done; a `toggles` step switches any of
 // its toggles and a `steps` step moves a number a step at a time, and both
-// are left by going on.
+// are left by going on. A strike that may be heavy picks its degree as a step
+// of its own (`heavy`), the attack made at no degree declared picked to begin
+// with.
 
-export type WalkKey = ChoicePart | 'answer' | 'surge'
+export type WalkKey = ChoicePart | 'answer' | 'surge' | 'heavy'
 
 // `actionId`, the action walked, once it is seen open; `given`, the steps of
 // its declaration the entry gave; `passed`, keyed by `walkKey`.
@@ -80,8 +84,9 @@ const STEPS: readonly StepDef[] = [
 
 // `command` is null where pressing it gives nothing new: the value a pick has
 // now; `bar`, why it cannot be pressed; of a value bought, how many times it
-// is (`count`) and what takes one back (`undo`).
-export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null }
+// is (`count`) and what takes one back (`undo`); `damage`, the blow an attack
+// row or a heavy degree lands.
+export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null; damage?: Damage }
 
 // `now`, the number a `steps` step stands at; `keep`, whether it may be gone
 // on from as it is: a pick with nothing chosen yet must be made; `note`,
@@ -92,13 +97,15 @@ export type WalkStep = { key: WalkKey; label: string; kind: StepKind; buttons: W
 // through last, which may be gone back to.
 type Walked = { walk: string; step: WalkStep | null; back: WalkKey | null }
 
-// `drop`, the action dropped (cancelled, or passed up where it opened on its own).
+// `drop`, the action dropped (cancelled, or passed up where it opened on its
+// own); `summary`, what it is declared with as it stands, part by part.
 export type DeclarationWalk = Walked & {
   kind: 'declare'
   actionId: string
   actorId: string
   title: string
   cost: ActionCost | null
+  summary: { label: string; value: string }[]
   commit: { label: string; command: SceneCommand; bar: string | null }
   drop: { label: string; command: SceneCommand } | null
 }
@@ -143,12 +150,14 @@ export type ExchangeWalk = {
 }
 
 // What the action lands with, a step at a time, then its landing, closed
-// with why while something is still to be chosen.
+// with why while something is still to be chosen; `last`, whether the step
+// shown is the last to go on from before it lands.
 export type LandingWalk = Walked & {
   kind: 'land'
   actionId: string
   actorId: string
   title: string
+  last: boolean
   land: { command: SceneCommand; bar: string | null }
 }
 
@@ -212,12 +221,15 @@ function getLandingWalk(state: SceneState, open: RootAction, passed: readonly Wa
     actorId: open.actorId,
     title: titleOf(state, open),
     ...walked(steps, passed, passed),
+    last: steps.filter((s) => !passed.includes(s.key)).length === 1,
     land: { command: { kind: 'resolve', args: [] }, bar: landable ? null : next === 'choose' || next === 'react' ? LAND_BARS[next] : 'cannot land yet' },
   }
 }
 
 function getDeclarationWalk(state: SceneState, open: Action, given: readonly WalkKey[], passed: readonly WalkKey[]): DeclarationWalk {
-  const steps = stepsOf(getOpenChoices(state).filter((c) => c.actorId === open.actorId))
+  const choices = getOpenChoices(state).filter((c) => c.actorId === open.actorId)
+  const base = getHeavyBase(state, open)
+  const steps = stepsOf(choices, base)
   const next = getNextStep(state)
   const payable = next === 'commit' && getPayableCost(state, open) !== null
   const holds = next === 'commit' && !payable && getHoldCost(state, open) !== null
@@ -232,6 +244,7 @@ function getDeclarationWalk(state: SceneState, open: Action, given: readonly Wal
     actorId: open.actorId,
     title: titleOf(state, open),
     cost: getOwnCost(state, open),
+    summary: summaryOf(choices, base),
     ...walked(steps, [...given, ...passed], passed),
     commit: { label: holds ? 'hold' : 'commit', command: { kind: 'commit', args: [] }, bar },
     drop: drop ? { label: drop.label, command: drop.command } : null,
@@ -246,7 +259,11 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
   const die = needsDie(state, open)
   const go = find(die ? 'roll' : 'pay')
   const targetId = 'targetId' in open ? open.targetId : null
-  const answerers = offers.reactors.map((r) => getAnswerWalk(open, r, choices.filter((c) => c.actorId === r.id), passed(r.id)))
+  const reactions = getReactionsTo(state, open.id)
+  const answerers = offers.reactors.map((r) => {
+    const reaction = reactions.find((a) => a.actorId === r.id)
+    return getAnswerWalk(open, r, choices.filter((c) => c.actorId === r.id), passed(r.id), reaction ? getHeavyBase(state, reaction) : null)
+  })
   return {
     kind: 'exchange',
     actionId: open.id,
@@ -267,7 +284,7 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
 
 // A reaction a step at a time: what it is (or nothing), the surge it is made
 // on where it may be made on another, then what it is declared as.
-function getAnswerWalk(open: Action, r: ReactorOptions, choices: OpenChoice[], passed: readonly WalkKey[]): AnswerWalk {
+function getAnswerWalk(open: Action, r: ReactorOptions, choices: OpenChoice[], passed: readonly WalkKey[], base: HeavyBase): AnswerWalk {
   const chosen = r.answers.find((a) => a.chosen) ?? null
   const answer: WalkStep = {
     key: 'answer',
@@ -292,7 +309,7 @@ function getAnswerWalk(open: Action, r: ReactorOptions, choices: OpenChoice[], p
     note: way?.gives || null,
     buttons: ways.map((w) => ({ label: w.surge ? `${w.surge} surge` : 'no surge', selected: w.chosen, command: w.chosen ? null : { kind: 'react', args: [r.id, w.draft, w.surge] } })),
   } : null
-  const steps = [answer, ...(surge ? [surge] : []), ...(chosen ? stepsOf(choices) : [])]
+  const steps = [answer, ...(surge ? [surge] : []), ...(chosen ? stepsOf(choices, base) : [])]
   const done = r.done === null ? null : { state: r.done, command: { kind: 'confirmReaction', args: [r.id] } as SceneCommand }
   return {
     walk: walkKey(open.id, r.id),
@@ -336,8 +353,61 @@ function titleOf(state: SceneState, open: Action): string {
   return 'targetId' in open && open.targetId && state.characters[open.targetId] ? `${label} → ${getFightName(state, open.targetId)}` : label
 }
 
-function stepsOf(choices: readonly OpenChoice[]): WalkStep[] {
-  return STEPS.map((d) => toStep(d, choices.filter((c) => d.parts.includes(c.part)))).filter((s): s is WalkStep => s !== null)
+type HeavyBase = ReturnType<typeof getHeavyBase>
+
+const isHeavy = (c: OpenChoice) => c.part === 'modifier' && typeof c.value === 'object' && c.value !== null && !Array.isArray(c.value) && typeof c.value.key === 'string' && /^heavy\d+$/.test(c.value.key)
+
+// The declaration's steps, the heavy degree picked right after the attack.
+function stepsOf(choices: readonly OpenChoice[], base: HeavyBase): WalkStep[] {
+  const rest = choices.filter((c) => !isHeavy(c))
+  const steps = STEPS.map((d) => toStep(d, rest.filter((c) => d.parts.includes(c.part)))).filter((s): s is WalkStep => s !== null)
+  const heavy = heavyStep(choices.filter(isHeavy), base)
+  if (!heavy) return steps
+  const row = STEPS.findIndex((d) => d.key === 'row')
+  const at = steps.findIndex((s) => STEPS.findIndex((d) => d.key === s.key) > row)
+  return at < 0 ? [...steps, heavy] : [...steps.slice(0, at), heavy, ...steps.slice(at)]
+}
+
+// combat.tex "Heavy Attack": the degree the strike is made at, one of them
+// picked at a time; the attack at no degree declared (`base`) is picked
+// while none is, and pressing it takes the one declared back. A degree's
+// two values press the same toggle, so either carries its command.
+function heavyStep(choices: readonly OpenChoice[], base: HeavyBase): WalkStep | null {
+  if (choices.length === 0 || !base) return null
+  const names = [...new Set(choices.map((c) => c.name ?? c.label))]
+  const degrees = names.map((n) => {
+    const both = choices.filter((c) => (c.name ?? c.label) === n)
+    const on = both.some((c) => c.chosen && isOn(c))
+    return { label: n, on, command: both[0].command, damage: both[0].damage }
+  })
+  const declared = degrees.find((d) => d.on)
+  const buttons: WalkButton[] = [
+    { label: base.label, selected: !declared, command: declared ? declared.command : null, damage: base.damage },
+    ...degrees.map((d): WalkButton => ({ label: d.label, selected: d.on, command: d.on ? null : d.command, ...(d.damage ? { damage: d.damage } : {}) })),
+  ]
+  return { key: 'heavy', label: 'heavy', kind: 'pick', now: null, keep: true, buttons }
+}
+
+// What the action is declared with, part by part: of each pick its value,
+// of the toggles those on, of a part stepped the value it stands at.
+function summaryOf(choices: readonly OpenChoice[], base: HeavyBase): { label: string; value: string }[] {
+  const heavy = choices.filter((c) => isHeavy(c) && c.chosen && isOn(c)).map((c) => c.name ?? c.label)
+  const rest = choices.filter((c) => !isHeavy(c))
+  const parts = STEPS.flatMap((d): { label: string; value: string }[] => {
+    const mine = rest.filter((c) => d.parts.includes(c.part))
+    if (mine.length === 0) return []
+    if (d.kind === 'steps') return mine[0].from !== undefined ? [{ label: d.label, value: String(mine[0].from) }] : []
+    if (d.kind === 'toggles') {
+      const on = [...new Set(mine.filter((c) => c.chosen && isOn(c)).map((c) => c.name ?? c.label))]
+      return on.length > 0 ? [{ label: d.label, value: on.join(', ') }] : []
+    }
+    const picked = mine.find((c) => c.chosen)
+    return picked ? [{ label: d.label, value: picked.label }] : []
+  })
+  if (!base || !choices.some(isHeavy)) return parts
+  const at = parts.findIndex((p) => p.label === 'attack')
+  const line = { label: 'heavy', value: heavy[0] ?? base.label }
+  return at < 0 ? [line, ...parts] : [...parts.slice(0, at + 1), line, ...parts.slice(at + 1)]
 }
 
 function walked(steps: readonly WalkStep[], behind: readonly WalkKey[], passed: readonly WalkKey[]): Pick<Walked, 'step' | 'back'> {
@@ -352,7 +422,7 @@ function toStep(def: StepDef, choices: OpenChoice[]): WalkStep | null {
   switch (kind) {
     case 'pick': {
       if (!choices.some((c) => !c.chosen)) return null
-      return { key, label, kind, now: null, keep: choices.some((c) => c.chosen), buttons: choices.map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command })) }
+      return { key, label, kind, now: null, keep: choices.some((c) => c.chosen), buttons: choices.map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command, ...(c.damage ? { damage: c.damage } : {}) })) }
     }
     // a toggle comes as its value now and the one a press gives it
     case 'toggles': {

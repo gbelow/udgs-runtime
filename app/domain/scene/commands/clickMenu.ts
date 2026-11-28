@@ -2,6 +2,7 @@ import type { ActionDraft, Coord, SceneState, SeenScene, Updater } from '../type
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { Throw } from '../../play/calls'
 import type { ActionCost } from '../../character/rules/actionCosts'
+import type { Damage } from '../../character/rules/gear'
 import { SPELLS } from '../../spells'
 import { getActionDef, type ActionCategory } from '../rules/actionCatalog'
 import { getMovementOptions } from '../rules/move'
@@ -51,7 +52,8 @@ export type MenuPress =
 export const getPressActor = (press: MenuPress): string => (press.kind === 'declare' || press.kind === 'follow' ? press.actorId : press.reactorId)
 
 // `bar`, why it cannot be pressed now; `surge`, the surge it is made on.
-export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress }
+// `damage`, the blow an attack row lands.
+export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress, damage?: Damage }
 
 // The entries of one category, and how many of them may be pressed now.
 export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntry[], open: number }
@@ -181,7 +183,7 @@ function getEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter,
     case 'strike':
     case 'shoot': {
       // declared on its own, nobody's step draws it: a braced row waits for one
-      const rows = getFreeAttackOptions(ready, own, draft.kind).flatMap((row) => withMoves(state, entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, isVariantOpenOn(null, row.variant) ? null : 'only drawn by a step towards the weapon')))
+      const rows = getFreeAttackOptions(ready, own, draft.kind).flatMap((row) => withMoves(state, damaged(row, entry(`${row.weapon} ${row.attack} ${row.variant}`.replace(/\s+/g, ' ').trim(), { AP: row.AP, STA: row.STA }, { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, isVariantOpenOn(null, row.variant) ? null : 'only drawn by a step towards the weapon'))))
       return rows.length > 0 ? rows : [entry(getDraftLabel(state, c.id, o), null)]
     }
     case 'cast': {
@@ -221,6 +223,9 @@ function probe(state: SceneState, press: MenuPress): SceneState {
 // with each move it may carry that brings them in reach: a jump, aimed at them
 // from where it lands (abilities.tex "Lunge"), or a tread, drawn before they
 // are aimed at (abilities.tex "Steady Arms").
+// An attack row's entry, with the blow it lands.
+const damaged = ({ blunt, cut }: Damage, entry: MenuEntry): MenuEntry => ({ ...entry, damage: { blunt, cut } })
+
 function withMoves(state: SceneState, plain: MenuEntry): MenuEntry[] {
   const { press } = plain
   if (plain.bar === null || press.kind !== 'declare' || press.aim?.on !== 'token') return [plain]

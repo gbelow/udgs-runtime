@@ -16,6 +16,7 @@ import { getPendingSighting } from '../rules/sighting'
 import { getActionOffers, type ActionOffers, type ReactorOptions } from './actionPanel'
 import type { PrepareView } from './prepare'
 import type { ModifierView } from './modifiers'
+import type { Damage } from '../../character/rules/gear'
 
 // What the open action, and every answer to it still being declared, asks to
 // be filled in, as the panel and the board offer it: each fill is the command
@@ -42,7 +43,8 @@ export type ChoicePart =
   | 'flee' | 'pushMovement' | 'boost' | 'extend' | 'for' | 'main' | 'defense' | 'trigger' | 'opportunityMode' | 'maneuver'
   | 'cell' | 'overflow' | 'grapple' | 'theft' | 'improve' | 'grazeSave' | 'along' | 'grappling' | 'disarm' | 'testMode' | 'restMove' | 'sighting'
 
-export type OpenChoice = { actorId: string; part: ChoicePart; value: Json; chosen: boolean; from?: number; name?: string; command: SceneCommand; label: string }
+// `damage`, the blow an attack row or a heavy degree lands.
+export type OpenChoice = { actorId: string; part: ChoicePart; value: Json; chosen: boolean; from?: number; name?: string; command: SceneCommand; label: string; damage?: Damage }
 
 // Parts given a step at a time: a pick names the value they end at.
 export const STEPPED_PARTS: readonly ChoicePart[] = ['extend', 'metres', 'dive']
@@ -74,8 +76,8 @@ function toggle(actorId: string, part: ChoicePart, now: boolean, command: SceneC
 
 function modifierChoices(actorId: string, modifiers: ModifierView[], send: (press: ModifierView['press']) => SceneCommand): OpenChoice[] {
   return modifiers.filter((m) => m.allowed || m.on).flatMap((m) => [
-    { ...choice(actorId, 'modifier', { key: m.key, on: m.on }, true, send(m.press), `${m.label}: ${m.on ? 'on' : 'off'}`), name: m.label },
-    ...(m.allowed ? [{ ...choice(actorId, 'modifier', { key: m.key, on: !m.on }, false, send(m.press), `${m.label}: ${m.on ? 'off' : 'on'}`), name: m.label }] : []),
+    { ...choice(actorId, 'modifier', { key: m.key, on: m.on }, true, send(m.press), `${m.label}: ${m.on ? 'on' : 'off'}`), name: m.label, ...(m.damage ? { damage: m.damage } : {}) },
+    ...(m.allowed ? [{ ...choice(actorId, 'modifier', { key: m.key, on: !m.on }, false, send(m.press), `${m.label}: ${m.on ? 'off' : 'on'}`), name: m.label, ...(m.damage ? { damage: m.damage } : {}) }] : []),
   ])
 }
 
@@ -87,7 +89,7 @@ function declarationChoices(state: SceneState, offers: ActionOffers, actorId: st
   const add = (part: ChoicePart, value: Json, chosen: boolean, command: SceneCommand, label: string, from?: number) => out.push(choice(actorId, part, value, chosen, command, label, from))
 
   if (open.flee !== null) for (const flee of [true, false]) add('flee', flee, open.flee === flee, amend({ flee }), flee ? 'flee' : 'end')
-  for (const s of offers.attacks) add('row', { weaponKey: s.weaponKey, attack: s.attack, variant: s.variant }, s.selected, amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant }), `${s.weapon} ${s.attack} ${s.variant}`.trim())
+  for (const s of offers.attacks) out.push({ ...choice(actorId, 'row', { weaponKey: s.weaponKey, attack: s.attack, variant: s.variant }, s.selected, amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant }), `${s.weapon} ${s.attack} ${s.variant}`.trim()), damage: { blunt: s.blunt, cut: s.cut } })
   if (open.sweep?.turnable) for (const d of ['clockwise', 'counterclockwise'] as const) add('sweep', d, open.sweep.direction === d, amend({ sweepDirection: d }), `sweep ${d}`)
   out.push(...modifierChoices(actorId, open.modifiers, amend))
   for (const s of open.steady?.steps ?? []) add('firedAt', s.at, s.selected, amend({ firedAt: s.at }), `fire from ${s.at}`)

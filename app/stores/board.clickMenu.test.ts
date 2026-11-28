@@ -118,6 +118,8 @@ describe('the walk of an action declared from the menu', () => {
       const at = get()
       if (!at?.step) return
       const { step } = at
+      // the user's ruling (2026-11-28): the heavy degree is a pick with the normal attack picked while none is declared
+      if (step.key === 'heavy') expect(step.buttons.filter((b) => b.selected), 'one heavy degree is picked at a time').toHaveLength(1)
       const other = step.buttons.find((b) => b.command !== null && !b.selected && !b.bar)
       if ((change || !step.keep) && other) h.send(other.command!)
       store().stepWalk(at.walk, step.key)
@@ -127,7 +129,7 @@ describe('the walk of an action declared from the menu', () => {
     const menu = h.menu({ on: 'token', id: h.idOf(name) })!
     const entry = aimedAt(h, name)[nth]
     h.pressMenu(entry)
-    store().startWalk({ from: menu, actorId: h.active()!, actionId: null, given: getGivenSteps(entry.press), passed: {}, pick: null, collapsed: null })
+    store().startWalk({ from: menu, category: null, actorId: h.active()!, actionId: null, given: getGivenSteps(entry.press), passed: {}, pick: null, collapsed: null })
     expect(read(h), `${entry.label} opens a walk`).not.toBeNull()
     through(h, () => { const v = read(h); return v?.kind === 'declare' ? v : null }, change)
     return entry

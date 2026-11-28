@@ -15,7 +15,7 @@ import { canCarryStep, getCombinedMoves, getCombinedPrice, getCombinedTerms, isC
 import { canCarryJump, isJumpAttack } from './attackJump'
 import { getHeavyDegree, getHeavyDegrees } from './heavy'
 import { findWeaponRow } from './weaponRow'
-import { getHeavyName, getHeavyVariation } from '../../character/rules/gear'
+import { getHeavyName, getHeavyVariation, getStrikeDamage, type Damage } from '../../character/rules/gear'
 import { canDeclareCarried, getDeclaredCarriedMoves } from './carriedMove'
 import { getStrikeContext, isStrikeHolder, type StrikeContext } from './strikeDeclaration'
 
@@ -186,7 +186,7 @@ function when<C extends ModifierContext, K extends string>(modifiers: Record<K, 
 // `recipe`, a learned trade, one of its `learnedModifiers` (`learned`), or a
 // strike's heavy degree (`heavy`, rules/heavy.ts), declared when it is the
 // one the strike is made at, and `fixed` when it cannot be taken back.
-type Entry = { key: string; modifier: Modifier; slot: 'flag' | 'recipe' | 'learned' } | { key: string; modifier: Modifier; slot: 'heavy'; degree: number; declared: boolean; fixed: boolean }
+type Entry = { key: string; modifier: Modifier; slot: 'flag' | 'recipe' | 'learned' } | { key: string; modifier: Modifier; slot: 'heavy'; degree: number; declared: boolean; fixed: boolean; damage: Damage }
 
 function getFlagEntries(action: { kind: Action['kind'] }): Entry[] {
   if (!(action.kind in DECLARATION_MODIFIERS)) return []
@@ -241,13 +241,14 @@ function getHeavyEntries(state: SceneState, action: Action): Entry[] {
   const link = isSweepLink(strike)
   return Array.from({ length: range.max - Math.max(1, range.min) + 1 }, (_, i) => Math.max(1, range.min) + i).map((degree): Entry => {
     const label = getHeavyName(degree)
-    const { cost, penalty } = getHeavyVariation(row.atk, row.weapon, actor, degree)
+    const { cost, penalty, blunt, cut } = getHeavyVariation(row.atk, row.weapon, actor, degree)
     return {
       key: `heavy${degree}`,
       slot: 'heavy',
       degree,
       declared: at === degree,
       fixed: link || (at === degree && degree === range.min),
+      damage: { blunt, cut },
       modifier: { label, offer: 'toggle', allowed: () => true, price: () => ({ add: cost }), terms: () => (penalty !== 0 ? [{ label, value: -penalty }] : []) },
     }
   })
@@ -363,7 +364,8 @@ export function getAnswerLabel(draft: ActionDraft): string | null {
   return getFlagEntries(draft).find((e) => e.modifier.offer === 'answer' && modifiers?.[e.key])?.modifier.label ?? null
 }
 
-export type ModifierToggle = { key: string; label: string; on: boolean; allowed: boolean; price: { set: ActionCost } | { add: ActionCost }; terms: Term[]; press: Partial<ActionDraft> }
+// `damage`, the blow a heavy degree lands.
+export type ModifierToggle = { key: string; label: string; on: boolean; allowed: boolean; price: { set: ActionCost } | { add: ActionCost }; terms: Term[]; press: Partial<ActionDraft>; damage: Damage | null }
 
 // The modifiers offered as a toggle on the action as it is being declared:
 // each open where it stands, or declared already so it can be taken back,
@@ -381,8 +383,24 @@ export function getModifierToggles(state: SceneState, action: Action): ModifierT
       : entry.slot === 'recipe' ? { recipe: on ? null : key, ...(isJumpAttack(action) ? { jumpTo: null } : {}) }
       : entry.slot === 'learned' ? { learnedModifiers: on ? action.learnedModifiers.filter((k) => k !== key) : [...action.learnedModifiers, key] }
       : { modifiers: { ...flags, [key]: !on } }) as Partial<ActionDraft>
-    return [{ key, label: modifier.label, on, allowed, price: modifier.price(ctx), terms: modifier.terms?.(ctx) ?? [], press }]
+    return [{ key, label: modifier.label, on, allowed, price: modifier.price(ctx), terms: modifier.terms?.(ctx) ?? [], press, damage: entry.slot === 'heavy' ? entry.damage : null }]
   })
+}
+
+// What a strike that may be heavy is made at with no heavy degree declared:
+// the normal attack, or the row's minimum degree where it forbids the normal
+// attack (gear.tex "Heavy I/II/III"), and the blow it lands. Null where the
+// strike cannot be heavy.
+export function getHeavyBase(state: SceneState, action: Action): { label: string; damage: Damage } | null {
+  const ctx = isStrikeHolder(action) ? getStrikeContext(state, action) : null
+  if (!ctx) return null
+  const { actor, strike } = ctx
+  const range = getHeavyDegrees(actor, strike)
+  const row = findWeaponRow(actor, strike.weaponKey, strike.attack)
+  if (!range || !row) return null
+  if (range.min === 0) return { label: 'normal', damage: getStrikeDamage(row.atk, row.weapon, actor) }
+  const { blunt, cut } = getHeavyVariation(row.atk, row.weapon, actor, range.min)
+  return { label: getHeavyName(range.min), damage: { blunt, cut } }
 }
 
 // The action's modifiers, none declared: what a change that leaves none of

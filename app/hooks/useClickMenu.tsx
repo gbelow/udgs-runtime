@@ -3,7 +3,6 @@ import { getPressActor, type MenuEntry } from "../domain/scene/commands/clickMen
 import type { SceneCommand } from "../domain/scene/commands/registry";
 import { getGivenSteps, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
 import { useControlled } from "./useControl";
-import { getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import { useClickMenuStore, type MenuWalk } from "../stores/useClickMenuStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useFollowPick } from "./useFollowPick";
@@ -12,13 +11,13 @@ import { useSceneDispatch } from "./useSceneDispatch";
 // The menu a click on the board opened, and its presses: an entry is sent as
 // the scene's `menu` command, which declares or answers as the panel would,
 // and goes on to walk the action it declared or answered, where the menu
-// was; picking the clicked character is this screen's alone.
+// was; picking the clicked character is this screen's alone. Of its
+// categories, the one shown is this screen's too.
 export function useClickMenu() {
   const menu = useClickMenuStore((s) => s.menu);
+  const shown = useClickMenuStore((s) => s.shown);
   const walk = useClickMenuStore((s) => s.walk);
-  const setMenu = useClickMenuStore((s) => s.setMenu);
-  const startWalk = useClickMenuStore((s) => s.startWalk);
-  const closeWalk = useClickMenuStore((s) => s.closeWalk);
+  const { setMenu, showCategory, startWalk, closeWalk } = useClickMenuStore.getState();
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
   const { picking, cancel } = useFollowPick();
@@ -27,11 +26,11 @@ export function useClickMenu() {
   const press = (entry: MenuEntry) => {
     dispatch({ kind: "menu", args: [entry.press] });
     const p = entry.press;
-    if (menu && p.kind === "declare") startWalk({ from: menu, actorId: p.actorId, actionId: null, given: getGivenSteps(p), passed: {}, pick: null, collapsed: null });
+    if (menu && p.kind === "declare") startWalk({ from: menu, category: entry.category, actorId: p.actorId, actionId: null, given: getGivenSteps(p), passed: {}, pick: null, collapsed: null });
     // the reaction is picked: its walk goes on from what it is made on, theirs shown
     else if (menu?.answering) {
       const id = getPressActor(p);
-      startWalk({ from: menu, actorId: id, actionId: menu.answering, given: [], passed: { [walkKey(menu.answering, id)]: ["answer"] }, pick: { id, review: false }, collapsed: false });
+      startWalk({ from: menu, category: entry.category, actorId: id, actionId: menu.answering, given: [], passed: { [walkKey(menu.answering, id)]: ["answer"] }, pick: { id, review: false }, collapsed: false });
     }
     else setMenu(null);
   };
@@ -49,7 +48,7 @@ export function useClickMenu() {
     else setActiveCharacter(null);
   };
 
-  return { menu, walk, press, start, close, closeWalk, escape } as const;
+  return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape } as const;
 }
 
 const NO_REACTORS: AnswerWalk[] = [];
@@ -61,7 +60,7 @@ const walkOf = (state: Parameters<typeof getOpenWalk>[0], walk: MenuWalk | null)
 // dropped, or moves past what the popover plays.
 export function useOpenWalk() {
   const walk = useClickMenuStore((s) => s.walk);
-  const { bindWalk, stepWalk, backWalk, closeWalk, pickReactor, collapseWalk } = useClickMenuStore.getState();
+  const { bindWalk, stepWalk, backWalk, closeWalk, pickReactor, collapseWalk, setMenu } = useClickMenuStore.getState();
   useCombatStore((s) => JSON.stringify(walkOf(s, walk)));
   const view = walkOf(useCombatStore.getState(), walk);
   const dispatch = useSceneDispatch();
@@ -74,14 +73,29 @@ export function useOpenWalk() {
     else if (bound !== null && seen === null) closeWalk();
   }, [walk, bound, seen, bindWalk, closeWalk]);
 
+  // a landing's last step gone on from lands it
+  const landed = (key: string) => {
+    if (view?.kind === "land" && view.walk === key && view.last) dispatch(view.land.command);
+  };
   // a pick is made and gone on from; a toggle or a step is set and stays
   const press = (key: string, step: WalkStep, b: WalkButton) => {
     if (b.command) dispatch(b.command);
-    if (step.kind === "pick") stepWalk(key, step.key);
+    if (step.kind !== "pick") return;
+    stepWalk(key, step.key);
+    landed(key);
   };
-  const next = (key: string, step: WalkStep) => stepWalk(key, step.key);
+  const next = (key: string, step: WalkStep) => {
+    stepWalk(key, step.key);
+    landed(key);
+  };
   const back = (key: string, step: WalkKey) => backWalk(key, step);
   const send = (command: SceneCommand) => dispatch(command);
+  // back from the first step of a declaration: the action is cancelled and
+  // the menu it was declared from opens again, at the entry's category
+  const reopen = (command: SceneCommand) => {
+    dispatch(command);
+    if (walk) setMenu(walk.from, walk.category);
+  };
 
   // of the reactions, the one reactor shown and whether they are all put away to a button
   const reactors = view?.kind === "exchange" ? view.answerers : NO_REACTORS;
@@ -90,10 +104,5 @@ export function useOpenWalk() {
   const expanded = walk?.collapsed === null || walk?.collapsed === undefined ? hasOwnToReact(reactors, controlled) : !walk.collapsed;
   const show = (a: AnswerWalk) => pickReactor({ id: a.id, review: isFinished(a) });
 
-  // what the thrown action shows as it lands: the action panel's own reading of it
-  const landing = view?.kind === "land";
-  useCombatStore((s) => (landing ? getActionPanelDigest(s) : ""));
-  const readout = landing ? getActionPanel(useCombatStore.getState()) : null;
-
-  return { walk, view, press, next, back, send, shown, expanded, show, collapse: collapseWalk, readout } as const;
+  return { walk, view, press, next, back, send, reopen, shown, expanded, show, collapse: collapseWalk } as const;
 }
