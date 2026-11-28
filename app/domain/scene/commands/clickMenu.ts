@@ -149,6 +149,26 @@ export function getTurnMenu(state: SceneState, selected: string | null): ClickMe
   return getOwnMenu(state, { on: 'token', id: selected }, selected)
 }
 
+// The character the popover is about: the one a menu was opened on, other
+// than whoever it is for, or the one the open action is aimed at; none for
+// a menu aimed at a cell, an item or the actor themself.
+export function getPopoverAim(state: SceneState, menu: ClickMenu | null): string | null {
+  if (menu) return menu.at.on === 'token' && menu.at.id !== menu.actor ? menu.at.id : null
+  const open = getOpenAction(state)
+  return open && 'targetId' in open && open.targetId && state.characters[open.targetId] ? open.targetId : null
+}
+
+// What the open action is walked again from once its walk was put away: a
+// menu of its actor's aimed at its target, or at nothing, with no entries of
+// its own; none while no action is open.
+export function getResumed(state: SceneState): { from: ClickMenu, actionId: string } | null {
+  const open = getOpenAction(state)
+  if (!open) return null
+  const targetId = 'targetId' in open && open.targetId && state.characters[open.targetId] ? open.targetId : null
+  const at: MenuAim = { on: 'token', id: targetId ?? open.actorId }
+  return { from: { title: getFightName(state, at.id), select: at.id, actor: open.actorId, turn: null, entries: [], groups: [], at }, actionId: open.id }
+}
+
 export function getClickMenu(state: SceneState, at: MenuAim, selected: string | null): ClickMenu | null {
   const open = getOpenAction(state)
   if (!open) return selected ? getOwnMenu(state, at, selected) : null

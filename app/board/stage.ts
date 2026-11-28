@@ -425,6 +425,16 @@ export class BoardStage {
     return false
   }
 
+  // Where on the screen a character is drawn, and how wide.
+  screenOf(id: string): { x: number; y: number; radius: number } | null {
+    const t = this.input?.view.tokens.find((x) => x.id === id)
+    if (!t) return null
+    const body = tokenBody(t)
+    const box = this.app.canvas.getBoundingClientRect()
+    const { x, y, scale } = this.camera
+    return { x: box.left + x + body.x * scale, y: box.top + y + body.y * scale, radius: body.radius * scale }
+  }
+
   // The camera snapped to a character, at least as close as by default.
   lookAt(id: string) {
     const t = this.input?.view.tokens.find((x) => x.id === id)

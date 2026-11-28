@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useCameraStore, type ScreenSpot } from "../stores/useCameraStore";
 import { getAimCells, type BoardView } from "../domain/scene/projections/boardView";
-import { getPressActor, getTurnMenu, type MenuEntry } from "../domain/scene/commands/clickMenu";
+import { getPopoverAim, getPressActor, getResumed, getTurnMenu, type MenuEntry } from "../domain/scene/commands/clickMenu";
+import { getStartTurnBar } from "../domain/scene/rules/turn";
 import type { SceneCommand } from "../domain/scene/commands/registry";
-import { getGivenSteps, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
+import { getAimedStep, getGivenSteps, getOpenStage, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
 import { useControlled } from "./useControl";
 import { useClickMenuStore, type MenuWalk } from "../stores/useClickMenuStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -14,11 +16,28 @@ import { useSceneDispatch } from "./useSceneDispatch";
 // and goes on to walk the action it declared or answered, where the menu
 // was; picking the clicked character is this screen's alone. Of its
 // categories, the one shown is this screen's too.
+// The open action walked again in the popover: the walk put away, where it
+// was left, if it still walks it, else a walk from its first step.
+export function resumeWalk() {
+  const state = useCombatStore.getState();
+  const { put, startWalk } = useClickMenuStore.getState();
+  if (put && getOpenWalk(state, put.walk)) return startWalk({ ...put.walk, collapsed: false });
+  const resumed = getResumed(state);
+  if (resumed) startWalk({ from: resumed.from, category: null, actorId: resumed.from.actor, actionId: resumed.actionId, given: [], passed: {}, pick: null, collapsed: false });
+}
+
 export function useClickMenu() {
   const menu = useClickMenuStore((s) => s.menu);
   const shown = useClickMenuStore((s) => s.shown);
   const walk = useClickMenuStore((s) => s.walk);
-  const { setMenu, showCategory, startWalk, closeWalk } = useClickMenuStore.getState();
+  const put = useClickMenuStore((s) => s.put);
+  const { setMenu, showCategory, startWalk } = useClickMenuStore.getState();
+  const stage = useCombatStore(getOpenStage);
+  // a walk put away is put away where its action stands, and comes back once that moves on
+  const closeWalk = () => useClickMenuStore.getState().closeWalk(getOpenStage(useCombatStore.getState()));
+  useEffect(() => {
+    if (!menu && !walk && put && stage !== null && stage !== put.stage && getOpenWalk(useCombatStore.getState(), put.walk)) resumeWalk();
+  }, [menu, walk, put, stage]);
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const dispatch = useSceneDispatch();
   const { picking, cancel } = useFollowPick();
@@ -31,9 +50,22 @@ export function useClickMenu() {
     // the reaction is picked: its walk goes on from what it is made on, theirs shown
     else if (menu?.answering) {
       const id = getPressActor(p);
-      startWalk({ from: menu, category: entry.category, actorId: id, actionId: menu.answering, given: [], passed: { [walkKey(menu.answering, id)]: ["answer"] }, pick: { id, review: false }, collapsed: false });
+      startWalk({ from: menu, category: entry.category, actorId: id, actionId: menu.answering, given: [], passed: { [walkKey(menu.answering, id)]: ["answer"] }, pick: { id, review: false }, collapsed: null });
     }
     else setMenu(null);
+  };
+  // with nothing open, the key that goes on brings back the open action's
+  // walk, or starts the turn of whoever is picked
+  const goOn = (): boolean => {
+    const state = useCombatStore.getState();
+    if (getOpenStage(state) !== null) {
+      resumeWalk();
+      return true;
+    }
+    const id = state.activeCharacterId;
+    if (!id || getStartTurnBar(state, id) !== null) return false;
+    dispatch({ kind: "startTurn", args: [id] });
+    return true;
   };
   // the turn of whoever the menu's actions are for
   const start = () => {
@@ -56,7 +88,27 @@ export function useClickMenu() {
     else setActiveCharacter(null);
   };
 
-  return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory } as const;
+  return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory, goOn } as const;
+}
+
+// Where on the screen the character the popover is about is drawn, the
+// camera snapped to them first; null while it is about nobody, or the board
+// does not show them.
+export function usePopoverSpot(open: boolean): ScreenSpot | null {
+  const menu = useClickMenuStore((s) => s.menu);
+  const id = useCombatStore((s) => (open ? getPopoverAim(s, menu) : null));
+  const [spot, setSpot] = useState<{ id: string; at: ScreenSpot } | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    const camera = useCameraStore.getState();
+    camera.ask(id);
+    const frame = requestAnimationFrame(() => {
+      const at = useCameraStore.getState().where?.(id) ?? null;
+      setSpot(at ? { id, at } : null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [id, menu]);
+  return id && spot?.id === id ? spot.at : null;
 }
 
 // The cells of what the popover was opened on, kept lit while it is open.
@@ -91,6 +143,14 @@ export function useOpenWalk() {
     else if (bound !== null && seen === null) closeWalk();
   }, [walk, bound, seen, bindWalk, closeWalk]);
 
+  // aimed on the board while walked, the target step is gone on from
+  const was = useRef<OpenWalk | null>(null);
+  useEffect(() => {
+    const aimed = getAimedStep(was.current, view);
+    was.current = view;
+    if (aimed) stepWalk(aimed.walk, aimed.key);
+  });
+
   // a landing's last step gone on from lands it
   const landed = (key: string) => {
     if (view?.kind === "land" && view.walk === key && view.last) dispatch(view.land.command);
@@ -124,11 +184,15 @@ export function useOpenWalk() {
     dispatch(view.go.command);
   });
 
-  // of the reactions, the one reactor shown and whether they are all put away to a button
+  // of the reactions, the one reactor shown, and whether they are shown at
+  // all: as asked, or while the viewer has a reaction to make or something
+  // to say to it (the target's allowing it, an ally's reacting anyway)
   const reactors = view?.kind === "exchange" ? view.answerers : NO_REACTORS;
-  const controlled = useControlled(reactors.map((a) => a.id));
+  const others = view?.kind === "exchange" ? [...(view.accept && view.targetId ? [view.targetId] : []), ...view.heldBack.map((h) => h.id)] : [];
+  const controlled = useControlled([...reactors.map((a) => a.id), ...others]);
   const shown = getShownReactor(reactors, controlled, walk?.pick ?? null);
-  const expanded = walk?.collapsed === null || walk?.collapsed === undefined ? hasOwnToReact(reactors, controlled) : !walk.collapsed;
+  const toSay = hasOwnToReact(reactors, controlled) || others.some((id) => controlled.includes(id));
+  const expanded = walk?.collapsed === null || walk?.collapsed === undefined ? toSay : !walk.collapsed;
   const show = (a: AnswerWalk) => pickReactor({ id: a.id, review: isFinished(a) });
 
   return { walk, view, press, next, back, send, reopen, shown, controlled, expanded, show, collapse: collapseWalk } as const;

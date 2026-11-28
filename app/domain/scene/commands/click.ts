@@ -32,7 +32,7 @@ export type ClickContext = { brush: TerrainBrush | null, radius?: number, reposi
 // character it picks on the screen it was made on, which the fight never sees, or
 // the menu of what could be done there (`getClickMenu`), which changes nothing until an entry is pressed.
 // `bar`, why a character put down by hand cannot stand there, said to whoever clicked.
-export type ClickReading = { actor: Actor, apply: Updater, bar?: string | null } | { select: string } | { menu: ClickMenu }
+export type ClickReading = { actor: Actor, apply: Updater, bar?: string | null } | { select: string } | { menu: ClickMenu } | { resume: true }
 
 // What a click means in the state it lands on: painting if a brush is in
 // hand, a path edit while a move is being declared, the landing of an evasive
@@ -57,6 +57,8 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
       if (getDeclaredTargets(state, open).includes(click.id)) return { actor, apply: setTarget(click.id) }
       const on = getBoardMode(state) === 'path' && open?.kind === 'move' && open.actorId === ctx.selected ? getPickOn(state, open, click.id) : null
       if (on) return { actor, apply: pickCell(on.cell, ctx.newId, on.elevation) }
+      // a click on whoever acts brings back the popover their action is walked in
+      if (open && click.id === open.actorId) return { resume: true }
       const menu = getClickMenu(state, { on: 'token', id: click.id }, ctx.selected)
       return menu ? { menu } : { select: click.id }
     }

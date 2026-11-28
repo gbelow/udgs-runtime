@@ -1,12 +1,13 @@
 'use client'
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Check, ChevronLeft, ChevronRight, ChevronUp, Dices, Hourglass, Lock, Minus, Play, X, type LucideIcon } from 'lucide-react'
-import { useClickMenu, useOpenWalk } from '../hooks/useClickMenu'
+import { useClickMenu, useOpenWalk, usePopoverSpot } from '../hooks/useClickMenu'
 import { ActionKey, Button, Closed, Floating, IconButton } from './ui'
 import { LockedFor } from './Locks'
 import type { ClickMenu, MenuEntry } from '../domain/scene/commands/clickMenu'
 import type { AnswerWalk, DeclarationWalk, ExchangeWalk, LandingWalk, ReactorStatus, WalkButton, WalkStep } from '../domain/scene/projections/openWalk'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
+import type { Degree } from '../domain/types'
 import type { Damage } from '../domain/character/rules/gear'
 import { ACTION_ICONS, CATEGORY_ICONS } from './actionIcons'
 import { useKeyMap } from '../hooks/useKeyMap'
@@ -22,7 +23,7 @@ const MENU_ROOM = 340
 // on its left and the press that goes on on its right (going on, committing,
 // rolling, landing), and another key cancels what the screen is choosing. Which keys they are is the key
 // profile's (app/keys.ts).
-type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; note?: ReactNode; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
+type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; note?: ReactNode; hint?: string; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
 type Act = { label: string; run: () => void; bar?: string | null; icon?: LucideIcon }
 type Card = {
   title: ReactNode
@@ -49,7 +50,7 @@ type Card = {
 // to make; then whatever the roll leaves to choose, a step at a time, the
 // last landing it; then whatever follows from it, the same way.
 export function ClickMenuHost(){
-  const { menu, shown: category, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory } = useClickMenu()
+  const { menu, shown: category, show: showCategory, walk, press, start, close, closeWalk, escape, openCategory, goOn } = useClickMenu()
   const walked = useOpenWalk()
   const anchor = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -58,17 +59,30 @@ export function ClickMenuHost(){
   const from = menu ?? walk?.from ?? null
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const at = useMemo(() => ({ x: pointer.x, y: pointer.y }), [from])
+  // dragged by its title bar, for as long as the menu or walk it opened for lasts
+  const [dragged, setDragged] = useState<{ from: typeof from, x: number, y: number } | null>(null)
+  const moved = dragged && dragged.from === from ? dragged : { x: 0, y: 0 }
+  const drag = (e: ReactPointerEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    const start = { x: e.clientX - moved.x, y: e.clientY - moved.y }
+    const move = (m: PointerEvent) => setDragged({ from, x: m.clientX - start.x, y: m.clientY - start.y })
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
 
   const { view, expanded } = walked
   const keys = useKeyMap()
   const small = !menu && view?.kind === 'exchange' && !expanded
+  const spot = usePopoverSpot(!!menu || (!!view && !small))
   const card: Card | null = menu ? menuCard(menu, category, { press, start, close, show: showCategory })
     : !view || small ? null
     : view.kind === 'declare' ? declarationCard(view, walked, closeWalk)
     : view.kind === 'land' ? landingCard(view, walked, closeWalk)
     : exchangeCard(view, walked)
   useCardKeys(card, keys)
-  useTurnKeys(!menu && !view, keys, openCategory)
+  useTurnKeys(!menu && !view, keys, openCategory, goOn)
 
   useEffect(() => {
     const note = (e: PointerEvent) => { pointer.x = e.clientX; pointer.y = e.clientY }
@@ -108,31 +122,22 @@ export function ClickMenuHost(){
     return () => { window.removeEventListener('pointerdown', away, true); window.removeEventListener('keydown', key, true) }
   })
 
-  if (!menu && !view) return null
-  // beside the click, not under it, so that a second click on the same spot still reaches the board
-  const toRight = at.x + SIDE_GAP + MENU_ROOM <= window.innerWidth
+  // reactions the viewer has none of to make are not shown: the action goes on once they are in
+  if (!menu && (!view || small)) return null
+  // beside whom it is about, or else the click, not under it, so that a second click on the same spot still reaches the board
+  const where = spot ?? { ...at, radius: 0 }
+  const gap = SIDE_GAP + where.radius
+  const toRight = where.x + gap + MENU_ROOM <= window.innerWidth
   const place = (
-    <div ref={anchor} aria-hidden style={{ position: 'fixed', left: toRight ? at.x + SIDE_GAP : at.x - SIDE_GAP, top: at.y, width: 1, height: 1 }} />
+    <div ref={anchor} aria-hidden style={{ position: 'fixed', left: (toRight ? where.x + gap : where.x - gap) + moved.x, top: where.y + moved.y, width: 1, height: 1 }} />
   )
-
-  if (small && view?.kind === 'exchange') {
-    return (
-      <>
-        {place}
-        <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role='dialog' aria-label={view.title}
-          className='flex flex-row items-center gap-1 bg-raised border border-line rounded p-1 shadow-lg shadow-black/40 text-xs'>
-          <ReactionsButton view={view} onExpand={() => walked.collapse(false)} send={walked.send} />
-        </Floating>
-      </>
-    )
-  }
 
   return (
     <>
       {place}
       <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role={menu ? 'menu' : 'dialog'} aria-label={menu ? `actions on ${menu.title}` : view?.title}
         className='bg-raised border border-line rounded-lg shadow-xl shadow-black/50 text-xs overflow-hidden'>
-        {card ? <CardView card={card} keys={keys} /> : null}
+        {card ? <CardView card={card} keys={keys} onDrag={drag} /> : null}
       </Floating>
     </>
   )
@@ -184,14 +189,19 @@ function useCardKeys(card: Card | null, keys: KeyMap){
 }
 
 // With no card open, a tile's key opens the menu of the character holding the
-// turn at the category of that tile, aimed at nothing.
-function useTurnKeys(idle: boolean, keys: KeyMap, open: (tile: number) => void){
-  const current = useRef({ idle, keys, open })
-  useEffect(() => { current.current = { idle, keys, open } })
+// turn at the category of that tile, aimed at nothing, and the key that goes
+// on brings back the open action or starts the turn of whoever is picked.
+function useTurnKeys(idle: boolean, keys: KeyMap, open: (tile: number) => void, goOn: () => boolean){
+  const current = useRef({ idle, keys, open, goOn })
+  useEffect(() => { current.current = { idle, keys, open, goOn } })
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      const { idle: free, keys: map, open: opening } = current.current
-      if (!free || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
+      const { idle: free, keys: map, open: opening, goOn: going } = current.current
+      if (!free || e.defaultPrevented || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
+      if (isKey(map, 'card.next', e)) {
+        if (going()) e.preventDefault()
+        return
+      }
       const pressed = findKey(map, TILE_COMMANDS, e)
       if (!pressed) return
       e.preventDefault()
@@ -206,24 +216,30 @@ function costLabel(cost: ActionCost | null | undefined){
   return cost ? `${cost.AP} AP${cost.STA ? ` · ${cost.STA} STA` : ''}` : null
 }
 
-function CardView({ card, keys }: { card: Card, keys: KeyMap }){
+// A tile hovered tells what it does over the foot of the card, taking no room.
+function CardView({ card, keys, onDrag }: { card: Card, keys: KeyMap, onDrag: (e: ReactPointerEvent) => void }){
   const { back, primary } = card
+  const [hint, setHint] = useState<string | null>(null)
+  const hinted = hint !== null && card.tiles.some((t) => t.hint === hint) ? hint : null
   return (
     <div className='flex h-[26rem] w-80 flex-col'>
-      <div className='flex flex-row items-center gap-2 border-b border-line px-3 py-2'>
+      <div className='flex cursor-move touch-none flex-row items-center gap-2 border-b border-line px-3 py-2' title='drag to move' onPointerDown={onDrag}>
         <span className='min-w-0 flex-1 truncate text-sm font-semibold'>{card.title}</span>
         {card.meta ? <span className='font-mono text-[10px] text-muted'>{card.meta}</span> : null}
         {card.head}
       </div>
-      <div className='flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2'>
-        {card.top}
-        {card.label ? <span className='text-[10px] uppercase tracking-wider text-muted'>{card.label}</span> : null}
-        {card.tiles.length > 0 ? (
-          <LockedFor id={card.lock} className='grid grid-cols-3 gap-1.5'>
-            {card.tiles.map((t, i) => <TileView key={t.key} tile={t} n={TILE_COMMANDS[i] ? keyLabel(keys, TILE_COMMANDS[i]) : null} />)}
-          </LockedFor>
-        ) : null}
-        {card.below}
+      <div className='relative flex min-h-0 flex-1 flex-col'>
+        <div className='flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2'>
+          {card.top}
+          {card.label ? <span className='text-[10px] uppercase tracking-wider text-muted'>{card.label}</span> : null}
+          {card.tiles.length > 0 ? (
+            <LockedFor id={card.lock} className='grid grid-cols-3 gap-1.5'>
+              {card.tiles.map((t, i) => <TileView key={t.key} tile={t} n={TILE_COMMANDS[i] ? keyLabel(keys, TILE_COMMANDS[i]) : null} onHint={setHint} />)}
+            </LockedFor>
+          ) : null}
+          {card.below}
+        </div>
+        {hinted ? <div className='pointer-events-none absolute inset-x-0 bottom-0 border-t border-accent/60 bg-raised/95 px-3 py-2 text-[11px] leading-snug text-fg'>{hinted}</div> : null}
       </div>
       <div className='flex flex-row items-center gap-2 border-t border-line bg-surface/60 p-2'>
         <FootKey act={back} fallback='back' hint={keyLabel(keys, 'card.back')} className='w-24' />
@@ -259,14 +275,14 @@ function DamageLine({ damage: { blunt, cut } }: { damage: Damage }){
   )
 }
 
-function TileView({ tile: t, n }: { tile: Tile, n: string | null }){
+function TileView({ tile: t, n, onHint }: { tile: Tile, n: string | null, onHint: (hint: string | null) => void }){
   const closed = !!t.bar
   const Icon = t.icon
   const look = closed ? 'border-dashed border-line bg-bg text-muted cursor-not-allowed'
     : t.selected ? 'border-accent bg-linear-to-b from-accent/25 to-accent/10 text-accent shadow-[0_2px_0_0_rgb(0_0_0/0.45)] cursor-pointer'
     : 'border-line bg-linear-to-b from-raised to-surface text-fg hover:border-accent shadow-[0_2px_0_0_rgb(0_0_0/0.45),inset_0_1px_0_0_rgb(255_255_255/0.06)] cursor-pointer'
   return (
-    <div className='relative flex'>
+    <div className='relative flex' onPointerEnter={() => onHint(t.hint ?? null)} onPointerLeave={() => onHint(null)}>
       <button type='button' disabled={closed} onClick={t.run}
         className={`relative flex min-h-[4.75rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-md border px-1 pb-1.5 pt-4 text-center leading-tight transition-[transform,box-shadow,border-color] active:translate-y-[2px] active:shadow-none focus-visible:outline-2 focus-visible:outline-accent ${look}`}>
         {n ? <span className='absolute left-1 top-1 rounded border border-line px-1 font-mono text-[9px] leading-3 text-muted'>{n}</span> : null}
@@ -332,6 +348,7 @@ function stepTiles(walk: string, step: WalkStep, { press }: Pick<Walked, 'press'
     damage: b.damage,
     cost: b.cost,
     note: b.note,
+    hint: b.hint,
     count: b.count,
     bar: b.bar ?? (step.kind !== 'pick' && b.command === null ? 'cannot be changed' : null),
     run: () => press(walk, step, b),
@@ -380,10 +397,19 @@ function declarationCard(view: DeclarationWalk, on: Walked, closeWalk: () => voi
 
 // What the roll leaves to choose, a step at a time; going on from the last
 // lands the action.
+const DEGREE_LOOK: Record<Degree, string> = { miss: 'text-bad', graze: 'text-accent', hit: 'text-good', critical: 'text-good' }
+
 function landingCard(view: LandingWalk, on: Walked, closeWalk: () => void): Card {
-  const { step, land } = view
+  const { step, land, result, hop } = view
   return {
     title: view.title,
+    top: result ? (
+      <div className='flex flex-row items-baseline gap-3 border-b border-line/60 pb-2'>
+        <span className={`text-lg font-bold uppercase tracking-wider ${DEGREE_LOOK[result.degree]}`}>{result.degree}</span>
+        <span className='font-mono text-[11px] text-muted'>d10 {result.die} · <span className='text-fg'>{result.score}</span> vs DL <span className='text-fg'>{result.DL}</span></span>
+        {hop ? <span className='ml-auto font-mono text-[11px]'><span className='text-accent'>{hop.remaining}</span><span className='text-muted'>/{hop.total} HOP</span></span> : null}
+      </div>
+    ) : null,
     label: step ? stepLabel(step) : null,
     tiles: step ? stepTiles(view.walk, step, on) : [],
     below: step?.note ? <span className='font-mono text-[11px] text-muted'>{step.note}</span> : null,
@@ -397,25 +423,6 @@ function landingCard(view: LandingWalk, on: Walked, closeWalk: () => void): Card
 }
 
 const STATUS_LABEL: Record<ReactorStatus, string> = { waiting: 'waiting', open: 'may react', reacting: 'reacting', passed: 'passed', done: 'done' }
-
-// The reactions put away: how many are made, whom the action waits on, and
-// the actor's go once it is open.
-function ReactionsButton({ view, onExpand, send }: { view: ExchangeWalk, onExpand: () => void, send: Walked['send'] }){
-  const { go } = view
-  return (
-    <>
-      <Button size='xs' aria-expanded={false} aria-label='show the reactions' onClick={onExpand}>
-        reactions <span className='font-mono text-muted'>{view.reacted}/{view.answerers.length}</span>
-      </Button>
-      {view.awaited.length > 0 ? <span className='text-accent'>waiting on {view.awaited.join(', ')}</span> : null}
-      {go.bar === null ? (
-        <LockedFor id={view.actorId}>
-          <ActionKey look='go' icon={go.label === 'roll' ? Dices : Play} aria-label={`${go.label} action`} onClick={() => send(go.command)}>{go.label}</ActionKey>
-        </LockedFor>
-      ) : null}
-    </>
-  )
-}
 
 // The reactions to the committed action: a chip for each reactor and where
 // they stand, the one shown walked a step at a time where they are the

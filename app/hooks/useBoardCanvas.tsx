@@ -34,6 +34,11 @@ export function useCellAt() {
   return getCellAt;
 }
 
+// The board drawn now telling the screen where it shows a character.
+export function useScreenSpots() {
+  return useCameraStore((s) => s.setWhere);
+}
+
 // The character this screen last asked the board's camera to look at, and
 // asking for one: the board snaps to them.
 export function useCameraAsked(): { id: string; n: number } | null {

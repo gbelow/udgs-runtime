@@ -64,6 +64,7 @@ export function openHarness(roll: Dice = () => 5, { table = false }: { table?: b
     const read = readClick(state(), c, { brush, radius, reposition, selected, newId: () => '' })
     if ('select' in read) useCombatStore.getState().setActiveCharacter(read.select)
     else if ('menu' in read) { if (read.menu.select) useCombatStore.getState().setActiveCharacter(read.menu.select) }
+    else if ('resume' in read) return
     else send({ kind: 'click', args: [c, brush, reposition, selected, radius] })
   }
 

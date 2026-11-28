@@ -9,6 +9,11 @@ import { getGoBar } from '../rules/options'
 import { getHeldBackAnswerers, getHeldBackBar } from '../rules/reactions'
 import { getFightName } from '../rules/fighters'
 import { getHeavyBase } from '../rules/modifiers'
+import { getHitHOP } from '../rules/damage'
+import { HOP_EFFECTS } from '../../tables'
+import { getCastHOPRemaining } from '../rules/cast'
+import { isAttackAction } from '../rules/actionCatalog'
+import type { Degree } from '../../types'
 import type { Damage } from '../../character/rules/gear'
 import { getActionOffers, getOpenLabel, type ReactorOptions } from './actionPanel'
 import { getOpenButtons } from './buttons'
@@ -87,7 +92,8 @@ const STEPS: readonly StepDef[] = [
 // is (`count`) and what takes one back (`undo`); `damage`, the blow an attack
 // row or a heavy degree lands; `cost`, what pressing it declares costs, and
 // `note`, what it is made with (a surge, and what the surge gives).
-export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null; damage?: Damage; cost?: ActionCost | null; note?: string | null }
+// `hint`, what it does, told on hover.
+export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null; damage?: Damage; cost?: ActionCost | null; note?: string | null; hint?: string }
 
 // `now`, the number a `steps` step stands at; `keep`, whether it may be gone
 // on from as it is: a pick with nothing chosen yet must be made; `note`,
@@ -99,11 +105,13 @@ export type WalkStep = { key: WalkKey; label: string; kind: StepKind; buttons: W
 type Walked = { walk: string; step: WalkStep | null; back: WalkKey | null }
 
 // `drop`, the action dropped (cancelled, or passed up where it opened on its
-// own); `summary`, what it is declared with as it stands, part by part.
+// own); `summary`, what it is declared with as it stands, part by part;
+// `aimed`, the character or item it is aimed at.
 export type DeclarationWalk = Walked & {
   kind: 'declare'
   actionId: string
   actorId: string
+  aimed: string | null
   title: string
   cost: ActionCost | null
   summary: { label: string; value: string }[]
@@ -132,9 +140,9 @@ export type AnswerWalk = Walked & {
 
 // The exchange: each reactor's walk, the one aimed at first, and how many
 // of them have reacted or passed (`reacted`); the actor's go, closed with
-// why; what else may be pressed, and whom it waits on. Once every reactor
-// has reacted or passed and nobody has anything left to say, the go is all
-// there is (`settled`), and it goes on its own.
+// why; what else may be pressed, and whom it waits on. Once the go is open,
+// nobody is in the middle of a reaction and nobody has anything left to say,
+// the go is all there is (`settled`), and it goes on its own.
 export type ExchangeWalk = {
   kind: 'exchange'
   actionId: string
@@ -156,11 +164,16 @@ export type ExchangeWalk = {
 // What the action lands with, a step at a time, then its landing, closed
 // with why while something is still to be chosen; `last`, whether the step
 // shown is the last to go on from before it lands.
+// `result`, how the roll came out: its degree, the die, the score it made
+// and the DL it stood against; `hop`, the overflow it has to spend, and how
+// much of it is left.
 export type LandingWalk = Walked & {
   kind: 'land'
   actionId: string
   actorId: string
   title: string
+  result: { degree: Degree; die: number; score: number; DL: number } | null
+  hop: { remaining: number; total: number } | null
   last: boolean
   land: { command: SceneCommand; bar: string | null }
 }
@@ -171,6 +184,20 @@ const COMMIT_BARS = { declare: 'it is not all declared yet', target: 'pick a tar
 
 // The walk as it stands, or none: nothing it walks is open, or what is open
 // has moved past what the popover plays.
+// Where the open action stands: its step, and of its reactions whether they
+// are all in. A walk put away comes back once this moves on.
+export function getOpenStage(state: SceneState): string | null {
+  const open = getOpenAction(state)
+  return open ? `${open.id}:${open.step}:${open.step === 'react' && areReactionsComplete(state, open)}` : null
+}
+
+// A declaration aimed anew while it is walked (on the board, or by its
+// step): its target step is gone on from, as a press of it would be.
+export function getAimedStep(before: OpenWalk | null, after: OpenWalk | null): { walk: string; key: WalkKey } | null {
+  if (before?.kind !== 'declare' || after?.kind !== 'declare' || before.walk !== after.walk) return null
+  return after.aimed !== null && after.aimed !== before.aimed ? { walk: after.walk, key: 'target' } : null
+}
+
 export function getOpenWalk(state: SceneState, walk: WalkState): OpenWalk | null {
   const open = getOpenAction(state)
   if (!open) return null
@@ -201,13 +228,16 @@ function getLandingWalk(state: SceneState, open: RootAction, passed: readonly Wa
   const offers = getActionOffers(state)
   const choices = getOpenChoices(state).filter((c) => c.actorId === open.actorId)
   const next = getNextStep(state)
-  const overflow: WalkStep | null = next === 'spend' && offers.hopOptions.length > 0 ? {
+  // only what may be bought now, or taken back
+  const buyable = offers.hopOptions.filter((o) => o.available || o.bought > 0)
+  const improvable = offers.castHOP.options.filter((o) => o.available || o.times > 0)
+  const overflow: WalkStep | null = next === 'spend' && buyable.length > 0 ? {
     key: 'overflow', label: 'overflow', kind: 'buys', now: null, keep: true,
-    buttons: offers.hopOptions.map((o) => ({ label: `${o.label} ${o.cost} HOP`, selected: o.bought > 0, count: o.bought, command: { kind: 'spend', args: [o.purchase] }, bar: o.available ? null : o.reason ?? 'closed', undo: o.bought > 0 && o.refundable ? { kind: 'refund', args: [o.purchase] } : null })),
+    buttons: buyable.map((o) => ({ label: `${o.label} ${o.cost} HOP`, selected: o.bought > 0, count: o.bought, command: { kind: 'spend', args: [o.purchase] }, bar: o.available ? null : o.reason ?? 'closed', undo: o.bought > 0 && o.refundable ? { kind: 'refund', args: [o.purchase] } : null, hint: HOP_EFFECTS[o.purchase].text })),
   } : null
-  const improve: WalkStep | null = next === 'spend' && offers.castHOP.options.length > 0 ? {
+  const improve: WalkStep | null = next === 'spend' && improvable.length > 0 ? {
     key: 'improve', label: 'improve', kind: 'buys', now: offers.castHOP.remaining, keep: true,
-    buttons: offers.castHOP.options.map((o) => ({ label: `${o.name} ${o.HOP} HOP`, selected: o.times > 0, count: o.times, command: { kind: 'improve', args: [o.name] }, bar: o.available ? null : 'not enough HOP', undo: o.times > 0 ? { kind: 'unimprove', args: [o.name] } : null })),
+    buttons: improvable.map((o) => ({ label: `${o.name} ${o.HOP} HOP`, selected: o.times > 0, count: o.times, command: { kind: 'improve', args: [o.name] }, bar: o.available ? null : 'not enough HOP', undo: o.times > 0 ? { kind: 'unimprove', args: [o.name] } : null, hint: o.text })),
   } : null
   const once = (key: WalkKey, label: string, button: string, command: SceneCommand): WalkStep => ({ key, label, kind: 'pick', now: null, keep: true, buttons: [{ label: button, selected: false, command }] })
   const steps = [
@@ -218,12 +248,16 @@ function getLandingWalk(state: SceneState, open: RootAction, passed: readonly Wa
     ...(offers.restMove ? [once('restMove', 'rest', 'tread', { kind: 'restMove', args: [] })] : []),
   ]
   const landable = getOpenButtons(state).some((b) => b.command.kind === 'resolve')
+  const roll = 'roll' in open ? open.roll : null
+  const hop = isAttackAction(open) ? getHitHOP(state, open) : open.kind === 'cast' ? { remaining: getCastHOPRemaining(open), total: open.roll?.HOP ?? 0 } : null
   return {
     kind: 'land',
     walk: landingKey(open.id),
     actionId: open.id,
     actorId: open.actorId,
     title: titleOf(state, open),
+    result: roll ? { degree: roll.degree, die: roll.die, score: roll.score, DL: roll.DL } : null,
+    hop: hop && hop.total > 0 ? { remaining: hop.remaining, total: hop.total } : null,
     ...walked(steps, passed, passed),
     last: steps.filter((s) => !passed.includes(s.key)).length === 1,
     land: { command: { kind: 'resolve', args: [] }, bar: landable ? null : next === 'choose' || next === 'react' ? LAND_BARS[next] : 'cannot land yet' },
@@ -246,6 +280,7 @@ function getDeclarationWalk(state: SceneState, open: Action, given: readonly Wal
     walk: walkKey(open.id),
     actionId: open.id,
     actorId: open.actorId,
+    aimed: 'targetId' in open && open.targetId ? open.targetId : 'object' in open && open.object ? open.object : null,
     title: titleOf(state, open),
     cost: getOwnCost(state, open),
     summary: summaryOf(choices, base),
@@ -285,7 +320,7 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
     testMode: choices.filter((c) => c.part === 'testMode').map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command })),
     awaited: offers.reactors.filter((r) => r.awaited).map((r) => r.name),
     hint: getReactionsTo(state, open.id).some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open) ? 'pick where the evasive jump lands on the board' : null,
-    settled: go !== null && accept === null && heldBack.length === 0 && answerers.every((a) => a.status === 'passed' || a.status === 'done'),
+    settled: go !== null && accept === null && heldBack.length === 0 && answerers.every((a) => a.status !== 'waiting' && a.status !== 'reacting'),
   }
 }
 

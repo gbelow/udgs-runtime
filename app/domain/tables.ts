@@ -229,17 +229,18 @@ export const MAX_TIER = 5
 // Properties"), null where any weapon may; `repeatable` whether it can be
 // bought more than once (combat.tex "Slice": "This can be bought multiple
 // times"; "Smash": "per HOP"); `gives` the HOP it adds to the hit (combat.tex
-// "Assassinate": "to increase HOPs by 5"). Assassinate, "Braced Attack" and
-// "Hook Attack" (the trip) are priced in AP and STA in ACTION_COSTS.
+// "Assassinate": "to increase HOPs by 5"); `text` what it does, in short.
+// Assassinate, "Braced Attack" and "Hook Attack" (the trip) are priced in AP
+// and STA in ACTION_COSTS.
 export const HOP_EFFECTS = {
-  bust:        { cost: 'deflection', property: 'penetrating', repeatable: false, gives: 0 },
-  slice:       { cost: 'deflection', property: null,          repeatable: true,  gives: 0 },
-  smash:       { cost: 1,            property: null,          repeatable: true,  gives: 0 },
-  handSwitch:  { cost: 3,            property: null,          repeatable: false, gives: 0 },
-  assassinate: { cost: 0,            property: 'precise',     repeatable: false, gives: 5 },
-  braced:      { cost: 0,            property: 'braced',      repeatable: false, gives: 0 },
-  hook:        { cost: 0,            property: 'hook',        repeatable: false, gives: 0 },
-} as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null; repeatable: boolean; gives: number }>
+  bust:        { cost: 'deflection', property: 'penetrating', repeatable: false, gives: 0, text: 'full cutting damage against armor as hard as the weapon' },
+  slice:       { cost: 'deflection', property: null,          repeatable: true,  gives: 0, text: '+25% cutting damage (half without the bladed property); may be bought again' },
+  smash:       { cost: 1,            property: null,          repeatable: true,  gives: 0, text: '+1 x DM blunt damage per HOP (half without the smasher property)' },
+  handSwitch:  { cost: 3,            property: null,          repeatable: false, gives: 0, text: 'the hit lands on the hand that blocked or intercepted without a shield' },
+  assassinate: { cost: 0,            property: 'precise',     repeatable: false, gives: 5, text: 'extra AP for +5 HOP: precise weapon, short range, against SD only' },
+  braced:      { cost: 0,            property: 'braced',      repeatable: false, gives: 0, text: 'extra AP and STA for +1.5 x STR x DM damage, and the target is trampled' },
+  hook:        { cost: 0,            property: 'hook',        repeatable: false, gives: 0, text: 'extra AP and STA for +STR/2 x DM damage on a jumper, +STR x DM on a runner; at legs or head, a knockdown instead' },
+} as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null; repeatable: boolean; gives: number; text: string }>
 
 // combat.tex "Slice": "increase cutting damage by 25%"; "Smash": "Increases
 // blunt damage by 1xDM per HOP". "Slice": "Weapons with the bladed property

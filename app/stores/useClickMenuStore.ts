@@ -11,13 +11,15 @@ export type MenuWalk = WalkState & { from: ClickMenu, category: string | null, p
 
 // The menu a click on the board has opened, until it is pressed or dismissed,
 // the category of it shown (`shown`), and the walk an entry of it started,
-// until what it walks is played out, dropped or dismissed. A step is walked
+// until what it walks is played out, dropped or dismissed; one dismissed is
+// kept (`put`) with where its action stood, to come back. A step is walked
 // through or gone back to in the list of passed steps its walk keeps
 // (`walkKey`).
 type ClickMenuStore = {
   menu: ClickMenu | null
   shown: string | null
   walk: MenuWalk | null
+  put: { walk: MenuWalk, stage: string | null } | null
   setMenu: (menu: ClickMenu | null, shown?: string | null) => void
   showCategory: (category: string | null) => void
   startWalk: (walk: MenuWalk) => void
@@ -26,7 +28,7 @@ type ClickMenuStore = {
   backWalk: (walk: string, key: WalkKey) => void
   pickReactor: (pick: ReactorPick) => void
   collapseWalk: (collapsed: boolean) => void
-  closeWalk: () => void
+  closeWalk: (stage?: string | null) => void
 }
 
 const passedOf = (walk: MenuWalk, key: string) => walk.passed[key] ?? []
@@ -35,6 +37,7 @@ export const useClickMenuStore = create<ClickMenuStore>((set) => ({
   menu: null,
   shown: null,
   walk: null,
+  put: null,
   setMenu: (menu, shown = null) => set(menu ? { menu, shown, walk: null } : { menu, shown: null }),
   showCategory: (shown) => set({ shown }),
   startWalk: (walk) => set({ menu: null, shown: null, walk }),
@@ -47,5 +50,5 @@ export const useClickMenuStore = create<ClickMenuStore>((set) => ({
   }),
   pickReactor: (pick) => set((s) => (s.walk ? { walk: { ...s.walk, pick, collapsed: false } } : {})),
   collapseWalk: (collapsed) => set((s) => (s.walk ? { walk: { ...s.walk, collapsed } } : {})),
-  closeWalk: () => set({ walk: null }),
+  closeWalk: (stage) => set((s) => (stage !== undefined && s.walk ? { walk: null, put: { walk: s.walk, stage } } : { walk: null })),
 }))
