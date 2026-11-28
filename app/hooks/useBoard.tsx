@@ -9,6 +9,7 @@ import { readClick, type Click } from "../domain/scene/commands/click";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useFloorToolStore } from "../stores/useFloorToolStore";
+import { useBoardToolsStore } from "../stores/useBoardToolsStore";
 import { useClickMenuStore } from "../stores/useClickMenuStore";
 import { resumeWalk } from "./useClickMenu";
 import { useGmPickStore } from "../stores/useGmPickStore";
@@ -132,3 +133,11 @@ export function useExplosionDraft() {
 }
 
 export type ExplosionDraftState = ReturnType<typeof useExplosionDraft>;
+
+// The GM's board tools picked in the GM tab (stores/useBoardToolsStore.ts),
+// and the floor tool picked beside them.
+export function useBoardTools() {
+  const tools = useBoardToolsStore();
+  const floorTool = useFloorToolStore((s) => s.floorTool);
+  return { ...tools, floorTool };
+}

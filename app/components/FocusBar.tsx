@@ -112,15 +112,15 @@ function Face({ face, picked, onPick }: { face: FaceCard, picked: boolean, onPic
   const lit = face.isActive || picked ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''
   return (
     <button type='button' aria-label={face.name} title={faceNote(face)} onClick={onPick}
-      className={`flex flex-col items-center gap-0.5 w-full shrink-0 cursor-pointer ${face.dead ? 'opacity-40' : ''}`}>
+      className={`flex flex-col items-center gap-0.5 w-full shrink-0 cursor-pointer rounded py-1 ${face.isInTurn ? 'bg-good/15 border border-good' : 'border border-transparent'} ${face.dead ? 'opacity-40' : ''}`}>
+      {face.isInTurn ? <span className='inline-flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider text-good'><Play size={9} aria-hidden className='fill-current' />in turn</span> : null}
       <span className='flex flex-row items-center gap-1.5'>
-        <span className={`relative flex items-center justify-center w-9 h-9 rounded-full border-2 bg-surface text-xs ${RIM[face.side]} ${lit} ${face.targetable ? 'animate-pulse' : ''}`}>
+        <span className={`flex items-center justify-center w-9 h-9 rounded-full border-2 bg-surface text-xs ${RIM[face.side]} ${lit} ${face.isInTurn ? 'shadow-[0_0_10px_2px] shadow-good/70' : ''} ${face.targetable ? 'animate-pulse' : ''}`}>
           {face.name.slice(0, 2)}
-          {face.isInTurn ? <Play size={10} aria-hidden className='absolute -top-1 -right-1 text-good fill-current' /> : null}
         </span>
         <MiniGauges gauges={face.gauges} />
       </span>
-      <span className={`max-w-full truncate text-[10px] ${face.isActive ? 'text-accent' : 'text-muted'}`}>{face.name}</span>
+      <span className={`max-w-full truncate text-[10px] ${face.isInTurn ? 'text-good font-semibold' : face.isActive ? 'text-accent' : 'text-muted'}`}>{face.name}</span>
     </button>
   )
 }

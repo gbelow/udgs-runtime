@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { useBoard } from '../hooks/useBoard'
+import { GmSceneTools } from './GmSceneTools'
+import { useBoard, useBoardTools } from '../hooks/useBoard'
 import { useBoardMaps } from '../hooks/useBoardMaps'
 import { useBoardVeil, useLitCell } from '../hooks/useBoardVeil'
 import { useBoardCamera, useCellAt, type BoardCamera } from '../hooks/useBoardCanvas'
@@ -104,17 +105,11 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
   const eyes = useEyes()
   const look = useBoardLook()
   const [storey, setStorey] = useState<number | null | 'auto'>('auto')
-  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, turn, light, laySurface, generateGround, resize, resizeWarning, brushIcons } = useBoard(look, storey)
+  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, explosion, turn, laySurface } = useBoard(look, storey)
   const veil = useBoardVeil(view)
   const { setLit } = useLitCell(view, veil.setOver)
   const cellAt = useCellAt()
-  const [brush, setBrush] = useState<TerrainBrush | null>(null)
-  const [laying, setLaying] = useState<string | null>(null)
-  const [frozen, setFrozen] = useState<string | null>(null)
-  const [onto, setOnto] = useState<SurfaceTarget>('ground')
-  const [radius, setRadius] = useState(0)
-  const [reposition, setReposition] = useState(false)
-  const [tools, setTools] = useState(false)
+  const { open: tools, brush, laying, frozen, onto, radius, reposition } = useBoardTools()
   const { gmTools } = useRole()
   const gmBar = useGmBar()
   const open = tools && gmTools
@@ -187,41 +182,10 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
         {look.front ? <TextInput className='w-14' type='number' min={LIFT_LEAST} max={LIFT_MOST} step={0.05} aria-label='lift per metre' title='how far a metre of height lifts the ground up the screen' value={look.lift} onChange={(e) => look.setLift(Number(e.target.value))} /> : null}
         {storeyPick}
         {eyesButton}
-        {gmTools ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false); setFloorTool(null) }}>GM board tools</Button> : null}
         {turnButton}
         <Button size='xs' weight='subtle' tone='bad' aria-label='remove board' disabled={gmBar !== null || view.mode !== 'idle'} title={gmBar ?? (view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach')} onClick={remove}>no grid</Button>
       </>}>
 
-      {open ? (<>
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        <SectionLabel>place</SectionLabel>
-        <Button size='xs' aria-label='reposition' selected={reposition} title='put the active character anywhere, placed before or not, and turn them'
-          onClick={() => { setReposition(!reposition); setBrush(null); setLaying(null); setFloorTool(null) }}>reposition</Button>
-      </div>
-
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        <SectionLabel>paint</SectionLabel>
-        <Button size='xs' selected={brush === null}
-          onClick={() => { setBrush(null); setLaying(null); setFloorTool(null) }}>control</Button>
-        {GROUND_BRUSHES.map((b) =>
-          <Button key={b} size='xs' selected={brush === b}
-            onClick={() => { setBrush(brush === b ? null : b); setLaying(null); setReposition(false); setFloorTool(null) }}><BrushFace brush={b} icons={brushIcons} /></Button>)}
-      </div>
-
-      <BrushSize radius={radius} setRadius={setRadius} />
-
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        <SectionLabel>light</SectionLabel>
-        <Segmented label='light'>
-          {LIGHT_LEVELS.map((l) =>
-            <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
-        </Segmented>
-      </div>
-      <SurfaceRow surfaces={view.surfaces} laying={surfacing ? laying : null} frozen={frozen} freeze={setFrozen} onto={onto} setOnto={setOnto} lay={(name) => { setLaying(laying === name ? null : name); setFrozen(null); setBrush(null); setReposition(false); setFloorTool(null) }} />
-      <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
-      <SizeRow key={`${view.extent.q},${view.extent.r},${view.extent.s}`} extent={view.extent} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
-      <MapsRow canSave />
-      </>) : null}
 
       {view.unplaced.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -232,6 +196,46 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
 
       {canvas}
     </Panel>
+  )
+}
+
+// The GM's tools for the scene and its board, opened as a tab beside the
+// catalogs: what the GM does to the scene, then, while there is a board,
+// where the active character stands, the terrain painted, the light, the
+// surfaces laid, the ground generated, its size and the maps kept.
+export function BoardGmTools(){
+  const { view, light, generateGround, resize, resizeWarning, brushIcons } = useBoard()
+  const { brush, laying, frozen, onto, radius, reposition, setBrush, setLaying, setFrozen, setOnto, setRadius, setReposition, floorTool } = useBoardTools()
+  const idle = floorTool === null
+  return (
+    <div className='flex flex-col gap-2'>
+      <GmSceneTools />
+      {view.present ? (<>
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>place</SectionLabel>
+          <Button size='xs' aria-label='reposition' selected={idle && reposition} title='put the active character anywhere, placed before or not, and turn them'
+            onClick={() => setReposition(!reposition)}>reposition</Button>
+        </div>
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>paint</SectionLabel>
+          <Button size='xs' selected={idle && brush === null && laying === null && !reposition} onClick={() => setBrush(null)}>control</Button>
+          {GROUND_BRUSHES.map((b) =>
+            <Button key={b} size='xs' selected={idle && brush === b} onClick={() => setBrush(brush === b ? null : b)}><BrushFace brush={b} icons={brushIcons} /></Button>)}
+        </div>
+        <BrushSize radius={radius} setRadius={setRadius} />
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>light</SectionLabel>
+          <Segmented label='light'>
+            {LIGHT_LEVELS.map((l) =>
+              <Segment key={l} selected={view.light === l} onClick={() => light(l)}>{l}</Segment>)}
+          </Segmented>
+        </div>
+        <SurfaceRow surfaces={view.surfaces} laying={idle && brush === null ? laying : null} frozen={frozen} freeze={setFrozen} onto={onto} setOnto={setOnto} lay={(name) => setLaying(laying === name ? null : name)} />
+        <GroundGenerator surfaces={view.surfaces} generate={generateGround} />
+        <SizeRow key={`${view.extent.q},${view.extent.r},${view.extent.s}`} extent={view.extent} bar={view.mode !== 'idle' ? 'an action is open' : null} resize={resize} warningFor={resizeWarning} />
+        <MapsRow canSave />
+      </>) : <span className='text-xs text-muted'>no board: the board tools open once there is a grid</span>}
+    </div>
   )
 }
 
