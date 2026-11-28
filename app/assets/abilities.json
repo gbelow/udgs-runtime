@@ -2963,7 +2963,7 @@
                 "miss",
                 "graze"
               ],
-              "defender": "target"
+              "defender": "any"
             },
             "opens": {
               "kind": "strike"
