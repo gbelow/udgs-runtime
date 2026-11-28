@@ -137,9 +137,12 @@ export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character,
 
 // combat.tex "Focus surge": "this surge is required to use ranged attacks" —
 // a shot or a throw. Only in a combat that has started (`charged`) is there a
-// surge to have made; anywhere else nothing is withheld.
-export function needsFocus(atk: WeaponAttack, c: Character, charged: boolean): boolean {
-  return charged && getAttackKind(atk.range) !== 'melee' && isCampaignCharacter(c) && !isReadied(c, 'ranged')
+// surge to have made; anywhere else nothing is withheld. With the variant
+// fired, a quick shot is spared it by Quick Shooter II ("Quick shots can be
+// done without focus surge. They still cannot be done during combat surge.").
+export function needsFocus(atk: WeaponAttack, c: Character, charged: boolean, variant?: string): boolean {
+  if (!charged || getAttackKind(atk.range) === 'melee' || !isCampaignCharacter(c) || isReadied(c, 'ranged')) return false
+  return !(variant === SHOTS.quickShot.variant && hasGrant(c, 'unfocusedQuickShot') && c.usedSurge !== 'combat')
 }
 
 // gear.tex "Reload": "The weapon requires reloading to attack again" — a
@@ -269,6 +272,9 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     // Variation prices are deltas on the row's AP (combat.tex "Strike").
     const quickCost = getActionCost(c, 'quickShot')
     const snipeCost = getActionCost(c, 'snipe')
+    // a normal shot is the row's own price, moved only by the shooter's
+    // abilities, so its variations stay deltas on the unmoved row
+    const shootCost = kind === 'shoot' ? getActionCost(c, 'shoot') : { AP: 0, STA: 0 }
     // combat.tex "Throw": a throw carries the row's own figure, at the
     // weapon's scale ("Throwable weapons gain range based on STR" names no
     // formula, so none is applied), and "Accuracy" charges it the distance
@@ -276,7 +282,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     const shooting = kind === 'shoot' || kind === 'throw'
     const reach = shooting ? getShotReach(atk, weapon, c) : null
     const distance = (shot: ShotKind) => (shooting ? getShotDistanceRate(shot, c) : null)
-    const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach, distance: distance('shoot') }
+    const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP: AP + shootCost.AP, STA: shootCost.STA, penalty: 0, blunt, cut, reach, distance: distance('shoot') }
     // combat.tex "Braced Attack", "Hook Attack": declared at the normal
     // attack's price; what they add is bought after the hit
     const braced: AttackVariant = { ...basic, name: 'braced', reach: null, distance: null }

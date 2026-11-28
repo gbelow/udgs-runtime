@@ -631,8 +631,8 @@ export const RUN_START_AP = 2
 // combat.tex — the AP/STA price of each named action, in the book's own
 // numbers. An attack variation is a delta on the weapon row's own AP
 // ("Strike": "The AP cost is 3 AP, but that may be modified by attack
-// variations"), so `quickShot` is negative and `reload` is 0: the row carries
-// the base and the entry exists so an ability can move it. Everything else is
+// variations"), so `quickShot` is negative and `shoot` and `reload` are 0: the
+// row carries the base and the entry exists so an ability can move it. Everything else is
 // the full price of a standalone action or reaction.
 export const ACTION_COSTS = {
   // attack variations — combat.tex "Heavy Attack", "Sweeping Attack",
@@ -645,6 +645,7 @@ export const ACTION_COSTS = {
   braced:    { AP: 2, STA: 1 },
   hook:      { AP: 2, STA: 1 },
   assassinate: { AP: 1, STA: 0 },
+  shoot:     { AP: 0, STA: 0 },
   snipe:     { AP: 2, STA: 0 },
   quickShot: { AP: -1, STA: 0 },
   reload:    { AP: 0, STA: 0 },

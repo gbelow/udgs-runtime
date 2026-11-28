@@ -1322,22 +1322,12 @@
             }
           ]
         ],
-        "description": "Reduces distance penalty of normal shots to -1.",
-        "effect": [
-          {
-            "name": "",
-            "trigger": "instant",
-            "type": "buff",
-            "effect": {
-              "target": "distance:shoot",
-              "operation": "+",
-              "value": -1,
-              "when": null
-            }
-          }
-        ],
+        "description": "Quick shots can be done without focus surge. They still cannot be done during combat surge.",
+        "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "unfocusedQuickShot"
+        ],
         "rollModes": [],
         "surgeAllows": [],
         "attitudes": [],
@@ -1372,14 +1362,25 @@
             }
           ]
         ],
-        "description": "Reduces AP cost of quick shots by 1.",
+        "description": "Reduces distance penalty of normal shots to -1, and reduces their AP cost by 1.",
         "effect": [
           {
             "name": "",
             "trigger": "instant",
             "type": "buff",
             "effect": {
-              "target": "ap:quickShot",
+              "target": "distance:shoot",
+              "operation": "+",
+              "value": -1,
+              "when": null
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "ap:shoot",
               "operation": "+",
               "value": -1,
               "when": null

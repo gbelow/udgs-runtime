@@ -1,4 +1,5 @@
 import { getDiceBar } from '../../play/calls'
+import { isReadied } from '../../character/rules/readied'
 import { isCombatStarted } from './started'
 import { ABILITIES } from '../../abilities'
 import { COUNTERSPELL, getCounterspellBar } from './counterspell'
@@ -555,11 +556,13 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       }
       // abilities.tex "Counterattack": a strike of their own, so it is open
       // only to someone who can pay for one; "Archer's Reflexes": to a shot, a
-      // quick shot of their own
+      // quick shot of their own, "as long as the shooter has used focus surge
+      // that round", even where a quick shot is made without it
       case 'counterattack': {
         if (open.kind === 'shoot') {
           const quick = getFreeAttackOptions(state, c, 'shoot').filter((s) => s.variant === SHOTS.quickShot.variant)
-          const reason = quick.length === 0 ? 'no quick shot in hand' : quick.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged)) ? null : 'cannot afford a quick shot'
+          const reason = charged && !isReadied(c, 'ranged') ? NEEDS_FOCUS
+            : quick.length === 0 ? 'no quick shot in hand' : quick.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged)) ? null : 'cannot afford a quick shot'
           return [answer({ kind, mode: 'shoot' }, null, gate ?? reason)]
         }
         const strikes = getFreeAttackOptions(state, c, 'strike')

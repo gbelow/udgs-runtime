@@ -77,12 +77,12 @@ function rowFits(atk: WeaponAttack, kind: AttackAction['kind']): boolean {
 // open, closed, or held of that kind and usable but for the focus surge
 // (combat.tex "Focus surge": "required to use ranged attacks"), for
 // anything to load it with (gear.tex "Quiver") or for a reload (gear.tex
-// "Reload").
+// "Reload"). Given a variant, as it stands for firing that variant.
 export type RowState = 'open' | 'unfocused' | 'unloaded' | 'empty' | 'closed'
 
-export function getRowState(c: Character, row: WeaponRow, kind: AttackAction['kind'], charged: boolean): RowState {
+export function getRowState(c: Character, row: WeaponRow, kind: AttackAction['kind'], charged: boolean, variant?: string): RowState {
   if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return 'closed'
-  if (needsFocus(row.atk, c, charged)) return 'unfocused'
+  if (needsFocus(row.atk, c, charged, variant)) return 'unfocused'
   return isRowLoadable(c, row) ? 'open' : needsReload(row.atk) ? 'empty' : 'unloaded'
 }
 
@@ -92,7 +92,7 @@ export function getRowState(c: Character, row: WeaponRow, kind: AttackAction['ki
 // null while it names no row of the attack's kind the attacker can fire.
 export function getAttackVariant(c: Character, action: AttackAction, charged: boolean): AttackVariant | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  if (!row || getRowState(c, row, action.kind, charged) !== 'open') return null
+  if (!row || getRowState(c, row, action.kind, charged, action.variant) !== 'open') return null
   const variant = findRowVariant(c, row, action.variant)
   const degree = 'heavy' in action ? getHeavyDegree(c, action) : 0
   if (!variant || degree === 0) return variant
@@ -180,8 +180,7 @@ export type AttackOption = {
 // (rules/heavy.ts).
 export function getAttackOptions(c: Character, kind: AttackAction['kind'], charged: boolean): AttackOption[] {
   return getWeaponRows(c).flatMap((row) => {
-    if (getRowState(c, row, kind, charged) !== 'open') return []
-    return getRowVariants(c, row).map((variant) => {
+    return getRowVariants(c, row).filter((variant) => getRowState(c, row, kind, charged, variant.name) === 'open').map((variant) => {
       const degree = kind === 'strike' ? getHeavyDegree(c, { weaponKey: row.wielded.key, attack: row.atk.name, variant: variant.name }) : 0
       if (degree === 0) return variant
       const heavy = getHeavyVariation(row.atk, row.weapon, c, degree)
