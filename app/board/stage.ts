@@ -411,7 +411,9 @@ export class BoardStage {
     if (holder?.id === this.followed) return
     this.followed = holder?.id ?? null
     if (!holder || !this.camera.zoomed) return
-    const to = this.centred(tokenBody(holder), this.camera.scale)
+    const body = tokenBody(holder)
+    const to = this.centred(body, this.camera.scale)
+    if (!this.nearer(body, { ...to, scale: this.camera.scale })) return
     const ms = this.playback.paced(GLIDE_MS)
     if (ms === 0) {
       this.glide = null
@@ -448,11 +450,22 @@ export class BoardStage {
     return { x: box.left + x + body.x * scale, y: box.top + y + body.y * scale, radius: body.radius * scale }
   }
 
-  // The camera snapped to a character, at least as close as by default.
+  // The camera snapped to a character, at least as close as by default,
+  // only where that brings them nearer the canvas's middle than they are.
   lookAt(id: string) {
     const t = this.input?.view.tokens.find((x) => x.id === id)
     if (!t) return
-    this.setCamera(Math.max(this.camera.scale, this.scales().close), tokenBody(t))
+    const body = tokenBody(t)
+    const scale = Math.max(this.camera.scale, this.scales().close)
+    if (this.nearer(body, { ...this.centred(body, scale), scale })) this.setCamera(scale, body)
+  }
+
+  // Whether the camera at `to` draws the point `at` nearer the canvas's
+  // middle than the camera does now, by more than a pixel.
+  private nearer(at: Point, to: { x: number; y: number; scale: number }): boolean {
+    const { width, height } = this.app.screen
+    const off = (c: { x: number; y: number; scale: number }) => Math.hypot(c.x + at.x * c.scale - width / 2, c.y + at.y * c.scale - height / 2)
+    return off(to) < off(this.camera) - 1
   }
 
   private zoomAt(factor: number, at: Point) {
