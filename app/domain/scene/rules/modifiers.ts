@@ -9,8 +9,8 @@ import { makeAction } from '../factories'
 import { getRootOf } from './log'
 import { canGrab, isGrappleRowOf } from './grapple'
 import { canSweep, isSweepLink } from './sweep'
-import { ACTIONS, isReaction } from './actionCatalog'
-import { getRecipeLabel, getRecipesOf, type RecipeEntry } from './recipes'
+import { ACTIONS, isAttackAction, isReaction } from './actionCatalog'
+import { getRecipeHitTerms, getRecipeLabel, getRecipesOf, type RecipeEntry } from './recipes'
 import { canCarryStep, getCombinedMoves, getCombinedPrice, getCombinedTerms, isCombinedDefense } from './combinedMove'
 import { canCarryJump, isJumpAttack } from './attackJump'
 import { getHeavyDegree, getHeavyDegrees } from './heavy'
@@ -325,6 +325,13 @@ export function addModifierLines(from: ActionCost, added: CostTerm[]): CostTerm[
 export function getModifiedTotal(state: SceneState, action: Action, base: ActionCost): ActionCost {
   const price = getModifiedPrice(state, action, base)
   return [price.declared, ...addModifierLines(price.declared, price.added)].reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
+}
+
+// What a draft of `actorId` would put on its own test by how it is declared:
+// its modifiers and its recipe's hit; `reactionTo`, the action it answers.
+export function getDraftTerms(state: SceneState, actorId: string, draft: ActionDraft, reactionTo: string | null = null): Term[] {
+  const probe = makeAction(draft.kind, { ...draft, id: '', actorId, reactionTo } as Parameters<typeof makeAction>[1])
+  return [...getModifierTerms(state, probe), ...(isAttackAction(probe) ? getRecipeHitTerms(state, probe) : [])].filter((t) => t.value !== 0)
 }
 
 // What the action's modifiers put on its own test.

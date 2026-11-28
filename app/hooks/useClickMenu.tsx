@@ -4,10 +4,12 @@ import { getAimCells, type BoardView } from "../domain/scene/projections/boardVi
 import { getPopoverAim, getPressActor, getResumed, getTurnMenu, type MenuEntry } from "../domain/scene/commands/clickMenu";
 import { getStartTurnBar } from "../domain/scene/rules/turn";
 import type { SceneCommand } from "../domain/scene/commands/registry";
-import { getAimedStep, getGivenSteps, getOpenStage, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
+import { getAimedStep, getGivenSteps, getOpenStage, getOpenWalk, getShownReactor, getWaitingReactors, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
 import { useControlled } from "./useControl";
 import { useClickMenuStore, type MenuWalk } from "../stores/useClickMenuStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useCampaignStore } from "../stores/useCampaignStore";
+import { getOwner, isBot } from "../domain/profiles";
 import { useFollowPick } from "./useFollowPick";
 import { useSceneDispatch } from "./useSceneDispatch";
 
@@ -125,6 +127,53 @@ export function useMarkedCells(view: BoardView): readonly string[] {
     return from && !(from.at.on === "token" && from.at.id === from.actor) ? from.at : null;
   });
   return useMemo(() => getAimCells(view, at), [view, at]);
+}
+
+// A reaction waiting on one of the viewer's own characters while the popover
+// is not showing it, as a button where that character is drawn: the first
+// such character, where on the screen, and the press that brings the
+// reactions up, theirs shown. Characters a bot plays react by themselves.
+export function useReactPrompt(): { name: string; at: ScreenSpot; open: () => void } | null {
+  const menu = useClickMenuStore((s) => s.menu);
+  const walk = useClickMenuStore((s) => s.walk);
+  const waiting = useCombatStore((s) => getWaitingReactors(s).join()).split(",").filter(Boolean);
+  const owners = useCampaignStore((s) => s.owners);
+  const people = waiting.filter((id) => !isBot(getOwner(id, owners) ?? ""));
+  const controlled = useControlled(people);
+  const id = controlled[0] ?? null;
+  const shown = walkOf(useCombatStore.getState(), walk);
+  const away = !menu && (!shown || (shown.kind === "exchange" && walk?.collapsed === true) || (shown.kind === "exchange" && walk?.collapsed !== false && !hasOwnToReact(shown.answerers, controlled)));
+  const name = useCombatStore((s) => (id ? s.characters[id]?.name ?? "" : ""));
+  const at = useTrackedSpot(away ? id : null);
+  if (!id || !away || !at) return null;
+  const open = () => {
+    useCombatStore.getState().setActiveCharacter(id);
+    resumeWalk();
+    useClickMenuStore.getState().pickReactor({ id, review: false });
+  };
+  return { name, at, open };
+}
+
+// Where on the screen the board draws character `id`, followed frame by frame.
+function useTrackedSpot(id: string | null): ScreenSpot | null {
+  const [spot, setSpot] = useState<ScreenSpot | null>(null);
+  useEffect(() => {
+    if (!id) return setSpot(null);
+    let frame = 0;
+    let last = "";
+    const look = () => {
+      const at = useCameraStore.getState().where?.(id) ?? null;
+      const key = at ? `${Math.round(at.x)}:${Math.round(at.y)}:${Math.round(at.radius)}` : "";
+      if (key !== last) {
+        last = key;
+        setSpot(at);
+      }
+      frame = requestAnimationFrame(look);
+    };
+    look();
+    return () => cancelAnimationFrame(frame);
+  }, [id]);
+  return id ? spot : null;
 }
 
 const NO_REACTORS: AnswerWalk[] = [];

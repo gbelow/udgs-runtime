@@ -1,4 +1,5 @@
 import type { ActionDraft, Coord, SceneState, SeenScene, Updater } from '../types'
+import type { Term } from '../../character/rules/terms'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { Throw } from '../../play/calls'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -10,7 +11,7 @@ import { getFreeAttackOptions } from '../rules/attack'
 import { getNeededExtend, getSpellOptions } from '../rules/cast'
 import { canTreadToShoot } from '../rules/steadyArms'
 import { isVariantOpenOn } from '../rules/strikeDeclaration'
-import { getModifierToggles } from '../rules/modifiers'
+import { getDraftTerms, getModifierToggles } from '../rules/modifiers'
 import { sameCell } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
 import { getDeclaredHiddenTargets, getOwnCost, getReleaseBar, needsTarget } from '../rules/action'
@@ -58,7 +59,8 @@ export const getPressActor = (press: MenuPress): string => (press.kind === 'decl
 // `bar`, why it cannot be pressed now; `surge`, the surge it is made on.
 // `damage`, the blow an attack row lands; `note`, what an answer is made
 // with: the surge, and what it gives.
-export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress, damage?: Damage, note?: string, hint?: string }
+// `terms`, what the action as the entry declares it puts on its own test.
+export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress, damage?: Damage, note?: string, hint?: string, terms?: Term[] }
 
 // The entries of one category, and how many of them may be pressed now.
 export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntry[], open: number }
@@ -239,7 +241,7 @@ function getEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter,
   const own = ready.characters[c.id]
   const bar = o.available || (needs && ready !== state) ? null : o.reason ?? 'closed'
   const entry = (label: string, cost: ActionCost | null, fields: Partial<ActionDraft> = {}, closed: string | null = null, made: SurgeKind | null = needs): MenuEntry =>
-    aimed(state, { label, category, cost, surge: made, bar: bar ?? closed, press: { kind: 'declare', actorId: c.id, draft, fields, aim: at, surge: made } })
+    aimed(state, withTerms(state, c.id, { ...draft, ...fields } as ActionDraft, null, { label, category, cost, surge: made, bar: bar ?? closed, press: { kind: 'declare', actorId: c.id, draft, fields, aim: at, surge: made } }))
   switch (draft.kind) {
     case 'strike':
     case 'shoot': {
@@ -284,6 +286,13 @@ function probe(state: SceneState, press: MenuPress): SceneState {
 // with each move it may carry that brings them in reach: a jump, aimed at them
 // from where it lands (abilities.tex "Lunge"), or a tread, drawn before they
 // are aimed at (abilities.tex "Steady Arms").
+// An entry with what its action puts on its own test, where it puts anything.
+function withTerms(state: SceneState, actorId: string, draft: ActionDraft, reactionTo: string | null, entry: MenuEntry): MenuEntry {
+  const { terms: _, ...rest } = entry
+  const terms = getDraftTerms(state, actorId, draft, reactionTo)
+  return terms.length > 0 ? { ...rest, terms } : rest
+}
+
 // An attack row's entry, with the blow it lands.
 const damaged = ({ blunt, cut }: Damage, entry: MenuEntry): MenuEntry => ({ ...entry, damage: { blunt, cut } })
 const hinted = (hint: string | undefined, entry: MenuEntry): MenuEntry => (hint ? { ...entry, hint } : entry)
@@ -300,7 +309,7 @@ function withMoves(state: SceneState, plain: MenuEntry): MenuEntry[] {
     const unaimed = probe(state, { ...carrying, aim: null })
     const attack = getOpenAction(unaimed)
     if (!attack) return []
-    const entry: MenuEntry = { ...plain, label: `${plain.label} (${t.label})`, cost: getOwnCost(unaimed, attack) ?? plain.cost, bar: null, press: carrying }
+    const entry: MenuEntry = withTerms(state, press.actorId, { ...press.draft, ...carrying.fields } as ActionDraft, null, { ...plain, label: `${plain.label} (${t.label})`, cost: getOwnCost(unaimed, attack) ?? plain.cost, bar: null, press: carrying })
     if (isAimed(probe(state, carrying), at)) return [entry]
     return attack.kind === 'shoot' && canTreadToShoot(unaimed, attack, at.id) ? [{ ...entry, press: { ...carrying, aim: null } }] : []
   })
@@ -351,7 +360,7 @@ function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
       const surge = o.surge && !label.includes(`${o.surge} surge`) ? o.surge : null
       const on = o.surge ?? c.usedSurge
       const note = on ? `${on} surge${gives(on) ? ` ${gives(on)}` : ''}` : undefined
-      return { label, category: 'answer', cost: o.cost, surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge }, ...(note ? { note } : {}) }
+      return withTerms(state, id, o.draft, o.reactionTo, { label, category: 'answer', cost: o.cost, surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge }, ...(note ? { note } : {}) })
     }),
     { label: getPassLabel(state, id, options).label, category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
   ]

@@ -1,13 +1,14 @@
 import type { Action, ActionDraft, SceneState } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import type { Damage } from '../../character/rules/gear'
+import type { Term } from '../../character/rules/terms'
 import { getModifierToggles } from '../rules/modifiers'
 
 // What an action may be declared as besides, as every panel that declares one
 // shows it: each modifier offered as a toggle and open where the action
 // stands, or declared already so it can be taken back, what it does to the
 // price and the test, and what pressing it declares.
-export type ModifierView = { key: string; label: string; on: boolean; allowed: boolean; title: string; press: Partial<ActionDraft>; damage: Damage | null }
+export type ModifierView = { key: string; label: string; on: boolean; allowed: boolean; title: string; terms: Term[]; press: Partial<ActionDraft>; damage: Damage | null }
 
 export function getModifierViews(state: SceneState, action: Action): ModifierView[] {
   return getModifierToggles(state, action).map((t) => ({
@@ -16,6 +17,7 @@ export function getModifierViews(state: SceneState, action: Action): ModifierVie
     on: t.on,
     allowed: t.allowed,
     title: t.allowed ? [priceText(t.price), ...t.terms.map((term) => `${signed(term.value)} to the test`)].filter((s) => s !== '').join(', ') : 'cannot be declared here',
+    terms: t.terms.filter((term) => term.value !== 0),
     press: t.press,
     damage: t.damage,
   }))

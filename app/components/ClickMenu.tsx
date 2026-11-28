@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Check, ChevronLeft, ChevronRight, ChevronUp, Dices, Hourglass, Lock, Minus, Play, X, type LucideIcon } from 'lucide-react'
-import { useClickMenu, useOpenWalk, usePopoverSpot } from '../hooks/useClickMenu'
+import { useClickMenu, useOpenWalk, usePopoverSpot, useReactPrompt } from '../hooks/useClickMenu'
 import { ActionKey, Button, Closed, Floating, IconButton } from './ui'
 import { LockedFor } from './Locks'
 import type { ClickMenu, MenuEntry } from '../domain/scene/commands/clickMenu'
@@ -9,6 +9,7 @@ import type { SceneCommand } from '../domain/scene/commands/registry'
 import type { AnswerWalk, DeclarationWalk, ExchangeWalk, HeldWalk, LandingWalk, ReactorStatus, WalkButton, WalkStep } from '../domain/scene/projections/openWalk'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Degree } from '../domain/types'
+import type { Term } from '../domain/character/rules/terms'
 import type { Damage } from '../domain/character/rules/gear'
 import { ACTION_ICONS, CATEGORY_ICONS } from './actionIcons'
 import { useKeyMap } from '../hooks/useKeyMap'
@@ -24,7 +25,7 @@ const MENU_ROOM = 340
 // on its left and the press that goes on on its right (going on, committing,
 // rolling, landing), and another key cancels what the screen is choosing. Which keys they are is the key
 // profile's (app/keys.ts).
-type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; note?: ReactNode; hint?: string; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
+type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; terms?: readonly Term[]; note?: ReactNode; hint?: string; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
 type Act = { label: string; run: () => void; bar?: string | null; icon?: LucideIcon }
 type Card = {
   title: ReactNode
@@ -302,6 +303,7 @@ function TileView({ tile: t, n, onHint }: { tile: Tile, n: string | null, onHint
           </span>
         ) : null}
         {t.damage ? <DamageLine damage={t.damage} /> : null}
+        {t.terms?.length ? <TermsLine terms={t.terms} /> : null}
         {closed ? <span className='flex flex-row items-center gap-0.5 text-[9px]'><Lock size={9} aria-hidden />{t.bar}</span> : t.note ? <span className='text-[9px] text-muted'>{t.note}</span> : null}
       </button>
       {t.undo ? (
@@ -311,6 +313,19 @@ function TileView({ tile: t, n, onHint }: { tile: Tile, n: string | null, onHint
         </button>
       ) : null}
     </div>
+  )
+}
+
+// What a tile puts on the test it is rolled with, each term signed and named.
+function TermsLine({ terms }: { terms: readonly Term[] }){
+  return (
+    <span className='flex flex-col items-center text-[9px] leading-tight' title='what this puts on your roll'>
+      {terms.map((term) => (
+        <span key={term.label} className={term.value > 0 ? 'text-good' : 'text-bad'}>
+          <span className='font-mono font-bold'>{term.value > 0 ? `+${term.value}` : term.value}</span> to the roll
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -343,7 +358,7 @@ function menuCard(menu: ClickMenu, shown: string | null, on: MenuPresses): Card 
     </>
   ) : null
   const tiles: Tile[] = group
-    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, note: e.note ?? (e.surge ? `${e.surge} surge` : null), hint: e.hint, bar: e.bar, run: () => on.press(e) }))
+    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, terms: e.terms, note: e.note ?? (e.surge ? `${e.surge} surge` : null), hint: e.hint, bar: e.bar, run: () => on.press(e) }))
     : groups.map((g) => ({ key: g.category, label: g.category, icon: CATEGORY_ICONS[g.category], note: <><span className='font-mono'>{g.open}</span> of <span className='font-mono'>{g.entries.length}</span> open</>, bar: g.entries.length === 0 ? 'nothing to do' : null, run: () => on.show(g.category) }))
   return {
     title: menu.title,
@@ -365,6 +380,7 @@ function stepTiles(walk: string, step: WalkStep, { press }: Pick<Walked, 'press'
     label: b.label,
     selected: b.selected,
     damage: b.damage,
+    terms: b.terms,
     cost: b.cost,
     note: b.note,
     hint: b.hint,
@@ -498,6 +514,9 @@ function exchangeCard(view: ExchangeWalk, on: Walked): Card {
   const done = reactor && !reactor.step && reactor.done && reactor.done.state !== 'said' ? reactor.done : null
   const top = (
     <>
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-0.5 rounded border border-line/60 bg-surface/60 px-2 py-1'>
+        {view.about.map((a) => <span key={a.label}><span className='text-muted'>{a.label}</span> {a.value}</span>)}
+      </div>
       {view.answerers.length > 1 ? (
         <div className='flex flex-row flex-wrap gap-1'>
           {view.answerers.map((a) => (
@@ -569,5 +588,20 @@ export function MenuEntryKey({ entry, onPress }: { entry: MenuEntry, onPress: ()
         {entry.label}{entry.surge ? <span className='text-accent'> {entry.surge} surge</span> : null}
       </ActionKey>
     </Closed>
+  )
+}
+
+// A reaction waiting on a character of the viewer's while the popover is not
+// up: a button over that character, which brings it up.
+export function ReactPrompt(){
+  const prompt = useReactPrompt()
+  if (!prompt) return null
+  const { name, at, open } = prompt
+  return (
+    <button type='button' onClick={open} title={`${name} can react: open the reactions`} aria-label={`react with ${name}`}
+      style={{ position: 'fixed', left: at.x, top: at.y - at.radius - 6 }}
+      className='z-10 -translate-x-1/2 -translate-y-full flex flex-row items-center gap-1 px-2 py-0.5 rounded-full border border-accent bg-raised text-accent text-xs font-semibold shadow-lg shadow-black/50 animate-pulse hover:animate-none hover:bg-accent hover:text-bg'>
+      <Hourglass size={12} aria-hidden /> react
+    </button>
   )
 }

@@ -1,3 +1,4 @@
+import type { Term } from '../../character/rules/terms'
 import type { Action, RootAction, SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import type { MenuPress } from '../commands/clickMenu'
@@ -17,7 +18,9 @@ import { isAttackAction } from '../rules/actionCatalog'
 import type { Degree } from '../../types'
 import type { Damage } from '../../character/rules/gear'
 import { getActionOffers, getOpenLabel, type ReactorOptions } from './actionPanel'
-import { HOP_LABELS } from './labels'
+import { HOP_LABELS, getDraftWeapon } from './labels'
+import { getHeavyName } from '../../character/rules/gear'
+import { SPELLS, isSpellKey } from '../../spells'
 import { getOpenButtons } from './buttons'
 import { getOpenChoices, type ChoicePart, type OpenChoice } from './choices'
 
@@ -95,7 +98,8 @@ const STEPS: readonly StepDef[] = [
 // row or a heavy degree lands; `cost`, what pressing it declares costs, and
 // `note`, what it is made with (a surge, and what the surge gives).
 // `hint`, what it does, told on hover.
-export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null; damage?: Damage; cost?: ActionCost | null; note?: string | null; hint?: string }
+// `terms`, what it puts on the test the action is rolled with.
+export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null; damage?: Damage; cost?: ActionCost | null; note?: string | null; hint?: string; terms?: Term[] }
 
 // `now`, the number a `steps` step stands at; `keep`, whether it may be gone
 // on from as it is: a pick with nothing chosen yet must be made; `note`,
@@ -165,6 +169,8 @@ export type ExchangeWalk = {
   actorId: string
   targetId: string | null
   title: string
+  // what the action is: who makes it, with what, how and where
+  about: { label: string; value: string }[]
   answerers: AnswerWalk[]
   reacted: number
   heldBack: { id: string; name: string; command: SceneCommand }[]
@@ -347,6 +353,7 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
     actorId: open.actorId,
     targetId,
     title: titleOf(state, open),
+    about: getExchangeAbout(state, open),
     answerers,
     reacted: answerers.filter((a) => a.status === 'passed' || a.status === 'done').length,
     heldBack,
@@ -423,6 +430,30 @@ export function hasOwnToReact(answerers: readonly AnswerWalk[], controlled: read
   return answerers.some((a) => controlled.includes(a.id) && (a.status === 'waiting' || a.status === 'reacting') && !isFinished(a))
 }
 
+// What the action reacted to is, for whoever reacts: who makes it, with
+// what weapon and attack, how heavy, what it is made as and where it is
+// aimed, or the spell cast.
+function getExchangeAbout(state: SceneState, open: RootAction): { label: string; value: string }[] {
+  const lines: { label: string; value: string }[] = [{ label: 'by', value: getFightName(state, open.actorId) }]
+  if (isAttackAction(open)) {
+    const weapon = getDraftWeapon(state, open.actorId, open)
+    if (weapon) lines.push({ label: 'with', value: open.attack ? `${weapon}, ${open.attack}` : weapon })
+    if (open.kind === 'strike' && open.heavy > 0) lines.push({ label: 'heavy', value: getHeavyName(open.heavy) })
+    if (open.variant) lines.push({ label: 'as', value: open.variant })
+    const part = open.targetId && open.part ? state.characters[open.targetId]?.body.find((p) => p.id === open.part)?.name : undefined
+    if (open.targetId) lines.push({ label: 'at', value: part ?? open.location })
+  }
+  if (open.kind === 'cast' && isSpellKey(open.key)) lines.push({ label: 'spell', value: SPELLS[open.key].name })
+  return lines
+}
+
+// Who the open action's reactions still wait on, none while it is not reacted to.
+export function getWaitingReactors(state: SceneState): string[] {
+  const open = getOpenAction(state)
+  if (!open || open.step !== 'react' || !isRootAction(open)) return []
+  return getExchangeWalk(state, open, () => []).answerers.filter((a) => (a.status === 'waiting' || a.status === 'reacting') && !isFinished(a)).map((a) => a.id)
+}
+
 function titleOf(state: SceneState, open: Action): string {
   const label = getOpenLabel(state, open)
   return 'targetId' in open && open.targetId && state.characters[open.targetId] ? `${label} → ${getFightName(state, open.targetId)}` : label
@@ -497,7 +528,7 @@ function toStep(def: StepDef, choices: OpenChoice[]): WalkStep | null {
   switch (kind) {
     case 'pick': {
       if (!choices.some((c) => !c.chosen)) return null
-      return { key, label, kind, now: null, keep: choices.some((c) => c.chosen), buttons: choices.map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command, ...(c.damage ? { damage: c.damage } : {}), ...(c.hint ? { hint: c.hint } : {}) })) }
+      return { key, label, kind, now: null, keep: choices.some((c) => c.chosen), buttons: choices.map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command, ...(c.damage ? { damage: c.damage } : {}), ...(c.hint ? { hint: c.hint } : {}), ...(c.terms ? { terms: c.terms } : {}) })) }
     }
     // a toggle comes as its value now and the one a press gives it
     case 'toggles': {
@@ -506,7 +537,8 @@ function toStep(def: StepDef, choices: OpenChoice[]): WalkStep | null {
         const both = choices.filter((c) => `${c.part}:${c.name ?? c.label}` === n)
         const now = both.find((c) => c.chosen)
         const press = both.find((c) => !c.chosen)
-        return { label: (now ?? press)?.name ?? n, selected: isOn(now), command: press?.command ?? null }
+        const terms = (now ?? press)?.terms
+        return { label: (now ?? press)?.name ?? n, selected: isOn(now), command: press?.command ?? null, ...(terms ? { terms } : {}) }
       })
       return buttons.some((b) => b.command !== null) ? { key, label, kind, now: null, keep: true, buttons } : null
     }

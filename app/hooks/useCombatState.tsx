@@ -5,7 +5,6 @@ import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../d
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getBreakFreeView, getMockeryView, type MockeryView } from "../domain/scene/projections/domination";
-import { getLeadershipView, type LeadershipView } from "../domain/scene/projections/providence";
 import { getAgainstAlliesView, type AgainstAlliesView } from "../domain/scene/projections/allegiance";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
 import { getEndTurnBar, getGearBar, getTurnHolder } from "../domain/scene/rules/turn";
@@ -218,12 +217,6 @@ export function useMockery(): MockeryView | null {
 // rest of the fight, null for one in no party.
 export function useAgainstAllies(): AgainstAlliesView | null {
   return useCombatStore(useShallow((s) => (s.activeCharacterId ? getAgainstAlliesView(s, s.activeCharacterId) : null)));
-}
-
-// abilities.tex "Leadership": the active character's rally at the round
-// change, null when they have not learned it.
-export function useLeadership(): LeadershipView | null {
-  return useCombatStore(useShallow((s) => (s.activeCharacterId ? getLeadershipView(s, s.activeCharacterId) : null)));
 }
 
 // combat.tex "Dominated": why the active character cannot test to break out.

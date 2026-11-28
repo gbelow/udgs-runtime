@@ -1,3 +1,4 @@
+import type { Term } from '../../character/rules/terms'
 import { SIGHTING_CHOICES, type Coord, type SceneState, type SightingChoice } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
@@ -45,7 +46,7 @@ export type ChoicePart =
   | 'cell' | 'overflow' | 'grapple' | 'theft' | 'improve' | 'grazeSave' | 'along' | 'grappling' | 'disarm' | 'testMode' | 'restMove' | 'sighting'
 
 // `damage`, the blow an attack row or a heavy degree lands.
-export type OpenChoice = { actorId: string; part: ChoicePart; value: Json; chosen: boolean; from?: number; name?: string; command: SceneCommand; label: string; damage?: Damage; hint?: string }
+export type OpenChoice = { actorId: string; part: ChoicePart; value: Json; chosen: boolean; from?: number; name?: string; command: SceneCommand; label: string; damage?: Damage; hint?: string; terms?: Term[] }
 
 // Parts given a step at a time: a pick names the value they end at.
 export const STEPPED_PARTS: readonly ChoicePart[] = ['extend', 'metres', 'dive']
@@ -77,8 +78,8 @@ function toggle(actorId: string, part: ChoicePart, now: boolean, command: SceneC
 
 function modifierChoices(actorId: string, modifiers: ModifierView[], send: (press: ModifierView['press']) => SceneCommand): OpenChoice[] {
   return modifiers.filter((m) => m.allowed || m.on).flatMap((m) => [
-    { ...choice(actorId, 'modifier', { key: m.key, on: m.on }, true, send(m.press), `${m.label}: ${m.on ? 'on' : 'off'}`), name: m.label, ...(m.damage ? { damage: m.damage } : {}) },
-    ...(m.allowed ? [{ ...choice(actorId, 'modifier', { key: m.key, on: !m.on }, false, send(m.press), `${m.label}: ${m.on ? 'off' : 'on'}`), name: m.label, ...(m.damage ? { damage: m.damage } : {}) }] : []),
+    { ...choice(actorId, 'modifier', { key: m.key, on: m.on }, true, send(m.press), `${m.label}: ${m.on ? 'on' : 'off'}`), name: m.label, ...(m.damage ? { damage: m.damage } : {}), ...(m.terms.length ? { terms: m.terms } : {}) },
+    ...(m.allowed ? [{ ...choice(actorId, 'modifier', { key: m.key, on: !m.on }, false, send(m.press), `${m.label}: ${m.on ? 'off' : 'on'}`), name: m.label, ...(m.damage ? { damage: m.damage } : {}), ...(m.terms.length ? { terms: m.terms } : {}) }] : []),
   ])
 }
 

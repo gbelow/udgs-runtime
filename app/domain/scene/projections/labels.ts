@@ -132,7 +132,7 @@ function withWeapon(state: SceneState, actorId: string, draft: { weaponKey?: str
   return weapon ? `${label} with ${weapon}` : label
 }
 
-function getDraftWeapon(state: SceneState, actorId: string, draft: { weaponKey?: string; attack?: string }): string | null {
+export function getDraftWeapon(state: SceneState, actorId: string, draft: { weaponKey?: string; attack?: string }): string | null {
   const c = state.characters[actorId]
   const row = c && draft.weaponKey !== undefined && draft.attack !== undefined ? findWeaponRow(c, draft.weaponKey, draft.attack) : null
   return row?.weapon.name ?? null

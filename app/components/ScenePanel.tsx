@@ -12,7 +12,7 @@ import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, Sectio
 import { useEndScene, usePartyCommands, useTableParties } from '../hooks/useParty';
 import { useActiveControlBar, useGmBar } from '../hooks/useControl';
 import { ControlLocked, Locked } from './Locks';
-import { useActiveFace, useBreakage, useCombatState, useSurgeViews, useMockery, useLeadership, useAgainstAllies, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
+import { useActiveFace, useBreakage, useCombatState, useSurgeViews, useMockery, useAgainstAllies, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useContestSeconds } from '../hooks/useContest';
 import { useInjuryLens } from '../hooks/useinjuryLens';
@@ -227,13 +227,12 @@ export function TurnBar(){
 }
 
 // What the character picked has to press beside their resources: a taunt
-// for their mockery, a rally for their leadership, and whether they are
-// offered reactions against their own party.
+// for their mockery, and whether they are offered reactions against their
+// own party.
 export function CharacterExtras(){
   return(
     <ControlLocked>
       <MockButton />
-      <LeadershipButton />
       <AgainstAlliesSwitch />
     </ControlLocked>
   )
@@ -278,21 +277,6 @@ function AgainstAlliesSwitch(){
         <Button size='xs' aria-label='against allies' aria-pressed={view.on} active={view.on} disabled={view.bar !== null} onClick={() => againstAllies(!view.on)}>
           against allies: {view.on ? 'on' : 'off'}
         </Button>
-      </Tooltip>
-    </div>
-  )
-}
-
-// abilities.tex "Leadership": the active character rallies their team once
-// everyone has rolled their morale test.
-function LeadershipButton(){
-  const view = useLeadership()
-  const { leadershipRally } = useCombatCommands()
-  if (!view) return null
-  return (
-    <div className='flex flex-row flex-wrap gap-1 items-center'>
-      <Tooltip text={view.bar ?? `a rally for ${view.AP} AP`}>
-        <Button size='xs' aria-label='leadership rally' disabled={view.bar !== null} onClick={leadershipRally}>rally</Button>
       </Tooltip>
     </div>
   )

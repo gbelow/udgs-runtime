@@ -19,7 +19,7 @@ import { useEyes } from '../hooks/useSights'
 import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
-import { ClickMenuHost } from './ClickMenu'
+import { ClickMenuHost, ReactPrompt } from './ClickMenu'
 import { useMarkedCells } from '../hooks/useClickMenu'
 
 const MODE_LABEL = {
@@ -152,6 +152,7 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
       onToken={clickToken}
       onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />
     <ClickMenuHost />
+    <ReactPrompt />
   </>
 
   if (plain) {
