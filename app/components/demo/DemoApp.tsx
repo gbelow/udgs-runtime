@@ -12,7 +12,8 @@ import { useActiveFace, useCombatState } from '../../hooks/useCombatState'
 import { ActiveFace } from '../ActiveFace'
 import { useTray } from '../../hooks/useTray'
 import type { DemoFate, DemoOutcome } from '../../domain/scene/projections/demo'
-import { SceneSpace, TableWaits } from '../ScenePanel'
+import { SceneSpace, TableWaits, TurnBar } from '../ScenePanel'
+import { DockBox, ScreenCorner, SheetToggle, SheetWindow } from '../Docks'
 import { FacesColumn } from '../FocusBar'
 import { AutoThrow, FIGHT_SLOTS, SheetTabs, Status } from '../RunScreen'
 import { useActiveControlBar } from '../../hooks/useControl'
@@ -135,7 +136,7 @@ function DemoTable() {
       <header className='flex flex-row flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 border-b border-line shrink-0'>
         <Home />
         <span className='text-muted'>{scene}</span>
-        {started ? <><Round /><TableWaits /></> : null}
+        {started ? <><Round /><TableWaits /><TurnBar /></> : null}
         <span className='grow' />
         <HelpButton />
         <Button size='xs' weight='ghost' title='back to picking the party' onClick={back}>restart game</Button>
@@ -146,28 +147,23 @@ function DemoTable() {
           <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'><SceneSpace selfRun placing={!started} /></div>
           <Result />
         </div>
-        {hasActive && !face && (own || watching) ? (
-          <aside className='md:w-[32rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
-            <SheetTabs own={own} opening='sheet' copy={false} />
-          </aside>
-        ) : null}
       </div>
-      <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
-        <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {face ? <ActiveFace /> : hasActive ? <Status {...FIGHT_SLOTS.status} /> : <span className='text-xs text-muted'>pick a character</span>}
-        </div>
-        <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {started ? <div className='flex flex-row flex-wrap gap-1 items-center'>{FIGHT_SLOTS.buttons}</div> : null}
+      <ScreenCorner side='left'>
+        <DockBox side='left'>
           {view.hint ? <HintLine hint={view.hint} onClose={() => { if (view.hint) seeHint(view.hint) }} /> : null}
-          {started ? FIGHT_SLOTS.actions : <Placing />}
-        </div>
-        <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
+          {started && hasActive && !face && (own || watching) ? <SheetToggle /> : null}
+          {!started ? <Placing /> : face ? <ActiveFace /> : hasActive ? <Status {...FIGHT_SLOTS.status} /> : <span className='text-xs text-muted'>pick a character</span>}
+        </DockBox>
+      </ScreenCorner>
+      <ScreenCorner side='right'>
+        {hasActive && !face && (own || watching) ? <SheetWindow title='sheet'><SheetTabs own={own} opening='sheet' copy={false} /></SheetWindow> : null}
+        <DockBox side='right'>
           {throwing ? <DiceTray /> : !started ? <Basics /> : <>
             <SectionLabel>{FIGHT_SLOTS.log.label}</SectionLabel>
             <div className='flex-1 min-h-0 overflow-y-auto'>{FIGHT_SLOTS.log.node}</div>
           </>}
-        </div>
-      </div>
+        </DockBox>
+      </ScreenCorner>
     </div>
   )
 }

@@ -1,5 +1,7 @@
 'use client'
 import { useState } from 'react'
+import { ActAs } from './ActAs';
+import { resumeWalk } from '../hooks/useClickMenu';
 import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
@@ -8,7 +10,7 @@ import { ChaseTrack } from './ChaseTrack';
 import { Check, Dices, Play, Settings, Skull } from 'lucide-react'
 import { ActionKey, Button, Dropdown, MenuConfirm, MenuItem, NumberInput, SectionLabel, Segment, Segmented, Tooltip } from './ui';
 import { useEndScene, usePartyCommands, useTableParties } from '../hooks/useParty';
-import { useGmBar } from '../hooks/useControl';
+import { useActiveControlBar, useGmBar } from '../hooks/useControl';
 import { ControlLocked, Locked } from './Locks';
 import { useActiveFace, useBreakage, useCombatState, useSurgeViews, useMockery, useLeadership, useAgainstAllies, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
@@ -26,22 +28,23 @@ import { BotsPause } from './BotsPause';
 import { ContestBar } from './ContestBar';
 import { EndRound } from './EndRound';
 import { EndTurn } from './EndTurn';
-import { OwnChips, TargetList } from './FocusBar';
 
 // The scene's pieces of the run screen.
 
-// The round and what moves it, kept to a strip so the middle has the height;
-// who is in it is down the left of the board (`FacesColumn`).
+// The round and the turn and what moves them, kept to a strip so the middle
+// has the height; who is in it is down the left of the board (`FacesColumn`).
 export function SceneStrip(){
   return(
     <div className='flex flex-col'>
       <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center px-2 py-1.5'>
+        <ActAs />
         <TableWaits />
         <Locked bar={useSceneDiceBar()} className='contents'>
           <FightEnd />
           <FightControls />
-          <FightSettingsButton />
         </Locked>
+        <TurnBar />
+        <FightSettingsButton />
       </div>
     </div>
   )
@@ -185,6 +188,7 @@ export function SceneSpace({ selfRun = false, placing = false }: { selfRun?: boo
     <>
       <FollowPanel />
       {chase.saved ? <><ChaseSaved /><ChaseTrack /></> : chase.chasing ? <><ChaseTrack /><ChasePanel /></> : null}
+      {chase.boardInPlay ? null : <BoardlessActions />}
       {chase.boardInPlay ? board : null}
     </>
   )
@@ -203,43 +207,47 @@ export function FightButtons(){
   return <><EndTurn /><BotsPause /><EndRound /><ContestBar /></>
 }
 
-// What the character picked can do in the fight, the screen picking whoever
-// the fight waits on as it comes up. With nobody picked, or someone the screen
-// is shown only as a token, the dice called for and the way back to whoever it
-// waits on.
-export function FightActions(){
+// What moves the turn, along the top bar: starting or contesting it for the
+// character picked, with whose turn it is, ending it, the bots, the end of
+// the round, the clock on a contest, and the way back to whoever the fight
+// waits on, with the popover of what it waits on.
+export function TurnBar(){
   const { waiting, pick } = useFollowOwing()
-  const hasActive = useHasActiveCharacter()
-  const face = useActiveFace()
-  if (hasActive && !face) return <><OwnChips /><SceneActions /><TargetList /></>
+  const diceBar = useSceneDiceBar()
+  const controlBar = useActiveControlBar()
   return(
-    <>
-      <OwnChips />
-      <span className='text-xs text-muted'>{face ? `${face.name} is not yours to play` : 'pick a character'}</span>
-      {waiting ? <Button tone='accent' className='self-start' onClick={pick}>the fight waits on {waiting.name}</Button> : null}
-    </>
+    <div className='flex flex-row flex-wrap gap-2 items-center'>
+      <Locked quiet bar={diceBar ?? controlBar} className='contents'>
+        <TurnControl />
+      </Locked>
+      <FightButtons />
+      {waiting ? <Button tone='accent' title={`pick ${waiting.name} and bring up what the fight waits on`} onClick={() => { pick(); resumeWalk() }}>the fight waits on {waiting.name}</Button> : null}
+    </div>
   )
 }
 
-// The turn, the surges and the actions. Morale and starting a chase belong to
-// the round change; the dice called for and the tests held for the round wait
-// in the top bar (`TableWaits`).
-export function SceneActions(){
-  const diceBar = useSceneDiceBar()
-
+// What the character picked has to press beside their resources: a taunt
+// for their mockery, a rally for their leadership, and whether they are
+// offered reactions against their own party.
+export function CharacterExtras(){
   return(
-    <>
-      <Locked bar={diceBar}>
-      <ControlLocked>
-        <TurnControl />
-        <MockButton />
-        <LeadershipButton />
-        <AgainstAlliesSwitch />
-      </ControlLocked>
-      <ActionPanel />
-      </Locked>
-    </>
+    <ControlLocked>
+      <MockButton />
+      <LeadershipButton />
+      <AgainstAlliesSwitch />
+    </ControlLocked>
   )
+}
+
+// With no board in play (a scene with no grid, a chase) there are no tokens
+// to click: what the character picked declares, and whom at, is picked in
+// the action panel.
+function BoardlessActions(){
+  const hasActive = useHasActiveCharacter()
+  const face = useActiveFace()
+  const diceBar = useSceneDiceBar()
+  if (!hasActive || face) return null
+  return <Locked bar={diceBar}><ControlLocked><ActionPanel /></ControlLocked></Locked>
 }
 
 // abilities.tex "Mockery": the active character mocks whoever their crit was

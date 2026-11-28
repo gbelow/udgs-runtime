@@ -16,7 +16,9 @@ import { ActiveConditions,AfflictionsPannel,CharacteristicTiles, CursePanel, Inj
 import { TableParties } from './TableParties';
 import { TableLink, TableWait, ViewAs } from './RunParts';
 import { useTableWaiting } from '../hooks/useTable';
-import { FightActions, FightButtons, KillButton, SceneSpace, SceneStrip, SurgeTile, SustainedPanel } from './ScenePanel';
+import { CharacterExtras, KillButton, SceneSpace, SceneStrip, SurgeTile, SustainedPanel } from './ScenePanel';
+import { ActAs } from './ActAs';
+import { DockBox, ScreenCorner, SheetToggle, SheetWindow } from './Docks';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { RecentJournal } from './Journal';
@@ -52,11 +54,14 @@ export type PlayerSlots = {
     needs: boolean
     // whether AP, STA and IL show as bars, with what sits beside the stamina under them
     bars?: boolean
+    // what the active character presses beside their state
+    extra?: ReactNode
   }
   // what is pressed for no one character, beside who acts
   buttons?: ReactNode
-  // what the active character can do, which says so itself where nobody is picked
-  actions: ReactNode
+  // what the active character can do, which says so itself where nobody is
+  // picked; a mode with none has the bottom as its state and its log alone
+  actions?: ReactNode
   log: { label: string, node: ReactNode }
 }
 
@@ -78,9 +83,7 @@ type Mode = PlayerSlots & {
 
 // The fight's slots for a player of it.
 export const FIGHT_SLOTS: PlayerSlots = {
-  status: { resourceEnd: <SurgeTile wide />, needs: false, bars: true },
-  buttons: <FightButtons />,
-  actions: <FightActions />,
+  status: { resourceEnd: <SurgeTile wide />, needs: false, bars: true, extra: <CharacterExtras /> },
   log: { label: 'Log', node: <ActionLog /> },
 }
 
@@ -90,7 +93,7 @@ const MODES: Record<RunTab, Mode> = {
     parties: <TableParties />,
     space: <SceneSpace />,
     faces: <FacesColumn />,
-    gm: <BoardGmTools />,
+    gm: <><ViewAs /><BoardGmTools /></>,
     ...FIGHT_SLOTS,
     injuryAction: <KillButton />,
     log: { ...FIGHT_SLOTS.log, action: <SaveLogButton /> },
@@ -159,6 +162,19 @@ export function RunScreen(){
   const gmOpen = over === 'GM' && gm !== undefined
   useEffect(() => setBoardTools(gmOpen), [gmOpen, setBoardTools])
 
+  // a mode with nothing in the action column has its state and its log in
+  // boxes on the bottom corners of the screen, the sheet in a window opened
+  // over them, and the middle the whole screen
+  const docked = actions === undefined
+  const state = tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status {...status} injuryAction={injuryAction} /> : PICK
+  const logSide = throwing ? <DiceTray /> : <>
+    <div className='flex flex-row items-center justify-between gap-2'>
+      <SectionLabel>{log.label}</SectionLabel>
+      {log.action}
+    </div>
+    <div className='flex-1 min-h-0 overflow-y-auto'>{log.node}</div>
+  </>
+
   return(
     <div className='flex flex-col md:h-[calc(100vh-3rem)] text-left text-sm'>
       <AutoThrow />
@@ -180,29 +196,31 @@ export function RunScreen(){
           {gm && hasGmTools ? <Overlay title='GM' wide fit shown={gmOpen} close={() => setOver(null)}>{gm}</Overlay> : null}
           {opened.map((v) => <Overlay key={v} title={v} wide shown={over === v} close={() => setOver(null)}>{v === 'items' || hasActiveCharacter ? CATALOGS[v] : PICK}</Overlay>)}
         </section>
-        {hasActiveCharacter ? (
+        {hasActiveCharacter && !docked ? (
           <aside className='md:w-[32rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
             <SheetTabs own={ownSheet} />
           </aside>
         ) : null}
       </div>
+      {docked ? <>
+        <ScreenCorner side='left'><DockBox side='left'>{hasActiveCharacter ? <SheetToggle /> : null}{state}</DockBox></ScreenCorner>
+        <ScreenCorner side='right'>
+          {hasActiveCharacter ? <SheetWindow title='sheet'><SheetTabs own={ownSheet} /></SheetWindow> : null}
+          <DockBox side='right'>{logSide}</DockBox>
+        </ScreenCorner>
+      </> : (
       <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
         <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {tab === 'scene' && face ? <ActiveFace /> : hasActiveCharacter ? <Status {...status} injuryAction={injuryAction} /> : PICK}
+          {state}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
           <ActionColumn buttons={buttons}>{actions}</ActionColumn>
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-48 md:min-h-0'>
-          {throwing ? <DiceTray /> : <>
-            <div className='flex flex-row items-center justify-between gap-2'>
-              <SectionLabel>{log.label}</SectionLabel>
-              {log.action}
-            </div>
-            <div className='flex-1 min-h-0 overflow-y-auto'>{log.node}</div>
-          </>}
+          {logSide}
         </div>
       </div>
+      )}
       </>}
     </div>
   )
@@ -293,13 +311,14 @@ export function SheetTabs({ own, opening = 'inventory', copy = true }: { own: bo
 // resources, the injury dials and the pending tests are the character's,
 // edited and rolled by whoever plays them, while the kill button, the wounds
 // and the afflictions are the GM's.
-export function Status({ resource, resourceEnd, needs, bars = false, injuryAction }: { resource?: ReactNode, resourceEnd?: ReactNode, needs: boolean, bars?: boolean, injuryAction?: ReactNode }){
+export function Status({ resource, resourceEnd, needs, bars = false, extra, injuryAction }: { resource?: ReactNode, resourceEnd?: ReactNode, needs: boolean, bars?: boolean, extra?: ReactNode, injuryAction?: ReactNode }){
   return(
     <>
       <ControlLocked>{bars ? <ResourceBars after={resourceEnd} /> : <ResourceTiles needs={needs} after={resourceEnd}>{resource}</ResourceTiles>}</ControlLocked>
       <ControlLocked><InjuryDials level={!bars} action={injuryAction ? <GmLocked>{injuryAction}</GmLocked> : undefined} /></ControlLocked>
       <ActiveConditions />
       <ControlLocked><PendingPanel /></ControlLocked>
+      {extra}
     </>
   )
 }
@@ -308,17 +327,12 @@ export function Status({ resource, resourceEnd, needs, bars = false, injuryActio
 // developer — the GM, who opens the catalogs and does to the mode what no
 // character does. Each mode locks what is not the screen's to press.
 function ActionColumn({ buttons, children }: { buttons: ReactNode, children: ReactNode }){
-  const { gmTools: hasGmTools, gm, setGmMode } = useRole()
+  const { gm } = useRole()
 
   return(
     <>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
-        {hasGmTools ? (
-          <Segmented label='act as'>
-            <Segment aria-label='act as character' selected={!gm} onClick={() => setGmMode(false)}>character</Segment>
-            <Segment aria-label='act as GM' selected={gm} onClick={() => setGmMode(true)}>GM</Segment>
-          </Segmented>
-        ) : null}
+        <ActAs />
         {buttons}
       </div>
       {gm ? (
