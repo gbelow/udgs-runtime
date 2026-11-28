@@ -66,7 +66,7 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
     case 'shoot': {
       const blow = getAttackFacts(state, open)
       const facts = isObjectAttack(open) ? null : blow
-      return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, blow), interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
+      return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, blow), interruption: getInterruption(state, open, facts), thrown: open.astray ? null : getThrownItem(state, open) }
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'rest':

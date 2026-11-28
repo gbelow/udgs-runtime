@@ -31,6 +31,7 @@ import { getMoveFall } from '../rules/board/cliff'
 import { makeAction } from '../factories'
 import { coordKey, inExtent } from '../rules/board/geometry'
 import { getSpellOptions } from '../rules/cast'
+import { findAmmoStack } from '../../item/rules/ammo'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
 const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: SceneState) =>
@@ -192,8 +193,11 @@ describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, rea
     const s = start()
     const rootId = getOpenAction(s)!.id
     const { landed } = playOut(s, MISS)
-    expect(landed.at(-1)?.id).toBe(rootId)
-    expect(openedByOpportunity(s, landed)).toHaveLength(reactors.length)
+    const rootAt = landed.findIndex((a) => a.id === rootId)
+    expect(rootAt).toBeGreaterThanOrEqual(0)
+    const opened = openedByOpportunity(s, landed)
+    expect(opened).toHaveLength(reactors.length)
+    expect(opened.every((a) => landed.indexOf(a) < rootAt)).toBe(true)
   })
 
   // The table's ruling: opportunity attacks never trigger other opportunity
@@ -1609,5 +1613,39 @@ describe('a guard with a body shield', () => {
     s = amendReaction('def', cover.press)(s)
     const { state } = playOut(s, MISS)
     expect(state.bodyCover.def?.weaponKey).toBe(guard.draft.kind === 'guard' ? guard.draft.weaponKey : '')
+  })
+})
+
+// combat.tex "Immobile Targets and Shooting Errors"; the user's ruling
+// (2026-11-28): a shot that misses goes astray, and "the shot changes
+// targets" to whoever stands where it went, else lands on the ground there.
+describe('a shot that misses', () => {
+  const shoot = (bystander: Coord | null): SceneState => {
+    const placements: Record<string, [number, number]> = { atk: [0, 0], def: [5, 0], ...(bystander ? { by: [bystander.q, bystander.r] as [number, number] } : {}) }
+    let s = onBoard(placements, archer('atk'), fighter('def'), fighter('by'))
+    s = { ...s, board: { ...s.board!, extent: { q: 12, r: 12, s: 12 } } }
+    s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
+    return playOut(commitAction(() => MISS, newId)(setTarget('def')(s)), MISS).state
+  }
+  const missed = (s: SceneState) => getLog(s).find((a) => a.kind === 'shoot' && a.targetId === 'def')!
+  const astray = (s: SceneState) => getLog(s).find((a) => a.kind === 'shoot' && a.strayOf !== null)
+
+  it('lands on the ground where it went when nobody stands there', () => {
+    const s = shoot(null)
+    const shot = missed(s)
+    if (shot.kind !== 'shoot' || !shot.astray) throw new Error('the miss did not go astray')
+    expect(astray(s)).toMatchObject({ targetId: null, cell: shot.astray.cell, step: 'done', spawnedBy: shot.id })
+  })
+
+  it('spends one arrow, the shot and the shot it became together', () => {
+    const before = findAmmoStack(archer('atk'), 'arrows')!.item.amount
+    expect(findAmmoStack(shoot(null).characters.atk, 'arrows')!.item.amount).toBe(before - 1)
+  })
+
+  it('changes targets to whoever stands where it went', () => {
+    const empty = missed(shoot(null))
+    if (empty.kind !== 'shoot' || !empty.astray) throw new Error('the miss did not go astray')
+    const s = shoot(empty.astray.cell)
+    expect(astray(s)).toMatchObject({ targetId: 'by', step: 'done' })
   })
 })

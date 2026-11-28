@@ -758,7 +758,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'strike':
       return open.roll?.degree === 'hit' && (getHOPOptions(state, open).length > 0 || canGrapple(state, open)) ? 'spend' : 'confirm'
     case 'shoot':
-      return open.roll?.degree === 'hit' && getHOPOptions(state, open).length > 0 ? 'spend' : 'confirm'
+      return open.strayOf === null && open.roll?.degree === 'hit' && getHOPOptions(state, open).length > 0 ? 'spend' : 'confirm'
     case 'cast':
       return open.roll?.degree === 'hit' && getImprovementOptions(state, open).length > 0 ? 'spend' : 'confirm'
     // combat.tex "Sprays": the cone is pointed once the reflexes have moved

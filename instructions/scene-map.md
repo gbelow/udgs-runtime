@@ -237,8 +237,8 @@ resolveAction ─────────► land(top)
   counterattack), the moves defenses carry after the strike (a Technical Lift's stand up), escapes a stun opens, the spell tests a linked cast opens, the explosion
   a cast opens, the explosion a thrown object goes off as where it lands, what the strike's
   recipes open (a hook's knockdown, an intercept's disarm, then the abilities': a riposte),
-  a sweep's next target, the fall a move ended in, and on top the steps a steady shot
-  walks after it. A voided root generates only what an
+  a sweep's next target, the fall a move ended in, the steps a steady shot
+  walks after it, and on top the shot a miss became where it went astray. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
@@ -462,6 +462,7 @@ app/domain/scene/
 │   ├── loot.ts         what a character could take or open within reach: loose items, everything the dead have on them, containers (`getOpenables`) and, once opened, what is in them (`getReachableLoot`)
 │   ├── floor.ts        items on the floor, reachable (`isInReach`), a shot's thrown weapon, one of a stack, one broken
 │   ├── floorAttack.ts  a strike or a shot aimed at an item on the floor or a space of the ground: its DL, what it can be aimed at, the explosion it sets off, where it lands
+│   ├── stray.ts        combat.tex "Immobile Targets and Shooting Errors": a shot that misses on a board goes astray (a guarded one too). `land` throws three d6 with the percentiles (how far out from the target, which way: 1 on along the line of fire, then clockwise, and its score) and writes them with where it stopped (`astray`: a wall, ground off its floor or the board's edge stop it); the miss leaves its arrow or thrown weapon to the shot it becomes (`getStrayShot`, opened rolled by `getFollowUps`, `strayOf`): at whoever stands there, else an object a hit would do something to, else the ground, its d6 scored against what is there, with nobody to answer it and no HOP to spend
 │   ├── ignition.ts     the burning damage an attack carries, which lights the fuel where it lands
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── medicine.ts     First Aid, Tend Wounds and Cauterization: who may be tended, the bar, the price off the ability, the test, what lands

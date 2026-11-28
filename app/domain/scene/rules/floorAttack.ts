@@ -51,7 +51,7 @@ function isBreakable(state: SceneState, item: Item): boolean {
 }
 
 // Whether a blow on the item would do anything.
-function isWorthHitting(state: SceneState, attack: AttackAction, found: FloorItem): boolean {
+export function isWorthHitting(state: SceneState, attack: AttackAction, found: FloorItem): boolean {
   return !found.item.broken && (isBreakable(state, found.item) || getAttackExplosion(state, attack, found) !== null)
 }
 

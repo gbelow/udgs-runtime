@@ -804,6 +804,20 @@ export const StrikeActionSchema = z.object({
   share: num.default(1),
 }).strip()
 
+// combat.tex "Immobile Targets and Shooting Errors": the d6 for how many
+// spaces out from the target a missed shot goes, the d6 for which way (1 on
+// along the line of fire, then clockwise), the d6 that is its score against
+// whoever it reaches there, and the space it stopped in, on the floor it
+// flew level with.
+export const StraySchema = z.object({
+  distance: num,
+  direction: num,
+  score: num,
+  cell: CoordSchema,
+  floor: num,
+}).strip()
+export type Stray = z.infer<typeof StraySchema>
+
 // combat.tex "Accuracy", "Shoot": a ranged weapon attack, "a throw or shot
 // directed at a target ... against the opponent's reflexes or their SD". The
 // way of shooting (combat.tex "Shoot", "Snipe", "Quick Shot") is the
@@ -829,6 +843,12 @@ export const ShootActionSchema = z.object({
   turns: z.array(num).default([]),
   // how many steps of the path are walked before the shot is fired; null is all of it
   firedAt: num.nullable().default(null),
+  // combat.tex "Immobile Targets and Shooting Errors": a miss gone astray,
+  // with its three d6 and the space it went to, written as it lands
+  astray: StraySchema.nullable().default(null),
+  // the missed shot this one is, gone astray: opened scored and paid for,
+  // with nobody to answer it
+  strayOf: str.nullable().default(null),
 }).strip()
 
 // combat.tex "Explosions", "Sprays"; gear.tex "Explosion": an area going

@@ -19,6 +19,17 @@ export function rollPercent(dice: Dice): number {
 export const DIE_SOURCES = ['screen', 'thrown', 'entered'] as const
 export type DieSource = (typeof DIE_SOURCES)[number]
 
+// A d6, 1 to 6, from the d10s a command is handed: a d10 showing 0 to 5 is
+// read as 1 to 6, and one showing more is thrown again. Dice that never show
+// under 6 (a scripted run) are read by what is left over from 6 after a few.
+export function rollD6(dice: Dice): number {
+  for (let i = 0; i < 20; i++) {
+    const d = dice(false)
+    if (d >= 0 && d < 6) return d + 1
+  }
+  return (((dice(false) % 6) + 6) % 6) + 1
+}
+
 // The faces one d10 of a test shows: the d10, and the d6s it exploded into.
 export type D10Throw = { d10: number; d6s: number[] }
 

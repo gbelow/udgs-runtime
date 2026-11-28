@@ -229,8 +229,10 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
             const price = (action.spent[p] ?? 0) > 0 ? getHOPPrice(p, acc) : null
             return price ? payCost(price, charged)(acc) : acc
           }, discharged)
-          // combat.tex "Throw": what is thrown leaves the hand
-          if (action.kind === 'shoot') return spendShot(releaseThrown(paid, action.weaponKey, action.attack), action)
+          // combat.tex "Throw": what is thrown leaves the hand; a shot gone
+          // astray leaves it with the shot it became (combat.tex "Immobile
+          // Targets and Shooting Errors")
+          if (action.kind === 'shoot') return action.astray ? paid : spendShot(releaseThrown(paid, action.weaponKey, action.attack), action)
           // combat.tex "Braced Attack": the crash it triggers, the mover the
           // blow met against the bracer
           return action.trample ? trampledBy([action.trample], paid, charged) : paid

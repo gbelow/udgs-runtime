@@ -133,7 +133,7 @@ function getEpisode(state: SceneState, origin: string, since = 0): EpisodeEntry[
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
     const cancelled = getCancelled(state, a)
-    return report ? [{ ...report, roll: cancelled ? null : report.roll, cancelled, rule: ACTIONS[a.kind].rule, declared: getDeclared(state, a), test: cancelled ? null : getTestLine(a.roll), headline: cancelled ? [cancelled] : report.outcomes.map((o) => describeHeadline(o.target, o.outcome)), cost: a.cost, costTerms: a.costTerms, refunded: a.refunded, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+    return report ? [{ ...report, roll: cancelled ? null : report.roll, cancelled, rule: ACTIONS[a.kind].rule, declared: getDeclared(state, a), test: cancelled ? null : getTestLine(a.roll, isStrayShot(a) ? 'd6' : 'd10'), headline: cancelled ? [cancelled] : report.outcomes.map((o) => describeHeadline(o.target, o.outcome)), cost: a.cost, costTerms: a.costTerms, refunded: a.refunded, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
   })
   return entries.length > 0 ? entries : null
 }
@@ -221,10 +221,10 @@ function getDeclared(state: SceneState, action: Action): string[] {
   return declared
 }
 
-function getTestLine(roll: ActionRoll | null): TestLine | null {
+function getTestLine(roll: ActionRoll | null, die: 'd10' | 'd6' = 'd10'): TestLine | null {
   if (!roll) return null
   return {
-    sum: `${roll.die} (d10)${addUpTerms(roll.skillTerms)} = ${roll.score}`,
+    sum: `${roll.die} (${die})${addUpTerms(roll.skillTerms)} = ${roll.score}`,
     against: `DL ${roll.DL}${roll.DLTerms.length > 0 ? ` = ${addUpTerms(roll.DLTerms).slice(3)}` : ''}`,
     degree: roll.degree,
     margin: roll.score >= roll.DL ? `+${roll.score - roll.DL}` : `−${roll.DL - roll.score}`,
@@ -242,8 +242,13 @@ function describe(state: SceneState, action: Action): string {
   return `${getLogName(state, action.actorId)}'s ${getActionName(action)}`
 }
 
+// combat.tex "Immobile Targets and Shooting Errors": a shot gone astray
+// is scored with a d6 of its own.
+const isStrayShot = (action: Action): boolean => action.kind === 'shoot' && action.strayOf !== null
+
 function getCause(state: SceneState, action: Action): string | null {
   const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  if (opener && isStrayShot(action)) return `${describe(state, opener)} gone astray`
   if (opener) return `opened by ${describe(state, opener)}`
   const earlier = action.followUpOf ? getAction(state, action.followUpOf) : null
   return earlier ? `follow-up to ${describe(state, earlier)}` : null
@@ -258,6 +263,10 @@ function getCancelled(state: SceneState, action: Action): string | null {
 
 function getFate(state: SceneState, action: Action): string | null {
   if (action.kind === 'move') return getMoveFate(state, action)
+  if (action.kind === 'shoot' && action.astray) {
+    const { distance, direction, score } = action.astray
+    return `missed and went astray: ${distance} (d6) spaces out from the target, way ${direction} (d6: 1 on along the shot, then clockwise), scoring ${score} (d6) where it came down`
+  }
   if (!isVoided(state, action)) return null
   const actor = getLogName(state, action.actorId)
   const given = isInterruptible(action) ? getGivenUpFor(state, action) : null

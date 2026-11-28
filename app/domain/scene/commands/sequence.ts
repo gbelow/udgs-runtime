@@ -30,7 +30,7 @@ import { closeTurn } from './closeTurn'
 import { endSurge } from '../../character/commands/actionSurge'
 import { layToRest, updateCharacter } from './characters'
 import { meetAttitudes } from '../../character/commands/attitudes'
-import { meetUnprotected } from './protection'
+import { landProtectionRun, meetUnprotected } from './protection'
 import { meetAttackOnSurrendered } from './providence'
 import { getTestMode } from '../../character/rules/effects'
 import { passFirstMoverAP } from './stoicism'
@@ -48,6 +48,8 @@ import { getLapsedSteps, getPendingStep, openStepsAfter } from '../rules/combine
 import { openSteadyLeg } from '../rules/steadyArms'
 import { getClimbRedoTest } from '../rules/attack'
 import type { Caller } from '../../play/calls'
+import { rollD6 } from '../../play/dice'
+import { getStrayLanding, getStrayShot, goesAstray } from '../rules/stray'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -103,11 +105,11 @@ export function land(state: SceneState, open: RootAction, newId: () => string, c
   if (displacement) return advance(appendActions(state, [displacement]), newId, caller)
   const thrown = throwTargetDice(state, open, caller)
   if (caller.waiting()) return state
-  const settled = getSettled(state, thrown)
+  const settled = getSettled(state, goAstray(state, thrown, caller))
   const resolved = { ...settled, results: getResults(state, settled) }
   const redone = redoClimb(replaceActions(state, [resolved]), resolved, caller)
   if (caller.waiting()) return state
-  const landed = meetAttackOnSurrendered(meetUnprotected(meetTested(breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved), resolved), resolved), resolved)
+  const landed = landProtectionRun(meetAttackOnSurrendered(meetUnprotected(meetTested(breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved), resolved), resolved), resolved), resolved)
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
   return advance(appendActions(landOnTable(fled, resolved), followUps), newId, caller)
@@ -120,6 +122,16 @@ function throwTargetDice(state: SceneState, open: RootAction, caller: Caller): R
   if (owed.length === 0) return open
   const dice = owed.map((id) => [id, caller.die({ id: `target:${open.id}:${id}`, roller: id, label: `a test against the ${open.kind}` })] as const)
   return { ...open, targetDice: { ...open.targetDice, ...Object.fromEntries(dice.flatMap(([id, die]) => (die === null ? [] : [[id, die]]))) } }
+}
+
+// combat.tex "Immobile Targets and Shooting Errors": a shot that missed
+// throws its three d6 as it lands, and goes where they send it, if it can go
+// anywhere (rules/stray.ts).
+function goAstray(state: SceneState, open: RootAction, caller: Caller): RootAction {
+  if (open.kind !== 'shoot' || !goesAstray(state, open)) return open
+  const [distance, direction, score] = [rollD6(caller.dice), rollD6(caller.dice), rollD6(caller.dice)]
+  const landing = getStrayLanding(state, open, distance, direction)
+  return landing ? { ...open, astray: { distance, direction, score, ...landing } } : open
 }
 
 // abilities.tex "Promoted Attitudes", "Prohibited Attitudes": each test the
@@ -276,7 +288,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // the strike's recipes open (rules/recipes.ts: a hook's knockdown, an
 // intercept's disarm, a riposte); the sweep's next target, so the swing is
 // finished first; the fall a move ended in; and on top, the steps a steady
-// shot walks after it.
+// shot walks after it, and above them the shot a miss became where it went
+// astray.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action), and none is offered to one the action interrupted
 // (`isInterruptedBy`), nor to one who could not pay for it (`canPayOpened`).
@@ -304,7 +317,15 @@ function generateFollowUps(state: SceneState, root: RootAction, newId: () => str
     ...openSwimTest(state, root, newId),
     ...openFall(root, newId),
     ...openSteadyAfter(state, root, newId),
+    ...openStray(state, root, newId),
   ]
+}
+
+// combat.tex "Immobile Targets and Shooting Errors": the shot a miss became
+// where it went astray, played out before anything else the miss left.
+function openStray(state: SceneState, root: RootAction, newId: () => string): Action[] {
+  const stray = root.kind === 'shoot' ? getStrayShot(state, root, newId()) : null
+  return stray ? [stray] : []
 }
 
 // abilities.tex "Steady Arms": the steps of the path after the one the shot
