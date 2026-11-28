@@ -42,6 +42,7 @@ export function SceneStrip(){
   return(
     <div className='flex flex-col'>
       <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center px-2 py-1.5'>
+        <TableWaits />
         <Locked bar={useSceneDiceBar()} className='contents'>
           <FightEnd />
           <FightControls />
@@ -223,25 +224,20 @@ export function FightActions(){
   return(
     <>
       <OwnChips />
-      <SceneCalls />
       <span className='text-xs text-muted'>{face ? `${face.name} is not yours to play` : 'pick a character'}</span>
       {waiting ? <Button tone='accent' className='self-start' onClick={pick}>the fight waits on {waiting.name}</Button> : null}
     </>
   )
 }
 
-// The turn, the surges and the actions; the tests held for the round wait
-// behind their own button until wanted, lit while one is owed. Morale and
-// starting a chase belong to the round change.
+// The turn, the surges and the actions. Morale and starting a chase belong to
+// the round change; the dice called for and the tests held for the round wait
+// in the top bar (`TableWaits`).
 export function SceneActions(){
-  const [heldOpen, setHeldOpen] = useState(false)
-  const held = useHeldTests()
-  const due = held.some((r) => !r.result)
   const diceBar = useSceneDiceBar()
 
   return(
     <>
-      <SceneCalls />
       <Locked bar={diceBar}>
       <ControlLocked>
         <TurnControl />
@@ -249,14 +245,6 @@ export function SceneActions(){
         <LeadershipButton />
         <AgainstAlliesSwitch />
       </ControlLocked>
-      {held.length > 0 ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <Button size='xs' aria-label='drawer held tests' tone={due ? 'bad' : 'neutral'} selected={heldOpen} onClick={() => setHeldOpen(!heldOpen)}>
-            held tests{due ? ' !' : ''}
-          </Button>
-        </div>
-      ) : null}
-      {heldOpen ? <HeldTestsPanel /> : null}
       <ActionPanel />
       </Locked>
     </>
@@ -311,11 +299,20 @@ function LeadershipButton(){
   )
 }
 
-// The dice the scene has called for, waiting on the table.
-function SceneCalls(){
+// What the table waits on that no one action panel owns: the dice the scene
+// has called for and the tests held for the round (combat.tex "Swimming"),
+// behind one button in the top bar, lit while any is owed.
+export function TableWaits(){
   const rows = useSceneCalls()
   const answer = useSceneAnswer()
-  return <DieCalls rows={rows} answer={answer} />
+  const held = useHeldTests()
+  if (rows.length === 0 && held.length === 0) return null
+  const owed = rows.some((r) => !r.result) || held.some((r) => !r.result)
+  return (
+    <Dropdown label='dice and held tests' text='rolls' lit={owed} title={owed ? 'dice or held tests are waiting to be rolled' : 'the dice and held tests of this round'}>
+      {() => <div className='flex flex-col gap-2 max-w-[32rem]'><DieCalls rows={rows} answer={answer} /><HeldTestsPanel /></div>}
+    </Dropdown>
+  )
 }
 
 // What the GM does to the scene that no character does, each starting a

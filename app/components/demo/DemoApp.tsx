@@ -12,7 +12,7 @@ import { useActiveFace, useCombatState } from '../../hooks/useCombatState'
 import { ActiveFace } from '../ActiveFace'
 import { useTray } from '../../hooks/useTray'
 import type { DemoFate, DemoOutcome } from '../../domain/scene/projections/demo'
-import { CharacterList, SceneSpace } from '../ScenePanel'
+import { CharacterList, SceneSpace, TableWaits } from '../ScenePanel'
 import { AutoThrow, FIGHT_SLOTS, SheetTabs, Status } from '../RunScreen'
 import { useActiveControlBar } from '../../hooks/useControl'
 import { Button, IconButton, SectionLabel, Segment, Segmented, Tooltip } from '../ui'
@@ -134,7 +134,7 @@ function DemoTable() {
       <header className='flex flex-row flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 border-b border-line shrink-0'>
         <Home />
         <span className='text-muted'>{scene}</span>
-        {started ? <Round /> : null}
+        {started ? <><Round /><TableWaits /></> : null}
         <CharacterList />
         <span className='grow' />
         <HelpButton />

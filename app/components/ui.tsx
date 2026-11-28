@@ -477,8 +477,8 @@ export function Floating({ anchor, side = 'below', align = 'start', gap = 4, mat
 
 // A button that opens a panel of its own beneath it, closed by a click
 // outside, by Escape, or by what the panel hands to `close`. With an `icon`
-// it is drawn as that icon alone.
-export function Dropdown({ label, text, icon, tile, title, children }: { label: string, title?: string, children: (close: () => void) => ReactNode } & ({ text: ReactNode, icon?: never, tile?: never } | { icon: LucideIcon, text?: never, tile?: never } | { tile: { name: string, value: ReactNode, lit?: boolean }, text?: never, icon?: never })){
+// it is drawn as that icon alone. A `lit` text button pulses while closed.
+export function Dropdown({ label, text, icon, tile, title, lit = false, children }: { label: string, title?: string, children: (close: () => void) => ReactNode } & ({ text: ReactNode, icon?: never, tile?: never, lit?: boolean } | { icon: LucideIcon, text?: never, tile?: never, lit?: never } | { tile: { name: string, value: ReactNode, lit?: boolean }, text?: never, icon?: never, lit?: never })){
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -507,7 +507,7 @@ export function Dropdown({ label, text, icon, tile, title, children }: { label: 
         )
         : icon
         ? <IconButton icon={icon} active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)} />
-        : <Button size='xs' active={open} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>}
+        : <Button size='xs' active={open} tone={lit ? 'accent' : 'neutral'} className={lit && !open ? 'animate-pulse' : ''} title={title} aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{text}</Button>}
       {open ? (
         <Floating anchor={box} panelRef={panel} align='end' className='min-w-60 flex flex-col gap-2 bg-raised border border-line rounded p-2 shadow-lg shadow-black/40 text-xs'>
           <MenuClose.Provider value={() => setOpen(false)}>{children(() => setOpen(false))}</MenuClose.Provider>
