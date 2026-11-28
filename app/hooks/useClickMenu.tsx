@@ -230,14 +230,27 @@ export function useOpenWalk() {
     if (walk) setMenu(walk.from, walk.category);
   };
 
-  // a settled exchange goes on by itself, once, on the screen its action was declared from
+  // a settled exchange goes on by itself on the screen its action was declared
+  // from, tried again on every change to the fight while it stays settled: a
+  // screen that sees a foe only as a token may think it settled before the foe
+  // has answered, and the table refuses the go until they have
   const going = view?.kind === "exchange" && view.settled && walk?.actorId === view.actorId ? view.actionId : null;
-  const went = useRef<string | null>(null);
+  const goRef = useRef({ walk, dispatch });
+  goRef.current = { walk, dispatch };
   useEffect(() => {
-    if (!going || went.current === going || view?.kind !== "exchange") return;
-    went.current = going;
-    dispatch(view.go.command);
-  });
+    if (!going) return;
+    let tried: unknown = null;
+    const go = () => {
+      const state = useCombatStore.getState();
+      if (state === tried) return;
+      tried = state;
+      const { walk, dispatch } = goRef.current;
+      const now = walkOf(state, walk);
+      if (now?.kind === "exchange" && now.settled && now.actionId === going) dispatch(now.go.command);
+    };
+    go();
+    return useCombatStore.subscribe(go);
+  }, [going]);
 
   // of the reactions, the one reactor shown, and whether they are shown at
   // all: as asked, or while the viewer has a reaction to make or something

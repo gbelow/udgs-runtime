@@ -363,7 +363,7 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
     testMode: choices.filter((c) => c.part === 'testMode').map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command })),
     awaited: offers.reactors.filter((r) => r.awaited).map((r) => r.name),
     hint: getReactionsTo(state, open.id).some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open) ? 'pick where the evasive jump lands on the board' : null,
-    settled: go !== null && accept === null && heldBack.length === 0 && answerers.every((a) => a.status !== 'waiting' && a.status !== 'reacting'),
+    settled: go !== null && accept === null && answerers.every((a) => a.status !== 'waiting' && a.status !== 'reacting'),
   }
 }
 
