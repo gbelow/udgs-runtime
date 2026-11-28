@@ -2,6 +2,7 @@ import { isReadied } from '../../character/rules/readied'
 import { isCombatStarted } from './started'
 import { getTurnHolder } from './turn'
 import { notices } from './stealth'
+import { knowsFace } from './seen'
 import { getMedicineAbility, getMedicineCost, getMedicineTargets } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
 import { getGearMoveBlock, getGearMoveCost } from '../../item/rules/moves'
@@ -838,7 +839,13 @@ export function getDeclaredTargets(state: SceneState, open: RootAction | null): 
 // Who the open declaration could be aimed at but its actor has not detected
 // (combat.tex "Stealth in combat").
 export function getDeclaredHiddenTargets(state: SceneState, open: RootAction | null): string[] {
-  return isAimingOpen(state, open) ? getAimableIds(state, open).filter((id) => !notices(state, open.actorId, id)) : []
+  return isAimingOpen(state, open) ? getAimableIds(state, open).filter((id) => !perceives(state, open, id)) : []
+}
+
+// Whom the actor must have detected to aim at: a taunt is heard, so it reaches
+// any face they know, seen now or not (the user's ruling, 2026-11-28).
+function perceives(state: SceneState, root: RootAction, id: string): boolean {
+  return root.kind === 'taunt' ? knowsFace(state, root.actorId, id) : notices(state, root.actorId, id)
 }
 
 function isAimingOpen(state: SceneState, open: RootAction | null): open is RootAction {
@@ -892,7 +899,7 @@ export function getTargetIds(state: SceneState, root: RootAction): string[] {
   const jumping = root.kind === 'strike' || root.kind === 'shoot' ? getJumpTargets(state, root) : null
   if (jumping) return jumping
   const at = root.kind === 'shoot' ? getFiringState(state, root) : state
-  return getAimableIds(at, root).filter((id) => notices(at, root.actorId, id) && !isSheltered(at, root.actorId, id) && isCompelledTarget(at, root.actorId, id))
+  return getAimableIds(at, root).filter((id) => perceives(at, root, id) && !isSheltered(at, root.actorId, id) && isCompelledTarget(at, root.actorId, id))
 }
 
 function getAimableIds(state: SceneState, root: RootAction): string[] {

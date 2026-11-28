@@ -131,6 +131,12 @@ export function getFacesKnownBy(state: SceneState, controlled: ReadonlySet<strin
   return known
 }
 
+// Whether one character knows another's face: detected now, or once before in
+// the fight.
+export function knowsFace(state: SceneState, observerId: string, targetId: string): boolean {
+  return notices(state, observerId, targetId) || (state.faces[observerId] ?? []).includes(targetId)
+}
+
 // The ids of the exchanges' actions the viewer is shown: those they are part
 // of, and those whose actor one of theirs took in as it was played
 // (`SceneState.witnessed`). One nobody's witnesses were noted of goes by who is

@@ -17,7 +17,7 @@ import { useFollowPick } from "./useFollowPick";
 import { useSightStore, type SightStore } from "../stores/useSightStore";
 import { getEyesBoard, lookingFrom } from "../domain/scene/projections/sights";
 import { usePendingItem } from "./useItemLens";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,
@@ -55,9 +55,14 @@ export function useBoard(look: Pick<BoardLook, "front" | "lift"> = { front: fals
 
   const create = (radius: number) => dispatch({ kind: "createBoard", args: [radius, Math.floor(Math.random() * 0x7fffffff)] });
   const remove = () => dispatch({ kind: "removeBoard", args: [] });
+  // the token a click that would pick it was last made on: a character is
+  // picked by a second click on them, with or without a menu between
+  const armed = useRef<string | null>(null);
   const click = (c: Click, brush: TerrainBrush | null = null, reposition = false, radius = 0) => {
     const state = useCombatStore.getState();
     const selected = state.activeCharacterId;
+    const again = c.on === "token" && armed.current === c.id;
+    armed.current = null;
     // while a menu is open a click only closes it, and one on the character it opened on picks them
     const menu = useClickMenuStore.getState().menu;
     if (menu) {
@@ -66,7 +71,10 @@ export function useBoard(look: Pick<BoardLook, "front" | "lift"> = { front: fals
       return;
     }
     const read = readClick(state, c, { brush, radius, reposition, selected, newId: () => "" });
-    if ("select" in read) setActiveCharacter(read.select);
+    if ("select" in read) {
+      if (again) setActiveCharacter(read.select);
+      else armed.current = read.select;
+    }
     else if ("menu" in read) useClickMenuStore.getState().setMenu(read.menu);
     else if ("resume" in read) resumeWalk();
     else {
