@@ -270,13 +270,15 @@ function opportunityTriggers(state: SceneState, actorId: string): Trigger[] {
 // single action" — declared against the shot the others join, so a joined
 // shot draws no defense of its own, only the opportunity attacks its shooter
 // draws, and no further join.
+// combat.tex "Immobile Targets and Shooting Errors": a shot gone astray
+// was fired already, so it draws no opportunity attack and nobody joins it.
 function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
   const ground = getGroundCell(state, root)
+  const opportunities = root.strayOf !== null ? [] : opportunityTriggers(state, root.actorId)
   if (!root.targetId) {
     const guards = ground ? Object.keys(state.characters).filter((id) => isGuardingCells(state, root.actorId, [ground], id)) : []
-    return ground ? [...guards.map((id): Trigger => ({ characterId: id, kind: 'guard', at: null })), ...opportunityTriggers(state, root.actorId)] : []
+    return ground ? [...guards.map((id): Trigger => ({ characterId: id, kind: 'guard', at: null })), ...opportunities] : []
   }
-  const opportunities = opportunityTriggers(state, root.actorId)
   if (getJoinReaction(state, root)) return opportunities
   const own = (Object.keys(ACTIONS) as ActionKind[])
     .filter(isReaction)
@@ -293,7 +295,7 @@ function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
   // whether or not they are in range of the target: that is declared. A
   // quick shot an opportunity attack opens (abilities.tex "Archer's
   // Reflexes") is answered by its target alone, as a strike one opens is.
-  const joins = getOpeningReaction(state, root) !== null ? [] : Object.values(state.characters)
+  const joins = getOpeningReaction(state, root) !== null || root.strayOf !== null ? [] : Object.values(state.characters)
     .filter((c) => c.id !== root.actorId && c.id !== root.targetId && hasShootingRow(c, isCombatStarted(state)))
     .map((c): Trigger => ({ characterId: c.id, kind: 'joinShot', at: null, against: root.targetId! }))
   // abilities.tex "Archer's Reflexes": the target answers a shot with a quick

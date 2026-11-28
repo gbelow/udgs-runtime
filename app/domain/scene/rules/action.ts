@@ -342,8 +342,10 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
       return getStrikeVariantCost(state, c, action)
     case 'counterattack':
       return action.mode === 'shoot' ? getVariantCost(c, getCounterShot(action, ''), isCombatStarted(state)) : getStrikeVariantCost(state, c, action)
+    // combat.tex "Immobile Targets and Shooting Errors": a shot gone astray
+    // was paid for as the shot that missed
     case 'shoot':
-      return getVariantCost(c, action, isCombatStarted(state))
+      return action.strayOf !== null ? { AP: 0, STA: 0 } : getVariantCost(c, action, isCombatStarted(state))
     // paid for by the throw, the cast or the detonation that opened it
     case 'explosion':
       return { AP: 0, STA: 0 }
@@ -758,7 +760,7 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'strike':
       return open.roll?.degree === 'hit' && (getHOPOptions(state, open).length > 0 || canGrapple(state, open)) ? 'spend' : 'confirm'
     case 'shoot':
-      return open.strayOf === null && open.roll?.degree === 'hit' && getHOPOptions(state, open).length > 0 ? 'spend' : 'confirm'
+      return open.roll?.degree === 'hit' && getHOPOptions(state, open).length > 0 ? 'spend' : 'confirm'
     case 'cast':
       return open.roll?.degree === 'hit' && getImprovementOptions(state, open).length > 0 ? 'spend' : 'confirm'
     // combat.tex "Sprays": the cone is pointed once the reflexes have moved

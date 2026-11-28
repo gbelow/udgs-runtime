@@ -548,9 +548,13 @@ export type RootTestTerms = TestTerms & ({ scale: 'degrees' } | { scale: 'overfl
 // a hit"), the grapple skill against the partner's.
 export function getRootTestTerms(state: SceneState, root: RootAction): RootTestTerms | null {
   const terms = getOwnRootTestTerms(state, root)
-  // a spell test's die and skill are its target's, not the caster's
-  return terms && root.kind !== 'spellTest' ? { ...terms, skill: [...terms.skill, ...getCunningTestTerms(state, root)] } : terms
+  // a spell test's die and skill are its target's, not the caster's; a shot
+  // gone astray scores its d6 alone (combat.tex "Immobile Targets and
+  // Shooting Errors")
+  return terms && root.kind !== 'spellTest' && !isStrayShot(root) ? { ...terms, skill: [...terms.skill, ...getCunningTestTerms(state, root)] } : terms
 }
+
+const isStrayShot = (root: RootAction): boolean => root.kind === 'shoot' && root.strayOf !== null
 
 function getOwnRootTestTerms(state: SceneState, root: RootAction): RootTestTerms | null {
   const actor = state.characters[root.actorId]
@@ -558,7 +562,7 @@ function getOwnRootTestTerms(state: SceneState, root: RootAction): RootTestTerms
   switch (root.kind) {
     case 'strike':
     case 'shoot':
-      return { skill: getAttackTerms(state, root), DL: getDLTerms(state, root), scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
+      return { skill: isStrayShot(root) ? [] : getAttackTerms(state, root), DL: getDLTerms(state, root), scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
     case 'cast':
       return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root), scale: 'overflow', grazes: !root.quicken }
     case 'grapple':

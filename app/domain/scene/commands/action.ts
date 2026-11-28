@@ -37,6 +37,7 @@ import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
 import { getJumpingState, isJumpAttack, openAttackJump } from '../rules/attackJump'
 import { getPreparedCrit } from '../rules/cunning'
 import { isGrimoireCast } from '../rules/cast'
+import { getStrayDie } from '../rules/stray'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -421,7 +422,8 @@ function rollWith(caller: Caller, newId: () => string): Updater {
     const rootTest = getRootTest(state, open)
     const mode = open.kind === 'move' || open.kind === 'spellTest' ? open.mode : isGrimoireCast(actor, open) ? 'risky' : 'normal'
     const own = open.kind !== 'move' || needsOwnDie(state, open)
-    const test = rootTest && own ? testFor(caller, open, rootTest, open.kind, mode) : null
+    const strayDie = getStrayDie(state, open)
+    const test = rootTest && own ? (strayDie !== null ? { ...resolveTest(rootTest, () => strayDie), source: 'screen' as const, mode } : testFor(caller, open, rootTest, open.kind, mode)) : null
     if (!test && own && ACTIONS[open.kind].die) return state
     const moded = test && (open.kind === 'move' || open.kind === 'spellTest') ? { ...open, mode: test.mode } : open
     const thrown = withArmorRolls(state, withPercentileRolls(state, test ? { ...moded, roll: test } : moded, dice), dice)

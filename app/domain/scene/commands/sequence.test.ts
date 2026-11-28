@@ -1620,13 +1620,14 @@ describe('a guard with a body shield', () => {
 // (2026-11-28): a shot that misses goes astray, and "the shot changes
 // targets" to whoever stands where it went, else lands on the ground there.
 describe('a shot that misses', () => {
-  const shoot = (bystander: Coord | null): SceneState => {
+  const committed = (bystander: Coord | null): SceneState => {
     const placements: Record<string, [number, number]> = { atk: [0, 0], def: [5, 0], ...(bystander ? { by: [bystander.q, bystander.r] as [number, number] } : {}) }
     let s = onBoard(placements, archer('atk'), fighter('def'), fighter('by'))
     s = { ...s, board: { ...s.board!, extent: { q: 12, r: 12, s: 12 } } }
     s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
-    return playOut(commitAction(() => MISS, newId)(setTarget('def')(s)), MISS).state
+    return commitAction(() => MISS, newId)(setTarget('def')(s))
   }
+  const shoot = (bystander: Coord | null): SceneState => playOut(committed(bystander), MISS).state
   const missed = (s: SceneState) => getLog(s).find((a) => a.kind === 'shoot' && a.targetId === 'def')!
   const astray = (s: SceneState) => getLog(s).find((a) => a.kind === 'shoot' && a.strayOf !== null)
 
@@ -1647,5 +1648,18 @@ describe('a shot that misses', () => {
     if (empty.kind !== 'shoot' || !empty.astray) throw new Error('the miss did not go astray')
     const s = shoot(empty.astray.cell)
     expect(astray(s)).toMatchObject({ targetId: 'by', step: 'done' })
+  })
+
+  // the user's ruling: it is a shot like any other, its target answering it,
+  // but it draws no opportunity attack, fired once already
+  it('is answered by whoever it changed targets to, and draws no opportunity attack', () => {
+    const empty = missed(shoot(null))
+    if (empty.kind !== 'shoot' || !empty.astray) throw new Error('the miss did not go astray')
+    const s = rollAction(() => MISS, newId)(committed(empty.astray.cell))
+    const open = getOpenAction(s)!
+    expect(open).toMatchObject({ kind: 'shoot', targetId: 'by', step: 'react' })
+    const triggers = getTriggers(s, open)
+    expect(triggers.some((t) => t.characterId === 'by')).toBe(true)
+    expect(triggers.some((t) => t.kind === 'opportunityAttack' || t.kind === 'joinShot')).toBe(false)
   })
 })

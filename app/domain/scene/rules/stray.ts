@@ -1,14 +1,13 @@
-import type { Coord, SceneState, ShootAction, Stray } from '../types'
-import { sumTerms } from '../../character/rules/terms'
+import type { Action, Coord, SceneState, ShootAction, Stray } from '../types'
 import { isDead } from '../../character/rules/afflictions'
-import { getDegree } from '../../play/test'
 import { makeAction } from '../factories'
 import { DIRECTIONS, add, directionTo, inExtent, sameCell, turn } from './board/geometry'
 import { getFootprint, getPlacedFootprint, getTerrainAt, getTerrainReader, isLevelWith, isStepWalled } from './board/board'
 import { getGroundCell, isWorthHitting } from './floorAttack'
-import { getDefaultAim, getDLTerms } from './attack'
+import { getDefaultAim } from './attack'
 import { pickShotDeclaration } from './declaration'
 import { isVoided } from './opportunity'
+import { getAction } from './log'
 
 // combat.tex "Immobile Targets and Shooting Errors": "If a projectile scores
 // under 0 on its test, it hits another space. Pick any direction randomly from
@@ -17,7 +16,9 @@ import { isVoided } from './opportunity'
 // for how far, one for which way (1 on along the line of fire, the others
 // clockwise from it), one for its score against whoever it reaches; a wall
 // stops it and it stays on its floor; with no board there is nowhere for it
-// to go. The shot it becomes lands as any shot would there.
+// to go. The shot it becomes is a shot like any other, its d6 for its die
+// and nothing added to it, but for the opportunity attacks and joins, drawn
+// once already, and its price, paid already.
 
 // Whether the shot, as it lands, goes astray: a miss on a board that was
 // fired, and not itself one gone astray.
@@ -70,18 +71,21 @@ function getStruckThere(state: SceneState, stray: Stray): string | null {
 
 // The shot the missed one becomes where it went: at whoever stands there, else
 // at an object lying there that a hit would do something to, else at the
-// ground; made with the same row and ammunition, scored with its d6 against
-// what is there, and opened rolled, for nobody to answer.
+// ground; made with the same row and ammunition, opened committed for whoever
+// may answer it.
 export function getStrayShot(state: SceneState, missed: ShootAction, id: string): ShootAction | null {
   const stray = missed.astray
   if (!stray || missed.strayOf !== null) return null
-  const base = makeAction('shoot', { id, actorId: missed.actorId, ...pickShotDeclaration(missed), spawnedBy: missed.id, strayOf: missed.id, breakRolls: missed.breakRolls, step: 'post' })
+  const base = makeAction('shoot', { id, actorId: missed.actorId, ...pickShotDeclaration(missed), spawnedBy: missed.id, strayOf: missed.id, step: 'react' })
   const struck = getStruckThere(state, stray)
   const object = struck ? undefined : state.floor.find((f) => f.cell && sameCell(f.cell, stray.cell) && isWorthHitting(state, { ...base, cell: stray.cell }, f))
-  const aimed: ShootAction = struck ? { ...base, targetId: struck, ...getDefaultAim(state.characters[struck]) }
+  return struck ? { ...base, targetId: struck, ...getDefaultAim(state.characters[struck]) }
     : object ? { ...base, object: object.item.id }
     : { ...base, cell: stray.cell }
-  const DLTerms = getDLTerms(state, aimed)
-  const DL = sumTerms(DLTerms)
-  return { ...aimed, roll: { die: stray.score, DL, score: stray.score, degree: getDegree(stray.score, DL), HOP: 0, skillTerms: [], DLTerms } }
+}
+
+// The die a shot gone astray is rolled with: the score d6 the miss threw.
+export function getStrayDie(state: SceneState, action: Action): number | null {
+  const missed = action.kind === 'shoot' && action.strayOf !== null ? getAction(state, action.strayOf) : null
+  return missed?.kind === 'shoot' && missed.astray ? missed.astray.score : null
 }
