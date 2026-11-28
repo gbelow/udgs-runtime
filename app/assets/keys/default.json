@@ -1,0 +1,16 @@
+{
+  "card.back": ["Tab"],
+  "card.next": ["Enter"],
+  "card.commit": ["Space"],
+  "card.cancel": ["Escape", "RightClick"],
+  "card.tile1": ["1"],
+  "card.tile2": ["2"],
+  "card.tile3": ["3"],
+  "card.tile4": ["4"],
+  "card.tile5": ["5"],
+  "card.tile6": ["6"],
+  "card.tile7": ["7"],
+  "card.tile8": ["8"],
+  "card.tile9": ["9"],
+  "bots.pause": ["F1"]
+}

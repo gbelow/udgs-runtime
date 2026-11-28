@@ -9,6 +9,8 @@ import type { AnswerWalk, DeclarationWalk, ExchangeWalk, LandingWalk, ReactorSta
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Damage } from '../domain/character/rules/gear'
 import { ACTION_ICONS, CATEGORY_ICONS } from './actionIcons'
+import { useKeyMap } from '../hooks/useKeyMap'
+import { TILE_COMMANDS, findKey, isKey, keyLabel, type KeyMap } from '../keys'
 
 // Where the last press landed, which is where a click on the board opens its menu.
 const pointer = { x: 0, y: 0 }
@@ -16,11 +18,11 @@ const SIDE_GAP = 16
 const MENU_ROOM = 340
 
 // One screen of the popover: a set of numbered tiles, the first nine pressed
-// by their number as well, and a footer that stays put from screen to
-// screen, back on its left (Tab) and the press that goes on on its right
-// (Enter). The space bar commits what is declared as it stands, whatever
-// step it is at (`commit`), and Escape or a right click anywhere cancels
-// what the screen is choosing.
+// by a key as well, and a footer that stays put from screen to screen, back
+// on its left and the press that goes on on its right. One key commits what
+// is declared as it stands, whatever step it is at (`commit`), and another
+// cancels what the screen is choosing. Which keys they are is the key
+// profile's (app/keys.ts).
 type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; note?: ReactNode; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
 type Act = { label: string; run: () => void; bar?: string | null; icon?: LucideIcon }
 type Card = {
@@ -60,13 +62,14 @@ export function ClickMenuHost(){
   const at = useMemo(() => ({ x: pointer.x, y: pointer.y }), [from])
 
   const { view, expanded } = walked
+  const keys = useKeyMap()
   const small = !menu && view?.kind === 'exchange' && !expanded
   const card: Card | null = menu ? menuCard(menu, category, { press, start, close, show: showCategory })
     : !view || small ? null
     : view.kind === 'declare' ? declarationCard(view, walked, closeWalk)
     : view.kind === 'land' ? landingCard(view, walked, closeWalk)
     : exchangeCard(view, walked)
-  useCardKeys(card)
+  useCardKeys(card, keys)
 
   useEffect(() => {
     const note = (e: PointerEvent) => { pointer.x = e.clientX; pointer.y = e.clientY }
@@ -95,7 +98,7 @@ export function ClickMenuHost(){
       setTimeout(() => { window.removeEventListener('pointerup', swallow, true); window.removeEventListener('click', swallow, true) }, 1000)
     }
     const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
+      if (!isKey(keys, 'card.cancel', e)) return
       // another popover or dropdown that is open takes the key first
       if (!menu && (isTyping(e) || document.querySelector('[aria-expanded="true"]'))) return
       if (card) card.cancel()
@@ -130,7 +133,7 @@ export function ClickMenuHost(){
       {place}
       <Floating anchor={anchor} panelRef={panel} align={toRight ? 'start' : 'end'} role={menu ? 'menu' : 'dialog'} aria-label={menu ? `actions on ${menu.title}` : view?.title}
         className='bg-raised border border-line rounded-lg shadow-xl shadow-black/50 text-xs overflow-hidden'>
-        {card ? <CardView card={card} /> : null}
+        {card ? <CardView card={card} keys={keys} /> : null}
       </Floating>
     </>
   )
@@ -140,37 +143,39 @@ function isTyping(e: Event): boolean {
   return e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName))
 }
 
-// The card's keys: a tile's number presses it, Tab goes back, Enter goes on,
-// a right click cancels.
-function useCardKeys(card: Card | null){
-  const current = useRef<Card | null>(null)
-  useEffect(() => { current.current = card })
+// The card's keys, as the key profile binds them: a tile's key presses it,
+// and back, go on, commit and cancel each have theirs; cancel may be the
+// right button too.
+function useCardKeys(card: Card | null, keys: KeyMap){
+  const current = useRef<{ card: Card | null, keys: KeyMap }>({ card: null, keys })
+  useEffect(() => { current.current = { card, keys } })
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      const c = current.current
+      const { card: c, keys: map } = current.current
       if (!c || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key === 'Tab') {
+      if (isKey(map, 'card.back', e)) {
         e.preventDefault()
         e.stopPropagation()
         if (c.back && !c.back.bar) c.back.run()
         return
       }
-      if (e.key === 'Enter' || e.key === ' ') {
-        const act = e.key === ' ' ? c.commit ?? c.primary : c.primary
+      const going = isKey(map, 'card.commit', e) ? c.commit ?? c.primary : isKey(map, 'card.next', e) ? c.primary : undefined
+      if (going !== undefined) {
         e.preventDefault()
-        if (act && !act.bar && !e.repeat) act.run()
+        if (going && !going.bar && !e.repeat) going.run()
         return
       }
-      const tile = /^[1-9]$/.test(e.key) ? c.tiles[Number(e.key) - 1] : undefined
+      const pressed = findKey(map, TILE_COMMANDS, e)
+      const tile = pressed ? c.tiles[TILE_COMMANDS.indexOf(pressed)] : undefined
       if (!tile || tile.bar) return
       e.preventDefault()
       tile.run()
     }
     const context = (e: MouseEvent) => {
-      const c = current.current
+      const { card: c, keys: map } = current.current
       if (!c) return
       e.preventDefault()
-      c.cancel()
+      if (isKey(map, 'card.cancel', e)) c.cancel()
     }
     window.addEventListener('keydown', key, true)
     window.addEventListener('contextmenu', context, true)
@@ -182,8 +187,10 @@ function costLabel(cost: ActionCost | null | undefined){
   return cost ? `${cost.AP} AP${cost.STA ? ` · ${cost.STA} STA` : ''}` : null
 }
 
-function CardView({ card }: { card: Card }){
+function CardView({ card, keys }: { card: Card, keys: KeyMap }){
   const { back, primary } = card
+  // the press on the right is the commit on the last step, and goes by the commit's key there
+  const committing = !!card.commit && primary?.label === card.commit.label
   return (
     <div className='flex h-[26rem] w-80 flex-col'>
       <div className='flex flex-row items-center gap-2 border-b border-line px-3 py-2'>
@@ -196,18 +203,18 @@ function CardView({ card }: { card: Card }){
         {card.label ? <span className='text-[10px] uppercase tracking-wider text-muted'>{card.label}</span> : null}
         {card.tiles.length > 0 ? (
           <LockedFor id={card.lock} className='grid grid-cols-3 gap-1.5'>
-            {card.tiles.map((t, i) => <TileView key={t.key} tile={t} n={i < 9 ? String(i + 1) : null} />)}
+            {card.tiles.map((t, i) => <TileView key={t.key} tile={t} n={TILE_COMMANDS[i] ? keyLabel(keys, TILE_COMMANDS[i]) : null} />)}
           </LockedFor>
         ) : null}
         {card.below}
       </div>
       <div className='flex flex-row items-center gap-2 border-t border-line bg-surface/60 p-2'>
-        <FootKey act={back} fallback='back' hint='Tab' className='w-24' />
+        <FootKey act={back} fallback='back' hint={keyLabel(keys, 'card.back')} className='w-24' />
         <span className='flex-1 text-center text-[9px] text-muted'>
-          {card.commit && !card.commit.bar && primary?.label !== card.commit.label ? <><span className='font-mono text-fg'>Space</span> {card.commit.label}</> : null}
+          {card.commit && !card.commit.bar && !committing ? <><span className='font-mono text-fg'>{keyLabel(keys, 'card.commit')}</span> {card.commit.label}</> : null}
         </span>
         <LockedFor id={card.primaryLock === undefined ? card.lock : card.primaryLock}>
-          <FootKey act={primary} hint='Enter' look='go' className='w-36' />
+          <FootKey act={primary} hint={keyLabel(keys, committing ? 'card.commit' : 'card.next')} look='go' className='w-36' />
         </LockedFor>
       </div>
     </div>

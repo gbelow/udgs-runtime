@@ -5,6 +5,8 @@ import type { Coord } from '../domain/scene/types'
 import { useCameraAsked, usePlaybackReport, type BoardCamera } from '../hooks/useBoardCanvas'
 import type { BoardHover, BoardStage } from '../board/stage'
 import type { BoardMotion } from '../board/playback'
+import { useKeyMap } from '../hooks/useKeyMap'
+import { isKey } from '../keys'
 
 type Props = {
   view: BoardView
@@ -21,8 +23,8 @@ type Props = {
   onFloorItem?: (itemId: string) => void
   // the cell the pointer is on, told so that what is drawn over it is veiled
   setLit?: (key: string | null) => void
-  // what F1 does while the board has the focus, which it takes under the
-  // pointer unless something is being written
+  // what the key that pauses the bots does while the board has the focus,
+  // which it takes under the pointer unless something is being written
   onPauseKey?: () => void
   // how fast what happens on the board plays, or not at all
   motion?: BoardMotion
@@ -34,6 +36,7 @@ const NONE: readonly string[] = []
 // in words beside it. Pixi is loaded only in the browser.
 export function BoardCanvas(props: Props){
   const { view, veiled, picked = NONE, marked = NONE, label, className, onPauseKey, motion = 'normal' } = props
+  const keys = useKeyMap()
   const host = useRef<HTMLDivElement>(null)
   const stage = useRef<BoardStage | null>(null)
   const latest = useRef(props)
@@ -83,7 +86,7 @@ export function BoardCanvas(props: Props){
         onPointerEnter={() => { if (!isWriting()) focusBoard(host.current) }}
         onPointerMove={() => { if (document.activeElement === document.body) focusBoard(host.current) }}
         onKeyDown={(e) => {
-          if (!onPauseKey || e.key !== 'F1') return
+          if (!onPauseKey || !isKey(keys, 'bots.pause', e.nativeEvent)) return
           e.preventDefault()
           if (!e.repeat) onPauseKey()
         }} />
