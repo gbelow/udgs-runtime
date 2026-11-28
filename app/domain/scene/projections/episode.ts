@@ -16,6 +16,7 @@ import { isCancelledCounter } from '../rules/openers'
 import { getMoveOverride, getStandingIn } from '../rules/move'
 import { describeOutcome, describeSource } from '../../play/test'
 import { findWeaponRow } from '../rules/weaponRow'
+import { isRoundStartCause } from '../rules/roundChange'
 
 // What the log calls someone: whoever its reader does not know is someone unseen.
 const getLogName = (state: SceneState, id: string): string => getFightName(state, id) || (id === '' ? UNSEEN_NAME : '')
@@ -324,9 +325,31 @@ export function describeChangeTo(change: Change): string {
 }
 
 // What commands outside any action changed since the last action landed, a
-// line each.
+// line each, but for what the round began with, which has lines of its own
+// (`getRoundStartLines`).
 export function getEditsSince(state: SceneState): string[] {
   return state.edits
-    .filter((e) => e.landed >= state.landed.length)
+    .filter((e) => e.landed >= state.landed.length && !isRoundStartCause(e.cause))
     .flatMap((e) => e.changes.map((c) => `${e.cause}: ${describeChange(state, c)}`))
+}
+
+// What ran on its own as this round began (the collapsed tending their
+// wounds, the bleeding, the ground), a line for each character it ran on and
+// what, with the test it came of, kept for the whole round.
+export type RoundStartLine = {
+  who: string
+  cause: string
+  test: TestLine | null
+  changes: string[]
+}
+
+export function getRoundStartLines(state: SceneState): RoundStartLine[] {
+  return state.edits
+    .filter((e) => e.round === state.round && isRoundStartCause(e.cause))
+    .map((e) => ({
+      who: getLogName(state, e.test?.id ?? e.changes[0]?.id ?? ''),
+      cause: e.cause,
+      test: getTestLine(e.test?.roll ?? null),
+      changes: e.changes.map(describeChangeTo),
+    }))
 }

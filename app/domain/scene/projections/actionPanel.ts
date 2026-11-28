@@ -22,7 +22,7 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, canGrapple, getHitHOP, getHOPOptions } from '../rules/damage'
 import { getActionNotes, getOutcomes } from './outcomes'
 import { getFollowOffer, type FollowOffer } from './turn'
-import { EpisodeEntry, getEditsSince, getRoundEpisodes } from './episode'
+import { EpisodeEntry, getEditsSince, getRoundEpisodes, getRoundStartLines, type RoundStartLine } from './episode'
 import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
@@ -497,13 +497,15 @@ export type ActionPanelView = {
   episodes: EpisodeEntry[][]
   // what commands outside any action changed since it landed
   edits: string[]
+  // what ran on its own as the round began
+  roundStart: RoundStartLine[]
   // while a preparation is declared: what it is made of and what it waits for
   prepare: PrepareView | null
   // what everyone has prepared in the round
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, follow: null, reactors: [], heldBack: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, commitBar: null, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, follow: null, reactors: [], heldBack: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, commitBar: null, holds: false, die: false, compare: false, canRoll: false, canPay: false, goBar: null, canAccept: false, jumpPending: false, restMove: false, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, total: 0, terms: [], options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [], roundStart: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -632,10 +634,11 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
   const episodes = getRoundEpisodes(state)
   const edits = getEditsSince(state)
+  const roundStart = getRoundStartLines(state)
 
   if (!open) {
     const follow = active ? getFollowOffer(state, active.id) : null
-    return { ...EMPTY, step: getNextStep(state), follow, episodes, edits, prepared: getPreparedRows(state) }
+    return { ...EMPTY, step: getNextStep(state), follow, episodes, edits, roundStart, prepared: getPreparedRows(state) }
   }
 
   const { open: offered, hopOptions, ...offers } = getActionOffers(state)
@@ -703,6 +706,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     },
     episodes,
     edits,
+    roundStart,
     prepared: getPreparedRows(state),
     follow: null,
     awaited: step === 'react' ? getAwaited(state).map((id) => getFightName(state, id)) : [],

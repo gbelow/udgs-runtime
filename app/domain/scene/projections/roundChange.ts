@@ -99,7 +99,11 @@ export type RoundChangeView = {
 function getHappened(state: SceneState, id: string): string[] {
   return state.edits
     .filter((e) => e.round === state.round)
-    .flatMap((e) => e.changes.filter((c) => c.id === id).map((c) => `${e.cause}: ${describeChangeTo(c)}`))
+    .flatMap((e) => {
+      const cause = e.test ? `${e.cause} (${e.test.roll.degree})` : e.cause
+      const lines = e.changes.filter((c) => c.id === id).map((c) => `${cause}: ${describeChangeTo(c)}`)
+      return lines.length === 0 && e.test?.id === id ? [cause] : lines
+    })
 }
 
 function getConcentration(state: SceneState, id: string): RoundConcentration | null {

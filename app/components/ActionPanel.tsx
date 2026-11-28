@@ -10,7 +10,7 @@ import { useRole } from '../hooks/useRole'
 import type { CastGearOption, ImprovementOption } from '../domain/scene/rules/cast'
 import type { MovementOption } from '../domain/scene/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/scene/projections/actionPanel'
-import type { EpisodeEntry } from '../domain/scene/projections/episode'
+import type { EpisodeEntry, RoundStartLine } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionDraft, ActionRoll, ReactionAmend, CostTerm, StrikeAction } from '../domain/scene/types'
@@ -777,14 +777,38 @@ export function SaveLogButton(){
 
 export function ActionLog(){
   const { view } = useCombatActions()
-  const { episodes, edits } = view
+  const { episodes, edits, roundStart } = view
   return (
     <div className='flex flex-col gap-1.5'>
       <BotReasons />
-      {episodes.length === 0 && edits.length === 0 ? <span className='text-xs text-muted'>nothing played this round</span> : null}
+      {episodes.length === 0 && edits.length === 0 && roundStart.length === 0 ? <span className='text-xs text-muted'>nothing played this round</span> : null}
       {edits.map((e, i) => <span key={i} className='text-xs text-muted'>since: {e}</span>)}
       {episodes.map((episode, i) => <Report key={episodes.length - i} episode={episode} open={i === 0} />)}
+      <RoundStart lines={roundStart} />
     </div>
+  )
+}
+
+// What ran on its own as the round began: who tended their wounds and how the
+// test went, who bled, what the ground did.
+function RoundStart({ lines }: { lines: RoundStartLine[] }){
+  if (lines.length === 0) return null
+  return (
+    <details open className='border-b border-line/50 pb-1.5'>
+      <summary className='cursor-pointer select-none text-sm'>round start</summary>
+      <div className='flex flex-col gap-1.5 pt-1'>
+        {lines.map((line, i) => (
+          <div key={i} className='flex flex-col'>
+            <span className='text-sm'>
+              <span className='font-medium'>{line.who} · {line.cause}</span>
+              {line.changes.map((c) => <span key={c} className='ml-2 text-xs text-muted'>{c}</span>)}
+              {line.test && line.changes.length === 0 ? <span className='ml-2 text-xs text-muted'>nothing stopped</span> : null}
+            </span>
+            <TestRow test={line.test} />
+          </div>
+        ))}
+      </div>
+    </details>
   )
 }
 

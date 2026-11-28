@@ -31,6 +31,12 @@ export type RoundPhase = 'rest' | 'concentration' | 'join' | 'chase' | 'morale' 
 
 export const ROUND_PHASES: readonly RoundPhase[] = ['rest', 'concentration', 'join', 'chase', 'morale', 'stress']
 
+// What runs on its own as the rest step is left, each as the log names it:
+// the collapsed tending their wounds, the bleeding and the ground.
+export const ROUND_START_CAUSES = { tend: 'tend wounds', bleed: 'bleeding', environment: 'environment' } as const
+const ROUND_START: readonly string[] = Object.values(ROUND_START_CAUSES)
+export const isRoundStartCause = (cause: string): boolean => ROUND_START.includes(cause)
+
 // Where the round change stands, or null while the round is played in turns.
 // The morale tests and the limit stress actions follow one another as the
 // tests are made and the actions taken.

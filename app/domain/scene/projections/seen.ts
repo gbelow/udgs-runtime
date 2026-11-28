@@ -128,7 +128,7 @@ const CENSORS: { [K in keyof SceneState]: SceneCensor<SceneState[K]> } = {
   faces: (faces, c) => told(Object.fromEntries(Object.entries(faces).filter(([id]) => c.controlled.has(id))), c),
   witnessed: (by, c) => Object.fromEntries(Object.entries(by).flatMap(([id, who]) => (c.visible.has(id) ? [[id, who.filter((w) => c.controlled.has(w))]] : []))),
   journal: (entries, c) => entries.filter((e) => c.visible.has(e.action.id)).map((e) => { const action = toldAction(e.action, c); return action === e.action ? e : { ...e, action } }),
-  edits: (edits, c) => edits.map((e) => { const changes = unseen(withoutNamed(e.changes, c.hidden, c.state), c); return changes === e.changes ? e : { ...e, changes } }).filter((e) => e.changes.length > 0),
+  edits: (edits, c) => edits.map((e) => { const changes = unseen(withoutNamed(e.changes, c.hidden, c.state), c); const test = e.test && c.hidden.has(e.test.id) ? null : e.test; return changes === e.changes && test === e.test ? e : { ...e, changes, test } }).filter((e) => e.changes.length > 0 || e.test),
   board: (board, c) => (board ? { ...board, placements: unseen(board.placements, c) } : board),
   binds: unseen,
   floor: unseen,

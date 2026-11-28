@@ -1,7 +1,7 @@
 import { isCombatStarted } from '../rules/started'
 import type { CampaignCharacter, Delivery } from '../../types'
 import { deliver } from '../../character/commands/deliver'
-import type { SceneState, Updater } from '../types'
+import type { EditTest, SceneState, Updater } from '../types'
 import { getOpenAction } from '../rules/log'
 import { getHeldActions } from '../rules/hold'
 import { withdrawActions } from './log'
@@ -50,14 +50,15 @@ export function layToRest(state: SceneState): SceneState {
 // Changes one character outside any action — an edit made on the sheet
 // mid-fight — and brings the grapples back into line with it: a holder whose
 // hands no longer hold a grapple row lets go. The updater is told whether
-// the combat has started, the one place its prices are paid.
-export function updateCharacter(id: string, updater: (c: CampaignCharacter, charged: boolean) => CampaignCharacter, cause = 'sheet edit'): Updater {
+// the combat has started, the one place its prices are paid. A test the
+// change came of is kept with it, whether it changed anything or not.
+export function updateCharacter(id: string, updater: (c: CampaignCharacter, charged: boolean) => CampaignCharacter, cause = 'sheet edit', test: EditTest | null = null): Updater {
   return (state) => {
     const c = state.characters[id]
     if (!c) return state
     const after = settleBinds({ ...state, characters: { ...state.characters, [id]: updater(c, isCombatStarted(state)) } })
     const changes = getChanges(state, after, 'edit')
-    const noted = changes.length === 0 ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.landed.length, changes }] }
+    const noted = changes.length === 0 && !test ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.landed.length, changes, test }] }
     return layToRest(noted)
   }
 }

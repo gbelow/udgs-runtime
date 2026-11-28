@@ -515,6 +515,9 @@ const ActionBase = {
   tested: z.array(z.object({ targetId: str, name: str, roll: ActionRollSchema }).strip()).default([]),
   // what its damage came to on each it reached, written as it lands
   results: z.array(ResultSchema).default([]),
+  // for a weapon attack, the reaction it was scored against, by id, written
+  // as it lands; null for one met with the SD
+  defendedBy: str.nullable().default(null),
   // what its roll and its landing changed in the fight, written as they are
   // applied
   changes: z.array(ChangeSchema).default([]),
@@ -1856,8 +1859,11 @@ export type JournalEntry = z.infer<typeof JournalEntrySchema>
 
 // What a command outside any action changed on a character — a surge, an item
 // drawn or stowed, a sheet edit — and what it was, with the number of actions
-// that had landed when it was made.
-export const EditEntrySchema = z.object({ cause: str, round: num, turn: num, landed: num, changes: z.array(ChangeSchema) }).strip()
+// that had landed when it was made, and the test it came of, when one did
+// (whose it was and how it rolled), kept even where it changed nothing.
+export const EditTestSchema = z.object({ id: str, roll: ActionRollSchema }).strip()
+export type EditTest = z.infer<typeof EditTestSchema>
+export const EditEntrySchema = z.object({ cause: str, round: num, turn: num, landed: num, changes: z.array(ChangeSchema), test: EditTestSchema.nullable().default(null) }).strip()
 export type EditEntry = z.infer<typeof EditEntrySchema>
 
 // The shape of a fight. This lives in the domain — not in the Zustand store —
