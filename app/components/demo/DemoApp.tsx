@@ -16,6 +16,7 @@ import { SceneSpace, TableWaits, TurnBar } from '../ScenePanel'
 import { DockBox, ScreenCorner, SheetWindow } from '../Docks'
 import { FacesColumn } from '../FocusBar'
 import { AutoThrow, FIGHT_SLOTS, SheetBar, SheetTabs, Status } from '../RunScreen'
+import { FightReport } from '../FightReport'
 import { useActiveControlBar } from '../../hooks/useControl'
 import { Button, IconButton, SectionLabel, Segment, Segmented, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
@@ -159,7 +160,7 @@ function DemoTable() {
         {hasActive && !face && (own || watching) ? <SheetWindow>{(t) => <SheetTabs own={own} copy={false} at={t} />}</SheetWindow> : null}
         <DockBox side='right'>
           {throwing ? <DiceTray /> : !started ? <Basics /> : <>
-            <SectionLabel>{FIGHT_SLOTS.log.label}</SectionLabel>
+            <div className='flex flex-row items-center justify-between gap-2'><SectionLabel>{FIGHT_SLOTS.log.label}</SectionLabel>{FIGHT_SLOTS.log.action}</div>
             <div className='flex-1 min-h-0 overflow-y-auto'>{FIGHT_SLOTS.log.node}</div>
           </>}
         </DockBox>
@@ -241,6 +242,10 @@ function Result() {
             </div>
           ))}
         </div>
+        <details className='border-t border-line pt-2'>
+          <summary className='cursor-pointer select-none text-sm'>fight report</summary>
+          <div className='max-h-[40vh] overflow-y-auto pt-2'><FightReport /></div>
+        </details>
         <div className='flex flex-row flex-wrap gap-2 justify-center'>
           <Button weight='solid' tone='accent' onClick={() => { setHidden(false); again() }}>play again</Button>
           <Button title='back to picking the party' onClick={back}>restart game</Button>

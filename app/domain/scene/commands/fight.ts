@@ -12,6 +12,7 @@ import { passETs } from '../../campaign/commands/clock'
 import { describeSpan } from '../../campaign/rules/clock'
 import { record } from '../../campaign/commands/journal'
 import { getFightLogLines } from '../projections/episode'
+import { getFightReportLines } from '../projections/report'
 import { getPartyMembers } from '../../campaign/rules/place'
 import { getTableNames, withFreeId } from '../../campaign/rules/roster'
 import { getFightName } from '../rules/fighters'
@@ -153,7 +154,8 @@ export const saveFightLog: TableUpdater = (table) => {
   const fight = { ...table.fight, logSaved: table.fight.landed.length }
   if (lines.length === 0) return { ...table, fight }
   const parties = [...new Set(Object.keys(table.fight.characters).map((id) => getHomecoming(table, id).partyId))].filter((pid) => table.campaign.parties[pid])
-  const campaign = (parties.length > 0 ? parties : [null]).reduce((c, party) => record({ kind: 'fight', party, title: 'the log of a fight', lines })(c), table.campaign)
+  const report = ['the fight so far, for each in it:', ...getFightReportLines(table.fight)]
+  const campaign = (parties.length > 0 ? parties : [null]).reduce((c, party) => record({ kind: 'fight', party, title: 'the log of a fight', lines: [...lines, ...report] })(c), table.campaign)
   return { campaign, fight }
 }
 

@@ -9,7 +9,7 @@ import type { CampaignCharacter, Degree } from '../../types'
 import { updateCharacter } from './characters'
 import { expireUsedAbilities } from '../../character/commands/abilities'
 import { getHeldActions } from '../rules/hold'
-import { getEndCombatBar } from '../rules/fight'
+import { getEndCombatBar, TEND_AFTER_FIGHT_CAUSE } from '../rules/fight'
 import { finishHeld } from './hold'
 import { meetSurrendersSpared } from './providence'
 
@@ -34,7 +34,7 @@ export function endScene(scene: SceneState, caller: Caller): SceneState {
   const spared = meetSurrendersSpared(scene)
   const state = Object.values(spared.characters).reduce((s, c) => {
     const degree = getTended(spared, caller, c)
-    return degree ? updateCharacter(c.id, tendAfterFight(degree), `tend wounds after the fight: ${degree}`)(s) : s
+    return degree ? updateCharacter(c.id, tendAfterFight(degree), `${TEND_AFTER_FIGHT_CAUSE}: ${degree}`)(s) : s
   }, spared)
   const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, leaveFight(expireUsedAbilities(c))]))
   const ended = {

@@ -5,6 +5,7 @@ import { WeaponPanel } from './WeaponPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { ActionLog, SaveLogButton } from './ActionPanel';
+import { FightReportButton } from './FightReport';
 import { ArmorPanel } from './ArmorPanel';
 import { HandsPanel } from './HandsPanel';
 import { ContainerPanel } from './ContainerPanel';
@@ -63,7 +64,7 @@ export type PlayerSlots = {
   // what the active character can do, which says so itself where nobody is
   // picked; a mode with none has the bottom as its state and its log alone
   actions?: ReactNode
-  log: { label: string, node: ReactNode }
+  log: { label: string, node: ReactNode, action?: ReactNode }
 }
 
 type Mode = PlayerSlots & {
@@ -85,7 +86,7 @@ type Mode = PlayerSlots & {
 // The fight's slots for a player of it.
 export const FIGHT_SLOTS: PlayerSlots = {
   status: { resourceEnd: <SurgeTile wide />, needs: false, bars: true, extra: <CharacterExtras /> },
-  log: { label: 'Log', node: <ActionLog /> },
+  log: { label: 'Log', node: <ActionLog />, action: <FightReportButton /> },
 }
 
 const MODES: Record<RunTab, Mode> = {
@@ -97,7 +98,7 @@ const MODES: Record<RunTab, Mode> = {
     gm: <><ViewAs /><BoardGmTools /></>,
     ...FIGHT_SLOTS,
     injuryAction: <KillButton />,
-    log: { ...FIGHT_SLOTS.log, action: <SaveLogButton /> },
+    log: { ...FIGHT_SLOTS.log, action: <div className='flex flex-row gap-1'><FightReportButton /><SaveLogButton /></div> },
   },
   exploration: {
     strip: <ExplorationStrip />,

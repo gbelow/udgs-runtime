@@ -5,7 +5,8 @@ import { getOpenAction, isForgone } from '../rules/log'
 import { getOwedDice, getSettled } from '../rules/settle'
 import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
 import { getCastLink } from '../../character/rules/concentration'
-import { getDefaultAim, isStoppedByGuard } from '../rules/attack'
+import { getDefaultAim, getDefendingReaction, isStoppedByGuard } from '../rules/attack'
+import { isAttackAction } from '../rules/actionCatalog'
 import { canPayOpened, getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
 import { findObject, getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
@@ -106,7 +107,7 @@ export function land(state: SceneState, open: RootAction, newId: () => string, c
   const thrown = throwTargetDice(state, open, caller)
   if (caller.waiting()) return state
   const settled = getSettled(state, goAstray(state, thrown, caller))
-  const resolved = { ...settled, results: getResults(state, settled) }
+  const resolved = { ...settled, results: getResults(state, settled), defendedBy: isAttackAction(settled) ? getDefendingReaction(state, settled)?.id ?? null : null }
   const redone = redoClimb(replaceActions(state, [resolved]), resolved, caller)
   if (caller.waiting()) return state
   const landed = landProtectionRun(meetAttackOnSurrendered(meetUnprotected(meetTested(breakHeld(applyPhase(redone, [resolved], 'resolve'), resolved), resolved), resolved), resolved), resolved)

@@ -86,3 +86,7 @@ export function getStandingParties(state: SceneState): string[] {
 export function isOneSideLeft(state: SceneState): boolean {
   return getStandingParties(state).length <= 1
 }
+
+// combat.tex "Bleed": what the tend wounds test made as the fight ends is
+// noted as among the edits, followed by its degree.
+export const TEND_AFTER_FIGHT_CAUSE = 'tend wounds after the fight'
