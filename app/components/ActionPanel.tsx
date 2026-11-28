@@ -866,6 +866,7 @@ function ReportEntry({ entry, open }: { entry: EpisodeEntry, open: boolean }){
           </div>
           <Declared declared={r.declared} />
           <TestRow test={r.test} />
+          {r.fate ? <div className='text-sm text-muted'>{r.fate}</div> : null}
           <Details open={open} extra={[`rule: ${r.rule}`]} terms={r.costTerms} refunded={r.refunded} surged={r.surged} changes={r.changes} />
         </div>
       ))}

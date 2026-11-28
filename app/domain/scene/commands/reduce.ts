@@ -21,6 +21,7 @@ import { isFloorAttack } from '../rules/equipment'
 import { getGroundCell } from '../rules/floorAttack'
 import { getBurnOf } from '../rules/ignition'
 import { isVoided } from '../rules/opportunity'
+import { isCancelledCounter } from '../rules/openers'
 import { isStoppedByGuard } from '../rules/attack'
 import { getMoveDestination } from '../rules/board/waypoint'
 import { getActionHeading } from '../rules/detection'
@@ -46,7 +47,7 @@ import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { takeDose } from '../../character/commands/consume'
 import { getCrashInterruption, getInterruptionOf } from '../rules/interruption'
 import { loseConcentration, releaseSpell } from '../../character/commands/spells'
-import { getAction } from '../rules/log'
+import { getAction, getReactionsTo } from '../rules/log'
 import { extinguishCell } from '../rules/extinguish'
 import { coatCell, filterLayers, igniteCell, getHolderOf, isSupersededBy, type FireTouched } from '../rules/board/hazard'
 import { actionSurge, endSurge } from '../../character/commands/actionSurge'
@@ -87,6 +88,14 @@ export function reduceCharacter(action: Action, phase: Phase, charged: boolean, 
 // combat.tex "Interruption": the AP of the action given up, given back
 function refund(AP: number): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => (AP > 0 ? { ...c, resources: { ...c.resources, AP: c.resources.AP + AP } } : c)
+}
+
+// abilities.tex "Counterattack"; the user's ruling (2026-11-28): the AP of
+// each counterattack cancelled with the attack it answered
+// (`isCancelledCounter`), given back as that attack comes to nothing.
+export function giveBackCancelledCounters(state: SceneState, root: Action): (c: CampaignCharacter) => CampaignCharacter {
+  const owed = getReactionsTo(state, root.id).filter((r) => isCancelledCounter(state, r))
+  return (c) => owed.filter((r) => r.actorId === c.id).reduce((ch, r) => refund(r.cost?.AP ?? 0)(ch), c)
 }
 
 function reducePart(action: Action, phase: Phase, charged: boolean): (c: CampaignCharacter) => CampaignCharacter {

@@ -3,7 +3,7 @@ import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { Action, ActionKind, ActionOf, SceneState, RootAction, WithdrawalReason } from '../types'
 import { getAction, getLiveActions, getParticipants, getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
-import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, reduceOpened, type Phase } from './reduce'
+import { giveBackCancelledCounters, reduceBoard, reduceCharacter, reduceFloor, reduceBinds, reduceOpened, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
 import { getInterruptionsLanding, type StampedInterruption } from '../rules/interruption'
 import { getPreparationOf, getReactedWithin } from '../rules/prepared'
@@ -192,7 +192,8 @@ function mapCharacters(state: SceneState, f: (c: CampaignCharacter) => CampaignC
 }
 
 // A voided action lands nothing at its resolve (combat.tex
-// "Interruption"); its price was already taken at the roll. A held test's die
+// "Interruption") but the AP of the counterattacks cancelled with it; its
+// price was already taken at the roll. A held test's die
 // is its actor's for the round as it is thrown, and a fall has them test their
 // balance again.
 export function applyPhase(state: SceneState, actions: Action[], phase: Phase): SceneState {
@@ -207,7 +208,7 @@ export function applyPhase(state: SceneState, actions: Action[], phase: Phase): 
 
 function applyOne(s: SceneState, action: Action, phase: Phase): SceneState {
   const thrown = phase === 'roll' ? holdThrown(s, action) : s
-  if (phase === 'resolve' && isVoided(thrown, action)) return thrown
+  if (phase === 'resolve' && isVoided(thrown, action)) return mapCharacters(thrown, giveBackCancelledCounters(thrown, action))
   const rolled = phase === 'resolve' ? dropFallenBalance(thrown, action) : thrown
   const board = rolled.board ? reduceBoard(rolled, action, phase)(rolled.board) : null
   const fire = phase === 'resolve' ? getFireTouched({ ...rolled, board }, action) : null

@@ -723,8 +723,10 @@ export function needsOwnDie(state: SceneState, action: MoveAction): boolean {
 // Whether the action is closed by a die: a strike always, a move with a test
 // of its own, an explosion when a reaction declared against it is a test of
 // its own (combat.tex "Avoiding an Explosion").
+// An action already given up or broken when its die would be thrown throws
+// none: its price is paid and it lands nothing (combat.tex "Interruption").
 export function needsDie(state: SceneState, action: Action): boolean {
-  if (action.holding) return false
+  if (action.holding || isVoided(state, action)) return false
   if (action.kind === 'move') return needsOwnDie(state, action)
   if (action.kind === 'spellTest' && action.accepted) return false
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die && !answersByDetection(state, r))

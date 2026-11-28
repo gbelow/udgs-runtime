@@ -1,7 +1,7 @@
 import type { Action, ActionOf, SceneState, MoveAction, ReactionAction, ReactionKind, RootAction } from '../types'
 import { makeAction } from '../factories'
 import { isReactionAction } from './actionCatalog'
-import { getDrawnOpportunityAttacks, getOpenedBy, getOpenedMain, getPassedUp, getReactionsTo } from './log'
+import { getAction, getDrawnOpportunityAttacks, getOpenedBy, getOpenedMain, getPassedUp, getReactionsTo } from './log'
 import { isSidestepReached, openSidestep } from './sidestep'
 import { findPrepared, getPreparedMain, getPreparedMoveBudget, getPreparedParts, getPreparedState, isPreparedCancelled, isPreparedReached } from './prepared'
 import { getMoveFacts } from './move'
@@ -23,16 +23,15 @@ import { isSightingBefore } from './sighting'
 // occurs before the effect of the triggering action"), one opened action at
 // a time, each once the one before has landed: the action it opens, with
 // the fight as it is fought in, or null when it opens nothing now. `after`
-// generates follow-ups once the root has landed — none from a voided root,
-// unless the reaction is `evenIfVoided` (the table's ruling: no follow-ups
-// for an interrupted action). A reaction kind added to the catalog does not
+// generates follow-ups once the root has landed, none from a voided root
+// (the table's ruling: no follow-ups for an interrupted action). A reaction
+// kind added to the catalog does not
 // compile until it has an entry here.
 export type Opened = { state: SceneState; action: Action }
 
 export type Opener<K extends ReactionKind> = {
   before?(state: SceneState, root: RootAction, reaction: ActionOf<K>, newId: () => string): Opened | null
   after?(state: SceneState, root: RootAction, reaction: ActionOf<K>, newId: () => string): Action[]
-  evenIfVoided?: true
 }
 
 export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
@@ -149,10 +148,11 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   // first" — the strike opened ahead of the attack's effect when it rolled
   // higher or the same (the table's ruling: a tie lands both, neither
   // breaking the other), after it when it rolled lower, unless the attack
-  // interrupted the one who made it. That one is its target's attack, not
-  // the attack's own follow-up, so it comes whether or not the attack landed.
+  // interrupted the one who made it. One whose attack came to nothing first
+  // opens nothing (`isCancelledCounter`).
   counterattack: {
     before: (state, root, reaction, newId) => {
+      if (isVoided(state, root)) return null
       const strike = openCounter(state, root, reaction, ['before', 'tie'], newId)
       return strike ? { state, action: strike } : null
     },
@@ -161,8 +161,16 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
       const strike = openCounter(state, root, reaction, ['after'], newId)
       return strike ? [strike] : []
     },
-    evenIfVoided: true,
   },
+}
+
+// abilities.tex "Counterattack"; the user's ruling (2026-11-28): a
+// counterattack whose attack is given up or broken before the counterattack
+// opened its own strike is cancelled, and its AP given back.
+export function isCancelledCounter(state: SceneState, reaction: Action): boolean {
+  if (reaction.kind !== 'counterattack' || getCounterAttackOf(state, reaction)) return false
+  const root = reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
+  return !!root && isVoided(state, root)
 }
 
 export function getOpener<K extends ReactionKind>(reaction: { kind: K }): Opener<K> {

@@ -278,21 +278,16 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // finished first; the fall a move ended in; and on top, the steps a steady
 // shot walks after it.
 // A voided action generates nothing (the table's ruling: no follow-ups for
-// an interrupted action) but what a reaction opens `evenIfVoided`, and none
-// is offered to one the action interrupted (`isInterruptedBy`), nor to one
-// who could not pay for it (`canPayOpened`).
+// an interrupted action), and none is offered to one the action interrupted
+// (`isInterruptedBy`), nor to one who could not pay for it (`canPayOpened`).
 export function getFollowUps(state: SceneState, root: RootAction, newId: () => string): Action[] {
   return generateFollowUps(state, root, newId).filter((a) => a.step !== 'define' || (!isInterruptedBy(state, root, a.actorId) && canPayOpened(state, a)))
 }
 
 function generateFollowUps(state: SceneState, root: RootAction, newId: () => string): Action[] {
-  const voided = isVoided(state, root)
-  const blast = root.kind === 'explosion' && !voided ? [goOff(root, newId)] : []
-  const opened = getAnsweringReactions(state, root).flatMap((reaction) => {
-    const opener = getOpener(reaction)
-    return opener.after && (!voided || opener.evenIfVoided) ? opener.after(state, root, reaction, newId) : []
-  })
-  if (voided) return opened
+  if (isVoided(state, root)) return []
+  const blast = root.kind === 'explosion' ? [goOff(root, newId)] : []
+  const opened = getAnsweringReactions(state, root).flatMap((reaction) => getOpener(reaction).after?.(state, root, reaction, newId) ?? [])
   return [
     ...blast,
     ...openFlees(state, root, newId),

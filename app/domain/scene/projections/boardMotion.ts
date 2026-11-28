@@ -8,6 +8,7 @@ import { coordKey, toPlane } from '../rules/board/geometry'
 import { getPathPlacements } from '../rules/board/waypoint'
 import { isPosture } from '../rules/move'
 import { getDeliveries } from '../rules/deliveries'
+import { isVoided } from '../rules/opportunity'
 import { getExplosionZones } from '../rules/explosion'
 import { toneOf, type Tone } from './outcomes'
 import { findWeaponRow } from '../rules/weaponRow'
@@ -115,8 +116,9 @@ export function getBoardMotions(state: SeenScene): BoardMotionView[] {
 
 const markers = new WeakMap<Action, Omit<BoardMarkerView, 'order'>[]>()
 
-// The degree each character an action reached was reached at, and the injury
-// level it gave them, as the action's own record of what it changed says it.
+// The degree each character an action reached was reached at, the injury
+// level and bleed it gave them, the interruption or stun it landed and the
+// wounds and afflictions they gained, as the action's own record says it.
 export function getBoardMarkers(state: SeenScene): BoardMarkerView[] {
   return recent(state).flatMap(({ action: a, order }) => {
     let known = markers.get(a)
@@ -128,15 +130,27 @@ export function getBoardMarkers(state: SeenScene): BoardMarkerView[] {
 function getMarkers(a: Action): Omit<BoardMarkerView, 'order'>[] {
   const degrees = new Map<string, Degree>()
   for (const { id, delivery } of getDeliveries(a)) if (delivery.degree !== null && !degrees.has(id)) degrees.set(id, delivery.degree)
-  const hurt = new Map<string, number>()
-  for (const x of a.changes) if (x.kind === 'value' && x.what === 'injury level') hurt.set(x.id, (hurt.get(x.id) ?? 0) + x.to - x.from)
-  const ids = [...new Set([...degrees.keys(), ...hurt.keys()])]
+  const sum = (what: string) => {
+    const by = new Map<string, number>()
+    for (const x of a.changes) if (x.kind === 'value' && x.what === what) by.set(x.id, (by.get(x.id) ?? 0) + x.to - x.from)
+    return by
+  }
+  const hurt = sum('injury level')
+  const bled = sum('bleed')
+  const gained = new Map<string, string[]>()
+  const gain = (id: string, text: string) => { if (!gained.get(id)?.includes(text)) gained.set(id, [...(gained.get(id) ?? []), text]) }
+  for (const { targetId, outcome } of a.results) if (outcome.interruption !== 'none') gain(targetId, outcome.interruption)
+  for (const x of a.changes) if (x.kind === 'gain' && x.gained && (x.what === 'wound' || x.what === 'affliction')) gain(x.id, x.name)
+  const ids = [...new Set([...degrees.keys(), ...hurt.keys(), ...bled.keys(), ...gained.keys()])]
   return ids.flatMap((id): Omit<BoardMarkerView, 'order'>[] => {
     const degree = degrees.get(id)
     const IL = hurt.get(id) ?? 0
+    const bleed = bled.get(id) ?? 0
     const lines = [
       ...(degree ? [{ text: degree, tone: toneOf(degree) }] : []),
       ...(IL !== 0 ? [{ text: `${IL > 0 ? '+' : ''}${IL} IL`, tone: IL > 0 ? 'bad' as const : 'good' as const }] : []),
+      ...(bleed > 0 ? [{ text: `+${bleed} bleed`, tone: 'bad' as const }] : []),
+      ...(gained.get(id) ?? []).map((text) => ({ text, tone: 'bad' as const })),
     ]
     return lines.length > 0 ? [{ key: `${a.id}:${id}`, id, lines }] : []
   })
@@ -147,7 +161,9 @@ const spot = (cell: Coord | null): BoardSpotView | null => (cell ? { cell: coord
 // Whether what the action delivered got through to anyone: a degree past a miss.
 const landedOn = (a: Action): boolean => getDeliveries(a).some(({ delivery }) => delivery.degree !== null && delivery.degree !== 'miss')
 
+// A given up or broken action is not drawn: it never went off.
 function getStrike(state: SeenScene, a: Action): Omit<BoardStrikeView, 'key' | 'order'> | null {
+  if (isVoided(state, a)) return null
   const base = { actor: a.actorId, targets: a.targetId ? [a.targetId] : [], at: null, cells: [], hit: landedOn(a), blow: null }
   switch (a.kind) {
     case 'strike':

@@ -12,6 +12,7 @@ import { UNSEEN_NAME } from '../rules/contest'
 import { getAction, getHistory, getLanded, getOrigin, getReactionsTo } from '../rules/log'
 import { getGivenUpFor, isInterruptible, isVoided } from '../rules/opportunity'
 import { getInterruptions } from '../rules/interruption'
+import { isCancelledCounter } from '../rules/openers'
 import { getMoveOverride, getStandingIn } from '../rules/move'
 import { describeOutcome, describeSource } from '../../play/test'
 import { findWeaponRow } from '../rules/weaponRow'
@@ -47,6 +48,8 @@ export type ReactionLine = {
   roll: ActionRoll | null
   test: TestLine | null
   changes: string[]
+  // why it came to nothing, when it did
+  fate: string | null
 }
 
 export type DetectionLine = {
@@ -84,6 +87,9 @@ export type EpisodeEntry = ActionReport & {
   detections: DetectionLine[]
   // why it came to less than it was declared as, when it did
   fate: string | null
+  // what it came to in a word when it came to nothing, given up or broken,
+  // shown in place of its roll
+  cancelled: string | null
   reactions: ReactionLine[]
   withdrawn: WithdrawnLine[]
 }
@@ -110,8 +116,8 @@ export function getRoundEpisodes(state: SceneState): EpisodeEntry[][] {
 // from `since` on, only what landed after the first `since` of `landed`.
 export function getFightLogLines(state: SceneState, since = 0): string[] {
   return getOrigins(state, since).flatMap((origin) => (getEpisode(state, origin.id, since) ?? []).flatMap((entry) => [
-    `round ${origin.round} · ${entry.actor} · ${entry.label}${describeOutcome(entry.roll)}${entry.outcomes.map((o) => ` · ${o.target}${o.outcome.tier !== null ? ` T${o.outcome.tier}` : ''}${o.outcome.dead ? ' dead' : ''}`).join('')}`,
-    ...entry.reactions.map((r) => `  ${r.actor} answered: ${r.label}${describeOutcome(r.roll)}`),
+    `round ${origin.round} · ${entry.actor} · ${entry.label}${entry.cancelled ? ` · ${entry.cancelled}` : describeOutcome(entry.roll)}${entry.outcomes.map((o) => ` · ${o.target}${o.outcome.tier !== null ? ` T${o.outcome.tier}` : ''}${o.outcome.dead ? ' dead' : ''}`).join('')}`,
+    ...entry.reactions.map((r) => `  ${r.actor} answered: ${r.label}${r.fate ? ' · cancelled' : describeOutcome(r.roll)}`),
     ...(entry.fate ? [`  ${entry.fate}`] : []),
   ]))
 }
@@ -126,7 +132,8 @@ function getEpisode(state: SceneState, origin: string, since = 0): EpisodeEntry[
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
-    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, declared: getDeclared(state, a), test: getTestLine(a.roll), headline: report.outcomes.map((o) => describeHeadline(o.target, o.outcome)), cost: a.cost, costTerms: a.costTerms, refunded: a.refunded, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+    const cancelled = getCancelled(state, a)
+    return report ? [{ ...report, roll: cancelled ? null : report.roll, cancelled, rule: ACTIONS[a.kind].rule, declared: getDeclared(state, a), test: cancelled ? null : getTestLine(a.roll), headline: cancelled ? [cancelled] : report.outcomes.map((o) => describeHeadline(o.target, o.outcome)), cost: a.cost, costTerms: a.costTerms, refunded: a.refunded, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
   })
   return entries.length > 0 ? entries : null
 }
@@ -191,7 +198,10 @@ function describeDetection(state: SceneState, { observerId, hiderId, found, test
 function getReactionLines(state: SceneState, root: Action): ReactionLine[] {
   return getReactionsTo(state, root.id)
     .filter((r) => r.step === 'done')
-    .map((r) => ({ actor: getLogName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, declared: getDeclared(state, r), cost: r.cost, costTerms: r.costTerms, refunded: r.refunded, surged: r.surged, roll: r.roll, test: getTestLine(r.roll), changes: r.changes.map((c) => describeChange(state, c)) }))
+    .map((r) => {
+      const cancelled = isCancelledCounter(state, r)
+      return { actor: getLogName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, declared: getDeclared(state, r), cost: r.cost, costTerms: r.costTerms, refunded: r.refunded, surged: r.surged, roll: cancelled ? null : r.roll, test: cancelled ? null : getTestLine(r.roll), changes: r.changes.map((c) => describeChange(state, c)), fate: cancelled ? `cancelled: what it answered came to nothing, and its ${r.cost?.AP ?? 0}AP was given back` : null }
+    })
 }
 
 // The options and targets the action was committed with, a phrase each.
@@ -237,6 +247,13 @@ function getCause(state: SceneState, action: Action): string | null {
   if (opener) return `opened by ${describe(state, opener)}`
   const earlier = action.followUpOf ? getAction(state, action.followUpOf) : null
   return earlier ? `follow-up to ${describe(state, earlier)}` : null
+}
+
+// What the action came to in a word when it came to nothing, shown in place
+// of its roll: a die thrown for it before it was broken decided nothing.
+function getCancelled(state: SceneState, action: Action): string | null {
+  if (action.kind === 'move' || !isVoided(state, action)) return null
+  return isInterruptible(action) && getGivenUpFor(state, action) ? 'given up' : 'broken'
 }
 
 function getFate(state: SceneState, action: Action): string | null {

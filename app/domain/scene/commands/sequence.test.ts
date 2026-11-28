@@ -539,6 +539,21 @@ describe('a counterattack', () => {
     const [tied] = strikes([5, 7])
     expect(tied.kind === 'strike' && tied.interruption).toBe('interrupted')
   })
+
+  // The user's ruling (2026-11-28): a counterattack on an attack that comes to
+  // nothing first is cancelled, and its AP given back.
+  it('on an attack an opportunity attack breaks first is cancelled, its AP given back', () => {
+    let s = onBoard({ atk: [0, 0], def: [1, 0], f1: [-1, 0] }, fighter('atk'), spearman('def', ['counterattack']), spearman('f1'))
+    s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
+    const AP = s.characters.def.resources.AP
+    s = declareReaction('def', { kind: 'counterattack' }, newId)(s)
+    const [row] = getAttackOptions(s.characters.def, 'strike', true)
+    s = everyoneAttacks(amendReaction('def', { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(s), ['f1'])
+    const { state, landed } = playOut(s, LAND)
+    expect(landed.filter((a) => a.actorId === 'def')).toEqual([])
+    expect(state.characters.def.resources.AP).toBe(AP)
+  })
 })
 
 // abilities.tex "Riposte": "After defending a melee attack that misses or
