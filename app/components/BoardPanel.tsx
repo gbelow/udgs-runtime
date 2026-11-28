@@ -19,6 +19,7 @@ import { RotateCw, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button, IconButton, Panel, SectionLabel, Segment, Segmented, TextInput, selectClass } from './ui'
 import { SceneCards } from './SceneCards'
 import { ClickMenuHost } from './ClickMenu'
+import { useMarkedCells } from '../hooks/useClickMenu'
 
 const MODE_LABEL = {
   idle: 'click a cell to place the active character (to move them again only until the fight starts), or an item to pick it up',
@@ -98,7 +99,7 @@ const PLAIN_MODE_LABEL = {
 // `plain`: nothing on it but what a player of the fight clicks (cells, tokens
 // and items, the turn of a move, the storey, the zoom and the view), as the
 // demo shows it. `placing`: the party is still being put down and the fight
-// has not begun, so the space bar holds no bots yet.
+// has not begun, so F1 holds no bots yet.
 export function BoardPanel({ plain = false, placing = false }: { plain?: boolean, placing?: boolean }){
   const eyes = useEyes()
   const look = useBoardLook()
@@ -118,8 +119,9 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
   const gmBar = useGmBar()
   const open = tools && gmTools
   const camera = useBoardCamera()
-  const { space } = useBotsPaused()
-  const onSpace = placing ? undefined : space
+  const { pauseKey } = useBotsPaused()
+  const marked = useMarkedCells(view)
+  const onPauseKey = placing ? undefined : pauseKey
 
   if (!view.present) {
     return (
@@ -150,7 +152,7 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
   const eyesButton = <Button size='xs' selected={eyes.on} aria-label='see as the active character' disabled={eyes.player} title={eyes.player ? 'you see what the last character of yours you picked senses' : 'draw only what the active character can see'} onClick={eyes.toggle}>their eyes</Button>
   const turnButton = <IconButton icon={RotateCw} aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)} />
   const canvas = <>
-    <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} camera={camera} cellAt={cellAt} setLit={setLit} onSpace={onSpace} motion={look.motion}
+    <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} marked={marked} camera={camera} cellAt={cellAt} setLit={setLit} onPauseKey={onPauseKey} motion={look.motion}
       onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
       onToken={clickToken}
       onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />

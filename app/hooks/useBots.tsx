@@ -41,10 +41,10 @@ export function useBotsPaused() {
     if (mode !== 'guest') useBotLogStore.getState().setPaused(!paused);
     else if (socket) sendToHost(socket, { kind: 'pauseBots', paused: !paused });
   };
-  return { paused, inPlay, bar, toggle, space: open && (inPlay || paused) ? toggle : undefined } as const;
+  return { paused, inPlay, bar, toggle, pauseKey: open && (inPlay || paused) ? toggle : undefined } as const;
 }
 
-// The GM's switch for whether the space bar pauses the bots, for everyone at
+// The GM's switch for whether F1 pauses the bots, for everyone at
 // the table; a guest's screen keeps none of the bots' settings.
 export function useBotsPauseSetting() {
   const open = useBotLogStore((s) => s.open);

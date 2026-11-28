@@ -10,6 +10,8 @@ type Props = {
   view: BoardView
   veiled: readonly string[]
   picked?: readonly string[]
+  // the cells kept lit while the popover is open on them
+  marked?: readonly string[]
   label: string
   className?: string
   camera: BoardCamera
@@ -19,9 +21,9 @@ type Props = {
   onFloorItem?: (itemId: string) => void
   // the cell the pointer is on, told so that what is drawn over it is veiled
   setLit?: (key: string | null) => void
-  // what the space bar does while the board has the focus, which it takes
-  // under the pointer unless something is being written
-  onSpace?: () => void
+  // what F1 does while the board has the focus, which it takes under the
+  // pointer unless something is being written
+  onPauseKey?: () => void
   // how fast what happens on the board plays, or not at all
   motion?: BoardMotion
 }
@@ -31,7 +33,7 @@ const NONE: readonly string[] = []
 // The board drawn on a canvas (app/board), with what the pointer rests on said
 // in words beside it. Pixi is loaded only in the browser.
 export function BoardCanvas(props: Props){
-  const { view, veiled, picked = NONE, label, className, onSpace, motion = 'normal' } = props
+  const { view, veiled, picked = NONE, marked = NONE, label, className, onPauseKey, motion = 'normal' } = props
   const host = useRef<HTMLDivElement>(null)
   const stage = useRef<BoardStage | null>(null)
   const latest = useRef(props)
@@ -58,7 +60,7 @@ export function BoardCanvas(props: Props){
       stage.current = made
       latest.current.camera.attach(made)
       made.setMotion(latest.current.motion ?? 'normal')
-      made.set({ view: latest.current.view, veiled: latest.current.veiled, picked: latest.current.picked ?? NONE })
+      made.set({ view: latest.current.view, veiled: latest.current.veiled, picked: latest.current.picked ?? NONE, marked: latest.current.marked ?? NONE })
     })
     return () => {
       alive = false
@@ -68,7 +70,7 @@ export function BoardCanvas(props: Props){
     }
   }, [report])
 
-  useEffect(() => { stage.current?.set({ view, veiled, picked }) }, [view, veiled, picked])
+  useEffect(() => { stage.current?.set({ view, veiled, picked, marked }) }, [view, veiled, picked, marked])
   useEffect(() => { stage.current?.setMotion(motion) }, [motion])
   useEffect(() => { if (asked) stage.current?.lookAt(asked.id) }, [asked])
 
@@ -76,14 +78,14 @@ export function BoardCanvas(props: Props){
   return (
     <div className={`relative overflow-hidden select-none ${className ?? ''}`}>
       <div ref={host} className='absolute inset-0 outline-none' role='img' aria-label={label}
-        tabIndex={onSpace ? 0 : undefined}
+        tabIndex={onPauseKey ? 0 : undefined}
         onPointerDown={() => focusBoard(host.current)}
         onPointerEnter={() => { if (!isWriting()) focusBoard(host.current) }}
         onPointerMove={() => { if (document.activeElement === document.body) focusBoard(host.current) }}
         onKeyDown={(e) => {
-          if (!onSpace || e.code !== 'Space') return
+          if (!onPauseKey || e.key !== 'F1') return
           e.preventDefault()
-          if (!e.repeat) onSpace()
+          if (!e.repeat) onPauseKey()
         }} />
       {title ?
         <div className='pointer-events-none absolute z-10 max-w-xs rounded border border-line bg-raised px-2 py-1 text-xs text-fg shadow'

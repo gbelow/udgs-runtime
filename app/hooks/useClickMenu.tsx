@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { getAimCells, type BoardView } from "../domain/scene/projections/boardView";
 import { getPressActor, type MenuEntry } from "../domain/scene/commands/clickMenu";
 import type { SceneCommand } from "../domain/scene/commands/registry";
 import { getGivenSteps, getOpenWalk, getShownReactor, hasOwnToReact, isFinished, walkKey, type AnswerWalk, type OpenWalk, type WalkButton, type WalkKey, type WalkStep } from "../domain/scene/projections/openWalk";
@@ -49,6 +50,12 @@ export function useClickMenu() {
   };
 
   return { menu, shown, show: showCategory, walk, press, start, close, closeWalk, escape } as const;
+}
+
+// The cells of what the popover was opened on, kept lit while it is open.
+export function useMarkedCells(view: BoardView): readonly string[] {
+  const at = useClickMenuStore((s) => s.menu?.at ?? s.walk?.from.at ?? null);
+  return useMemo(() => getAimCells(view, at), [view, at]);
 }
 
 const NO_REACTORS: AnswerWalk[] = [];

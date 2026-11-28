@@ -6,7 +6,8 @@ import { FIGURE, POSTURES, colorOf, drawBinds, drawMarker, tokenBody, type Kit }
 
 // What the board plays as the fight goes on, from what the view offers: the
 // walks of the moves that landed, the blows (the striker lunges, whoever it
-// got through to shakes), the streaks of shots and spells, the flash of an
+// got through to shakes, under a slash for a cut and a smack for a blunt
+// blow), the streaks of shots and spells, the flash of an
 // area going off, a faller's drop, a token easing into how it now lies, and
 // the markers rising off whoever an action reached. One after another in the
 // order the actions landed, never behind by more than a moment; nothing the
@@ -23,6 +24,7 @@ const LUNGE_MS = 320
 const LUNGE = 0.35
 const SHAKE_MS = 300
 const SHAKE = 0.1
+const BLOW_MS = 380
 const SHOT_MS = 260
 const SPELL_MS = 420
 const AREA_MS = 650
@@ -44,6 +46,7 @@ type Walk = { points: Point[]; times: number[]; start: number; jump: boolean }
 type Nudge = { id: string; kind: 'lunge' | 'shake' | 'drop'; start: number; ms: number; dir: Point }
 type Streak = { kind: 'shot' | 'spell'; from: string; to: string | Point; start: number; ms: number }
 type Flash = { cells: Point[]; start: number; ms: number }
+type Blow = { kind: 'cut' | 'blunt'; id: string; start: number; ms: number; dir: Point }
 type Pose = { from: { x: number; y: number }; start: number; ms: number }
 type Float = { id: string; node: Container; start: number; still: boolean }
 
@@ -66,6 +69,7 @@ export class Playback {
   private nudges: Nudge[] = []
   private streaks: Streak[] = []
   private flashes: Flash[] = []
+  private blows: Blow[] = []
   private poses = new Map<string, Pose>()
   private floatList: Float[] = []
   private lastAt = new Map<string, Point>()
@@ -153,8 +157,10 @@ export class Playback {
         const [a, b] = [tokenBody(actor), tokenBody(target)]
         const length = Math.hypot(b.x - a.x, b.y - a.y) || 1
         const start = this.slot(now, this.ms(LUNGE_MS))
-        this.nudges.push({ id: x.actor, kind: 'lunge', start, ms: this.ms(LUNGE_MS), dir: { x: (b.x - a.x) / length, y: (b.y - a.y) / length } })
+        const dir = { x: (b.x - a.x) / length, y: (b.y - a.y) / length }
+        this.nudges.push({ id: x.actor, kind: 'lunge', start, ms: this.ms(LUNGE_MS), dir })
         shake(start + this.ms(LUNGE_MS) / 2)
+        if (x.hit && x.blow) for (const id of x.targets) this.blows.push({ kind: x.blow, id, start: start + this.ms(LUNGE_MS) / 2, ms: this.ms(BLOW_MS), dir })
       } else if ((x.kind === 'shot' || x.kind === 'spell') && actor && ends.length > 0) {
         const ms = this.ms(x.kind === 'shot' ? SHOT_MS : SPELL_MS)
         const start = this.slot(now, ms)
@@ -243,7 +249,7 @@ export class Playback {
     this.moveBinds(view?.binds ?? [], offsets, nodes.binds)
     this.drawStrokes(now, view, tokens, offsets)
     this.rise(now, tokens, offsets)
-    return this.walks.size > 0 || this.nudges.length > 0 || this.streaks.length > 0 || this.flashes.length > 0 || this.poses.size > 0 || this.floatList.length > 0
+    return this.walks.size > 0 || this.nudges.length > 0 || this.streaks.length > 0 || this.flashes.length > 0 || this.blows.length > 0 || this.poses.size > 0 || this.floatList.length > 0
   }
 
   // A link between two tokens follows them while either is drawn off its place.
@@ -285,6 +291,18 @@ export class Playback {
       }
       return true
     })
+    this.blows = this.blows.filter((s) => {
+      const k = (now - s.start) / (s.ms || 1)
+      if (k >= 1) return false
+      const token = tokens.get(s.id)
+      if (k <= 0 || !token) return true
+      const at = centre(s.id)
+      if (!at) return true
+      const r = tokenBody(token).radius
+      if (s.kind === 'cut') drawSlash(g, this.kit, at, r, s.dir, k)
+      else drawSmack(g, this.kit, at, r, k)
+      return true
+    })
     const hex = view?.hex ?? []
     this.flashes = this.flashes.filter((f) => {
       const k = (now - f.start) / (f.ms || 1)
@@ -321,6 +339,32 @@ export class Playback {
 
 // Where along its walk a token is at a moment, and how much of the walk is
 // behind it: setting off and coming to a stop eased, at an even pace between.
+// A cut: a bright stroke drawn across the token, crosswise to the way the
+// blow came, that fades once it is drawn.
+function drawSlash(g: Graphics, kit: Kit, at: Point, r: number, dir: Point, k: number) {
+  const across = { x: -dir.y, y: dir.x }
+  const half = 1.15 * r
+  const from = { x: at.x - across.x * half - dir.x * 0.4 * r, y: at.y - across.y * half - dir.y * 0.4 * r }
+  const to = { x: at.x + across.x * half + dir.x * 0.4 * r, y: at.y + across.y * half + dir.y * 0.4 * r }
+  const drawn = Math.min(1, k / 0.35)
+  const fade = k < 0.35 ? 1 : 1 - (k - 0.35) / 0.65
+  const tip = { x: from.x + (to.x - from.x) * drawn, y: from.y + (to.y - from.y) * drawn }
+  g.moveTo(from.x, from.y).lineTo(tip.x, tip.y).stroke({ width: 0.22 * r, cap: 'round', ...colorOf(kit, { color: 'bad', alpha: 0.45 * fade }) })
+  g.moveTo(from.x, from.y).lineTo(tip.x, tip.y).stroke({ width: 0.07 * r, cap: 'round', ...colorOf(kit, { color: 'fg', alpha: fade }) })
+}
+
+// A blunt blow: a ring bursting out of the token with short rays round it.
+function drawSmack(g: Graphics, kit: Kit, at: Point, r: number, k: number) {
+  const fade = 1 - k
+  g.circle(at.x, at.y, r * (0.5 + 0.9 * k)).stroke({ width: 0.12 * r, ...colorOf(kit, { color: 'caution', alpha: fade }) })
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4 + Math.PI / 8
+    const [inner, outer] = [r * (0.9 + 0.5 * k), r * (1.15 + 0.7 * k)]
+    g.moveTo(at.x + Math.cos(a) * inner, at.y + Math.sin(a) * inner).lineTo(at.x + Math.cos(a) * outer, at.y + Math.sin(a) * outer)
+      .stroke({ width: 0.08 * r, cap: 'round', ...colorOf(kit, { color: 'fg', alpha: fade }) })
+  }
+}
+
 function alongWalk(walk: Walk, now: number): { at: Point; share: number } {
   const t = now - walk.start
   const { points, times } = walk

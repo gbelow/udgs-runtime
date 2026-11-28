@@ -342,7 +342,7 @@ export function GmSceneTools(){
         <Tooltip text={breakFreeBar ?? 'a command to the active character is a severe compulsion: they test insight or cunning against the DL that dominated them'}>
           <Button size='xs' aria-label='break free' disabled={breakFreeBar !== null} onClick={breakFree}>break free</Button>
         </Tooltip>
-        <Tooltip text={pause.bar ?? (pause.open ? 'anyone at the table may pause the bots: the space bar over the board, or the action bar' : 'only the GM may pause the bots, from the action bar')}>
+        <Tooltip text={pause.bar ?? (pause.open ? 'anyone at the table may pause the bots: F1 over the board, or the action bar' : 'only the GM may pause the bots, from the action bar')}>
           <Button size='xs' aria-label='space pauses bots' aria-pressed={pause.open} active={pause.open} disabled={pause.bar !== null} onClick={pause.toggle}>
             space pauses bots: {pause.open ? 'on' : 'off'}
           </Button>

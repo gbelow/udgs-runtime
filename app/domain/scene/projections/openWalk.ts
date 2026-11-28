@@ -36,7 +36,7 @@ import { getOpenChoices, type ChoicePart, type OpenChoice } from './choices'
 // of its own (`heavy`), the attack made at no degree declared picked to begin
 // with.
 
-export type WalkKey = ChoicePart | 'answer' | 'surge' | 'heavy'
+export type WalkKey = ChoicePart | 'answer' | 'heavy'
 
 // `actionId`, the action walked, once it is seen open; `given`, the steps of
 // its declaration the entry gave; `passed`, keyed by `walkKey`.
@@ -85,8 +85,9 @@ const STEPS: readonly StepDef[] = [
 // `command` is null where pressing it gives nothing new: the value a pick has
 // now; `bar`, why it cannot be pressed; of a value bought, how many times it
 // is (`count`) and what takes one back (`undo`); `damage`, the blow an attack
-// row or a heavy degree lands.
-export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null; damage?: Damage }
+// row or a heavy degree lands; `cost`, what pressing it declares costs, and
+// `note`, what it is made with (a surge, and what the surge gives).
+export type WalkButton = { label: string; selected: boolean; command: SceneCommand | null; bar?: string | null; count?: number; undo?: SceneCommand | null; damage?: Damage; cost?: ActionCost | null; note?: string | null }
 
 // `now`, the number a `steps` step stands at; `keep`, whether it may be gone
 // on from as it is: a pick with nothing chosen yet must be made; `note`,
@@ -282,10 +283,15 @@ function getExchangeWalk(state: SceneState, open: RootAction, passed: (reactorId
   }
 }
 
-// A reaction a step at a time: what it is (or nothing), the surge it is made
-// on where it may be made on another, then what it is declared as.
+// A reaction a step at a time: what it is, made each way it may be made (with
+// no surge or on one, a tile for each, as an attack has one for each row), or
+// nothing; then what it is declared as. A surge it is made on says what it
+// gives, and so does the surge the reactor is on already.
 function getAnswerWalk(open: Action, r: ReactorOptions, choices: OpenChoice[], passed: readonly WalkKey[], base: HeavyBase): AnswerWalk {
   const chosen = r.answers.find((a) => a.chosen) ?? null
+  const way = chosen?.ways.find((w) => w.chosen)
+  const noteOf = (surge: string | null, gives: string) => (surge ? `${surge} surge${gives ? ` ${gives}` : ''}` : null)
+  const onAlready = r.surge ? noteOf(r.surge.kind, r.surge.gives) : null
   const answer: WalkStep = {
     key: 'answer',
     label: 'reaction',
@@ -293,23 +299,15 @@ function getAnswerWalk(open: Action, r: ReactorOptions, choices: OpenChoice[], p
     now: null,
     keep: chosen !== null || r.passed,
     buttons: [
-      ...r.answers.filter((a) => a.available || a.chosen).map((a): WalkButton => ({ label: a.label, selected: a.chosen, command: a.chosen ? null : { kind: 'react', args: [r.id, a.draft, a.surge] } })),
-      ...r.answers.filter((a) => !a.available && !a.chosen).map((a): WalkButton => ({ label: a.label, selected: false, command: null, bar: a.reason ?? 'closed' })),
+      ...r.answers.flatMap((a): WalkButton[] => {
+        const ways = a.ways.filter((w) => w.available || w.chosen)
+        if (ways.length === 0) return [{ label: a.label, selected: false, command: null, bar: a.reason ?? 'closed', cost: a.cost }]
+        return ways.map((w) => ({ label: a.label, selected: w.chosen, cost: w.cost, note: noteOf(w.surge, w.gives) ?? onAlready, command: w.chosen ? null : { kind: 'react', args: [r.id, w.draft, w.surge] } }))
+      }),
       { label: r.pass.label, selected: r.passed, command: r.passed ? null : { kind: 'pass', args: [r.id] } },
     ],
   }
-  const ways = chosen?.ways.filter((w) => w.available || w.chosen) ?? []
-  const way = ways.find((w) => w.chosen)
-  const surge: WalkStep | null = ways.length > 1 ? {
-    key: 'surge',
-    label: 'made on',
-    kind: 'pick',
-    now: null,
-    keep: true,
-    note: way?.gives || null,
-    buttons: ways.map((w) => ({ label: w.surge ? `${w.surge} surge` : 'no surge', selected: w.chosen, command: w.chosen ? null : { kind: 'react', args: [r.id, w.draft, w.surge] } })),
-  } : null
-  const steps = [answer, ...(surge ? [surge] : []), ...(chosen ? stepsOf(choices, base) : [])]
+  const steps = [answer, ...(chosen ? stepsOf(choices, base) : [])]
   const done = r.done === null ? null : { state: r.done, command: { kind: 'confirmReaction', args: [r.id] } as SceneCommand }
   return {
     walk: walkKey(open.id, r.id),

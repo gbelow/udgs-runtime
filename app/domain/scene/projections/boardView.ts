@@ -444,6 +444,16 @@ const EMPTY_GROUND: BoardGround = { extent: { q: 0, r: 0, s: 0 }, hex: [], frame
 
 const EMPTY: BoardView = { present: false, ground: EMPTY_GROUND, extent: { q: 0, r: 0, s: 0 }, hex: [], light: 'bright', lights: [], frame: { x: 0, y: 0, width: 1, height: 1 }, surface: null, surfaces: [], arts: [], cells: [], ridges: [], chords: [], rims: [], overhead: [], faces: [], standing: [], sprites: [], bands: 1, front: false, tokens: [], floor: [], binds: [], ghosts: [], motions: [], markers: [], strikes: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
+// The cells of what was clicked to open the board's popover, lit while it is
+// open: a token's footprint, the cell, or the one an item lies on.
+export function getAimCells(view: BoardView, at: { on: 'token'; id: string } | { on: 'cell'; cell: Coord } | { on: 'floor'; itemId: string } | null): string[] {
+  if (!at) return []
+  if (at.on === 'token') return view.tokens.find((t) => t.id === at.id)?.cells.map((c) => c.key) ?? []
+  if (at.on === 'cell') return [coordKey(at.cell)]
+  const item = view.floor.find((f) => f.itemId === at.itemId)
+  return item ? [item.cell] : []
+}
+
 function buildBoardView(state: SeenScene): BoardView {
   const board = state.board
   if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).filter((c) => !isOffGrid(state, c.id)).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }

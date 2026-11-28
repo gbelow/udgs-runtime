@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { archer, fighter, mage, meleeTrained, rangedTrained, spearman } from '../domain/scene/fixtures'
 import { readClick } from '../domain/scene/commands/click'
-import { isAimed, type MenuEntry } from '../domain/scene/commands/clickMenu'
+import { isAimed, LONE_PARTS, type MenuEntry } from '../domain/scene/commands/clickMenu'
 import { getGivenSteps, walkKey, type OpenWalk, type WalkStep } from '../domain/scene/projections/openWalk'
 import { getOpenChoices } from '../domain/scene/projections/choices'
 import { getAncestry, getReactionsTo } from '../domain/scene/rules/log'
@@ -62,6 +62,35 @@ describe('the menu a click on the board opens', () => {
     expect(open).toMatchObject({ kind: 'move', step: 'define' })
     expect(isAimed(h.state(), { on: 'cell', cell })).toBe(true)
   })
+})
+
+// The user's ruling (2026-11-28): an action may be started with no target,
+// from a click on the character themself, and what there is only one of is
+// picked by itself.
+describe('the menu a click on the selected character opens', () => {
+  for (const actor of [spearman, archer, mage]) {
+    it(`aims every entry ${actor.name} may declare at nothing`, () => {
+      const h = scene(actor)
+      const entries = (h.menu({ on: 'token', id: h.idOf('Ann') })?.entries ?? []).filter((e) => e.press.kind === 'declare')
+      expect(entries.length).toBeGreaterThan(0)
+      for (const e of entries) expect(e.press.kind === 'declare' ? e.press.aim : null, e.label).toBeNull()
+    })
+
+    it(`leaves nothing ${actor.name} declares from it unpicked where there is only one to pick`, () => {
+      const open = (h: Harness) => (h.menu({ on: 'token', id: h.idOf('Ann') })?.entries ?? []).filter((e) => e.bar === null && e.press.kind === 'declare')
+      const count = open(scene(actor)).length
+      for (let nth = 0; nth < count; nth++) {
+        const h = scene(actor)
+        const entry = open(h)[nth]
+        h.pressMenu(entry)
+        const choices = getOpenChoices(h.state()).filter((c) => c.actorId === h.idOf('Ann'))
+        for (const part of LONE_PARTS) {
+          const of = choices.filter((c) => c.part === part)
+          if (of.length === 1) expect(of[0].chosen, `${entry.label}: the one ${part}`).toBe(true)
+        }
+      }
+    })
+  }
 })
 
 // combat.tex "Follow": the menu on a token marks whom the selected character

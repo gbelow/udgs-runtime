@@ -5,7 +5,7 @@ import type { Point } from '../domain/scene/rules/board/geometry'
 import { readPalette } from './palette'
 import { getTexture } from './textures'
 import { drawFlatGround } from './ground'
-import { FLOOR_ITEM_HALF, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, tokenBody, type Kit } from './draw'
+import { FLOOR_ITEM_HALF, crispCells, drawAwaited, drawCorners, drawBinds, drawCells, drawChords, drawCrispGround, drawFloor, drawGhosts, drawLit, drawMarked, drawMist, drawOverhead, drawRidges, drawSprites, drawToken, tokenBody, type Kit } from './draw'
 import { Playback, type BoardMotion } from './playback'
 import { destroyShadeTargets, drawShadeCorners, drawShadeMap, drawShadeOver, makeShadeTargets, type ShadeMap } from './light'
 
@@ -22,6 +22,8 @@ export type BoardInput = {
   veiled: readonly string[]
   // the characters picked by hand, drawn with the accent ring
   picked: readonly string[]
+  // the cells kept lit while the popover is open on them
+  marked: readonly string[]
 }
 
 export type BoardHover =
@@ -305,7 +307,7 @@ export class BoardStage {
   private drawLit() {
     if (!this.input) return
     this.litLayer.removeChildren().forEach((c) => c.destroy())
-    this.litLayer.addChild(drawLit(this.kit, this.input.view, this.lit))
+    this.litLayer.addChild(drawMarked(this.kit, this.input.view, this.input.marked), drawLit(this.kit, this.input.view, this.lit))
   }
 
   // The canvas drawn on the next frame, once however often it is asked; kept

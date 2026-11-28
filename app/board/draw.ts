@@ -371,6 +371,21 @@ export function drawOverhead(kit: Kit, overhead: BoardOverheadView[], hex: Point
 // The space the pointer is on: its top and the walls under it lit, and the
 // space it is picked by, where it stands on the ground.
 
+// The cells the popover was opened on, kept lit while it is open: a wide
+// glow round each and a firm edge.
+export function drawMarked(kit: Kit, view: BoardView, keys: readonly string[]): Graphics {
+  const g = new Graphics()
+  const accent = colorOf(kit, { color: 'accent' })
+  for (const key of keys) {
+    const cell = view.cells.find((c) => c.key === key)
+    if (!cell) continue
+    const hex = flat(cell.hex ?? view.hex, cell.x, cell.y)
+    g.poly(hex).stroke({ width: 0.35, ...accent, alpha: 0.25 })
+    g.poly(hex).fill({ ...accent, alpha: 0.18 }).stroke({ width: 0.14, ...accent })
+  }
+  return g
+}
+
 export function drawLit(kit: Kit, view: BoardView, key: string | null): Graphics {
   const g = new Graphics()
   const cell = key === null ? undefined : view.cells.find((c) => c.key === key)

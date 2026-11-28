@@ -14,11 +14,13 @@ import { getModifierToggles } from '../rules/modifiers'
 import { sameCell } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
 import { getDeclaredHiddenTargets, getOwnCost, needsTarget } from '../rules/action'
-import { getAvailableActions, getDefaultAnswers, type ActionOption } from '../rules/options'
+import { getAnswerWays, getAvailableActions, type ActionOption } from '../rules/options'
+import { getGivesLine, getSurgeFacts } from '../../character/lenses/surge'
 import { getFightName } from '../rules/fighters'
 import { getStartTurnBar } from '../rules/turn'
 import { getFollowBar } from '../rules/follow'
 import { getMustStart } from '../projections/turn'
+import { getOpenChoices, type ChoicePart } from '../projections/choices'
 import { getDraftLabel, getPassLabel } from '../projections/labels'
 import { amendAction, commitAction, declareAction, declareReaction, passReaction, setTarget } from './action'
 import { readPick } from './board'
@@ -52,8 +54,9 @@ export type MenuPress =
 export const getPressActor = (press: MenuPress): string => (press.kind === 'declare' || press.kind === 'follow' ? press.actorId : press.reactorId)
 
 // `bar`, why it cannot be pressed now; `surge`, the surge it is made on.
-// `damage`, the blow an attack row lands.
-export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress, damage?: Damage }
+// `damage`, the blow an attack row lands; `note`, what an answer is made
+// with: the surge, and what it gives.
+export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress, damage?: Damage, note?: string }
 
 // The entries of one category, and how many of them may be pressed now.
 export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntry[], open: number }
@@ -62,8 +65,8 @@ export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntr
 // `actor`, whose entries they are; `turn`, said when they must start a turn
 // before they act, and why they cannot now; `groups`, the entries under the
 // heading of their category, every category shown; `answering`, the open
-// action its answers are to.
-export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[], groups: MenuGroup[], answering?: string }
+// action its answers are to; `at`, what was clicked to open it.
+export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[], groups: MenuGroup[], answering?: string, at: MenuAim }
 
 function groupEntries(entries: readonly MenuEntry[]): MenuGroup[] {
   const categories = entries.some((e) => e.category === 'answer') ? ['answer' as const] : ACTION_CATEGORIES
@@ -73,7 +76,9 @@ function groupEntries(entries: readonly MenuEntry[]): MenuGroup[] {
   })
 }
 
-export function pressMenu(press: MenuPress, newId: () => string, thrown: Throw): Updater {
+// `fill`: whether what there is only one of is filled in, which the menu's
+// own probes of an entry leave out.
+export function pressMenu(press: MenuPress, newId: () => string, thrown: Throw, fill = true): Updater {
   return (state) => {
     switch (press.kind) {
       case 'answer': return declareReaction(press.reactorId, press.draft, newId, press.surge)(state)
@@ -87,11 +92,30 @@ export function pressMenu(press: MenuPress, newId: () => string, thrown: Throw):
         const { recipe, ...fields } = press.fields
         const rowed = Object.keys(fields).length > 0 ? amendAction(fields)(declared) : declared
         const filled = recipe !== undefined ? amendAction({ recipe })(rowed) : rowed
-        const aimed = press.aim ? aim(press.aim, newId)(filled) : filled
+        const pointed = press.aim ? aim(press.aim, newId)(filled) : filled
+        const aimed = fill ? fillLone(pointed, press.actorId) : pointed
         return press.commit ? commitAction(thrown, newId)(aimed) : aimed
       }
     }
   }
+}
+
+// What an action declared from the menu is aimed at, or carries, where there
+// is only one thing it could be: the one target it may be aimed at, the one
+// item, piece of gear, ammo or charge it may take. Nothing is filled in that
+// is chosen already.
+export const LONE_PARTS: readonly ChoicePart[] = ['target', 'item', 'gear', 'chargeInto', 'ammo', 'container', 'charge']
+
+function fillLone(state: SceneState, actorId: string): SceneState {
+  const choices = getOpenChoices(state).filter((c) => c.actorId === actorId && LONE_PARTS.includes(c.part))
+  return LONE_PARTS.reduce((s, part) => {
+    const of = choices.filter((c) => c.part === part)
+    if (of.length !== 1 || of[0].chosen) return s
+    const { command } = of[0]
+    if (command.kind === 'amend') return amendAction(command.args[0])(s)
+    if (command.kind === 'target') return setTarget(command.args[0])(s)
+    return s
+  }, state)
 }
 
 function aim(at: MenuAim, newId: () => string): Updater {
@@ -127,7 +151,9 @@ function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu
   const c = state.characters[selected]
   if (!c || (at.on !== 'token' && !state.board?.placements[selected])) return null
   const note = getMustStart(state, selected)
-  const entries = [...getOwnEntries(state, at, c), ...getFollowEntry(state, at, c)]
+  // a click on the character themself aims at nothing: whatever needs a target is aimed in the walk
+  const own = at.on === 'token' && at.id === c.id
+  const entries = [...getOwnEntries(state, own ? null : at, c), ...getFollowEntry(state, at, c)]
   return {
     title: at.on === 'token' ? getFightName(state, at.id) : at.on === 'cell' ? 'here' : 'item',
     select: at.on === 'token' ? at.id : null,
@@ -135,6 +161,7 @@ function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu
     turn: note ? { note, bar: getStartTurnBar(state, selected) } : null,
     entries,
     groups: groupEntries(entries),
+    at,
   }
 }
 
@@ -216,7 +243,7 @@ function getEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter,
 }
 
 function probe(state: SceneState, press: MenuPress): SceneState {
-  return pressMenu(press, () => 'probe', () => 5)(state)
+  return pressMenu(press, () => 'probe', () => 5, false)(state)
 }
 
 // An attack out of reach of the clicked one, and after it the same attack
@@ -273,18 +300,25 @@ function aimed(state: SceneState, entry: MenuEntry): MenuEntry {
   return { ...entry, press: unaimed }
 }
 
+// Each answer is offered every way it may be made, with no surge or on one,
+// as an attack is offered with each row, saying what the surge gives; the
+// surge the character is on already says so too.
 function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
+  const c = state.characters[id]
   const options = getAvailableActions(state, id)
-  const answers = getDefaultAnswers(options).filter((o) => o.available && o.reactionTo !== null)
-  if (answers.length === 0) return null
+  const answers = getAnswerWays(options).flatMap((a) => a.ways).filter((o) => o.available && o.reactionTo !== null)
+  if (!c || answers.length === 0) return null
+  const gives = (kind: SurgeKind) => getGivesLine(getSurgeFacts(c, kind))
   const entries: MenuEntry[] = [
     ...answers.map((o): MenuEntry => {
       const label = getDraftLabel(state, id, o)
       // a recipe named for its surge says it already
       const surge = o.surge && !label.includes(`${o.surge} surge`) ? o.surge : null
-      return { label, category: 'answer', cost: o.cost, surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge } }
+      const on = o.surge ?? c.usedSurge
+      const note = on ? `${on} surge${gives(on) ? ` ${gives(on)}` : ''}` : undefined
+      return { label, category: 'answer', cost: o.cost, surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge }, ...(note ? { note } : {}) }
     }),
     { label: getPassLabel(state, id, options).label, category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
   ]
-  return { title: `${getFightName(state, id)} answers`, select: id, actor: id, turn: null, entries, groups: groupEntries(entries), answering: getOpenAction(state)?.id }
+  return { title: `${getFightName(state, id)} reacts`, select: id, actor: id, turn: null, entries, groups: groupEntries(entries), answering: getOpenAction(state)?.id, at: { on: 'token', id } }
 }

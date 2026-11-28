@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Degree } from '../../types'
-import type { Action, Coord, MoveAction, SeenScene } from '../types'
+import type { Action, ActionOf, Coord, MoveAction, SeenScene } from '../types'
 import { ROUND_AP, ROUND_SECONDS } from '../../tables'
 import { getAGI } from '../../character/rules/characteristics'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
@@ -10,6 +10,9 @@ import { isPosture } from '../rules/move'
 import { getDeliveries } from '../rules/deliveries'
 import { getExplosionZones } from '../rules/explosion'
 import { toneOf, type Tone } from './outcomes'
+import { findWeaponRow } from '../rules/weaponRow'
+import { getHeavyDegree } from '../rules/heavy'
+import { getStrikeDamage, isBash } from '../../character/rules/gear'
 
 // What the board plays as the fight goes on: the way a move that landed was
 // walked, the blow, shot, spell or fall an action that landed was, and what
@@ -36,7 +39,9 @@ export type BoardSpotView = { cell: string; x: number; y: number }
 // struck in reach (the striker lunges at whom they struck, who shakes if it
 // got through), a shot or a throw (a streak from the shooter to whom or where
 // it went), a spell (a streak of its own colour to each it was cast at), an
-// area going off (its cells flash) or a fall (the faller drops).
+// area going off (its cells flash) or a fall (the faller drops). A strike
+// says what kind of blow it lands (`blow`): a cut, slashed across whom it
+// got through to, or a blunt one, a smack; none for anything else.
 export type BoardStrikeView = {
   key: string
   order: number
@@ -46,6 +51,7 @@ export type BoardStrikeView = {
   at: BoardSpotView | null
   cells: BoardSpotView[]
   hit: boolean
+  blow: 'cut' | 'blunt' | null
 }
 
 // How a token lies: standing, prone, collapsed (combat.tex "Injuries and
@@ -142,9 +148,10 @@ const spot = (cell: Coord | null): BoardSpotView | null => (cell ? { cell: coord
 const landedOn = (a: Action): boolean => getDeliveries(a).some(({ delivery }) => delivery.degree !== null && delivery.degree !== 'miss')
 
 function getStrike(state: SeenScene, a: Action): Omit<BoardStrikeView, 'key' | 'order'> | null {
-  const base = { actor: a.actorId, targets: a.targetId ? [a.targetId] : [], at: null, cells: [], hit: landedOn(a) }
+  const base = { actor: a.actorId, targets: a.targetId ? [a.targetId] : [], at: null, cells: [], hit: landedOn(a), blow: null }
   switch (a.kind) {
     case 'strike':
+      return a.targetId ? { ...base, kind: 'melee', blow: getBlow(state, a) } : null
     case 'grapple':
       return a.targetId ? { ...base, kind: 'melee' } : null
     case 'shoot':
@@ -162,6 +169,17 @@ function getStrike(state: SeenScene, a: Action): Omit<BoardStrikeView, 'key' | '
     default:
       return null
   }
+}
+
+// Which the row the strike was made with lands more of, cut or blunt
+// damage; a bash is blunt (combat.tex "Bash").
+function getBlow(state: SeenScene, a: ActionOf<'strike'>): BoardStrikeView['blow'] {
+  const c = state.characters[a.actorId]
+  const row = c ? findWeaponRow(c, a.weaponKey, a.attack) : null
+  if (!c || !row) return null
+  if (isBash(row.atk.properties, getHeavyDegree(c, a))) return 'blunt'
+  const { blunt, cut } = getStrikeDamage(row.atk, row.weapon, c)
+  return cut > blunt ? 'cut' : 'blunt'
 }
 
 const strikes = new WeakMap<Action, { terrain: unknown; strike: Omit<BoardStrikeView, 'key' | 'order'> | null }>()

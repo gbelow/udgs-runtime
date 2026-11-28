@@ -18,7 +18,9 @@ const MENU_ROOM = 340
 // One screen of the popover: a set of numbered tiles, the first nine pressed
 // by their number as well, and a footer that stays put from screen to
 // screen, back on its left (Tab) and the press that goes on on its right
-// (Enter). A right click anywhere cancels what the screen is choosing.
+// (Enter). The space bar commits what is declared as it stands, whatever
+// step it is at (`commit`), and Escape or a right click anywhere cancels
+// what the screen is choosing.
 type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; note?: ReactNode; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
 type Act = { label: string; run: () => void; bar?: string | null; icon?: LucideIcon }
 type Card = {
@@ -33,6 +35,7 @@ type Card = {
   back: Act | null
   primary: Act | null
   primaryLock?: string | null
+  commit?: Act | null
   cancel: () => void
 }
 
@@ -95,7 +98,8 @@ export function ClickMenuHost(){
       if (e.key !== 'Escape') return
       // another popover or dropdown that is open takes the key first
       if (!menu && (isTyping(e) || document.querySelector('[aria-expanded="true"]'))) return
-      escape()
+      if (card) card.cancel()
+      else escape()
     }
     window.addEventListener('pointerdown', away, true)
     window.addEventListener('keydown', key, true)
@@ -151,10 +155,10 @@ function useCardKeys(card: Card | null){
         if (c.back && !c.back.bar) c.back.run()
         return
       }
-      if (e.key === 'Enter') {
-        if (!c.primary || c.primary.bar) return
+      if (e.key === 'Enter' || e.key === ' ') {
+        const act = e.key === ' ' ? c.commit ?? c.primary : c.primary
         e.preventDefault()
-        c.primary.run()
+        if (act && !act.bar && !e.repeat) act.run()
         return
       }
       const tile = /^[1-9]$/.test(e.key) ? c.tiles[Number(e.key) - 1] : undefined
@@ -199,7 +203,9 @@ function CardView({ card }: { card: Card }){
       </div>
       <div className='flex flex-row items-center gap-2 border-t border-line bg-surface/60 p-2'>
         <FootKey act={back} fallback='back' hint='Tab' className='w-24' />
-        <span className='flex-1' />
+        <span className='flex-1 text-center text-[9px] text-muted'>
+          {card.commit && !card.commit.bar && primary?.label !== card.commit.label ? <><span className='font-mono text-fg'>Space</span> {card.commit.label}</> : null}
+        </span>
         <LockedFor id={card.primaryLock === undefined ? card.lock : card.primaryLock}>
           <FootKey act={primary} hint='Enter' look='go' className='w-36' />
         </LockedFor>
@@ -280,7 +286,7 @@ function menuCard(menu: ClickMenu, shown: string | null, on: MenuPresses): Card 
     </div>
   ) : null
   const tiles: Tile[] = group
-    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, note: e.surge ? `${e.surge} surge` : null, bar: e.bar, run: () => on.press(e) }))
+    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, note: e.note ?? (e.surge ? `${e.surge} surge` : null), bar: e.bar, run: () => on.press(e) }))
     : groups.map((g) => ({ key: g.category, label: g.category, icon: CATEGORY_ICONS[g.category], note: <><span className='font-mono'>{g.open}</span> of <span className='font-mono'>{g.entries.length}</span> open</>, bar: g.entries.length === 0 ? 'nothing to do' : null, run: () => on.show(g.category) }))
   return {
     title: menu.title,
@@ -302,6 +308,8 @@ function stepTiles(walk: string, step: WalkStep, { press }: Pick<Walked, 'press'
     label: b.label,
     selected: b.selected,
     damage: b.damage,
+    cost: b.cost,
+    note: b.note,
     count: b.count,
     bar: b.bar ?? (step.kind !== 'pick' && b.command === null ? 'cannot be changed' : null),
     run: () => press(walk, step, b),
@@ -344,6 +352,7 @@ function declarationCard(view: DeclarationWalk, on: Walked, closeWalk: () => voi
     primary: step
       ? (step.keep ? { label: 'next', run: () => on.next(view.walk, step) } : null)
       : { label: commit.label, icon: commit.label === 'hold' ? Hourglass : Check, run: () => on.send(commit.command), bar: commit.bar },
+    commit: { label: commit.label, run: () => on.send(commit.command), bar: commit.bar },
     cancel: () => (drop ? on.send(drop.command) : closeWalk()),
   }
 }
@@ -443,6 +452,7 @@ function exchangeCard(view: ExchangeWalk, on: Walked): Card {
     back: reactor?.back ? { label: 'back', run: () => on.back(reactor.walk, reactor.back!) } : view.back ? { label: 'take back', run: () => on.send(view.back!) } : null,
     primary,
     primaryLock: done || reactor?.step?.keep ? reactor?.id ?? null : view.actorId,
+    commit: { label: go.label, run: () => on.send(go.command), bar: go.bar },
     cancel: () => on.collapse(true),
   }
 }
