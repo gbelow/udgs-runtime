@@ -165,7 +165,7 @@ function Resting({ card }: { card: RoundCard }){
   return (
     <div className='flex flex-col gap-1 border-t border-line pt-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
-        {card.resting.filter((r) => r.commit).map(key)}
+        {card.resting.filter((r) => !r.speak).map(key)}
         {collapse ? (
           <Tooltip text={collapse.hint}>
             <ActionKey aria-label={`${collapse.label} ${card.name}`} onClick={() => (collapse.press === 'lieDown' ? lieDown : getUp)(card.id)}>{collapse.label}</ActionKey>
@@ -173,7 +173,7 @@ function Resting({ card }: { card: RoundCard }){
         ) : null}
         {card.resting.length > 0 ? <Button size='xs' selected={speaking} aria-label={`speak ${card.name}`} title='a social action counts as a rest and gives what it does' onClick={() => setSpeaking(!speaking)}>speak <span className='text-muted'>also rests</span></Button> : null}
       </div>
-      {speaking ? <div className='flex flex-row flex-wrap gap-1'>{card.resting.filter((r) => !r.commit).map(key)}</div> : null}
+      {speaking ? <div className='flex flex-row flex-wrap gap-1'>{card.resting.filter((r) => r.speak).map(key)}</div> : null}
     </div>
   )
 }

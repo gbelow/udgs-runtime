@@ -24,6 +24,7 @@ import { useBindingSurge, useHasActiveCharacter } from '../hooks/useCharacterDat
 import { useSceneAnswer, useSceneCalls, useSceneDiceBar } from '../hooks/useSceneDice';
 import { DieCalls, RollButtons } from './DieCalls';
 import { useFollowOwing } from '../hooks/useFollowOwing';
+import { useCombatActions } from '../hooks/useCombatActions';
 import { BotsPause } from './BotsPause';
 import { ContestBar } from './ContestBar';
 import { EndRound } from './EndRound';
@@ -182,7 +183,7 @@ export function SceneSpace({ selfRun = false, placing = false }: { selfRun?: boo
         </div>
         {board}
       </>
-    ) : <RoundChangePanel openMap={chase.boardInPlay ? setMapOf : null} selfRun={selfRun} />
+    ) : <><RoundChangePanel openMap={chase.boardInPlay ? setMapOf : null} selfRun={selfRun} /><RoundChangeAction /></>
   }
   return(
     <>
@@ -247,6 +248,16 @@ function BoardlessActions(){
   const diceBar = useSceneDiceBar()
   if (!hasActive || face) return null
   return <Locked bar={diceBar}><ControlLocked><ActionPanel /></ControlLocked></Locked>
+}
+
+// The board is not drawn in the round change, so an action declared there
+// (a taunt still to be aimed, or one left open by an earlier screen) is
+// played out in the action panel, whom it is at picked from its list.
+function RoundChangeAction(){
+  const { view } = useCombatActions()
+  const diceBar = useSceneDiceBar()
+  if (!view.open) return null
+  return <Locked bar={diceBar}><ActionPanel /></Locked>
 }
 
 // abilities.tex "Mockery": the active character mocks whoever their crit was

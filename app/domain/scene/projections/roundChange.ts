@@ -72,9 +72,10 @@ export type RoundCard = SceneCard & {
   dominated: string | null
 }
 
-// `gains`, what it gives back; `commit`, whether a press is all it takes, the
-// rest of it, whom it is said to, still to be declared otherwise; `bar`, why not.
-export type RestRow = { label: string; draft: ActionDraft; cost: ActionCost | null; gains: string; commit: boolean; bar: string | null }
+// `gains`, what it gives back; `speak`, whether it is a social action; `commit`,
+// whether a press is all it takes, whom it is said to still to be picked
+// otherwise; `bar`, why not.
+export type RestRow = { label: string; draft: ActionDraft; cost: ActionCost | null; gains: string; speak: boolean; commit: boolean; bar: string | null }
 
 export type CollapseChoice = { press: 'lieDown' | 'getUp'; label: string; hint: string }
 
@@ -155,10 +156,10 @@ function getRestRows(state: SceneState, id: string): RestRow[] {
   return getAvailableActions(state, id)
     .filter((o) => getActionDef(o.draft.kind).rest)
     .map((o): RestRow => ({
-      label: getActionName(o.draft), draft: o.draft, cost: o.cost, commit: o.draft.kind === 'rest', bar: o.available ? null : o.reason ?? 'closed',
+      label: getActionName(o.draft), draft: o.draft, cost: o.cost, speak: o.draft.kind !== 'rest', commit: !getActionDef(o.draft.kind).targeted, bar: o.available ? null : o.reason ?? 'closed',
       gains: restsWith(o.draft) ? `+${getRecoveredSTA(c, c.resources.STA, getSTARegen(c)) - c.resources.STA} STA` : '',
     }))
-    .sort((a, b) => Number(b.commit) - Number(a.commit))
+    .sort((a, b) => Number(a.speak) - Number(b.speak))
 }
 
 function getCollapseChoice(state: SceneState, id: string): CollapseChoice | null {
