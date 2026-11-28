@@ -5,7 +5,8 @@ import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { DIRECTIONS, HEX_CORNERS, ROTATIONS, fromPlane, hexCorner, getChordEnds, getHexCorners, add, angleBetween, coordKey, extentCells, getFaceGrain, hexBounds, hexSide, parseCoordKey, sameCell, toPlane, type Grain, type Point } from '../rules/board/geometry'
 import { isCliff } from '../rules/board/cliff'
-import { getBalanceDLAt, getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor, getThinWallsOf, hasThinWalls } from '../rules/board/board'
+import { isAttackAction } from '../rules/actionCatalog'
+import { getAttackCells, getBalanceDLAt, getBeyondEdge, getBodyCoverToward, getFootprint, getOccupancy, getStoreyFloor, getThinWallsOf, hasThinWalls } from '../rules/board/board'
 import { getPieceAt } from '../rules/board/piece'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -141,6 +142,8 @@ export type BoardCellMarks = {
   isCenter: boolean
   threatened: boolean
   zone: Degree | null
+  // what an attack being declared with no target yet could be aimed at
+  inReach: boolean
   // whose spawn area the cell is in, until the fight starts: the tint of the
   // party it is drawn in (`getSpawnParties`, from 1)
   spawn: number | null
@@ -509,6 +512,8 @@ function buildBoardView(state: SeenScene): BoardView {
     return [{ id, name: getFightName(state, id), ...toPlane(placement.cell), cells: getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) })) }]
   })
   const centers = new Set(aim ? aim.cells.map(coordKey) : [])
+  const untargeted = open && open.step === 'define' && isAttackAction(open) && !open.targetId && !('object' in open && open.object) ? open : null
+  const inReach = new Set(untargeted ? getAttackCells(state, untargeted).map(coordKey) : [])
   const threatened = new Set(laid ? getThreatenedCells(state, laid).map(coordKey) : [])
 
   // The drawn cells: the ground's (those within the board's extent, and those
@@ -536,6 +541,7 @@ function buildBoardView(state: SeenScene): BoardView {
       center: centers.has(g.key),
       isCenter: aimedAt !== null && sameCell(aimedAt, g.cell),
       threatened: threatened.has(g.key),
+      inReach: inReach.has(g.key),
       spawn: spawns.get(g.key) ?? null,
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, g.cell)).map((f) => f.item.name),
     }
@@ -675,7 +681,7 @@ export function getRimMarks(of: Pick<BoardCellMarks, 'visibility' | 'light' | 'l
   return {
     visibility: of.visibility, light: of.light, lit: of.lit, ambient: of.ambient, unseen: of.unseen,
     fire: 0, fuels: [], suffocating: false, occupants: [], chosen: false, reachable: null, pathStep: null, swept: false,
-    isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, spawn: null, items: [],
+    isDestination: false, jump: false, isJumpTo: false, center: false, isCenter: false, threatened: false, zone: null, inReach: false, spawn: null, items: [],
   }
 }
 

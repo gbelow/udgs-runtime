@@ -246,6 +246,7 @@ function cellFill(c: BoardCellView): Paint | null {
   if (c.zone) return ZONE_FILL[c.zone]
   if (c.reachable || c.jump || c.center) return { color: 'good', alpha: 0.35 }
   if (c.threatened) return { color: 'bad', alpha: 0.1 }
+  if (c.inReach) return { color: 'bad', alpha: 0.2 }
   if (c.spawn !== null) return SPAWN_FILL[c.spawn] ?? SPAWN_FILL[1]
   if (c.fire > 0) return { color: 'injury-2', alpha: 0.3 }
   if (c.fuels.length > 0) return { color: 'accent', alpha: 0.15 }

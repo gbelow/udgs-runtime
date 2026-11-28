@@ -159,7 +159,8 @@ export class BoardStage {
     canvas.addEventListener('pointercancel', this.onPointerCancel)
     canvas.addEventListener('pointerleave', this.onPointerLeave)
     canvas.addEventListener('wheel', this.onWheel, { passive: false })
-    canvas.addEventListener('contextmenu', (e) => { if (this.press?.panning) e.preventDefault() })
+    // the right button is the board's own: the browser's menu never opens over it
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault())
     this.resize = new ResizeObserver(() => this.onResize())
     this.resize.observe(this.host)
     this.ready = true

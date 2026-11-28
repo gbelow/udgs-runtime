@@ -9,13 +9,14 @@ import { getGoBar } from '../rules/options'
 import { getHeldBackAnswerers, getHeldBackBar } from '../rules/reactions'
 import { getFightName } from '../rules/fighters'
 import { getHeavyBase } from '../rules/modifiers'
-import { getHitHOP } from '../rules/damage'
+import { getHitHOP, getHitPreview, type HitDamage } from '../rules/damage'
 import { HOP_EFFECTS } from '../../tables'
 import { getCastHOPRemaining } from '../rules/cast'
 import { isAttackAction } from '../rules/actionCatalog'
 import type { Degree } from '../../types'
 import type { Damage } from '../../character/rules/gear'
 import { getActionOffers, getOpenLabel, type ReactorOptions } from './actionPanel'
+import { HOP_LABELS } from './labels'
 import { getOpenButtons } from './buttons'
 import { getOpenChoices, type ChoicePart, type OpenChoice } from './choices'
 
@@ -166,7 +167,9 @@ export type ExchangeWalk = {
 // shown is the last to go on from before it lands.
 // `result`, how the roll came out: its degree, the die, the score it made
 // and the DL it stood against; `hop`, the overflow it has to spend, and how
-// much of it is left.
+// much of it is left; `damage`, what the hit carries as bought so far: the
+// weapon's, each purchase's increment and the whole, and the armor its
+// cutting cannot cut.
 export type LandingWalk = Walked & {
   kind: 'land'
   actionId: string
@@ -174,6 +177,7 @@ export type LandingWalk = Walked & {
   title: string
   result: { degree: Degree; die: number; score: number; DL: number } | null
   hop: { remaining: number; total: number } | null
+  damage: { base: HitDamage; bought: (HitDamage & { label: string })[]; total: HitDamage; uncut: string | null } | null
   last: boolean
   land: { command: SceneCommand; bar: string | null }
 }
@@ -228,9 +232,9 @@ function getLandingWalk(state: SceneState, open: RootAction, passed: readonly Wa
   const offers = getActionOffers(state)
   const choices = getOpenChoices(state).filter((c) => c.actorId === open.actorId)
   const next = getNextStep(state)
-  // only what may be bought now, or taken back
-  const buyable = offers.hopOptions.filter((o) => o.available || o.bought > 0)
-  const improvable = offers.castHOP.options.filter((o) => o.available || o.times > 0)
+  // only what may be bought now or with more HOP, or taken back
+  const buyable = offers.hopOptions.filter((o) => o.available || o.lacksHOP || o.bought > 0)
+  const improvable = offers.castHOP.options.filter((o) => o.available || o.lacksHOP || o.times > 0)
   const overflow: WalkStep | null = next === 'spend' && buyable.length > 0 ? {
     key: 'overflow', label: 'overflow', kind: 'buys', now: null, keep: true,
     buttons: buyable.map((o) => ({ label: `${o.label} ${o.cost} HOP`, selected: o.bought > 0, count: o.bought, command: { kind: 'spend', args: [o.purchase] }, bar: o.available ? null : o.reason ?? 'closed', undo: o.bought > 0 && o.refundable ? { kind: 'refund', args: [o.purchase] } : null, hint: HOP_EFFECTS[o.purchase].text })),
@@ -249,6 +253,7 @@ function getLandingWalk(state: SceneState, open: RootAction, passed: readonly Wa
   ]
   const landable = getOpenButtons(state).some((b) => b.command.kind === 'resolve')
   const roll = 'roll' in open ? open.roll : null
+  const preview = isAttackAction(open) && (roll?.degree === 'hit' || roll?.degree === 'critical') ? getHitPreview(state, open) : null
   const hop = isAttackAction(open) ? getHitHOP(state, open) : open.kind === 'cast' ? { remaining: getCastHOPRemaining(open), total: open.roll?.HOP ?? 0 } : null
   return {
     kind: 'land',
@@ -258,6 +263,7 @@ function getLandingWalk(state: SceneState, open: RootAction, passed: readonly Wa
     title: titleOf(state, open),
     result: roll ? { degree: roll.degree, die: roll.die, score: roll.score, DL: roll.DL } : null,
     hop: hop && hop.total > 0 ? { remaining: hop.remaining, total: hop.total } : null,
+    damage: preview ? { ...preview, bought: preview.bought.map((b) => ({ label: HOP_LABELS[b.purchase], blunt: b.blunt, cut: b.cut })) } : null,
     ...walked(steps, passed, passed),
     last: steps.filter((s) => !passed.includes(s.key)).length === 1,
     land: { command: { kind: 'resolve', args: [] }, bar: landable ? null : next === 'choose' || next === 'react' ? LAND_BARS[next] : 'cannot land yet' },
@@ -461,7 +467,7 @@ function toStep(def: StepDef, choices: OpenChoice[]): WalkStep | null {
   switch (kind) {
     case 'pick': {
       if (!choices.some((c) => !c.chosen)) return null
-      return { key, label, kind, now: null, keep: choices.some((c) => c.chosen), buttons: choices.map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command, ...(c.damage ? { damage: c.damage } : {}) })) }
+      return { key, label, kind, now: null, keep: choices.some((c) => c.chosen), buttons: choices.map((c) => ({ label: c.label, selected: c.chosen, command: c.chosen ? null : c.command, ...(c.damage ? { damage: c.damage } : {}), ...(c.hint ? { hint: c.hint } : {}) })) }
     }
     // a toggle comes as its value now and the one a press gives it
     case 'toggles': {

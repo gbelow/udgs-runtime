@@ -6,7 +6,7 @@ import { HOP_PURCHASES } from '../../lists'
 import { BASH, HIT_HOP, HOP_EFFECTS } from '../../tables'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
-import { Outcome, getOutcome } from '../../character/rules/damage'
+import { Outcome, getOutcome, getUncutArmor } from '../../character/rules/damage'
 import { cutsWithSTR, getBlockValue, getBracedBonus, getEdgeHOP, getHookBonus, getSliceBonus, getSmashBonus, getWeaponRES, isBash } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford, CANNOT_AFFORD } from '../../character/rules/cost'
@@ -169,6 +169,36 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: [...followUps, ...riders] }
 }
 
+// What a hit carries as bought so far, blunt and cut: what the weapon gives,
+// then what each purchase adds, in the order they are applied; and the
+// armor its cutting cannot cut where it lands (combat.tex "What cuts?").
+export type HitDamage = { blunt: number; cut: number }
+export type HitPreview = { base: HitDamage; bought: (HitDamage & { purchase: HOPPurchase })[]; total: HitDamage; uncut: string | null }
+
+const carried = (delivery: Delivery | null): HitDamage => {
+  const damage = delivery?.effect.type === 'damage' ? delivery.effect.effect.damage : []
+  const sum = (kind: DamageKind) => damage.filter((d) => d.kind === kind).reduce((n, d) => n + d.value, 0)
+  return { blunt: sum('blunt'), cut: sum('cut') }
+}
+
+export function getHitPreview(state: SceneState, root: AttackAction): HitPreview | null {
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  const facts = getAttackFacts(state, root)
+  if (!target || !facts || facts.effect.type !== 'damage') return null
+  let spent: AttackAction['spent'] = {}
+  let before = carried(getAttackFacts(state, { ...root, spent }))
+  const base = before
+  const bought: HitPreview['bought'] = []
+  for (const purchase of PURCHASE_ORDER) {
+    if (!(root.spent[purchase] ?? 0)) continue
+    spent = { ...spent, [purchase]: root.spent[purchase] }
+    const after = carried(getAttackFacts(state, { ...root, spent }))
+    bought.push({ purchase, blunt: after.blunt - before.blunt, cut: after.cut - before.cut })
+    before = after
+  }
+  return { base, bought, total: carried(facts), uncut: getUncutArmor(facts.effect.effect, target) }
+}
+
 // combat.tex "Cover": a wall that breaks between a shot's shooter and its
 // target as they stand, which absorbs the shot. Nothing for a strike.
 function getShotWall(state: SceneState, root: AttackAction): Damage['wall'] {
@@ -255,6 +285,8 @@ export type HOPOption = {
   bought: number
   available: boolean
   reason: string | null
+  // whether it is closed for the HOP alone: more of them would open it
+  lacksHOP: boolean
   // whether one bought can be taken back
   refundable: boolean
 }
@@ -350,7 +382,7 @@ export function getHOPOptions(state: SceneState, root: AttackAction): HOPOption[
     const bought = root.spent[purchase] ?? 0
     const price = getHOPPrice(purchase, attacker)
     const refundable = canRefund(purchase, root, target, budget)
-    const closed = (reason: string): HOPOption => ({ purchase, cost, price, bought, available: false, reason, refundable })
+    const closed = (reason: string, lacksHOP = false): HOPOption => ({ purchase, cost, price, bought, available: false, reason, lacksHOP, refundable })
     if ((purchase === 'assassinate' || purchase === 'braced' || purchase === 'hook') && root.kind !== 'strike') return closed('strikes only')
     if (property && !hasProperty(properties, property)) return closed(`needs ${property}`)
     if (!repeatable && bought > 0) return closed('bought')
@@ -369,9 +401,9 @@ export function getHOPOptions(state: SceneState, root: AttackAction): HOPOption[
     if (purchase === 'bust' && getHardness(row.atk.material) !== getHardness(armor.material)) return closed('hardness differs')
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
-    if (cost > remaining) return closed('not enough HOP')
+    if (cost > remaining) return closed('not enough HOP', true)
     if (price && !canAfford(attacker, price, isCombatStarted(state))) return closed(CANNOT_AFFORD)
-    return { purchase, cost, price, bought, available: true, reason: null, refundable }
+    return { purchase, cost, price, bought, available: true, reason: null, lacksHOP: false, refundable }
   })
 }
 

@@ -11,8 +11,9 @@ export type MenuWalk = WalkState & { from: ClickMenu, category: string | null, p
 
 // The menu a click on the board has opened, until it is pressed or dismissed,
 // the category of it shown (`shown`), and the walk an entry of it started,
-// until what it walks is played out, dropped or dismissed; one dismissed is
-// kept (`put`) with where its action stood, to come back. A step is walked
+// until what it walks is played out, dropped or dismissed; one gone is kept
+// (`put`) with where its action stood when it was dismissed (null where it
+// was not), to come back once that moves on. A step is walked
 // through or gone back to in the list of passed steps its walk keeps
 // (`walkKey`).
 type ClickMenuStore = {
@@ -38,7 +39,8 @@ export const useClickMenuStore = create<ClickMenuStore>((set) => ({
   shown: null,
   walk: null,
   put: null,
-  setMenu: (menu, shown = null) => set(menu ? { menu, shown, walk: null } : { menu, shown: null }),
+  // a menu opened over a walk puts it away, to come back once the menu is gone
+  setMenu: (menu, shown = null) => set((s) => (menu ? { menu, shown, walk: null, put: s.walk ? { walk: s.walk, stage: null } : s.put } : { menu, shown: null })),
   showCategory: (shown) => set({ shown }),
   startWalk: (walk) => set({ menu: null, shown: null, walk }),
   bindWalk: (actionId) => set((s) => (s.walk ? { walk: { ...s.walk, actionId } } : {})),
@@ -50,5 +52,5 @@ export const useClickMenuStore = create<ClickMenuStore>((set) => ({
   }),
   pickReactor: (pick) => set((s) => (s.walk ? { walk: { ...s.walk, pick, collapsed: false } } : {})),
   collapseWalk: (collapsed) => set((s) => (s.walk ? { walk: { ...s.walk, collapsed } } : {})),
-  closeWalk: (stage) => set((s) => (stage !== undefined && s.walk ? { walk: null, put: { walk: s.walk, stage } } : { walk: null })),
+  closeWalk: (stage = null) => set((s) => (s.walk ? { walk: null, put: { walk: s.walk, stage } } : {})),
 }))

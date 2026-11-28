@@ -92,6 +92,14 @@ function canCutArmor(facts: Damage, armor: Armor): boolean {
   return facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
 }
 
+// combat.tex "What cuts?": the armor where the blow lands that its cutting
+// cannot cut, by name; null where it cuts, carries no cut, or meets flesh.
+export function getUncutArmor(facts: Damage, target: Character): string | null {
+  if (!facts.damage.some((d) => d.kind === 'cut' && d.value > 0) || isArmorBare(target, facts)) return null
+  const armor = armorAt(target, facts)
+  return canCutArmor(facts, armor) ? null : armor.name
+}
+
 // combat.tex "Cover": a wall that breaks in the blow's way absorbs the
 // measured damage at its RES as it arrives, before the degree or any defense
 // meets what is left; `wall` is the share it lets past.

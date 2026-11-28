@@ -695,6 +695,32 @@ export function getAimableCells(state: SceneState, actorId: string, reach: numbe
   return from ? disk(from.cell, reach).filter((cell) => isAimableCell(state, actorId, reach, cell, across)) : []
 }
 
+// The cells an attack as declared could be aimed at: within its reach, in
+// the line it is swung or fired along, off the attacker's own. None while
+// its row is not declared.
+// Kept for as long as the board's ground and the attacker's place are the
+// same objects, so that a long shot is not drawn anew at every press.
+const attackCells = new WeakMap<object, Map<string, Coord[]>>()
+
+export function getAttackCells(state: SceneState, attack: StrikeAction | ShootAction): Coord[] {
+  const reach = attack.kind === 'shoot' ? getShotReachOf(state, attack) : getStrikeReach(state, attack)
+  const placement = state.board?.placements[attack.actorId]
+  if (reach === null || !state.board || !placement) return []
+  const known = attackCells.get(state.board.terrain) ?? new Map<string, Coord[]>()
+  attackCells.set(state.board.terrain, known)
+  const key = `${attack.actorId}|${JSON.stringify(placement)}|${reach}|${JSON.stringify(state.board.levels)}`
+  const found = known.get(key)
+  if (found) return found
+  // only the board's own cells, not the whole disk a long shot reaches
+  const { board } = state
+  const own = getPlacedFootprint(state, attack.actorId) ?? []
+  const cells = disk(placement.cell, reach)
+    .filter((cell) => (inExtent(board.origin, board.extent, cell) || !!board.terrain[coordKey(cell)]) && !own.some((o) => sameCell(o, cell)))
+    .filter((cell) => isAimableCell(state, attack.actorId, reach, cell, firesAcross))
+  known.set(key, cells)
+  return cells
+}
+
 // combat.tex "Cover": "When using a body shield, it is possible to take total
 // cover behind the shield after using guard." The shield faces the shot
 // that was guarded, or the cell it was planted facing, so it covers its

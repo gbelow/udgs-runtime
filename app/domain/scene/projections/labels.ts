@@ -5,6 +5,8 @@ import { getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { getCancellableRoot } from '../rules/opportunity'
 import { findWeaponRow } from '../rules/weaponRow'
+import { WEAPON_PROPERTY_TEXT } from '../../tables'
+import { getHeavyLabel, getHeavyRange } from '../../weaponProperties'
 import { findPrepared } from '../rules/prepared'
 import { getHeldOf, isGivingUpHeld } from '../rules/hold'
 import { getAnswerLabel } from '../rules/modifiers'
@@ -172,4 +174,17 @@ export const HOP_LABELS: Record<HOPPurchase, string> = {
   assassinate: 'assassinate',
   braced: 'braced',
   hook: 'hook',
+}
+
+// What an attack row opens up, property by property (gear.tex "Weapons
+// Properties"), one line each; undefined for a row with nothing to tell.
+export function getRowHint(c: Character, weaponKey: string, attack: string): string | undefined {
+  const row = findWeaponRow(c, weaponKey, attack)
+  if (!row) return undefined
+  const heavy = getHeavyRange(row.atk)
+  const lines = [
+    ...row.atk.properties.map((p) => `${p}: ${WEAPON_PROPERTY_TEXT[p]}`),
+    ...(heavy ? [`${getHeavyLabel(heavy)}: may be a heavy attack`] : []),
+  ]
+  return lines.length > 0 ? lines.join('\n') : undefined
 }

@@ -242,6 +242,30 @@ export const HOP_EFFECTS = {
   hook:        { cost: 0,            property: 'hook',        repeatable: false, gives: 0, text: 'extra AP and STA for +STR/2 x DM damage on a jumper, +STR x DM on a runner; at legs or head, a knockdown instead' },
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null; repeatable: boolean; gives: number; text: string }>
 
+// gear.tex "Weapons Properties": what each property of an attack lets it
+// do, or does to it, in short, for whoever picks the attack.
+export const WEAPON_PROPERTY_TEXT = {
+  'grapple I': 'grapples on a hit, dealing no damage',
+  'grapple II': 'grapples on a hit, dealing damage',
+  sweeping: 'may be a sweeping attack',
+  braced: 'may be a braced attack against one coming at the weapon',
+  soft: 'STR x DM damage bonuses halved',
+  DEF: 'can block',
+  hook: 'may be a hook attack against one moving away',
+  piercing: 'a graze is a miss; more bleeding, half IL, no amputation',
+  bladed: 'slice at full power; can be sharpened',
+  penetrating: 'may bust: cuts armor as hard as it',
+  precise: 'may assassinate one not defending actively',
+  smasher: 'smash at full power',
+  basher: 'may bash',
+  slow: 'can be guarded against with weapons',
+  fast: 'only a shield blocks it',
+  UF: 'only a shield blocks it; +2 HOP on a hit',
+  draw: 'drawn and attacked with at once',
+  reload: 'reloaded before the next attack',
+  explosion: 'goes off as an explosion',
+} as const satisfies Record<WeaponProperty, string>
+
 // combat.tex "Slice": "increase cutting damage by 25%"; "Smash": "Increases
 // blunt damage by 1xDM per HOP". "Slice": "Weapons with the bladed property
 // get the full bonus damage, while others get only half." "Smash": full "if

@@ -82,7 +82,12 @@ export function ClickMenuHost(){
     : view.kind === 'land' ? landingCard(view, walked, closeWalk)
     : exchangeCard(view, walked)
   useCardKeys(card, keys)
-  useTurnKeys(!menu && !view, keys, openCategory, goOn)
+  // the key that goes on brings back reactions put away, or the action put away
+  useTurnKeys(!menu && (!view || small), keys, openCategory, () => {
+    if (!small) return goOn()
+    walked.collapse(false)
+    return true
+  })
 
   useEffect(() => {
     const note = (e: PointerEvent) => { pointer.x = e.clientX; pointer.y = e.clientY }
@@ -239,9 +244,9 @@ function CardView({ card, keys, onDrag }: { card: Card, keys: KeyMap, onDrag: (e
           ) : null}
           {card.below}
         </div>
-        {hinted ? <div className='pointer-events-none absolute inset-x-0 bottom-0 border-t border-accent/60 bg-raised/95 px-3 py-2 text-[11px] leading-snug text-fg'>{hinted}</div> : null}
       </div>
-      <div className='flex flex-row items-center gap-2 border-t border-line bg-surface/60 p-2'>
+      <div className='relative flex flex-row items-center gap-2 border-t border-line bg-surface/60 p-2'>
+        {hinted ? <div className='pointer-events-none absolute inset-x-0 bottom-0 z-10 flex min-h-full items-center whitespace-pre-line border-t border-accent/60 bg-raised px-3 py-1.5 text-[11px] leading-snug text-fg'>{hinted}</div> : null}
         <FootKey act={back} fallback='back' hint={keyLabel(keys, 'card.back')} className='w-24' />
         <span className='flex-1' />
         <LockedFor id={card.primaryLock === undefined ? card.lock : card.primaryLock}>
@@ -324,7 +329,7 @@ function menuCard(menu: ClickMenu, shown: string | null, on: MenuPresses): Card 
     </div>
   ) : null
   const tiles: Tile[] = group
-    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, note: e.note ?? (e.surge ? `${e.surge} surge` : null), bar: e.bar, run: () => on.press(e) }))
+    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, note: e.note ?? (e.surge ? `${e.surge} surge` : null), hint: e.hint, bar: e.bar, run: () => on.press(e) }))
     : groups.map((g) => ({ key: g.category, label: g.category, icon: CATEGORY_ICONS[g.category], note: <><span className='font-mono'>{g.open}</span> of <span className='font-mono'>{g.entries.length}</span> open</>, bar: g.entries.length === 0 ? 'nothing to do' : null, run: () => on.show(g.category) }))
   return {
     title: menu.title,
@@ -397,10 +402,21 @@ function declarationCard(view: DeclarationWalk, on: Walked, closeWalk: () => voi
 
 // What the roll leaves to choose, a step at a time; going on from the last
 // lands the action.
+// Blunt and cut of a hit, each only where it has any; `plus`, as an increment.
+function HitLine({ damage: { blunt, cut }, strong = false, plus = false }: { damage: { blunt: number, cut: number }, strong?: boolean, plus?: boolean }){
+  const parts = [cut ? { n: cut, kind: 'cut', look: 'text-bad' } : null, blunt ? { n: blunt, kind: 'blunt', look: 'text-fg' } : null].filter((p) => p !== null)
+  if (parts.length === 0) return <span>none</span>
+  return (
+    <span className={strong ? 'text-sm font-bold' : ''}>
+      {parts.map((p, i) => <span key={p.kind}>{i > 0 ? ' ' : ''}<span className={strong ? p.look : ''}>{plus ? '+' : ''}{p.n}</span> {p.kind}</span>)}
+    </span>
+  )
+}
+
 const DEGREE_LOOK: Record<Degree, string> = { miss: 'text-bad', graze: 'text-accent', hit: 'text-good', critical: 'text-good' }
 
 function landingCard(view: LandingWalk, on: Walked, closeWalk: () => void): Card {
-  const { step, land, result, hop } = view
+  const { step, land, result, hop, damage } = view
   return {
     title: view.title,
     top: result ? (
@@ -410,9 +426,21 @@ function landingCard(view: LandingWalk, on: Walked, closeWalk: () => void): Card
         {hop ? <span className='ml-auto font-mono text-[11px]'><span className='text-accent'>{hop.remaining}</span><span className='text-muted'>/{hop.total} HOP</span></span> : null}
       </div>
     ) : null,
+    below: damage ? (
+      <div className='flex flex-col gap-0.5 border-t border-line/60 pt-2 font-mono text-[11px]'>
+        <div className='flex flex-row items-baseline gap-2'>
+          <span className='text-[10px] uppercase tracking-wider text-muted'>deals</span>
+          <HitLine damage={damage.total} strong />
+        </div>
+        <div className='flex flex-row flex-wrap gap-x-2 text-muted'>
+          <span>weapon <HitLine damage={damage.base} /></span>
+          {damage.bought.map((b) => <span key={b.label}>{b.label} <HitLine damage={b} plus /></span>)}
+        </div>
+        {damage.uncut ? <span className='text-bad'>its cutting cannot cut the {damage.uncut}: halved</span> : null}
+      </div>
+    ) : step?.note ? <span className='font-mono text-[11px] text-muted'>{step.note}</span> : null,
     label: step ? stepLabel(step) : null,
     tiles: step ? stepTiles(view.walk, step, on) : [],
-    below: step?.note ? <span className='font-mono text-[11px] text-muted'>{step.note}</span> : null,
     lock: view.actorId,
     back: view.back ? { label: 'back', run: () => on.back(view.walk, view.back!) } : null,
     primary: step

@@ -247,6 +247,8 @@ export type ImprovementOption = {
   text: string
   times: number
   available: boolean
+  // whether it is closed for the HOP alone: more of them would open it
+  lacksHOP: boolean
   // how many the cast needs before it takes effect
   needed: number
 }
@@ -276,6 +278,7 @@ export function getImprovementOptions(state: SceneState, root: CastAction): Impr
       text: SPELL_MODIFICATIONS[name].text,
       times,
       available: open && SPELL_MODIFICATIONS[name].HOP <= remaining,
+      lacksHOP: open && SPELL_MODIFICATIONS[name].HOP > remaining,
       needed: name === 'amplify' ? amplify.min : 0,
     }
   })
