@@ -26,7 +26,7 @@ import { canAcceptSpellTest, getCastGear, getSpellTestModes } from '../rules/cas
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, surgeCause, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
-import { getUnprotectedBy, madeProtectionSurge } from './protection'
+import { getUnprotectedBy, passUpProtection } from './protection'
 import { getModifierToggles } from '../rules/modifiers'
 import { giveUpHeld, giveUpSustained } from './hold'
 import { updateCharacter } from './characters'
@@ -243,7 +243,7 @@ export function withdrawSpawnedAction(thrown: Throw, newId: () => string): Updat
     const open = getOpenAt(state, 'define')
     if (!open || !open.spawnedBy || isPreparedRequired(state, open)) return state
     const reaction = getOpeningReaction(state, open)
-    return advance(withdrawActions(state, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), newId, caller)
+    return advance(passUpProtection(withdrawActions(state, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), open), newId, caller)
   })
 }
 
@@ -265,9 +265,8 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const replaced = getLiveReactionsTo(state, open.id).filter((r) => r.actorId === actorId)
     const cleared = withdrawActions(state, replaced.map((r) => r.id), 'replaced')
     const surged = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), surgeCause(chosen.surge))(cleared) : cleared
-    const paid = chosen.surge === 'protection' ? madeProtectionSurge(surged, actorId) : surged
     const reaction = { ...aimed, surged: getSurgeMade(cleared, surged, actorId, chosen.surge) }
-    return pruneReactions(appendActions(paid, [reaction]))
+    return pruneReactions(appendActions(surged, [reaction]))
   }
 }
 

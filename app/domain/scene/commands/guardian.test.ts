@@ -16,7 +16,7 @@ import { isOnProtectLine } from '../rules/protect'
 import { isProtectionGuard } from '../rules/protection'
 import { getAdjacentIds } from '../rules/board/board'
 import { archer, board as onBoard } from '../fixtures'
-import { commitAction, declareAction as declareOwnAction, declareReaction, payAction, rollAction, setTarget } from './action'
+import { commitAction, declareAction as declareOwnAction, declareReaction, payAction, rollAction, setTarget, withdrawSpawnedAction } from './action'
 import { pickCell } from './board'
 import { surge } from './turn'
 import { meetUnprotected } from './protection'
@@ -122,6 +122,19 @@ describe('the protection surge', () => {
     expect(getDefendingReaction(moved, getOpenAction(moved)!)?.actorId).toBe('g')
   })
 
+  // The user's ruling (2026-11-28): the run is what makes the surge, so
+  // passing it up takes everything back.
+  it('is undone with the defense paid back when its run is passed up', () => {
+    const start = thrustAtAlly()
+    const declared = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
+    const opened = rollAction(() => MISS, newId)(declared)
+    expect(getOpenAction(opened)).toMatchObject({ kind: 'move', actorId: 'g' })
+    const passed = withdrawSpawnedAction(() => 5, newId)(opened)
+    expect(passed.characters.g.usedSurge).toBe(null)
+    expect(passed.characters.g.resources).toEqual(start.characters.g.resources)
+    expect(xp(passed, 'g')).toBe(xp(start, 'g'))
+  })
+
   // The table's ruling: the defense made on the surge is the same answer as
   // the one made without it, listed once with the surge among its ways.
   it('lists the defense on the surge as one way of the same answer', () => {
@@ -180,12 +193,15 @@ describe('Bulwark', () => {
 })
 
 // abilities.tex "Rallying Guard": "Using protection surge automatically makes
-// a rally".
+// a rally". The user's ruling (2026-11-28): the surge is used once its run is
+// made.
 describe('Rallying Guard', () => {
-  it('rallies the guardian’s allies as the surge is made', () => {
+  it('rallies the guardian’s allies as the run is made, and not before', () => {
     const start = thrustAtAlly(shielded('g', ['protection-surge', 'rallying-guard']))
-    const s = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
-    expect(s.pressure.some((p) => p.from === 'g' && p.kind === 'rally' && p.target === 'ally')).toBe(true)
+    const declared = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
+    const rallied = (s: SceneState) => s.pressure.some((p) => p.from === 'g' && p.kind === 'rally' && p.target === 'ally')
+    expect(rallied(declared)).toBe(false)
+    expect(rallied(takeStep(declared))).toBe(true)
   })
 })
 
@@ -193,10 +209,12 @@ describe('Rallying Guard', () => {
 // surge"; "Loses 1 XP whenever they refuse to use their protection surge and
 // an ally takes tier 2 damage or higher".
 describe('the Guardian attitudes', () => {
-  it('pay for the surge made', () => {
+  // the user's ruling (2026-11-28): the surge is used once its run is made
+  it('pay for the surge made, once its run is', () => {
     const start = thrustAtAlly()
-    const s = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
-    expect(xp(s, 'g') - xp(start, 'g')).toBe(attitudeXP('protectionSurge'))
+    const declared = declareReaction('g', option(start, 'g', 'block (protection surge) with Wooden Shield (protection surge first)')!.draft, newId)(start)
+    expect(xp(declared, 'g')).toBe(xp(start, 'g'))
+    expect(xp(takeStep(declared), 'g') - xp(start, 'g')).toBe(attitudeXP('protectionSurge'))
   })
 
   it('take for a surge let go by, once the ally is hurt badly enough', () => {

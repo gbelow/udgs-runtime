@@ -1,7 +1,7 @@
 import { isCombatStarted } from '../rules/started'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { Action, ActionKind, ActionOf, SceneState, RootAction, WithdrawalReason } from '../types'
-import { getAction, getLiveActions, getParticipants, getLiveReactionsTo, getOpenAction } from '../rules/log'
+import { getAction, getLiveActions, getParticipants, getLiveReactionsTo, getOpenAction, getPassedUp } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { giveBackCancelledCounters, reduceBoard, reduceCharacter, reduceFloor, reduceBinds, reduceOpened, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
@@ -59,7 +59,7 @@ export function setActions(state: SceneState, declared: Action[], pushed: string
     stealthTurns: entering.reduce((turns, a) => noteNoise(state, turns, a), state.stealthTurns),
     prepared: [...state.prepared, ...entering.flatMap((a) => (a.kind === 'prepare' ? [a.id] : []))],
     performed: entering.reduce((ids, a) => notePerformed(state, ids, a), state.performed),
-    protectionMoves: [...state.protectionMoves, ...entering.flatMap((a) => (isProtectionMove(state, a) ? [a.actorId] : []))],
+    protectionMoves: [...state.protectionMoves, ...entering.flatMap((a) => (isProtectionMove(state, a) && getPassedUp(state, a.id).length === 0 ? [a.actorId] : []))],
     bodyCover: entering.reduce((cover, a) => noteCover(state, stamped, cover, a), state.bodyCover),
   }))
 }
