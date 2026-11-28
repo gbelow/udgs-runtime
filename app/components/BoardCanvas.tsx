@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useReportBoardTop } from '../hooks/useScreenEdges'
 import type { BoardCellView, BoardView } from '../domain/scene/projections/boardView'
 import type { Coord } from '../domain/scene/types'
 import { useCameraAsked, usePlaybackReport, useScreenSpots, type BoardCamera } from '../hooks/useBoardCanvas'
@@ -38,6 +39,8 @@ export function BoardCanvas(props: Props){
   const { view, veiled, picked = NONE, marked = NONE, label, className, onPauseKey, motion = 'normal' } = props
   const keys = useKeyMap()
   const host = useRef<HTMLDivElement>(null)
+  const frame = useRef<HTMLDivElement>(null)
+  useReportBoardTop(frame)
   const stage = useRef<BoardStage | null>(null)
   const latest = useRef(props)
   latest.current = props
@@ -83,7 +86,7 @@ export function BoardCanvas(props: Props){
 
   const title = hover ? titleOf(view, hover) : null
   return (
-    <div className={`relative overflow-hidden select-none ${className ?? ''}`}>
+    <div ref={frame} className={`relative overflow-hidden select-none ${className ?? ''}`}>
       <div ref={host} className='absolute inset-0 outline-none' role='img' aria-label={label}
         tabIndex={onPauseKey ? 0 : undefined}
         onPointerDown={() => focusBoard(host.current)}

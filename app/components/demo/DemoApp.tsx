@@ -13,9 +13,9 @@ import { ActiveFace } from '../ActiveFace'
 import { useTray } from '../../hooks/useTray'
 import type { DemoFate, DemoOutcome } from '../../domain/scene/projections/demo'
 import { SceneSpace, TableWaits, TurnBar } from '../ScenePanel'
-import { DockBox, ScreenCorner, SheetToggle, SheetWindow } from '../Docks'
+import { DockBox, ScreenCorner, SheetWindow } from '../Docks'
 import { FacesColumn } from '../FocusBar'
-import { AutoThrow, FIGHT_SLOTS, SheetTabs, Status } from '../RunScreen'
+import { AutoThrow, FIGHT_SLOTS, SheetBar, SheetTabs, Status } from '../RunScreen'
 import { useActiveControlBar } from '../../hooks/useControl'
 import { Button, IconButton, SectionLabel, Segment, Segmented, Tooltip } from '../ui'
 import { SPAWN_SWATCH } from '../spawnSwatch'
@@ -151,12 +151,12 @@ function DemoTable() {
       <ScreenCorner side='left'>
         <DockBox side='left'>
           {view.hint ? <HintLine hint={view.hint} onClose={() => { if (view.hint) seeHint(view.hint) }} /> : null}
-          {started && hasActive && !face && (own || watching) ? <SheetToggle /> : null}
           {!started ? <Placing /> : face ? <ActiveFace /> : hasActive ? <Status {...FIGHT_SLOTS.status} /> : <span className='text-xs text-muted'>pick a character</span>}
         </DockBox>
       </ScreenCorner>
+      {started && hasActive && !face && (own || watching) ? <SheetBar own={own} /> : null}
       <ScreenCorner side='right'>
-        {hasActive && !face && (own || watching) ? <SheetWindow title='sheet'><SheetTabs own={own} opening='sheet' copy={false} /></SheetWindow> : null}
+        {hasActive && !face && (own || watching) ? <SheetWindow>{(t) => <SheetTabs own={own} copy={false} at={t} />}</SheetWindow> : null}
         <DockBox side='right'>
           {throwing ? <DiceTray /> : !started ? <Basics /> : <>
             <SectionLabel>{FIGHT_SLOTS.log.label}</SectionLabel>

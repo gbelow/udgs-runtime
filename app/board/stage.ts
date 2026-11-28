@@ -354,9 +354,21 @@ export class BoardStage {
   }
 
   // Where the camera stands to put a point of the board in the canvas's middle
-  // at `scale`.
+  // at `scale`, moved off it as far as it takes to keep the board filling the
+  // canvas: no edge of the board is pulled in past the canvas's edge while
+  // the board is wider (or taller) than the canvas, and a board narrower
+  // (or shorter) than it sits in its middle.
   private centred(at: Point, scale: number): Point {
-    return { x: this.app.screen.width / 2 - at.x * scale, y: this.app.screen.height / 2 - at.y * scale }
+    const { width, height } = this.app.screen
+    const frame = this.input?.view.frame
+    const want = { x: width / 2 - at.x * scale, y: height / 2 - at.y * scale }
+    if (!frame) return want
+    const keep = (aim: number, screen: number, start: number, size: number) => {
+      const drawn = size * scale
+      if (drawn <= screen) return (screen - drawn) / 2 - start * scale
+      return Math.min(-start * scale, Math.max(screen - (start + size) * scale, aim))
+    }
+    return { x: keep(want.x, width, frame.x, frame.width), y: keep(want.y, height, frame.y, frame.height) }
   }
 
   private setCamera(scale: number, at: Point) {

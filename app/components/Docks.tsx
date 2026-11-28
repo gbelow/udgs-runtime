@@ -3,7 +3,14 @@ import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, typ
 import { PanelRight, X } from 'lucide-react'
 import { useDockSize, type DockSide } from '../hooks/useDockSize'
 import { useSheetWindow } from '../hooks/useSheetWindow'
-import { Button, IconButton, SectionLabel } from './ui'
+import { useBoardTop, useReportStateTop } from '../hooks/useScreenEdges'
+import { IconButton, SectionLabel } from './ui'
+
+// What reports no edge.
+const NOWHERE = { current: null }
+
+// How far down the corners begin while no board is drawn.
+const NO_BOARD_TOP = 96
 
 // Follows the pointer from a press until it is let go.
 function follow(e: ReactPointerEvent, move: (m: PointerEvent) => void) {
@@ -15,10 +22,12 @@ function follow(e: ReactPointerEvent, move: (m: PointerEvent) => void) {
 }
 
 // A bottom corner of the screen, over everything under it, what it holds
-// stacked up from the bottom. Only what it holds takes clicks.
+// stacked up from the bottom, never higher than where the board's canvas
+// begins, under its tools. Only what it holds takes clicks.
 export function ScreenCorner({ side, children }: { side: DockSide, children: ReactNode }){
+  const top = useBoardTop()
   return(
-    <div className={`fixed z-20 top-24 bottom-2 ${side === 'left' ? 'left-2 items-start' : 'right-2 items-end'} flex flex-col justify-end gap-2 pointer-events-none`}>
+    <div style={{ top: top ?? NO_BOARD_TOP }} className={`fixed z-20 bottom-2 ${side === 'left' ? 'left-2 items-start' : 'right-2 items-end'} flex flex-col justify-end gap-2 pointer-events-none`}>
       {children}
     </div>
   )
@@ -30,6 +39,8 @@ export function ScreenCorner({ side, children }: { side: DockSide, children: Rea
 export function DockBox({ side, children }: { side: DockSide, children: ReactNode }){
   const { width, height, set } = useDockSize(side)
   const box = useRef<HTMLDivElement>(null)
+  // the faces down the left of the board end above the state's box
+  useReportStateTop(side === 'left' ? box : NOWHERE)
   const dragTop = (e: ReactPointerEvent) => follow(e, (m) => {
     const rect = box.current?.getBoundingClientRect()
     if (rect) set({ height: rect.bottom - m.clientY })
@@ -51,19 +62,19 @@ export function DockBox({ side, children }: { side: DockSide, children: ReactNod
   )
 }
 
-// Opens or closes the sheet's window.
-export function SheetToggle(){
-  const { open, setOpen } = useSheetWindow()
-  return <Button size='xs' selected={open} aria-label={open ? 'close the sheet' : 'open the sheet'} className='self-start' onClick={() => setOpen(!open)}>sheet</Button>
-}
-
-// The sheet as a window over the scene: closed until opened, docked on the
-// right over the log, or wherever its title bar was dragged to, until it is
-// docked again. Placed in the right corner, above the log.
-export function SheetWindow({ title, children }: { title: string, children: ReactNode }){
-  const { open, at, setOpen, setAt } = useSheetWindow()
+// The sheet as a window over the scene: closed until a tab of it is opened,
+// docked on the right over the log, or wherever its title bar was dragged
+// to, until it is docked again. Placed in the right corner, above the log;
+// it shows what `children` makes of the tab open.
+export function SheetWindow({ children }: { children: (tab: string) => ReactNode }){
+  const { tab, at, setTab, setAt } = useSheetWindow()
+  const { height, set } = useDockSize('sheet')
   const box = useRef<HTMLDivElement>(null)
-  if (!open) return null
+  if (tab === null) return null
+  const dragTop = (e: ReactPointerEvent) => follow(e, (m) => {
+    const rect = box.current?.getBoundingClientRect()
+    if (rect) set({ height: rect.bottom - m.clientY })
+  })
   const drag = (e: ReactPointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return
     const rect = box.current?.getBoundingClientRect()
@@ -72,15 +83,17 @@ export function SheetWindow({ title, children }: { title: string, children: Reac
     follow(e, (m) => setAt({ x: m.clientX - grip.x, y: m.clientY - grip.y }))
   }
   return(
-    <div ref={box} role='dialog' aria-label='sheet' style={at ? { left: at.x, top: at.y } : undefined}
-      className={`pointer-events-auto w-[32rem] max-w-[calc(100vw-1rem)] flex flex-col rounded border border-line bg-bg/95 shadow-lg shadow-black/40 ${at ? 'fixed z-30 max-h-[calc(100vh-4rem)]' : 'min-h-0 shrink'}`}>
+    <div ref={box} role='dialog' aria-label='sheet' style={{ ...(at ? { left: at.x, top: at.y } : {}), ...(height === null ? {} : { '--sheet-h': `${height}px` }) } as CSSProperties}
+      className={`pointer-events-auto relative w-[32rem] max-w-[calc(100vw-1rem)] flex flex-col rounded border border-line bg-bg/95 shadow-lg shadow-black/40 ${at ? 'fixed z-30 max-h-[calc(100vh-4rem)]' : 'min-h-0 shrink'} ${height === null ? (at ? '' : 'flex-1') : 'h-[var(--sheet-h)]'}`}>
+      <div role='separator' aria-orientation='horizontal' aria-label='drag to resize the sheet' title='drag to resize'
+        className='absolute -top-1 inset-x-0 h-2 z-10 cursor-row-resize hover:bg-accent/40 rounded' onPointerDown={dragTop} />
       <div onPointerDown={drag} className='flex flex-row items-center gap-2 px-2 py-1 border-b border-line cursor-move select-none'>
-        <SectionLabel>{title}</SectionLabel>
+        <SectionLabel>{tab}</SectionLabel>
         <span className='grow' />
         {at ? <IconButton icon={PanelRight} aria-label='dock the sheet' title='dock it on the right, over the log' onClick={() => setAt(null)} /> : null}
-        <IconButton icon={X} aria-label='close the sheet' onClick={() => setOpen(false)} />
+        <IconButton icon={X} aria-label='close the sheet' onClick={() => setTab(null)} />
       </div>
-      <div className='min-h-0 overflow-y-auto p-2'>{children}</div>
+      <div className='flex-1 min-h-0 overflow-y-auto p-2'>{children(tab)}</div>
     </div>
   )
 }

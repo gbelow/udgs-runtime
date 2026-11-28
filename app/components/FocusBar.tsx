@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Play } from 'lucide-react'
 import type { Gauges } from '../domain/character/lenses/bars'
 import type { FaceCard } from '../domain/scene/projections/cards'
 import { useFaceColumn } from '../hooks/useFocusBar'
+import { useStateTop } from '../hooks/useScreenEdges'
 import { SHADE_BG, shadeOf, type GaugeKey } from '../gaugeShades'
 import { IconButton } from './ui'
 
@@ -54,12 +55,35 @@ function Face({ face, picked, onPick }: { face: FaceCard, picked: boolean, onPic
   )
 }
 
+// The gap between faces, in pixels (the grid's gap-2).
+const FACE_GAP = 8
+
 // Everyone the screen knows in the fight, a face each, down the left of the
-// board, party by party: a click picks one, or aims at them. Open to begin
-// with, and folded to a thin edge at will.
+// board, party by party: a click picks one, or aims at them. They go down
+// until the next would reach the box of the character's state in the bottom
+// left corner, then on in a new column to the right. Open to begin with, and
+// folded to a thin edge at will.
 export function FacesColumn(){
   const { parties, away, picked, pick } = useFaceColumn()
   const [open, setOpen] = useState(true)
+  const stateTop = useStateTop()
+  const list = useRef<HTMLDivElement>(null)
+  const [rows, setRows] = useState<number | null>(null)
+  const count = parties.reduce((n, p) => n + p.cards.length, away.length)
+  useEffect(() => {
+    const el = list.current
+    if (!el) return
+    const measure = () => {
+      const first = el.firstElementChild as HTMLElement | null
+      const end = stateTop ?? el.parentElement?.getBoundingClientRect().bottom ?? window.innerHeight
+      const step = (first?.offsetHeight ?? 64) + FACE_GAP
+      setRows(Math.max(1, Math.floor((end - el.getBoundingClientRect().top) / step)))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [stateTop, count, open])
+
   if (!open) return (
     <nav aria-label='faces' className='w-7 shrink-0 border-r border-line'>
       <button type='button' aria-label='show the faces' title='show the characters in the fight' onClick={() => setOpen(true)}
@@ -75,19 +99,21 @@ export function FacesColumn(){
     </nav>
   )
   return (
-    <nav aria-label='faces' className='w-24 shrink-0 flex flex-col items-center gap-2 overflow-y-auto py-1 px-1 border-r border-line'>
+    <nav aria-label='faces' className='shrink-0 flex flex-col gap-1 py-1 px-1 border-r border-line min-h-0'>
       <IconButton icon={ChevronLeft} className='self-end' aria-label='hide the faces' title='hide the faces' onClick={() => setOpen(false)} />
-      {parties.map((p, i) => (
-        <div key={p.id} className={`flex flex-col items-center gap-2 w-full ${i > 0 ? 'pt-2 border-t border-line' : ''}`} title={p.name || undefined}>
-          {p.cards.map((f) => <Face key={f.id} face={f} picked={picked.includes(f.id)} onPick={() => pick(f.id)} />)}
-        </div>
-      ))}
-      {away.map((f) => (
-        <span key={f.id} title={`${f.name}: none of your characters senses them now`} className='flex flex-col items-center gap-0.5 w-full opacity-60'>
-          <span className='flex items-center justify-center w-9 h-9 rounded-full border-2 border-dashed border-line text-xs text-muted'>{f.name.slice(0, 2)}</span>
-          <span className='max-w-full truncate text-[10px] text-muted'>{f.name}</span>
-        </span>
-      ))}
+      <div ref={list} className='grid grid-flow-col auto-cols-[5.5rem] gap-2' style={rows === null ? undefined : { gridTemplateRows: `repeat(${rows}, auto)` }}>
+        {parties.flatMap((p, i) => p.cards.map((f, j) => (
+          <div key={f.id} title={p.name || undefined} className={i > 0 && j === 0 ? 'pt-2 border-t border-line' : ''}>
+            <Face face={f} picked={picked.includes(f.id)} onPick={() => pick(f.id)} />
+          </div>
+        )))}
+        {away.map((f) => (
+          <span key={f.id} title={`${f.name}: none of your characters senses them now`} className='flex flex-col items-center gap-0.5 w-full opacity-60'>
+            <span className='flex items-center justify-center w-9 h-9 rounded-full border-2 border-dashed border-line text-xs text-muted'>{f.name.slice(0, 2)}</span>
+            <span className='max-w-full truncate text-[10px] text-muted'>{f.name}</span>
+          </span>
+        ))}
+      </div>
     </nav>
   )
 }

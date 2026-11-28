@@ -18,14 +18,15 @@ import { TableLink, TableWait, ViewAs } from './RunParts';
 import { useTableWaiting } from '../hooks/useTable';
 import { CharacterExtras, KillButton, SceneSpace, SceneStrip, SurgeTile, SustainedPanel } from './ScenePanel';
 import { ActAs } from './ActAs';
-import { DockBox, ScreenCorner, SheetToggle, SheetWindow } from './Docks';
+import { DockBox, ScreenCorner, SheetWindow } from './Docks';
+import { useSheetWindow } from '../hooks/useSheetWindow';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { RecentJournal } from './Journal';
 import { FacesColumn } from './FocusBar';
 import { BoardGmTools } from './BoardPanel';
 import { useBoardTools } from '../hooks/useBoard';
-import { X } from 'lucide-react'
+import { Backpack, BookOpen, HeartPulse, ScrollText, Sparkles, Sword, WandSparkles, X, type LucideIcon } from 'lucide-react'
 import { IconButton, SectionLabel, Segment, Segmented } from './ui';
 import { ControlLocked, GearLocked, GmLocked } from './Locks';
 import { useGameTab } from '../hooks/useGameTab';
@@ -203,9 +204,10 @@ export function RunScreen(){
         ) : null}
       </div>
       {docked ? <>
-        <ScreenCorner side='left'><DockBox side='left'>{hasActiveCharacter ? <SheetToggle /> : null}{state}</DockBox></ScreenCorner>
+        <ScreenCorner side='left'><DockBox side='left'>{state}</DockBox></ScreenCorner>
+        {hasActiveCharacter ? <SheetBar own={ownSheet} /> : null}
         <ScreenCorner side='right'>
-          {hasActiveCharacter ? <SheetWindow title='sheet'><SheetTabs own={ownSheet} /></SheetWindow> : null}
+          {hasActiveCharacter ? <SheetWindow>{(t) => <SheetTabs own={ownSheet} at={t} />}</SheetWindow> : null}
           <DockBox side='right'>{logSide}</DockBox>
         </ScreenCorner>
       </> : (
@@ -273,6 +275,29 @@ function ModeSwitch(){
 const SHEET_TABS = ['sheet', 'knowledge', 'inventory', 'gear', 'abilities', 'spells', 'body'] as const
 type SheetTab = typeof SHEET_TABS[number]
 const LOOKER_TABS: readonly SheetTab[] = ['gear']
+const TAB_ICONS: Record<SheetTab, LucideIcon> = { sheet: ScrollText, knowledge: BookOpen, inventory: Backpack, gear: Sword, abilities: Sparkles, spells: WandSparkles, body: HeartPulse }
+
+// The sheet's tabs as buttons along the bottom of the screen, between the
+// corners: each opens the sheet's window at it, and closes it once open there.
+export function SheetBar({ own }: { own: boolean }){
+  const { tab: open, setTab } = useSheetWindow()
+  const tabs = own ? SHEET_TABS : LOOKER_TABS
+  return(
+    <nav aria-label='sheet tabs' className='fixed z-20 bottom-2 left-1/2 -translate-x-1/2 flex flex-row gap-1 p-1 rounded-lg border border-line bg-bg/90 shadow-lg shadow-black/40 backdrop-blur-sm'>
+      {tabs.map((t) => {
+        const Icon = TAB_ICONS[t]
+        const on = open === t
+        return (
+          <button key={t} type='button' aria-label={`sheet ${t}`} aria-pressed={on} title={on ? `close the ${t}` : `open the ${t}`} onClick={() => setTab(on ? null : t)}
+            className={`flex flex-col items-center gap-0.5 w-16 py-1.5 rounded-md text-[10px] cursor-pointer transition-colors ${on ? 'bg-accent/20 text-accent ring-1 ring-accent/60' : 'text-muted hover:bg-raised hover:text-fg'}`}>
+            <Icon size={18} aria-hidden />
+            {t}
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
 
 // The sheet of the active character: all of it to whoever plays them, only
 // their gear, closed, to everyone else.
@@ -281,19 +306,21 @@ const LOOKER_TABS: readonly SheetTab[] = ['gear']
 // what the gear does in a fight is under gear. `opening` is the tab shown
 // first, and `copy` whether the screen has a library to copy the character
 // into.
-export function SheetTabs({ own, opening = 'inventory', copy = true }: { own: boolean, opening?: SheetTab, copy?: boolean }){
+export function SheetTabs({ own, opening = 'inventory', copy = true, at }: { own: boolean, opening?: SheetTab, copy?: boolean, at?: string }){
   const [picked, setTab] = useState<SheetTab>(opening)
   const tabs = own ? SHEET_TABS : LOOKER_TABS
-  const tab = tabs.find((t) => t === picked) ?? tabs[0]
+  const tab = tabs.find((t) => t === (at ?? picked)) ?? tabs[0]
   const { tableName } = useActiveCharacterData()
 
   return(
     <div className='flex flex-col gap-2'>
       <span className='text-base font-medium'>{tableName}</span>
-      <Segmented label='sheet' className='self-start'>
-        {tabs.map((t) =>
-          <Segment key={t} aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Segment>)}
-      </Segmented>
+      {at === undefined ? (
+        <Segmented label='sheet' className='self-start'>
+          {tabs.map((t) =>
+            <Segment key={t} aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Segment>)}
+        </Segmented>
+      ) : null}
       <ControlLocked>
         {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave copy={copy} /></> : null}
         {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
