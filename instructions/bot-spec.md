@@ -95,7 +95,7 @@ Immediate: AP = what it holds now. Potential: AP = 8, with the surge unused.
 Threat on a character is the sum over everyone who can attack it.
 
 ## Cost and exposure
-This is an estimation of how much harm an AP or STA are worth. Consider that threats are defended by evade or evasion.
+This is an estimation of how much harm an AP or STA are worth. Consider that threats are defended by best defense.
 
 STAharm = w.STA x STA + w.IL x STA x bleed
 
@@ -165,7 +165,7 @@ harm(cell) = danger(cell, AP left) + STAharm + OA drawn
   what getting there and standing there could cost me
 
 safe cells = cells with harm(cell) ≤ limit
-Go to the safe cell with the highest potential threat on target vs evasion
+Go to the safe cell with the highest potential threat on target vs best defense
   (with none in reach, the target is read nearer, as in Attack).
   On a tie, the least harm.
 If there are none, don't escape.
@@ -193,7 +193,7 @@ Protect only if prevented > Drain(me)
 
 ### Tactical
 
-Score(cell) = w.aggro × my potential threat on target there vs evasion
+Score(cell) = w.aggro × my potential threat on target there vs best defense
 
 Pick the cell and movement with the highest
 Score(there) − Score(here) − (danger(there, AP left) − danger(here, AP held)) − STAharm − OA drawn
@@ -201,9 +201,7 @@ if above 0.
 
 ### Standing up
 
-Score = w.aggro × (potential threat on target standing − potential threat on target prone)
-  + danger(here prone, AP held) − danger(here standing, AP after standing)
-  − STAharm(stand) − OA drawn
+Score = w.upright + (worth standing − worth lying) + danger(here lying, AP held) − danger(here standing, AP after standing) − STAharm(stand) − OA drawn
 stand up if above 0.
 
 
@@ -224,7 +222,7 @@ Aggro = the target where: If the plan is to attack and my potential threat on th
 If Aggro is incapacitated, choose again.
 
 ### Attack
-Aggro: the foe my immediate threat is highest on; with none, the one I'd harm most against an evasion. If my potential threat on it is 0 from here, read the walk as shorter (as now).
+Aggro: the foe my immediate threat is highest on; with none, the one I'd harm most against best defense. If my potential threat on it is 0 from here, read the walk as shorter (as now).
 Score(cell) = w.aggro × potential threat(Aggro, me there) − potential exposure(me, there)
 
 ### Support
@@ -273,4 +271,4 @@ w.solitude = 5
 w.courage = 0.75
 w.aggro = 1
 w.footing = 0.8
-
+w.upright = 5

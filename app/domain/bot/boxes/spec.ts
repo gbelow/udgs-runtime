@@ -23,11 +23,11 @@ import { getSides } from '../table'
 import { getPair, type PairAttack, type PairDefence } from '../pairs'
 import { getBlastHarm, getEscapedBlast, getReflexCost, getReflexOdds, withBlock, withEscape } from '../blast'
 import { getDefenders, getProtections } from '../protect'
-import { getAnswer, getEvaded, getHarmAdded, getMet, getUndefendedHarm } from '../harm'
+import { getAnswer, getDefended, getHarmAdded, getMet, getUndefendedHarm } from '../harm'
 import { cellOf, getAttackRoute, getBelievedAP, getMeans, getPace, getPaceAt, getStrikeCells, getTeam } from '../threat'
 import { REST_TUNING } from '../rest'
 import { getSTAHarm, type SpecWeights } from '../cost'
-import { getCompany, getEvadedThreat, getExposed, getExposure, getExposureLimit, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Exposure, type Guard } from '../threatMap'
+import { getCompany, getDefendedThreat, getExposed, getExposure, getExposureLimit, getFarThreat, getThreat, lineOfFire, PEEK_BLOCKS, SHOT_GAP, type Exposure, type Guard } from '../threatMap'
 import { argOf, arrivedAt, attackIntent, attackName, canPay, getBudgets, getCollapsedCare, getKnownAttack, getOpenedWalks, getRunBlock, getWalkBudgets, getWalks, heldAP, isWalkPaid, moveIntent, opensAfter, ownAP, RUN_BLOCKS, runs, sameDraft, takesOpenedWalk, takesWalk, trial, TRIAL, wonBy, type AttackCell, type Budget, type Walk, type WalkCell } from '../moves'
 import { carryOn, endTurn, finding, settleWait, type Find, type Press } from './nearest'
 import type { Box, Decision, Pass, SeatInput } from '../decision'
@@ -486,7 +486,7 @@ const blockKey = (id: string) => `block|${id}`
 // spec "Strategies", "Attack" (the only one played): each member's target,
 // picked once a round and again once it is down or the side no longer knows
 // where it stands: the foe its immediate threat is most on, and with none, the
-// one it would harm most answering with an evasion, where they stand playing no
+// one it would harm most answering with the defence met with, where they stand playing no
 // part. Its block is kept with it through the round it was decided in.
 function noteTargets(previous: Notes | undefined, view: SceneState, members: readonly string[], w: SpecWeights): Notes {
   const foes = getSides(view, members).foes.filter((f) => cellOf(view, f) !== null && !isCollapsed(view, view.characters[f]))
@@ -500,7 +500,7 @@ function noteTargets(previous: Notes | undefined, view: SceneState, members: rea
     const kept = noted?.round === view.round ? noted.target : null
     const most = (read: (f: string) => number) => foes.map((f) => ({ f, n: read(f) })).reduce((b, x) => (x.n > b.n ? x : b))
     const threatened = kept && foes.includes(kept) ? null : most((f) => getThreat(view, members, id, f, 'immediate', w).threat)
-    const target = !threatened ? kept : threatened.n > 0 ? threatened.f : most((f) => getPair(me, view.characters[f]).reduce((n, a) => (a.opens.action ? Math.max(n, getEvaded(a, a.kind === 'shoot' ? SHOT_GAP : a.reach, w).harm) : n), 0)).f
+    const target = !threatened ? kept : threatened.n > 0 ? threatened.f : most((f) => getPair(me, view.characters[f]).reduce((n, a) => (a.opens.action ? Math.max(n, getDefended(a, a.kind === 'shoot' ? SHOT_GAP : a.reach, w).harm) : n), 0)).f
     if (target !== null) notes[targetKey(id)] = { round: view.round, target }
   }
   return notes
@@ -509,14 +509,14 @@ function noteTargets(previous: Notes | undefined, view: SceneState, members: rea
 const getTarget = (notes: Notes, id: string): string | null => (notes[targetKey(id)] as Targeted | undefined)?.target ?? null
 
 // spec "Tactical": a cell's Score, `aggro` times the character's potential
-// threat on its target from there, as an evasion of it leaves it, whatever
+// threat on its target from there, as the defence met with leaves it, whatever
 // that costs (the user's ruling, 2026-11-25).
 // Where it has none on the target from where it stands, the target is read
 // nearer (spec "Strategies", "Attack", `getFarThreat`), along the way to it.
 function getTacticalScore(ctx: Ctx, target: string, here: Coord): (cell: Coord) => number {
   const { view, members, id, w } = ctx
   const threatFrom = (cell: Coord, by?: (r: Exposure) => number) => getThreat(view, members, id, target, 'potential', w, [{ id, at: cell }], by)
-  const mine = (cell: Coord) => getEvadedThreat(threatFrom(cell, getEvadedThreat))
+  const mine = (cell: Coord) => getDefendedThreat(threatFrom(cell, getDefendedThreat))
   const far = threatFrom(here).threat > 0 ? null : getFarThreat(view, id, target, w)
   const way = new Map((far ? (getAttackRoute(view, id, target)?.path ?? []) : []).map((cell, i) => [cellNumber(cell), i + 1]))
   const threat = (cell: Coord) => {
@@ -721,7 +721,7 @@ function displace(input: SeatInput, id: string, w: SpecWeights): Decision | null
   const side = ally ? getSides(view, members).foes : team
   const on = (c: (typeof offered)[number]) => {
     const { q, r } = c.value as Coord
-    return getEvadedThreat(getExposure(view, members, side, who, 'potential', w, [{ id: who, at: { q, r } }]))
+    return getDefendedThreat(getExposure(view, members, side, who, 'potential', w, [{ id: who, at: { q, r } }]))
   }
   const rated = offered.map((c) => ({ c, threat: on(c) })).sort((x, y) => (ally ? x.threat - y.threat : y.threat - x.threat))
   const best = rated[0]
@@ -1171,7 +1171,7 @@ function rest(input: SeatInput, id: string, w: SpecWeights, notes: Notes | undef
   const foes = getSides(view, members).foes.filter((f) => cellOf(view, f) !== null)
   const on = getExposure(view, members, foes, id, 'potential', w, [{ id, at: here }])
   const company = getCompany(view, id, here, w)
-  const threatOn = (foe: string, held: number) => getEvadedThreat(getThreat(view, members, id, foe, 'potential', w, [{ id, AP: held }], getEvadedThreat))
+  const threatOn = (foe: string, held: number) => getDefendedThreat(getThreat(view, members, id, foe, 'potential', w, [{ id, AP: held }], getDefendedThreat))
   const noted = notes && getTarget(notes, id)
   const target = noted && foes.includes(noted) ? noted : foes.reduce<string | null>((best, f) => (best === null || threatOn(f, ROUND_AP) > threatOn(best, ROUND_AP) ? f : best), null)
   const exposure = getExposed(on, company, ROUND_AP) - getExposed(on, company, AP)

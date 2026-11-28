@@ -9,7 +9,7 @@ import { getHeight } from '../character/rules/size'
 import { getSurgeAP } from '../character/rules/surge'
 import { ROUND_AP } from '../tables'
 import { getPair, type PairAttack } from './pairs'
-import { getEvaded, getUndefendedHarm } from './harm'
+import { getDefended, getUndefendedHarm } from './harm'
 import { cellOf, getBelievedAP, getPace, getCarriedMetres, getPaceAt, getPresence, getOpenStepMap, getRouteAP, getStrikeCells, isWetAt } from './threat'
 import type { SpecWeights } from './cost'
 
@@ -250,25 +250,25 @@ type Rate = Exposure & { attack: PairAttack; gap: number; AP: number; focus: boo
 function rateOf(attack: PairAttack, gap: number, w: SpecWeights): Rate[] {
   const harm = getUndefendedHarm(attack, gap, w)
   if (harm <= 0 || !attack.opens.action) return []
-  const evaded = getEvaded(attack, gap, w)
+  const defended = getDefended(attack, gap, w)
   const AP = Math.max(1, attack.cost.AP)
-  return [{ threat: harm / AP, prevented: (harm - evaded.harm) / AP, defenceAP: evaded.AP / AP, attack, gap, AP, focus: attack.needsFocus }]
+  return [{ threat: harm / AP, prevented: (harm - defended.harm) / AP, defenceAP: defended.AP / AP, attack, gap, AP, focus: attack.needsFocus }]
 }
 
 const timesOf = (r: Rate, AP: number): Threat => ({ threat: r.threat * AP, prevented: r.prevented * AP, defenceAP: r.defenceAP * AP, attack: r.attack, gap: r.gap, times: AP / r.AP })
 
-// What of a threat gets through an evasion of it, whatever the evasion costs.
-export const getEvadedThreat = (t: Exposure): number => t.threat - t.prevented
+// What of a threat gets through the defence met with (`getDefended`), whatever it costs.
+export const getDefendedThreat = (t: Exposure): number => t.threat - t.prevented
 
 // The best of the rates read at the same spot: of each reach, the metres it
 // brings itself and whether it takes the focus surge, the one of most harm,
-// and the one an evasion leaves the most of.
+// and the one the defence met with leaves the most of.
 function bestOf(rates: readonly Rate[]): Rate[] {
   const best = new Map<string, { most: Rate; evaded: Rate }>()
   for (const r of rates) {
     const key = `${r.focus}|${r.attack.reach}|${r.attack.carries?.movement}|${r.attack.carries?.metres}`
     const known = best.get(key)
-    best.set(key, { most: known && known.most.threat >= r.threat ? known.most : r, evaded: known && getEvadedThreat(known.evaded) >= getEvadedThreat(r) ? known.evaded : r })
+    best.set(key, { most: known && known.most.threat >= r.threat ? known.most : r, evaded: known && getDefendedThreat(known.evaded) >= getDefendedThreat(r) ? known.evaded : r })
   }
   return [...new Set([...best.values()].flatMap((b) => [b.most, b.evaded]))]
 }
@@ -351,7 +351,7 @@ const isMoved = (shifts: readonly Shift[], id: string): boolean => shifts.some((
 // is believed to, a fresh round's AP for a potential threat, but as `shifts`
 // reads it. Of `plays`, only whether it holds
 // a character counts (its sheet, or its face). `by`: what the attack it is made
-// of is the most of, undefended unless told (`getEvadedThreat`).
+// of is the most of, undefended unless told (`getDefendedThreat`).
 export function getThreat(view: SceneState, plays: readonly string[], a: string, d: string, when: When, w: SpecWeights, shifts: readonly Shift[] = [], by: (r: Exposure) => number = (r) => r.threat): Threat {
   const from = shifted(view, plays, a, shifts, w)
   const on = shifted(view, plays, d, shifts, w)
@@ -398,7 +398,7 @@ export function getCompany(view: SceneState, id: string, cell: Coord | null, w: 
 }
 
 // spec "Cost and exposure", exposure: the harm that gets through to one holding `AP`,
-// which evades its share of the attacks as far as that pays for.
+// which defends its share of the attacks as far as that pays for.
 export function getExposed(on: Exposure, company: number, AP: number): number {
   const covered = on.defenceAP > 0 ? Math.min(1, (AP * company) / on.defenceAP) : 1
   return (on.threat - covered * on.prevented) / company
@@ -411,7 +411,7 @@ export function getExposureLimit(c: CampaignCharacter, w: SpecWeights): number {
   return w.courage * w.IL * Math.max(0, getInjuryCapacity(c) - c.injuries.injuryLevel) - w.IL * c.injuries.bleed
 }
 
-// spec "Strategies", "Attack": the potential threat of `a`, evaded, on one it cannot
+// spec "Strategies", "Attack": the potential threat of `a`, defended, on one it cannot
 // reach in a round, once it has walked `walked` cells of the way there, the
 // way read as shorter by what puts it out of reach: where it stands now is the
 // edge of its potential threat.
@@ -426,6 +426,6 @@ export function getFarThreat(view: SceneState, a: string, d: string, w: SpecWeig
   const presence = getPresence(view, d, w)
   return (walked) => {
     const walk = (Math.max(0, edge - walked) / pace.metres) * pace.AP
-    return presence * rates.reduce((most, r) => Math.max(most, getEvadedThreat(r) * getLeft(ca, ROUND_AP, walk, r.focus, 'potential')), 0)
+    return presence * rates.reduce((most, r) => Math.max(most, getDefendedThreat(r) * getLeft(ca, ROUND_AP, walk, r.focus, 'potential')), 0)
   }
 }
