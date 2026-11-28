@@ -3,7 +3,7 @@ import { isUnpaidMove } from '../../item/rules/moves'
 import type { Action, ActionDraft, ActionKind, SceneState } from '../types'
 import { SURGES, type SurgeAllowance } from '../../tables'
 import { surgeKinds } from '../../lists'
-import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurged, getUnsurged, isLearnedSurge } from '../../character/rules/surge'
+import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurgeRegained, getSurged, getUnsurged, isLearnedSurge } from '../../character/rules/surge'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getBuffBonus, getSurgeAllows } from '../../character/rules/effects'
 import { getReactionsTo, getSpawned } from './log'
@@ -113,13 +113,28 @@ export function isSurgeUndoable(state: SceneState, a: Action): boolean {
   return a.reactionTo !== null && a.surged !== null && !isLearnedSurge(a.surged.kind) && a.cost === null && getSpawned(state, a.id).length === 0
 }
 
+// The table's ruling: the surge AP given up to declare an action come back
+// with it for as long as it may be taken back the same way.
+export function isGiveUpUndoable(state: SceneState, a: Action): boolean {
+  return a.givenUp !== null && a.cost === null && getSpawned(state, a.id).length === 0
+}
+
+// The character as taking the action back leaves them: the surge it was
+// made with unmade, or the surge AP it gave up given back.
+export function getUndeclared(state: SceneState, a: Action): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    if (a.surged && isSurgeUndoable(state, a)) return getUnsurged(a.surged.kind, a.surged)(c)
+    return a.givenUp !== null && isGiveUpUndoable(state, a) ? getSurgeRegained(a.givenUp)(c) : c
+  }
+}
+
 // The fight with the surge of the character's answer to the action taken
-// back, the answer itself left as it is: what another answer is weighed
-// against.
+// back, or the surge AP it gave up given back, the answer itself left as it
+// is: what another answer is weighed against.
 export function withoutAnswerSurge(state: SceneState, rootId: string, characterId: string): SceneState {
-  const answer = getReactionsTo(state, rootId).find((r) => r.actorId === characterId && isSurgeUndoable(state, r))
+  const answer = getReactionsTo(state, rootId).find((r) => r.actorId === characterId && (isSurgeUndoable(state, r) || isGiveUpUndoable(state, r)))
   const c = state.characters[characterId]
-  return answer?.surged && c ? { ...state, characters: { ...state.characters, [characterId]: getUnsurged(answer.surged.kind, answer.surged)(c) } } : state
+  return answer && c ? { ...state, characters: { ...state.characters, [characterId]: getUndeclared(state, answer)(c) } } : state
 }
 
 // combat.tex "Action surge": each surge the character may make now, with the

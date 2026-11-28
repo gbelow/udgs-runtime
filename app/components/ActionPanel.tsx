@@ -738,6 +738,7 @@ function OptionButton({ option, active = false, onClick }: { option: ActionOptio
         disabled={!option.available} onClick={onClick}>
         {option.label}
         {option.surgeTag ? <span className='text-accent'>{option.surgeTag}</span> : null}
+        {option.warning && option.available ? <span className='text-caution'>{option.warning}</span> : null}
       </ActionKey>
     </Closed>
   )

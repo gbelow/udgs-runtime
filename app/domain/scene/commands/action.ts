@@ -24,13 +24,13 @@ import { getDragComparison } from '../rules/drag'
 import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear, getSpellTestModes } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
-import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, surgeCause, withdrawActions } from './log'
+import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, giveUpCause, surgeCause, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
 import { getUnprotectedBy, passUpProtection } from './protection'
 import { getModifierToggles } from '../rules/modifiers'
 import { giveUpHeld, giveUpSustained } from './hold'
 import { updateCharacter } from './characters'
-import { actionSurge } from '../../character/commands/actionSurge'
+import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { endsSurge } from '../rules/surge'
 import { getContestWait } from '../rules/contest'
 import { getFiringState, openSteadyLeg } from '../rules/steadyArms'
@@ -53,9 +53,11 @@ import { getStrayDie } from '../rules/stray'
 export function declareAction(actorId: string, draft: ActionDraft, newId: () => string): Updater {
   return (state) => {
     if (getOpenAction(state) || isReaction(draft.kind)) return state
-    if (!findOption(state, actorId, draft)?.available) return state
-    const action = ActionSchema.parse({ ...draft, id: newId(), actorId })
-    return appendActions(state, [action])
+    const chosen = findOption(state, actorId, draft)
+    if (!chosen?.available) return state
+    const { ready, givenUp } = givingUp(state, actorId, chosen.givesUp)
+    const action = ActionSchema.parse({ ...draft, id: newId(), actorId, givenUp })
+    return appendActions(ready, [action])
   }
 }
 
@@ -264,9 +266,19 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const replaced = getLiveReactionsTo(state, open.id).filter((r) => r.actorId === actorId)
     const cleared = withdrawActions(state, replaced.map((r) => r.id), 'replaced')
     const surged = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), surgeCause(chosen.surge))(cleared) : cleared
-    const reaction = { ...aimed, surged: getSurgeMade(cleared, surged, actorId, chosen.surge) }
-    return pruneReactions(appendActions(surged, [reaction]))
+    const { ready, givenUp } = givingUp(surged, actorId, chosen.givesUp)
+    const reaction = { ...aimed, surged: getSurgeMade(cleared, surged, actorId, chosen.surge), givenUp }
+    return pruneReactions(appendActions(ready, [reaction]))
   }
+}
+
+// The fight with what is left of the actor's earmarked surge given up, where
+// the option declared gives it up, and the AP it gave up.
+function givingUp(state: SceneState, actorId: string, surge: SurgeKind | null): { ready: SceneState, givenUp: number | null } {
+  const c = state.characters[actorId]
+  if (!surge || !c) return { ready: state, givenUp: null }
+  const ready = updateCharacter(actorId, endSurge, giveUpCause(surge))(state)
+  return { ready, givenUp: c.resources.AP - (ready.characters[actorId]?.resources.AP ?? c.resources.AP) }
 }
 
 // What the surge took from the actor and gave them, off the two fights; null

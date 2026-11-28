@@ -22,7 +22,8 @@ import { getStartTurnBar, getTurnHolder } from '../rules/turn'
 import { getFollowBar } from '../rules/follow'
 import { getMustStart } from '../projections/turn'
 import { getOpenChoices, type ChoicePart } from '../projections/choices'
-import { getActionName, getDraftLabel, getPassLabel, getRowHint } from '../projections/labels'
+import { getActionName, getDraftLabel, getGiveUpWarning, getPassLabel, getRowHint } from '../projections/labels'
+import { getSurgeGivenUp } from '../../character/rules/surge'
 import { getHeldOf } from '../rules/hold'
 import type { SceneCommand } from './registry'
 import { amendAction, commitAction, declareAction, declareReaction, passReaction, setTarget } from './action'
@@ -60,7 +61,8 @@ export const getPressActor = (press: MenuPress): string => (press.kind === 'decl
 // `damage`, the blow an attack row lands; `note`, what an answer is made
 // with: the surge, and what it gives.
 // `terms`, what the action as the entry declares it puts on its own test.
-export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress, damage?: Damage, note?: string, hint?: string, terms?: Term[] }
+// `warning`, the surge AP declaring it gives up.
+export type MenuEntry = { label: string, category: ActionCategory | 'answer', cost: ActionCost | null, surge: SurgeKind | null, bar: string | null, press: MenuPress, damage?: Damage, note?: string, hint?: string, terms?: Term[], warning?: string }
 
 // The entries of one category, and how many of them may be pressed now.
 export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntry[], open: number }
@@ -232,16 +234,19 @@ export const getActionMenuDigest = perState((state: SeenScene) => JSON.stringify
 
 // The entries of one of the character's own options: one for each thing it can
 // be declared with, read on the fight with its surge made where it needs one,
-// or the option itself, closed, where there is none.
+// or with the surge it gives up given up, or the option itself, closed, where
+// there is none.
 function getEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter, o: ActionOption): MenuEntry[] {
   const { draft } = o
   const category = getActionDef(draft.kind).category ?? 'tactical'
   const needs = o.available ? null : o.surge
-  const ready = needs ? surge(c.id, needs)(state) : state
+  const givenUp = o.givesUp ? { ...state, characters: { ...state.characters, [c.id]: getSurgeGivenUp(c) } } : state
+  const ready = needs ? surge(c.id, needs)(state) : givenUp
   const own = ready.characters[c.id]
   const bar = o.available || (needs && ready !== state) ? null : o.reason ?? 'closed'
+  const warning = getGiveUpWarning(state, c.id, o)
   const entry = (label: string, cost: ActionCost | null, fields: Partial<ActionDraft> = {}, closed: string | null = null, made: SurgeKind | null = needs): MenuEntry =>
-    aimed(state, withTerms(state, c.id, { ...draft, ...fields } as ActionDraft, null, { label, category, cost, surge: made, bar: bar ?? closed, press: { kind: 'declare', actorId: c.id, draft, fields, aim: at, surge: made } }))
+    aimed(state, withTerms(state, c.id, { ...draft, ...fields } as ActionDraft, null, { label, category, cost, surge: made, bar: bar ?? closed, press: { kind: 'declare', actorId: c.id, draft, fields, aim: at, surge: made }, ...(warning ? { warning } : {}) }))
   switch (draft.kind) {
     case 'strike':
     case 'shoot': {
@@ -250,9 +255,9 @@ function getEntries(state: SceneState, at: MenuAim | null, c: CampaignCharacter,
       return rows.length > 0 ? rows : [entry(getDraftLabel(state, c.id, o), null)]
     }
     case 'cast': {
-      const focused = surge(c.id, 'focus')(state)
-      const withFocus = focused === state ? [] : getSpellOptions(focused, focused.characters[c.id])
-      const spells = getSpellOptions(state, c).flatMap((s): MenuEntry[] => {
+      const focused = surge(c.id, 'focus')(ready)
+      const withFocus = focused === ready ? [] : getSpellOptions(focused, focused.characters[c.id])
+      const spells = getSpellOptions(ready, own).flatMap((s): MenuEntry[] => {
         const { name } = SPELLS[s.key]
         const cast = (label: string, quicken: boolean, closed: string | null, made: SurgeKind | null) => {
           const plain = entry(label, s.cost, { key: s.key, quicken }, closed, made)
@@ -358,9 +363,10 @@ function getAnswerMenu(state: SceneState, id: string): ClickMenu | null {
       const label = getDraftLabel(state, id, o)
       // a recipe named for its surge says it already
       const surge = o.surge && !label.includes(`${o.surge} surge`) ? o.surge : null
-      const on = o.surge ?? c.usedSurge
+      const on = o.givesUp ? null : o.surge ?? c.usedSurge
       const note = on ? `${on} surge${gives(on) ? ` ${gives(on)}` : ''}` : undefined
-      return withTerms(state, id, o.draft, o.reactionTo, { label, category: 'answer', cost: o.cost, surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge }, ...(note ? { note } : {}) })
+      const warning = getGiveUpWarning(state, id, o)
+      return withTerms(state, id, o.draft, o.reactionTo, { label, category: 'answer', cost: o.cost, surge, bar: null, press: { kind: 'answer', reactorId: id, draft: o.draft, surge: o.surge }, ...(note ? { note } : {}), ...(warning ? { warning } : {}) })
     }),
     { label: getPassLabel(state, id, options).label, category: 'answer', cost: null, surge: null, bar: null, press: { kind: 'pass', reactorId: id } },
   ]

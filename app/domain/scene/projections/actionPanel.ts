@@ -57,7 +57,7 @@ import { canThrowItem, getThrowables } from '../rules/throw'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { GRAPPLING_EFFECTS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from '../../perState'
-import { HOP_LABELS, getActionName, getCancellableLabel, getDraftLabel, getPassLabel } from './labels'
+import { HOP_LABELS, getActionName, getCancellableLabel, getDraftLabel, getGiveUpWarning, getPassLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
 import { isVariantOpen } from '../rules/strikeDeclaration'
 import { getModifierViews, type ModifierView } from './modifiers'
@@ -108,8 +108,9 @@ function getLocationOptions(target: Character | undefined, aim: { location: HitL
 // still to be declared: its rows and where it aims.
 // The option lists as the panel shows them: each named for its button.
 // `surgeTag`, the surge the option is made on, said beside its label where
-// the label does not already name it (a recipe named for its surge)
-export type ActionOptionView = ActionOption & { label: string; surgeTag: string | null }
+// the label does not already name it (a recipe named for its surge);
+// `warning`, the surge AP declaring it gives up (`getGiveUpWarning`)
+export type ActionOptionView = ActionOption & { label: string; surgeTag: string | null; warning: string | null }
 export type AttackOptionView = AttackOption & { selected: boolean }
 export type HOPOptionView = HOPOption & { label: string }
 export type SpellOptionView = SpellOption & { name: string }
@@ -193,7 +194,7 @@ function labelled(state: SceneState, id: string, options: readonly ActionOption[
   return options.map((o) => {
     const label = getDraftLabel(state, id, o)
     const tag = o.surge ? `${o.surge} surge` : null
-    return { ...o, label, surgeTag: tag && !label.includes(tag) ? tag : null }
+    return { ...o, label, surgeTag: tag && !label.includes(tag) ? tag : null, warning: getGiveUpWarning(state, id, o) }
   })
 }
 
@@ -202,7 +203,7 @@ function labelled(state: SceneState, id: string, options: readonly ActionOption[
 // ability, a surge).
 function withShownAnswer(c: CampaignCharacter, options: ActionOption[], declared: Action | undefined): ActionOption[] {
   if (!c.shown || !declared || options.some((o) => o.chosen)) return options
-  return [...options, { draft: declared, cost: null, available: false, reason: null, reactionTo: declared.reactionTo, chosen: true, surge: declared.surged?.kind ?? null }]
+  return [...options, { draft: declared, cost: null, available: false, reason: null, reactionTo: declared.reactionTo, chosen: true, surge: declared.surged?.kind ?? null, givesUp: null }]
 }
 
 function getReactors(state: SceneState, open: Action): ReactorOptions[] {

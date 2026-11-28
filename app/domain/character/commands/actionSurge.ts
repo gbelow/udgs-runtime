@@ -1,5 +1,5 @@
 import { CampaignCharacter, SurgeKind } from "../../types"
-import { canSurge, getSurged } from "../rules/surge"
+import { canSurge, getSurgeGivenUp, getSurged } from "../rules/surge"
 
 // combat.tex "Action surge": a character is entitled to one surge per round, so
 // a character that already used one this round cannot surge again, whichever
@@ -14,7 +14,5 @@ export function actionSurge(kind: SurgeKind, compelled = false): (c: CampaignCha
 // do anything again. The STA it cost stays spent, and the round's surge stays
 // used.
 export function endSurge(c: CampaignCharacter): CampaignCharacter {
-  const { surgeFloor } = c
-  if (surgeFloor === null) return c
-  return { ...c, surgeFloor: null, resources: { ...c.resources, AP: Math.min(c.resources.AP, surgeFloor) } }
+  return getSurgeGivenUp(c)
 }

@@ -172,6 +172,20 @@ export function getBindingSurge(c: Character): EarmarkedSurge | null {
   return isEarmarked(c.usedSurge) ? c.usedSurge : null
 }
 
+// The character with what is left of an earmarked surge given up: free to do
+// anything again, the STA it cost still spent and the round's surge still used.
+export function getSurgeGivenUp(c: CampaignCharacter): CampaignCharacter {
+  const { surgeFloor } = c
+  if (surgeFloor === null) return c
+  return { ...c, surgeFloor: null, resources: { ...c.resources, AP: Math.min(c.resources.AP, surgeFloor) } }
+}
+
+// The character with the surge AP they gave up given back, before anything
+// was paid since: the surge binds them again.
+export function getSurgeRegained(AP: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => (AP <= 0 || c.surgeFloor !== null ? c : { ...c, surgeFloor: c.resources.AP, resources: { ...c.resources, AP: c.resources.AP + AP } })
+}
+
 // The reason anything the binding surge does not allow is closed, or null.
 export function getSurgeBar(c: Character): string | null {
   const surge = getBindingSurge(c)

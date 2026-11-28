@@ -12,6 +12,7 @@ import { getHeldOf, isGivingUpHeld } from '../rules/hold'
 import { getAnswerLabel } from '../rules/modifiers'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { Character, GearMove } from '../../types'
+import { getSurgeAPLeft } from '../../character/rules/surge'
 import { findCarriedItem, getContainer } from '../../item/rules/containers'
 
 // What the panel calls things: actions, the options to declare them, and
@@ -40,6 +41,13 @@ export function getActionNoun(action: ActionDraft): string {
 export function getOptionLabel(state: SceneState, actorId: string, option: ActionOption): string {
   const label = getDraftLabel(state, actorId, option)
   return option.surge ? `${label} (${option.surge} surge first)` : label
+}
+
+// The warning an option that gives up a surge is shown with: the AP lost by
+// declaring it. Null for any other.
+export function getGiveUpWarning(state: SceneState, actorId: string, option: ActionOption): string | null {
+  const c = state.characters[actorId]
+  return option.givesUp && c ? `gives up ${getSurgeAPLeft(c)} ${option.givesUp} surge AP` : null
 }
 
 export function getDraftLabel(state: SceneState, actorId: string, option: ActionOption): string {

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { Check, ChevronLeft, ChevronRight, ChevronUp, Dices, Hourglass, Lock, Minus, Play, X, type LucideIcon } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, ChevronUp, Dices, Hourglass, Lock, Minus, Play, TriangleAlert, X, type LucideIcon } from 'lucide-react'
 import { useClickMenu, useOpenWalk, usePopoverSpot, useReactPrompt } from '../hooks/useClickMenu'
 import { ActionKey, Button, Closed, Floating, IconButton } from './ui'
 import { LockedFor } from './Locks'
@@ -25,7 +25,7 @@ const MENU_ROOM = 340
 // on its left and the press that goes on on its right (going on, committing,
 // rolling, landing), and another key cancels what the screen is choosing. Which keys they are is the key
 // profile's (app/keys.ts).
-type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; terms?: readonly Term[]; note?: ReactNode; hint?: string; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
+type Tile = { key: string; label: ReactNode; icon?: LucideIcon; cost?: ActionCost | null; damage?: Damage; terms?: readonly Term[]; note?: ReactNode; warning?: string; hint?: string; selected?: boolean; bar?: string | null; count?: number; run: () => void; undo?: (() => void) | null }
 type Act = { label: string; run: () => void; bar?: string | null; icon?: LucideIcon }
 type Card = {
   title: ReactNode
@@ -304,6 +304,7 @@ function TileView({ tile: t, n, onHint }: { tile: Tile, n: string | null, onHint
         ) : null}
         {t.damage ? <DamageLine damage={t.damage} /> : null}
         {t.terms?.length ? <TermsLine terms={t.terms} /> : null}
+        {t.warning && !closed ? <span className='flex flex-row items-center gap-0.5 text-[9px] text-caution'><TriangleAlert size={9} aria-hidden />{t.warning}</span> : null}
         {closed ? <span className='flex flex-row items-center gap-0.5 text-[9px]'><Lock size={9} aria-hidden />{t.bar}</span> : t.note ? <span className='text-[9px] text-muted'>{t.note}</span> : null}
       </button>
       {t.undo ? (
@@ -358,7 +359,7 @@ function menuCard(menu: ClickMenu, shown: string | null, on: MenuPresses): Card 
     </>
   ) : null
   const tiles: Tile[] = group
-    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, terms: e.terms, note: e.note ?? (e.surge ? `${e.surge} surge` : null), hint: e.hint, bar: e.bar, run: () => on.press(e) }))
+    ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, terms: e.terms, note: e.note ?? (e.surge ? `${e.surge} surge` : null), warning: e.warning, hint: e.hint, bar: e.bar, run: () => on.press(e) }))
     : groups.map((g) => ({ key: g.category, label: g.category, icon: CATEGORY_ICONS[g.category], note: <><span className='font-mono'>{g.open}</span> of <span className='font-mono'>{g.entries.length}</span> open</>, bar: g.entries.length === 0 ? 'nothing to do' : null, run: () => on.show(g.category) }))
   return {
     title: menu.title,

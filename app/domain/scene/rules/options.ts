@@ -51,7 +51,7 @@ import { findPrepared, getPreparedBar } from './prepared'
 import { SHOTS, SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
-import { NEEDS_FOCUS, isLearnedSurge } from '../../character/rules/surge'
+import { NEEDS_FOCUS, getBindingSurge, getSurgeBar, getSurgeGivenUp, isLearnedSurge, type EarmarkedSurge } from '../../character/rules/surge'
 import { canAffordRest } from '../../character/rules/rest'
 import { getIncomingAP, getRoundChangeActBar, getRoundPhase } from './roundChange'
 import { getChaseRestBar } from './chase'
@@ -75,10 +75,13 @@ export type ActionOption = {
   // the surge that opens it, where only a surge does: made first, for a
   // reaction; to be made by the character, for an action of their own
   surge: SurgeKind | null
+  // the earmarked surge whose AP left it gives up as it is declared, being
+  // something that surge does not allow
+  givesUp: EarmarkedSurge | null
 }
 
 function option(draft: ActionDraft, cost: ActionCost | null, reason: string | null, reactionTo: string | null = null, chosen = false): ActionOption {
-  return { draft, cost, available: reason === null, reason, reactionTo, chosen, surge: null }
+  return { draft, cost, available: reason === null, reason, reactionTo, chosen, surge: null, givesUp: null }
 }
 
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or
@@ -282,7 +285,25 @@ export function getDefaultAnswers(options: readonly ActionOption[]): readonly Ac
 // The character's own options, of the kinds named (all of them by default).
 function listOwn(state: SceneState, c: CampaignCharacter, kinds?: ReadonlySet<ActionKind>): ActionOption[] {
   const own = (Object.keys(OWN_OPTIONS) as DeclarableKind[]).filter((kind) => !kinds || kinds.has(kind))
-  return closeOwn(state, c, own.flatMap((kind) => OWN_OPTIONS[kind](state, c)))
+  return withGivingUp(state, c, closeOwn(state, c, own.flatMap((kind) => OWN_OPTIONS[kind](state, c))), (on, givenUp, barred) => listOwn(on, givenUp, barred))
+}
+
+// The table's ruling: what an earmarked surge's AP left do not allow is not
+// closed by them, but declared on what the character holds besides, the
+// surge given up as it is (`givesUp`). Each such option is listed again on the
+// fight with the surge given up, and stays closed where it is closed there.
+function withGivingUp(state: SceneState, c: CampaignCharacter, now: ActionOption[], list: ListFor): ActionOption[] {
+  const surge = getBindingSurge(c)
+  const bar = getSurgeBar(c)
+  const barred = now.filter((o) => !o.available && o.reason === bar)
+  if (!surge || barred.length === 0) return now
+  const givenUp = getSurgeGivenUp(c)
+  const relisted = list({ ...state, characters: { ...state.characters, [c.id]: givenUp } }, givenUp, new Set(barred.map((o) => o.draft.kind)))
+  return now.map((o) => {
+    if (!barred.includes(o)) return o
+    const found = relisted.find((a) => a.available && a.surge === o.surge && sameDraft(a.draft, o.draft))
+    return found ? { ...found, chosen: o.chosen, givesUp: surge } : o
+  })
 }
 
 // What stands closed among the character's own actions: who they are, what they
@@ -388,7 +409,8 @@ function isSurgeFor(c: CampaignCharacter, kind: SurgeKind, draft: ActionDraft): 
 
 function getAnswers(state: SceneState, answerer: CampaignCharacter, open: RootAction, kinds?: ReadonlySet<ActionKind>): ActionOption[] {
   const options = listAnswers(state, answerer, open, kinds)
-  return open.kind === 'drag' ? closeIfPushUnpayable(state, answerer.id, open, options) : options
+  const closed = open.kind === 'drag' ? closeIfPushUnpayable(state, answerer.id, open, options) : options
+  return withGivingUp(state, answerer, closed, (on, givenUp, barred) => getAnswers(on, givenUp, open, barred))
 }
 
 // combat.tex "Push and drag": what the pusher pays for walking the block
@@ -842,7 +864,7 @@ export function findOpenJump(state: SceneState, characterId: string): ActionOpti
 export function findOption(state: SceneState, characterId: string, draft: ActionDraft, surge?: SurgeKind | null): ActionOption | null {
   const c = state.characters[characterId]
   if (c && !getOpenAction(state) && draft.kind in OWN_OPTIONS) {
-    return closeOwn(state, c, OWN_OPTIONS[draft.kind as DeclarableKind](state, c)).find((o) => sameDraft(o.draft, draft)) ?? null
+    return listOwn(state, c, new Set([draft.kind])).find((o) => sameDraft(o.draft, draft)) ?? null
   }
   return getAvailableActions(state, characterId).find((o) => sameDraft(o.draft, draft) && (surge === undefined || o.surge === surge)) ?? null
 }

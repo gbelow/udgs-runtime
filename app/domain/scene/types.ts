@@ -504,6 +504,9 @@ const ActionBase = {
   // the surge its actor made to take the action, paid when it is declared and
   // so in no cost: the STA it took and the AP it gave
   surged: z.object({ kind: SurgeKindSchema, STA: num, AP: num }).strip().nullable().default(null),
+  // the AP left of an earmarked surge its actor gave up to declare it, which
+  // the surge did not allow; given back if it is taken back before it is paid
+  givenUp: num.nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
   // the die each one it may deliver a test to threw with its own, by
   // character id, read when it lands (rules/tested.ts)
