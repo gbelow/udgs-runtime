@@ -18,14 +18,18 @@ import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { letGoOfSustained, payHeldSources } from '../../character/commands/spells'
 import { cure } from '../../character/commands/addAffliction'
 import { payCost } from '../../character/commands/cost'
-import type { SceneState, Updater } from '../types'
+import type { RootAction, SceneState, Updater } from '../types'
+import { getOwnCost } from '../rules/action'
+import { canAfford } from '../../character/rules/cost'
+import { isCombatStarted } from '../rules/started'
+import { getSustainedAbilities, isConcentrating } from '../../character/rules/concentration'
 import { getHazardOf } from '../rules/board/hazard'
 import { getPlayingOutBar } from '../rules/log'
 import { getSituationalAfflictions, isCollapsed, isSuffocating } from '../rules/situational'
 import { getMoraleCalled, getMoraleVolunteers } from '../rules/morale'
 import { getHeldCalled } from '../rules/heldTest'
 import { getHeldActions } from '../rules/hold'
-import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold } from '../rules/roundChange'
+import { getConcentrationOwed, getContinueBar, getFinishing, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold, ROUND_START_CAUSES } from '../rules/roundChange'
 import { writeHeld } from './heldTest'
 import { getRoundSeconds, isRunningInChase } from '../rules/chase'
 import { beginChase, endChaseFight, endChaseRound, endChaseRoundChange, enterChaseFight } from './chase'
@@ -211,34 +215,60 @@ function passEnvironment(state: SceneState, caller: Caller): SceneState {
     const bled = updateCharacter(c.id, (x) => {
       const out = bleed(1)(x)
       return out.injuries.staunched ? { ...out, injuries: { ...out.injuries, staunched: false } } : out
-    }, 'bleeding')(tended)
+    }, ROUND_START_CAUSES.bleed)(tended)
     const fire = getHazardOf(state, c.id).fire
     const suffocating = isSuffocating(state, c)
     return updateCharacter(c.id, (x) => {
       const burnt = burnAtRoundStart(fire)(burnScorch(x))
       return suffocating ? suffocate(burnt) : burnt
-    }, 'environment')(bled)
+    }, ROUND_START_CAUSES.environment)(bled)
   }, state)
 }
 
 function tendCollapsed(state: SceneState, id: string, caller: Caller): SceneState {
   const c = state.characters[id]
   if (!c || c.injuries.bleed === 0 || !isCollapsed(state, c)) return state
-  const degree = caller.test({ id: `tendWounds:${id}`, roller: id, label: 'tend wounds', test: getTendWoundsTest(c) })?.degree ?? 'miss'
-  return updateCharacter(id, tendWounds(degree), `tend wounds: ${degree}`)(state)
+  const result = caller.test({ id: `tendWounds:${id}`, roller: id, label: 'tend wounds', test: getTendWoundsTest(c) })
+  if (!result) return state
+  const { die, source, DL, score, degree, HOP, skillTerms, DLTerms } = result
+  return updateCharacter(id, tendWounds(degree), ROUND_START_CAUSES.tend, { id, roll: { die, source, DL, score, degree, HOP, skillTerms, DLTerms } })(state)
 }
 
 // The AP are cut down to the round's, and whoever keeps nothing going through
 // the round change pays what falls due on it, a fired ability spent with it.
-// Whoever can no longer act lets go of what they held. With nobody left to
-// choose, the change moves on to who joins.
+// Whoever can no longer act lets go of what they held. Whoever holds nothing
+// but an action the AP of the new round pay for finishes it, with no choice
+// (combat.tex "Concentration": "added to the next round's AP and spent before
+// anyone's turn, completing the action"). With nobody left to choose, the
+// change moves on to who joins.
 function openConcentration(state: SceneState, caller: Caller): SceneState {
   const settled = Object.values(state.characters).filter((c) => !isDead(c) && !isParked(state, c.id)).reduce<SceneState>((s, c) => {
     const capped = updateCharacter(c.id, capAP, 'unspent AP lost')(s)
     if (!holdsThroughRound(capped, c.id)) return updateCharacter(c.id, payRoundEnd, 'round end')(capped)
     return hasAffliction(c, 'unconscious') ? letGoOf(capped, c.id, caller) : capped
   }, { ...state, roundStep: 'concentration' })
-  return getConcentrationOwed(settled).length === 0 && getFinishing(settled).length === 0 ? { ...settled, roundStep: 'join' } : settled
+  const finished = getHeldActions(settled).filter((h) => holdsOnlyAction(settled, h.actorId) && isHeldPaidFor(settled, h)).reduce((s, h) => (getConcentrationOwed(s).includes(h.actorId) ? letGoOf(s, h.actorId, caller) : s), settled)
+  return getConcentrationOwed(finished).length === 0 && getFinishing(finished).length === 0 ? { ...finished, roundStep: 'join' } : finished
+}
+
+// Whether the character keeps nothing going through the round change but an
+// action held over.
+function holdsOnlyAction(state: SceneState, id: string): boolean {
+  const c = state.characters[id]
+  return !!c && !isConcentrating(c) && getSustainedAbilities(c).length === 0
+}
+
+// Whether the AP the actor has cover what is left of the held action's price.
+function isHeldPaidFor(state: SceneState, held: RootAction): boolean {
+  const c = state.characters[held.actorId]
+  const price = getOwnCost(state, held)
+  return !!c && !!price && canAfford(c, { AP: price.AP, STA: 0 }, isCombatStarted(state))
+}
+
+// What is still missing from the held action's price, once what it was paid is
+// counted.
+function getHeldMissing(state: SceneState, held: RootAction): number {
+  return Math.max(0, getOwnCost(state, held)?.AP ?? 0)
 }
 
 function payRoundEnd(c: CampaignCharacter): CampaignCharacter {
@@ -249,9 +279,10 @@ function payRoundEnd(c: CampaignCharacter): CampaignCharacter {
 // the next round to maintain the spell effect" — the charges a held spell
 // draws from its item, letting go of one that has none left, and then the
 // upkeep of everything kept going; a held spell or a held action takes the
-// focus surge holding it does (the table's ruling), and a held action keeps
-// every AP left for itself (combat.tex "Concentration"). Flow State takes its
-// AP off the upkeep paid, and what is left of it off the held action.
+// focus surge holding it does (the table's ruling), and a held action takes
+// what is left of its price out of the AP left, or every one of them when they
+// fall short (combat.tex "Concentration"). Flow State takes its AP off the
+// upkeep paid, and what is left of it off the held action.
 export function holdOn(id: string, thrown: Throw): Updater {
   return calling({ kind: 'holdOn', id }, thrown, (caller) => (state) => {
     if (getHoldOnBar(state, id)) return state
@@ -262,7 +293,7 @@ export function holdOn(id: string, thrown: Throw): Updater {
     const eased = back > 0 ? { ...kept, resources: { ...kept.resources, AP: kept.resources.AP + back } } : kept
     const paid = updateCharacter(id, () => (needsFocusToHold(state, id) ? actionSurge('focus')(eased) : eased), 'holds on')(state)
     const held = getHeldActions(paid).find((h) => h.actorId === id)
-    const pool = Math.max(0, paid.characters[id].resources.AP)
+    const pool = held ? Math.min(Math.max(0, paid.characters[id].resources.AP), Math.max(0, getHeldMissing(paid, held) - (discount - back))) : 0
     const carried = held ? carryOver(updateCharacter(id, payCost({ AP: pool, STA: 0 }, true), 'holds on')(paid), held, pool + discount - back) : paid
     return settleChoices({ ...carried, concentration: [...carried.concentration, { id, hold: true }] }, caller)
   })
@@ -281,10 +312,10 @@ function letGoOf(state: SceneState, id: string, caller: Caller): SceneState {
 }
 
 // Once nobody owes a choice, the held actions let go of are finished, in
-// their order.
+// their order, and so are those held on to that are now paid in full.
 function settleChoices(state: SceneState, caller: Caller): SceneState {
   if (getConcentrationOwed(state).length > 0) return state
   const letGoBy = state.concentration.filter((x) => !x.hold).map((x) => x.id)
-  const finishing = getHeldActions(state).filter((h) => letGoBy.includes(h.actorId) && h.finishing === null).map((h) => h.id)
+  const finishing = getHeldActions(state).filter((h) => h.finishing === null && (letGoBy.includes(h.actorId) || getHeldMissing(state, h) === 0)).map((h) => h.id)
   return finishing.length === 0 ? state : finishHeld(state, finishing, caller)
 }
