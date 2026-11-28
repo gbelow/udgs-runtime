@@ -12,7 +12,7 @@ import { toggleContest } from './turn'
 import { isContestPending } from '../rules/contest'
 import { paintTerrain, pickCell, placeCharacter, readPick, repositionCharacter, turnCharacter, turnMove } from './board'
 import { pickFloorItem } from './floor'
-import { getClickMenu, type ClickMenu } from './clickMenu'
+import { getClickMenu, type ClickMenu, type MenuAim } from './clickMenu'
 
 // What the board is clicked on. A cell is clicked as the screen looked at
 // the board: from a storey's height, from the ground (null), or with nothing
@@ -29,10 +29,23 @@ export type Click =
 export type ClickContext = { brush: TerrainBrush | null, radius?: number, reposition: boolean, selected: string | null, newId: () => string }
 
 // What a click means: whom it acts for and what it does to the fight, or the
-// character it picks on the screen it was made on, which the fight never sees, or
-// the menu of what could be done there (`getClickMenu`), which changes nothing until an entry is pressed.
+// character it picks on the screen it was made on, which the fight never sees.
 // `bar`, why a character put down by hand cannot stand there, said to whoever clicked.
-export type ClickReading = { actor: Actor, apply: Updater, bar?: string | null } | { select: string } | { menu: ClickMenu } | { resume: true }
+export type ClickReading = { actor: Actor, apply: Updater, bar?: string | null } | { select: string }
+
+// What a right click opens: the menu of what could be done there
+// (`getClickMenu`), which changes nothing until an entry is pressed, or, on
+// whoever acts, the popover their open action is walked in; nothing otherwise.
+export type MenuReading = { menu: ClickMenu } | { resume: true } | null
+
+export function readMenuClick(state: SceneState, at: MenuAim, ctx: Pick<ClickContext, 'brush' | 'reposition' | 'selected'>): MenuReading {
+  if (ctx.brush || ctx.reposition) return null
+  const open = getOpenAction(state)
+  if (at.on === 'token' && open && at.id === open.actorId) return { resume: true }
+  if (at.on === 'cell' && (getBoardMode(state) !== 'idle' || !isCombatStarted(state))) return null
+  const menu = getClickMenu(state, at, ctx.selected)
+  return menu ? { menu } : null
+}
 
 // What a click means in the state it lands on: painting if a brush is in
 // hand, a path edit while a move is being declared, the landing of an evasive
@@ -57,17 +70,13 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): C
       if (getDeclaredTargets(state, open).includes(click.id)) return { actor, apply: setTarget(click.id) }
       const on = getBoardMode(state) === 'path' && open?.kind === 'move' && open.actorId === ctx.selected ? getPickOn(state, open, click.id) : null
       if (on) return { actor, apply: pickCell(on.cell, ctx.newId, on.elevation) }
-      // a click on whoever acts brings back the popover their action is walked in
-      if (open && click.id === open.actorId) return { resume: true }
-      const menu = getClickMenu(state, { on: 'token', id: click.id }, ctx.selected)
-      return menu ? { menu } : { select: click.id }
+      return { select: click.id }
     }
     case 'floor': {
       if (getDeclaredFloorTargets(state, open).some((f) => f.item.id === click.itemId)) return { actor, apply: setTarget(click.itemId) }
       const picker = getFloorPicker(state, ctx.selected)
       if (picker?.itemIds.includes(click.itemId)) return { actor: { id: picker.picker }, apply: pickFloorItem(picker.picker, click.itemId, ctx.newId) }
-      const menu = getClickMenu(state, { on: 'floor', itemId: click.itemId }, ctx.selected)
-      return menu ? { menu } : NOTHING
+      return NOTHING
     }
     case 'turn': {
       if (getBoardMode(state) === 'path') return { actor, apply: turnMove() }
@@ -88,10 +97,8 @@ function readCell(state: SceneState, cell: Coord, ctx: ClickContext, height?: nu
     const pick = readPick(state, cell, ctx.newId, height)
     return pick ? { actor: { id: pick.actor }, apply: pick.apply } : NOTHING
   }
-  if (mode === 'idle' && ctx.selected && !ctx.reposition && isCombatStarted(state)) {
-    const menu = getClickMenu(state, { on: 'cell', cell, height }, ctx.selected)
-    if (menu) return { menu }
-  }
+  // once the fight is under way the ground says nothing to a left click on it about someone already standing
+  if (mode === 'idle' && ctx.selected && !ctx.reposition && isCombatStarted(state) && state.board?.placements[ctx.selected]) return NOTHING
   if (mode === 'idle' && ctx.selected) {
     return ctx.reposition ? { actor: 'gm', apply: repositionCharacter(ctx.selected, cell) } : { actor: { id: ctx.selected }, apply: placeCharacter(ctx.selected, cell), bar: getPlaceBar(state, ctx.selected, cell) }
   }

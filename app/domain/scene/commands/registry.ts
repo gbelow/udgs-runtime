@@ -67,7 +67,7 @@ const typed = (ctx: CommandContext, die?: number) => (die === undefined || die =
 // a click that only picks a character there does nothing to the fight
 const readOn = (newId: () => string, state: SceneState, click: Click, brush: TerrainBrush | null, reposition: boolean, selected: string | null, radius: number) => {
   const read = readClick(state, click, { brush, radius, reposition, selected, newId })
-  return 'select' in read || 'menu' in read || 'resume' in read ? null : read
+  return 'select' in read ? null : read
 }
 
 // a sheet's edit played on a character in the fight, its dice the table's

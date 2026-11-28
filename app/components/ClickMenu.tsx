@@ -104,7 +104,7 @@ export function ClickMenuHost(){
     const away = (e: PointerEvent) => {
       // a right click is the card's own: it cancels
       if (e.button === 2) return
-      // a press on the board is the board's to read: the click that opened the menu, pressed again, picks its character
+      // a press on the board is the board's to read: a left click there closes the menu, and on a token picks them
       if (panel.current?.contains(e.target as Node) || e.target instanceof HTMLCanvasElement) return
       // the walk is only put away: the action stays open in the panel, which the press reaches
       if (!menu) {

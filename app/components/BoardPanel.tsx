@@ -105,7 +105,7 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
   const eyes = useEyes()
   const look = useBoardLook()
   const [storey, setStorey] = useState<number | null | 'auto'>('auto')
-  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, explosion, turn, laySurface } = useBoard(look, storey)
+  const { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, openMenu, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, explosion, turn, laySurface } = useBoard(look, storey)
   const veil = useBoardVeil(view)
   const { setLit } = useLitCell(view, veil.setOver)
   const cellAt = useCellAt()
@@ -150,6 +150,7 @@ export function BoardPanel({ plain = false, placing = false }: { plain?: boolean
     <BoardCanvas className='w-full flex-1 min-h-0' label='board' view={view} veiled={veil.veiled} picked={picked} marked={marked} camera={camera} cellAt={cellAt} setLit={setLit} onPauseKey={onPauseKey} motion={look.motion}
       onCell={(cell) => { if (grounding) placeItem(cell); else if (surfacing && laying) laySurface(cell, laying, frozen, radius, onto); else if (exploding) setOffExplosion(explosion, cell); else clickCell(cell, painting ? brush : null, repositioning, radius) }}
       onToken={clickToken}
+      onMenu={(at) => { if (floor === null && !painting && !surfacing) openMenu(at, repositioning) }}
       onFloorItem={(id) => clearing ? removeFloorItem(id) : charging ? chargeByGM(id) : settingOff ? setOffItem(id) : clickFloorItem(id)} />
     <ClickMenuHost />
     <ReactPrompt />

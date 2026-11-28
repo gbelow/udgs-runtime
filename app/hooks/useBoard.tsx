@@ -5,7 +5,8 @@ import { BoardView, CHORD_BRUSH_ICONS, getBoardView, getBoardViewDigest, getBoar
 import { getFrontView } from "../domain/scene/projections/frontView";
 import { getStoreyChoices, getStoreyView, getViewEye, getViewHeight } from "../domain/scene/projections/storeyView";
 import type { BoardLook } from "./useBoardLook";
-import { readClick, type Click } from "../domain/scene/commands/click";
+import { readClick, readMenuClick, type Click } from "../domain/scene/commands/click";
+import type { BoardAim } from "../board/stage";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useFloorToolStore } from "../stores/useFloorToolStore";
@@ -18,7 +19,7 @@ import { useFollowPick } from "./useFollowPick";
 import { useSightStore, type SightStore } from "../stores/useSightStore";
 import { getEyesBoard, lookingFrom } from "../domain/scene/projections/sights";
 import { usePendingItem } from "./useItemLens";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,
@@ -56,32 +57,30 @@ export function useBoard(look: Pick<BoardLook, "front" | "lift"> = { front: fals
 
   const create = (radius: number) => dispatch({ kind: "createBoard", args: [radius, Math.floor(Math.random() * 0x7fffffff)] });
   const remove = () => dispatch({ kind: "removeBoard", args: [] });
-  // the token a click that would pick it was last made on: a character is
-  // picked by a second click on them, with or without a menu between
-  const armed = useRef<string | null>(null);
+  // a left click picks a character, or plays what it means on the board; while
+  // the menu is open it only closes it, and one on a token picks them too
   const click = (c: Click, brush: TerrainBrush | null = null, reposition = false, radius = 0) => {
     const state = useCombatStore.getState();
     const selected = state.activeCharacterId;
-    const again = c.on === "token" && armed.current === c.id;
-    armed.current = null;
-    // while a menu is open a click only closes it, and one on the character it opened on picks them
-    const menu = useClickMenuStore.getState().menu;
-    if (menu) {
+    if (useClickMenuStore.getState().menu) {
       useClickMenuStore.getState().setMenu(null);
-      if (c.on === "token" && menu.select === c.id) setActiveCharacter(c.id);
+      if (c.on === "token") setActiveCharacter(c.id);
       return;
     }
     const read = readClick(state, c, { brush, radius, reposition, selected, newId: () => "" });
-    if ("select" in read) {
-      if (again) setActiveCharacter(read.select);
-      else armed.current = read.select;
-    }
-    else if ("menu" in read) useClickMenuStore.getState().setMenu(read.menu);
-    else if ("resume" in read) resumeWalk();
+    if ("select" in read) setActiveCharacter(read.select);
     else {
       if (read.bar) toast(read.bar);
       dispatch({ kind: "click", args: [c, brush, reposition, selected, radius] });
     }
+  };
+  // a right click opens the menu of what the picked character could do there
+  const openMenu = (at: BoardAim, reposition = false) => {
+    const state = useCombatStore.getState();
+    const read = readMenuClick(state, at.on === "cell" ? { ...at, height } : at, { brush: null, reposition, selected: state.activeCharacterId });
+    if (!read) useClickMenuStore.getState().setMenu(null);
+    else if ("resume" in read) resumeWalk();
+    else useClickMenuStore.getState().setMenu(read.menu);
   };
 
   const clickCell = (cell: Coord, brush: TerrainBrush | null, reposition: boolean, radius: number) => click({ on: 'cell', cell, height }, brush, reposition, radius);
@@ -108,7 +107,7 @@ export function useBoard(look: Pick<BoardLook, "front" | "lift"> = { front: fals
   const resize = (extent: BoardExtent) => dispatch({ kind: "resizeBoard", args: [extent] });
   const resizeWarning = (extent: BoardExtent) => getResizeWarning(useCombatStore.getState(), extent);
 
-  return { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, setExplosion, explosionOptions, turn, light, surface, laySurface, generateGround, resize, resizeWarning, brushIcons: CHORD_BRUSH_ICONS } as const;
+  return { view, storeys, height, item, create, remove, clickCell, clickToken, clickFloorItem, openMenu, place, placeItem, removeFloorItem, setOffExplosion, chargeByGM, setOffItem, picked, floorTool, setFloorTool, explosion, setExplosion, explosionOptions, turn, light, surface, laySurface, generateGround, resize, resizeWarning, brushIcons: CHORD_BRUSH_ICONS } as const;
 }
 
 // The GM's floor tool and the explosion it carries, shared by the buttons that

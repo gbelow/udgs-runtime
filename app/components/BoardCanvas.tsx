@@ -4,7 +4,7 @@ import { useReportBoardTop } from '../hooks/useScreenEdges'
 import type { BoardCellView, BoardView } from '../domain/scene/projections/boardView'
 import type { Coord } from '../domain/scene/types'
 import { useCameraAsked, usePlaybackReport, useScreenSpots, type BoardCamera } from '../hooks/useBoardCanvas'
-import type { BoardHover, BoardStage } from '../board/stage'
+import type { BoardAim, BoardHover, BoardStage } from '../board/stage'
 import type { BoardMotion } from '../board/playback'
 import { useKeyMap } from '../hooks/useKeyMap'
 import { isKey } from '../keys'
@@ -22,6 +22,7 @@ type Props = {
   onCell: (cell: Coord) => void
   onToken?: (id: string) => void
   onFloorItem?: (itemId: string) => void
+  onMenu?: (at: BoardAim) => void
   // the cell the pointer is on, told so that what is drawn over it is veiled
   setLit?: (key: string | null) => void
   // what the key that pauses the bots does while the board has the focus,
@@ -60,6 +61,7 @@ export function BoardCanvas(props: Props){
         onCell: (cell) => latest.current.onCell(cell),
         onToken: onToken ? (id) => latest.current.onToken?.(id) : undefined,
         onFloorItem: onFloorItem ? (id) => latest.current.onFloorItem?.(id) : undefined,
+        onMenu: (at) => latest.current.onMenu?.(at),
         onHover: (h) => { setHover(h); latest.current.setLit?.(h?.kind === 'cell' ? h.key : null) },
         onZoomed: (z) => latest.current.camera.setZoomed(z),
         onPlaying: report,

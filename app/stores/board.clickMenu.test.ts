@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { archer, fighter, mage, meleeTrained, rangedTrained, spearman } from '../domain/scene/fixtures'
-import { readClick } from '../domain/scene/commands/click'
+import { readClick, readMenuClick } from '../domain/scene/commands/click'
 import { getTurnMenu, isAimed, LONE_PARTS, type MenuEntry } from '../domain/scene/commands/clickMenu'
 import { getGivenSteps, walkKey, type OpenWalk, type WalkStep } from '../domain/scene/projections/openWalk'
 import { getOpenChoices } from '../domain/scene/projections/choices'
@@ -45,11 +45,12 @@ describe('the menu a click on the board opens', () => {
     }
   })
 
-  it('is what a click on a token with something to do reads as, and picks nobody', () => {
+  // the user's ruling (2026-11-28): a left click picks, a right click opens the menu
+  it('is what a right click on a token with something to do reads as, and a left click picks that token', () => {
     const h = scene()
-    const read = readClick(h.state(), { on: 'token', id: h.idOf('Bob') }, { brush: null, reposition: false, selected: h.active(), newId: () => '' })
-    expect(read).toHaveProperty('menu')
-    expect(read).not.toHaveProperty('select')
+    const bob = h.idOf('Bob')
+    expect(readMenuClick(h.state(), { on: 'token', id: bob }, { brush: null, reposition: false, selected: h.active() })).toHaveProperty('menu')
+    expect(readClick(h.state(), { on: 'token', id: bob }, { brush: null, reposition: false, selected: h.active(), newId: () => '' })).toEqual({ select: bob })
   })
 
   it('draws a move to the clicked cell and leaves it to be committed', () => {

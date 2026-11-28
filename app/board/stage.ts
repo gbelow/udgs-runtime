@@ -31,12 +31,19 @@ export type BoardHover =
   | { kind: 'token'; id: string; x: number; y: number }
   | { kind: 'floor'; itemId: string; x: number; y: number }
 
+export type BoardAim =
+  | { on: 'cell'; cell: Coord }
+  | { on: 'token'; id: string }
+  | { on: 'floor'; itemId: string }
+
 export type BoardEvents = {
   // the cell a point of the plane picks
   cellAt: (view: BoardView, point: Point) => BoardCellView | null
   onCell?: (cell: Coord) => void
   onToken?: (id: string) => void
   onFloorItem?: (itemId: string) => void
+  // a right click, on whatever it was made on
+  onMenu?: (at: BoardAim) => void
   // what the pointer is on, with where it is in the canvas's own pixels
   onHover?: (hover: BoardHover | null) => void
   onZoomed?: (zoomed: boolean) => void
@@ -160,7 +167,7 @@ export class BoardStage {
     canvas.addEventListener('pointerleave', this.onPointerLeave)
     canvas.addEventListener('wheel', this.onWheel, { passive: false })
     // the right button is the board's own: the browser's menu never opens over it
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault())
+    canvas.addEventListener('contextmenu', this.onContextMenu)
     this.resize = new ResizeObserver(() => this.onResize())
     this.resize.observe(this.host)
     this.ready = true
@@ -577,6 +584,17 @@ export class BoardStage {
     if (found?.kind === 'floor') this.events.onFloorItem?.(found.itemId)
     else if (found?.kind === 'token') this.events.onToken?.(found.token.id)
     else if (found?.kind === 'cell') this.events.onCell?.(found.cell.cell)
+  }
+
+  // a right click the popover has already taken (to cancel) opens nothing more
+  private onContextMenu = (e: MouseEvent) => {
+    const taken = e.defaultPrevented
+    e.preventDefault()
+    if (taken) return
+    const found = this.hit(this.local(e))
+    if (found?.kind === 'floor') this.events.onMenu?.({ on: 'floor', itemId: found.itemId })
+    else if (found?.kind === 'token') this.events.onMenu?.({ on: 'token', id: found.token.id })
+    else if (found?.kind === 'cell') this.events.onMenu?.({ on: 'cell', cell: found.cell.cell })
   }
 
   private onPointerCancel = () => { this.press = null }
