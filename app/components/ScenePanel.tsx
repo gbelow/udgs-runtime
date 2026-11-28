@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
-import { TurnBanner } from './TurnBanner';
 import { ChasePanel, ChaseSaved, FollowPanel } from './ChasePanel';
 import { Forfeits, RoundChangePanel } from './RoundChangePanel';
 import { ChaseTrack } from './ChaseTrack';
@@ -15,7 +14,7 @@ import { useEndScene, usePartyCommands, useTableParties } from '../hooks/usePart
 import { useGmBar } from '../hooks/useControl';
 import { useImpose } from '../hooks/useImpose';
 import { ControlLocked, Locked } from './Locks';
-import { useActiveFace, useBreakage, useCombatRoster, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useAgainstAllies, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
+import { useActiveFace, useBreakage, useCombatState, useSurgeViews, useCowardBar, useBreakFreeBar, useMockery, useLeadership, useAgainstAllies, useHeldTests, useRoundChange, useTurnControls, useContestModes } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useContestSeconds } from '../hooks/useContest';
 import { useGmFloorTools } from '../hooks/useBoard';
@@ -37,7 +36,8 @@ import { OwnChips, TargetList } from './FocusBar';
 
 // The scene's pieces of the run screen.
 
-// The round and who is in it, kept to a strip so the middle has the height.
+// The round and what moves it, kept to a strip so the middle has the height;
+// who is in it is down the left of the board (`FacesColumn`).
 export function SceneStrip(){
   return(
     <div className='flex flex-col'>
@@ -46,7 +46,6 @@ export function SceneStrip(){
         <Locked bar={useSceneDiceBar()} className='contents'>
           <FightEnd />
           <FightControls />
-          <CharacterList />
           <FightSettingsButton />
         </Locked>
       </div>
@@ -184,14 +183,12 @@ export function SceneSpace({ selfRun = false, placing = false }: { selfRun?: boo
         <div className='flex flex-row items-center gap-2 px-2 py-1'>
           <Button size='xs' onClick={() => setMapOf(null)}>back to the round change</Button>
         </div>
-        <TurnBanner />
         {board}
       </>
     ) : <RoundChangePanel openMap={chase.boardInPlay ? setMapOf : null} selfRun={selfRun} />
   }
   return(
     <>
-      <TurnBanner />
       <FollowPanel />
       {chase.saved ? <><ChaseSaved /><ChaseTrack /></> : chase.chasing ? <><ChaseTrack /><ChasePanel /></> : null}
       {chase.boardInPlay ? board : null}
@@ -501,7 +498,7 @@ function TurnControl(){
             <ActionKey icon={Dices} aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</ActionKey>
           </Tooltip> : null
         }
-        {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
+        {holder ? <span className='text-sm font-semibold text-accent'>{holder}&apos;s turn{contenders ? <span className='font-normal text-fg'>, contested by {contenders}</span> : null}</span> : null}
       </div>
       {duty ? <span className='text-sm text-bad font-medium'>{duty}</span> : null}
       {result ? <span className='text-xs text-muted'>{result}</span> : null}
@@ -569,39 +566,6 @@ function SurgeCard({ option, close }: { option: SurgeView, close: () => void }){
       <Tooltip text={option.bar}>
         <ActionKey look='go' aria-label={`make the ${option.kind} surge`} disabled={!option.available} onClick={() => { actionSurge(option.kind); close() }}>make the surge</ActionKey>
       </Tooltip>
-    </div>
-  )
-}
-
-// Everyone in the fight as a strip of chips by party: a click picks the
-// active character, or aims the open action at a target.
-export function CharacterList(){
-  const { parties, away, pick, picked } = useCombatRoster()
-
-  return(
-    <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
-      {
-        parties.map((party) =>
-          <div key={party.id} className='flex flex-row flex-wrap gap-1 items-center'>
-            {party.name ? <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span> : null}
-            {party.entries.map((entry) =>
-              <Button key={entry.id} size='xs' aria-label={entry.name}
-                tone={entry.targetable ? 'bad' : 'neutral'} selected={picked.includes(entry.id) || (!entry.targetable && entry.isActive && picked.length === 0)}
-                className={entry.targetable ? 'animate-pulse' : ''}
-                icon={entry.isInTurn ? Play : undefined}
-                onClick={() => pick(entry)}>
-                {entry.name}
-                {entry.isInTurn ? <span className='ml-1.5 text-[10px] text-good'>in turn</span> : null}
-                {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
-                {entry.surrendered ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>surrendered</span> : null}
-                {entry.holding ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>holding {entry.holding.label} ({entry.holding.AP} AP)</span> : null}
-                {entry.role && entry.role !== 'none' ? <span className='ml-1.5 text-[10px] text-muted'>{entry.role}</span> : null}
-              </Button>
-            )}
-          </div>
-        )
-      }
-      {away.map((f) => <Button key={f.id} size='xs' weight='ghost' disabled title='none of your characters senses them now'>{f.name}</Button>)}
     </div>
   )
 }

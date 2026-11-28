@@ -20,6 +20,7 @@ import { FightActions, FightButtons, GmSceneTools, KillButton, SceneSpace, Scene
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { RecentJournal } from './Journal';
+import { FacesColumn } from './FocusBar';
 import { X } from 'lucide-react'
 import { IconButton, SectionLabel, Segment, Segmented } from './ui';
 import { ControlLocked, GearLocked, GmLocked } from './Locks';
@@ -64,6 +65,8 @@ type Mode = PlayerSlots & {
   parties: ReactNode
   // the mode's own space in the middle
   space: ReactNode
+  // who is in play, a face each, down the left of the middle
+  faces?: ReactNode
   // the GM's button beside the active character's injuries
   injuryAction?: ReactNode
   // what the GM does to the mode that no character does
@@ -84,6 +87,7 @@ const MODES: Record<RunTab, Mode> = {
     strip: <SceneStrip />,
     parties: <TableParties />,
     space: <SceneSpace />,
+    faces: <FacesColumn />,
     ...FIGHT_SLOTS,
     injuryAction: <KillButton />,
     gmTools: <GmSceneTools />,
@@ -136,7 +140,7 @@ const DiceTray = dynamic(() => import('./DiceTray'), { ssr: false })
 // mode's.
 export function RunScreen(){
   const { tab } = useGameTab()
-  const { strip, parties, space, status, injuryAction, buttons, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
+  const { strip, parties, space, faces, status, injuryAction, buttons, actions, gmTools, log } = MODES[tab as RunTab] ?? MODES.scene
   const { gmTools: hasGmTools } = useRole()
   const hasActiveCharacter = useHasActiveCharacter()
   const face = useActiveFace()
@@ -160,6 +164,7 @@ export function RunScreen(){
       </div>
       {waiting ? <TableWait /> : <>
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
+        {faces}
         <section className='relative flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
           <Segmented label='open beside' className='self-start'>
             {OVERLAYS.filter((v) => !isCatalog(v) || hasGmTools).map((v) =>

@@ -12,7 +12,8 @@ import { useActiveFace, useCombatState } from '../../hooks/useCombatState'
 import { ActiveFace } from '../ActiveFace'
 import { useTray } from '../../hooks/useTray'
 import type { DemoFate, DemoOutcome } from '../../domain/scene/projections/demo'
-import { CharacterList, SceneSpace, TableWaits } from '../ScenePanel'
+import { SceneSpace, TableWaits } from '../ScenePanel'
+import { FacesColumn } from '../FocusBar'
 import { AutoThrow, FIGHT_SLOTS, SheetTabs, Status } from '../RunScreen'
 import { useActiveControlBar } from '../../hooks/useControl'
 import { Button, IconButton, SectionLabel, Segment, Segmented, Tooltip } from '../ui'
@@ -135,12 +136,12 @@ function DemoTable() {
         <Home />
         <span className='text-muted'>{scene}</span>
         {started ? <><Round /><TableWaits /></> : null}
-        <CharacterList />
         <span className='grow' />
         <HelpButton />
         <Button size='xs' weight='ghost' title='back to picking the party' onClick={back}>restart game</Button>
       </header>
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
+        <FacesColumn />
         <div className='relative flex-1 min-w-0 min-h-0 flex flex-col p-2'>
           <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'><SceneSpace selfRun placing={!started} /></div>
           <Result />

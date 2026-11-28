@@ -1,5 +1,5 @@
 import { getFocusBar, getTargetRows, type TargetRow } from "../domain/scene/projections/focus";
-import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
+import { getFaceParties, getSceneCards, getSceneCardsDigest, type FaceParty, type SceneCardParty } from "../domain/scene/projections/cards";
 import type { SceneState, SeenScene } from "../domain/scene/types";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -54,5 +54,29 @@ export function useTargetRows(): { rows: TargetRow[] | null; pick: (row: TargetR
   return {
     rows: JSON.parse(digest) as TargetRow[] | null,
     pick: (row) => { if (row.aim) dispatch({ kind: "target", args: [row.id] }); look(row.id); },
+  };
+}
+
+// Everyone the screen knows to be in the fight, by party, each as an ally or
+// an enemy of whoever it looks from, and the faces it knows of those it is not
+// shown now; a click picks one as the roster does, and the board looks at them.
+export function useFaceColumn(): { parties: FaceParty[]; away: { id: string; name: string }[]; picked: string[]; pick: (id: string) => void } {
+  const own = useOwn();
+  const { parties: known, away, pick, picked } = useCombatRoster();
+  useCombatStore(getSceneCardsDigest);
+  const look = useLookAt();
+  const fight = useCombatStore.getState();
+  const shown = new Set(known.flatMap((p) => p.entries.map((e) => e.id)));
+  const parties = getFaceParties(fight, own(fight)).map((p) => ({ ...p, cards: p.cards.filter((c) => shown.has(c.id)) })).filter((p) => p.cards.length > 0);
+  const entries = new Map(known.flatMap((p) => p.entries.map((e) => [e.id, e] as const)));
+  return {
+    parties,
+    away,
+    picked,
+    pick: (id) => {
+      const entry = entries.get(id);
+      if (entry) pick(entry);
+      look(id);
+    },
   };
 }

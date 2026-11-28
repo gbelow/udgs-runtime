@@ -1,7 +1,7 @@
 import type { SceneState } from '../types'
 import type { RollMode } from '../../play/dice'
 import { describeThrow } from '../../character/rules/terms'
-import { isContestPending, isUnseenTurn, UNSEEN_HOLDER, UNSEEN_NAME } from '../rules/contest'
+import { isContestPending, isUnseenTurn, UNSEEN_NAME } from '../rules/contest'
 import { getContestBar, getContestable, getContenders, getContestMode, getContestModes, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getOpenAction } from '../rules/log'
 import { getEndCombatBar } from '../rules/fight'
@@ -130,17 +130,6 @@ export function getContestView(state: SceneState, own: readonly string[]): Conte
     contenders: getContenders(state).map((id) => getFightName(state, id)).join(', '),
   }
 }
-
-// Whose turn it is, for all to see: nobody's while the next is still to be
-// asked for; null outside a fight and while the round changes.
-export type TurnBanner = { turn: number; holder: { id: string; name: string; flees: boolean } | null }
-
-export const getTurnBanner = perState((state: SceneState): TurnBanner | null => {
-  const holder = getTurnHolder(state)
-  if (!isCombatStarted(state) || (!holder && getRoundChangeBar(state))) return null
-  if (isUnseenTurn(state)) return { turn: state.turnsBegun, holder: { id: UNSEEN_HOLDER, name: UNSEEN_NAME, flees: state.fleeing } }
-  return { turn: state.turnsBegun, holder: holder ? { id: holder, name: getFightName(state, holder), flees: state.fleeing } : null }
-})
 
 // The ways the character may throw their cunning in the contest for the turn,
 // a single one where there is no choice.

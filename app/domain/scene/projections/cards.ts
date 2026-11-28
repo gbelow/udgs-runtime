@@ -50,3 +50,16 @@ export const getSceneCards = perState(buildSceneCards)
 // Everything the cards display, as one string, to gate their re-render; a
 // card is freshly allocated on every call.
 export const getSceneCardsDigest = perState((state: SeenScene) => JSON.stringify(getSceneCards(state)))
+
+// Whose side a face is on for the screen: an ally of whoever it looks from
+// (the character picked, else the characters it plays), or an enemy.
+export type FaceSide = 'ally' | 'enemy'
+export type FaceCard = SceneCard & { side: FaceSide }
+export type FaceParty = { id: string; name: string; cards: FaceCard[] }
+
+export function getFaceParties(state: SeenScene, own: readonly string[]): FaceParty[] {
+  const from = state.activeCharacterId ? [state.activeCharacterId] : own
+  const parties = new Set(from.flatMap((id) => (state.partyOf[id] === undefined ? [] : [state.partyOf[id]])))
+  const sideOf = (id: string): FaceSide => (from.includes(id) || (state.partyOf[id] !== undefined && parties.has(state.partyOf[id])) ? 'ally' : 'enemy')
+  return getSceneCards(state).map((p) => ({ ...p, cards: p.cards.map((c) => ({ ...c, side: sideOf(c.id) })) }))
+}
