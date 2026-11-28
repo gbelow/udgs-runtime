@@ -33,6 +33,7 @@ export function useCombatActions() {
   const cancel = () => dispatch({ kind: "cancel", args: [] });
   const roll = () => dispatch({ kind: "roll", args: [] });
   const commit = () => dispatch({ kind: "commit", args: [] });
+  const hold = () => dispatch({ kind: "hold", args: [] });
   const back = () => dispatch({ kind: "back", args: [] });
   const skip = () => dispatch({ kind: "skip", args: [] });
   const pay = () => dispatch({ kind: "pay", args: [] });
@@ -54,5 +55,5 @@ export function useCombatActions() {
   const boostPush = (boost: boolean) => dispatch({ kind: "boostPush", args: [boost] });
   const backSegment = () => dispatch({ kind: "backSegment", args: [] });
 
-  return { view, menu, press, amend, turnOnAllies, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
+  return { view, menu, press, amend, turnOnAllies, target, react, amendReacted, confirmReacted, pass, cancel, commit, hold, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } as const;
 }

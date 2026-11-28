@@ -5,7 +5,8 @@ import { useClickMenu, useOpenWalk, usePopoverSpot } from '../hooks/useClickMenu
 import { ActionKey, Button, Closed, Floating, IconButton } from './ui'
 import { LockedFor } from './Locks'
 import type { ClickMenu, MenuEntry } from '../domain/scene/commands/clickMenu'
-import type { AnswerWalk, DeclarationWalk, ExchangeWalk, LandingWalk, ReactorStatus, WalkButton, WalkStep } from '../domain/scene/projections/openWalk'
+import type { SceneCommand } from '../domain/scene/commands/registry'
+import type { AnswerWalk, DeclarationWalk, ExchangeWalk, HeldWalk, LandingWalk, ReactorStatus, WalkButton, WalkStep } from '../domain/scene/projections/openWalk'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Degree } from '../domain/types'
 import type { Damage } from '../domain/character/rules/gear'
@@ -76,10 +77,11 @@ export function ClickMenuHost(){
   const keys = useKeyMap()
   const small = !menu && view?.kind === 'exchange' && !expanded
   const spot = usePopoverSpot(!!menu || (!!view && !small))
-  const card: Card | null = menu ? menuCard(menu, category, { press, start, close, show: showCategory })
+  const card: Card | null = menu ? menuCard(menu, category, { press, start, close, show: showCategory, send: walked.send })
     : !view || small ? null
     : view.kind === 'declare' ? declarationCard(view, walked, closeWalk)
     : view.kind === 'land' ? landingCard(view, walked, closeWalk)
+    : view.kind === 'held' ? heldCard(view, walked, closeWalk)
     : exchangeCard(view, walked)
   useCardKeys(card, keys)
   // the key that goes on brings back reactions put away, or the action put away
@@ -312,7 +314,7 @@ function TileView({ tile: t, n, onHint }: { tile: Tile, n: string | null, onHint
   )
 }
 
-type MenuPresses = { press: (e: MenuEntry) => void, start: () => void, close: () => void, show: (category: string | null) => void }
+type MenuPresses = { press: (e: MenuEntry) => void, start: () => void, close: () => void, show: (category: string | null) => void, send: (command: SceneCommand) => void }
 
 function entryIcon(e: MenuEntry): LucideIcon | undefined {
   return e.press.kind === 'declare' || e.press.kind === 'answer' ? ACTION_ICONS[e.press.draft.kind] : undefined
@@ -322,11 +324,23 @@ function entryIcon(e: MenuEntry): LucideIcon | undefined {
 function menuCard(menu: ClickMenu, shown: string | null, on: MenuPresses): Card {
   const { groups } = menu
   const group = groups.length === 1 ? groups[0] : groups.find((g) => g.category === shown) ?? null
-  const top = menu.turn ? (
-    <div className='flex flex-col gap-0.5 rounded border border-accent/60 bg-accent/10 px-2 py-1.5'>
-      <span>{menu.turn.note}</span>
-      {menu.turn.bar ? <span className='text-muted'>{menu.turn.bar}</span> : null}
-    </div>
+  const { held } = menu
+  const top = menu.turn || held ? (
+    <>
+      {menu.turn ? (
+        <div className='flex flex-col gap-0.5 rounded border border-accent/60 bg-accent/10 px-2 py-1.5'>
+          <span>{menu.turn.note}</span>
+          {menu.turn.bar ? <span className='text-muted'>{menu.turn.bar}</span> : null}
+        </div>
+      ) : null}
+      {held ? (
+        <div className='flex flex-row flex-wrap items-center gap-1 rounded border border-accent/60 bg-accent/10 px-2 py-1.5'>
+          <span className='flex-1'>holds <span className='font-semibold'>{held.title}</span></span>
+          <Closed reason={held.bar}><Button size='xs' disabled={held.bar !== null} onClick={() => on.send(held.release)}>release</Button></Closed>
+          <Button size='xs' weight='subtle' onClick={() => on.send(held.drop)}>drop</Button>
+        </div>
+      ) : null}
+    </>
   ) : null
   const tiles: Tile[] = group
     ? group.entries.map((e, i) => ({ key: `${e.label}:${i}`, label: e.label, icon: entryIcon(e), cost: e.cost, damage: e.damage, note: e.note ?? (e.surge ? `${e.surge} surge` : null), hint: e.hint, bar: e.bar, run: () => on.press(e) }))
@@ -376,7 +390,9 @@ function declarationCard(view: DeclarationWalk, on: Walked, closeWalk: () => voi
     meta: costLabel(view.cost),
     head: drop ? <IconButton icon={X} aria-label={drop.label} title={drop.label} onClick={() => on.send(drop.command)} /> : null,
     label: step ? stepLabel(step) : 'about to happen',
-    tiles: step ? stepTiles(view.walk, step, on) : [],
+    tiles: step ? stepTiles(view.walk, step, on)
+      : view.hold ? [{ key: 'hold', label: 'hold it over', icon: Hourglass, note: 'not enough AP: it goes on at the round change', run: () => on.send(view.hold!) }]
+      : [],
     below: step ? (step.note ? <span className='font-mono text-[11px] text-muted'>{step.note}</span> : null) : (
       <div className='flex flex-col'>
         {view.summary.map((s) => (
@@ -395,8 +411,27 @@ function declarationCard(view: DeclarationWalk, on: Walked, closeWalk: () => voi
     back: view.back ? { label: 'back', run: () => on.back(view.walk, view.back!) } : cancel ? { label: 'back', run: () => on.reopen(cancel) } : null,
     primary: step
       ? (step.keep ? { label: 'next', run: () => on.next(view.walk, step) } : null)
-      : { label: commit.label, icon: commit.label === 'hold' ? Hourglass : Check, run: () => on.send(commit.command), bar: commit.bar },
+      : { label: commit.label, icon: Check, run: () => on.send(commit.command), bar: commit.bar },
     cancel: () => (drop ? on.send(drop.command) : closeWalk()),
+  }
+}
+
+// The action held over to the next round: it goes on at the round change by
+// itself, or now, on its actor's turn, once they have the AP for it; or it is
+// dropped.
+function heldCard(view: HeldWalk, on: Walked, closeWalk: () => void): Card {
+  return {
+    title: view.title,
+    meta: 'held',
+    top: <span className='rounded border border-accent/60 bg-accent/10 px-2 py-1.5'>held over: it goes on at the round change</span>,
+    tiles: [
+      { key: 'release', label: 'release it now', icon: Play, bar: view.release.bar, run: () => on.send(view.release.command) },
+      { key: 'drop', label: 'drop it', icon: X, note: 'what it was paid comes back, less 1 AP', run: () => on.send(view.drop) },
+    ],
+    lock: view.actorId,
+    back: null,
+    primary: { label: 'release', icon: Play, run: () => on.send(view.release.command), bar: view.release.bar },
+    cancel: closeWalk,
   }
 }
 

@@ -13,7 +13,7 @@ import { isVariantOpenOn } from '../rules/strikeDeclaration'
 import { getModifierToggles } from '../rules/modifiers'
 import { sameCell } from '../rules/board/geometry'
 import { getOpenAction } from '../rules/log'
-import { getDeclaredHiddenTargets, getOwnCost, needsTarget } from '../rules/action'
+import { getDeclaredHiddenTargets, getOwnCost, getReleaseBar, needsTarget } from '../rules/action'
 import { getAnswerWays, getAvailableActions, type ActionOption } from '../rules/options'
 import { getGivesLine, getSurgeFacts } from '../../character/lenses/surge'
 import { getFightName } from '../rules/fighters'
@@ -21,7 +21,9 @@ import { getStartTurnBar, getTurnHolder } from '../rules/turn'
 import { getFollowBar } from '../rules/follow'
 import { getMustStart } from '../projections/turn'
 import { getOpenChoices, type ChoicePart } from '../projections/choices'
-import { getDraftLabel, getPassLabel, getRowHint } from '../projections/labels'
+import { getActionName, getDraftLabel, getPassLabel, getRowHint } from '../projections/labels'
+import { getHeldOf } from '../rules/hold'
+import type { SceneCommand } from './registry'
 import { amendAction, commitAction, declareAction, declareReaction, passReaction, setTarget } from './action'
 import { readPick } from './board'
 import { surge } from './turn'
@@ -66,7 +68,9 @@ export type MenuGroup = { category: ActionCategory | 'answer', entries: MenuEntr
 // before they act, and why they cannot now; `groups`, the entries under the
 // heading of their category, every category shown; `answering`, the open
 // action its answers are to; `at`, what was clicked to open it.
-export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[], groups: MenuGroup[], answering?: string, at: MenuAim }
+// `held`, the action its character holds over to the next round: released
+// now where they may, or dropped.
+export type ClickMenu = { title: string, select: string | null, actor: string, turn: { note: string, bar: string | null } | null, entries: MenuEntry[], groups: MenuGroup[], answering?: string, at: MenuAim, held?: { title: string, release: SceneCommand, bar: string | null, drop: SceneCommand } }
 
 function groupEntries(entries: readonly MenuEntry[]): MenuGroup[] {
   const categories = entries.some((e) => e.category === 'answer') ? ['answer' as const] : ACTION_CATEGORIES
@@ -182,7 +186,9 @@ function getOwnMenu(state: SceneState, at: MenuAim, selected: string): ClickMenu
   // a click on the character themself aims at nothing: whatever needs a target is aimed in the walk
   const own = at.on === 'token' && at.id === c.id
   const entries = [...getOwnEntries(state, own ? null : at, c), ...getFollowEntry(state, at, c)]
+  const held = getHeldOf(state, c.id)
   return {
+    ...(held ? { held: { title: getActionName(held), release: { kind: 'releaseHeld', args: [c.id] }, bar: getReleaseBar(state, held), drop: { kind: 'dropHeld', args: [c.id] } } } : {}),
     title: at.on === 'token' ? getFightName(state, at.id) : at.on === 'cell' ? 'here' : 'item',
     select: at.on === 'token' ? at.id : null,
     actor: selected,

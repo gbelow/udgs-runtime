@@ -710,7 +710,7 @@ function buildActionPanel(state: SeenScene): ActionPanelView {
     noTargets: step === 'target' && offers.targets.length === 0 && hiddenTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
-    canCommit: step === 'commit' && (payable || holds) && getContestWait(state) === null,
+    canCommit: step === 'commit' && payable && getContestWait(state) === null,
     commitBar: getContestWait(state),
     holds,
     die,

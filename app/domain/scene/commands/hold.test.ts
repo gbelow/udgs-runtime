@@ -7,7 +7,7 @@ import { getHeldActions, getHeldOf } from '../rules/hold'
 import { getOpenAction } from '../rules/log'
 import { getFreeAttackOptions } from '../rules/attack'
 import { commitAction, declareAction, declareReaction, rollAction, setTarget } from './action'
-import { breakHeld, finishHeld } from './hold'
+import { breakHeld, dropHeld, finishHeld, releaseHeld } from './hold'
 import { makeCaller } from '../../play/calls'
 import { ROUND_AP } from '../../tables'
 import { ABILITIES } from '../../abilities'
@@ -30,10 +30,10 @@ function inTurn(state: SceneState, id: string): SceneState {
   return { ...state, inTurnCharacter: id }
 }
 
-// First Aid on themselves, committed with whatever AP is left.
+// First Aid on themselves, held over with whatever AP is left.
 function tendSelf(state: SceneState, id: string): SceneState {
   const declared = declareAction(id, { kind: 'firstAid' }, newId)(inTurn(state, id))
-  return commitAction(() => HIT, newId)(setTarget(id)(declared))
+  return commitAction(() => HIT, newId, true)(setTarget(id)(declared))
 }
 
 function medicHolding(AP: number, enemyAt: [number, number] = [4, 0]): SceneState {
@@ -131,6 +131,36 @@ describe('an action held over to the next round', () => {
     expect(getHeldOf(broken, 'm')).toBeNull()
     expect(broken.characters.m.resources.AP).toBe(held.characters.m.resources.AP)
     expect(broken.journal.at(-1)?.reason).toBe('interrupted')
+  })
+
+  // the user's ruling: holding is a choice of its own, never what a commit
+  // does by itself
+  it('is never held by a commit that cannot be paid for', () => {
+    const declared = declareAction('m', { kind: 'firstAid' }, newId)(inTurn(board({ m: [0, 0], e: [4, 0] }, leftWith(medic('m'), SHORT), spearman('e')), 'm'))
+    const aimed = setTarget('m')(declared)
+    expect(commitAction(() => HIT, newId)(aimed)).toBe(aimed)
+  })
+
+  // the user's ruling: released on its actor's turn once they have the AP for
+  // what is left of it, as it would be at the round change
+  it('is released on its actor\'s turn once they have the AP for what is left', () => {
+    const held = medicHolding(SHORT)
+    expect(releaseHeld('m')(held)).toBe(held)
+    const topped = inTurn({ ...held, characters: { ...held.characters, m: { ...held.characters.m, resources: { ...held.characters.m.resources, AP: FIRST_AID_AP } } } }, 'm')
+    const released = releaseHeld('m')(topped)
+    expect(getHeldOf(released, 'm')).toBeNull()
+    expect(getOpenAction(released)?.kind).toBe('firstAid')
+    expect(releaseHeld('m')({ ...topped, inTurnCharacter: 'e' })).toEqual({ ...topped, inTurnCharacter: 'e' })
+  })
+
+  // the user's ruling, priced as combat.tex "Interruption": "The AP from the
+  // interrupted action is refunded, but 1 AP is lost"
+  it('is dropped by its actor, who gets what it was paid back less one', () => {
+    const held = medicHolding(SHORT)
+    const carried = getHeldOf(held, 'm')!.carried.AP
+    const dropped = dropHeld('m')(held)
+    expect(getHeldOf(dropped, 'm')).toBeNull()
+    expect(dropped.characters.m.resources.AP).toBe(held.characters.m.resources.AP + Math.max(0, carried - 1))
   })
 })
 

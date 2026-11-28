@@ -106,7 +106,9 @@ export function aimAtCell(cell: Coord): Updater {
 // as they stand when it is swung. When nobody has an answer open to it, nothing
 // waits between the commit and the die, so it is rolled or paid at once. A
 // flee committed as passed up is withdrawn.
-export function commitAction(thrown: Throw, newId: () => string): Updater {
+// Holding it over (`hold`) is asked for apart: a commit that cannot be paid
+// for is refused.
+export function commitAction(thrown: Throw, newId: () => string, holding = false): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open || getContestWait(state)) return state
@@ -115,7 +117,7 @@ export function commitAction(thrown: Throw, newId: () => string): Updater {
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(state, open) && !isTargetAimed(state, open)) return state
     const cost = getPayableCost(state, open)
-    const hold = cost ? null : getHoldCost(state, open)
+    const hold = cost || !holding ? null : getHoldCost(state, open)
     if (!cost && !hold) return state
     // combat.tex "Concentration": what it cannot be paid for, it is held over
     const committed: RootAction = { ...withCommitFacts(state, actor, open, toThrower(thrown).dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, committedCost: getOwnCost(state, open), step: 'react' }
@@ -126,7 +128,7 @@ export function commitAction(thrown: Throw, newId: () => string): Updater {
     // the jump an attack carries ("Lunge", "Jump Shot", rules/attackJump.ts)
     const walking = (committed.kind === 'shoot' ? openSteadyLeg(state, committed, 'before', newId()) : null)
       ?? (isJumpAttack(committed) ? openAttackJump(state, committed, newId()) : null)
-    if (walking) return commitAction(thrown, newId)(appendActions(locked, [walking]))
+    if (walking) return commitAction(thrown, newId, holding)(appendActions(locked, [walking]))
     return hasOpenAnswer(locked) ? locked : rollOrPay(thrown, newId)(locked)
   }
 }

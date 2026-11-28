@@ -150,7 +150,8 @@ function commit(p: Presses, actorId: string): Declared {
   const step = getNextStep(p.state)
   if (step !== 'commit') return refuse(`the declaration still asks for ${step === 'declare' ? asked(getOpenChoices(p.state).filter((c) => c.actorId === actorId)) : step}`)
   const ready = p.state
-  if (!p.press({ kind: 'commit', args: [] })) return refuse('the commit was refused')
+  // what there is not the AP for now is held over, as the commit used to by itself
+  if (!p.press({ kind: 'commit', args: [] }) && !p.press({ kind: 'hold', args: [] })) return refuse('the commit was refused')
   return { ok: true, commands: p.commands, ready, state: p.state }
 }
 

@@ -1,5 +1,6 @@
 import { isReadied } from '../../character/rules/readied'
 import { isCombatStarted } from './started'
+import { getTurnHolder } from './turn'
 import { notices } from './stealth'
 import { getMedicineAbility, getMedicineCost, getMedicineTargets } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
@@ -488,6 +489,19 @@ function canPayAsDeclarable(state: SceneState, action: Action): boolean {
 // spell is missing when it finishes, the action fails" — why the held action
 // cannot finish now, or null: what it needed to be made, bar the focus surge
 // and the price, which holding it has paid.
+// The character releasing the action they hold before the round changes
+// (the user's ruling): on their own turn, with nothing else being played out,
+// and the AP for what is left of its price; why not, or null.
+export function getReleaseBar(state: SceneState, held: RootAction): string | null {
+  const c = state.characters[held.actorId]
+  if (!c) return 'gone'
+  if (getOpenAction(state)) return 'another action is being played out'
+  if (getTurnHolder(state) !== held.actorId) return 'only on their own turn'
+  const price = getOwnCost(state, held)
+  if (!price || !canAfford(c, { AP: price.AP, STA: 0 }, isCombatStarted(state))) return 'not enough AP'
+  return getFinishBar(state, held)
+}
+
 export function getFinishBar(state: SceneState, held: RootAction): string | null {
   const c = state.characters[held.actorId]
   if (!c || isDead(c)) return 'gone'

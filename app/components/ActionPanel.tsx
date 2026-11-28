@@ -40,7 +40,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, menu, press, amend, turnOnAllies, target, react, amendReacted, confirmReacted, pass, cancel, commit, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
+  const { view, menu, press, amend, turnOnAllies, target, react, amendReacted, confirmReacted, pass, cancel, commit, hold, back, skip, roll, pay, accept, spellTestMode, spend, refund, grapple, theft, sight, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush, backSegment } = useCombatActions()
   const { mustStart } = useTurnControls()
   const knows = useKnows()
   const { step, open } = view
@@ -326,7 +326,10 @@ export function ActionPanel(){
 
       {declared ? (
         <div className='flex flex-row flex-wrap gap-1'>
-          <ActionKey look='go' icon={view.holds ? Hourglass : Check} aria-label='commit action' disabled={!view.canCommit} title={view.commitBar ?? (view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined)} onClick={commit}>{view.holds ? 'hold' : 'commit'}</ActionKey>
+          <ActionKey look='go' icon={Check} aria-label='commit action' disabled={!view.canCommit} title={view.commitBar ?? (view.holds ? 'not enough AP' : step && !view.canCommit ? STEP_LABEL[step] : undefined)} onClick={commit}>commit</ActionKey>
+          {view.holds && view.commitBar === null ? (
+            <ActionKey icon={Hourglass} aria-label='hold the action over' title='not enough AP: it goes on at the round change' onClick={hold}>hold it over</ActionKey>
+          ) : null}
           {open.spawned && open.flee === null && !open.required ? (
             <ActionKey aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</ActionKey>
           ) : null}

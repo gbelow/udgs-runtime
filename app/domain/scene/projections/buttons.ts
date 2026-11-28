@@ -6,7 +6,8 @@ import type { SceneCommand } from '../commands/registry'
 import { perState } from '../../perState'
 import { getOpenAction, getLiveReactionsTo, canAnswer } from '../rules/log'
 import { getConfirmable, getGoBar, getOpenOptions } from '../rules/options'
-import { getHoldCost, getNextStep, getPayableCost, isPreparedRequired, needsDie } from '../rules/action'
+import { getHoldCost, getNextStep, getPayableCost, getReleaseBar, isPreparedRequired, needsDie } from '../rules/action'
+import { getHeldOf } from '../rules/hold'
 import { canAcceptSpellTest } from '../rules/cast'
 import { getContestBar, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, hasAgreedToEnd } from '../rules/turn'
 import { getEndCombatBar } from '../rules/fight'
@@ -58,6 +59,7 @@ export function getButtonsOf(state: SceneState, id: string): OpenButton[] {
   const buttons = state.characters[id] ? [
     ...turnButtonsOf(state, id),
     ...actionButtonsOf(state, id),
+    ...heldButtonsOf(state, id),
     ...roundChangeButtonsOf(state, id),
     ...stressButtonsOf(state, id),
   ] : []
@@ -121,10 +123,23 @@ function openActionButtons(state: SceneState): OpenButton[] {
     ...button(go && die, { kind: 'roll', args: [] }, 'roll'),
     ...button(go && !die, { kind: 'pay', args: [] }, 'pay'),
     ...button(reacting && open.kind === 'spellTest' && canAcceptSpellTest(open), { kind: 'accept', args: [] }, 'accept the spell'),
-    ...button(step === 'commit' && getContestWait(state) === null && (getPayableCost(state, open) !== null || getHoldCost(state, open) !== null), { kind: 'commit', args: [] }, 'commit'),
+    ...button(step === 'commit' && getContestWait(state) === null && getPayableCost(state, open) !== null, { kind: 'commit', args: [] }, 'commit'),
+    ...button(step === 'commit' && getContestWait(state) === null && getPayableCost(state, open) === null && getHoldCost(state, open) !== null, { kind: 'hold', args: [] }, 'hold it over to the next round'),
     ...button(open.step === 'define' && !open.spawnedBy, { kind: 'cancel', args: [] }, 'cancel'),
     ...button(open.step === 'define' && !!open.spawnedBy && !isPreparedRequired(state, open), { kind: 'skip', args: [] }, 'pass it up'),
     ...button(open.step === 'post' && (step === 'confirm' || step === 'spend'), { kind: 'resolve', args: [] }, 'land it'),
+  ]
+}
+
+// The action the character holds: released on their turn once they have the
+// AP for it, or dropped.
+function heldButtonsOf(state: SceneState, id: string): OpenButton[] {
+  const held = getHeldOf(state, id)
+  if (!held) return []
+  const name = getFightName(state, id)
+  return [
+    ...button(getReleaseBar(state, held) === null, { kind: 'releaseHeld', args: [id] }, `${name}: release what they hold`),
+    ...button(!getRoundPhase(state), { kind: 'dropHeld', args: [id] }, `${name}: drop what they hold`),
   ]
 }
 

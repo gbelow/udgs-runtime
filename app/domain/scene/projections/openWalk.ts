@@ -2,9 +2,10 @@ import type { Action, RootAction, SceneState } from '../types'
 import type { SceneCommand } from '../commands/registry'
 import type { MenuPress } from '../commands/clickMenu'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { getAncestry, getOpenAction, getReactionsTo } from '../rules/log'
+import { getAction, getAncestry, getOpenAction, getReactionsTo } from '../rules/log'
+import { isRootAction } from '../rules/actionCatalog'
 import { getContestWait } from '../rules/contest'
-import { areReactionsComplete, getHoldCost, getNextStep, getOwnCost, getPayableCost, needsDie } from '../rules/action'
+import { areReactionsComplete, getHoldCost, getNextStep, getOwnCost, getPayableCost, getReleaseBar, needsDie } from '../rules/action'
 import { getGoBar } from '../rules/options'
 import { getHeldBackAnswerers, getHeldBackBar } from '../rules/reactions'
 import { getFightName } from '../rules/fighters'
@@ -117,7 +118,21 @@ export type DeclarationWalk = Walked & {
   cost: ActionCost | null
   summary: { label: string; value: string }[]
   commit: { label: string; command: SceneCommand; bar: string | null }
+  // holding it over to the next round, where it cannot be paid for now
+  hold: SceneCommand | null
   drop: { label: string; command: SceneCommand } | null
+}
+
+// The action held over to the next round, as long as it is held: released
+// now where its actor may, or dropped.
+export type HeldWalk = {
+  kind: 'held'
+  walk: string
+  actionId: string
+  actorId: string
+  title: string
+  release: { command: SceneCommand; bar: string | null }
+  drop: SceneCommand
 }
 
 // Where a reactor stands: the action waits on their reaction (`waiting`),
@@ -182,7 +197,7 @@ export type LandingWalk = Walked & {
   land: { command: SceneCommand; bar: string | null }
 }
 
-export type OpenWalk = DeclarationWalk | ExchangeWalk | LandingWalk
+export type OpenWalk = DeclarationWalk | ExchangeWalk | LandingWalk | HeldWalk
 
 const COMMIT_BARS = { declare: 'it is not all declared yet', target: 'pick a target', aim: 'aim it on the board' } as const
 
@@ -203,6 +218,8 @@ export function getAimedStep(before: OpenWalk | null, after: OpenWalk | null): {
 }
 
 export function getOpenWalk(state: SceneState, walk: WalkState): OpenWalk | null {
+  const parked = walk.actionId ? getAction(state, walk.actionId) : null
+  if (parked?.step === 'held' && isRootAction(parked)) return getHeldWalk(state, parked)
   const open = getOpenAction(state)
   if (!open) return null
   const id = walk.actionId
@@ -270,6 +287,18 @@ function getLandingWalk(state: SceneState, open: RootAction, passed: readonly Wa
   }
 }
 
+function getHeldWalk(state: SceneState, held: RootAction): HeldWalk {
+  return {
+    kind: 'held',
+    walk: walkKey(held.id),
+    actionId: held.id,
+    actorId: held.actorId,
+    title: titleOf(state, held),
+    release: { command: { kind: 'releaseHeld', args: [held.actorId] }, bar: getReleaseBar(state, held) },
+    drop: { kind: 'dropHeld', args: [held.actorId] },
+  }
+}
+
 function getDeclarationWalk(state: SceneState, open: Action, given: readonly WalkKey[], passed: readonly WalkKey[]): DeclarationWalk {
   const choices = getOpenChoices(state).filter((c) => c.actorId === open.actorId)
   const base = getHeavyBase(state, open)
@@ -279,7 +308,7 @@ function getDeclarationWalk(state: SceneState, open: Action, given: readonly Wal
   const holds = next === 'commit' && !payable && getHoldCost(state, open) !== null
   const bar = next === 'declare' || next === 'target' || next === 'aim' ? COMMIT_BARS[next]
     : next !== 'commit' ? 'cannot be committed now'
-    : getContestWait(state) ?? (payable || holds ? null : 'not enough AP')
+    : getContestWait(state) ?? (payable ? null : 'not enough AP')
   const drop = getOpenButtons(state).find((b) => b.command.kind === 'cancel' || b.command.kind === 'skip') ?? null
   return {
     kind: 'declare',
@@ -291,7 +320,8 @@ function getDeclarationWalk(state: SceneState, open: Action, given: readonly Wal
     cost: getOwnCost(state, open),
     summary: summaryOf(choices, base),
     ...walked(steps, [...given, ...passed], passed),
-    commit: { label: holds ? 'hold' : 'commit', command: { kind: 'commit', args: [] }, bar },
+    commit: { label: 'commit', command: { kind: 'commit', args: [] }, bar },
+    hold: holds && getContestWait(state) === null ? { kind: 'hold', args: [] } : null,
     drop: drop ? { label: drop.label, command: drop.command } : null,
   }
 }

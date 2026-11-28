@@ -29,6 +29,7 @@ import { toCharacterUpdater, type CharacterCommand, type GearCommand } from '../
 import { rollHeld } from './heldTest'
 import { hypeUp, keepMorale, rerollMorale, rollMorale, setTablePressure, skipMorale } from './morale'
 import { backToChase, continueRound, doneResting, holdOn, joinChaseFight, letGo, nextRound } from './nextRound'
+import { dropHeld, releaseHeld } from './hold'
 import { createParty, deleteParty, moveToParty, renameParty, splitOff } from './parties'
 import { defaultToCoward } from './social'
 import { breakFree, giveOrder, mock } from './domination'
@@ -88,6 +89,9 @@ export const sceneCommands = {
   // table's press for the bots it plays, never the panel's
   rollOrPay: command((ctx) => rollOrPay(ctx.thrower, ctx.newId)).by(gm),
   commit: command((ctx) => commitAction(ctx.thrower, ctx.newId)).by(panel('open')),
+  hold: command((ctx) => commitAction(ctx.thrower, ctx.newId, true)).by(panel('open')),
+  releaseHeld: command((_, id: string) => releaseHeld(id)).by(own),
+  dropHeld: command((_, id: string) => dropHeld(id)).by(own),
   back: command(() => withdrawLastReaction()).by(panel('back')),
   skip: command((ctx) => withdrawSpawnedAction(ctx.thrower, ctx.newId)).by(panel('open')),
   pay: command((ctx) => payAnswered(ctx.newId, ctx.thrower)).by(panel('open')),

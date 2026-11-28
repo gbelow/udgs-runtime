@@ -2,7 +2,8 @@ import type { Action, RootAction, SceneState } from '../types'
 import type { Caller } from '../../play/calls'
 import { WAITING } from './calling'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { getFinishBar, getOwnCost } from '../rules/action'
+import { getFinishBar, getOwnCost, getReleaseBar } from '../rules/action'
+import { getGiveUpLoss } from '../rules/stoicism'
 import { getHeldActions, getHeldOf } from '../rules/hold'
 import { getAction, getLiveActions, getOpenAction } from '../rules/log'
 import { isInterruptedBy } from '../rules/interruption'
@@ -86,6 +87,36 @@ function rank(state: SceneState, ids: string[], caller: Caller): Action[] {
     .map(({ a }, place) => ({ ...a, finishing: place }))
 }
 
+// The held action released on its actor's turn, once they have the AP for it
+// (the user's ruling): taken up to be played out as one finished at the
+// round change is.
+export function releaseHeld(id: string): (state: SceneState) => SceneState {
+  return (state) => {
+    const held = getHeldOf(state, id)
+    if (!held || getReleaseBar(state, held) !== null) return state
+    return openHeld(state, held)
+  }
+}
+
+// The held action dropped by its actor (the user's ruling, priced as
+// combat.tex "Interruption": "The AP from the interrupted action is refunded,
+// but 1 AP is lost"): what it was paid comes back, less what giving up costs.
+export function dropHeld(id: string): (state: SceneState) => SceneState {
+  return (state) => {
+    const held = getHeldOf(state, id)
+    const c = state.characters[id]
+    if (!held || !c) return state
+    const back = Math.max(0, held.carried.AP - getGiveUpLoss(c))
+    const refunded = back > 0 ? { ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP: c.resources.AP + back } } } } : state
+    return withdrawActions(refunded, [held.id], 'givenUp')
+  }
+}
+
+const openHeld = (state: SceneState, held: RootAction): SceneState => {
+  const open: Action = { ...held, step: 'react', cost: null, costTerms: [] }
+  return setActions(state, getLiveActions(state).map((a) => (a.id === held.id ? open : a)), [held.id])
+}
+
 // Once nothing is being played out, the held action next in the order of
 // finishing is taken up to be played out like any other, priced as what is
 // left of its price; one that lacks something it needs fails, and the AP of
@@ -97,6 +128,5 @@ export function releaseNextHeld(state: SceneState): SceneState {
     .sort((a, b) => (a.finishing ?? 0) - (b.finishing ?? 0))[0]
   if (!next) return state
   if (getFinishBar(state, next) !== null) return releaseNextHeld(withdrawActions(state, [next.id], 'failed'))
-  const open: Action = { ...next, step: 'react', cost: null, costTerms: [] }
-  return setActions(state, getLiveActions(state).map((a) => (a.id === next.id ? open : a)), [next.id])
+  return openHeld(state, next)
 }
